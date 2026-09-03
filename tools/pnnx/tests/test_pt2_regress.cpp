@@ -1,24 +1,7 @@
-// Tencent 2026
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// N4 整改回归样例(独立 harness,零 libtorch)。
-// 编译(在 tests/ 目录下)。注意 test_pt2_regress.cpp 必须放在链接行最后:
-// 它 include 的 F_pt2.cpp 含 pass 注册对象,需晚于 pass_level2.cpp 里的
-// 全局注册表 map 构造执行,否则静态初始化顺序未定导致启动段错误。
-//     g++ -O2 -std=c++11 -Wall -Wextra -I../src ../src/pass_level2.cpp ../src/ir.cpp ../src/utils.cpp ../src/storezip.cpp ../src/model_stat.cpp ../src/pass_level2/functionize.cpp ../src/pass_level2/eliminate_contiguous.cpp ../src/pass_level2/eliminate_size_numtotensor_int.cpp ../src/pass_level2/fuse_constantlist.cpp test_pt2_regress.cpp -o test_pt2_regress
-//
-// 覆盖 docs/15 P1.3 / P2.2 以及 PR review 回归:
-// 1) F_pt2_fold_ones_like:合法形态(f32 + 静态正 shape + 标量 other/alpha)
-//    折叠出带 data 的 pnnx.Attribute;非 f32 / 空 shape / 非正维 / 非标量
-//    other 一律保持原图(match 拒绝,write 不再静默留空属性)。
-// 2) load_pt2 argument_to_constant:DEVICE 保留 "type:index" 编码,cuda:1
-//    不降级为 cuda;无 index 为裸 "type";空 device 编 None。
-// 3) StoreZipWriter 写出的 Zip64 archive 可由 StoreZipReader 重新打开。
-// 4) adaptive pool 只有 PT2 loader 标记的形态才可把实例化 None 还原为 0;
-//    显式请求与输入相同的 output_size 不得被误改。
-//
-// 白盒说明:#include 产品 .cpp 以访问 static 函数(argument_to_constant)
-// 与文件内 pass 类(F_pt2_fold_ones_like);两者均零 libtorch 依赖。
+// Regression harness for PT2 passes. It has no libtorch dependency.
 
 #include "load_pt2.cpp"
 #include "pt2_schema.cpp"
@@ -72,7 +55,7 @@ pnnx.Output             output      1 0 out
 
         if (string_other)
     {
-        // other 为字符串常量 → 非标量形态,必须整体不匹配
+    // Non-scalar other must not match.
         for (size_t i = 0; i < g.ops.size(); i++)
         {
             if (g.ops[i]->name == "op_c")
@@ -90,7 +73,7 @@ static void run_ones_like_pass(Graph& g)
 
 static void test_ones_like_fold()
 {
-    // 合法形态:f32 静态正 shape → 折叠,attr 带完整 data
+    // Valid f32 shape folds to an attribute with data.
     {
         Graph g;
         build_ones_like_graph(g, false);
@@ -120,7 +103,7 @@ static void test_ones_like_fold()
         }
     }
 
-    // 拒绝形态:每种都保持原图,不产生 pnnx.Attribute
+    // Invalid shapes remain unchanged.
     {
         Graph g;
         build_ones_like_graph(g, false);
@@ -132,7 +115,7 @@ static void test_ones_like_fold()
     {
         Graph g;
         build_ones_like_graph(g, false);
-        find_op(g, "aten::add")->outputs[0]->type = 1; // shape 缺失(动态/未知)
+        find_op(g, "aten::add")->outputs[0]->type = 1; // Missing or dynamic shape.
         run_ones_like_pass(g);
         CHECK(find_op(g, "pnnx.Attribute") == 0 && find_op(g, "aten::add") != 0 && g.ops.size() == 6,
               "ones_like: missing shape keeps original graph");
@@ -142,7 +125,7 @@ static void test_ones_like_fold()
         build_ones_like_graph(g, false);
         Operator* add = find_op(g, "aten::add");
         add->outputs[0]->type = 1;
-        add->outputs[0]->shape.push_back(0); // 非正维
+        add->outputs[0]->shape.push_back(0); // Non-positive dimension.
         add->outputs[0]->shape.push_back(3);
         run_ones_like_pass(g);
         CHECK(find_op(g, "pnnx.Attribute") == 0 && find_op(g, "aten::add") != 0 && g.ops.size() == 6,
@@ -150,7 +133,7 @@ static void test_ones_like_fold()
     }
     {
         Graph g;
-        build_ones_like_graph(g, true); // other 为字符串,非标量
+        build_ones_like_graph(g, true); // Non-scalar other.
         Operator* add = find_op(g, "aten::add");
         add->outputs[0]->type = 1;
         add->outputs[0]->shape.push_back(2);
@@ -167,31 +150,45 @@ static void test_device_argument()
     Pt2Argument a;
     a.type = Pt2Argument::DEVICE;
 
-    // cuda:1 → "cuda:1"(不得降级为 cuda)
+    // cuda:1 must retain its index.
     a.device_type = "cuda";
     a.device_index = 1;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda:1",
           "device: cuda:1 encoded as cuda:1");
 
-    // cuda:0 → "cuda:0"(与无 index 可区分)
+    // cuda:0 remains distinct from an unindexed device.
     a.device_index = 0;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda:0",
           "device: cuda:0 encoded as cuda:0");
 
-    // 无 index(-1)→ 裸 "cuda"
+    // An unindexed device uses the bare type.
     a.device_index = -1;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda",
           "device: cuda with null index encoded as cuda");
 
-    // cpu 无 index → "cpu"
     a.device_type = "cpu";
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cpu",
           "device: cpu with null index encoded as cpu");
 
-    // 空 device_type → None
+    // An empty device type encodes None.
     a.device_type = "";
     CHECK(argument_to_constant(a, v) && v.type == 0,
           "device: empty device encoded as None");
+}
+
+static void test_scalar_type_argument()
+{
+    Parameter v;
+    Pt2Argument a;
+    a.type = Pt2Argument::SCALAR_TYPE;
+
+    a.int_value = 7;
+    CHECK(argument_to_constant(a, v) && v.type == 2 && v.i == 6,
+          "scalar_type: serialized float32 maps to JIT float32");
+
+    a.int_value = 5;
+    CHECK(argument_to_constant(a, v) && v.type == 2 && v.i == 4,
+          "scalar_type: serialized int64 maps to JIT int64");
 }
 
 static void build_adaptive_pool_graph(Graph& g)
@@ -262,15 +259,13 @@ static void test_adaptive_pool_source_guard()
 static void test_adaptive_pool_module_source_guard()
 {
     Graph g;
-    g.parse(R "PNNXIR(7767517
-            3 2 pnnx.Input input_0 0 1 input
-                nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
-            = (8, 8)
-                  pnnx.Output output 1 0 out) PNNXIR ");
-        find_op(g, "nn.AdaptiveAvgPool2d")
-            ->inputs[0]
-            ->shape
-        = std::vector<int>{1, 3, 8, 8};
+    g.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
@@ -280,13 +275,13 @@ static void test_adaptive_pool_module_source_guard()
           "adaptive_pool module: explicit size is preserved");
 
     Graph pt2;
-    pt2.parse(R "PNNXIR(7767517
-              3 2 pnnx.Input input_0 0 1 input
-                  nn.AdaptiveAvgPool2d op_0 1 1 input out output_size
-              = (8, 8)
-                    pnnx.Output output 1 0 out) PNNXIR ");
-        Operator* pool
-        = find_op(pt2, "nn.AdaptiveAvgPool2d");
+    pt2.parse(R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+nn.AdaptiveAvgPool2d    op_0        1 1 input out output_size=(8,8)
+pnnx.Output             output      1 0 out
+)PNNXIR");
+    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;
@@ -346,6 +341,7 @@ int main()
 {
     test_ones_like_fold();
     test_device_argument();
+    test_scalar_type_argument();
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();

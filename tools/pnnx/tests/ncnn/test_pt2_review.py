@@ -58,10 +58,10 @@ class BufferMutation(nn.Module):
         return x, self.state
 
 
-class ModuleAdaptiveNone(nn.Module):
+class ModuleAdaptiveExplicit(nn.Module):
     def __init__(self):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d((None, 3))
+        self.pool = nn.AdaptiveAvgPool2d((8, 8))
 
     def forward(self, x):
         return self.pool(x)
@@ -96,13 +96,13 @@ def main():
     )
 
     result, param = _export_and_convert(
-        ModuleAdaptiveNone(), (torch.ones(1, 3, 8, 8),), "[1,3,8,8]"
+        ModuleAdaptiveExplicit(), (torch.ones(1, 3, 8, 8),), "[1,3,8,8]"
     )
     check(
         result.returncode == 0
         and "nn.AdaptiveAvgPool2d" in param
-        and "output_size=(0,3)" in param,
-        "review: module adaptive None axis is preserved",
+        and "output_size=(8,8)" in param,
+        "review: explicit module adaptive size is preserved",
         result.stderr + param,
     )
 

@@ -13,8 +13,7 @@
 
 namespace pnnx {
 
-// torch 的 tensor dtype 序列化枚举(pt2 权重 config / tensor_values 的 dtype
-// 字段)→ pnnx type。实测(docs/11 §7):7 = float32,5 = int64。未知枚举返回 0。
+// PT2 dtype enum -> pnnx type. Unknown values return 0.
 static int pt2_dtype_enum_to_pnnx_type(long long dtype)
 {
     switch (dtype)
@@ -36,6 +35,19 @@ static int pt2_dtype_to_pnnx_type(long long dtype)
     return type;
 }
 
+static long long pt2_scalar_type_to_jit_type(long long scalar_type)
+{
+    switch (scalar_type)
+    {
+    case 7:
+        return 6;
+    case 5:
+        return 4;
+    default:
+        return scalar_type;
+    }
+}
+
 static int pnnx_type_from_string(const std::string& t)
 {
     if (t == "f32") return 1;
@@ -50,9 +62,7 @@ static int pnnx_type_from_string(const std::string& t)
     return 0;
 }
 
-// "torch.ops.aten.conv2d.default" → "aten::conv2d"
-// torchscript 的 kind display 不含 overload,pt2 target 必须剥掉后缀才能与
-// 现有 pass_level2 形态分支(pnnx.Input 匹配)对齐
+// Match TorchScript kind display by dropping the PT2 overload suffix.
 static std::string map_pt2_target(const std::string& target)
 {
     const std::string prefix = "torch.ops.";
@@ -72,9 +82,7 @@ static std::string map_pt2_target(const std::string& target)
     return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1, dot2 - dot1 - 1);
 }
 
-// "torch.ops.aten.conv2d.default" → "aten::conv2d.default"(保留 overload)
-// map_pt2_target 剥 overload 是为了对齐 torchscript kind display;默认值静态表
-// 按注册表全名(含 overload)组织,查表用本函数。
+// Keep the overload for default-table lookup.
 static std::string pt2_full_target_name(const std::string& target)
 {
     const std::string prefix = "torch.ops.";
@@ -90,8 +98,7 @@ static std::string pt2_full_target_name(const std::string& target)
     return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1);
 }
 
-// 默认值静态表的编码值 → prim::Constant 的 value 参数。
-// 返回 false 表示编码异常(生成器已按可编码性过滤,忠实起见不猜测)。
+// Decode a default-table value into a prim::Constant.
 static bool default_value_to_parameter(int type, const char* value, Parameter& p)
 {
     switch (type)
@@ -113,9 +120,6 @@ static bool default_value_to_parameter(int type, const char* value, Parameter& p
         return true;
     case PT2_D_INTS:
     {
-        // 空列表 → Parameter()(type 0):ts 侧空列表实参物化为 None 常量
-        // (如 max_pool2d stride=() 在 trace 图里是 value=None),下游转换器
-        // 按 type 0 解释;pt2 补全必须对齐同一形态
         if (value[0] == '\0')
         {
             p = Parameter();
@@ -179,7 +183,6 @@ static bool default_value_to_parameter(int type, const char* value, Parameter& p
         return true;
     }
     case PT2_D_DEVICE:
-        // "cpu"/"cuda:0" 形态按 STRING 表达;"" 表示 None
         if (value[0] == '\0')
         {
             p = Parameter();
@@ -194,8 +197,7 @@ static bool default_value_to_parameter(int type, const char* value, Parameter& p
     }
 }
 
-// 把 prim::Constant 的 value 参数从 Pt2Argument 转出来。
-// 返回 false 表示该形态暂不支持(builder 忠实转写,不做语义猜测)。
+// Convert a PT2 argument to a prim::Constant value.
 static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
 {
     switch (a.type)
@@ -204,14 +206,17 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
         value = Parameter();
         return true;
     case Pt2Argument::INT:
+        value = Parameter((long long)a.int_value);
+        return true;
     case Pt2Argument::SCALAR_TYPE:
+        // PT2 dtype enums differ from TorchScript scalar types.
+        value = Parameter(pt2_scalar_type_to_jit_type(a.int_value));
+        return true;
     case Pt2Argument::MEMORY_FORMAT:
-        // dtype / memory_format 枚举按整数值转写(与 ts 侧常量物化一致)
         value = Parameter((long long)a.int_value);
         return true;
     case Pt2Argument::DEVICE:
-        // Parameter 以字符串表达设备；index 非空时必须保留为 "type:index"，
-        // 否则 cuda:1 会错误降级成 cuda（与 cuda:0/默认设备混淆）。
+        // Preserve the device index; cuda:1 must not collapse to cuda.
         if (a.device_type.empty())
         {
             value = Parameter();
@@ -250,7 +255,7 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
     }
 }
 
-// 从 zip 读取权重/常量二进制,构造 pnnx Attribute(裸字节,无 pickle)
+// Read a raw PT2 tensor entry into a pnnx Attribute.
 static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry& entry, bool is_constant, Attribute& attr)
 {
     if (entry.use_pickle)
@@ -375,12 +380,7 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
     return 0;
 }
 
-// 常量前置:builder 惰性创建标量 prim::Constant,在消费者之后追加。
-// fuse_expression(pass_level3)从图尾向图头扫描,常量若先于其消费者被扫到
-// 会先被包成 pnnx.Expression,消费者的算术链融合时无法内联成字面量,产出与
-// torchscript 侧不同的常量 blob 形态(torchscript 侧常量总在消费者之前)。
-// 将每个 prim::Constant 移到其(首个)消费者之前即满足该不变量;其余 op 保持
-// 导出节点序(= 程序序),与 torchscript 侧一致。常量无输入,位置自由。
+// Constants must precede consumers for the reverse fuse_expression scan.
 static void hoist_constants(Graph& pg)
 {
     for (size_t i = 0; i < pg.ops.size(); i++)
@@ -401,22 +401,16 @@ static void hoist_constants(Graph& pg)
             }
         }
 
-        // 常量在消费者之前(或无消费者)则不动;无消费者的由 dead_code_elimination 清理
         if (consumer_pos >= pg.ops.size() || consumer_pos > i)
             continue;
 
-        // 常量在消费者之后(builder 惰性创建的常态)→ 前移到消费者之前
         pg.ops.erase(pg.ops.begin() + i);
         pg.ops.insert(pg.ops.begin() + consumer_pos, op);
-        i--; // 补偿 erase 的位置偏移,下一轮从原位继续
+        i--; // Compensate for the erased element.
     }
 }
 
-// 切分族:torch.export 图内直接产出多输出(getitem 已被 exporter 折叠为
-// as_tensors 列表),torchscript 侧是 1 输出 + prim::ListUnpack 形态,由
-// fuse_op1ton_unpack(level3)折叠回多输出。转写为 ts 同构形态,使现有
-// torch_unbind / torch_split / torch_chunk / torch_tensor_split 形态分支
-// (1 输出 pattern)零改动匹配。
+// Recreate the ListUnpack shape expected by existing split passes.
 static bool pt2_target_unpackable(const std::string& op_type)
 {
     return op_type == "aten::unbind" || op_type == "aten::split"
@@ -424,11 +418,7 @@ static bool pt2_target_unpackable(const std::string& op_type)
            || op_type == "aten::tensor_split";
 }
 
-// nn_module_stack(node.metadata)的最内层模块信息。序列化形态
-// "L<qualname>,<name>,<class>[;L<qualname>,<name>,<class>]...",分号分层、
-// 逗号分段;最内层(最后段)类名以 torch.nn.modules. 开头 = 该节点来自 nn.
-// 模块调用,否则是 F. 函数调用(Model/顶层)。短类名 = 类全名最后一段,
-// 模块实例名 = 第二段(模块属性名)。
+// Decode the innermost nn_module_stack entry from node metadata.
 static bool parse_nn_module_stack(const std::string& nms, std::string& short_class, std::string& module_name)
 {
     if (nms.empty())
@@ -455,8 +445,7 @@ static bool parse_nn_module_stack(const std::string& nms, std::string& short_cla
     return true;
 }
 
-// upsample 算子名 → interpolate mode。与 ts 侧 level1 Upsample 模块转换的
-// find_node_by_kind 推断同构:mode 由调用的 aten 算子决定,是文件事实。
+// Infer interpolate mode from the exported aten operator.
 static const char* pt2_upsample_mode(const std::string& aten)
 {
     if (aten == "aten::upsample_nearest1d" || aten == "aten::upsample_nearest2d" || aten == "aten::upsample_nearest3d")
@@ -474,10 +463,7 @@ static const char* pt2_upsample_mode(const std::string& aten)
     return 0;
 }
 
-// 算子名的空间维数(max_pool2d → 2,adaptive_avg_pool1d → 1)。模块形态的
-// 单值标量实参按它广播成列表——schema 的 int[]/float[] 形参在 JIT 侧会把
-// python 单值泛化为列表(torchscript trace 物化 kernel_size=3 为 (3,3)),
-// torch.export 则保留单值原样,折参时需对齐 ts 物化形态。
+// Infer spatial rank and broadcast scalar module arguments to JIT list shape.
 static int pt2_aten_spatial_ndim(const std::string& aten)
 {
     const size_t n = aten.size();
@@ -490,7 +476,7 @@ static int pt2_aten_spatial_ndim(const std::string& aten)
     return 0;
 }
 
-// 模块形态折参(含单值广播)统一入口
+// Normalize module-form arguments, including scalar broadcasting.
 static void fold_module_param(Operator* op, const std::string& key, const Parameter& raw, int nd)
 {
     Parameter value = raw;
@@ -502,11 +488,7 @@ static void fold_module_param(Operator* op, const std::string& key, const Parame
     op->params[key] = value;
 }
 
-// 白名单:(nn 模块类, aten 算子) 精确对应模块 forward 的语义调用才启用
-// 模块形态。同一 aten 算子可能出现在无关模块内(Conv3d 的 padding_mode=
-// 'reflect' 会在模块内产生 aten::pad),错配会把 pad 节点错标成卷积。
-// 白名单以实测 DIFF 的模块为起点渐进铺开(docs/13 N4);未收录的保持
-// aten 原样忠实转写。
+// Only exact module/operator pairs use module-form normalization.
 static bool pt2_module_form_allowed(const std::string& cls, const std::string& aten)
 {
     if (cls == "ReLU6")
@@ -547,11 +529,7 @@ static bool pt2_module_form_allowed(const std::string& cls, const std::string& a
     return false;
 }
 
-// 模块形态的折参键名:逐模块对齐 torchscript 侧 level1 模块转换(FuseModulePass)
-// 的折参产出——如 aten::pad 的形参 pad 在 nn.ConstantPad* 形态叫 padding,
-// upsample 的 output_size/scale_factors 对应 size/scale_factor。返回空串 =
-// 该实参不折(折参集合必须与 level1 模块转换的产出精确相等,多折会让
-// pass_ncnn 的层参数多写,少折则转换器匹配不上)。
+// Names mirror the level1 module conversion output exactly.
 static std::string pt2_module_param_key(const std::string& cls, const std::string& name)
 {
     if (cls == "ReLU6" || cls == "Softmax2d")
@@ -580,7 +558,7 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
             return "padding";
         if (name == "value")
             return "value";
-        return ""; // mode:level1 模块转换不折
+        return ""; // Not folded by level1 module conversion.
     }
 
     if (cls == "ReflectionPad1d" || cls == "ReflectionPad2d" || cls == "ReplicationPad1d"
@@ -600,9 +578,6 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
 
     if (cls == "UpsamplingNearest2d" || cls == "UpsamplingBilinear2d")
     {
-        // 与 nn.Upsample 不同,level1 模块转换对这两个类不折 align_corners
-        // (vec 算子的 align_corners 恒为 true,由类名表达),折参集合必须
-        // 精确对齐,否则 pass_ncnn 的 pattern 匹配不上
         if (name == "output_size")
             return "size";
         if (name == "scale_factors")
@@ -612,9 +587,6 @@ static std::string pt2_module_param_key(const std::string& cls, const std::strin
 
     if (cls == "LayerNorm" || cls == "RMSNorm")
     {
-        // elementwise_affine 不在 aten 形参里(ts 侧由模块属性判定),在
-        // 节点转写处按 weight/bias 实参是否存在手动补;weight/bias 张量走
-        // operand(与 ts level1 模块产出同构);cudnn_enable 不折
         if (name == "normalized_shape" || name == "eps")
             return name;
         return "";
@@ -640,7 +612,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
     int pnnx_unknown_index = 0;
 
-    // 1. user_input → pnnx.Input(与 ts level1 相同:pnnx_input_%d 序号)
+    // 1. user_input -> pnnx.Input.
     {
         int input_index = 0;
         for (size_t i = 0; i < program.input_specs.size(); i++)
@@ -657,8 +629,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             r->producer = op;
             op->outputs.push_back(r);
 
-            // 形状/dtype:文件内 tensor_values 是导出时的事实,优先采用
-            // (CLI inputshape 与导出形状不一致时保证图自洽);CLI 仅作兜底
             std::map<std::string, Pt2TensorMeta>::const_iterator it = program.tensor_values.find(spec.graph_name);
             if (it != program.tensor_values.end())
             {
@@ -683,8 +653,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
     }
 
-    // 2. parameter / buffer / tensor_constant → pnnx.Attribute
-    //    (op->name = state_dict 名,与 ts level1 的 GetAttr wrapped_name 对齐)
+    // 2. parameter / buffer / tensor_constant -> pnnx.Attribute.
     for (size_t i = 0; i < program.input_specs.size(); i++)
     {
         const Pt2InputSpec& spec = program.input_specs[i];
@@ -717,13 +686,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         r->shape = attr.shape;
     }
 
-    // 3. 图节点 → Operator。
-    //    F. 形态:aten 原名 + 标量参数 operand 化(忠实转写,零归一化);
-    //    nn. 模块形态:nn.<类> + 标量参数 params 化——nn_module_stack 是
-    //    torch.export 图的一等事实(node.metadata),节点来自哪个模块由文件
-    //    明示。模块形态的形态对齐目标是 torchscript 侧 level1 模块转换
-    //    (FuseModulePass)的产出(其折参即 params 化),与 F. 形态对齐
-    //    level1 通用转写同理,loader 侧转写与 ts 层次对等。
+    // 3. Convert graph nodes to Operators.
     for (size_t i = 0; i < program.nodes.size(); i++)
     {
         const Pt2Node& node = program.nodes[i];
@@ -737,43 +700,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         Operator* op = pg.new_operator(is_module_form ? ("nn." + module_class) : aten_type,
                                        "pnnx_" + std::to_string(pnnx_unknown_index++));
 
-        // adaptive pool 的 output_size 中 None 会被 torch.export 实例化为
-        // 输入尺寸；仅给该 PT2 来源打标，避免 pass_level2 把 TorchScript
-        // 或显式相同尺寸误判成 None。
+        // Mark only PT2-originated materialized None dimensions.
         bool adaptive_pool_has_none = node.adaptive_pool_has_none;
         std::vector<int> adaptive_pool_none_axes = node.adaptive_pool_none_axes;
-        if (!adaptive_pool_has_none && is_module_form
-                && node.stack_trace.find("self.output_size") != std::string::npos)
-        {
-            const Pt2NodeInput* output_size_input = 0;
-            const Pt2NodeInput* self_input = 0;
-            for (size_t j = 0; j < node.inputs.size(); j++)
-            {
-                if (node.inputs[j].name == "output_size")
-                    output_size_input = &node.inputs[j];
-                else if (node.inputs[j].name == "self")
-                    self_input = &node.inputs[j];
-            }
-            const Operand* input_operand = self_input && self_input->arg.type == Pt2Argument::TENSOR
-                                           && self_input->arg.tensor_names.size() == 1
-                                           ? pg.get_operand(self_input->arg.tensor_names[0])
-                                           : 0;
-            if (output_size_input && output_size_input->arg.type == Pt2Argument::INTS && input_operand)
-            {
-                const std::vector<long long>& output_size = output_size_input->arg.int_values;
-                const std::vector<int>& input_shape = input_operand->shape;
-                const int k = (int)output_size.size();
-                for (int j = 0; j < k; j++)
-                {
-                    const int dim_index = (int)input_shape.size() - k + j;
-                    adaptive_pool_none_axes.push_back(dim_index >= 0 && dim_index < (int)input_shape.size()
-                                                      && output_size[j] == input_shape[dim_index]);
-                }
-                adaptive_pool_has_none = std::find(adaptive_pool_none_axes.begin(), adaptive_pool_none_axes.end(), 1)
-                                         != adaptive_pool_none_axes.end();
-            }
-        }
-
         if (adaptive_pool_has_none
                 && (aten_type == "aten::adaptive_avg_pool1d" || aten_type == "aten::adaptive_avg_pool2d"
                     || aten_type == "aten::adaptive_avg_pool3d" || aten_type == "aten::adaptive_max_pool1d"
@@ -790,10 +719,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
         if (is_module_form)
         {
-            // 模块形态:张量实参 operand 化(权重与 ts level1 模块产出同构,
-            // 由 fuse_static_* 折层);标量实参按折参规则进 params;
-            // torch.export 省略的默认实参不补全(折参集合以 level1 模块转换
-            // 的产出为准,不需要 schema 默认值)
             for (size_t j = 0; j < node.inputs.size(); j++)
             {
                 const Pt2NodeInput& input = node.inputs[j];
@@ -816,9 +741,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                         return -1;
                     }
 
-                    // LayerNorm/RMSNorm 的 γ/β:ts level1 模块转换把它们折为
-                    // op attrs(pass_ncnn 的 pattern 按 @weight/@bias 捕获),
-                    // 与一般权重的 operand 形态不同
                     if ((module_class == "LayerNorm" || module_class == "RMSNorm")
                             && (input.name == "weight" || input.name == "bias") && r->producer
                             && r->producer->type == "pnnx.Attribute")
@@ -881,10 +803,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 op->attrs["bias"] = bias;
             }
 
-            // torch.export 省略的默认实参补进 params:ts 侧 trace 物化全部
-            // 默认值,level1 模块转换按 namedInput 折参,补全也是形态对齐的
-            // 一部分(如 nn.MaxPool2d 的 dilation/ceil_mode 被 export 省略,
-            // pass_ncnn 的 pattern 需要它们在 params 里)
             const std::string full_target = pt2_full_target_name(node.target);
             const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
             if (defaults)
@@ -942,9 +860,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 }
             }
 
-            // return_indices 由节点输出数判定(with_indices 形态有 indices 输出);
-            // 无消费者的 indices 由 eliminate_maxpool_indices(pass_ncnn)消除,
-            // 与 ts 侧形态汇合
             if (module_class == "MaxPool1d" || module_class == "MaxPool2d" || module_class == "MaxPool3d")
             {
                 size_t out_count = 0;
@@ -953,13 +868,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 op->params["return_indices"] = (out_count > 1);
             }
 
-            // Upsample 类的 mode 从 aten 算子推断(nn.UpsamplingNearest2d/
-            // Bilinear2d 的类名即 mode,level1 转换不折 mode)
             if (module_class == "Upsample")
                 op->params["mode"] = std::string(pt2_upsample_mode(aten_type));
 
-            // LayerNorm/RMSNorm 的 elementwise_affine 由 weight 实参是否存在
-            // 判定(ts 侧为模块属性 hasattr("weight"))
             if (module_class == "LayerNorm" || module_class == "RMSNorm")
             {
                 bool has_weight = false;
@@ -974,20 +885,14 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 op->params["elementwise_affine"] = has_weight;
             }
 
-            // 输出收集与 F. 形态共用(见循环尾);模块形态必非切分族
         }
 
         if (!is_module_form)
         {
-            // 默认值静态表:torch.export 会省略等于默认值的实参(cat 的 dim=0、
-            // flatten 的 end_dim=-1 等),按 schema 形参序查表补全为完整形态,
-            // 使 pt2 图与 torchscript 图同构,下游 pass_level2 形态分支零改动复用。
-            // 表未收录的算子保持 torch.export 原样转写(缺参不补)。
+            // Fill omitted defaults to match TorchScript parameter arity.
             const std::string full_target = pt2_full_target_name(node.target);
             const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
 
-            // 待转写实参序列:有表 = schema 形参序(provided 按名归位,缺失留空待补);
-            // provided 形参名与表对不上(schema 漂移等)= 整节点回退原样顺序(忠实性护栏)
             std::vector<const Pt2NodeInput*> ordered_inputs;
             if (defaults)
             {
@@ -1035,7 +940,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                 if (input == 0)
                 {
-                    // 该形参被 torch.export 省略 → 查默认值补全(输出标记,便于排查)
                     const Pt2ArgDefault& d = defaults->args[j];
 
                     Parameter value;
@@ -1088,7 +992,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                 if (arg.type == Pt2Argument::TENSORS)
                 {
-                    // ts 形态对齐:张量列表经 prim::ListConstruct 折成单个 list operand
                     Operator* op_list = pg.new_operator("prim::ListConstruct",
                                                         "pnnx_" + std::to_string(pnnx_unknown_index++));
 
@@ -1114,7 +1017,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     continue;
                 }
 
-                // 标量/None 字面量 → prim::Constant operand
                 Parameter value;
                 if (!argument_to_constant(arg, value))
                     return -1;
@@ -1132,7 +1034,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             }
         } // if (!is_module_form)
 
-        // 收集节点全部输出张量名(torch 2.13 的元组输出 = 单 spec 多 as_tensors)
         std::vector<std::string> out_tensor_names;
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
@@ -1144,7 +1045,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
         if (pt2_target_unpackable(op->type) && out_tensor_names.size() > 1)
         {
-            // 切分族:1 输出(list)+ prim::ListUnpack,对齐 ts level1 形态
             Operand* list_out = pg.new_operand(node.name + ".out");
             list_out->producer = op;
             op->outputs.push_back(list_out);
@@ -1173,10 +1073,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
     }
 
-    // 3.5 graph.tensor_values → operand 形状/dtype 补全
-    //     torch.export 把 FakeTensor 元数据放 graph.tensor_values(含中间张量);
-    //     pass_ncnn 的 shape 依赖转换器(torch_stack/adaptive_pool 等)需要它,
-    //     CLI inputshape 只作用于 pnnx.Input,中间张量只能靠这张表。
     for (size_t i = 0; i < pg.operands.size(); i++)
     {
         Operand* r = pg.operands[i];
@@ -1195,7 +1091,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
     }
 
-    // 4. user_output → pnnx.Output
     for (size_t i = 0; i < program.output_specs.size(); i++)
     {
         char name[32];
@@ -1214,7 +1109,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         op->inputs.push_back(r);
     }
 
-    // 5. 常量前置:满足 fuse_expression 反向扫描的内联不变量(见函数注释)
+    // Keep constants before consumers for the reverse fusion pass.
     hoist_constants(pg);
 
     return 0;

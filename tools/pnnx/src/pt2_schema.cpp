@@ -17,8 +17,7 @@ static bool string_ends_with(const std::string& s, const std::string& suffix)
            && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-// JSON 数值 → 整数。JSON_INT 直取;JSON_DOUBLE 显式转换(整数字段被未来版本
-// 写成浮点时,union 直取 int_value 会静默错值);其余类型告警返回 0。
+// Accept integral JSON doubles to tolerate schema-version drift.
 static long long json_as_int(const JsonValue& v)
 {
     if (v.isInt())
@@ -69,9 +68,7 @@ const Pt2WeightEntry* Pt2Program::find_constant(const std::string& state_dict_na
     return 0;
 }
 
-// ----- argument -----
 
-// as_* 变体 → 参数类型。未知变体返回 NONE 并告警(容忍后续 torch 版本扩展)。
 static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
 {
     if (arg.hasMember("as_tensor"))
@@ -117,7 +114,6 @@ static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
 
 static void collect_tensor_names(const JsonValue& v, std::vector<std::string>& names)
 {
-    // as_tensor = {"name": x};as_tensors = [{"name": x}, ...]
     if (v.isObject() && v.hasMember("name"))
     {
         names.push_back(v["name"].asString());
@@ -198,7 +194,6 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
     return a;
 }
 
-// ----- node -----
 
 static Pt2Node parse_node(const JsonValue& n)
 {
@@ -211,7 +206,6 @@ static Pt2Node parse_node(const JsonValue& n)
     {
         Pt2NodeInput input;
         input.name = inputs[i]["name"].asString();
-        // kind: 1 = positional, 2 = keyword(实测,其余值按 positional 处理)
         input.arg = parse_argument(inputs[i]["arg"], input.name, json_as_int(inputs[i]["kind"]) == 2);
         node.inputs.push_back(input);
     }
@@ -220,7 +214,6 @@ static Pt2Node parse_node(const JsonValue& n)
     for (size_t i = 0; i < outputs.size(); i++)
     {
         Pt2NodeOutput output;
-        // as_tensor(单输出)或 as_tensors(元组输出,如 chunk / unbind)
         if (outputs[i].hasMember("as_tensor"))
             collect_tensor_names(outputs[i]["as_tensor"], output.tensor_names);
         else if (outputs[i].hasMember("as_tensors"))
@@ -228,7 +221,6 @@ static Pt2Node parse_node(const JsonValue& n)
         node.outputs.push_back(output);
     }
 
-    // metadata 可能整体缺失或为 null
     const JsonValue& metadata = n["metadata"];
     if (metadata.isObject())
     {
@@ -280,9 +272,7 @@ static Pt2Node parse_node(const JsonValue& n)
     return node;
 }
 
-// ----- signature -----
 
-// arg 形态:parameter/buffer/tensor_constant = {"name": x};user_input = {"as_tensor": {"name": x}}
 static std::string parse_spec_graph_name(const JsonValue& inner)
 {
     if (!inner.hasMember("arg"))
@@ -302,7 +292,6 @@ static void parse_input_specs(const JsonValue& specs, std::vector<Pt2InputSpec>&
     for (size_t i = 0; i < specs.size(); i++)
     {
         const JsonValue& spec = specs[i];
-        // 实测:每个 spec 对象恰含一个 kind 键(user_input/parameter/buffer/tensor_constant)
         for (std::map<std::string, JsonValue>::const_iterator it = spec.object_value.begin();
                 it != spec.object_value.end(); ++it)
         {
@@ -344,7 +333,6 @@ static int parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>
     for (size_t i = 0; i < specs.size(); i++)
     {
         const JsonValue& spec = specs[i];
-        // 实测:仅 user_output 一种,{ "arg": { "as_tensor": { "name": x } } }
         for (std::map<std::string, JsonValue>::const_iterator it = spec.object_value.begin();
                 it != spec.object_value.end(); ++it)
         {
@@ -363,9 +351,7 @@ static int parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>
     return 0;
 }
 
-// ----- weights / constants config -----
 
-// sizes/strides 元素是单键对象 {"as_int": 4};storage_offset 同形
 static std::vector<long long> parse_int_list_of_objects(const JsonValue& v)
 {
     std::vector<long long> out;
@@ -381,7 +367,6 @@ static std::vector<long long> parse_int_list_of_objects(const JsonValue& v)
 
 static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEntry>& out)
 {
-    // config: { state_dict_name → {path_name, is_param, use_pickle, tensor_meta{...}} }
     for (std::map<std::string, JsonValue>::const_iterator it = config.object_value.begin();
             it != config.object_value.end(); ++it)
     {
@@ -416,10 +401,7 @@ static void parse_weight_config(const JsonValue& config, std::vector<Pt2WeightEn
     }
 }
 
-// ----- top level -----
 
-// ----- graph.tensor_values(张量名 → FakeTensor 元数据,含中间张量) -----
-// sizes 元素实测全为 {"as_int": N};符号形状等其他变体出现时按 -1(未知)记录
 static void parse_tensor_values(const JsonValue& tv, std::map<std::string, Pt2TensorMeta>& out)
 {
     if (!tv.isObject())
@@ -472,7 +454,6 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
             return -1;
         }
 
-        // archive_root = 条目名去掉 "models/model.json"(含尾部斜杠)
         program.archive_root = model_json_entry.substr(0, model_json_entry.size() - strlen("models/model.json"));
 
         const uint64_t json_size = zip.get_file_size(model_json_entry);
@@ -485,11 +466,9 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
 
         const JsonValue root = parse_json(std::string(buf.data(), (size_t)json_size));
 
-        // header
         const JsonValue& schema_version = root["schema_version"];
-        if (schema_version.isObject()) // 实测 {"major": 8, "minor": 20}
+        if (schema_version.isObject())
         {
-            // 仅在确为数值时赋值,保持"缺失 = -1"语义
             if (schema_version["major"].isNumber())
                 program.schema_version_major = json_as_int(schema_version["major"]);
             if (schema_version["minor"].isNumber())
@@ -517,7 +496,6 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
 
         const JsonValue& graph_module = root["graph_module"];
 
-        // nodes
         const JsonValue& nodes = graph_module["graph"]["nodes"];
         for (size_t i = 0; i < nodes.size(); i++)
         {
@@ -533,12 +511,10 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
             program.nodes.push_back(node);
         }
 
-        // graph.tensor_values(张量元数据表,含中间张量的形状/dtype)
         const JsonValue& graph = graph_module["graph"];
         if (graph.isObject() && graph.hasMember("tensor_values"))
             parse_tensor_values(graph["tensor_values"], program.tensor_values);
 
-        // signature
         const JsonValue& signature = graph_module["signature"];
         if (signature.isObject())
         {
@@ -549,7 +525,6 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
                 return -1;
         }
 
-        // weights / constants config(close() 只关句柄,filemetas 仍可用)
         const std::string weights_entry = program.archive_root + "data/weights/model_weights_config.json";
         const std::string constants_entry = program.archive_root + "data/constants/model_constants_config.json";
 

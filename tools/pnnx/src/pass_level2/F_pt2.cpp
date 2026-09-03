@@ -1,15 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// pt2 路径的形态归一分支(住这里,渐进铺开)。
-//
-// 默认值缺省形态已由离线静态表解决:torch.export 会省略等于默认值的实参,
-// builder(load_pt2)按 src/aten_defaults_table.h 把省略实参补全为完整
-// schema 形态,使 pt2 图与 torchscript 图同构,torch_cat / torch_flatten /
-// torch_stack / F_linear / F_conv2d_1 等既有 ts 形态分支零改动直接消费。
-//
-// 本文件收留"无 ts 同文件兄弟"的 pt2 形态差异:torch.export 与 torchscript
-// 对同一算子形态不同的场景(分解形态、overload 变体、多输出结构等)。
+// PT2-specific normalization passes.
 
 #include "pass_level2.h"
 
@@ -21,21 +13,12 @@
 
 namespace pnnx {
 
-// pt2 形态分支:torch.ones_like 常量折叠。
-// torchscript 侧 pass_level0 用 libtorch 实跑模型,把"值不依赖输入"的子图
-// (如 maximum(z, ones_like(z)+0.5) 中的 ones_like(z)+0.5)折成常量;pt2
-// 路径零 libtorch,而 ones_like 的值语义恒为全 1,可静态折叠:ones_like +
-// add(标量) → 全 (1 + alpha*other) 的 pnnx.Attribute,使后续 fuse_expression
-// 的表达式形态与 torchscript 侧一致。仅匹配"直接被 add(标量常量) 消费"的
-// 形态(现行语料的唯一形态);other 为张量等不满足条件的形态不匹配,保持
-// 原样显式失败。
+// Fold the value-independent ones_like + scalar subgraph without libtorch.
 class F_pt2_fold_ones_like : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
-        // 匹配 torch_ones_like(pass_level2,priority 20)归一后的形态;
-        // ones_like 的可省实参已由该 pass 与默认值表消化
         return R"PNNXIR(7767517
 6 5
 pnnx.Input              input_0     0 1 input
@@ -54,7 +37,6 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        // 对齐 torchscript 侧 fold_constants 的产物命名(normalize 后比对)
         return "pnnx_fold";
     }
 
@@ -62,7 +44,6 @@ pnnx.Output             output      1 0 out
                const std::map<std::string, Parameter>& captured_params,
                const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        // other 为标量(float/int),alpha 为数值;张量 other 不折叠
         const Parameter& other = captured_params.at("other");
         const Parameter& alpha = captured_params.at("alpha");
         if (other.type != 2 && other.type != 3)
@@ -75,8 +56,6 @@ pnnx.Output             output      1 0 out
             return false;
 
         const Operand* out = add->outputs[0];
-        // 只有文件元数据明确给出静态正 shape 且为 f32 时才折叠；否则保持
-        // 原图，避免重写器先改成 Attribute 后 write() 静默留下空属性。
         if (out->type != 1 || out->shape.empty())
             return false;
 
@@ -103,7 +82,6 @@ pnnx.Output             output      1 0 out
         const float scalar_alpha = (alpha.type == 2) ? (float)alpha.i : alpha.f;
         const float folded_value = 1.f + scalar_alpha * scalar_other;
 
-        // match() 已保证输出为 f32、静态正 shape 且 float buffer 不溢出。
         const Operand* out = op->outputs[0];
 
         Attribute attr;
@@ -125,18 +103,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_fold_ones_like, 90)
 
-// pt2 形态分支:weight_norm 参数化权重(命令式遍历,非 pattern 驱动)。
-// torch.export 保留 aten::_weight_norm(v, g, dim) 节点;torchscript 侧在
-// level1 模块转换(nn_Conv*.cpp/nn_Linear.cpp)时已用 utils.cpp 的
-// apply_weight_norm 把折算权重并入 @weight。此处把 v/g 均为 pnnx.Attribute
-// 的 dim=0 形态折成 pnnx.Attribute(同一 float 实现,权重字节与 ts 一致),
-// 使后续 fuse_static_conv / fuse_static_convtranspose / fuse_static_linear
-// (level5)与 ts 同构;原始 v/g/dim 失去消费者后由 dead code 清理。
-//
-// 不走 GraphRewriterPass 的原因:pattern 引擎要求"pattern blob 的消费者数
-// 与图一致",而参数化权重常被多次推理复用(如同一 Linear 权重喂多个输入
-// 场景),v/g operand 有 N 个 _weight_norm 消费者,pattern 无法表达。
-// v/g 非常量权重等不满足条件的形态保持原图(不硬凑)。
+// Walk weight norm imperatively because shared parameters defeat pattern matching.
 void fold_pt2_weight_norm(Graph& pg)
 {
     for (size_t i = 0; i < pg.ops.size(); i++)
@@ -155,13 +122,10 @@ void fold_pt2_weight_norm(Graph& pg)
             || !r_g->producer || r_g->producer->type != "pnnx.Attribute")
             continue;
 
-        // dim 有两种常量形态:builder 直产的 prim::Constant,与经常量合并
-        // 后的 pnnx.Expression;均只接受零(沿 axis0 折算)
         float dim_value = -1.f;
         if (r_dim->producer && r_dim->producer->type == "prim::Constant")
         {
             const Parameter& dim = r_dim->producer->params.at("value");
-            // dim 在 schema 里是 float(export 物化为 as_float),接受 int/float 编码
             dim_value = (dim.type == 2) ? (float)dim.i : ((dim.type == 3) ? dim.f : -1.f);
         }
         else if (r_dim->producer && r_dim->producer->type == "pnnx.Expression")
@@ -205,8 +169,6 @@ void fold_pt2_weight_norm(Graph& pg)
 
         apply_weight_norm(weight, weight_g, dim0, size);
 
-        // 就地转成 pnnx.Attribute:输出 operand(名字/消费者)不变,下游
-        // F.linear/F.conv*d 的 weight operand 直接指向常量权重
         op->type = "pnnx.Attribute";
         op->params.clear();
         for (size_t j = 0; j < op->inputs.size(); j++)
@@ -223,22 +185,12 @@ void fold_pt2_weight_norm(Graph& pg)
     }
 }
 
-// pt2 形态分支:adaptive pool 的 output_size 缺省维还原。
-// torch.export 把 output_size 中的 None 实例化成输入空间维尺寸((None,3) →
-// 单个 INTS 常量 (24,3)),torchscript 侧保留 None(转换器对 None 写 -233 哨兵)。
-// 把"等于输入对应空间维"的元素还原为 0(pass_ncnn 对 0 同样写 -233),两路
-// 编码一致;恒等池化语义不变。仅匹配 prim::Constant 形态,ts 的 ListConstruct
-// 形态不受影响。需早于 F_adaptive_*(priority 120)消费 aten 原形态。
+// Restore adaptive-pool None dimensions materialized by torch.export.
 class F_pt2_adaptive_pool_base : public GraphRewriterPass
 {
 public:
-    // 替换图与匹配图同构,靠"确会发生改写才匹配"终止重写循环:
-    // 含 0 元素(已改写,torch 语义 output_size 非 0)或没有元素等于
-    // 输入对应空间维(无需改写)时不再匹配
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
-        // 只有 pt2 loader 明示标记的实例化 None 才能还原为 0。不能根据
-        // output_size 恰好等于输入尺寸反推来源，否则会改写显式相同尺寸。
         const std::string marker_key = "op_0.__pt2_none_axes";
         if (captured_params.find(marker_key) == captured_params.end()
             || captured_params.at(marker_key).type != 4)
@@ -289,7 +241,6 @@ public:
             }
         }
 
-        // 无论是否改写都回写(替换图里的 value=(0) 仅为占位)
         ops.at("op_sz")->params["value"] = osz;
     }
 };
@@ -487,16 +438,10 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool1d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool2d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_adaptive_max_pool3d, 110)
 
-// pt2 形态分支:nn.AdaptiveAvgPool* 模块形态(params 化 output_size)。
-// builder 的模块转写(load_pt2)把 nn.AdaptiveAvgPool* 的 output_size 折进
-// op->params;torch.export 把 output_size 中的 None 实例化成输入空间维尺寸,
-// "等于输入对应空间维"还原为 0 的规则与上面的 operand 形态分支一致,此为
-// params 形态版本(pass_ncnn 的 nn_AdaptiveAvgPool* 按 0 写 -233 哨兵)。
+// Restore materialized None dimensions in module-form adaptive pooling.
 class F_pt2_nn_adaptive_avg_pool_base : public GraphRewriterPass
 {
 public:
-    // 与 operand 形态分支相同:替换图与匹配图同构,靠"确会发生改写才匹配"
-    // 终止重写循环
     bool match(const std::map<std::string, const Operator*>& matched_operators,
                const std::map<std::string, Parameter>& captured_params,
                const std::map<std::string, Attribute>& /*captured_attrs*/) const
@@ -553,7 +498,6 @@ public:
             }
         }
 
-        // 无论是否改写都回写(替换图里的 output_size=(0) 仅为占位)
         ops.at("op_0")->params["output_size"] = osz;
     }
 };
@@ -649,15 +593,7 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool1d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool2d, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_nn_adaptive_avg_pool3d, 110)
 
-// pt2 形态分支:LocalResponseNorm 的 export 分解链还原(nn 模块与 F 函数
-// 两种形态)。torch.export 把 LRN 分解成 mul→reshape→pad→avg_pool3d→
-// squeeze→reshape→mul/add/pow/div 链(torchscript 侧是单 op:模块走 level1
-// 折参,函数走 F_local_response_norm pass);链形态与 ts 的分解
-// (F_local_response_norm_1)同构,差异仅在 reshape 的 shape 来源:ts 是
-// Tensor.size+ListConstruct 动态构建,pt2 是 export 物化的 prim::Constant
-// (静态 shape,容忍 -1 动态维)。nn 模块语义为对称 pad(size=2p+1,奇窗口),
-// F 函数允许非对称 pad(size=pad_l+pad_r+1,可偶数);shape 与输入不对齐
-// 的普通相似算术链不匹配。
+// Restore the LocalResponseNorm decomposition emitted by torch.export.
 class F_pt2_local_response_norm_base : public GraphRewriterPass
 {
 public:
@@ -708,7 +644,6 @@ pnnx.Output             output      1 0 out
             return false;
         }
 
-        // LRN 语义:size = pad_l + pad_r + 1;子类追加对称性约束
         const Parameter& pad_left = captured_params.at("pad_left");
         const Parameter& pad_right = captured_params.at("pad_right");
         if (pad_left.type != 2 || pad_right.type != 2)
@@ -716,7 +651,6 @@ pnnx.Output             output      1 0 out
         if (pad_left.i + pad_right.i + 1 != captured_params.at("size").i)
             return false;
 
-        // reshape 的目标 shape 须与输入对齐:(N,1,C,H,W) 与 (N,C,H,W)
         const Parameter& xs = captured_params.at("__input_shape__");
         const Parameter& shape1 = captured_params.at("shape1");
         const Parameter& shape2 = captured_params.at("shape2");
@@ -759,8 +693,6 @@ protected:
         if (pad_is_symmetric() && pad_left.type == 2 && pad_right.type == 2 && pad_left.i != pad_right.i)
             return false;
 
-        // 输入 operand 的 shape 是 blob 元数据,pattern 捕获不到,借
-        // matched_operators 取出后走二段判定
         const Operator* op_div = matched_operators.at("op_9");
         if (op_div->inputs[0]->shape.size() != 4)
             return false;

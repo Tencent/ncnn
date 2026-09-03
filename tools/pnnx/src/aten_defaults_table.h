@@ -1,34 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
-//
-// aten 参数默认值静态表(离线生成,勿手改)。
-//
-// torch.export 会把等于默认值的实参从图里省略(cat 的 dim=0、flatten 的
-// end_dim=-1、conv2d 的 dilation/groups 等);pt2 builder 据本表把省略的
-// 实参补全为完整 schema 形态,使 pt2 图与 torchscript 图同构、下游
-// pass_level2 形态分支(torch_cat / torch_flatten / F_conv2d_1 ...)零改动复用。
-//
-// 再生成:python scripts/dump_aten_defaults.py --scan tests/ncnn ../../../pt2-dump --ops aten::add.Tensor aten::batch_norm aten::cat aten::clamp aten::conv2d aten::embedding aten::flatten.using_ints aten::gelu aten::hardsigmoid aten::hardswish aten::layer_norm aten::leaky_relu aten::linear aten::max aten::mean aten::min aten::mish aten::pad aten::permute aten::relu aten::reshape aten::select.int aten::sigmoid aten::silu aten::slice.Tensor aten::softmax.int aten::squeeze aten::stack aten::sum aten::tanh aten::unsqueeze aten::view
-// 来源:torch 2.13.0+cpu 的 torch._C._jit_get_all_schemas()(4362 个 schema)
-// 生成时间:2026-08-31 18:50
-// 收录算子:180 个
-//
-// 值编码(type 标签 + 字符串值):
-//   NO_DEFAULT=-1  无默认值的必填参数(占位,保证形参顺序)
-//   NONE=0         ""
-//   INT=1          十进制整数
-//   FLOAT=2        strtod 可解析(含 inf/-inf/nan)
-//   BOOL=3         "0"/"1"
-//   STRING=4       原文
-//   INTS/FLOATS/STRINGS=5/6/7  逗号分隔平铺;值为 "" 表示空列表,builder 转
-//                  type 0(None)—— ts 侧空列表实参物化为 None 常量(如
-//                  max_pool2d 的 stride=()),下游转换器按 type 0 解释
-//   DEVICE=8       ""=None,否则 "cpu"/"cuda:0" 形态(builder 转 STRING)
-//   UNSUPPORTED=9  bool 列表/嵌套列表/Tensor 等 builder 无法表达的默认值,
-//                  不参与补全(生成时告警留痕)
-//
-// 限制:覆盖随测试语料增长按需重跑扩充;表未收录的算子 builder 保持
-// torch.export 原样转写(缺参不补,stderr 告警)。
+// Generated from torch 2.13.0+cpu; do not edit manually.
+// Encoded values preserve schema arity and distinguish None from empty lists.
 
 #ifndef PNNX_ATEN_DEFAULTS_TABLE_H
 #define PNNX_ATEN_DEFAULTS_TABLE_H
@@ -62,13 +35,12 @@ struct Pt2ArgDefault
 
 struct Pt2DefaultsEntry
 {
-    const char* op; // 全名含 overload,如 "aten::conv2d.default"
+    const char* op; // Full name including overload.
     const Pt2ArgDefault* args;
     size_t arg_count;
 };
 
-// 按 pt2 target 全名(如 "aten::flatten.using_ints")查参数默认值表。
-// 未收录返回 0。
+// Returns the defaults for a full PT2 target name, or 0 if absent.
 inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
 {
     static const Pt2ArgDefault args_aten__weight_norm_default[] = {
