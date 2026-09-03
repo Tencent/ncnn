@@ -36,16 +36,31 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 #if __ARM_FEATURE_SVE
-        const int packn = svcntw();
+        const int packn = svcnth();
+        const int packn_w = svcntw();
+        const svbool_t _pg = svptrue_b32();
+        const svbool_t _pgh = svptrue_b16();
         const svfloat16_t _zero = svdup_n_f16(0.f);
-        for (; i < size; i += packn)
+        for (; i + packn <= size; i += packn)
         {
-            const int remain = size - i < packn ? size - i : packn;
-            const svbool_t _pg32 = svwhilelt_b32((unsigned int)0, (unsigned int)remain);
-            const svbool_t _pg16 = svwhilelt_b16((unsigned int)0, (unsigned int)remain);
-            svfloat32_t _p = svld1_f32(_pg32, ptr + i);
-            svfloat16_t _p_fp16 = svuzp1_f16(svcvt_f16_f32_x(_pg32, _p), _zero);
-            svst1_f16(_pg16, (__fp16*)outptr + i, _p_fp16);
+            svfloat32_t _p0 = svld1_f32(_pg, ptr);
+            svfloat32_t _p1 = svld1_f32(_pg, ptr + packn_w);
+            svfloat16_t _p0_fp16 = svcvt_f16_f32_x(_pg, _p0);
+            svfloat16_t _p1_fp16 = svcvt_f16_f32_x(_pg, _p1);
+            svst1_f16(_pgh, (__fp16*)outptr, svuzp1_f16(_p0_fp16, _p1_fp16));
+
+            ptr += packn;
+            outptr += packn;
+        }
+        const int i0 = i;
+        for (; i < size; i += packn_w)
+        {
+            const int ii = i - i0;
+            const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            const svbool_t _pgh1 = svwhilelt_b16((unsigned int)i, (unsigned int)size);
+            svfloat32_t _p = svld1_f32(_pg1, ptr + ii);
+            svfloat16_t _p_fp16 = svuzp1_f16(svcvt_f16_f32_x(_pg1, _p), _zero);
+            svst1_f16(_pgh1, (__fp16*)outptr + ii, _p_fp16);
         }
 #elif (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
@@ -210,16 +225,31 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 #if __ARM_FEATURE_SVE
-        const int packn = svcntw();
+        const int packn = svcnth();
+        const int packn_w = svcntw();
+        const svbool_t _pg = svptrue_b32();
+        const svbool_t _pgh = svptrue_b16();
         const svfloat16_t _zero = svdup_n_f16(0.f);
-        for (; i < size; i += packn)
+        for (; i + packn <= size; i += packn)
         {
-            const int remain = size - i < packn ? size - i : packn;
-            const svbool_t _pg32 = svwhilelt_b32((unsigned int)0, (unsigned int)remain);
-            const svbool_t _pg16 = svwhilelt_b16((unsigned int)0, (unsigned int)remain);
-            svfloat16_t _p_fp16 = svzip1_f16(svld1_f16(_pg16, (const __fp16*)ptr + i), _zero);
-            svfloat32_t _p = svcvt_f32_f16_x(_pg32, _p_fp16);
-            svst1_f32(_pg32, outptr + i, _p);
+            svfloat16_t _p_fp16 = svld1_f16(_pgh, (const __fp16*)ptr);
+            svfloat32_t _p0 = svcvt_f32_f16_x(_pg, svzip1_f16(_p_fp16, _zero));
+            svfloat32_t _p1 = svcvt_f32_f16_x(_pg, svzip2_f16(_p_fp16, _zero));
+            svst1_f32(_pg, outptr, _p0);
+            svst1_f32(_pg, outptr + packn_w, _p1);
+
+            ptr += packn;
+            outptr += packn;
+        }
+        const int i0 = i;
+        for (; i < size; i += packn_w)
+        {
+            const int ii = i - i0;
+            const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            const svbool_t _pgh1 = svwhilelt_b16((unsigned int)i, (unsigned int)size);
+            svfloat16_t _p_fp16 = svzip1_f16(svld1_f16(_pgh1, (const __fp16*)ptr + ii), _zero);
+            svfloat32_t _p = svcvt_f32_f16_x(_pg1, _p_fp16);
+            svst1_f32(_pg1, outptr + ii, _p);
         }
 #elif (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)

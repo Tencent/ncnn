@@ -40,13 +40,30 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 #if __ARM_FEATURE_SVE
-        const int packn = svcntw();
-        for (; i < size; i += packn)
+        const int packn = svcnth();
+        const int packn_w = svcntw();
+        const svbool_t _pg = svptrue_b32();
+        const svbool_t _pgh = svptrue_b16();
+        for (; i + packn <= size; i += packn)
         {
-            const svbool_t _pg = svwhilelt_b32((unsigned int)i, (unsigned int)size);
-            svuint32_t _p = svreinterpret_u32_f32(svld1_f32(_pg, ptr + i));
-            _p = svlsr_n_u32_x(_pg, svadd_n_u32_x(_pg, _p, 0x8000), 16);
-            svst1h_u32(_pg, (unsigned short*)outptr + i, _p);
+            svuint32_t _p0 = svreinterpret_u32_f32(svld1_f32(_pg, ptr));
+            svuint32_t _p1 = svreinterpret_u32_f32(svld1_f32(_pg, ptr + packn_w));
+            _p0 = svlsr_n_u32_x(_pg, svadd_n_u32_x(_pg, _p0, 0x8000), 16);
+            _p1 = svlsr_n_u32_x(_pg, svadd_n_u32_x(_pg, _p1, 0x8000), 16);
+            svuint16_t _p = svuzp1_u16(svreinterpret_u16_u32(_p0), svreinterpret_u16_u32(_p1));
+            svst1_u16(_pgh, (unsigned short*)outptr, _p);
+
+            ptr += packn;
+            outptr += packn;
+        }
+        const int i0 = i;
+        for (; i < size; i += packn_w)
+        {
+            const int ii = i - i0;
+            const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            svuint32_t _p = svreinterpret_u32_f32(svld1_f32(_pg1, ptr + ii));
+            _p = svlsr_n_u32_x(_pg1, svadd_n_u32_x(_pg1, _p, 0x8000), 16);
+            svst1h_u32(_pg1, (unsigned short*)outptr + ii, _p);
         }
 #elif __ARM_NEON
         for (; i + 15 < size; i += 16)
@@ -217,12 +234,28 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 #if __ARM_FEATURE_SVE
-        const int packn = svcntw();
-        for (; i < size; i += packn)
+        const int packn = svcnth();
+        const int packn_w = svcntw();
+        const svbool_t _pg = svptrue_b32();
+        const svbool_t _pgh = svptrue_b16();
+        for (; i + packn <= size; i += packn)
         {
-            const svbool_t _pg = svwhilelt_b32((unsigned int)i, (unsigned int)size);
-            svuint32_t _p = svld1uh_u32(_pg, (const unsigned short*)ptr + i);
-            svst1_f32(_pg, outptr + i, svreinterpret_f32_u32(svlsl_n_u32_x(_pg, _p, 16)));
+            svuint16_t _p = svld1_u16(_pgh, (const unsigned short*)ptr);
+            svuint32_t _p0 = svlsl_n_u32_x(_pg, svunpklo_u32(_p), 16);
+            svuint32_t _p1 = svlsl_n_u32_x(_pg, svunpkhi_u32(_p), 16);
+            svst1_f32(_pg, outptr, svreinterpret_f32_u32(_p0));
+            svst1_f32(_pg, outptr + packn_w, svreinterpret_f32_u32(_p1));
+
+            ptr += packn;
+            outptr += packn;
+        }
+        const int i0 = i;
+        for (; i < size; i += packn_w)
+        {
+            const int ii = i - i0;
+            const svbool_t _pg1 = svwhilelt_b32((unsigned int)i, (unsigned int)size);
+            svuint32_t _p = svld1uh_u32(_pg1, (const unsigned short*)ptr + ii);
+            svst1_f32(_pg1, outptr + ii, svreinterpret_f32_u32(svlsl_n_u32_x(_pg1, _p, 16)));
         }
 #elif __ARM_NEON
         for (; i + 15 < size; i += 16)
