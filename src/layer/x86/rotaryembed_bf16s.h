@@ -5,6 +5,10 @@
 void rotaryembed_bf16s_avx512bf16(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void rotaryembed_bf16s_avxneconvert(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void rotaryembed_bf16s_avx2(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         rotaryembed_bf16s_avx512bf16(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        rotaryembed_bf16s_avxneconvert(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
         return;
     }
 #endif
@@ -229,7 +241,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 ss = _mm_mul_ps(swap, s);
 
                     __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
-                    __m128i y_bf16 = float2bfloat_sse(y, y);
+                    __m128i y_bf16 = float2bfloat_sse(y);
                     _mm_storel_epi64((__m128i*)outptr, y_bf16);
 
                     ptr += 4;
@@ -318,8 +330,9 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 y0 = _mm_comp_fnmadd_ps(x1, s, _mm_mul_ps(x0, c));
                     __m128 y1 = _mm_comp_fmadd_ps(x0, s, _mm_mul_ps(x1, c));
 
-                    _mm_storel_epi64((__m128i*)outptr0, float2bfloat_sse(y0, y0));
-                    _mm_storel_epi64((__m128i*)outptr1, float2bfloat_sse(y1, y1));
+                    __m128i _out_bf16_0 = float2bfloat_sse(y0, y1);
+                    _mm_storel_epi64((__m128i*)outptr0, _out_bf16_0);
+                    _mm_storel_epi64((__m128i*)outptr1, _mm_srli_si128(_out_bf16_0, 8));
 
                     ptr0 += 4;
                     ptr1 += 4;

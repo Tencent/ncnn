@@ -5,6 +5,10 @@
 void hardsigmoid_bf16s_avx512bf16(Mat& a, float alpha, float beta, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void hardsigmoid_bf16s_avxneconvert(Mat& a, float alpha, float beta, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void hardsigmoid_bf16s_avx2(Mat& a, float alpha, float beta, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         hardsigmoid_bf16s_avx512bf16(a, alpha, beta, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        hardsigmoid_bf16s_avxneconvert(a, alpha, beta, opt);
         return;
     }
 #endif
@@ -112,7 +124,7 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
             _p = _mm_comp_fmadd_ps(_p, _alpha_sse, _beta_sse);
             _p = _mm_max_ps(_p, _zero);
             _p = _mm_min_ps(_p, _one);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -127,7 +139,7 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
             _p = _mm_comp_fmadd_ps(_p, _alpha_sse, _beta_sse);
             _p = _mm_max_ps(_p, _zero);
             _p = _mm_min_ps(_p, _one);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX__

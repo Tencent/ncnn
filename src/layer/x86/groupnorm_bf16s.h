@@ -5,6 +5,10 @@
 void groupnorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void groupnorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void groupnorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep);
 #endif
@@ -22,6 +26,14 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         groupnorm_bf16s_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        groupnorm_bf16s_avxneconvert(ptr, gamma_ptr, beta_ptr, eps, channels, size, elempack, cstep);
         return;
     }
 #endif
@@ -307,7 +319,7 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
                 _p = _mm_comp_fmsub_ps(_p, _a, _b);
-                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p));
                 ptr0 += 4;
             }
 #endif // __SSE2__
@@ -348,7 +360,7 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
-                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p));
                 ptr0 += 4;
             }
 #endif // __SSE2__

@@ -5,6 +5,10 @@
 void gelu_bf16s_avx512bf16(Mat& a, int fast_gelu, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void gelu_bf16s_avxneconvert(Mat& a, int fast_gelu, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void gelu_bf16s_avx2(Mat& a, int fast_gelu, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         gelu_bf16s_avx512bf16(a, fast_gelu, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        gelu_bf16s_avxneconvert(a, fast_gelu, opt);
         return;
     }
 #endif
@@ -207,7 +219,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
 
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -225,7 +237,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
                 __m128 _blob = _mm_add_ps(_one128, _erf);
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -253,7 +265,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
 
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -271,7 +283,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
                 __m128 _blob = _mm_add_ps(_one128, _erf);
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }

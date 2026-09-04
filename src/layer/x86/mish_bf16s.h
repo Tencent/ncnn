@@ -5,6 +5,10 @@
 void mish_bf16s_avx512bf16(Mat& a, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void mish_bf16s_avxneconvert(Mat& a, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void mish_bf16s_avx2(Mat& a, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void mish_bf16s(Mat& a, const Option& opt)
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         mish_bf16s_avx512bf16(a, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        mish_bf16s_avxneconvert(a, opt);
         return;
     }
 #endif
@@ -84,7 +96,7 @@ static void mish_bf16s(Mat& a, const Option& opt)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = mish_sse(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

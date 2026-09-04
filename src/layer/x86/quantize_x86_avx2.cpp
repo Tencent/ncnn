@@ -7,11 +7,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "quantize_bf16s.h"
 
 int quantize_forward_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt)
 {
     return quantize_forward_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

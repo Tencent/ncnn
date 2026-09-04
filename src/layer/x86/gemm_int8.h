@@ -14804,7 +14804,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 2;
                 pB += 4;
             }
-#endif // __SSE2__
+#else  // __SSE2__
             int sum00 = 0;
             int sum01 = 0;
             int sum02 = 0;
@@ -14833,6 +14833,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             sum12 += sum13;
             sum0 += sum00 + sum02;
             sum1 += sum10 + sum12;
+#endif // __SSE2__
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -14886,7 +14887,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 4;
             }
 #endif // !__AVXVNNIINT8__
-#endif // __AVX512VNNI__ || __AVXVNNI__
+#else  // __AVX512VNNI__ || __AVXVNNI__
             int sum0 = 0;
             int sum1 = 0;
             int sum2 = 0;
@@ -14903,6 +14904,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             sum0 += sum1;
             sum2 += sum3;
             sum += sum0 + sum2;
+#endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk < max_kk; kk += 1)
             {
                 sum += pA[0] * pB[0];
