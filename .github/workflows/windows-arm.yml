@@ -1,7 +1,7 @@
 name: windows-arm
 on:
   push:
-    branches: [master]
+    branches: [master, ci-vs2026]
     paths:
     - '.github/workflows/windows-arm.yml'
     - 'CMakeLists.txt'
@@ -33,16 +33,24 @@ permissions:
 jobs:
   windows:
     name: ${{ matrix.vs-version }}
-    runs-on: windows-2022
+    runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - vs-version: vs2019
+            runner: windows-2022
             toolset-version: v142
             windows-sdk-version: 22621
 
           - vs-version: vs2022
+            runner: windows-2022
             toolset-version: v143
+            windows-sdk-version: 26100
+
+          - vs-version: vs2026
+            runner: windows-2025-vs2026
+            toolset-version: v145
             windows-sdk-version: 26100
 
     env:
@@ -100,7 +108,8 @@ jobs:
         TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)
 
   windows-arm:
-    runs-on: windows-11-arm
+    name: vs2026-arm64-native
+    runs-on: windows-11-vs2026-arm
     env:
       UseMultiToolTask: true
 
@@ -111,7 +120,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake -A arm64 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF -DNCNN_ARM82=OFF ..
+        cmake -G "Visual Studio 18 2026" -A arm64 -T v145 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=OFF -DNCNN_ARM82=OFF ..
         cmake --build . --config Release -j 4
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 4
