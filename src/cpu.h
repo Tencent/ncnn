@@ -47,29 +47,29 @@ NCNN_EXPORT int cpu_support_arm_edsp();
 NCNN_EXPORT int cpu_support_arm_neon();
 // vfpv4 = armv7 fp16 + fma
 NCNN_EXPORT int cpu_support_arm_vfpv4();
-// asimdhp = aarch64 asimd half precision
+// asimdhp = armv8.2 asimd half precision
 NCNN_EXPORT int cpu_support_arm_asimdhp();
 // cpuid = aarch64 cpuid info
 NCNN_EXPORT int cpu_support_arm_cpuid();
-// asimddp = aarch64 asimd dot product
+// asimddp = armv8.2 asimd dot product
 NCNN_EXPORT int cpu_support_arm_asimddp();
-// asimdfhm = aarch64 asimd fhm
+// asimdfhm = armv8.2 asimd fhm
 NCNN_EXPORT int cpu_support_arm_asimdfhm();
-// bf16 = aarch64 bf16
+// bf16 = armv8.4 bf16
 NCNN_EXPORT int cpu_support_arm_bf16();
-// i8mm = aarch64 i8mm
+// i8mm = armv8.4 i8mm
 NCNN_EXPORT int cpu_support_arm_i8mm();
-// sve = aarch64 sve
+// sve = armv8.6 sve
 NCNN_EXPORT int cpu_support_arm_sve();
 // sve vector length in bytes
 NCNN_EXPORT int cpu_arm_sve_vlenb();
-// sve2 = aarch64 sve2
+// sve2 = armv8.6 sve2
 NCNN_EXPORT int cpu_support_arm_sve2();
-// svebf16 = aarch64 svebf16
+// svebf16 = armv8.6 svebf16
 NCNN_EXPORT int cpu_support_arm_svebf16();
-// svei8mm = aarch64 svei8mm
+// svei8mm = armv8.6 svei8mm
 NCNN_EXPORT int cpu_support_arm_svei8mm();
-// svef32mm = aarch64 svef32mm
+// svef32mm = armv8.6 svef32mm
 NCNN_EXPORT int cpu_support_arm_svef32mm();
 
 // avx = x86 avx
