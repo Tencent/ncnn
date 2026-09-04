@@ -37,6 +37,14 @@ private:
     };
 
     std::map<std::string, StoreZipMeta> filemetas;
+
+    // Locate the central directory via the End Of Central Directory record.
+    // Returns 0 on success and fills cd_offset / cd_size / cd_records. This is
+    // the authoritative index of the zip and is immune to data descriptors.
+    int find_central_directory(uint64_t& cd_offset, uint64_t& cd_size, uint64_t& cd_records);
+
+    // Returns true if a central directory file header signature starts at off.
+    bool cd_offset_valid(uint64_t off);
 };
 
 class StoreZipWriter

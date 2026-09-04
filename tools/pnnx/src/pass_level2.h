@@ -49,6 +49,8 @@ public:
 
 void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opindex);
 
+void fold_pt2_weight_norm(Graph& g);
+
 void pass_level2(Graph& g);
 
 } // namespace pnnx

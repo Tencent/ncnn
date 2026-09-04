@@ -441,4 +441,32 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_onnx_pad_1, 140)
 
+// pt2 形态分支:torch.export 产出公开算子 aten::conv3d(7 输入),见 F_conv1d_1 注
+class F_conv3d_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+pnnx.Input              input_3     0 1 stride
+pnnx.Input              input_4     0 1 padding
+pnnx.Input              input_5     0 1 dilation
+pnnx.Input              input_6     0 1 groups
+aten::conv3d            op_0        7 1 input weight bias stride padding dilation groups out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv3d";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_1, 140)
+
 } // namespace pnnx

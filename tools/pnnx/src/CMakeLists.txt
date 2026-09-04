@@ -764,12 +764,16 @@ set(pnnx_SRCS
     storezip.cpp
     utils.cpp
 
+    load_pt2.cpp
+    pt2_schema.cpp
+
     pass_level2.cpp
     pass_level3.cpp
     pass_level4.cpp
     pass_level5.cpp
 
     ${pnnx_pass_level2_SRCS}
+    pass_level2/F_pt2.cpp
     ${pnnx_pass_level3_SRCS}
     ${pnnx_pass_level4_SRCS}
     ${pnnx_pass_level5_SRCS}

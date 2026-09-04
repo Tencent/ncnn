@@ -65,6 +65,44 @@ jobs:
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
 
+  pt2-test:
+    name: pt2-tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/pt2-python
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch==2.13.0+cpu --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging
+
+    - name: python-ncnn
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        pip3 install --user . --verbose
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+
+    - name: pt2-tests
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        cd tools/pnnx/build
+        ctest -R 'test_ncnn_pt2_' --output-on-failure -j 1
+
   build:
     runs-on: [self-hosted, linux, ubuntu25]
 
