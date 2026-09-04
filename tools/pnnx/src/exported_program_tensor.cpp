@@ -194,12 +194,7 @@ int materialize_exported_tensor(const ExportedTensorMeta& meta,
     const uint64_t storage_offset = (uint64_t)meta.storage_offset;
     if (has_zero_dimension)
     {
-        if (storage_offset > storage_element_count)
-        {
-            error = "tensor view exceeds storage";
-            return -1;
-        }
-
+        // Empty views do not access storage, even when their offset is past its end.
         tensor.pnnx_type = parsed_tensor.pnnx_type;
         tensor.shape.swap(parsed_tensor.shape);
         return 0;

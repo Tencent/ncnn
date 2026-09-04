@@ -47,6 +47,23 @@ static bool fold_static_weight_norm(Operator* op)
     if (norm_count <= 0 || g.elemcount() != norm_count)
         return false;
 
+    // Other g shapes may broadcast along a different axis or expand the result.
+    if (whole_tensor)
+    {
+        if (g.shape.size() > v.shape.size())
+            return false;
+    }
+    else
+    {
+        if (g.shape.size() != v.shape.size())
+            return false;
+        for (int i = 0; i < ndim; i++)
+        {
+            if (g.shape[i] != (i == dim ? v.shape[i] : 1))
+                return false;
+        }
+    }
+
     size_t dim_stride = 1;
     if (!whole_tensor)
     {
@@ -74,7 +91,7 @@ static bool fold_static_weight_norm(Operator* op)
     for (size_t i = 0; i < v_data.size(); i++)
     {
         const int norm_index = whole_tensor ? 0 : (int)((i / dim_stride) % (size_t)norm_count);
-        weight_data[i] = (float)(v_data[i] * g_data[norm_index] / norms[norm_index]);
+        weight_data[i] = (float)((double)v_data[i] * g_data[norm_index] / norms[norm_index]);
     }
 
     for (size_t i = 0; i < op->inputs.size(); i++)

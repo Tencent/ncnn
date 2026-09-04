@@ -614,6 +614,28 @@ static int canonicalize_with_schema(const ExportedNode& node,
     if (schema.is_vararg())
         return operator_error(header, node, "variadic dispatcher schemas are unsupported", error);
 
+    const std::vector<c10::Argument>& schema_returns = schema.returns();
+    if (node.outputs.size() != schema_returns.size())
+    {
+        std::ostringstream message;
+        message << "return count " << node.outputs.size() << " does not match dispatcher schema " << schema_returns.size();
+        return operator_error(header, node, message.str(), error);
+    }
+    for (size_t i = 0; i < schema_returns.size(); i++)
+    {
+        const ExportedArgumentType argument_type = node.outputs[i].type;
+        const c10::TypePtr& schema_type = schema_returns[i].real_type();
+        // Serde uses None for an unused or undefined return, not a missing slot.
+        if (argument_type == EXPORTED_ARGUMENT_NONE)
+            continue;
+        if (!exported_argument_type_matches_schema(argument_type, schema_type, false))
+        {
+            std::ostringstream message;
+            message << "return " << i << " has serialized type " << exported_argument_type_name(argument_type) << " incompatible with dispatcher schema " << schema_type->str();
+            return operator_error(header, node, message.str(), error);
+        }
+    }
+
     const std::vector<c10::Argument>& schema_arguments = schema.arguments();
     std::vector<ExportedSchemaArgumentBinding> argument_bindings(schema_arguments.size());
     for (size_t i = 0; i < schema_arguments.size(); i++)
@@ -638,7 +660,8 @@ static int canonicalize_with_schema(const ExportedNode& node,
             const c10::TypePtr& schema_type = schema_arguments[i].real_type();
             if (!exported_argument_type_matches_schema(argument_type, schema_type, allow_numbers_as_tensors))
             {
-                return operator_error(header, node, "argument " + argument.name + " has serialized type " + exported_argument_type_name(argument_type) + " incompatible with dispatcher schema " + schema_type->str(), error);
+                return operator_error(header, node, "argument " + argument.name + " has serialized type " + exported_argument_type_name(argument_type) + " incompatible with dispatcher schema " + schema_type->str(),
+                                      error);
             }
             argument.value = bound_arguments[i]->arg;
         }
@@ -735,6 +758,11 @@ static int canonicalize_with_custom_schema(const ExportedNode& node,
         std::vector<CanonicalExportedArgument>& result,
         std::string& error)
 {
+    if (node.outputs.size() != 1)
+        return operator_error(header, node, "custom operator return count must be 1", error);
+    if (node.outputs[0].type != EXPORTED_ARGUMENT_TENSOR && node.outputs[0].type != EXPORTED_ARGUMENT_NONE)
+        return operator_error(header, node, "custom operator return 0 must be Tensor", error);
+
     std::vector<ExportedSchemaArgumentBinding> argument_bindings(schema_argument_count);
     for (size_t i = 0; i < schema_argument_count; i++)
     {

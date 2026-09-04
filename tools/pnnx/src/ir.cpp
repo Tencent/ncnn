@@ -1684,7 +1684,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             for (const auto& it : op->attrs)
             {
-                if (it.first == "running_mean" || it.first == "running_var")
+                const bool is_running_mean_var = it.first == "running_mean" || it.first == "running_var";
+                if (is_running_mean_var)
                 {
                     fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
                 }
@@ -1701,7 +1702,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, ",");
                 }
 
-                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                if (is_running_mean_var || attr.type == 1 || attr.type == 2 || attr.type == 3)
                 {
                     fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
                 }
@@ -1723,16 +1724,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             bool is_running_mean_var = false;
             {
                 const Operand* r = op->outputs[0];
-                if (r->consumers.size() == 1)
+                for (const Operator* op2 : r->consumers)
                 {
-                    const Operator* op2 = r->consumers[0];
-                    if (op2->type == "F.batch_norm" || op2->type == "F.instance_norm")
+                    if (op2->type != "F.batch_norm" && op2->type != "F.instance_norm")
+                        continue;
+
+                    for (size_t i = 0; i < op2->inputs.size() && i < op2->inputnames.size(); i++)
                     {
-                        if (r == op2->inputs[1] || r == op2->inputs[2])
+                        if (r == op2->inputs[i] && (op2->inputnames[i] == "running_mean" || op2->inputnames[i] == "running_var"))
                         {
                             is_running_mean_var = true;
+                            break;
                         }
                     }
+                    if (is_running_mean_var)
+                        break;
                 }
             }
 
@@ -1784,7 +1790,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, "%d,", attr.shape[i]);
                 }
 
-                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                if (is_running_mean_var || attr.type == 1 || attr.type == 2 || attr.type == 3)
                 {
                     fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
                 }
@@ -2827,6 +2833,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 else
                 {
                     fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                    if (input_shape.empty())
+                        fprintf(pyfp, "(), ");
                     for (size_t i = 0; i < input_shape.size(); i++)
                     {
                         int dimsize = input_shape[i];

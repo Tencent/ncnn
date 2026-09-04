@@ -1158,7 +1158,15 @@ static int lower_exported_program(const ExportedProgram& source_program,
             }
 
             if (node.outputs[j].type == EXPORTED_ARGUMENT_NONE)
+            {
+                // Keep unused return slots so later outputs retain their schema indices.
+                std::ostringstream unused_name;
+                unused_name << op->name << "_unused_" << j;
+                Operand* operand = candidate.new_operand(unique_name(unused_name.str(), operand_names));
+                operand->producer = op;
+                op->outputs.push_back(operand);
                 continue;
+            }
 
             error = "unsupported non-tensor output for " + node.target;
             return -1;

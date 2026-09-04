@@ -78,7 +78,7 @@ jobs:
         MKL_NUM_THREADS: 1
       run: |
         cd tools/pnnx/build
-        ctest -C Release --output-on-failure -R "^(test_exported_program|test_pt2_version_compatibility|test_pnnx_test_utils)$"
+        ctest -C Release --output-on-failure -R "^(test_exported_program.*|test_pt2_version_compatibility|test_pt2_manifest|test_pnnx_test_utils)$"
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]

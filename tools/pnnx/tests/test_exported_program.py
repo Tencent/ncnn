@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import torch
 
 
@@ -50,6 +51,24 @@ class BoolInputModel(torch.nn.Module):
 class ScalarInputModel(torch.nn.Module):
     def forward(self, x):
         return x + 1
+
+
+class OperatorReturnsModel(torch.nn.Module):
+    def forward(self, x):
+        torch.ops.aten._assert_tensor_metadata.default(x, dtype=torch.float32)
+        left, right = torch.split(x, 2, dim=1)
+        values, indices = torch.max(x, dim=1)
+        return left, right, values, indices
+
+
+class StaticScalarShapeModel(torch.nn.Module):
+    def forward(self, x):
+        return x.view(x.shape[0], torch.div(x.shape[1], 2, rounding_mode="trunc"), 2)
+
+
+class MaxIndicesModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.max(x, dim=1)[1]
 
 
 class SingleTupleModel(torch.nn.Module):
@@ -125,6 +144,27 @@ class SharedStorageLinearModel(torch.nn.Module):
     def forward(self, x):
         x = torch.relu(torch.nn.functional.linear(x, self.first_weight))
         return torch.relu(torch.nn.functional.linear(x, self.second_weight))
+
+
+class EmptyViewStateModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("full", torch.arange(8, dtype=torch.float32))
+        self.register_buffer("edge", self.full.reshape(2, 4)[2:, 1:])
+
+    def forward(self, x):
+        return x + self.full, self.edge
+
+
+class StaticWeightNormModel(torch.nn.Module):
+    def __init__(self, v, g, dim):
+        super().__init__()
+        self.register_buffer("v", v)
+        self.register_buffer("g", g)
+        self.dim = dim
+
+    def forward(self, x):
+        return torch._weight_norm(self.v, self.g, self.dim) + x
 
 
 class StateNameCollisionSubmodule(torch.nn.Module):
@@ -389,6 +429,112 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assertIn(
                 "net.float()", (work_dir / "legacy_pnnx.py").read_text()
             )
+
+    def test_static_weight_norm_broadcast_and_finite_values(self):
+        v = torch.arange(1, 19, dtype=torch.float32).reshape(2, 3, 3)
+        g = torch.tensor([1., 2., 3.])
+        cases = (
+            (v, g.reshape(1, 3, 1), 1),
+            (v, g, 1),
+            (v, g, -2),
+            (torch.tensor([[1e10, 1e10]]), torch.tensor([[1e30]]), 0),
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            for index, (weight, scale, dim) in enumerate(cases):
+                with self.subTest(case=index):
+                    model = StaticWeightNormModel(weight, scale, dim).eval()
+                    archive_path = work_dir / f"weight_norm_{index}.pt2"
+                    save_exported_program(model, archive_path, (torch.zeros_like(weight),))
+                    torch.manual_seed(0)
+                    expected = model(torch.rand(weight.shape))
+                    self.assertTrue(torch.isfinite(expected).all())
+                    self.assert_conversion_matches(work_dir, archive_path, expected)
+
+    def test_empty_state_view_beyond_storage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "empty_state_view.pt2"
+            model = EmptyViewStateModel().eval()
+            save_exported_program(model, archive_path, (torch.ones(8),))
+            torch.manual_seed(0)
+            self.assert_conversion_matches(work_dir, archive_path, model(torch.rand(8)))
+
+    def test_scalar_numpy_input_override(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "scalar_numpy.pt2"
+            model = ScalarInputModel().eval()
+            save_exported_program(model, archive_path, (torch.tensor(2.0),))
+            np.save(work_dir / "scalar.npy", np.array(2.0, dtype=np.float32))
+            result = run_pnnx(work_dir, archive_path, "input=scalar.npy")
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            torch.manual_seed(0)
+            self.assert_nested_close(
+                model(torch.rand(())), load_generated_output(work_dir, archive_path.stem)
+            )
+
+    def test_operator_returns_are_validated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            model = OperatorReturnsModel().eval()
+            valid_path = work_dir / "valid_returns.pt2"
+            save_exported_program(model, valid_path)
+            torch.manual_seed(0)
+            self.assert_conversion_matches(work_dir, valid_path, model(torch.rand(2, 4)))
+
+            source_path = work_dir / "return_source.pt2"
+            save_exported_program(ScalarInputModel(), source_path)
+            cases = (
+                ([], "return count"),
+                ([{"as_tensors": [{"name": "alias_out"}]}], "return 0"),
+                ([{"as_none": True}], None),
+            )
+            for index, (outputs, message) in enumerate(cases):
+                with self.subTest(case=index):
+                    archive_path = work_dir / f"invalid_returns_{index}.pt2"
+
+                    def add_invalid_alias(document):
+                        graph = document["graph_module"]["graph"]
+                        input_name = graph["inputs"][0]["as_tensor"]["name"]
+                        graph["tensor_values"]["alias_out"] = graph["tensor_values"][input_name]
+                        graph["nodes"].insert(0, {
+                            "target": "torch.ops.aten.alias.default",
+                            "inputs": [{"name": "self", "arg": graph["inputs"][0], "kind": 1}],
+                            "outputs": outputs,
+                            "metadata": {},
+                        })
+
+                    rewrite_model_json(source_path, archive_path, add_invalid_alias)
+                    if message is None:
+                        torch.manual_seed(0)
+                        expected = ScalarInputModel()(torch.rand(2, 4))
+                        self.assert_conversion_matches(work_dir, archive_path, expected)
+                    else:
+                        self.assert_conversion_fails(work_dir, archive_path, "aten.alias.default", message)
+
+    def test_unused_operator_return_slots(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            for model in (StaticScalarShapeModel(), MaxIndicesModel()):
+                with self.subTest(model=type(model).__name__):
+                    source_path = work_dir / (type(model).__name__ + ".pt2")
+                    archive_path = work_dir / (type(model).__name__ + "_unused.pt2")
+                    save_exported_program(model, source_path)
+
+                    def mark_unused_return(document):
+                        for node in document["graph_module"]["graph"]["nodes"]:
+                            if node["target"] == "torch.ops.aten.max.dim":
+                                node["outputs"][0] = {"as_none": True}
+
+                    rewrite_model_json(source_path, archive_path, mark_unused_return)
+                    torch.manual_seed(0)
+                    inputs = (torch.rand(2, 4),)
+                    expected = model(*inputs)
+                    if isinstance(model, MaxIndicesModel):
+                        loaded = torch.export.load(archive_path)
+                        self.assert_nested_close(loaded.module()(*inputs), expected)
+                    self.assert_conversion_matches(work_dir, archive_path, expected)
 
     def test_input_shape_overrides_are_validated(self):
         with tempfile.TemporaryDirectory() as temp_dir:

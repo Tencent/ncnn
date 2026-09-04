@@ -16,7 +16,7 @@ import torch
 
 
 PNNX = Path(sys.argv[1]).resolve()
-sys.argv = [sys.argv[0]]
+sys.argv = [sys.argv[0]] + sys.argv[2:]
 TORCH_VERSION = tuple(
     int(component) for component in torch.__version__.split("+", 1)[0].split(".")[:2]
 )
@@ -58,6 +58,30 @@ class EmptyIntListModel(torch.nn.Module):
 class EmptyFloatListModel(torch.nn.Module):
     def forward(self, value):
         return torch.ops.aten._test_optional_floatlist(value, [])
+
+
+class NormalizationModel(torch.nn.Module):
+    def __init__(self, norm_type, dtype, distinct):
+        super().__init__()
+        self.norm = norm_type(3, affine=True, track_running_stats=True).to(dtype)
+        if distinct:
+            with torch.no_grad():
+                self.norm.weight.copy_(torch.tensor([1.1, 1.2, 1.3]))
+                self.norm.bias.copy_(torch.tensor([0.1, -0.2, 0.3]))
+                self.norm.running_mean.copy_(torch.tensor([0.4, 0.5, -0.6]))
+                self.norm.running_var.copy_(torch.tensor([1.6, 1.7, 1.8]))
+
+    def forward(self, x):
+        return self.norm(x)
+
+
+class StaticInstanceNormModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("values", torch.arange(96).reshape(2, 3, 4, 4).float() / 96)
+
+    def forward(self, x):
+        return x + torch.nn.functional.instance_norm(self.values), x + self.values
 
 
 def save_exported_program(model, example_inputs, archive_path):
@@ -167,6 +191,37 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
                         actual_tensor.view(torch.uint8), expected_tensor.view(torch.uint8)
                     )
                 )
+
+    def test_normalization_state_inference_and_reexport(self):
+        for norm_type in (torch.nn.BatchNorm2d, torch.nn.InstanceNorm2d):
+            for dtype in (torch.float32, torch.bfloat16):
+                for distinct in (False, True):
+                    with self.subTest(norm=norm_type.__name__, dtype=dtype, distinct=distinct):
+                        name = f"norm_{norm_type.__name__}_{dtype}_{distinct}"
+                        model = NormalizationModel(norm_type, dtype, distinct).eval()
+                        inputs = (torch.arange(96).reshape(2, 3, 4, 4).to(dtype) / 96,)
+                        module = self.convert(self.save(name, model, inputs))
+                        with torch.no_grad():
+                            expected = model(*inputs)
+                            actual = self.call(module.Model).eval()(*inputs)
+                        torch.testing.assert_close(actual, expected)
+                        torch.manual_seed(0)
+                        with torch.no_grad():
+                            expected_random = model(torch.rand(2, 3, 4, 4, dtype=dtype))
+                        torch.testing.assert_close(self.call(module.test_inference), expected_random)
+                        program = self.call(module.export_exported_program, inputs)
+                        with torch.no_grad():
+                            torch.testing.assert_close(program.module()(*inputs), expected)
+
+    def test_normalization_input_is_not_running_state(self):
+        model = StaticInstanceNormModel().eval()
+        inputs = (torch.ones(2, 3, 4, 4),)
+        module = self.convert(self.save("static_instance_norm", model, inputs))
+        net = self.call(module.Model).eval()
+        self.assertTrue(next(net.parameters()).requires_grad)
+        torch.testing.assert_close(net(*inputs), model(*inputs))
+        program = self.call(module.export_exported_program, inputs)
+        torch.testing.assert_close(program.module()(*inputs), model(*inputs))
 
     def test_empty_lists_keep_typed_parameter_encoding(self):
         int_archive = self.save(
