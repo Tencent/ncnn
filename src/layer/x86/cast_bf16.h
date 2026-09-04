@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void cast_fp32_to_bf16_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
-void cast_bf16_to_fp32_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp32_to_bf16_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_bf16_to_fp32_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-void cast_fp32_to_bf16_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
-void cast_bf16_to_fp32_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp32_to_bf16_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_bf16_to_fp32_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
-static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        cast_fp32_to_bf16_sse_avx512bf16(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16_avx512bf16(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -24,7 +24,7 @@ static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const O
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        cast_fp32_to_bf16_sse_avx2(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -87,12 +87,12 @@ static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const O
     }
 }
 
-static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        cast_bf16_to_fp32_sse_avx512bf16(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32_avx512bf16(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -100,7 +100,7 @@ static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        cast_bf16_to_fp32_sse_avx2(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif

@@ -558,6 +558,9 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
+        check_cxx_source_compiles("#include <immintrin.h>\n#include <ammintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
         check_cxx_source_compiles("#include <immintrin.h>\n#include <ammintrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
@@ -599,6 +602,9 @@ else()
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mxop -mfma4")
+        check_cxx_source_compiles("#include <x86intrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mxop")
         check_cxx_source_compiles("#include <x86intrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
@@ -642,6 +648,9 @@ else()
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "-mavx -mxop -mfma4")
+        check_cxx_source_compiles("#include <x86intrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mxop")
         check_cxx_source_compiles("#include <x86intrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
@@ -687,6 +696,13 @@ else()
             endif()
         else()
             message(WARNING "The compiler does not support fma extension. NCNN_FMA will be OFF.")
+        endif()
+        if(NCNN_COMPILER_SUPPORT_X86_FMA4)
+            if(NCNN_AVX)
+                option(NCNN_FMA4 "optimize x86 platform with fma4 extension" ON)
+            endif()
+        else()
+            message(WARNING "The compiler does not support fma4 extension. NCNN_FMA4 will be OFF.")
         endif()
         if(NCNN_COMPILER_SUPPORT_X86_XOP)
             if(NCNN_AVX)

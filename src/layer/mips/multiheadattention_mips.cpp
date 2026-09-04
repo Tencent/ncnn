@@ -696,6 +696,11 @@ int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {

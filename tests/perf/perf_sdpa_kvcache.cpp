@@ -43,7 +43,7 @@ struct SessionResult
     int allocation_count;
 };
 
-static void print_session_result(const char* device, const char* cache_type, int embed_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, const SessionResult* results)
+static void print_session_result(const char* device, const char* cache_type, int head_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, const SessionResult* results)
 {
     double times[SESSION_RUN_COUNT];
     double time_avg = 0.0;
@@ -66,8 +66,8 @@ static void print_session_result(const char* device, const char* cache_type, int
     }
     time_avg /= SESSION_RUN_COUNT;
 
-    fprintf(stdout, "SDPA %-3s %-12s embed=%d heads=%d groups=%d prefill=%d steps=%d  min=%.3f  max=%.3f  avg=%.3f  median=%.3f ms/step  reloc=%d",
-            device, cache_type, embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps,
+    fprintf(stdout, "SDPA %-3s %-12s head_dim=%d heads=%d groups=%d prefill=%d steps=%d  min=%.3f  max=%.3f  avg=%.3f  median=%.3f ms/step  reloc=%d",
+            device, cache_type, head_dim, num_heads, num_groups, prefill_seqlen, decode_steps,
             times[0], times[SESSION_RUN_COUNT - 1], time_avg, times[SESSION_RUN_COUNT / 2],
             results[SESSION_RUN_COUNT - 1].relocation_count);
 
@@ -77,14 +77,14 @@ static void print_session_result(const char* device, const char* cache_type, int
     fprintf(stdout, "\n");
 }
 
-static int run_sdpa_cpu_session(ncnn::Layer* op, const ncnn::Option& opt, KVCachePerfAllocator& allocator, int embed_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, SessionResult& result)
+static int run_sdpa_cpu_session(ncnn::Layer* op, const ncnn::Option& opt, KVCachePerfAllocator& allocator, int head_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, SessionResult& result)
 {
     const int allocation_count = allocator.allocation_count;
 
     std::vector<ncnn::Mat> prefill_bottoms(5);
-    prefill_bottoms[0] = PerfMat(embed_dim, prefill_seqlen, num_heads);
-    prefill_bottoms[1] = PerfMat(embed_dim, prefill_seqlen, num_groups);
-    prefill_bottoms[2] = PerfMat(embed_dim, prefill_seqlen, num_groups);
+    prefill_bottoms[0] = PerfMat(head_dim, prefill_seqlen, num_heads);
+    prefill_bottoms[1] = PerfMat(head_dim, prefill_seqlen, num_groups);
+    prefill_bottoms[2] = PerfMat(head_dim, prefill_seqlen, num_groups);
 
     std::vector<ncnn::Mat> prefill_tops(3);
     int ret = op->forward(prefill_bottoms, prefill_tops, opt);
@@ -96,9 +96,9 @@ static int run_sdpa_cpu_session(ncnn::Layer* op, const ncnn::Option& opt, KVCach
     prefill_tops[1].release();
     prefill_tops[2].release();
 
-    ncnn::Mat query = PerfMat(embed_dim, 1, num_heads);
-    ncnn::Mat current_key = PerfMat(embed_dim, 1, num_groups);
-    ncnn::Mat current_value = PerfMat(embed_dim, 1, num_groups);
+    ncnn::Mat query = PerfMat(head_dim, 1, num_heads);
+    ncnn::Mat current_key = PerfMat(head_dim, 1, num_groups);
+    ncnn::Mat current_value = PerfMat(head_dim, 1, num_groups);
 
     result.relocation_count = 0;
     const double time_start = ncnn::get_current_time();
@@ -139,7 +139,7 @@ static int run_sdpa_cpu_session(ncnn::Layer* op, const ncnn::Option& opt, KVCach
     return 0;
 }
 
-static void perf_sdpa_kvcache_cpu(int embed_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, int max_seqlen_hint)
+static void perf_sdpa_kvcache_cpu(int head_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps, int max_seqlen_hint)
 {
     KVCachePerfAllocator allocator;
 
@@ -165,41 +165,42 @@ static void perf_sdpa_kvcache_cpu(int embed_dim, int num_heads, int num_groups, 
     int ret = 0;
     for (int i = 0; ret == 0 && i < SESSION_WARMUP_COUNT; i++)
     {
-        ret = run_sdpa_cpu_session(op, opt, allocator, embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, result);
+        ret = run_sdpa_cpu_session(op, opt, allocator, head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, result);
     }
 
     SessionResult results[SESSION_RUN_COUNT];
     int run_count = 0;
     for (; ret == 0 && run_count < SESSION_RUN_COUNT; run_count++)
     {
-        ret = run_sdpa_cpu_session(op, opt, allocator, embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, results[run_count]);
+        ret = run_sdpa_cpu_session(op, opt, allocator, head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, results[run_count]);
     }
 
     if (run_count == SESSION_RUN_COUNT)
     {
-        const char* cache_type = "legacy";
+        const char* cache_type = "default";
         if (opt.kvcache_allocator)
             cache_type = max_seqlen_hint > 0 ? "allocator-hint" : "allocator";
-        print_session_result("cpu", cache_type, embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, results);
+        print_session_result("cpu", cache_type, head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, results);
     }
 
     op->destroy_pipeline(opt);
     delete op;
 }
 
-static void perf_sdpa_kvcache(int embed_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps)
+static void perf_sdpa_kvcache(int head_dim, int num_heads, int num_groups, int prefill_seqlen, int decode_steps)
 {
     const int max_seqlen_hint = prefill_seqlen + decode_steps;
 
-    perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, -1);
-    perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, 0);
-    perf_sdpa_kvcache_cpu(embed_dim, num_heads, num_groups, prefill_seqlen, decode_steps, max_seqlen_hint);
+    perf_sdpa_kvcache_cpu(head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, -1);
+    perf_sdpa_kvcache_cpu(head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, 0);
+    perf_sdpa_kvcache_cpu(head_dim, num_heads, num_groups, prefill_seqlen, decode_steps, max_seqlen_hint);
 }
 
 int main()
 {
-    perf_sdpa_kvcache(128, 4, 4, 128, 512);
-    perf_sdpa_kvcache(512, 8, 1, 128, 512);
+    perf_sdpa_kvcache(64, 8, 8, 128, 512);
+    perf_sdpa_kvcache(128, 32, 8, 128, 512);
+    perf_sdpa_kvcache(128, 32, 1, 128, 512);
 
     return 0;
 }

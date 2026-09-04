@@ -1,8 +1,32 @@
 // Copyright 2019 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void convdw3x3s1_pack4_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+void convdw3x3s2_pack4_sse_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void convdw3x3s1_pack4_sse_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+void convdw3x3s2_pack4_sse_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& bias, const Option& opt);
+#endif
+
 static void convdw3x3s1_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convdw3x3s1_pack4_sse_fma(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        convdw3x3s1_pack4_sse_fma4(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+
     int outw = top_blob.w;
     int outh = top_blob.h;
 
@@ -351,6 +375,21 @@ static void convdw3x3s1_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
 static void convdw3x3s2_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convdw3x3s2_pack4_sse_fma(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        convdw3x3s2_pack4_sse_fma4(bottom_blob, top_blob, kernel, _bias, opt);
+        return;
+    }
+#endif
+
     int w = bottom_blob.w;
 
     int outw = top_blob.w;

@@ -434,10 +434,16 @@ int SDPA_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat& new_cache, in
 
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     const VkMat& query = bottom_blobs[0];
     const VkMat& cur_key = bottom_blobs[1];
     const VkMat& cur_value = bottom_blobs[2];
     const VkMat& attn_mask_blob = attn_mask ? bottom_blobs[3] : VkMat();
+    const int attn_mask_dims = attn_mask_blob.dims == 3 && attn_mask_blob.c == 1 ? 2 : attn_mask_blob.dims;
     const VkMat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : VkMat();
     const VkMat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : VkMat();
 
@@ -521,7 +527,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[3].i = embed_dim;
             constants[4].i = out_embed_dim;
             constants[5].i = num_heads;
-            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
+            constants[6].i = attn_mask_dims;
             constants[7].i = num_heads_per_group;
             constants[8].i = query.cstep;
             constants[9].i = key.cstep;
@@ -559,7 +565,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[3].i = embed_dim;
             constants[4].i = out_embed_dim;
             constants[5].i = num_heads;
-            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
+            constants[6].i = attn_mask_dims;
             constants[7].i = num_heads_per_group;
             constants[8].i = query.cstep;
             constants[9].i = key.cstep;
@@ -610,7 +616,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[2].i = N;
         constants[3].i = K;
         constants[4].i = B;
-        constants[5].i = attn_mask_blob.dims;
+        constants[5].i = attn_mask_dims;
         constants[6].i = num_heads_per_group;
         constants[7].i = query.cstep;
         constants[8].i = key.cstep;

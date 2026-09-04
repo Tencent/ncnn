@@ -391,6 +391,44 @@ static int test_multiheadattention_5()
 }
 #endif
 
+#if NCNN_BATCH
+static int test_multiheadattention_kvcache_batch_rejected()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 16);
+    pd.set(1, 4);
+    pd.set(2, 16 * 12);
+    pd.set(3, 12);
+    pd.set(4, 12);
+    pd.set(7, 1); // kv_cache
+
+    ncnn::Layer* op = ncnn::create_layer_cpu("MultiHeadAttention");
+    if (!op)
+        return -1;
+
+    int ret = op->load_param(pd);
+    if (ret == 0 && !op->support_batch)
+        ret = -1;
+
+    ncnn::Mat query;
+    query.create(12, 1, 4u, 1, 2);
+
+    std::vector<ncnn::Mat> bottoms(3);
+    bottoms[0] = query;
+    std::vector<ncnn::Mat> tops(3);
+
+    if (ret == 0 && op->forward(bottoms, tops, ncnn::Option()) != -1)
+        ret = -1;
+
+    delete op;
+
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_kvcache_batch_rejected failed ret=%d\n", ret);
+
+    return ret;
+}
+#endif // NCNN_BATCH
+
 int main()
 {
     SRAND(7767517);
@@ -404,5 +442,8 @@ int main()
            || test_multiheadattention_4()
            || test_multiheadattention_5()
 #endif
+#if NCNN_BATCH
+           || test_multiheadattention_kvcache_batch_rejected()
+#endif // NCNN_BATCH
            ;
 }

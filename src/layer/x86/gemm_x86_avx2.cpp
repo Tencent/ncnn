@@ -15,6 +15,33 @@
 
 namespace ncnn {
 
+#include "gemm_bf16s.h"
+
+void pack_A_tile_bf16_avx2(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+{
+    pack_A_tile_bf16(A, AT, i, max_ii, k, max_kk);
+}
+
+void transpose_pack_A_tile_bf16_avx2(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+{
+    transpose_pack_A_tile_bf16(A, AT, i, max_ii, k, max_kk);
+}
+
+void pack_B_tile_bf16_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+{
+    pack_B_tile_bf16(B, BT, j, max_jj, k, max_kk);
+}
+
+void transpose_pack_B_tile_bf16_avx2(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+{
+    transpose_pack_B_tile_bf16(B, BT, j, max_jj, k, max_kk);
+}
+
+void gemm_transB_packed_tile_bf16s_avx2(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
+{
+    gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+}
+
 #if NCNN_INT8
 #include "gemm_int8.h"
 

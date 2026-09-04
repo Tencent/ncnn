@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
-void cast_fp32_to_fp16_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
-void cast_fp16_to_fp32_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp32_to_fp16_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp16_to_fp32_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
-static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_fp32_to_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        cast_fp32_to_fp16_sse_f16c(bottom_blob, top_blob, opt);
+        cast_fp32_to_fp16_f16c(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -70,12 +70,12 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
     }
 }
 
-static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_fp16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        cast_fp16_to_fp32_sse_f16c(bottom_blob, top_blob, opt);
+        cast_fp16_to_fp32_f16c(bottom_blob, top_blob, opt);
         return;
     }
 #endif

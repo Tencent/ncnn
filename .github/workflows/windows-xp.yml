@@ -37,7 +37,7 @@ jobs:
     runs-on: windows-2025
 
     env:
-      VS_INSTALL_DIR: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+      VS_INSTALL_DIR: C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools
       UseMultiToolTask: true
       NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
 
@@ -45,11 +45,23 @@ jobs:
     - uses: actions/checkout@v7
       with:
         submodules: true
+
     - name: config
       shell: cmd
       run: |
-        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --channelId VisualStudio.17.Release --add Microsoft.VisualStudio.Component.WinXP  --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64.Spectre --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.v141.xp --nocache --quiet
+        curl.exe -L -o vs_buildtools.exe https://aka.ms/vs/17/release/vs_buildtools.exe
+
+        vs_buildtools.exe --quiet --wait --norestart --nocache --installPath "${{ env.VS_INSTALL_DIR }}" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --add Microsoft.VisualStudio.Component.WinXP
+        if %ERRORLEVEL% NEQ 0 if %ERRORLEVEL% NEQ 3010 exit /b %ERRORLEVEL%
+
+        echo === installed WinXP component ===
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -requires Microsoft.VisualStudio.Component.WinXP
+
+        echo === search v141_xp ===
+        dir /s /b "${{ env.VS_INSTALL_DIR }}\*v141_xp*"
+
         call "${{ env.VS_INSTALL_DIR }}\VC\Auxiliary\Build\vcvarsall.bat" x86
+
     - name: build
       run: |
         mkdir build; cd build
