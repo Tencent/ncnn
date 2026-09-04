@@ -522,7 +522,7 @@ static bool validate_and_normalize_exported_einsum_equation(const std::string& v
             return false;
 
         if ((!subscript.has_ellipsis && subscript.labels.size() != operand_shapes[i].size())
-            || (subscript.has_ellipsis && subscript.labels.size() > operand_shapes[i].size()))
+                || (subscript.has_ellipsis && subscript.labels.size() > operand_shapes[i].size()))
         {
             detail = "einsum subscript rank does not match operand rank";
             return false;
