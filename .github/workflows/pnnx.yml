@@ -56,8 +56,17 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${{ github.workspace }}/tools/pnnx/build/src" ..
         cmake --build . --config Release -j 4
+
+    - name: setup-libtorch-runtime
+      shell: bash
+      run: echo "$(python3 -c 'import os, torch; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')" >> "$GITHUB_PATH"
+
+    - name: quick-pt2-test
+      run: |
+        cd tools/pnnx/build
+        ctest -C Release --output-on-failure -R "^test_exported_program(_ops|_pytree_roundtrip|_invalid)?$"
 
     - name: quick-test
       if: matrix.os != 'windows-latest'
@@ -365,7 +374,19 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        ctest --output-on-failure -j 8 -E '_pt2$'
+
+    - name: pt2-test
+      if: matrix.torch == '2.12.1'
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        chmod +x tools/pnnx/build/src/pnnx
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        cd tools/pnnx/build
+        ctest --output-on-failure -j 8 -R '_pt2$'
 
     - name: python-pnnx
       run: |

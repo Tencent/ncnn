@@ -35,7 +35,7 @@ void chain_multi_output(Graph& graph)
 
                 Operator* op0 = r->producer;
 
-                if (op0->type == "prim::TupleConstruct")
+                if (op0->type == "prim::TupleConstruct" || op0->type == "prim::ListConstruct")
                 {
                     match_tuple_expr_output = true;
                 }
