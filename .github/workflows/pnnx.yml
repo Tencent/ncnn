@@ -23,6 +23,8 @@ permissions:
 env:
   LIBTORCH_VERSION: 2.12.1
   TORCHVISION_VERSION: 0.27.1
+  TORCHAUDIO_VERSION: 2.11.0
+  TRANSFORMERS_VERSION: 4.57.6
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.27.0
   CACHE_DATE: 20260703
@@ -49,7 +51,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
 
     - name: build-pnnx
@@ -65,11 +67,86 @@ jobs:
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
 
+  pt2-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+      UseMultiToolTask: true
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+
+    - name: setup-torch-runtime
+      if: runner.os == 'Windows'
+      run: python -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: pt2-test
+      env:
+        OMP_THREAD_LIMIT: 1
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        MKL_ENABLE_INSTRUCTIONS: SSE4_2
+      run: |
+        cd tools/pnnx/build
+        ctest -C Release --output-on-failure -L pt2
+
   build:
     runs-on: [self-hosted, linux, ubuntu25]
 
+    env:
+      PYTHONUSERBASE: ${{ github.workspace }}/torch
+
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-pytorch
+      run: |
+        python3 -m pip config set global.break-system-packages true
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
+
+    - name: python-ncnn
+      env:
+        CMAKE_BUILD_PARALLEL_LEVEL: 8
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+      run: pip3 install --user --no-deps . --verbose
 
     - name: local-cache-libtorch
       id: local-cache-libtorch
@@ -223,6 +300,7 @@ jobs:
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
         cmake --build . -j 8
+        ctest --output-on-failure -L pt2
         strip src/pnnx
 
     - name: upload-pnnx
@@ -325,7 +403,8 @@ jobs:
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }} opencv-python==${{ matrix.opencv }}
-        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user --no-deps torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user onnx onnxscript onnxruntime numpy==${{ matrix.numpy }}
         pip3 install --user "transformers<=${{ matrix.transformers }}" diffusers "safetensors<=0.6.2"
 
@@ -365,7 +444,8 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        ctest --output-on-failure -j 8 -LE pt2
+        ctest --output-on-failure -j 8 -L pt2-regression
 
     - name: python-pnnx
       run: |

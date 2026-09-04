@@ -16,7 +16,6 @@ int load_torchscript(const std::string& ptpath, Graph& g,
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
                      const std::vector<std::vector<char> >& input_contents2,
-                     const std::vector<std::string>& customop_modules,
                      const std::vector<std::string>& module_operators,
                      const std::string& foldable_constants_zippath,
                      std::set<std::string>& foldable_constants);

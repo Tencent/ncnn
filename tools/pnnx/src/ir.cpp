@@ -5,6 +5,7 @@
 #include "model_stat.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>
@@ -221,6 +222,16 @@ std::vector<float> Attribute::get_float32_data() const
             v[i] = float16_to_float32(p[i]);
         }
     }
+    else if (type == 13)
+    {
+        // bf16
+        const unsigned short* p = (const unsigned short*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            const uint32_t bits = (uint32_t)p[i] << 16;
+            memcpy(&v[i], &bits, sizeof(bits));
+        }
+    }
     else
     {
         fprintf(stderr, "cannot convert type %d to float32 data\n", type);
@@ -253,6 +264,17 @@ void Attribute::set_float32_data(const std::vector<float>& newdata)
         for (size_t i = 0; i < newdata.size(); i++)
         {
             p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else if (type == 13)
+    {
+        // bf16
+        unsigned short* p = (unsigned short*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            uint32_t bits;
+            memcpy(&bits, &newdata[i], sizeof(bits));
+            p[i] = bits >> 16;
         }
     }
     else
@@ -1025,6 +1047,46 @@ static std::string expand_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
+        else if (t == "pos" || t == "sym_not" || t == "sym_trunc" || t == "sym_int" || t == "sym_float" || t == "sym_sqrt")
+        {
+            std::string a = exprstack.top();
+            exprstack.pop();
+
+            if (t == "pos") exprstack.push("+(" + a + ")");
+            if (t == "sym_not") exprstack.push("(not " + a + ")");
+            if (t == "sym_trunc") exprstack.push("math.trunc(" + a + ")");
+            if (t == "sym_int") exprstack.push("int(" + a + ")");
+            if (t == "sym_float") exprstack.push("float(" + a + ")");
+            if (t == "sym_sqrt") exprstack.push("math.sqrt(" + a + ")");
+        }
+        else if (t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge")
+        {
+            std::string a = exprstack.top();
+            exprstack.pop();
+            std::string b = exprstack.top();
+            exprstack.pop();
+
+            const char* op = t == "eq" ? "==" : t == "ne" ? "!=" : t == "lt" ? "<" : t == "le" ? "<=" : t == "gt" ? ">" : ">=";
+            exprstack.push("(" + a + " " + op + " " + b + ")");
+        }
+        else if (t == "sym_max" || t == "sym_min")
+        {
+            std::string a = exprstack.top();
+            exprstack.pop();
+            std::string b = exprstack.top();
+            exprstack.pop();
+            exprstack.push(std::string(t == "sym_max" ? "max(" : "min(") + a + ", " + b + ")");
+        }
+        else if (t == "sym_ite")
+        {
+            std::string condition = exprstack.top();
+            exprstack.pop();
+            std::string a = exprstack.top();
+            exprstack.pop();
+            std::string b = exprstack.top();
+            exprstack.pop();
+            exprstack.push("(" + a + " if " + condition + " else " + b + ")");
+        }
         else if (t == "int"
                  || t == "abs"
                  || t == "acos"
@@ -1129,7 +1191,7 @@ static std::string expand_expression(const Operator* op)
                     b = std::string("torch.tensor(") + b + ")";
             }
 
-            std::string r = binaryop + "(" + a + ", " + b + ")";
+            std::string r = t == "pow" ? "(" + a + " ** " + b + ")" : binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
         else if (t == "add"
@@ -1308,9 +1370,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("start"))
         {
-            int start = op->params.at("start").i;
-            if (start != 0)
-                r += std::to_string(start);
+            const Parameter& start = op->params.at("start");
+            if (start.type == 2 && start.i != 0)
+                r += std::to_string(start.i);
         }
         else if (op->has_param("starts"))
         {
@@ -1345,9 +1407,9 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("end"))
         {
-            int end = op->params.at("end").i;
-            if (end != INT_MAX)
-                r += std::to_string(end);
+            const Parameter& end = op->params.at("end");
+            if (end.type == 2 && end.i != INT_MAX)
+                r += std::to_string(end.i);
         }
         else if (op->has_param("ends"))
         {
@@ -1380,11 +1442,11 @@ static std::string make_slice_expression(const Operator* op)
 
         if (op->has_param("step"))
         {
-            int step = op->params.at("step").i;
-            if (step != 1)
+            const Parameter& step = op->params.at("step");
+            if (step.type == 2 && step.i != 1)
             {
                 r += ':';
-                r += std::to_string(step);
+                r += std::to_string(step.i);
             }
         }
         else if (op->has_param("steps"))
@@ -1437,14 +1499,10 @@ static std::string make_slice_expression(const Operator* op)
     return pr + nr;
 }
 
-static std::string make_index_expression(const Operator* op)
+static std::string make_index_expression(std::string index_expr)
 {
-    fprintf(stderr, "make_index_expression %s\n", op->name.c_str());
-
-    std::string index_expr = op->params.at("expr").s;
-
-    // strip out-most [ ] pair
-    index_expr = index_expr.substr(1, index_expr.size() - 2);
+    if (index_expr.size() >= 2 && index_expr[0] == '[' && index_expr[index_expr.size() - 1] == ']')
+        index_expr = index_expr.substr(1, index_expr.size() - 2);
 
     // None,None,   ->   ...,
     bool leading_none = false;
@@ -1452,6 +1510,7 @@ static std::string make_index_expression(const Operator* op)
     {
         leading_none = true;
         index_expr = index_expr.substr(5);
+        index_expr.erase(0, index_expr.find_first_not_of(' '));
     }
     if (leading_none)
     {
@@ -1483,6 +1542,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");
     fprintf(pyfp, "import tempfile, zipfile\n");
+    fprintf(pyfp, "import math\n");
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
@@ -1811,7 +1871,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             fprintf(pyfp, "        ");
 
-            if (op->type == "pnnx.Expression")
+            if (op->type == "pnnx.Assert")
+            {
+                fprintf(pyfp, "assert v_%s\n", sanitize_identifier(op->inputs[0]->name).c_str());
+            }
+            else if (op->type == "pnnx.Expression")
             {
                 // expr
                 for (size_t i = 0; i < op->outputs.size(); i++)
@@ -1847,11 +1911,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 if (op->inputs.size() == 2)
                 {
                     std::string expanded_expr = expand_expression(op->inputs[1]->producer);
-                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), expanded_expr.c_str());
+                    std::string index_expr = make_index_expression(expanded_expr);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
                 else
                 {
-                    std::string index_expr = make_index_expression(op);
+                    std::string index_expr = make_index_expression(op->params.at("expr").s);
                     fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
             }
@@ -2367,14 +2432,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     {
                         if (scalar_as_tensor)
                         {
-                            if (param.f == (int)param.f)
+                            if (param.f == truncf(param.f))
                                 fprintf(pyfp, "torch.tensor(%.1f)", param.f);
                             else
                                 fprintf(pyfp, "torch.tensor(%g)", param.f);
                         }
                         else
                         {
-                            if (param.f == (int)param.f)
+                            if (param.f == truncf(param.f))
                                 fprintf(pyfp, "%.1f", param.f);
                             else
                                 fprintf(pyfp, "%g", param.f);

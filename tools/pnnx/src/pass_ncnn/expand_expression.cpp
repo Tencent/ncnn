@@ -134,7 +134,12 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "square"
                  || t == "tan"
                  || t == "tanh"
-                 || t == "trunc")
+                 || t == "trunc"
+                 || t == "pos"
+                 || t == "sym_float"
+                 || t == "sym_int"
+                 || t == "sym_sqrt"
+                 || t == "sym_trunc")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -143,6 +148,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             exprstack.push(r);
 
             Operator* op_unary = graph.new_operator_before("UnaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
+
+            if (t == "pos" || t == "sym_float") op_unary->type = "Noop";
 
             if (t == "erf") op_unary->type = "Erf";
             if (t == "abs") op_unary->params["0"] = 0;
@@ -173,6 +180,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "tan") op_unary->params["0"] = 11;
             if (t == "tanh") op_unary->params["0"] = 16;
             if (t == "trunc") op_unary->params["0"] = 19;
+            if (t == "sym_int" || t == "sym_trunc") op_unary->params["0"] = 19;
+            if (t == "sym_sqrt") op_unary->params["0"] = 5;
 
             Operand* op_unary_in = token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))] : graph.get_operand(op->name + "_" + a);
             op_unary_in->consumers.push_back(op_unary);
@@ -198,7 +207,9 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "mul"
                  || t == "pow"
                  || t == "remainder"
-                 || t == "sub")
+                 || t == "sub"
+                 || t == "sym_max"
+                 || t == "sym_min")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -223,6 +234,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "floor_divide") op_binary->params["0"] = 15;
             if (t == "fmod") op_binary->params["0"] = 12;
             if (t == "remainder") op_binary->params["0"] = 17;
+            if (t == "sym_max") op_binary->params["0"] = 4;
+            if (t == "sym_min") op_binary->params["0"] = 5;
             if (t == "pow") op_binary->params["0"] = 6;
             if (t == "atan2") op_binary->params["0"] = 10;
 

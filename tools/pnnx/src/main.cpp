@@ -12,9 +12,13 @@
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 #include "ir.h"
+#include "load_pt2.h"
+#include "model_format.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
@@ -211,24 +215,6 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
     return true;
 }
 
-static bool model_file_maybe_torchscript(const std::string& path)
-{
-    FILE* fp = fopen(path.c_str(), "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "open failed %s\n", path.c_str());
-        return false;
-    }
-
-    uint32_t signature = 0;
-    fread((char*)&signature, sizeof(signature), 1, fp);
-
-    fclose(fp);
-
-    // torchscript is a zip
-    return signature == 0x04034b50;
-}
-
 static bool model_file_maybe_tnnproto(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -259,7 +245,7 @@ static bool model_file_maybe_tnnproto(const std::string& path)
 
 static void show_usage()
 {
-    fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
+    fprintf(stderr, "Usage: pnnx [model.pt|model.pt2|model.onnx] [(key=value)...]\n");
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
@@ -447,6 +433,7 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+    bool pt2 = false;
 
     // clang-format off
     // *INDENT-OFF*
@@ -460,30 +447,77 @@ int main(int argc, char** argv)
     }
     else
 #endif
-#if BUILD_ONNX2PNNX
-    if (!model_file_maybe_torchscript(ptpath))
     {
-        int ret = load_onnx(ptpath.c_str(), pnnx_graph,
-                            input_shapes, input_types,
-                            input_shapes2, input_types2);
-        if (ret != 0)
-            return ret;
-    }
-    else
-#endif
-    {
-        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+        pnnx::ModelFormatInfo model_format;
+        if (pnnx::probe_model_format(ptpath, model_format) != 0)
+        {
+            fprintf(stderr, "model format probe failed: %s\n", model_format.diagnostic.c_str());
             return -1;
-        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
-            return -1;
+        }
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
-                                   device, input_shapes, input_types, input_contents,
-                                   input_shapes2, input_types2, input_contents2,
-                                   customop_modules, module_operators,
-                                   foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
+        if (model_format.format == pnnx::TorchScript || model_format.format == pnnx::Pt2)
+        {
+            for (auto m : customop_modules)
+            {
+                fprintf(stderr, "load custom module %s\n", m.c_str());
+#if _WIN32
+                HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+                if (!handle)
+                    fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
+#else
+                void* handle = dlopen(m.c_str(), RTLD_LAZY);
+                if (!handle)
+                    fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
+#endif
+            }
+        }
+
+        if (model_format.format == pnnx::Other)
+        {
+#if BUILD_ONNX2PNNX
+            int ret = load_onnx(ptpath.c_str(), pnnx_graph,
+                                input_shapes, input_types,
+                                input_shapes2, input_types2);
+            if (ret != 0)
+                return ret;
+#else
+            fprintf(stderr, "model format is not TorchScript/PT2 and this pnnx build has no ONNX importer\n");
+            return -1;
+#endif
+        }
+        else if (model_format.format == pnnx::TorchScript)
+        {
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
+
+            int ret = load_torchscript(ptpath, pnnx_graph,
+                                       device, input_shapes, input_types, input_contents,
+                                       input_shapes2, input_types2, input_contents2,
+                                       module_operators,
+                                       foldable_constants_zippath, foldable_constants);
+            if (ret != 0)
+                return ret;
+        }
+        else if (model_format.format == pnnx::Pt2)
+        {
+            if (device != "cpu")
+            {
+                fprintf(stderr, "PT2 models only support device=cpu\n");
+                return -1;
+            }
+            pt2 = true;
+            int ret = load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            fprintf(stderr, "unsupported %s model: %s\n",
+                    pnnx::model_format_name(model_format.format), model_format.diagnostic.c_str());
+            return -1;
+        }
     }
 
     // *INDENT-ON*
@@ -518,6 +552,16 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    for (size_t i = 0; pt2 && i < pnnx_graph.ops.size(); i++)
+    {
+        const std::string& type = pnnx_graph.ops[i]->type;
+        if (type.find("::") != std::string::npos)
+        {
+            fprintf(stderr, "unsupported operator %s\n", type.c_str());
+            return -1;
+        }
+    }
+
     pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
@@ -538,7 +582,8 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+            return -1;
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
