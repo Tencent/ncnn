@@ -390,6 +390,18 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 }
             }
 
+            if (r->type == 9)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bool input %s\")\n", input_name.c_str());
+                continue;
+            }
+
+            if (input_shape.empty())
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support scalar input %s\")\n", input_name.c_str());
+                continue;
+            }
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());

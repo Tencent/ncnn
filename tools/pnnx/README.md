@@ -58,7 +58,7 @@ torch.export.save(exported_program, "model.pt2")
 pnnx model.pt2
 ```
 
-The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs.
+The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs. An optional `inputshape` or `input` override must exactly match the static tensor count, shapes and data types stored in the PT2 package. Alternative `inputshape2` and `input2` inputs are unsupported for ExportedProgram.
 
 3. Export the generated PNNX python model as another ExportedProgram
 
@@ -76,6 +76,7 @@ This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` obj
 - Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments
 - Parameters, persistent and non-persistent buffers, and tensor constants with raw strided tensor payloads, including shape, stride and storage offset
 - Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
+- Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
 - ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
 - `torch.ops.aten.einsum.default` equation syntax and input/output ranks are validated without executing the operator, then whitespace is removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
 - Disabled `wrap_with_set_grad_enabled` and `wrap_with_autocast` higher-order wrappers with tensor-only captured graphs
@@ -91,6 +92,7 @@ This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` obj
 - Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs
 - Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
 - Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
+- Generated native ncnn python inference with Bool or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
 - Compressed or encrypted PT2 entries and PT2 archive versions other than `0`
 
 Unsupported graph and schema features fail with a feature-specific `load exported program failed:` diagnostic. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.

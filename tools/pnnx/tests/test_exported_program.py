@@ -32,6 +32,21 @@ class TinyModel(torch.nn.Module):
         return torch.relu(self.linear(x))
 
 
+class TwoInputModel(torch.nn.Module):
+    def forward(self, x, y):
+        return x + y
+
+
+class BoolInputModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.logical_not(x)
+
+
+class ScalarInputModel(torch.nn.Module):
+    def forward(self, x):
+        return x + 1
+
+
 class SingleTupleModel(torch.nn.Module):
     def forward(self, x):
         return (torch.relu(x),)
@@ -174,9 +189,9 @@ class OpenEndedSliceModel(torch.nn.Module):
         return x[:, 1:]
 
 
-def run_pnnx(work_dir, model_path):
+def run_pnnx(work_dir, model_path, *arguments):
     return subprocess.run(
-        [str(PNNX), model_path.name],
+        [str(PNNX), model_path.name, *arguments],
         cwd=work_dir,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -264,6 +279,19 @@ def load_generated_output(work_dir, basename):
         os.chdir(previous_work_dir)
 
 
+def load_generated_ncnn_module(work_dir, basename):
+    module_path = work_dir / f"{basename}_ncnn.py"
+    spec = importlib.util.spec_from_file_location(
+        f"test_exported_program_{basename}_ncnn", module_path
+    )
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load generated module {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class NonSeekableBuffer(io.BytesIO):
     def seekable(self):
         return False
@@ -344,6 +372,108 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 traced = torch.jit.trace(self.model, (torch.ones(2, 4),))
             traced.save(str(torchscript_path))
             self.assert_conversion_matches(work_dir, torchscript_path)
+            self.assertIn(
+                "net.float()", (work_dir / "legacy_pnnx.py").read_text()
+            )
+
+    def test_input_shape_overrides_are_validated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "two_inputs.pt2"
+            save_exported_program(
+                TwoInputModel().eval(),
+                source_path,
+                (torch.ones(2, 4), torch.ones(2, 4)),
+            )
+
+            invalid_arguments = (
+                (
+                    "inputshape=[2,4]",
+                    "input_shape expect 2 tensors but got 1",
+                ),
+                (
+                    "inputshape=[2,4],[2,4],[2,4]",
+                    "input_shape expect 2 tensors but got 3",
+                ),
+                (
+                    "inputshape=[1,4],[2,4]",
+                    "input_shapes[0] expect [2,4]f32 but got [1,4]f32",
+                ),
+                (
+                    "inputshape=[2,4]i32,[2,4]",
+                    "input_shapes[0] expect [2,4]f32 but got [2,4]i32",
+                ),
+            )
+            for index, (argument, message) in enumerate(invalid_arguments):
+                with self.subTest(argument=argument):
+                    archive_path = work_dir / f"invalid_input_{index}.pt2"
+                    shutil.copyfile(source_path, archive_path)
+                    result = run_pnnx(work_dir, archive_path, argument)
+                    stderr = result.stderr.decode(errors="replace")
+                    self.assertGreater(result.returncode, 0, stderr)
+                    self.assertIn(message, stderr)
+
+            second_shape_path = work_dir / "second_input_shape.pt2"
+            shutil.copyfile(source_path, second_shape_path)
+            result = run_pnnx(
+                work_dir,
+                second_shape_path,
+                "inputshape=[2,4],[2,4]",
+                "inputshape2=[3,4],[3,4]",
+            )
+            stderr = result.stderr.decode(errors="replace")
+            self.assertGreater(result.returncode, 0, stderr)
+            self.assertIn(
+                "inputshape2 and input2 are unsupported for exported program",
+                stderr,
+            )
+
+            valid_path = work_dir / "valid_input_shape.pt2"
+            shutil.copyfile(source_path, valid_path)
+            result = run_pnnx(
+                work_dir, valid_path, "inputshape=[2,4],[2,4]"
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stderr.decode(errors="replace")
+            )
+
+    def test_generated_ncnn_helper_rejects_bool_inputs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "bool_input.pt2"
+            save_exported_program(
+                BoolInputModel().eval(),
+                archive_path,
+                (torch.ones(2, 3, dtype=torch.bool),),
+            )
+
+            result = run_pnnx(work_dir, archive_path)
+            self.assertEqual(
+                result.returncode, 0, result.stderr.decode(errors="replace")
+            )
+            module = load_generated_ncnn_module(work_dir, archive_path.stem)
+            with self.assertRaisesRegex(
+                RuntimeError, "ncnn inference does not support bool input in0"
+            ):
+                module.test_inference()
+
+    def test_generated_ncnn_helper_rejects_scalar_inputs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "scalar_input.pt2"
+            save_exported_program(
+                ScalarInputModel().eval(), archive_path, (torch.tensor(2.0),)
+            )
+
+            result = run_pnnx(work_dir, archive_path)
+            self.assertEqual(
+                result.returncode, 0, result.stderr.decode(errors="replace")
+            )
+            module = load_generated_ncnn_module(work_dir, archive_path.stem)
+            with self.assertRaisesRegex(
+                RuntimeError, "ncnn inference does not support scalar input in0"
+            ):
+                module.test_inference()
 
     def test_torchscript_extra_archive_format_is_not_pt2_marker(self):
         with tempfile.TemporaryDirectory() as temp_dir:

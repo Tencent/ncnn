@@ -145,22 +145,28 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         self.call(module.export_torchscript)
         self.assertTrue((self.work_dir / "dtypes_pnnx.py.pt").is_file())
 
-    def test_generated_model_preserves_special_state_dtypes(self):
+    def test_generated_helpers_preserve_special_state_dtypes(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             model = StateDtypeModel().eval()
             module = self.convert(self.save("state_dtypes", model, (torch.ones(1),)))
-            actual = self.call(module.Model).eval()(*self.call(module._create_example_inputs))
+            source = (self.work_dir / "state_dtypes_pnnx.py").read_text()
+            self.assertNotIn("net.float()", source)
+            actual_outputs = (
+                self.call(module.Model).eval()(*self.call(module._create_example_inputs)),
+                self.call(module.test_inference),
+            )
 
         expected = model(torch.ones(1))
-        for expected_tensor, actual_tensor in zip(expected, actual):
-            self.assertEqual(actual_tensor.dtype, expected_tensor.dtype)
-            self.assertEqual(actual_tensor.shape, expected_tensor.shape)
-            self.assertTrue(
-                torch.equal(
-                    actual_tensor.view(torch.uint8), expected_tensor.view(torch.uint8)
+        for actual in actual_outputs:
+            for expected_tensor, actual_tensor in zip(expected, actual):
+                self.assertEqual(actual_tensor.dtype, expected_tensor.dtype)
+                self.assertEqual(actual_tensor.shape, expected_tensor.shape)
+                self.assertTrue(
+                    torch.equal(
+                        actual_tensor.view(torch.uint8), expected_tensor.view(torch.uint8)
+                    )
                 )
-            )
 
     def test_empty_lists_keep_typed_parameter_encoding(self):
         int_archive = self.save(
