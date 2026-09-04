@@ -134,7 +134,7 @@ static void selu_bf16s(Mat& a, float alphaxlambda, float lambda, const Option& o
             _blob = _mm_mul_ps(_alpha128, _blob);
             _blob = _mm_mul_ps(_lambda128, _mm_add_ps(_pos, _blob));
 
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
             ptr += 4;
         }

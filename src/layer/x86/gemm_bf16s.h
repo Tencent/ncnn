@@ -12076,8 +12076,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // __AVX__
                         if (out_elempack == 4)
                         {
-                            _mm_storel_epi64((__m128i*)p0, float2bfloat_sse(_f0));
-                            _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), float2bfloat_sse(_f1));
+                            __m128i _out_bf16_0 = float2bfloat_sse(_f0, _f1);
+                            _mm_storel_epi64((__m128i*)p0, _out_bf16_0);
+                            _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _mm_srli_si128(_out_bf16_0, 8));
                         }
                         if (out_elempack == 1)
                         {

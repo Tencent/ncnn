@@ -219,7 +219,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
 
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -237,7 +237,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
                 __m128 _blob = _mm_add_ps(_one128, _erf);
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -265,7 +265,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
 
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }
@@ -283,7 +283,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
                 __m128 _blob = _mm_add_ps(_one128, _erf);
                 _blob = _mm_mul_ps(_half128, _mm_mul_ps(_blob, _pLoad));
 
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob));
 
                 ptr += 4;
             }

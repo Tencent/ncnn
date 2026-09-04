@@ -128,7 +128,7 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
             _ans = _mm_max_ps(_ans, _zero);
             _ans = _mm_min_ps(_ans, _one);
             _ans = _mm_mul_ps(_ans, _p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans, _ans));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -144,7 +144,7 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
             _ans = _mm_max_ps(_ans, _zero);
             _ans = _mm_min_ps(_ans, _one);
             _ans = _mm_mul_ps(_ans, _p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans, _ans));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans));
             ptr += 4;
         }
 #endif // __AVX__

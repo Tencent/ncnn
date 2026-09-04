@@ -743,10 +743,8 @@ static void convolution_transform_kernel_packed_bf16s(const Mat& kernel, Mat& ke
 
                 _MM_TRANSPOSE4_PS(_k0, _k1, _k2, _k3);
 
-                _mm_storel_epi64((__m128i*)g00, float2bfloat_sse(_k0));
-                _mm_storel_epi64((__m128i*)(g00 + 4), float2bfloat_sse(_k1));
-                _mm_storel_epi64((__m128i*)(g00 + 4 * 2), float2bfloat_sse(_k2));
-                _mm_storel_epi64((__m128i*)(g00 + 4 * 3), float2bfloat_sse(_k3));
+                _mm_storeu_si128((__m128i*)g00, float2bfloat_sse(_k0, _k1));
+                _mm_storeu_si128((__m128i*)(g00 + 8), float2bfloat_sse(_k2, _k3));
 
                 g00 += 16;
 #else  // __AVX2__
@@ -934,8 +932,7 @@ static void convolution_transform_kernel_packed_bf16s(const Mat& kernel, Mat& ke
 #if __AVX2__
                 __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
                 __m128 _k1 = _mm_i32gather_ps(k1, _vindex, sizeof(float));
-                _mm_storel_epi64((__m128i*)g00, float2bfloat_sse(_k0));
-                _mm_storel_epi64((__m128i*)(g00 + 4), float2bfloat_sse(_k1));
+                _mm_storeu_si128((__m128i*)g00, float2bfloat_sse(_k0, _k1));
                 g00 += 8;
 #else  // __AVX2__
                 g00[0] = float32_to_bfloat16(k0[0]);
@@ -1588,16 +1585,20 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 if (out_elempack == 8)
                 {
-                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_mm512_extractf32x8_ps(_sum0, 0)));
-                    _mm_storeu_si128((__m128i*)(outptr + M), float2bfloat_avx(_mm512_extractf32x8_ps(_sum0, 1)));
+                    __m256i _sum0_bf16 = float2bfloat_avx512(_sum0);
+                    _mm_storeu_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0_bf16, 0));
+                    _mm_storeu_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0_bf16, 1));
                     outptr += 8;
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 0)));
-                    _mm_storel_epi64((__m128i*)(outptr + M), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 1)));
-                    _mm_storel_epi64((__m128i*)(outptr + M * 2), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 2)));
-                    _mm_storel_epi64((__m128i*)(outptr + M * 3), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 3)));
+                    __m256i _sum0_bf16 = float2bfloat_avx512(_sum0);
+                    __m128i _sum0_bf16l = _mm256_extracti128_si256(_sum0_bf16, 0);
+                    __m128i _sum0_bf16h = _mm256_extracti128_si256(_sum0_bf16, 1);
+                    _mm_storel_epi64((__m128i*)outptr, _sum0_bf16l);
+                    _mm_storel_epi64((__m128i*)(outptr + M), _mm_srli_si128(_sum0_bf16l, 8));
+                    _mm_storel_epi64((__m128i*)(outptr + M * 2), _sum0_bf16h);
+                    _mm_storel_epi64((__m128i*)(outptr + M * 3), _mm_srli_si128(_sum0_bf16h, 8));
                     outptr += 4;
                 }
                 if (out_elempack == 1)
@@ -2037,8 +2038,9 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_mm256_extractf128_ps(_sum0, 0)));
-                    _mm_storel_epi64((__m128i*)(outptr + M), float2bfloat_sse(_mm256_extractf128_ps(_sum0, 1)));
+                    __m128i _out_bf16_0 = float2bfloat_avx(_sum0);
+                    _mm_storel_epi64((__m128i*)outptr, _out_bf16_0);
+                    _mm_storel_epi64((__m128i*)(outptr + M), _mm_srli_si128(_out_bf16_0, 8));
                     outptr += 4;
                 }
                 if (out_elempack == 1)

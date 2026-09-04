@@ -114,7 +114,7 @@ static void prelu_bf16s(unsigned short* ptr, const float* slope, int size, int e
         __m128 _pos = _mm_max_ps(_zero, _p);
         __m128 _neg = _mm_min_ps(_zero, _p);
         _p = _mm_comp_fmadd_ps(_slope128, _neg, _pos);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -214,7 +214,7 @@ static void prelu_bf16s_per_element(unsigned short* ptr, const float* slope, int
         __m128 _pos = _mm_max_ps(_zero, _p);
         __m128 _neg = _mm_min_ps(_zero, _p);
         _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__
@@ -314,7 +314,7 @@ static void prelu_bf16s_single_slope(unsigned short* ptr, float slope, int size,
         __m128 _pos = _mm_max_ps(_zero, _p);
         __m128 _neg = _mm_min_ps(_zero, _p);
         _p = _mm_comp_fmadd_ps(_slope128, _neg, _pos);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__

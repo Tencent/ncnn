@@ -319,7 +319,7 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
                 _p = _mm_comp_fmsub_ps(_p, _a, _b);
-                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p));
                 ptr0 += 4;
             }
 #endif // __SSE2__
@@ -360,7 +360,7 @@ static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
-                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr0, float2bfloat_sse(_p));
                 ptr0 += 4;
             }
 #endif // __SSE2__

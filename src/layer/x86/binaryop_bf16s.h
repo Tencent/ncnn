@@ -37,7 +37,7 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         __m128 _b = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
         __m128 _outp4 = op.func_pack4(_p, _b);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr += 4;
         ptr1 += 4;
         outptr += 4;
@@ -85,7 +85,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         __m128 _outp4 = op.func_pack4(_p, _b_128);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr += 4;
         outptr += 4;
     }
@@ -132,7 +132,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
     {
         __m128 _b = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
         __m128 _outp4 = op.func_pack4(_a_128, _b);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr1 += 4;
         outptr += 4;
     }
@@ -188,7 +188,7 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _b = _mm_comp_bcstnebf16_ps(ptr1);
             __m128 _outp4 = op.func_pack4(_p, _b);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr += 4;
             ptr1 += 1;
             outptr += 4;
@@ -240,7 +240,7 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _outp4 = op.func_pack4(_p, _b_sse);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr += 4;
             outptr += 4;
         }
@@ -295,7 +295,7 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
         {
             __m128 _b = _mm_comp_bcstnebf16_ps(ptr1);
             __m128 _outp4 = op.func_pack4(_p, _b);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr1 += 1;
             outptr += 4;
         }

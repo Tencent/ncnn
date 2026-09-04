@@ -105,7 +105,7 @@ static void batchnorm_bf16s(unsigned short* ptr, const float* a, const float* b,
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_comp_fmadd_ps(_p, _b128, _a128);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -196,7 +196,7 @@ static void batchnorm_bf16s_per_element(unsigned short* ptr, const float* a, con
         __m128 _a = _mm_loadu_ps(a + i);
         __m128 _b = _mm_loadu_ps(b + i);
         _p = _mm_comp_fmadd_ps(_p, _b, _a);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__

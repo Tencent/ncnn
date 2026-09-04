@@ -104,7 +104,7 @@ static void erf_bf16s(Mat& a, const Option& opt)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = erf_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -113,7 +113,7 @@ static void erf_bf16s(Mat& a, const Option& opt)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = erf_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX__

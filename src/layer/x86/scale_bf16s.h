@@ -110,7 +110,7 @@ static void scale_bf16s(unsigned short* ptr, const float* scale, const float* bi
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_comp_fmadd_ps(_p, _s128, _b128);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -182,7 +182,7 @@ static void scale_bf16s_no_bias(unsigned short* ptr, const float* scale, int siz
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_mul_ps(_p, _s128);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -273,7 +273,7 @@ static void scale_bf16s_per_element(unsigned short* ptr, const float* scale, con
         __m128 _s = _mm_loadu_ps(scale + i);
         __m128 _bias = _mm_loadu_ps(bias + i);
         _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__
@@ -347,7 +347,7 @@ static void scale_bf16s_no_bias_per_element(unsigned short* ptr, const float* sc
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _s = _mm_loadu_ps(scale + i);
         _p = _mm_mul_ps(_p, _s);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__

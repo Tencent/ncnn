@@ -96,7 +96,7 @@ static void mish_bf16s(Mat& a, const Option& opt)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = mish_sse(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

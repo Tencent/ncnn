@@ -112,7 +112,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_mul_ps(_p, _p1);
-                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -169,7 +169,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_mul_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     outptr += 4;
@@ -231,7 +231,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                     _p = _mm_add_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -288,7 +288,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                         __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                         _p = _mm_add_ps(_p, _p1);
-                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                         ptr += 4;
                         outptr += 4;
@@ -361,7 +361,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     _p = _mm_mul_ps(_p, _coeff0);
                     _p1 = _mm_mul_ps(_p1, _coeff1);
                     _p = _mm_add_ps(_p1, _p);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -424,7 +424,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                         _p1 = _mm_mul_ps(_p1, _coeff);
                         _p = _mm_add_ps(_p1, _p);
-                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                         ptr += 4;
                         outptr += 4;
@@ -485,7 +485,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_max_ps(_p, _p1);
-                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -542,7 +542,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_max_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     outptr += 4;

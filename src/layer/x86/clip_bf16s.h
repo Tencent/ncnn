@@ -93,7 +93,7 @@ static void clip_bf16s(Mat& a, float min, float max, const Option& opt)
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_max_ps(_p, _min);
             _p = _mm_min_ps(_p, _max);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -105,7 +105,7 @@ static void clip_bf16s(Mat& a, float min, float max, const Option& opt)
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_max_ps(_p, _min);
             _p = _mm_min_ps(_p, _max);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX__

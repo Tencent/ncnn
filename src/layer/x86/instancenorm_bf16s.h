@@ -94,7 +94,7 @@ static void instancenorm_bf16s(unsigned short* ptr, int size, float a, float b)
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_comp_fmadd_ps(_p, _a, _b);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__

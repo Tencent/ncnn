@@ -106,7 +106,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
             _v = _mm_mul_ps(_v, _scale0);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_v, _v));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_v));
             intptr += 4;
             ptr += 4;
         }
@@ -198,7 +198,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
             _v = _mm_comp_fmadd_ps(_v, _scale0, _bias0);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_v, _v));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_v));
             intptr += 4;
             ptr += 4;
         }

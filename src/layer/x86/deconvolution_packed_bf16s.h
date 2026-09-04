@@ -1111,16 +1111,20 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 }
                 if (out_elempack == 8)
                 {
-                    _mm_store_si128((__m128i*)outptr, float2bfloat_avx(_mm512_extractf32x8_ps(_sum0, 0)));
-                    _mm_store_si128((__m128i*)(outptr + M), float2bfloat_avx(_mm512_extractf32x8_ps(_sum0, 1)));
+                    __m256i _sum0_bf16 = float2bfloat_avx512(_sum0);
+                    _mm_store_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0_bf16, 0));
+                    _mm_store_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0_bf16, 1));
                     outptr += 8;
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 0)));
-                    _mm_storel_epi64((__m128i*)(outptr + M), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 1)));
-                    _mm_storel_epi64((__m128i*)(outptr + M * 2), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 2)));
-                    _mm_storel_epi64((__m128i*)(outptr + M * 3), float2bfloat_sse(_mm512_extractf32x4_ps(_sum0, 3)));
+                    __m256i _sum0_bf16 = float2bfloat_avx512(_sum0);
+                    __m128i _sum0_bf16l = _mm256_extracti128_si256(_sum0_bf16, 0);
+                    __m128i _sum0_bf16h = _mm256_extracti128_si256(_sum0_bf16, 1);
+                    _mm_storel_epi64((__m128i*)outptr, _sum0_bf16l);
+                    _mm_storel_epi64((__m128i*)(outptr + M), _mm_srli_si128(_sum0_bf16l, 8));
+                    _mm_storel_epi64((__m128i*)(outptr + M * 2), _sum0_bf16h);
+                    _mm_storel_epi64((__m128i*)(outptr + M * 3), _mm_srli_si128(_sum0_bf16h, 8));
                     outptr += 4;
                 }
                 if (out_elempack == 1)
@@ -1604,8 +1608,9 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_mm256_extractf128_ps(_sum0, 0)));
-                    _mm_storel_epi64((__m128i*)(outptr + M), float2bfloat_sse(_mm256_extractf128_ps(_sum0, 1)));
+                    __m128i _out_bf16_0 = float2bfloat_avx(_sum0);
+                    _mm_storel_epi64((__m128i*)outptr, _out_bf16_0);
+                    _mm_storel_epi64((__m128i*)(outptr + M), _mm_srli_si128(_out_bf16_0, 8));
                     outptr += 4;
                 }
                 if (out_elempack == 1)

@@ -58,7 +58,7 @@ static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsig
         __m128 _rows1 = _mm_loadu_ps(rows1 + nn);
         __m128 _Dp = _mm_mul_ps(_rows0, _b0_128);
         _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
-        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp, _Dp));
+        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp));
     }
 #endif // __SSE2__
     for (; nn < n; nn++)
@@ -121,7 +121,7 @@ static void vresize_bicubic_bf16s(const float* rows0, const float* rows1, const 
         _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
         _Dp = _mm_comp_fmadd_ps(_rows2, _b2_128, _Dp);
         _Dp = _mm_comp_fmadd_ps(_rows3, _b3_128, _Dp);
-        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp, _Dp));
+        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp));
     }
 #endif // __SSE2__
     for (; nn < n; nn++)
@@ -1574,7 +1574,7 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
                         __m128 _S1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(Sp + ep + elempack)));
                         __m128 _p = _mm_mul_ps(_S0, _a0);
                         _p = _mm_comp_fmadd_ps(_S1, _a1, _p);
-                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p));
                     }
 #endif // __SSE2__
                     for (; ep < elempack; ep++)
@@ -1667,7 +1667,7 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
                         _p = _mm_comp_fmadd_ps(_S1, _a1, _p);
                         _p = _mm_comp_fmadd_ps(_S2, _a2, _p);
                         _p = _mm_comp_fmadd_ps(_S3, _a3, _p);
-                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p));
                     }
 #endif // __SSE2__
                     for (; ep < elempack; ep++)

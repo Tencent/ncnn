@@ -102,7 +102,7 @@ static void swish_bf16s(Mat& a, const Option& opt)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_div_ps(_p, _mm_add_ps(_one, exp_ps(_mm_sub_ps(_zero, _p))));
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

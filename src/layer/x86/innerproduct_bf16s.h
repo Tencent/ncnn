@@ -473,7 +473,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             _sum0 = activation_sse(_sum0, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            _mm_storel_epi64((__m128i*)(outptr + p * 4), float2bfloat_sse(_sum0, _mm_setzero_ps()));
+            _mm_storel_epi64((__m128i*)(outptr + p * 4), float2bfloat_sse(_sum0));
         }
     }
 #endif // __SSE2__
@@ -706,7 +706,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             _sums = activation_sse(_sums, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            _mm_storel_epi64((__m128i*)(outptr + p), float2bfloat_sse(_sums, _mm_setzero_ps()));
+            _mm_storel_epi64((__m128i*)(outptr + p), float2bfloat_sse(_sums));
         }
 
         remain_outw_start += (nn_outw << 2);

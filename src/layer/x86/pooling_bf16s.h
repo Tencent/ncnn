@@ -122,7 +122,7 @@ static void pooling_global_max_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             }
 
             unsigned short* outptr = top_blob;
-            _mm_storel_epi64((__m128i*)(outptr + q * 4), float2bfloat_sse(_max, _max));
+            _mm_storel_epi64((__m128i*)(outptr + q * 4), float2bfloat_sse(_max));
         }
 
         return;
@@ -255,7 +255,7 @@ static void pooling_global_avg_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             __m128 _avg = _mm_mul_ps(_sum, _inv_size);
 
             unsigned short* outptr = top_blob;
-            _mm_storel_epi64((__m128i*)(outptr + q * 4), float2bfloat_sse(_avg, _avg));
+            _mm_storel_epi64((__m128i*)(outptr + q * 4), float2bfloat_sse(_avg));
         }
 
         return;
@@ -425,7 +425,7 @@ static void pooling_max_bf16s(const Mat& bottom_blob_bordered, Mat& top_blob, in
                         _max = _mm_max_ps(_max, _val);
                     }
 
-                    _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_max, _max));
+                    _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_max));
                 }
 
                 outptr += outw * 4;
@@ -698,7 +698,7 @@ static void pooling_avg_bf16s(const Mat& bottom_blob_bordered, const Mat& bottom
 
                         __m128 _inv_area = _mm_set1_ps(1.f / area);
                         __m128 _avg = _mm_mul_ps(_sum, _inv_area);
-                        _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_avg, _avg));
+                        _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_avg));
                     }
 
                     outptr += outw * 4;
@@ -862,7 +862,7 @@ static void pooling_avg_bf16s(const Mat& bottom_blob_bordered, const Mat& bottom
                         }
 
                         __m128 _avg = _mm_mul_ps(_sum, _inv_maxk);
-                        _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_avg, _avg));
+                        _mm_storel_epi64((__m128i*)(outptr + j * 4), float2bfloat_sse(_avg));
                     }
 
                     outptr += outw * 4;

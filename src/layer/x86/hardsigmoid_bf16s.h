@@ -124,7 +124,7 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
             _p = _mm_comp_fmadd_ps(_p, _alpha_sse, _beta_sse);
             _p = _mm_max_ps(_p, _zero);
             _p = _mm_min_ps(_p, _one);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -139,7 +139,7 @@ static void hardsigmoid_bf16s(Mat& a, float alpha, float beta, const Option& opt
             _p = _mm_comp_fmadd_ps(_p, _alpha_sse, _beta_sse);
             _p = _mm_max_ps(_p, _zero);
             _p = _mm_min_ps(_p, _one);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __AVX__

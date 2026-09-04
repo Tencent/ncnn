@@ -224,7 +224,7 @@ static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_sub_ps(_p, _max);
             _p = exp_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             _sum = _mm_add_ps(_sum, _p);
             ptr += 4;
         }
@@ -346,7 +346,7 @@ static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__
@@ -658,7 +658,7 @@ static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, size_t stri
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _max = _mm_set1_ps(*maxptr);
             _p = exp_ps(_mm_sub_ps(_p, _max));
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             *sumptr += _mm_reduce_add_ps(_p);
             ptr += 4;
             maxptr++;
@@ -713,7 +713,7 @@ static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, size_t stri
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _sum = _mm_set1_ps(*sumptr);
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
             sumptr++;
         }
@@ -857,7 +857,7 @@ static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, size_t stri
             __m128 _sum = _mm_loadu_ps(sumptr);
             _p = _mm_sub_ps(_p, _max);
             _p = exp_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             _sum = _mm_add_ps(_sum, _p);
             _mm_storeu_ps(sumptr, _sum);
             ptr += 4;
@@ -948,7 +948,7 @@ static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, size_t stri
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _sum = _mm_loadu_ps(sumptr);
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
             sumptr += 4;
         }

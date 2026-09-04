@@ -435,7 +435,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
                 __m128 _beta = _mm_set1_ps(beta_ptr[0]);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -478,7 +478,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
                 __m128 _beta = _mm_loadu_ps(beta_ptr);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 4;
                 beta_ptr += 4;
@@ -519,7 +519,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_comp_fmsub_ps(_p, _var, _mean);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

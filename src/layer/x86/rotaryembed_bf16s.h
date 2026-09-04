@@ -241,7 +241,7 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 ss = _mm_mul_ps(swap, s);
 
                     __m128 y = _mm_comp_fmaddsub_ps(a, c, ss);
-                    __m128i y_bf16 = float2bfloat_sse(y, y);
+                    __m128i y_bf16 = float2bfloat_sse(y);
                     _mm_storel_epi64((__m128i*)outptr, y_bf16);
 
                     ptr += 4;
@@ -330,8 +330,9 @@ static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, cons
                     __m128 y0 = _mm_comp_fnmadd_ps(x1, s, _mm_mul_ps(x0, c));
                     __m128 y1 = _mm_comp_fmadd_ps(x0, s, _mm_mul_ps(x1, c));
 
-                    _mm_storel_epi64((__m128i*)outptr0, float2bfloat_sse(y0, y0));
-                    _mm_storel_epi64((__m128i*)outptr1, float2bfloat_sse(y1, y1));
+                    __m128i _out_bf16_0 = float2bfloat_sse(y0, y1);
+                    _mm_storel_epi64((__m128i*)outptr0, _out_bf16_0);
+                    _mm_storel_epi64((__m128i*)outptr1, _mm_srli_si128(_out_bf16_0, 8));
 
                     ptr0 += 4;
                     ptr1 += 4;
