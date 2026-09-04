@@ -678,6 +678,61 @@ static int test_paramdict_6()
     return 0;
 }
 
+static int test_paramdict_7()
+{
+    // malformed length fields must be rejected rather than reaching Mat::create
+    // with a negative width
+
+    // text array, negative length
+    {
+        ParamDictTest pdt;
+        if (pdt.load_param("-23304=-4") == 0)
+        {
+            fprintf(stderr, "test_paramdict negative text array length not rejected\n");
+            return -1;
+        }
+    }
+
+    // binary array, negative length
+    {
+        static const unsigned char mem[] = {
+            0xf8, 0xa4, 0xff, 0xff, // -23304, array id 4
+            0xfc, 0xff, 0xff, 0xff, // length -4
+            0x01, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x17, 0xff, 0xff, 0xff  // -233, end of params
+        };
+        ParamDictTest pdt;
+        if (pdt.load_param_bin(mem) == 0)
+        {
+            fprintf(stderr, "test_paramdict negative bin array length not rejected\n");
+            return -1;
+        }
+    }
+
+    // binary string, negative length
+    {
+        static const unsigned char mem[] = {
+            0x94, 0xa4, 0xff, 0xff, // -23404, string id 4
+            0xf8, 0xff, 0xff, 0xff, // length -8
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x17, 0xff, 0xff, 0xff  // -233, end of params
+        };
+        ParamDictTest pdt;
+        if (pdt.load_param_bin(mem) == 0)
+        {
+            fprintf(stderr, "test_paramdict negative bin string length not rejected\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     return 0
@@ -687,5 +742,6 @@ int main()
            || test_paramdict_3()
            || test_paramdict_4()
            || test_paramdict_5()
-           || test_paramdict_6();
+           || test_paramdict_6()
+           || test_paramdict_7();
 }
