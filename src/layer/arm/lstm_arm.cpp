@@ -14,13 +14,8 @@
 
 namespace ncnn {
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "lstm_fp16s.h"
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void lstm_transform_kernel_fp16s_asimdhp(const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& weight_xc_data_packed_dr, Mat& bias_c_data_packed_dr, Mat& weight_hc_data_packed_dr, int size, int num_output, int hidden_size, bool use_fp16_arithmetic);
-int lstm_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
 #include "lstm_int8.h"
@@ -411,51 +406,6 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
     return 0;
 }
 
-#if NCNN_ARM82
-static void lstm_transform_kernel_fp16s_dispatch(const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& weight_xc_data_packed_dr, Mat& bias_c_data_packed_dr, Mat& weight_hc_data_packed_dr, int size, int num_output, int hidden_size, bool use_fp16_arithmetic)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    lstm_transform_kernel_fp16s(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, use_fp16_arithmetic);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    lstm_transform_kernel_fp16s_asimdhp(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, use_fp16_arithmetic);
-#else
-    (void)weight_xc;
-    (void)bias_c;
-    (void)weight_hc;
-    (void)weight_xc_data_packed_dr;
-    (void)bias_c_data_packed_dr;
-    (void)weight_hc_data_packed_dr;
-    (void)size;
-    (void)num_output;
-    (void)hidden_size;
-    (void)use_fp16_arithmetic;
-#endif
-}
-
-static int lstm_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    return lstm_fp16s(bottom_blob, top_blob, reverse, weight_xc, bias_c, weight_hc, weight_hr, hidden_state, cell_state, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    return lstm_fp16s_asimdhp(bottom_blob, top_blob, reverse, weight_xc, bias_c, weight_hc, weight_hr, hidden_state, cell_state, opt);
-#else
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)reverse;
-    (void)weight_xc;
-    (void)bias_c;
-    (void)weight_hc;
-    (void)weight_hr;
-    (void)hidden_state;
-    (void)cell_state;
-    (void)opt;
-    return 0;
-#endif
-}
-
-
-#endif // NCNN_ARM82
-
 int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
 #if NCNN_INT8
@@ -681,7 +631,7 @@ int LSTM_arm::create_pipeline_fp16s(const Option& opt)
         Mat bias_c_data_packed_dr = bias_c_data_packed.channel(dr);
         Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
 
-        lstm_transform_kernel_fp16s_dispatch(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, opt.use_fp16_arithmetic);
+        lstm_transform_kernel_fp16s(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, opt.use_fp16_arithmetic);
     }
 
     if (opt.lightmode)
@@ -718,7 +668,7 @@ int LSTM_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option&
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+        int ret = lstm_fp16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -734,7 +684,7 @@ int LSTM_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option&
             return -100;
 
         {
-            int ret = lstm_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+            int ret = lstm_fp16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
             if (ret != 0)
                 return ret;
         }
@@ -743,7 +693,7 @@ int LSTM_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option&
         cell.fill(0.f);
 
         {
-            int ret = lstm_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
+            int ret = lstm_fp16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
             if (ret != 0)
                 return ret;
         }
@@ -800,7 +750,7 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
+        int ret = lstm_fp16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -818,7 +768,7 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         Mat hidden0 = hidden.row_range(0, 1);
         Mat cell0 = cell.row_range(0, 1);
         {
-            int ret = lstm_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
+            int ret = lstm_fp16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
             if (ret != 0)
                 return ret;
         }
@@ -826,7 +776,7 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         Mat hidden1 = hidden.row_range(1, 1);
         Mat cell1 = cell.row_range(1, 1);
         {
-            int ret = lstm_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
+            int ret = lstm_fp16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
             if (ret != 0)
                 return ret;
         }

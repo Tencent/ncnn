@@ -1,6 +1,13 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void deconvolution_transform_kernel_fp16s_asimdhp(const Mat& kernel, Mat& kernel_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack);
+void deconvolution_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
+void deconvolution_col2im_fp16sa_asimdhp(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
+bool deconvolution_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #include "deconvolution_4x4_fp16s.h"
@@ -1212,6 +1219,93 @@ static bool deconvolution_fp16sa(const Mat& bottom_blob, Mat& top_blob_bordered,
     }
 
     return false;
+}
+
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static void deconvolution_transform_kernel_fp16s(const Mat& kernel, Mat& kernel_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    deconvolution_transform_kernel_fp16s_asimdhp(kernel, kernel_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+#else
+    (void)kernel;
+    (void)kernel_tm;
+    (void)num_input;
+    (void)num_output;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)elempack;
+    (void)out_elempack;
+#endif
+}
+
+static void deconvolution_fp16s(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    deconvolution_fp16s_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob_bordered;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)num_output;
+    (void)bias_term;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+static void deconvolution_col2im_fp16sa(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    deconvolution_col2im_fp16sa_asimdhp(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, input_w, input_h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#else
+    (void)top_col2im;
+    (void)top_blob_bordered;
+    (void)bias_data;
+    (void)bias_data_fp16;
+    (void)input_w;
+    (void)input_h;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)opt;
+#endif
+}
+
+static bool deconvolution_fp16sa(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    return deconvolution_fp16sa_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob_bordered;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)bias_data_fp16;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)num_output;
+    (void)bias_term;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+    return false;
+#endif
 }
 
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

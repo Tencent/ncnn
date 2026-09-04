@@ -93,12 +93,12 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (type_from == 1 && type_to == 2)
     {
-        cast_fp32_to_fp16_neon(bottom_blob, top_blob, opt);
+        cast_fp32_to_fp16(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 2 && type_to == 1)
     {
-        cast_fp16_to_fp32_neon(bottom_blob, top_blob, opt);
+        cast_fp16_to_fp32(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 3 && type_to == 1)
@@ -131,12 +131,12 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (type_from == 1 && type_to == 4)
     {
-        cast_fp32_to_bf16_neon(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 4 && type_to == 1)
     {
-        cast_bf16_to_fp32_neon(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32(bottom_blob, top_blob, opt);
     }
 
     return 0;

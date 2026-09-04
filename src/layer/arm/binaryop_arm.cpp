@@ -13,12 +13,8 @@
 
 namespace ncnn {
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "binaryop_fp16s.h"
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void binary_op_vector_fp16s_asimdhp(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
 #endif
 
 BinaryOp_arm::BinaryOp_arm()
@@ -484,24 +480,6 @@ static int get_reverse_op_type(int op_type)
 }
 
 #if NCNN_ARM82
-static void binary_op_vector_fp16s_dispatch(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    binary_op_vector_fp16s((const __fp16*)ptr, (const __fp16*)ptr1, (__fp16*)outptr, aw, bw, ap, bp, op_type);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    binary_op_vector_fp16s_asimdhp(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
-#else
-    (void)ptr;
-    (void)ptr1;
-    (void)outptr;
-    (void)aw;
-    (void)bw;
-    (void)ap;
-    (void)bp;
-    (void)op_type;
-#endif
-}
-
 static void binary_op_scalar_fp16s(const Mat& a, unsigned short b, Mat& c, int op_type, const Option& opt)
 {
     const int channels = a.c;
@@ -513,7 +491,7 @@ static void binary_op_scalar_fp16s(const Mat& a, unsigned short b, Mat& c, int o
         const unsigned short* ptr = a.channel(q);
         unsigned short* outptr = c.channel(q);
 
-        binary_op_vector_fp16s_dispatch(ptr, &b, outptr, size, 1, 1, 1, op_type);
+        binary_op_vector_fp16s(ptr, &b, outptr, size, 1, 1, 1, op_type);
     }
 }
 
@@ -529,7 +507,7 @@ static void binary_op_no_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int
         const unsigned short* ptr1 = b.channel(q);
         unsigned short* outptr = c.channel(q);
 
-        binary_op_vector_fp16s_dispatch(ptr, ptr1, outptr, size, size, 1, 1, op_type);
+        binary_op_vector_fp16s(ptr, ptr1, outptr, size, size, 1, 1, op_type);
     }
 }
 
@@ -561,7 +539,7 @@ static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op
             const unsigned short* ptr1 = b.row<const unsigned short>(y1);
             unsigned short* outptr = c.row<unsigned short>(y);
 
-            binary_op_vector_fp16s_dispatch(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
+            binary_op_vector_fp16s(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
         }
     }
 
@@ -581,7 +559,7 @@ static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op
                 const unsigned short* ptr1 = b.channel(q1);
                 unsigned short* outptr = c.channel(q);
 
-                binary_op_vector_fp16s_dispatch(ptr, ptr1, outptr, a.w * a.h * a.d, 1, a.elempack, b.elempack, op_type);
+                binary_op_vector_fp16s(ptr, ptr1, outptr, a.w * a.h * a.d, 1, a.elempack, b.elempack, op_type);
                 continue;
             }
 
@@ -596,7 +574,7 @@ static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op
                     const unsigned short* ptr1 = b.channel(q1).depth(z1);
                     unsigned short* outptr = c.channel(q).depth(z);
 
-                    binary_op_vector_fp16s_dispatch(ptr, ptr1, outptr, a.w * a.h, 1, a.elempack, b.elempack, op_type);
+                    binary_op_vector_fp16s(ptr, ptr1, outptr, a.w * a.h, 1, a.elempack, b.elempack, op_type);
                 }
                 continue;
             }
@@ -615,7 +593,7 @@ static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op
                     const unsigned short* ptr1 = b.channel(q1).depth(z1).row<const unsigned short>(y1);
                     unsigned short* outptr = c.channel(q).depth(z).row<unsigned short>(y);
 
-                    binary_op_vector_fp16s_dispatch(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
+                    binary_op_vector_fp16s(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
                 }
             }
         }
@@ -632,7 +610,7 @@ static void binary_op_scalar_inplace_fp16s(Mat& a, unsigned short b, int op_type
     {
         unsigned short* ptr = a.channel(q);
 
-        binary_op_vector_fp16s_dispatch(ptr, &b, ptr, size, 1, 1, 1, op_type);
+        binary_op_vector_fp16s(ptr, &b, ptr, size, 1, 1, 1, op_type);
     }
 }
 

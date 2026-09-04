@@ -1,6 +1,14 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void convolution1d_transform_kernel_packed_fp16s_asimdhp(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w);
+void convolution1d_packed_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
+void convolution1d_packed_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
 static void convolution1d_transform_kernel_packed_fp16s(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w)
 {
     // src = kw-inh-outh
@@ -1870,3 +1878,56 @@ static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
         }
     }
 }
+
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static void convolution1d_transform_kernel_packed_fp16s(const Mat& kernel, Mat& kernel_tm, int inh, int outh, int kernel_w)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    convolution1d_transform_kernel_packed_fp16s_asimdhp(kernel, kernel_tm, inh, outh, kernel_w);
+#else
+    (void)kernel;
+    (void)kernel_tm;
+    (void)inh;
+    (void)outh;
+    (void)kernel_w;
+#endif
+}
+
+static void convolution1d_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    convolution1d_packed_fp16s_asimdhp(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)dilation_w;
+    (void)stride_w;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    convolution1d_packed_fp16sa_asimdhp(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)dilation_w;
+    (void)stride_w;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

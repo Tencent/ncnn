@@ -1,6 +1,14 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void quantize_fp16s_asimdhp(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack);
+void quantize_pack4to8_fp16s_asimdhp(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount);
+void quantize_pack4to1_fp16s_asimdhp(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount);
+void quantize_fp16sa_asimdhp(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack);
+void quantize_pack4to1_fp16sa_asimdhp(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static void quantize_fp16s(const __fp16* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
 {
@@ -300,3 +308,82 @@ static void quantize_pack4to1_fp16sa(const __fp16* ptr, signed char* s8ptr0, sig
     }
 }
 #endif
+
+static void quantize_fp16s(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    quantize_fp16s((const __fp16*)ptr, s8ptr, scale_data, elemcount, elempack);
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    quantize_fp16s_asimdhp(ptr, s8ptr, scale_data, elemcount, elempack);
+#else
+    (void)ptr;
+    (void)s8ptr;
+    (void)scale_data;
+    (void)elemcount;
+    (void)elempack;
+#endif
+}
+
+static void quantize_pack4to8_fp16s(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    quantize_pack4to8_fp16s((const __fp16*)ptr0, (const __fp16*)ptr1, s8ptr, scale_data, elemcount);
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    quantize_pack4to8_fp16s_asimdhp(ptr0, ptr1, s8ptr, scale_data, elemcount);
+#else
+    (void)ptr0;
+    (void)ptr1;
+    (void)s8ptr;
+    (void)scale_data;
+    (void)elemcount;
+#endif
+}
+
+static void quantize_pack4to1_fp16s(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    quantize_pack4to1_fp16s((const __fp16*)ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    quantize_pack4to1_fp16s_asimdhp(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
+#else
+    (void)ptr;
+    (void)s8ptr0;
+    (void)s8ptr1;
+    (void)s8ptr2;
+    (void)s8ptr3;
+    (void)scale_data;
+    (void)elemcount;
+#endif
+}
+
+static void quantize_fp16sa(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    quantize_fp16sa((const __fp16*)ptr, s8ptr, scale_data, elemcount, elempack);
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    quantize_fp16sa_asimdhp(ptr, s8ptr, scale_data, elemcount, elempack);
+#else
+    (void)ptr;
+    (void)s8ptr;
+    (void)scale_data;
+    (void)elemcount;
+    (void)elempack;
+#endif
+}
+
+static void quantize_pack4to1_fp16sa(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    quantize_pack4to1_fp16sa((const __fp16*)ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    quantize_pack4to1_fp16sa_asimdhp(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
+#else
+    (void)ptr;
+    (void)s8ptr0;
+    (void)s8ptr1;
+    (void)s8ptr2;
+    (void)s8ptr3;
+    (void)scale_data;
+    (void)elemcount;
+#endif
+}

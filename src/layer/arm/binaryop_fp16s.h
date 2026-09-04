@@ -1,6 +1,10 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void binary_op_vector_fp16s_asimdhp(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static inline float16x4_t fmod_f16(const float16x4_t& x, const float16x4_t& y)
 {
@@ -403,8 +407,12 @@ MAKE_FUNCTION(binary_op_rremainder_fp16s, (__fp16)remainderf((float)y, (float)x)
 
 } // namespace BinaryOp_arm_fp16s_functor
 
-static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int aw, int bw, int ap, int bp, int op_type)
+static void binary_op_vector_fp16s(const unsigned short* _ptr, const unsigned short* _ptr1, unsigned short* _outptr, int aw, int bw, int ap, int bp, int op_type)
 {
+    const __fp16* ptr = (const __fp16*)_ptr;
+    const __fp16* ptr1 = (const __fp16*)_ptr1;
+    __fp16* outptr = (__fp16*)_outptr;
+
     using namespace BinaryOp_arm_fp16s_functor;
 
     if (op_type == BinaryOp::Operation_ADD) return binary_op_vector_fp16s<binary_op_add_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
@@ -429,4 +437,23 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
 
     // should never reach here
 }
+
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static void binary_op_vector_fp16s(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    binary_op_vector_fp16s_asimdhp(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
+#else
+    (void)ptr;
+    (void)ptr1;
+    (void)outptr;
+    (void)aw;
+    (void)bw;
+    (void)ap;
+    (void)bp;
+    (void)op_type;
+#endif
+}
+
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

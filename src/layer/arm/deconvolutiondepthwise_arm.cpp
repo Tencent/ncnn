@@ -16,13 +16,8 @@
 
 namespace ncnn {
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "deconvolutiondepthwise_fp16s.h"
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void deconvolutiondepthwise_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
-void deconvolutiondepthwise_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
@@ -215,58 +210,6 @@ int DeconvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-#if NCNN_ARM82
-static void deconvolutiondepthwise_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    deconvolutiondepthwise_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    deconvolutiondepthwise_fp16s_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-#else
-    (void)bottom_blob;
-    (void)top_blob_bordered;
-    (void)weight_data_tm;
-    (void)bias_data;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)dilation_w;
-    (void)dilation_h;
-    (void)stride_w;
-    (void)stride_h;
-    (void)bias_term;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif
-}
-
-static void deconvolutiondepthwise_fp16sa_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    deconvolutiondepthwise_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    deconvolutiondepthwise_fp16sa_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-#else
-    (void)bottom_blob;
-    (void)top_blob_bordered;
-    (void)weight_data_tm;
-    (void)bias_data;
-    (void)bias_data_fp16;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)dilation_w;
-    (void)dilation_h;
-    (void)stride_w;
-    (void)stride_h;
-    (void)bias_term;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif
-}
-
-
-#endif // NCNN_ARM82
 int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
     Option opt = _opt;
@@ -832,7 +775,7 @@ int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_b
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-        deconvolutiondepthwise_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
+        deconvolutiondepthwise_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
     }
     else
     {
@@ -934,7 +877,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-        deconvolutiondepthwise_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
+        deconvolutiondepthwise_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
     }
     else
     {

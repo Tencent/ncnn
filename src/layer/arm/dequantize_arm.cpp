@@ -13,12 +13,8 @@
 
 namespace ncnn {
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "dequantize_fp16s.h"
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void dequantize_fp16s_asimdhp(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack);
 #endif
 
 Dequantize_arm::Dequantize_arm()
@@ -159,25 +155,6 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
     }
 }
 
-#if NCNN_ARM82
-static void dequantize_fp16s_dispatch(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    dequantize_fp16s(intptr, (__fp16*)ptr, scale_data, bias_data, elemcount, elempack);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    dequantize_fp16s_asimdhp(intptr, ptr, scale_data, bias_data, elemcount, elempack);
-#else
-    (void)intptr;
-    (void)ptr;
-    (void)scale_data;
-    (void)bias_data;
-    (void)elemcount;
-    (void)elempack;
-#endif
-}
-
-#endif // NCNN_ARM82
-
 int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // assert bottom_blob.elembits() == 32
@@ -293,7 +270,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
             const int size = std::min(w - i, wp) * elempack;
 
-            dequantize_fp16s_dispatch(intptr, ptr, scale_data, bias_data, size, 1);
+            dequantize_fp16s(intptr, ptr, scale_data, bias_data, size, 1);
         }
     }
 
@@ -312,7 +289,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
             const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
             const Mat bias_data_i = bias_data_size > 1 ? bias_data.range(i * elempack, elempack) : bias_data;
 
-            dequantize_fp16s_dispatch(intptr, ptr, scale_data_i, bias_data_i, w, elempack);
+            dequantize_fp16s(intptr, ptr, scale_data_i, bias_data_i, w, elempack);
         }
     }
 
@@ -341,7 +318,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
             const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
             const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
 
-            dequantize_fp16s_dispatch(intptr, ptr, scale_data_q, bias_data_q, w * h * d, elempack);
+            dequantize_fp16s(intptr, ptr, scale_data_q, bias_data_q, w * h * d, elempack);
         }
     }
 

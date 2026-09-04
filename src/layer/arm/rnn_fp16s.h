@@ -1,6 +1,11 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void rnn_transform_kernel_fp16s_asimdhp(const Mat& weight_xc, const Mat& weight_hc, Mat& weight_xc_data_packed, Mat& weight_hc_data_packed, int size, int num_output, bool use_fp16_arithmetic);
+int rnn_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
@@ -473,4 +478,38 @@ static void rnn_transform_kernel_fp16s(const Mat& weight_xc, const Mat& weight_h
         }
     }
 }
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static void rnn_transform_kernel_fp16s(const Mat& weight_xc, const Mat& weight_hc, Mat& weight_xc_data_packed, Mat& weight_hc_data_packed, int size, int num_output, bool use_fp16_arithmetic)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    rnn_transform_kernel_fp16s_asimdhp(weight_xc, weight_hc, weight_xc_data_packed, weight_hc_data_packed, size, num_output, use_fp16_arithmetic);
+#else
+    (void)weight_xc;
+    (void)weight_hc;
+    (void)weight_xc_data_packed;
+    (void)weight_hc_data_packed;
+    (void)size;
+    (void)num_output;
+    (void)use_fp16_arithmetic;
+#endif
+}
+
+static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    return rnn_fp16s_asimdhp(bottom_blob, top_blob, reverse, weight_xc, bias_c, weight_hc, hidden_state, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)reverse;
+    (void)weight_xc;
+    (void)bias_c;
+    (void)weight_hc;
+    (void)hidden_state;
+    (void)opt;
+    return 0;
+#endif
+}
+
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

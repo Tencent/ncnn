@@ -1,9 +1,23 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void dequantize_fp16s_asimdhp(const int* intptr, unsigned short* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack);
+#endif
+
+static void dequantize_fp16s(const int* intptr, unsigned short* _ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        dequantize_fp16s_asimdhp(intptr, _ptr, scale_data, bias_data, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    __fp16* ptr = (__fp16*)_ptr;
+
     const int scale_data_size = scale_data.w;
     const int bias_data_size = bias_data.w;
     const int size = elemcount * elempack;
@@ -100,5 +114,12 @@ static void dequantize_fp16s(const int* intptr, __fp16* ptr, const Mat& scale_da
             ptr++;
         }
     }
-}
+#else
+    (void)intptr;
+    (void)_ptr;
+    (void)scale_data;
+    (void)bias_data;
+    (void)elemcount;
+    (void)elempack;
 #endif
+}

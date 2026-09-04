@@ -1,6 +1,12 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+void convolution_transform_kernel_fp16s_asimdhp(const Mat& weight_data, Mat& weight_data_tm, Mat& weight_sgemm_data, Mat& weight_winograd23_data, Mat& weight_winograd43_data, Mat& weight_winograd63_data, int weight_data_size, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
+void convolution_fp16s_asimdhp(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
+int convolution_fp16sa_asimdhp(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& weight_sgemm_data, const Mat& weight_winograd23_data, const Mat& weight_winograd43_data, const Mat& weight_winograd63_data, const Mat& bias_data_fp16, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, bool& activation_unfused, const Option& opt);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #include "convolution_packed_fp16s.h"
@@ -475,6 +481,81 @@ static int convolution_fp16sa(const Mat& bottom_blob_bordered, Mat& top_blob, co
 #endif // NCNN_GNU_INLINE_ASM
 
     return 0;
+}
+
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static void convolution_transform_kernel_fp16s(const Mat& weight_data, Mat& weight_data_tm, Mat& weight_sgemm_data, Mat& weight_winograd23_data, Mat& weight_winograd43_data, Mat& weight_winograd63_data, int weight_data_size, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    convolution_transform_kernel_fp16s_asimdhp(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#else
+    (void)weight_data;
+    (void)weight_data_tm;
+    (void)weight_sgemm_data;
+    (void)weight_winograd23_data;
+    (void)weight_winograd43_data;
+    (void)weight_winograd63_data;
+    (void)weight_data_size;
+    (void)num_output;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)opt;
+#endif
+}
+
+static void convolution_fp16s(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    convolution_fp16s_asimdhp(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+#else
+    (void)bottom_blob_bordered;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)bias_data;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)activation_type;
+    (void)activation_params;
+    (void)opt;
+#endif
+}
+
+static int convolution_fp16sa(const Mat& bottom_blob_bordered, Mat& top_blob, const Mat& weight_data_tm, const Mat& weight_sgemm_data, const Mat& weight_winograd23_data, const Mat& weight_winograd43_data, const Mat& weight_winograd63_data, const Mat& bias_data_fp16, int num_output, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, bool& activation_unfused, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    return convolution_fp16sa_asimdhp(bottom_blob_bordered, top_blob, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, bias_data_fp16, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, activation_unfused, opt);
+#else
+    (void)bottom_blob_bordered;
+    (void)top_blob;
+    (void)weight_data_tm;
+    (void)weight_sgemm_data;
+    (void)weight_winograd23_data;
+    (void)weight_winograd43_data;
+    (void)weight_winograd63_data;
+    (void)bias_data_fp16;
+    (void)num_output;
+    (void)kernel_w;
+    (void)kernel_h;
+    (void)dilation_w;
+    (void)dilation_h;
+    (void)stride_w;
+    (void)stride_h;
+    (void)activation_type;
+    (void)activation_params;
+    (void)nT;
+    (void)activation_unfused;
+    (void)opt;
+    return 0;
+#endif
 }
 
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

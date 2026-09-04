@@ -6,7 +6,7 @@ void cast_fp32_to_bf16_neon_bf16(const Mat& bottom_blob, Mat& top_blob, const Op
 void cast_bf16_to_fp32_neon_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
-static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_SVE && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())
@@ -200,7 +200,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
     }
 }
 
-static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_SVE && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_bf16())

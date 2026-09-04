@@ -14,12 +14,12 @@ namespace ncnn {
 
 void cast_fp32_to_fp16_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_fp32_to_fp16_neon(bottom_blob, top_blob, opt);
+    cast_fp32_to_fp16(bottom_blob, top_blob, opt);
 }
 
 void cast_fp16_to_fp32_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_fp16_to_fp32_neon(bottom_blob, top_blob, opt);
+    cast_fp16_to_fp32(bottom_blob, top_blob, opt);
 }
 
 } // namespace ncnn

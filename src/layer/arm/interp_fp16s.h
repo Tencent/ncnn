@@ -1,6 +1,11 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int interp_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, int resize_type, float width_scale, float height_scale, int align_corner, bool use_output_width, bool use_output_height, const Option& opt);
+int interp_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, int resize_type, float width_scale, float height_scale, int align_corner, bool use_output_width, bool use_output_height, const Option& opt);
+#endif
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #include "interp_bicubic_fp16s.h"
@@ -867,6 +872,48 @@ static int interp_fp16sa(const Mat& bottom_blob, Mat& top_blob, int outw, int ou
     }
 
     return 0;
+}
+
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+static int interp_fp16s(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, int resize_type, float width_scale, float height_scale, int align_corner, bool use_output_width, bool use_output_height, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    return interp_fp16s_asimdhp(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)outw;
+    (void)outh;
+    (void)resize_type;
+    (void)width_scale;
+    (void)height_scale;
+    (void)align_corner;
+    (void)use_output_width;
+    (void)use_output_height;
+    (void)opt;
+    return 0;
+#endif
+}
+
+static int interp_fp16sa(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, int resize_type, float width_scale, float height_scale, int align_corner, bool use_output_width, bool use_output_height, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    return interp_fp16sa_asimdhp(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
+#else
+    (void)bottom_blob;
+    (void)top_blob;
+    (void)outw;
+    (void)outh;
+    (void)resize_type;
+    (void)width_scale;
+    (void)height_scale;
+    (void)align_corner;
+    (void)use_output_width;
+    (void)use_output_height;
+    (void)opt;
+    return 0;
+#endif
 }
 
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

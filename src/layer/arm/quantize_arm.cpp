@@ -14,16 +14,8 @@
 
 namespace ncnn {
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "quantize_fp16s.h"
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void quantize_fp16s_asimdhp(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack);
-void quantize_pack4to8_fp16s_asimdhp(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount);
-void quantize_pack4to1_fp16s_asimdhp(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount);
-void quantize_fp16sa_asimdhp(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack);
-void quantize_pack4to1_fp16sa_asimdhp(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount);
 #endif
 
 Quantize_arm::Quantize_arm()
@@ -224,88 +216,6 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     }
 }
 #endif // __ARM_NEON
-
-#if NCNN_ARM82
-static void quantize_fp16s_dispatch(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    quantize_fp16s((const __fp16*)ptr, s8ptr, scale_data, elemcount, elempack);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    quantize_fp16s_asimdhp(ptr, s8ptr, scale_data, elemcount, elempack);
-#else
-    (void)ptr;
-    (void)s8ptr;
-    (void)scale_data;
-    (void)elemcount;
-    (void)elempack;
-#endif
-}
-
-static void quantize_pack4to8_fp16s_dispatch(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    quantize_pack4to8_fp16s((const __fp16*)ptr0, (const __fp16*)ptr1, s8ptr, scale_data, elemcount);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    quantize_pack4to8_fp16s_asimdhp(ptr0, ptr1, s8ptr, scale_data, elemcount);
-#else
-    (void)ptr0;
-    (void)ptr1;
-    (void)s8ptr;
-    (void)scale_data;
-    (void)elemcount;
-#endif
-}
-
-static void quantize_pack4to1_fp16s_dispatch(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    quantize_pack4to1_fp16s((const __fp16*)ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    quantize_pack4to1_fp16s_asimdhp(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
-#else
-    (void)ptr;
-    (void)s8ptr0;
-    (void)s8ptr1;
-    (void)s8ptr2;
-    (void)s8ptr3;
-    (void)scale_data;
-    (void)elemcount;
-#endif
-}
-
-static void quantize_fp16sa_dispatch(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    quantize_fp16sa((const __fp16*)ptr, s8ptr, scale_data, elemcount, elempack);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    quantize_fp16sa_asimdhp(ptr, s8ptr, scale_data, elemcount, elempack);
-#else
-    (void)ptr;
-    (void)s8ptr;
-    (void)scale_data;
-    (void)elemcount;
-    (void)elempack;
-#endif
-}
-
-static void quantize_pack4to1_fp16sa_dispatch(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    quantize_pack4to1_fp16sa((const __fp16*)ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    quantize_pack4to1_fp16sa_asimdhp(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data, elemcount);
-#else
-    (void)ptr;
-    (void)s8ptr0;
-    (void)s8ptr1;
-    (void)s8ptr2;
-    (void)s8ptr3;
-    (void)scale_data;
-    (void)elemcount;
-#endif
-}
-
-#endif // NCNN_ARM82
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -539,7 +449,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             const int size = std::min(w - i, wp) * elempack;
 
-            quantize_fp16s_dispatch(ptr, s8ptr, scale_data, size, 1);
+            quantize_fp16s(ptr, s8ptr, scale_data, size, 1);
         }
     }
 
@@ -568,7 +478,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8_fp16s_dispatch(ptr0, ptr1, s8ptr, scale_data_i, w);
+                quantize_pack4to8_fp16s(ptr0, ptr1, s8ptr, scale_data_i, w);
             }
         }
         if (elempack == 4 && out_elempack == 1)
@@ -584,7 +494,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_pack4to1_fp16s_dispatch(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
+                quantize_pack4to1_fp16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
             }
         }
         if (elempack == out_elempack)
@@ -597,7 +507,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_fp16s_dispatch(ptr, s8ptr, scale_data_i, w, elempack);
+                quantize_fp16s(ptr, s8ptr, scale_data_i, w, elempack);
             }
         }
     }
@@ -630,7 +540,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8_fp16s_dispatch(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
+                quantize_pack4to8_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
         if (elempack == 4 && out_elempack == 1)
@@ -646,7 +556,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1_fp16s_dispatch(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
+                quantize_pack4to1_fp16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
             }
         }
         if (elempack == out_elempack)
@@ -659,7 +569,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_fp16s_dispatch(ptr, s8ptr, scale_data_q, w * h * d, elempack);
+                quantize_fp16s(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }
@@ -705,7 +615,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             const int size = std::min(w - i, wp) * elempack;
 
-            quantize_fp16sa_dispatch(ptr, s8ptr, scale_data, size, 1);
+            quantize_fp16sa(ptr, s8ptr, scale_data, size, 1);
         }
     }
 
@@ -736,7 +646,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_pack4to1_fp16sa_dispatch(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
+                quantize_pack4to1_fp16sa(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
             }
         }
         if (elempack == out_elempack)
@@ -749,7 +659,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_fp16sa_dispatch(ptr, s8ptr, scale_data_i, w, elempack);
+                quantize_fp16sa(ptr, s8ptr, scale_data_i, w, elempack);
             }
         }
     }
@@ -784,7 +694,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1_fp16sa_dispatch(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
+                quantize_pack4to1_fp16sa(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
             }
         }
         if (elempack == out_elempack)
@@ -797,7 +707,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_fp16sa_dispatch(ptr, s8ptr, scale_data_q, w * h * d, elempack);
+                quantize_fp16sa(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }

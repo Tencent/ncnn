@@ -19,111 +19,9 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 #include "deconvolution_4x4.h"
 
-#if NCNN_ARM82 && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "deconvolution_fp16s.h"
 #endif
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void deconvolution_transform_kernel_fp16s_asimdhp(const Mat& kernel, Mat& kernel_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack);
-void deconvolution_fp16s_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
-void deconvolution_col2im_fp16sa_asimdhp(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
-bool deconvolution_fp16sa_asimdhp(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt);
-#endif
-
-#if NCNN_ARM82
-static void deconvolution_transform_kernel_fp16s_dispatch(const Mat& kernel, Mat& kernel_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    deconvolution_transform_kernel_fp16s(kernel, kernel_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    deconvolution_transform_kernel_fp16s_asimdhp(kernel, kernel_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-#else
-    (void)kernel;
-    (void)kernel_tm;
-    (void)num_input;
-    (void)num_output;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)elempack;
-    (void)out_elempack;
-#endif
-}
-
-static void deconvolution_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    deconvolution_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    deconvolution_fp16s_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-#else
-    (void)bottom_blob;
-    (void)top_blob_bordered;
-    (void)weight_data_tm;
-    (void)bias_data;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)dilation_w;
-    (void)dilation_h;
-    (void)stride_w;
-    (void)stride_h;
-    (void)num_output;
-    (void)bias_term;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif
-}
-
-static void deconvolution_col2im_fp16sa_dispatch(const Mat& top_col2im, Mat& top_blob_bordered, const Mat& bias_data, const Mat& bias_data_fp16, int input_w, int input_h, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    deconvolution_col2im_fp16sa(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, input_w, input_h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    deconvolution_col2im_fp16sa_asimdhp(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, input_w, input_h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-#else
-    (void)top_col2im;
-    (void)top_blob_bordered;
-    (void)bias_data;
-    (void)bias_data_fp16;
-    (void)input_w;
-    (void)input_h;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)dilation_w;
-    (void)dilation_h;
-    (void)stride_w;
-    (void)stride_h;
-    (void)opt;
-#endif
-}
-
-static bool deconvolution_fp16sa_dispatch(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
-{
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    return deconvolution_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-#elif NCNN_RUNTIME_CPU && __aarch64__
-    return deconvolution_fp16sa_asimdhp(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-#else
-    (void)bottom_blob;
-    (void)top_blob_bordered;
-    (void)weight_data_tm;
-    (void)bias_data;
-    (void)bias_data_fp16;
-    (void)kernel_w;
-    (void)kernel_h;
-    (void)dilation_w;
-    (void)dilation_h;
-    (void)stride_w;
-    (void)stride_h;
-    (void)num_output;
-    (void)bias_term;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-    return false;
-#endif
-}
-#endif // NCNN_ARM82
 
 Deconvolution_arm::Deconvolution_arm()
 {
@@ -1073,7 +971,7 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
     }
     else
     {
-        deconvolution_transform_kernel_fp16s_dispatch(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        deconvolution_transform_kernel_fp16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
     if (elempack == 1 && out_elempack == 1 && opt.use_fp16_arithmetic)
@@ -1120,7 +1018,7 @@ int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     if (top_blob_bordered.empty())
         return -100;
 
-    deconvolution_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+    deconvolution_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
 
     cut_padding(top_blob_bordered, top_blob, opt);
     if (top_blob.empty())
@@ -1174,14 +1072,14 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         if (ret != 0)
             return ret;
 
-        deconvolution_col2im_fp16sa_dispatch(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        deconvolution_col2im_fp16sa(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
 
         if (activation)
             activation->forward_inplace(top_blob_bordered, opt);
     }
     else
     {
-        const bool activation_unfused = deconvolution_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+        const bool activation_unfused = deconvolution_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
         if (activation_unfused && activation)
             activation->forward_inplace(top_blob_bordered, opt);
     }

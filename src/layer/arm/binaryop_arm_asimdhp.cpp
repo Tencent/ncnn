@@ -15,7 +15,7 @@ namespace ncnn {
 
 void binary_op_vector_fp16s_asimdhp(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
 {
-    binary_op_vector_fp16s((const __fp16*)ptr, (const __fp16*)ptr1, (__fp16*)outptr, aw, bw, ap, bp, op_type);
+    binary_op_vector_fp16s(ptr, ptr1, outptr, aw, bw, ap, bp, op_type);
 }
 
 } // namespace ncnn
