@@ -2592,10 +2592,8 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
         const JsonValue* user_input_mutation = output_specs->array[i].find("user_input_mutation");
         if (user_input_mutation && user_input_mutation->type == JsonValue::Object)
         {
-            const JsonValue* arg = user_input_mutation->find("arg");
-            const std::string value_name = arg ? argument_name(*arg) : std::string();
-            if (!value_name.empty())
-                continue;
+            fprintf(stderr, "user input mutation is not supported\n");
+            return -1;
         }
         if (buffer_mutation && buffer_mutation->type == JsonValue::Object)
         {

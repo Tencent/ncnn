@@ -60,6 +60,13 @@ class DynamicReshape(nn.Module):
         return x.reshape(x.shape[0], x.shape[1], x.shape[2] * x.shape[3])
 
 
+class CopyScatterCastBroadcast(nn.Module):
+    def forward(self, x, src):
+        x = x.clone()
+        x[:, :2] = src
+        return x
+
+
 def close(a, b):
     if isinstance(a, (tuple, list)):
         return isinstance(b, type(a)) and len(a) == len(b) and all(close(x, y) for x, y in zip(a, b))
@@ -88,6 +95,7 @@ def test():
         (ShapeOps(), torch.rand(1, 3, 4, 5), "test_exported_program_shape_ops"),
         (PadResize(), torch.rand(1, 3, 4, 5), "test_exported_program_pad_resize"),
         (EmbeddingBatchNorm(), (torch.randint(0, 16, (2, 3)), torch.rand(1, 4, 5, 6)), "test_exported_program_embedding_batch_norm"),
+        (CopyScatterCastBroadcast(), (torch.zeros(2, 4, dtype=torch.float32), torch.tensor([[1], [2]], dtype=torch.int64)), "test_exported_program_copy_scatter_cast_broadcast"),
     )
 
     if not all(run_case(model, inputs, basename) for model, inputs, basename in cases):

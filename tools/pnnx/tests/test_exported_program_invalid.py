@@ -39,6 +39,12 @@ class BufferMutationModel(nn.Module):
         return x + self.value
 
 
+class UserInputMutationModel(nn.Module):
+    def forward(self, x):
+        x.add_(1)
+        return x * 2
+
+
 def json_member(path):
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
@@ -150,6 +156,9 @@ def test():
     buffer_mutation = "test_exported_program_invalid_buffer_mutation.pt2"
     torch.export.save(torch.export.export(BufferMutationModel().eval(), (x,)), buffer_mutation)
 
+    user_input_mutation = "test_exported_program_invalid_user_input_mutation.pt2"
+    torch.export.save(torch.export.export(UserInputMutationModel().eval(), (x,)), user_input_mutation)
+
     return all((
         expect_failure(compressed, "compressed zip entry is not supported"),
         expect_failure(compressed_renamed, "compressed zip entry is not supported"),
@@ -161,6 +170,7 @@ def test():
         expect_failure(dict_output, "unsupported or invalid pt2 output pytree"),
         expect_failure(dict_input, "unsupported or invalid pt2 input pytree"),
         expect_failure(buffer_mutation, "unsupported pt2 graph output kind"),
+        expect_failure(user_input_mutation, "user input mutation is not supported"),
     ))
 
 

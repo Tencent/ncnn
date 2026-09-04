@@ -39,9 +39,18 @@ void fuse_slice_copy(Graph& graph)
             }
             if (consumed_by_scatter)
             {
+                // Tensor.copy may broadcast or cast src to the destination
+                // slice. It is only safe to bypass the copy when its source
+                // and result metadata prove that it is value-preserving.
+                Operand* out = op->outputs[0];
+                const bool copy_is_identity = op->inputs[1]->type != 0 && out->type != 0
+                    && op->inputs[1]->type == out->type
+                    && !op->inputs[1]->shape.empty() && op->inputs[1]->shape == out->shape;
+                if (!copy_is_identity)
+                    continue;
+
                 matched = true;
 
-                Operand* out = op->outputs[0];
                 for (size_t j = 0; j < out->consumers.size(); j++)
                 {
                     Operator* consumer = out->consumers[j];

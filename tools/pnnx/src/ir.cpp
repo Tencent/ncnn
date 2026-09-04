@@ -1878,6 +1878,18 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "v_%s = v_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str());
                 fprintf(pyfp, "        v_%s[%s] = v_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), slice_expr.c_str(), sanitize_identifier(op->inputs[1]->name).c_str());
             }
+            else if (op->type == "Tensor.copy")
+            {
+                // Functional aten::copy returns src broadcast and cast to
+                // self without mutating self. Keep these semantics when a
+                // following scatter consumes the copy result.
+                fprintf(pyfp, "v_%s = v_%s.to(dtype=v_%s.dtype, device=v_%s.device).expand_as(v_%s).clone()\n",
+                        sanitize_identifier(op->outputs[0]->name).c_str(),
+                        sanitize_identifier(op->inputs[1]->name).c_str(),
+                        sanitize_identifier(op->inputs[0]->name).c_str(),
+                        sanitize_identifier(op->inputs[0]->name).c_str(),
+                        sanitize_identifier(op->inputs[0]->name).c_str());
+            }
             else if (op->type == "Tensor.index")
             {
                 // index expr
