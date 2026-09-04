@@ -22,13 +22,21 @@ PixelShuffle_arm::PixelShuffle_arm()
 #endif
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
 }
 
-int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82

@@ -154,7 +154,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     return 0;
 }
 
-static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
+static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to, int elempack)
 {
     ncnn::ParamDict pd;
     pd.set(0, type_from);
@@ -183,14 +183,14 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     ncnn::Mat b;
     cast_cpu_naive(a_fp16, b, type_from, type_to);
 
-    ncnn::Mat a4;
-    ncnn::convert_packing(a, a4, 4, opt);
+    ncnn::Mat ap;
+    ncnn::convert_packing(a, ap, elempack, opt);
 
-    ncnn::Mat a4_fp16;
-    cast_cpu_naive(a4, a4_fp16, 1, type_from);
+    ncnn::Mat ap_fp16;
+    cast_cpu_naive(ap, ap_fp16, 1, type_from);
 
     ncnn::Mat c;
-    op->forward(a4_fp16, c, opt);
+    op->forward(ap_fp16, c, opt);
 
     op->destroy_pipeline(opt);
 
@@ -198,7 +198,42 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
 
     if (CompareMat(b, c, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_cpu_packed failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_cpu_packed failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to, elempack);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_cast_cpu_packed_int8(const ncnn::Mat& a, int elempack)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 3);
+    pd.set(1, 1);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+
+    ncnn::Layer* op = ncnn::create_layer_cpu("Cast");
+    op->load_param(pd);
+    op->create_pipeline(opt);
+
+    ncnn::Mat ap;
+    ncnn::convert_packing(a, ap, elempack, opt);
+
+    ncnn::Mat b;
+    cast_cpu_naive(ap, b, 3, 1);
+
+    ncnn::Mat c;
+    op->forward(ap, c, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (CompareMat(b, c, 0.001) != 0)
+    {
+        fprintf(stderr, "test_cast_cpu_packed_int8 failed a.dims=%d a=(%d %d %d %d) elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, elempack);
         return -1;
     }
 
@@ -327,7 +362,7 @@ static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
 {
     return 0
            || test_cast_cpu(a, type_from, type_to)
-           || test_cast_cpu_packed(a, type_from, type_to)
+           || test_cast_cpu_packed(a, type_from, type_to, 4)
 #if NCNN_VULKAN
            || test_cast_gpu_fp16p(a, type_from, type_to)
 #endif // NCNN_VULKAN
@@ -386,6 +421,25 @@ static int test_cast_3()
            || test_cast(RandomMat(127), 4, 1);
 }
 
+#if NCNN_ARM86SVE
+static int test_cast_sve()
+{
+    if (!ncnn::cpu_support_arm_sve())
+        return 0;
+
+    const int vlenb = ncnn::cpu_arm_sve_vlenb();
+    const ncnn::Mat a = RandomMat(5, 3, vlenb);
+    const ncnn::Mat a8 = RandomS8Mat(5, 3, vlenb);
+
+    return 0
+           || test_cast_cpu_packed(a, 1, 2, vlenb / 4)
+           || test_cast_cpu_packed(a, 2, 1, vlenb / 2)
+           || test_cast_cpu_packed(a, 1, 4, vlenb / 4)
+           || test_cast_cpu_packed(a, 4, 1, vlenb / 2)
+           || test_cast_cpu_packed_int8(a8, vlenb);
+}
+#endif // NCNN_ARM86SVE
+
 int main()
 {
     SRAND(7767517);
@@ -395,5 +449,9 @@ int main()
            || test_cast_0()
            || test_cast_1()
            || test_cast_2()
-           || test_cast_3();
+           || test_cast_3()
+#if NCNN_ARM86SVE
+           || test_cast_sve()
+#endif // NCNN_ARM86SVE
+           ;
 }

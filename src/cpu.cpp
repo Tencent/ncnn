@@ -32,6 +32,10 @@
 #endif
 #endif
 
+#if defined(_MSC_VER) && defined(_M_ARM64)
+#include <intrin.h> // __emit() and __getReg()
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten/threading.h>
 #endif
@@ -2210,6 +2214,21 @@ static void initialize_global_cpu_info()
     g_cpu_support_arm_svebf16 = ruapu_supports("svebf16") || IsProcessorFeaturePresent(52);                                    // 52 is PF_ARM_SVE_BF16_INSTRUCTIONS_AVAILABLE
     g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm") || IsProcessorFeaturePresent(57);                                    // 57 is PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE
     g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm") || IsProcessorFeaturePresent(58);                                  // 58 is PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
+
+    // sanitize for ncnn armv8.4 and armv8.6 requirements
+    if (!(g_cpu_support_arm_asimdhp && g_cpu_support_arm_asimddp && g_cpu_support_arm_asimdfhm))
+    {
+        g_cpu_support_arm_bf16 = 0;
+        g_cpu_support_arm_i8mm = 0;
+    }
+    if (!(g_cpu_support_arm_bf16 && g_cpu_support_arm_i8mm))
+    {
+        g_cpu_support_arm_sve = 0;
+        g_cpu_support_arm_sve2 = 0;
+        g_cpu_support_arm_svebf16 = 0;
+        g_cpu_support_arm_svei8mm = 0;
+        g_cpu_support_arm_svef32mm = 0;
+    }
 #elif __arm__
     g_cpu_support_arm_edsp = ruapu_supports("edsp");
     g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
@@ -2218,6 +2237,19 @@ static void initialize_global_cpu_info()
 #elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
     g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
+
+#if __aarch64__
+    // sanitize for ncnn armv8.4 and armv8.6 requirements
+    if ((g_hwcaps & (HWCAP_ASIMDHP | HWCAP_ASIMDDP | HWCAP_ASIMDFHM)) != (HWCAP_ASIMDHP | HWCAP_ASIMDDP | HWCAP_ASIMDFHM))
+    {
+        g_hwcaps2 &= ~(HWCAP2_BF16 | HWCAP2_I8MM);
+    }
+    if ((g_hwcaps2 & (HWCAP2_BF16 | HWCAP2_I8MM)) != (HWCAP2_BF16 | HWCAP2_I8MM))
+    {
+        g_hwcaps &= ~(HWCAP_SVE);
+        g_hwcaps2 &= ~(HWCAP2_SVE2 | HWCAP2_SVEBF16 | HWCAP2_SVEI8MM | HWCAP2_SVEF32MM);
+    }
+#endif // __aarch64__
 #elif __APPLE__
     g_hw_cpufamily = get_hw_cpufamily();
     g_hw_cputype = get_hw_cputype();
@@ -2624,6 +2656,33 @@ int cpu_support_arm_sve()
     return g_hwcaps & HWCAP_SVE;
 #elif __APPLE__
     return 0; // no known apple cpu support armv8.6 sve
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_arm_sve_vlenb()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+    if (!cpu_support_arm_sve())
+        return 0;
+
+#if NCNN_GNU_INLINE_ASM
+    size_t vlenb;
+    asm volatile(
+        ".word  0x0420e3e9  \n" // cntb x9
+        "mov    %x0, x9     \n"
+        : "=r"(vlenb)
+        :
+        : "memory", "x9");
+    return (int)vlenb;
+#elif defined(_MSC_VER) && !defined(__clang__)
+    __emit(0x0420e3e9); // cntb x9
+    return (int)__getReg(9);
 #else
     return 0;
 #endif

@@ -468,6 +468,41 @@ static int test_packing_3()
            ;
 }
 
+#if NCNN_ARM86SVE
+static int test_packing_sve(const ncnn::Mat& a)
+{
+    if (!ncnn::cpu_support_arm_sve())
+        return 0;
+
+    const int vlenb = ncnn::cpu_arm_sve_vlenb();
+    const int packn = vlenb / 4;
+    const int packn_h = vlenb / 2;
+    const int packn_s8 = vlenb;
+
+    return 0
+           || test_packing_cpu_fp32(a, 1, packn)
+           || test_packing_cpu_fp32(a, packn, 1)
+           || test_packing_cpu_fp16(a, 1, packn_h)
+           || test_packing_cpu_fp16(a, packn_h, 1)
+           || test_packing_cpu_int8(a, 1, packn_s8)
+           || test_packing_cpu_int8(a, packn_s8, 1);
+}
+
+static int test_packing_sve()
+{
+    if (!ncnn::cpu_support_arm_sve())
+        return 0;
+
+    const int packn_s8 = ncnn::cpu_arm_sve_vlenb();
+
+    return 0
+           || test_packing_sve(RandomMat(7, 3, 2, packn_s8))
+           || test_packing_sve(RandomMat(7, 3, packn_s8))
+           || test_packing_sve(RandomMat(7, packn_s8))
+           || test_packing_sve(RandomMat(packn_s8 * 3));
+}
+#endif // NCNN_ARM86SVE
+
 int main()
 {
     SRAND(7767517);
@@ -476,5 +511,9 @@ int main()
            || test_packing_0()
            || test_packing_1()
            || test_packing_2()
-           || test_packing_3();
+           || test_packing_3()
+#if NCNN_ARM86SVE
+           || test_packing_sve()
+#endif // NCNN_ARM86SVE
+           ;
 }

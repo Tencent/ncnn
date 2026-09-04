@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "prelu_fp16s.h"
+#endif
+
 PReLU_arm::PReLU_arm()
 {
 #if __ARM_NEON
@@ -20,6 +24,11 @@ PReLU_arm::PReLU_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -298,6 +307,18 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return prelu_fp16s(bottom_top_blob, num_slope, slope_data, opt);
+}
+
+int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return prelu_fp16sa(bottom_top_blob, num_slope, slope_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

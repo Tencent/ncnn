@@ -13,6 +13,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "layernorm_fp16s.h"
+#endif
+
 LayerNorm_arm::LayerNorm_arm()
 {
 #if __ARM_NEON
@@ -21,6 +25,11 @@ LayerNorm_arm::LayerNorm_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -309,6 +318,13 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if NCNN_ARM82
+int LayerNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return layernorm_inplace_fp16s(bottom_top_blob, affine_size, eps, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)

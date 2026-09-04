@@ -461,6 +461,13 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX
+#if NCNN_RUNTIME_CPU && NCNN_ARM86SVE
+    if (ncnn::cpu_support_arm_sve())
+    {
+        layer_creator = layer_registry_sve[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM86SVE
 #if NCNN_RUNTIME_CPU && NCNN_LASX
     if (ncnn::cpu_support_loongarch_lasx())
     {
