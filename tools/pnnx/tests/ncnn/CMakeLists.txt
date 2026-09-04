@@ -264,8 +264,27 @@ pnnx_ncnn_add_test(transformers_deepseek_v3_attention)
 pnnx_ncnn_add_test(transformers_qwen2_attention)
 pnnx_ncnn_add_test(transformers_qwen3_attention)
 
-# pt2 (torch.export) 路径对拍测试
+# pt2 loader reads the torch.export archive layout, which drifts across torch
+# releases; 2.9 is the lowest version emitting a parseable archive.
+# override with -DPNNX_TORCH_VERSION=x.y.z to test the gate itself
+if(NOT DEFINED PNNX_TORCH_VERSION)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import torch; print(torch.__version__)"
+        RESULT_VARIABLE PT2_TORCH_PROBE
+        OUTPUT_VARIABLE PNNX_TORCH_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(NOT PT2_TORCH_PROBE EQUAL 0)
+        set(PNNX_TORCH_VERSION "")
+    endif()
+endif()
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" PNNX_TORCH_VERSION_NUM "${PNNX_TORCH_VERSION}")
+
 pnnx_ncnn_add_test(pt2_smoke)
 pnnx_ncnn_add_test(pt2_weights)
 pnnx_ncnn_add_test(pt2_testutil)
 pnnx_ncnn_add_test(pt2_review)
+
+# no torch, or torch too old to export a readable .pt2 archive -> disable, not fail
+if(NOT PNNX_TORCH_VERSION_NUM OR PNNX_TORCH_VERSION_NUM VERSION_LESS "2.9.0")
+    set_tests_properties(test_ncnn_pt2_smoke test_ncnn_pt2_weights test_ncnn_pt2_testutil test_ncnn_pt2_review PROPERTIES DISABLED TRUE)
+endif()
