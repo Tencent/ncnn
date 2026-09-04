@@ -1224,22 +1224,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 16).row<const unsigned short>(sy) + sx * 16;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr[3]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr[4]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr[5]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr[6]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr[7]));
-                                __m256 _val8 = _mm256_set1_ps(bfloat16_to_float32(sptr[8]));
-                                __m256 _val9 = _mm256_set1_ps(bfloat16_to_float32(sptr[9]));
-                                __m256 _vala = _mm256_set1_ps(bfloat16_to_float32(sptr[10]));
-                                __m256 _valb = _mm256_set1_ps(bfloat16_to_float32(sptr[11]));
-                                __m256 _valc = _mm256_set1_ps(bfloat16_to_float32(sptr[12]));
-                                __m256 _vald = _mm256_set1_ps(bfloat16_to_float32(sptr[13]));
-                                __m256 _vale = _mm256_set1_ps(bfloat16_to_float32(sptr[14]));
-                                __m256 _valf = _mm256_set1_ps(bfloat16_to_float32(sptr[15]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr + 4);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr + 5);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr + 6);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr + 7);
+                                __m256 _val8 = _mm256_comp_bcstnebf16_ps(sptr + 8);
+                                __m256 _val9 = _mm256_comp_bcstnebf16_ps(sptr + 9);
+                                __m256 _vala = _mm256_comp_bcstnebf16_ps(sptr + 10);
+                                __m256 _valb = _mm256_comp_bcstnebf16_ps(sptr + 11);
+                                __m256 _valc = _mm256_comp_bcstnebf16_ps(sptr + 12);
+                                __m256 _vald = _mm256_comp_bcstnebf16_ps(sptr + 13);
+                                __m256 _vale = _mm256_comp_bcstnebf16_ps(sptr + 14);
+                                __m256 _valf = _mm256_comp_bcstnebf16_ps(sptr + 15);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1262,22 +1262,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 8 + 1).row<const unsigned short>(sy) + sx * 8;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr0[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr0[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr0[3]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr0[4]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr0[5]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr0[6]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr0[7]));
-                                __m256 _val8 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m256 _val9 = _mm256_set1_ps(bfloat16_to_float32(sptr1[1]));
-                                __m256 _vala = _mm256_set1_ps(bfloat16_to_float32(sptr1[2]));
-                                __m256 _valb = _mm256_set1_ps(bfloat16_to_float32(sptr1[3]));
-                                __m256 _valc = _mm256_set1_ps(bfloat16_to_float32(sptr1[4]));
-                                __m256 _vald = _mm256_set1_ps(bfloat16_to_float32(sptr1[5]));
-                                __m256 _vale = _mm256_set1_ps(bfloat16_to_float32(sptr1[6]));
-                                __m256 _valf = _mm256_set1_ps(bfloat16_to_float32(sptr1[7]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr0 + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr0 + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr0 + 3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr0 + 4);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr0 + 5);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr0 + 6);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr0 + 7);
+                                __m256 _val8 = _mm256_comp_bcstnebf16_ps(sptr1);
+                                __m256 _val9 = _mm256_comp_bcstnebf16_ps(sptr1 + 1);
+                                __m256 _vala = _mm256_comp_bcstnebf16_ps(sptr1 + 2);
+                                __m256 _valb = _mm256_comp_bcstnebf16_ps(sptr1 + 3);
+                                __m256 _valc = _mm256_comp_bcstnebf16_ps(sptr1 + 4);
+                                __m256 _vald = _mm256_comp_bcstnebf16_ps(sptr1 + 5);
+                                __m256 _vale = _mm256_comp_bcstnebf16_ps(sptr1 + 6);
+                                __m256 _valf = _mm256_comp_bcstnebf16_ps(sptr1 + 7);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1302,22 +1302,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr2 = bottom_blob.channel(q / 4 + 2).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr3 = bottom_blob.channel(q / 4 + 3).row<const unsigned short>(sy) + sx * 4;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr0[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr0[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr0[3]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr1[1]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr1[2]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr1[3]));
-                                __m256 _val8 = _mm256_set1_ps(bfloat16_to_float32(sptr2[0]));
-                                __m256 _val9 = _mm256_set1_ps(bfloat16_to_float32(sptr2[1]));
-                                __m256 _vala = _mm256_set1_ps(bfloat16_to_float32(sptr2[2]));
-                                __m256 _valb = _mm256_set1_ps(bfloat16_to_float32(sptr2[3]));
-                                __m256 _valc = _mm256_set1_ps(bfloat16_to_float32(sptr3[0]));
-                                __m256 _vald = _mm256_set1_ps(bfloat16_to_float32(sptr3[1]));
-                                __m256 _vale = _mm256_set1_ps(bfloat16_to_float32(sptr3[2]));
-                                __m256 _valf = _mm256_set1_ps(bfloat16_to_float32(sptr3[3]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr0 + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr0 + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr0 + 3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr1);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr1 + 1);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr1 + 2);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr1 + 3);
+                                __m256 _val8 = _mm256_comp_bcstnebf16_ps(sptr2);
+                                __m256 _val9 = _mm256_comp_bcstnebf16_ps(sptr2 + 1);
+                                __m256 _vala = _mm256_comp_bcstnebf16_ps(sptr2 + 2);
+                                __m256 _valb = _mm256_comp_bcstnebf16_ps(sptr2 + 3);
+                                __m256 _valc = _mm256_comp_bcstnebf16_ps(sptr3);
+                                __m256 _vald = _mm256_comp_bcstnebf16_ps(sptr3 + 1);
+                                __m256 _vale = _mm256_comp_bcstnebf16_ps(sptr3 + 2);
+                                __m256 _valf = _mm256_comp_bcstnebf16_ps(sptr3 + 3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1337,22 +1337,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx]));
-                                __m256 _val8 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 8).row<const unsigned short>(sy)[sx]));
-                                __m256 _val9 = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 9).row<const unsigned short>(sy)[sx]));
-                                __m256 _vala = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 10).row<const unsigned short>(sy)[sx]));
-                                __m256 _valb = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 11).row<const unsigned short>(sy)[sx]));
-                                __m256 _valc = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 12).row<const unsigned short>(sy)[sx]));
-                                __m256 _vald = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 13).row<const unsigned short>(sy)[sx]));
-                                __m256 _vale = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 14).row<const unsigned short>(sy)[sx]));
-                                __m256 _valf = _mm256_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 15).row<const unsigned short>(sy)[sx]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q).row<const unsigned short>(sy) + sx);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 2).row<const unsigned short>(sy) + sx);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 3).row<const unsigned short>(sy) + sx);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 4).row<const unsigned short>(sy) + sx);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 5).row<const unsigned short>(sy) + sx);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 6).row<const unsigned short>(sy) + sx);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 7).row<const unsigned short>(sy) + sx);
+                                __m256 _val8 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 8).row<const unsigned short>(sy) + sx);
+                                __m256 _val9 = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 9).row<const unsigned short>(sy) + sx);
+                                __m256 _vala = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 10).row<const unsigned short>(sy) + sx);
+                                __m256 _valb = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 11).row<const unsigned short>(sy) + sx);
+                                __m256 _valc = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 12).row<const unsigned short>(sy) + sx);
+                                __m256 _vald = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 13).row<const unsigned short>(sy) + sx);
+                                __m256 _vale = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 14).row<const unsigned short>(sy) + sx);
+                                __m256 _valf = _mm256_comp_bcstnebf16_ps(bottom_blob.channel(q + 15).row<const unsigned short>(sy) + sx);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1403,14 +1403,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr[3]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr[4]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr[5]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr[6]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr[7]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr + 4);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr + 5);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr + 6);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr + 7);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1425,14 +1425,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr0[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr0[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr0[3]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr1[1]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr1[2]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr1[3]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr0 + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr0 + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr0 + 3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr1);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr1 + 1);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr1 + 2);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr1 + 3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1452,14 +1452,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr5 = bottom_blob.channel(q + 5).row<const unsigned short>(sy) + sx;
                                 const unsigned short* sptr6 = bottom_blob.channel(q + 6).row<const unsigned short>(sy) + sx;
                                 const unsigned short* sptr7 = bottom_blob.channel(q + 7).row<const unsigned short>(sy) + sx;
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr2[0]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr3[0]));
-                                __m256 _val4 = _mm256_set1_ps(bfloat16_to_float32(sptr4[0]));
-                                __m256 _val5 = _mm256_set1_ps(bfloat16_to_float32(sptr5[0]));
-                                __m256 _val6 = _mm256_set1_ps(bfloat16_to_float32(sptr6[0]));
-                                __m256 _val7 = _mm256_set1_ps(bfloat16_to_float32(sptr7[0]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr3);
+                                __m256 _val4 = _mm256_comp_bcstnebf16_ps(sptr4);
+                                __m256 _val5 = _mm256_comp_bcstnebf16_ps(sptr5);
+                                __m256 _val6 = _mm256_comp_bcstnebf16_ps(sptr6);
+                                __m256 _val7 = _mm256_comp_bcstnebf16_ps(sptr7);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1501,10 +1501,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr[3]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr + 1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr + 2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr + 3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1516,10 +1516,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
                                 const unsigned short* sptr2 = bottom_blob.channel(q + 2).row<const unsigned short>(sy) + sx;
                                 const unsigned short* sptr3 = bottom_blob.channel(q + 3).row<const unsigned short>(sy) + sx;
-                                __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m256 _val2 = _mm256_set1_ps(bfloat16_to_float32(sptr2[0]));
-                                __m256 _val3 = _mm256_set1_ps(bfloat16_to_float32(sptr3[0]));
+                                __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                                __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr1);
+                                __m256 _val2 = _mm256_comp_bcstnebf16_ps(sptr2);
+                                __m256 _val3 = _mm256_comp_bcstnebf16_ps(sptr3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                                 _sum2 = _mm256_comp_fmadd_ps(_val2, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8 * 2))), _sum2);
@@ -1555,8 +1555,8 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                             const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
-                            __m256 _val0 = _mm256_set1_ps(bfloat16_to_float32(sptr0[0]));
-                            __m256 _val1 = _mm256_set1_ps(bfloat16_to_float32(sptr1[0]));
+                            __m256 _val0 = _mm256_comp_bcstnebf16_ps(sptr0);
+                            __m256 _val1 = _mm256_comp_bcstnebf16_ps(sptr1);
                             _sum0 = _mm256_comp_fmadd_ps(_val0, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                             _sum1 = _mm256_comp_fmadd_ps(_val1, bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr0 + 8))), _sum1);
                         }
@@ -1588,7 +1588,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             const unsigned short* kptr0 = kptr + k * 8;
 
                             const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
-                            __m256 _val = _mm256_set1_ps(bfloat16_to_float32(sptr[0]));
+                            __m256 _val = _mm256_comp_bcstnebf16_ps(sptr);
                             _sum0 = _mm256_comp_fmadd_ps(_val, bfloat2float_avx(_mm_load_si128((const __m128i*)kptr0)), _sum0);
                         }
                     }
@@ -1705,22 +1705,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             if (elempack == 16)
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 16).row<const unsigned short>(sy) + sx * 16;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr[4]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr[5]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr[6]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr[7]));
-                                __m128 _val8 = _mm_set1_ps(bfloat16_to_float32(sptr[8]));
-                                __m128 _val9 = _mm_set1_ps(bfloat16_to_float32(sptr[9]));
-                                __m128 _vala = _mm_set1_ps(bfloat16_to_float32(sptr[10]));
-                                __m128 _valb = _mm_set1_ps(bfloat16_to_float32(sptr[11]));
-                                __m128 _valc = _mm_set1_ps(bfloat16_to_float32(sptr[12]));
-                                __m128 _vald = _mm_set1_ps(bfloat16_to_float32(sptr[13]));
-                                __m128 _vale = _mm_set1_ps(bfloat16_to_float32(sptr[14]));
-                                __m128 _valf = _mm_set1_ps(bfloat16_to_float32(sptr[15]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr + 4);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr + 5);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr + 6);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr + 7);
+                                __m128 _val8 = _mm_comp_bcstnebf16_ps(sptr + 8);
+                                __m128 _val9 = _mm_comp_bcstnebf16_ps(sptr + 9);
+                                __m128 _vala = _mm_comp_bcstnebf16_ps(sptr + 10);
+                                __m128 _valb = _mm_comp_bcstnebf16_ps(sptr + 11);
+                                __m128 _valc = _mm_comp_bcstnebf16_ps(sptr + 12);
+                                __m128 _vald = _mm_comp_bcstnebf16_ps(sptr + 13);
+                                __m128 _vale = _mm_comp_bcstnebf16_ps(sptr + 14);
+                                __m128 _valf = _mm_comp_bcstnebf16_ps(sptr + 15);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1742,22 +1742,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 8 + 1).row<const unsigned short>(sy) + sx * 8;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr0[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr0[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr0[3]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr0[4]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr0[5]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr0[6]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr0[7]));
-                                __m128 _val8 = _mm_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m128 _val9 = _mm_set1_ps(bfloat16_to_float32(sptr1[1]));
-                                __m128 _vala = _mm_set1_ps(bfloat16_to_float32(sptr1[2]));
-                                __m128 _valb = _mm_set1_ps(bfloat16_to_float32(sptr1[3]));
-                                __m128 _valc = _mm_set1_ps(bfloat16_to_float32(sptr1[4]));
-                                __m128 _vald = _mm_set1_ps(bfloat16_to_float32(sptr1[5]));
-                                __m128 _vale = _mm_set1_ps(bfloat16_to_float32(sptr1[6]));
-                                __m128 _valf = _mm_set1_ps(bfloat16_to_float32(sptr1[7]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr0);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr0 + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr0 + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr0 + 3);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr0 + 4);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr0 + 5);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr0 + 6);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr0 + 7);
+                                __m128 _val8 = _mm_comp_bcstnebf16_ps(sptr1);
+                                __m128 _val9 = _mm_comp_bcstnebf16_ps(sptr1 + 1);
+                                __m128 _vala = _mm_comp_bcstnebf16_ps(sptr1 + 2);
+                                __m128 _valb = _mm_comp_bcstnebf16_ps(sptr1 + 3);
+                                __m128 _valc = _mm_comp_bcstnebf16_ps(sptr1 + 4);
+                                __m128 _vald = _mm_comp_bcstnebf16_ps(sptr1 + 5);
+                                __m128 _vale = _mm_comp_bcstnebf16_ps(sptr1 + 6);
+                                __m128 _valf = _mm_comp_bcstnebf16_ps(sptr1 + 7);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1781,22 +1781,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr_q1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr_q2 = bottom_blob.channel(q / 4 + 2).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr_q3 = bottom_blob.channel(q / 4 + 3).row<const unsigned short>(sy) + sx * 4;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr_q0[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr_q0[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr_q0[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr_q0[3]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr_q1[0]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr_q1[1]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr_q1[2]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr_q1[3]));
-                                __m128 _val8 = _mm_set1_ps(bfloat16_to_float32(sptr_q2[0]));
-                                __m128 _val9 = _mm_set1_ps(bfloat16_to_float32(sptr_q2[1]));
-                                __m128 _vala = _mm_set1_ps(bfloat16_to_float32(sptr_q2[2]));
-                                __m128 _valb = _mm_set1_ps(bfloat16_to_float32(sptr_q2[3]));
-                                __m128 _valc = _mm_set1_ps(bfloat16_to_float32(sptr_q3[0]));
-                                __m128 _vald = _mm_set1_ps(bfloat16_to_float32(sptr_q3[1]));
-                                __m128 _vale = _mm_set1_ps(bfloat16_to_float32(sptr_q3[2]));
-                                __m128 _valf = _mm_set1_ps(bfloat16_to_float32(sptr_q3[3]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr_q0);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr_q0 + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr_q0 + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr_q0 + 3);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr_q1);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr_q1 + 1);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr_q1 + 2);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr_q1 + 3);
+                                __m128 _val8 = _mm_comp_bcstnebf16_ps(sptr_q2);
+                                __m128 _val9 = _mm_comp_bcstnebf16_ps(sptr_q2 + 1);
+                                __m128 _vala = _mm_comp_bcstnebf16_ps(sptr_q2 + 2);
+                                __m128 _valb = _mm_comp_bcstnebf16_ps(sptr_q2 + 3);
+                                __m128 _valc = _mm_comp_bcstnebf16_ps(sptr_q3);
+                                __m128 _vald = _mm_comp_bcstnebf16_ps(sptr_q3 + 1);
+                                __m128 _vale = _mm_comp_bcstnebf16_ps(sptr_q3 + 2);
+                                __m128 _valf = _mm_comp_bcstnebf16_ps(sptr_q3 + 3);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1816,22 +1816,22 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx]));
-                                __m128 _val8 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 8).row<const unsigned short>(sy)[sx]));
-                                __m128 _val9 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 9).row<const unsigned short>(sy)[sx]));
-                                __m128 _vala = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 10).row<const unsigned short>(sy)[sx]));
-                                __m128 _valb = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 11).row<const unsigned short>(sy)[sx]));
-                                __m128 _valc = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 12).row<const unsigned short>(sy)[sx]));
-                                __m128 _vald = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 13).row<const unsigned short>(sy)[sx]));
-                                __m128 _vale = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 14).row<const unsigned short>(sy)[sx]));
-                                __m128 _valf = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 15).row<const unsigned short>(sy)[sx]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q).row<const unsigned short>(sy) + sx);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 2).row<const unsigned short>(sy) + sx);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 3).row<const unsigned short>(sy) + sx);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 4).row<const unsigned short>(sy) + sx);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 5).row<const unsigned short>(sy) + sx);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 6).row<const unsigned short>(sy) + sx);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 7).row<const unsigned short>(sy) + sx);
+                                __m128 _val8 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 8).row<const unsigned short>(sy) + sx);
+                                __m128 _val9 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 9).row<const unsigned short>(sy) + sx);
+                                __m128 _vala = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 10).row<const unsigned short>(sy) + sx);
+                                __m128 _valb = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 11).row<const unsigned short>(sy) + sx);
+                                __m128 _valc = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 12).row<const unsigned short>(sy) + sx);
+                                __m128 _vald = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 13).row<const unsigned short>(sy) + sx);
+                                __m128 _vale = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 14).row<const unsigned short>(sy) + sx);
+                                __m128 _valf = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 15).row<const unsigned short>(sy) + sx);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1878,14 +1878,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             if (elempack == 8)
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr[4]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr[5]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr[6]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr[7]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr + 4);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr + 5);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr + 6);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr + 7);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1899,14 +1899,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr0[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr0[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr0[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr0[3]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(sptr1[0]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(sptr1[1]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(sptr1[2]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(sptr1[3]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr0);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr0 + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr0 + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr0 + 3);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(sptr1);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(sptr1 + 1);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(sptr1 + 2);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(sptr1 + 3);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1918,14 +1918,14 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx]));
-                                __m128 _val4 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx]));
-                                __m128 _val5 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx]));
-                                __m128 _val6 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx]));
-                                __m128 _val7 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q).row<const unsigned short>(sy) + sx);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 2).row<const unsigned short>(sy) + sx);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 3).row<const unsigned short>(sy) + sx);
+                                __m128 _val4 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 4).row<const unsigned short>(sy) + sx);
+                                __m128 _val5 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 5).row<const unsigned short>(sy) + sx);
+                                __m128 _val6 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 6).row<const unsigned short>(sy) + sx);
+                                __m128 _val7 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 7).row<const unsigned short>(sy) + sx);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -1964,10 +1964,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             if (elempack == 4)
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr[1]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(sptr[2]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(sptr[3]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr + 1);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(sptr + 2);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(sptr + 3);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr0)), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 8))), _sum2);
@@ -1975,10 +1975,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx]));
-                                __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx]));
-                                __m128 _val2 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx]));
-                                __m128 _val3 = _mm_set1_ps(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx]));
+                                __m128 _val0 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q).row<const unsigned short>(sy) + sx);
+                                __m128 _val1 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx);
+                                __m128 _val2 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 2).row<const unsigned short>(sy) + sx);
+                                __m128 _val3 = _mm_comp_bcstnebf16_ps(bottom_blob.channel(q + 3).row<const unsigned short>(sy) + sx);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 0))), _sum0);
                                 _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 1))), _sum1);
                                 _sum2 = _mm_comp_fmadd_ps(_val2, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4 * 2))), _sum2);
@@ -2011,8 +2011,8 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                             const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
-                            __m128 _val0 = _mm_set1_ps(bfloat16_to_float32(sptr0[0]));
-                            __m128 _val1 = _mm_set1_ps(bfloat16_to_float32(sptr1[0]));
+                            __m128 _val0 = _mm_comp_bcstnebf16_ps(sptr0);
+                            __m128 _val1 = _mm_comp_bcstnebf16_ps(sptr1);
                             _sum0 = _mm_comp_fmadd_ps(_val0, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr0)), _sum0);
                             _sum1 = _mm_comp_fmadd_ps(_val1, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr0 + 4))), _sum1);
                         }
@@ -2041,7 +2041,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             const unsigned short* kptr0 = kptr + k * 4;
 
                             const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
-                            __m128 _val = _mm_set1_ps(bfloat16_to_float32(sptr[0]));
+                            __m128 _val = _mm_comp_bcstnebf16_ps(sptr);
                             _sum0 = _mm_comp_fmadd_ps(_val, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)kptr0)), _sum0);
                         }
                     }

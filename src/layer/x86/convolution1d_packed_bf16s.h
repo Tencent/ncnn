@@ -1655,22 +1655,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _we = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 14)));
                         __m256 _wf = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 15)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(bfloat16_to_float32(r0[8])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(bfloat16_to_float32(r0[9])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(bfloat16_to_float32(r0[10])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(bfloat16_to_float32(r0[11])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(bfloat16_to_float32(r0[12])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(bfloat16_to_float32(r0[13])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(bfloat16_to_float32(r0[14])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(bfloat16_to_float32(r0[15])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r0 + 7), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_comp_bcstnebf16_ps(r0 + 8), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_comp_bcstnebf16_ps(r0 + 9), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_comp_bcstnebf16_ps(r0 + 10), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_comp_bcstnebf16_ps(r0 + 11), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_comp_bcstnebf16_ps(r0 + 12), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_comp_bcstnebf16_ps(r0 + 13), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_comp_bcstnebf16_ps(r0 + 14), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_comp_bcstnebf16_ps(r0 + 15), _sum3);
 
                         r0 += dilation_w * 16;
                         kptr += 128;
@@ -1699,22 +1699,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _we = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 14)));
                         __m256 _wf = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 15)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(bfloat16_to_float32(r1[4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(bfloat16_to_float32(r1[5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(bfloat16_to_float32(r1[6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(bfloat16_to_float32(r1[7])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r0 + 7), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_comp_bcstnebf16_ps(r1 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_comp_bcstnebf16_ps(r1 + 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_comp_bcstnebf16_ps(r1 + 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_comp_bcstnebf16_ps(r1 + 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_comp_bcstnebf16_ps(r1 + 7), _sum3);
 
                         r0 += dilation_w * 8;
                         r1 += dilation_w * 8;
@@ -1746,22 +1746,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _we = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 14)));
                         __m256 _wf = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 15)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(bfloat16_to_float32(r2[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(bfloat16_to_float32(r2[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(bfloat16_to_float32(r2[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(bfloat16_to_float32(r2[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(bfloat16_to_float32(r3[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(bfloat16_to_float32(r3[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(bfloat16_to_float32(r3[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(bfloat16_to_float32(r3[3])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r1 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_comp_bcstnebf16_ps(r2), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_comp_bcstnebf16_ps(r2 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_comp_bcstnebf16_ps(r2 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_comp_bcstnebf16_ps(r2 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_comp_bcstnebf16_ps(r3), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_comp_bcstnebf16_ps(r3 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_comp_bcstnebf16_ps(r3 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_comp_bcstnebf16_ps(r3 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         r1 += dilation_w * 4;
@@ -1791,22 +1791,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _we = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 14)));
                         __m256 _wf = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8 * 15)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r0[N * 4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r0[N * 5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r0[N * 6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r0[N * 7])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(bfloat16_to_float32(r0[N * 8])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(bfloat16_to_float32(r0[N * 9])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(bfloat16_to_float32(r0[N * 10])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(bfloat16_to_float32(r0[N * 11])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(bfloat16_to_float32(r0[N * 12])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(bfloat16_to_float32(r0[N * 13])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(bfloat16_to_float32(r0[N * 14])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(bfloat16_to_float32(r0[N * 15])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r0 + N * 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r0 + N * 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r0 + N * 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r0 + N * 7), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_comp_bcstnebf16_ps(r0 + N * 8), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_comp_bcstnebf16_ps(r0 + N * 9), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_comp_bcstnebf16_ps(r0 + N * 10), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_comp_bcstnebf16_ps(r0 + N * 11), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_comp_bcstnebf16_ps(r0 + N * 12), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_comp_bcstnebf16_ps(r0 + N * 13), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_comp_bcstnebf16_ps(r0 + N * 14), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_comp_bcstnebf16_ps(r0 + N * 15), _sum3);
 
                         r0 += dilation_w;
                         kptr += 128;
@@ -1831,14 +1831,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w6 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 48)));
                         __m256 _w7 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 56)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r0 + 7), _sum3);
 
                         r0 += dilation_w * 8;
                         kptr += 64;
@@ -1859,14 +1859,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w6 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 48)));
                         __m256 _w7 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 56)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r1 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         r1 += dilation_w * 4;
@@ -1886,14 +1886,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w6 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 48)));
                         __m256 _w7 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 56)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
-                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(bfloat16_to_float32(r0[N * 4])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(bfloat16_to_float32(r0[N * 5])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(bfloat16_to_float32(r0[N * 6])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(bfloat16_to_float32(r0[N * 7])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_comp_bcstnebf16_ps(r0 + N * 4), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_comp_bcstnebf16_ps(r0 + N * 5), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_comp_bcstnebf16_ps(r0 + N * 6), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_comp_bcstnebf16_ps(r0 + N * 7), _sum3);
 
                         r0 += dilation_w;
                         kptr += 64;
@@ -1913,10 +1913,10 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w2 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 16)));
                         __m256 _w3 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 24)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         kptr += 32;
@@ -1931,10 +1931,10 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w2 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 16)));
                         __m256 _w3 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 24)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
 
                         r0 += dilation_w;
                         kptr += 32;
@@ -1952,8 +1952,8 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m256 _w0 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr)));
                         __m256 _w1 = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr + 8)));
 
-                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
+                        _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_comp_bcstnebf16_ps(r0 + N), _sum1);
 
                         r0 += dilation_w;
                         kptr += 16;
@@ -1968,7 +1968,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
-                        __m256 _val = _mm256_set1_ps(bfloat16_to_float32(r0[0]));
+                        __m256 _val = _mm256_comp_bcstnebf16_ps(r0);
                         __m256 _w = bfloat2float_avx(_mm_load_si128((const __m128i*)(kptr)));
                         _sum0 = _mm256_comp_fmadd_ps(_val, _w, _sum0);
 
@@ -2083,22 +2083,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _we = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 14)));
                         __m128 _wf = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 15)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(bfloat16_to_float32(r0[8])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(bfloat16_to_float32(r0[9])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(bfloat16_to_float32(r0[10])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(bfloat16_to_float32(r0[11])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(bfloat16_to_float32(r0[12])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(bfloat16_to_float32(r0[13])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(bfloat16_to_float32(r0[14])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(bfloat16_to_float32(r0[15])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r0 + 7), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_comp_bcstnebf16_ps(r0 + 8), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_comp_bcstnebf16_ps(r0 + 9), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_comp_bcstnebf16_ps(r0 + 10), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_comp_bcstnebf16_ps(r0 + 11), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_comp_bcstnebf16_ps(r0 + 12), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_comp_bcstnebf16_ps(r0 + 13), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_comp_bcstnebf16_ps(r0 + 14), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_comp_bcstnebf16_ps(r0 + 15), _sum3);
 
                         r0 += dilation_w * 16;
                         kptr += 64;
@@ -2127,22 +2127,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _we = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 14)));
                         __m128 _wf = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 15)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(bfloat16_to_float32(r1[4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(bfloat16_to_float32(r1[5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(bfloat16_to_float32(r1[6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(bfloat16_to_float32(r1[7])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r0 + 7), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_comp_bcstnebf16_ps(r1 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_comp_bcstnebf16_ps(r1 + 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_comp_bcstnebf16_ps(r1 + 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_comp_bcstnebf16_ps(r1 + 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_comp_bcstnebf16_ps(r1 + 7), _sum3);
 
                         r0 += dilation_w * 8;
                         r1 += dilation_w * 8;
@@ -2174,22 +2174,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _we = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 14)));
                         __m128 _wf = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 15)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(bfloat16_to_float32(r2[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(bfloat16_to_float32(r2[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(bfloat16_to_float32(r2[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(bfloat16_to_float32(r2[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(bfloat16_to_float32(r3[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(bfloat16_to_float32(r3[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(bfloat16_to_float32(r3[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(bfloat16_to_float32(r3[3])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r1 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_comp_bcstnebf16_ps(r2), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_comp_bcstnebf16_ps(r2 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_comp_bcstnebf16_ps(r2 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_comp_bcstnebf16_ps(r2 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_comp_bcstnebf16_ps(r3), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_comp_bcstnebf16_ps(r3 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_comp_bcstnebf16_ps(r3 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_comp_bcstnebf16_ps(r3 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         r1 += dilation_w * 4;
@@ -2219,22 +2219,22 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _we = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 14)));
                         __m128 _wf = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4 * 15)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r0[N * 4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r0[N * 5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r0[N * 6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r0[N * 7])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(bfloat16_to_float32(r0[N * 8])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(bfloat16_to_float32(r0[N * 9])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(bfloat16_to_float32(r0[N * 10])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(bfloat16_to_float32(r0[N * 11])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(bfloat16_to_float32(r0[N * 12])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(bfloat16_to_float32(r0[N * 13])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(bfloat16_to_float32(r0[N * 14])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(bfloat16_to_float32(r0[N * 15])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r0 + N * 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r0 + N * 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r0 + N * 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r0 + N * 7), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w8, _mm_comp_bcstnebf16_ps(r0 + N * 8), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w9, _mm_comp_bcstnebf16_ps(r0 + N * 9), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_wa, _mm_comp_bcstnebf16_ps(r0 + N * 10), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wb, _mm_comp_bcstnebf16_ps(r0 + N * 11), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_wc, _mm_comp_bcstnebf16_ps(r0 + N * 12), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_wd, _mm_comp_bcstnebf16_ps(r0 + N * 13), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_we, _mm_comp_bcstnebf16_ps(r0 + N * 14), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_wf, _mm_comp_bcstnebf16_ps(r0 + N * 15), _sum3);
 
                         r0 += dilation_w;
                         kptr += 64;
@@ -2259,14 +2259,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w6 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 24)));
                         __m128 _w7 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 28)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r0[4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r0[5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r0[6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r0[7])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r0 + 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r0 + 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r0 + 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r0 + 7), _sum3);
 
                         r0 += dilation_w * 8;
                         kptr += 32;
@@ -2287,14 +2287,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w6 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 24)));
                         __m128 _w7 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 28)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r1[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r1[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r1[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r1[3])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r1), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r1 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r1 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r1 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         r1 += dilation_w * 4;
@@ -2314,14 +2314,14 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w6 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 24)));
                         __m128 _w7 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 28)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
-                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(bfloat16_to_float32(r0[N * 4])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(bfloat16_to_float32(r0[N * 5])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(bfloat16_to_float32(r0[N * 6])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(bfloat16_to_float32(r0[N * 7])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w4, _mm_comp_bcstnebf16_ps(r0 + N * 4), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w5, _mm_comp_bcstnebf16_ps(r0 + N * 5), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w6, _mm_comp_bcstnebf16_ps(r0 + N * 6), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w7, _mm_comp_bcstnebf16_ps(r0 + N * 7), _sum3);
 
                         r0 += dilation_w;
                         kptr += 32;
@@ -2342,10 +2342,10 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w2 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 8)));
                         __m128 _w3 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 12)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[1])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[3])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + 1), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + 3), _sum3);
 
                         r0 += dilation_w * 4;
                         kptr += 16;
@@ -2360,10 +2360,10 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w2 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 8)));
                         __m128 _w3 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 12)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
-                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(bfloat16_to_float32(r0[N * 2])), _sum2);
-                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(bfloat16_to_float32(r0[N * 3])), _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + N), _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_w2, _mm_comp_bcstnebf16_ps(r0 + N * 2), _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_w3, _mm_comp_bcstnebf16_ps(r0 + N * 3), _sum3);
 
                         r0 += dilation_w;
                         kptr += 16;
@@ -2381,8 +2381,8 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         __m128 _w0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr)));
                         __m128 _w1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr + 4)));
 
-                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(bfloat16_to_float32(r0[0])), _sum0);
-                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(bfloat16_to_float32(r0[N])), _sum1);
+                        _sum0 = _mm_comp_fmadd_ps(_w0, _mm_comp_bcstnebf16_ps(r0), _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_w1, _mm_comp_bcstnebf16_ps(r0 + N), _sum1);
 
                         r0 += dilation_w;
                         kptr += 8;
@@ -2397,7 +2397,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
-                        __m128 _val = _mm_set1_ps(bfloat16_to_float32(r0[0]));
+                        __m128 _val = _mm_comp_bcstnebf16_ps(r0);
                         __m128 _w = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(kptr)));
                         _sum0 = _mm_comp_fmadd_ps(_val, _w, _sum0);
 
