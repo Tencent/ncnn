@@ -35,18 +35,6 @@ BatchNorm_arm::BatchNorm_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return batchnorm_fp16s(bottom_top_blob, a_data, b_data, opt);
-}
-
-int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    return batchnorm_fp16sa(bottom_top_blob, a_data, b_data, opt);
-}
-#endif // NCNN_ARM82
-
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -259,6 +247,18 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if NCNN_ARM82
+int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return batchnorm_fp16s(bottom_top_blob, a_data, b_data, opt);
+}
+
+int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return batchnorm_fp16sa(bottom_top_blob, a_data, b_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

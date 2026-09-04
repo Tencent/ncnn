@@ -636,162 +636,6 @@ static void binary_op_scalar_inplace_fp16s(Mat& a, unsigned short b, int op_type
     }
 }
 
-int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& A = bottom_blobs[0];
-    const Mat& B = bottom_blobs[1];
-    const int outdims = std::max(A.dims, B.dims);
-
-    Mat A2 = A;
-    Mat B2 = B;
-    if (A.dims < outdims)
-    {
-        // expand inner axes
-        if (outdims == 2)
-        {
-            if (A.w * A.elempack == B.h * B.elempack)
-                A2 = A.reshape(1, A.w, opt.workspace_allocator);
-            else // if (A.w == B.w)
-            {
-                A2.dims = 2;
-                A2.w = A.w * A.elempack;
-                A2.elempack = 1;
-                A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A.cstep * A.elempack;
-            }
-        }
-        if (outdims == 3 && A.dims == 1)
-        {
-            if (A.w * A.elempack == B.c * B.elempack)
-                A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
-            else // if (A.w == B.w)
-            {
-                A2.dims = 3;
-                A2.w = A.w * A.elempack;
-                A2.elempack = 1;
-                A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A.cstep * A.elempack;
-            }
-        }
-        if (outdims == 3 && A.dims == 2)
-            A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
-        if (outdims == 4 && A.dims == 1)
-        {
-            if (A.w * A.elempack == B.c * B.elempack)
-                A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
-            else // if (A.w == B.w)
-            {
-                A2.dims = 4;
-                A2.w = A.w * A.elempack;
-                A2.elempack = 1;
-                A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A.cstep * A.elempack;
-            }
-        }
-        if (outdims == 4 && A.dims == 2)
-            A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
-        if (outdims == 4 && A.dims == 3)
-            A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
-    }
-    if (B.dims < outdims)
-    {
-        // expand inner axes
-        if (outdims == 2)
-        {
-            if (B.w * B.elempack == A.h * A.elempack)
-                B2 = B.reshape(1, B.w, opt.workspace_allocator);
-            else // if (B.w == A.w)
-            {
-                B2.dims = 2;
-                B2.w = B.w * B.elempack;
-                B2.elempack = 1;
-                B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B.cstep * B.elempack;
-            }
-        }
-        if (outdims == 3 && B.dims == 1)
-        {
-            if (B.w * B.elempack == A.c * A.elempack)
-                B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
-            else // if (B.w == A.w)
-            {
-                B2.dims = 3;
-                B2.w = B.w * B.elempack;
-                B2.elempack = 1;
-                B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B.cstep * B.elempack;
-            }
-        }
-        if (outdims == 3 && B.dims == 2)
-            B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
-        if (outdims == 4 && B.dims == 1)
-        {
-            if (B.w * B.elempack == A.c * A.elempack)
-                B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
-            else // if (B.w == A.w)
-            {
-                B2.dims = 4;
-                B2.w = B.w * B.elempack;
-                B2.elempack = 1;
-                B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B.cstep * B.elempack;
-            }
-        }
-        if (outdims == 4 && B.dims == 2)
-            B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
-        if (outdims == 4 && B.dims == 3)
-            B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
-    }
-
-    const int outw = std::max(A2.w, B2.w);
-    const int outh = std::max(A2.h, B2.h);
-    const int outd = std::max(A2.d, B2.d);
-    const int outc = std::max(A2.c, B2.c);
-    const size_t out_elemsize = std::max(A2.elemsize, B2.elemsize);
-    const int out_elempack = std::max(A2.elempack, B2.elempack);
-
-    Mat& top_blob = top_blobs[0];
-    if (outdims == 1)
-    {
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (outdims == 2)
-    {
-        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (outdims == 3)
-    {
-        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (outdims == 4)
-    {
-        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob.empty())
-        return -100;
-
-    const bool a_pack_is_lower = A2.elempack < B2.elempack;
-    const bool a_pack_is_equal = A2.elempack == B2.elempack;
-    const bool a_size_is_lower = A2.w * A2.h * A2.d * A2.c * A2.elempack < B2.w * B2.h * B2.d * B2.c * B2.elempack;
-    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
-    {
-        binary_op_broadcast_fp16s(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
-    }
-    else
-    {
-        binary_op_broadcast_fp16s(A2, B2, top_blob, op_type, opt);
-    }
-
-    return 0;
-}
-
-int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    const unsigned short b_fp16 = float32_to_float16(b);
-    binary_op_scalar_inplace_fp16s(bottom_top_blob, b_fp16, op_type, opt);
-
-    return 0;
-}
 #endif // NCNN_ARM82
 
 int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -973,6 +817,165 @@ int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+    const Mat& B = bottom_blobs[1];
+    const int outdims = std::max(A.dims, B.dims);
+
+    Mat A2 = A;
+    Mat B2 = B;
+    if (A.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+        {
+            if (A.w * A.elempack == B.h * B.elempack)
+                A2 = A.reshape(1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 2;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 3 && A.dims == 1)
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 3;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 3 && A.dims == 2)
+            A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 1)
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 4;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 4 && A.dims == 2)
+            A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 3)
+            A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
+    }
+    if (B.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+        {
+            if (B.w * B.elempack == A.h * A.elempack)
+                B2 = B.reshape(1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 2;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 3 && B.dims == 1)
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 3;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 3 && B.dims == 2)
+            B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 1)
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 4;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 4 && B.dims == 2)
+            B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 3)
+            B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
+    }
+
+    const int outw = std::max(A2.w, B2.w);
+    const int outh = std::max(A2.h, B2.h);
+    const int outd = std::max(A2.d, B2.d);
+    const int outc = std::max(A2.c, B2.c);
+    const size_t out_elemsize = std::max(A2.elemsize, B2.elemsize);
+    const int out_elempack = std::max(A2.elempack, B2.elempack);
+
+    Mat& top_blob = top_blobs[0];
+    if (outdims == 1)
+    {
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 2)
+    {
+        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 3)
+    {
+        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 4)
+    {
+        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    const bool a_pack_is_lower = A2.elempack < B2.elempack;
+    const bool a_pack_is_equal = A2.elempack == B2.elempack;
+    const bool a_size_is_lower = A2.w * A2.h * A2.d * A2.c * A2.elempack < B2.w * B2.h * B2.d * B2.c * B2.elempack;
+    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    {
+        binary_op_broadcast_fp16s(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
+    }
+    else
+    {
+        binary_op_broadcast_fp16s(A2, B2, top_blob, op_type, opt);
+    }
+
+    return 0;
+}
+
+int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const unsigned short b_fp16 = float32_to_float16(b);
+    binary_op_scalar_inplace_fp16s(bottom_top_blob, b_fp16, op_type, opt);
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 template<typename Op>

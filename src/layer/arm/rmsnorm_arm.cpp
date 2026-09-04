@@ -159,13 +159,6 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
     }
 }
 
-#if NCNN_ARM82
-int RMSNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return rmsnorm_inplace_fp16s(bottom_top_blob, affine_size, eps, gamma_data, opt);
-}
-#endif // NCNN_ARM82
-
 int RMSNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -274,6 +267,13 @@ int RMSNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int RMSNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return rmsnorm_inplace_fp16s(bottom_top_blob, affine_size, eps, gamma_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)

@@ -35,13 +35,6 @@ InstanceNorm_arm::InstanceNorm_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return instancenorm_fp16s(bottom_top_blob, eps, affine, gamma_data, beta_data, opt);
-}
-#endif // NCNN_ARM82
-
 int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -228,6 +221,13 @@ int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_ARM82
+int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return instancenorm_fp16s(bottom_top_blob, eps, affine, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

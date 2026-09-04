@@ -393,210 +393,6 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
     return 0;
 }
 
-int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
-    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
-
-    // depth-wise
-    if (channels * elempack == group && group == num_output)
-    {
-        deconvolutiondepthwise_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-    }
-    else
-    {
-        // group deconvolution
-        const int channels_g = channels * elempack / group;
-        const int num_output_g = num_output / group;
-
-        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
-
-        // unpacking
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (elempack == 4 && g_elempack == 1)
-        {
-            Option opt_p = opt;
-            opt_p.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
-            if (bottom_blob_unpacked.empty())
-                return -100;
-        }
-
-        Mat top_blob_bordered_unpacked = top_blob_bordered;
-        if (out_g_elempack == 1 && out_elempack == 4)
-        {
-            top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
-            if (top_blob_bordered_unpacked.empty())
-                return -100;
-        }
-
-        for (int g = 0; g < group; g++)
-        {
-            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
-            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
-
-            // forward
-            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
-            if (ret != 0)
-                return ret;
-        }
-
-        // packing
-        if (out_g_elempack == 1 && out_elempack == 4)
-        {
-            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
-            if (top_blob_bordered.empty())
-                return -100;
-        }
-        else
-        {
-            top_blob_bordered = top_blob_bordered_unpacked;
-        }
-    }
-
-    cut_padding(top_blob_bordered, top_blob, opt);
-    if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
-
-int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
-    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = 1;
-    if (opt.use_packing_layout)
-    {
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-    }
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
-
-    // depth-wise
-    if (channels * elempack == group && group == num_output)
-    {
-        deconvolutiondepthwise_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
-    }
-    else
-    {
-        // group deconvolution
-        const int channels_g = channels * elempack / group;
-        const int num_output_g = num_output / group;
-
-        int g_elempack = 1;
-        int out_g_elempack = 1;
-        if (opt.use_packing_layout)
-        {
-            g_elempack = opt.use_fp16_arithmetic && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-            out_g_elempack = opt.use_fp16_arithmetic && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
-        }
-
-        // unpacking
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (elempack > g_elempack)
-        {
-            Option opt_p = opt;
-            opt_p.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
-            if (bottom_blob_unpacked.empty())
-                return -100;
-        }
-
-        Mat top_blob_bordered_unpacked = top_blob_bordered;
-        if (out_g_elempack < out_elempack)
-        {
-            top_blob_bordered_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
-            if (top_blob_bordered_unpacked.empty())
-                return -100;
-        }
-
-        for (int g = 0; g < group; g++)
-        {
-            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
-            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
-
-            // forward
-            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
-            if (ret != 0)
-                return ret;
-        }
-
-        // packing
-        if (out_g_elempack < out_elempack)
-        {
-            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
-            if (top_blob_bordered.empty())
-                return -100;
-        }
-        else
-        {
-            top_blob_bordered = top_blob_bordered_unpacked;
-        }
-    }
-
-    cut_padding(top_blob_bordered, top_blob, opt);
-    if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
 #endif // NCNN_ARM82
 int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
@@ -1001,6 +797,213 @@ int DeconvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, st
 
     return 0;
 }
+
+#if NCNN_ARM82
+int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+        deconvolutiondepthwise_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
+    }
+    else
+    {
+        // group deconvolution
+        const int channels_g = channels * elempack / group;
+        const int num_output_g = num_output / group;
+
+        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+
+        // unpacking
+        Mat bottom_blob_unpacked = bottom_blob;
+        if (elempack == 4 && g_elempack == 1)
+        {
+            Option opt_p = opt;
+            opt_p.blob_allocator = opt.workspace_allocator;
+            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        Mat top_blob_bordered_unpacked = top_blob_bordered;
+        if (out_g_elempack == 1 && out_elempack == 4)
+        {
+            top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+            if (top_blob_bordered_unpacked.empty())
+                return -100;
+        }
+
+        for (int g = 0; g < group; g++)
+        {
+            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+            const ncnn::Layer* op = group_ops[g];
+
+            Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
+
+            // forward
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
+        }
+
+        // packing
+        if (out_g_elempack == 1 && out_elempack == 4)
+        {
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            if (top_blob_bordered.empty())
+                return -100;
+        }
+        else
+        {
+            top_blob_bordered = top_blob_bordered_unpacked;
+        }
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+        deconvolutiondepthwise_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, activation_type, activation_params, opt);
+    }
+    else
+    {
+        // group deconvolution
+        const int channels_g = channels * elempack / group;
+        const int num_output_g = num_output / group;
+
+        int g_elempack = 1;
+        int out_g_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            g_elempack = opt.use_fp16_arithmetic && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+            out_g_elempack = opt.use_fp16_arithmetic && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+        }
+
+        // unpacking
+        Mat bottom_blob_unpacked = bottom_blob;
+        if (elempack > g_elempack)
+        {
+            Option opt_p = opt;
+            opt_p.blob_allocator = opt.workspace_allocator;
+            convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        Mat top_blob_bordered_unpacked = top_blob_bordered;
+        if (out_g_elempack < out_elempack)
+        {
+            top_blob_bordered_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
+            if (top_blob_bordered_unpacked.empty())
+                return -100;
+        }
+
+        for (int g = 0; g < group; g++)
+        {
+            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+            const ncnn::Layer* op = group_ops[g];
+
+            Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
+
+            // forward
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
+        }
+
+        // packing
+        if (out_g_elempack < out_elempack)
+        {
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
+        }
+        else
+        {
+            top_blob_bordered = top_blob_bordered_unpacked;
+        }
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

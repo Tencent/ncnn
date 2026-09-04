@@ -5870,183 +5870,6 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
     return 0;
 }
 
-int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    int M;
-    int N;
-    if (constantA && constantB)
-    {
-        M = constantM;
-        N = constantN;
-    }
-    else if (constantA)
-    {
-        const Mat& B = bottom_blobs[0];
-        M = constantM;
-        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-    }
-    else if (constantB)
-    {
-        const Mat& A = bottom_blobs[0];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        N = constantN;
-    }
-    else
-    {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-    }
-
-    Mat C;
-    int broadcast_type_C = 0;
-    if (constantC)
-    {
-        C = CT_data;
-        broadcast_type_C = constant_broadcast_type_C;
-    }
-    else
-    {
-        if (constantA && constantB)
-        {
-            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
-        }
-        else if (constantA)
-        {
-            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
-        }
-        else if (constantB)
-        {
-            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
-        }
-        else
-        {
-            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
-        }
-
-        if (!C.empty())
-        {
-            if (C.dims == 1 && C.w == 1)
-            {
-                // scalar
-                broadcast_type_C = 0;
-            }
-            if (C.dims == 1 && C.w * C.elempack == M)
-            {
-                // M
-                // auto broadcast from h to w is the ncnn-style convention
-                broadcast_type_C = 1;
-            }
-            if (C.dims == 1 && C.w * C.elempack == N)
-            {
-                // N
-                broadcast_type_C = 4;
-            }
-            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
-            {
-                // Mx1
-                broadcast_type_C = 2;
-            }
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
-            {
-                // MxN
-                broadcast_type_C = 3;
-            }
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
-            {
-                // 1xN
-                broadcast_type_C = 4;
-            }
-
-            // cast to fp32
-            {
-                Mat CT_data;
-                cast_float16_to_float32(C, CT_data);
-                C = CT_data;
-                if (C.empty())
-                    return -100;
-            }
-
-            // pre-multiply C with beta
-            if (beta != 1.f)
-            {
-                Mat CT_data;
-                CT_data.create_like(C, opt.workspace_allocator);
-                if (CT_data.empty())
-                    return -100;
-
-                const int size = C.total() * C.elempack;
-                for (int i = 0; i < size; i++)
-                {
-                    CT_data[i] = C[i] * beta;
-                }
-
-                C = CT_data;
-            }
-        }
-    }
-
-    int out_elempack = 1;
-    if (opt.use_packing_layout)
-    {
-        int outh = output_transpose ? N : M;
-        out_elempack = outh % 4 == 0 ? 4 : 1;
-    }
-    if (output_elempack)
-        out_elempack = output_elempack;
-    size_t out_elemsize = (output_elemtype == 1 ? 4u : 2u) * out_elempack;
-
-    Mat& top_blob = top_blobs[0];
-    if (output_transpose)
-    {
-        if (output_N1M)
-            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        else
-            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    else
-    {
-        if (output_N1M)
-            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        else
-            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob.empty())
-        return -100;
-
-    int _nT = nT ? nT : opt.num_threads;
-    if (nT != 0 && opt.num_threads != nT)
-    {
-        // force num_threads the same as in create_pipeline
-        // so we could use pre-packed A/B from the same tile config
-        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
-    }
-
-    int ret = 0;
-    if (constantA && constantB)
-    {
-        ret = gemm_AT_BT_arm_fp16s(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else if (constantA)
-    {
-        const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_arm_fp16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else if (constantB)
-    {
-        const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_arm_fp16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else
-    {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        ret = gemm_arm_fp16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-
-    return ret;
-}
 #endif // NCNN_VFPV4
 
 #if NCNN_ARM82
@@ -6173,191 +5996,6 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
     return 0;
 }
 
-int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    int M;
-    int N;
-    if (constantA && constantB)
-    {
-        M = constantM;
-        N = constantN;
-    }
-    else if (constantA)
-    {
-        const Mat& B = bottom_blobs[0];
-        M = constantM;
-        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-    }
-    else if (constantB)
-    {
-        const Mat& A = bottom_blobs[0];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        N = constantN;
-    }
-    else
-    {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-    }
-
-    Mat C;
-    int broadcast_type_C = 0;
-    if (constantC)
-    {
-        C = CT_data;
-        broadcast_type_C = constant_broadcast_type_C;
-    }
-    else
-    {
-        if (constantA && constantB)
-        {
-            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
-        }
-        else if (constantA)
-        {
-            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
-        }
-        else if (constantB)
-        {
-            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
-        }
-        else
-        {
-            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
-        }
-
-        if (!C.empty())
-        {
-            if (C.dims == 1 && C.w == 1)
-            {
-                // scalar
-                broadcast_type_C = 0;
-            }
-            if (C.dims == 1 && C.w * C.elempack == M)
-            {
-                // M
-                // auto broadcast from h to w is the ncnn-style convention
-                broadcast_type_C = 1;
-            }
-            if (C.dims == 1 && C.w * C.elempack == N)
-            {
-                // N
-                broadcast_type_C = 4;
-            }
-            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
-            {
-                // Mx1
-                broadcast_type_C = 2;
-            }
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
-            {
-                // MxN
-                broadcast_type_C = 3;
-            }
-            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
-            {
-                // 1xN
-                broadcast_type_C = 4;
-            }
-
-            // pre-multiply C with beta
-            if (beta != 1.f)
-            {
-                Mat CT_data;
-                CT_data.create_like(C, opt.workspace_allocator);
-                if (CT_data.empty())
-                    return -100;
-
-                const int size = C.total() * C.elempack;
-                const __fp16* ptr = C;
-                __fp16* outptr = CT_data;
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = ptr[i] * (__fp16)beta;
-                }
-
-                C = CT_data;
-            }
-        }
-    }
-
-    int out_elempack = 1;
-    if (opt.use_packing_layout)
-    {
-        int outh = output_transpose ? N : M;
-        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-    }
-    if (output_elempack)
-        out_elempack = output_elempack;
-    size_t out_elemsize = 2u * out_elempack;
-
-    Mat& top_blob = top_blobs[0];
-    if (output_transpose)
-    {
-        if (output_N1M)
-            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        else
-            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    else
-    {
-        if (output_N1M)
-            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        else
-            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob.empty())
-        return -100;
-
-    int _nT = nT ? nT : opt.num_threads;
-    if (nT != 0 && opt.num_threads != nT)
-    {
-        // force num_threads the same as in create_pipeline
-        // so we could use pre-packed A/B from the same tile config
-        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
-    }
-
-    int ret = 0;
-    if (constantA && constantB)
-    {
-        ret = gemm_AT_BT_arm_fp16sa(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else if (constantA)
-    {
-        const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_arm_fp16sa(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else if (constantB)
-    {
-        const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_arm_fp16sa(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    else
-    {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        ret = gemm_arm_fp16sa(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-    }
-    if (ret != 0)
-        return ret;
-
-    // multiply top_blob with alpha
-    if (alpha != 1.f)
-    {
-        const int size = top_blob.total() * out_elempack;
-        __fp16* ptr = top_blob;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            ptr[i] *= alpha;
-        }
-    }
-
-    return 0;
-}
 #endif // NCNN_ARM82
 
 int Gemm_arm::create_pipeline(const Option& opt)
@@ -6754,6 +6392,374 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     return 0;
 }
+
+#if NCNN_VFPV4
+int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int M;
+    int N;
+    if (constantA && constantB)
+    {
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = constantN;
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = CT_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
+        {
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+        }
+        else if (constantA)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else if (constantB)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else
+        {
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+        }
+
+        if (!C.empty())
+        {
+            if (C.dims == 1 && C.w == 1)
+            {
+                // scalar
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w * C.elempack == M)
+            {
+                // M
+                // auto broadcast from h to w is the ncnn-style convention
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w * C.elempack == N)
+            {
+                // N
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+            {
+                // Mx1
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+            {
+                // MxN
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+            {
+                // 1xN
+                broadcast_type_C = 4;
+            }
+
+            // cast to fp32
+            {
+                Mat CT_data;
+                cast_float16_to_float32(C, CT_data);
+                C = CT_data;
+                if (C.empty())
+                    return -100;
+            }
+
+            // pre-multiply C with beta
+            if (beta != 1.f)
+            {
+                Mat CT_data;
+                CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
+
+                const int size = C.total() * C.elempack;
+                for (int i = 0; i < size; i++)
+                {
+                    CT_data[i] = C[i] * beta;
+                }
+
+                C = CT_data;
+            }
+        }
+    }
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+    size_t out_elemsize = (output_elemtype == 1 ? 4u : 2u) * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
+    int ret = 0;
+    if (constantA && constantB)
+    {
+        ret = gemm_AT_BT_arm_fp16s(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        ret = gemm_AT_arm_fp16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        ret = gemm_BT_arm_fp16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_arm_fp16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, output_elemtype, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+
+    return ret;
+}
+#endif // NCNN_VFPV4
+
+#if NCNN_ARM82
+int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int M;
+    int N;
+    if (constantA && constantB)
+    {
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = constantN;
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = CT_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
+        {
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+        }
+        else if (constantA)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else if (constantB)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else
+        {
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+        }
+
+        if (!C.empty())
+        {
+            if (C.dims == 1 && C.w == 1)
+            {
+                // scalar
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w * C.elempack == M)
+            {
+                // M
+                // auto broadcast from h to w is the ncnn-style convention
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w * C.elempack == N)
+            {
+                // N
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+            {
+                // Mx1
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+            {
+                // MxN
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+            {
+                // 1xN
+                broadcast_type_C = 4;
+            }
+
+            // pre-multiply C with beta
+            if (beta != 1.f)
+            {
+                Mat CT_data;
+                CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
+
+                const int size = C.total() * C.elempack;
+                const __fp16* ptr = C;
+                __fp16* outptr = CT_data;
+                for (int i = 0; i < size; i++)
+                {
+                    outptr[i] = ptr[i] * (__fp16)beta;
+                }
+
+                C = CT_data;
+            }
+        }
+    }
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+    size_t out_elemsize = 2u * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
+    int ret = 0;
+    if (constantA && constantB)
+    {
+        ret = gemm_AT_BT_arm_fp16sa(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        ret = gemm_AT_arm_fp16sa(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        ret = gemm_BT_arm_fp16sa(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_arm_fp16sa(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    if (ret != 0)
+        return ret;
+
+    // multiply top_blob with alpha
+    if (alpha != 1.f)
+    {
+        const int size = top_blob.total() * out_elempack;
+        __fp16* ptr = top_blob;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] *= alpha;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, float beta, int output_elemtype, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)

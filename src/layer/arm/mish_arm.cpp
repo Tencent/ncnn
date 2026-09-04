@@ -40,18 +40,6 @@ Mish_arm::Mish_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return mish_fp16s(bottom_top_blob, opt);
-}
-
-int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    return mish_fp16sa(bottom_top_blob, opt);
-}
-#endif // NCNN_ARM82
-
 int Mish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -129,6 +117,18 @@ int Mish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return mish_fp16s(bottom_top_blob, opt);
+}
+
+int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return mish_fp16sa(bottom_top_blob, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int Mish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

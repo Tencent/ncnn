@@ -38,13 +38,6 @@ UnaryOp_arm::UnaryOp_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return unaryop_fp16s(bottom_top_blob, op_type, opt);
-}
-#endif // NCNN_ARM82
-
 template<typename Op>
 static int unary_op_inplace(Mat& a, const Option& opt)
 {
@@ -687,6 +680,13 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return unaryop_fp16s(bottom_top_blob, op_type, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 template<typename Op>

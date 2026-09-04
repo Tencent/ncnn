@@ -455,109 +455,6 @@ int Deconvolution_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-#if NCNN_ARM82
-int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const size_t elemsize = bottom_blob.elemsize;
-    const int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
-    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
-    const size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
-
-    deconvolution_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-
-    cut_padding(top_blob_bordered, top_blob, opt);
-    if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
-
-int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const size_t elemsize = bottom_blob.elemsize;
-    const int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
-    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = 1;
-    if (opt.use_packing_layout)
-    {
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-    }
-    const size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
-
-    if (opt.use_sgemm_convolution)
-    {
-        Mat bottom_blob_2 = bottom_blob;
-        bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
-        bottom_blob_2.h = 1;
-
-        Mat top_col2im;
-        Option opt_b = opt;
-        opt_b.blob_allocator = top_blob_bordered.allocator;
-        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
-        if (ret != 0)
-            return ret;
-
-        deconvolution_col2im_fp16sa_dispatch(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-        if (activation)
-            activation->forward_inplace(top_blob_bordered, opt);
-    }
-    else
-    {
-        const bool activation_unfused = deconvolution_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
-        if (activation_unfused && activation)
-            activation->forward_inplace(top_blob_bordered, opt);
-    }
-
-    cut_padding(top_blob_bordered, top_blob, opt);
-    if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
-#endif // NCNN_ARM82
-
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
     Option opt = _opt;
@@ -1220,6 +1117,109 @@ int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    deconvolution_fp16s_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    if (opt.use_sgemm_convolution)
+    {
+        Mat bottom_blob_2 = bottom_blob;
+        bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+        bottom_blob_2.h = 1;
+
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
+
+        deconvolution_col2im_fp16sa_dispatch(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+        if (activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+    else
+    {
+        const bool activation_unfused = deconvolution_fp16sa_dispatch(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+        if (activation_unfused && activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)

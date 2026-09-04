@@ -201,13 +201,6 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     }
 }
 
-#if NCNN_ARM82
-int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return groupnorm_inplace_fp16s(bottom_top_blob, group, channels, eps, affine, gamma_data, beta_data, opt);
-}
-#endif // NCNN_ARM82
-
 int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& _opt) const
 {
     Option opt = _opt;
@@ -295,6 +288,13 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& _opt) con
 
     return 0;
 }
+
+#if NCNN_ARM82
+int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return groupnorm_inplace_fp16s(bottom_top_blob, group, channels, eps, affine, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)

@@ -102,115 +102,6 @@ static int interp_fp16sa_dispatch(const Mat& bottom_blob, Mat& top_blob, int out
 #endif
 }
 
-int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& reference_blob = bottom_blobs[1];
-    Mat& top_blob = top_blobs[0];
-
-    const int dims = bottom_blob.dims;
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const size_t elemsize = bottom_blob.elemsize;
-    const int elempack = bottom_blob.elempack;
-
-    int outw = reference_blob.w;
-    int outh = reference_blob.h;
-
-    if (!size_expr.empty())
-    {
-        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            bottom_blob_shapes[i] = bottom_blobs[i].shape();
-        }
-        eval_size_expr(bottom_blob_shapes, outw, outh);
-    }
-
-    if (dims == 2 && outw == w)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    if (dims >= 3 && outw == w && outh == h)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    if (dims == 1)
-        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
-    if (dims == 2)
-        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
-    if (dims >= 3)
-        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    const bool use_output_width = output_width || !size_expr.empty();
-    const bool use_output_height = output_height || !size_expr.empty();
-
-    return interp_fp16s_dispatch(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
-}
-
-int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    const int dims = bottom_blob.dims;
-    const int elempack = bottom_blob.elempack;
-
-    if ((elempack == 1 || elempack == 4) && (dims == 1 || resize_type == 1)) // nearest
-        return forward_fp16s(bottom_blobs, top_blobs, opt);
-
-    const Mat& reference_blob = bottom_blobs[1];
-    Mat& top_blob = top_blobs[0];
-
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const size_t elemsize = bottom_blob.elemsize;
-
-    int outw = reference_blob.w;
-    int outh = reference_blob.h;
-
-    if (!size_expr.empty())
-    {
-        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            bottom_blob_shapes[i] = bottom_blobs[i].shape();
-        }
-        eval_size_expr(bottom_blob_shapes, outw, outh);
-    }
-
-    if (dims == 2 && outw == w)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    if (dims >= 3 && outw == w && outh == h)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    if (dims == 1)
-        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
-    if (dims == 2)
-        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
-    if (dims >= 3)
-        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    const bool use_output_width = output_width || !size_expr.empty();
-    const bool use_output_height = output_height || !size_expr.empty();
-
-    return interp_fp16sa_dispatch(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
-}
 #endif // NCNN_ARM82
 
 int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -663,6 +554,118 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& reference_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    int outw = reference_blob.w;
+    int outh = reference_blob.h;
+
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
+    if (dims == 2 && outw == w)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims >= 3 && outw == w && outh == h)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims == 1)
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+    if (dims == 2)
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+    if (dims >= 3)
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const bool use_output_width = output_width || !size_expr.empty();
+    const bool use_output_height = output_height || !size_expr.empty();
+
+    return interp_fp16s_dispatch(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
+}
+
+int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const int dims = bottom_blob.dims;
+    const int elempack = bottom_blob.elempack;
+
+    if ((elempack == 1 || elempack == 4) && (dims == 1 || resize_type == 1)) // nearest
+        return forward_fp16s(bottom_blobs, top_blobs, opt);
+
+    const Mat& reference_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t elemsize = bottom_blob.elemsize;
+
+    int outw = reference_blob.w;
+    int outh = reference_blob.h;
+
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
+    if (dims == 2 && outw == w)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims >= 3 && outw == w && outh == h)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims == 1)
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+    if (dims == 2)
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+    if (dims >= 3)
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const bool use_output_width = output_width || !size_expr.empty();
+    const bool use_output_height = output_height || !size_expr.empty();
+
+    return interp_fp16sa_dispatch(bottom_blob, top_blob, outw, outh, resize_type, width_scale, height_scale, align_corner, use_output_width, use_output_height, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

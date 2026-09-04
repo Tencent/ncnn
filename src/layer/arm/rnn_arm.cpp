@@ -403,148 +403,6 @@ int RNN_arm::create_pipeline_fp16s(const Option& opt)
     return 0;
 }
 
-int RNN_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int T = bottom_blob.h;
-
-    int num_directions = direction == 2 ? 2 : 1;
-
-    // initial hidden state
-    Mat hidden(num_output, 4u, opt.workspace_allocator);
-    if (hidden.empty())
-        return -100;
-    hidden.fill(0.f);
-
-    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // Uni directional
-    if (direction == 0 || direction == 1)
-    {
-        int ret = rnn_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    if (direction == 2)
-    {
-        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_forward.empty())
-            return -100;
-
-        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_reverse.empty())
-            return -100;
-
-        {
-            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        hidden.fill(0.f);
-
-        {
-            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        // concat w
-        for (int i = 0; i < T; i++)
-        {
-            const unsigned short* pf = top_blob_forward.row<const unsigned short>(i);
-            const unsigned short* pr = top_blob_reverse.row<const unsigned short>(i);
-            unsigned short* ptr = top_blob.row<unsigned short>(i);
-
-            memcpy(ptr, pf, num_output * sizeof(unsigned short));
-            memcpy(ptr + num_output, pr, num_output * sizeof(unsigned short));
-        }
-    }
-
-    return 0;
-}
-
-int RNN_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    int T = bottom_blob.h;
-    int num_directions = direction == 2 ? 2 : 1;
-
-    Mat hidden;
-    Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
-    if (bottom_blobs.size() == 2)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = hidden_allocator;
-        cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
-    }
-    else
-    {
-        hidden.create(num_output, num_directions, 4u, hidden_allocator);
-        if (hidden.empty())
-            return -100;
-        hidden.fill(0.f);
-    }
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // Uni directional
-    if (direction == 0 || direction == 1)
-    {
-        int ret = rnn_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    if (direction == 2)
-    {
-        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_forward.empty())
-            return -100;
-
-        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_reverse.empty())
-            return -100;
-
-        Mat hidden0 = hidden.row_range(0, 1);
-        {
-            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        Mat hidden1 = hidden.row_range(1, 1);
-        {
-            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        // concat w
-        for (int i = 0; i < T; i++)
-        {
-            const unsigned short* pf = top_blob_forward.row<const unsigned short>(i);
-            const unsigned short* pr = top_blob_reverse.row<const unsigned short>(i);
-            unsigned short* ptr = top_blob.row<unsigned short>(i);
-
-            memcpy(ptr, pf, num_output * sizeof(unsigned short));
-            memcpy(ptr + num_output, pr, num_output * sizeof(unsigned short));
-        }
-    }
-
-    if (top_blobs.size() == 2)
-    {
-        cast_float32_to_float16(hidden, top_blobs[1], opt);
-    }
-
-    return 0;
-}
-
 #endif // NCNN_ARM82
 
 int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -724,6 +582,150 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     return 0;
 }
+
+#if NCNN_ARM82
+int RNN_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int T = bottom_blob.h;
+
+    int num_directions = direction == 2 ? 2 : 1;
+
+    // initial hidden state
+    Mat hidden(num_output, 4u, opt.workspace_allocator);
+    if (hidden.empty())
+        return -100;
+    hidden.fill(0.f);
+
+    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        int ret = rnn_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+        if (ret != 0)
+            return ret;
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        {
+            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+
+        hidden.fill(0.f);
+
+        {
+            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const unsigned short* pf = top_blob_forward.row<const unsigned short>(i);
+            const unsigned short* pr = top_blob_reverse.row<const unsigned short>(i);
+            unsigned short* ptr = top_blob.row<unsigned short>(i);
+
+            memcpy(ptr, pf, num_output * sizeof(unsigned short));
+            memcpy(ptr + num_output, pr, num_output * sizeof(unsigned short));
+        }
+    }
+
+    return 0;
+}
+
+int RNN_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    int T = bottom_blob.h;
+    int num_directions = direction == 2 ? 2 : 1;
+
+    Mat hidden;
+    Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 2)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = hidden_allocator;
+        cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        int ret = rnn_fp16s_dispatch(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+        if (ret != 0)
+            return ret;
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        {
+            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        {
+            int ret = rnn_fp16s_dispatch(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const unsigned short* pf = top_blob_forward.row<const unsigned short>(i);
+            const unsigned short* pr = top_blob_reverse.row<const unsigned short>(i);
+            unsigned short* ptr = top_blob.row<unsigned short>(i);
+
+            memcpy(ptr, pf, num_output * sizeof(unsigned short));
+            memcpy(ptr + num_output, pr, num_output * sizeof(unsigned short));
+        }
+    }
+
+    if (top_blobs.size() == 2)
+    {
+        cast_float32_to_float16(hidden, top_blobs[1], opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)

@@ -452,13 +452,6 @@ static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int
     }
 }
 
-#if NCNN_ARM82
-int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return softmax_inplace_fp16s(bottom_top_blob, axis, opt);
-}
-#endif // NCNN_ARM82
-
 int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -635,6 +628,13 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return softmax_inplace_fp16s(bottom_top_blob, axis, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)

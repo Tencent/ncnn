@@ -35,18 +35,6 @@ PReLU_arm::PReLU_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return prelu_fp16s(bottom_top_blob, num_slope, slope_data, opt);
-}
-
-int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    return prelu_fp16sa(bottom_top_blob, num_slope, slope_data, opt);
-}
-#endif // NCNN_ARM82
-
 int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -319,6 +307,18 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return prelu_fp16s(bottom_top_blob, num_slope, slope_data, opt);
+}
+
+int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return prelu_fp16sa(bottom_top_blob, num_slope, slope_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

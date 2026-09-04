@@ -40,18 +40,6 @@ int GELU_arm::create_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-#if NCNN_ARM82
-int GELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    return gelu_fp16s(bottom_top_blob, fast_gelu, opt);
-}
-
-int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    return gelu_fp16sa(bottom_top_blob, fast_gelu, opt);
-}
-#endif // NCNN_ARM82
-
 int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
@@ -131,6 +119,18 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_ARM82
+int GELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return gelu_fp16s(bottom_top_blob, fast_gelu, opt);
+}
+
+int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    return gelu_fp16sa(bottom_top_blob, fast_gelu, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
