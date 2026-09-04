@@ -195,7 +195,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -207,7 +207,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp += 16;
                 p0 += 16;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
@@ -220,7 +220,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p1 = p0 + A_hstep * 4;
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _a0 = _mm_loadu_si128((const __m128i*)p0);
@@ -233,7 +233,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p0 += 8;
                 p1 += 8;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -250,7 +250,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #endif
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
@@ -258,7 +258,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp += 16;
                 p0 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
 #if __AVX2__
@@ -288,7 +288,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -297,7 +297,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp += 8;
                 p0 += 8;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -312,7 +312,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p3 = p0 + A_hstep * 3;
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -329,7 +329,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p2 += 2;
                 p3 += 2;
             }
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -348,7 +348,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p2 += 4;
                 p3 += 4;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -372,7 +372,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -383,7 +383,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p0 += 2;
                 p1 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -401,7 +401,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -409,7 +409,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp += 2;
                 p0 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -735,11 +735,11 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + 40));
                 __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + 48));
                 __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + 56));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _r2);
@@ -766,7 +766,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _r5 = _mm_loadl_epi64((const __m128i*)(p0 + 20));
                 __m128i _r6 = _mm_loadl_epi64((const __m128i*)(p0 + 24));
                 __m128i _r7 = _mm_loadl_epi64((const __m128i*)(p0 + 28));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
                 __m128i _t2 = _mm_unpacklo_epi32(_r4, _r5);
@@ -775,7 +775,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _p1 = _mm_unpacklo_epi64(_t2, _t3);
                 __m128i _p2 = _mm_unpackhi_epi64(_t0, _t1);
                 __m128i _p3 = _mm_unpackhi_epi64(_t2, _t3);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
                 __m128i _t2 = _mm_unpacklo_epi16(_r4, _r5);
@@ -788,7 +788,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _p1 = _mm_unpackhi_epi64(_r0, _r2);
                 __m128i _p2 = _mm_unpacklo_epi64(_r1, _r3);
                 __m128i _p3 = _mm_unpackhi_epi64(_r1, _r3);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _p0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _p1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _p2);
@@ -800,7 +800,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -812,7 +812,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp += 16;
                 p0 += A_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
@@ -860,11 +860,11 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
                 __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + 16));
                 __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + 24));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose4x4_epi32(_r0, _r1, _r2, _r3);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose8x4_epi16(_r0, _r1, _r2, _r3);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _r2);
@@ -883,17 +883,17 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
                 __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
                 __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
                 _r0 = _mm_unpacklo_epi64(_t0, _t1);
                 _r1 = _mm_unpackhi_epi64(_t0, _t1);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
                 _r0 = _mm_unpacklo_epi32(_t0, _t1);
                 _r1 = _mm_unpackhi_epi32(_t0, _t1);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 pp += 16;
@@ -903,7 +903,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -913,7 +913,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp += 8;
                 p0 += A_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -956,13 +956,13 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             {
                 __m128i _p0 = _mm_loadu_si128((const __m128i*)p0);
                 __m128i _p1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_p0, _p1);
                 __m128i _t1 = _mm_unpackhi_epi32(_p0, _p1);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
                 __m128i _t1 = _mm_unpackhi_epi16(_p0, _p1);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _t0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _t1);
                 pp += 16;
@@ -975,7 +975,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[4];
@@ -984,7 +984,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp[5] = p0[3];
                 pp[6] = p0[6];
                 pp[7] = p0[7];
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp[0] = p0[0];
                 pp[1] = p0[4];
                 pp[2] = p0[1];
@@ -993,7 +993,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp[5] = p0[6];
                 pp[6] = p0[3];
                 pp[7] = p0[7];
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp += 8;
                 p0 += A_hstep * 4;
             }
@@ -1002,7 +1002,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -1012,7 +1012,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp += 4;
                 p0 += A_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -1239,7 +1239,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         if (elempack == 8)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -1251,7 +1251,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp += 16;
                 p0 += 16;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
@@ -1265,7 +1265,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             const unsigned short* p1 = p0 + B_hstep * 4;
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _a0 = _mm_loadu_si128((const __m128i*)p0);
@@ -1278,7 +1278,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p0 += 8;
                 p1 += 8;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -1295,7 +1295,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 #endif
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
@@ -1303,7 +1303,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp += 16;
                 p0 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
 #if __AVX2__
@@ -1398,7 +1398,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             unsigned short* pp1 = pp + max_kk * 4;
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -1416,7 +1416,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp1 += 8;
                 p0 += 16;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 __m128i _p0 = _mm_loadu_si128((const __m128i*)p0);
@@ -1441,7 +1441,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         if (elempack == 4)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -1450,7 +1450,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp += 8;
                 p0 += 8;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -1465,7 +1465,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             const unsigned short* p3 = p0 + B_hstep * 3;
 
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -1482,7 +1482,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p2 += 2;
                 p3 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -1506,7 +1506,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -1517,7 +1517,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p0 += 2;
                 p1 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -1535,7 +1535,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         // if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -1543,7 +1543,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp += 2;
                 p0 += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -1869,11 +1869,11 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + 40));
                 __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + 48));
                 __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + 56));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _r2);
@@ -1900,7 +1900,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _r5 = _mm_loadl_epi64((const __m128i*)(p0 + 20));
                 __m128i _r6 = _mm_loadl_epi64((const __m128i*)(p0 + 24));
                 __m128i _r7 = _mm_loadl_epi64((const __m128i*)(p0 + 28));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
                 __m128i _t2 = _mm_unpacklo_epi32(_r4, _r5);
@@ -1909,7 +1909,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _p1 = _mm_unpacklo_epi64(_t2, _t3);
                 __m128i _p2 = _mm_unpackhi_epi64(_t0, _t1);
                 __m128i _p3 = _mm_unpackhi_epi64(_t2, _t3);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
                 __m128i _t2 = _mm_unpacklo_epi16(_r4, _r5);
@@ -1922,7 +1922,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _p1 = _mm_unpackhi_epi64(_r0, _r2);
                 __m128i _p2 = _mm_unpacklo_epi64(_r1, _r3);
                 __m128i _p3 = _mm_unpackhi_epi64(_r1, _r3);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _p0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _p1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _p2);
@@ -1934,7 +1934,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -1946,7 +1946,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp += 16;
                 p0 += B_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
@@ -1994,11 +1994,11 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
                 __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + 16));
                 __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + 24));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose4x4_epi32(_r0, _r1, _r2, _r3);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 transpose8x4_epi16(_r0, _r1, _r2, _r3);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _r2);
@@ -2017,17 +2017,17 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
                 __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
                 __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
                 _r0 = _mm_unpacklo_epi64(_t0, _t1);
                 _r1 = _mm_unpackhi_epi64(_t0, _t1);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
                 _r0 = _mm_unpacklo_epi32(_t0, _t1);
                 _r1 = _mm_unpackhi_epi32(_t0, _t1);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 pp += 16;
@@ -2037,7 +2037,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -2047,7 +2047,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp += 8;
                 p0 += B_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -2090,13 +2090,13 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             {
                 __m128i _p0 = _mm_loadu_si128((const __m128i*)p0);
                 __m128i _p1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi32(_p0, _p1);
                 __m128i _t1 = _mm_unpackhi_epi32(_p0, _p1);
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
                 __m128i _t1 = _mm_unpackhi_epi16(_p0, _p1);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 _mm_storeu_si128((__m128i*)pp, _t0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _t1);
                 pp += 16;
@@ -2109,7 +2109,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[4];
@@ -2118,7 +2118,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp[5] = p0[3];
                 pp[6] = p0[6];
                 pp[7] = p0[7];
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp[0] = p0[0];
                 pp[1] = p0[4];
                 pp[2] = p0[1];
@@ -2127,7 +2127,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp[5] = p0[6];
                 pp[6] = p0[3];
                 pp[7] = p0[7];
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                 pp += 8;
                 p0 += B_hstep * 4;
             }
@@ -2136,7 +2136,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
         if (elempack == 1)
         {
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -2146,7 +2146,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 pp += 4;
                 p0 += B_hstep * 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -2752,7 +2752,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 16;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 {
@@ -2791,7 +2791,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 16;
                 pB += 16;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -2859,7 +2859,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 {
@@ -2888,7 +2888,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 16;
                 pB += 8;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -2938,7 +2938,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
             for (; kk + 1 < max_kk; kk += 2)
@@ -2966,7 +2966,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             _sum0 = _mm256_add_ps(_sum0, _sum2);
             _sum1 = _mm256_add_ps(_sum1, _sum3);
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -3038,7 +3038,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 16;
                 pB += 2;
             }
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sum1 = _mm256_setzero_ps();
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
@@ -3223,7 +3223,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 16;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 {
@@ -3252,7 +3252,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 8;
                 pB += 16;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
 #if __AVX__
@@ -3339,7 +3339,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; kk + 1 < max_kk; kk += 2)
             {
                 {
@@ -3366,7 +3366,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 8;
                 pB += 8;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
@@ -3415,7 +3415,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
             for (; kk + 1 < max_kk; kk += 2)
@@ -3441,7 +3441,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             _sum0 = _mm_add_ps(_sum0, _sum2);
             _sum1 = _mm_add_ps(_sum1, _sum3);
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
@@ -3517,7 +3517,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 8;
                 pB += 2;
             }
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sumy0 = _mm256_setzero_ps();
             __m256 _sumy1 = _mm256_setzero_ps();
             __m256 _sumy2 = _mm256_setzero_ps();
@@ -3684,7 +3684,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 16;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
             for (; kk + 1 < max_kk; kk += 2)
@@ -3712,7 +3712,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             _sum0 = _mm256_add_ps(_sum0, _sum2);
             _sum1 = _mm256_add_ps(_sum1, _sum3);
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
@@ -3775,7 +3775,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 #endif // __AVX512BF16__
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
             for (; kk + 1 < max_kk; kk += 2)
@@ -3801,7 +3801,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             _sum0 = _mm_add_ps(_sum0, _sum2);
             _sum1 = _mm_add_ps(_sum1, _sum3);
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_castps_si128(_mm_load1_ps((const float*)pA)));
@@ -3935,7 +3935,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum01 = _mm_cvtss_f32(_mm_shuffle_ps(_sumv0, _sumv0, _MM_SHUFFLE(1, 1, 1, 1)));
             sum10 = _mm_cvtss_f32(_mm_shuffle_ps(_sumv0, _sumv0, _MM_SHUFFLE(2, 2, 2, 2)));
             sum11 = _mm_cvtss_f32(_mm_shuffle_ps(_sumv0, _sumv0, _MM_SHUFFLE(3, 3, 3, 3)));
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sumv0 = _mm256_setzero_ps();
             __m256 _sumv1 = _mm256_setzero_ps();
             __m256 _sumv2 = _mm256_setzero_ps();
@@ -3965,7 +3965,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum10 += _mm_cvtss_f32(_sumv_row1);
             sum11 += _mm_cvtss_f32(_mm_shuffle_ps(_sumv_row1, _sumv_row1, _MM_SHUFFLE(1, 1, 1, 1)));
 #endif // __AVX512BF16__
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 float a00 = bfloat16_to_float32(pA[0]);
@@ -3983,7 +3983,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 4;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 float a0 = bfloat16_to_float32(pA[0]);
@@ -4092,7 +4092,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sumv0 = _mm_add_ps(_sumv0, _sumv2);
             sum0 = _mm_cvtss_f32(_sumv0);
             sum1 = _mm_cvtss_f32(_mm_shuffle_ps(_sumv0, _sumv0, _MM_SHUFFLE(1, 1, 1, 1)));
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sumv0 = _mm256_setzero_ps();
             __m256 _sumv1 = _mm256_setzero_ps();
             __m256 _sumv2 = _mm256_setzero_ps();
@@ -4140,7 +4140,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum0 += _mm_cvtss_f32(_sumv);
             sum1 += _mm_cvtss_f32(_mm_shuffle_ps(_sumv, _sumv, _MM_SHUFFLE(1, 1, 1, 1)));
 #endif // __AVX512BF16__
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 float a00 = bfloat16_to_float32(pA[0]);
@@ -4154,7 +4154,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 4;
                 pB += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 sum0 += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);
@@ -4264,7 +4264,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             const unsigned short* pA = pAT;
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 #if __AVX512BF16__
             __m512 _sumz0 = _mm512_setzero_ps();
             __m512 _sumz1 = _mm512_setzero_ps();
@@ -4427,7 +4427,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 16;
             }
 #endif // __AVX512BF16__
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 #if __AVX__
             __m256 _sum00 = _mm256_setzero_ps();
             __m256 _sum01 = _mm256_setzero_ps();
@@ -4510,7 +4510,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sum0 = _mm_add_ps(_sum0, _sum00);
             _sum1 = _mm_add_ps(_sum1, _sum10);
 #endif // __AVX__
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
 #if __AVX__
@@ -4551,7 +4551,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             const unsigned short* pA = pAT;
             int kk = 0;
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 #if __AVX512BF16__
             __m512 _sumz0 = _mm512_setzero_ps();
             __m512 _sumz1 = _mm512_setzero_ps();
@@ -4733,7 +4733,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
 #endif // __AVX512BF16__
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             __m128 _sum00 = _mm_setzero_ps();
             __m128 _sum01 = _mm_setzero_ps();
             __m128 _sum02 = _mm_setzero_ps();
@@ -4763,7 +4763,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sum02 = _mm_add_ps(_sum02, _sum03);
             _sum00 = _mm_add_ps(_sum00, _sum02);
             _sum0 = _mm_add_ps(_sum0, _sum00);
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA0 = _mm_comp_bcstnebf16_ps(pA);
@@ -5013,7 +5013,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sumv0 = _mm_add_ps(_sumv0, _sumv2);
             sum0 = _mm_cvtss_f32(_sumv0);
             sum1 = _mm_cvtss_f32(_mm_shuffle_ps(_sumv0, _sumv0, _MM_SHUFFLE(1, 1, 1, 1)));
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sumv0 = _mm256_setzero_ps();
             __m256 _sumv1 = _mm256_setzero_ps();
             __m256 _sumv2 = _mm256_setzero_ps();
@@ -5061,7 +5061,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum0 += _mm_cvtss_f32(_sumv);
             sum1 += _mm_cvtss_f32(_mm_shuffle_ps(_sumv, _sumv, _MM_SHUFFLE(1, 1, 1, 1)));
 #endif // __AVX512BF16__
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 float a0 = bfloat16_to_float32(pA[0]);
@@ -5075,7 +5075,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 4;
             }
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             float sum00 = 0.f;
             float sum01 = 0.f;
             float sum02 = 0.f;
@@ -5107,7 +5107,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum12 += sum13;
             sum0 += sum00 + sum02;
             sum1 += sum10 + sum12;
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 float a0 = bfloat16_to_float32(pA[0]);
@@ -5186,7 +5186,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 8;
                 pB += 8;
             }
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
             __m256 _sumv0 = _mm256_setzero_ps();
             __m256 _sumv1 = _mm256_setzero_ps();
             __m256 _sumv2 = _mm256_setzero_ps();
@@ -5224,7 +5224,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             sum += _mm256_reduce_add_ps(_mm256_add_ps(_mm256_add_ps(_sumv0, _sumv1), _mm256_add_ps(_sumv2, _sumv3)));
 #endif // __AVX512BF16__
-#if __AVX512BF16__ || __AVXNECONVERT__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk + 1 < max_kk; kk += 2)
             {
                 float a0 = bfloat16_to_float32(pA[0]);
@@ -5235,7 +5235,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 2;
             }
-#else  // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             float sum0 = 0.f;
             float sum1 = 0.f;
             float sum2 = 0.f;
@@ -5252,7 +5252,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum0 += sum1;
             sum2 += sum3;
             sum += sum0 + sum2;
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             for (; kk < max_kk; kk++)
             {
                 sum += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);

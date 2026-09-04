@@ -200,7 +200,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
             const unsigned short* sptr = bottom_blob;
 
             int i = 0;
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; i + 7 < num_input; i += 8)
             {
                 {
@@ -327,7 +327,7 @@ static void innerproduct_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat&
                 sptr += 4;
                 kptr += 32;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; i < num_input; i++)
             {
                 __m256 _val = _mm256_comp_bcstnebf16_ps(sptr);
@@ -1065,7 +1065,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
 
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
                 __m128i _r01l = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _r01h = _mm_unpackhi_epi16(_r0, _r1);
                 __m128i _r23l = _mm_unpacklo_epi16(_r2, _r3);
@@ -1092,7 +1092,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
                 _mm_storeu_si128((__m128i*)(g0 + 40), _r5);
                 _mm_storeu_si128((__m128i*)(g0 + 48), _r6);
                 _mm_storeu_si128((__m128i*)(g0 + 56), _r7);
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
 
                 k0 += 8;
                 k1 += 8;
@@ -1104,7 +1104,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
                 k7 += 8;
                 g0 += 64;
             }
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
             for (; p + 1 < num_input; p += 2)
             {
                 __m128 _r0 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k0));
@@ -1129,7 +1129,7 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
                 k7 += 2;
                 g0 += 16;
             }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
             for (; p < num_input; p++)
             {
                 __m256 _r0 = _mm256_set_ps(*k7++, *k6++, *k5++, *k4++, *k3++, *k2++, *k1++, *k0++);

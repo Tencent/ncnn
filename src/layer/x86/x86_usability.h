@@ -433,7 +433,7 @@ static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i& v0)
 
 static NCNN_FORCEINLINE __m128 _mm_comp_bcstnebf16_ps(const unsigned short* ptr)
 {
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
     return _mm_bcstnebf16_ps(ptr);
 #else
     return _mm_set1_ps(ncnn::bfloat16_to_float32(*ptr));
@@ -444,7 +444,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
     __m128i _v = (__m128i)_mm_cvtneps_avx_pbh(v);
 #else
     __m128i _a = _mm_castps_si128(v);
@@ -465,7 +465,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtne2ps_pbh(v1, v0);
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
     __m128i _v = (__m128i)_mm256_cvtneps_avx_pbh(combine4x2_ps(v0, v1));
 #elif __AVX512F__
     __m256i _ab = _mm256_castps_si256(combine4x2_ps(v0, v1));
@@ -1317,7 +1317,7 @@ static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_bcstnebf16_ps(const unsigned short* ptr)
 {
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
     return _mm256_bcstnebf16_ps(ptr);
 #else
     return _mm256_set1_ps(ncnn::bfloat16_to_float32(*ptr));
@@ -1328,7 +1328,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm256_cvtneps_pbh(v0);
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
     __m128i _v = (__m128i)_mm256_cvtneps_avx_pbh(v0);
 #elif __AVX2__
     __m256i _ab = _mm256_castps_si256(v0);
@@ -1355,7 +1355,7 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 {
 #if __AVX512BF16__
     __m256i _v = (__m256i)_mm256_cvtne2ps_pbh(v1, v0);
-#elif __AVXNECONVERT__
+#elif __AVXNECONVERT__ && !__AVX512F__
     __m128i _v0 = (__m128i)_mm256_cvtneps_avx_pbh(v0);
     __m128i _v1 = (__m128i)_mm256_cvtneps_avx_pbh(v1);
     __m256i _v = combine4x2_epi32(_v0, _v1);

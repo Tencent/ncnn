@@ -595,7 +595,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 __m256 _sum7 = _sum0;
 
                 int i = 0;
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
                 for (; i + 1 < num_input; i += 2)
                 {
                     __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
@@ -621,7 +621,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     m += 16;
                     kptr += 16;
                 }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
                 for (; i < num_input; i++)
                 {
                     __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
@@ -690,7 +690,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 }
 
                 int i = 0;
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
                 for (; i + 7 < num_input; i += 8)
                 {
                     __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
@@ -797,7 +797,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     m += 4;
                     kptr += 32;
                 }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
                 for (; i < num_input; i++)
                 {
                     __m256 _val = _mm256_comp_bcstnebf16_ps(m);
@@ -840,7 +840,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 __m256 _sum3 = _sum0;
 
                 int i = 0;
-#if __AVXNECONVERT__
+#if __AVXNECONVERT__ && !__AVX512F__
                 for (; i + 1 < num_input; i += 2)
                 {
                     __m256 _w0 = _mm256_cvtneebf16_ps((const __m256bh*)kptr);
@@ -857,7 +857,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     m += 8;
                     kptr += 16;
                 }
-#endif // __AVXNECONVERT__
+#endif // __AVXNECONVERT__ && !__AVX512F__
                 for (; i < num_input; i++)
                 {
                     __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
