@@ -111,6 +111,14 @@
 #ifndef CPUFAMILY_ARM_TAHITI
 #define CPUFAMILY_ARM_TAHITI 0x75d4acb9
 #endif
+// A19
+#ifndef CPUFAMILY_ARM_TILOS
+#define CPUFAMILY_ARM_TILOS 0x01d7a72b
+#endif
+// A19 Pro
+#ifndef CPUFAMILY_ARM_THERA
+#define CPUFAMILY_ARM_THERA 0xab345f09
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -130,6 +138,14 @@
 // M4 Pro / M4 Max
 #ifndef CPUFAMILY_ARM_BRAVA
 #define CPUFAMILY_ARM_BRAVA 0x17d5b93a
+#endif
+// M5
+#ifndef CPUFAMILY_ARM_HIDRA
+#define CPUFAMILY_ARM_HIDRA 0x1d5a87e8
+#endif
+// M5 Pro / M5 Max
+#ifndef CPUFAMILY_ARM_SOTRA
+#define CPUFAMILY_ARM_SOTRA 0xf76c5b1a
 #endif
 #endif // __APPLE__
 
@@ -2215,6 +2231,10 @@ static void initialize_global_cpu_info()
 
     switch (g_hw_cpufamily)
     {
+    case CPUFAMILY_ARM_TILOS:
+    case CPUFAMILY_ARM_THERA:
+    case CPUFAMILY_ARM_HIDRA:
+    case CPUFAMILY_ARM_SOTRA:
     case CPUFAMILY_ARM_TUPAI:
     case CPUFAMILY_ARM_TAHITI:
     case CPUFAMILY_ARM_DONAN:
