@@ -6548,12 +6548,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
         // pre-multiply C with beta
         if (beta != 1.f)
         {
-            const int size = CT_data.total() * CT_data.elempack;
-            __fp16* ptr = CT_data;
-            for (int i = 0; i < size; i++)
-            {
-                ptr[i] *= beta;
-            }
+            scale_fp16sa(CT_data, CT_data, beta, 1);
         }
 
         if (opt.lightmode)
@@ -6665,13 +6660,7 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
                 if (CT_data.empty())
                     return -100;
 
-                const int size = C.total() * C.elempack;
-                const __fp16* ptr = C;
-                __fp16* outptr = CT_data;
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = ptr[i] * (__fp16)beta;
-                }
+                scale_fp16sa(C, CT_data, beta, 1);
 
                 C = CT_data;
             }
@@ -6741,14 +6730,7 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
     // multiply top_blob with alpha
     if (alpha != 1.f)
     {
-        const int size = top_blob.total() * out_elempack;
-        __fp16* ptr = top_blob;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            ptr[i] *= alpha;
-        }
+        scale_fp16sa(top_blob, top_blob, alpha, opt.num_threads);
     }
 
     return 0;

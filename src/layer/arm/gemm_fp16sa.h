@@ -3,6 +3,7 @@
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 void gemm_transB_packed_tile_fp16sa_asimdhp(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end);
+void scale_fp16sa_asimdhp(const Mat& src, Mat& dst, float scale, int nT);
 #endif
 
 static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
@@ -2465,6 +2466,28 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 #endif
 }
 
+static void scale_fp16sa(const Mat& src, Mat& dst, float scale, int nT)
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    const int size = src.total() * src.elempack;
+    const __fp16* ptr = src;
+    __fp16* outptr = dst;
+
+    #pragma omp parallel for num_threads(nT)
+    for (int i = 0; i < size; i++)
+    {
+        outptr[i] = ptr[i] * (__fp16)scale;
+    }
+#elif NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__
+    scale_fp16sa_asimdhp(src, dst, scale, nT);
+#else
+    (void)src;
+    (void)dst;
+    (void)scale;
+    (void)nT;
+#endif
+}
+
 static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
@@ -2473,7 +2496,7 @@ static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M
     if (nT == 0)
         nT = get_physical_big_cpu_count();
 
-    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(__fp16));
+    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(unsigned short));
 
     TILE_M = std::max(8, tile_size / 8 * 8);
     TILE_N = std::max(4, tile_size / 4 * 4);
@@ -2486,7 +2509,7 @@ static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M
 
         if (nn_K == 1)
         {
-            tile_size = (int)((float)l2_cache_size / 2 / sizeof(__fp16) / TILE_K);
+            tile_size = (int)((float)l2_cache_size / 2 / sizeof(unsigned short) / TILE_K);
 
             TILE_M = std::max(8, tile_size / 8 * 8);
             TILE_N = std::max(4, tile_size / 4 * 4);

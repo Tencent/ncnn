@@ -25,6 +25,11 @@ void gemm_transB_packed_tile_fp16sa_asimdhp(const Mat& AT_tile, const Mat& BT_ti
     gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
 }
 
+void scale_fp16sa_asimdhp(const Mat& src, Mat& dst, float scale, int nT)
+{
+    scale_fp16sa(src, dst, scale, nT);
+}
+
 #if NCNN_INT8
 void compute_A_tile_fp16_int8_scales_asimdhp(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
 {
