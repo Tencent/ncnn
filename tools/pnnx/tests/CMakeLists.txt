@@ -29,6 +29,7 @@ add_test(
     NAME test_pt2_version_compatibility
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_version_compatibility.py $<TARGET_FILE:pnnx>
 )
+set_tests_properties(test_exported_program test_pt2_version_compatibility PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(
     NAME test_pt2_manifest

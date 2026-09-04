@@ -15,7 +15,9 @@ class Model(nn.Module):
         x = torch.clone(x, memory_format=torch.contiguous_format)
         y = torch.clone(y, memory_format=torch.channels_last)
         z = torch.clone(z, memory_format=torch.preserve_format)
-        return x, y, z
+        default = torch.clone(x.transpose(1, 2))
+        channels_last_3d = torch.clone(z, memory_format=torch.channels_last_3d)
+        return x, y, z, default, channels_last_3d
 
 def test():
     net = Model()
@@ -37,9 +39,11 @@ def test():
 
     b = mod.test_inference()
 
+    if len(a) != len(b):
+        return False
     passed = True
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if a0.shape != b0.shape or a0.dtype != b0.dtype or a0.stride() != b0.stride() or not torch.equal(a0, b0):
             passed = False
     return passed
 

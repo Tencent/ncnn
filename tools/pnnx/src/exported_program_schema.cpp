@@ -7,6 +7,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace pnnx {
@@ -283,7 +284,7 @@ int parse_exported_program_header(const JsonValue& value, ExportedProgramHeader&
     if (parsed_header.opset_version.find("aten") == parsed_header.opset_version.end())
         return schema_error(error, "$.opset_version.aten", "missing required field");
 
-    header = parsed_header;
+    header = std::move(parsed_header);
     return 0;
 }
 
@@ -410,7 +411,7 @@ int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tenso
     if (read_nonnegative_integer(*layout, parsed_meta.layout, tensor_path + ".layout", "tensor layout must be non-negative", error) != 0)
         return -1;
 
-    tensor_meta = parsed_meta;
+    tensor_meta = std::move(parsed_meta);
     return 0;
 }
 
@@ -492,10 +493,10 @@ int parse_exported_payload_config(const JsonValue& value, ExportedPayloadConfig&
             entry.has_tensor_meta = true;
         }
 
-        parsed_config.entries[it->first] = entry;
+        parsed_config.entries[it->first] = std::move(entry);
     }
 
-    payload_config = parsed_config;
+    payload_config = std::move(parsed_config);
     return 0;
 }
 
@@ -504,6 +505,18 @@ static int read_double(const JsonValue& value, double& result, const std::string
     if (value.type() == JSON_DOUBLE)
     {
         result = value.as_double();
+        return 0;
+    }
+
+    if (value.type() == JSON_INT64)
+    {
+        result = (double)value.as_int64();
+        return 0;
+    }
+
+    if (value.type() == JSON_UINT64)
+    {
+        result = (double)value.as_uint64();
         return 0;
     }
 
@@ -1815,7 +1828,7 @@ int parse_exported_program(const JsonValue& value, ExportedProgram& program, Exp
     if (validate_signature_tensor_arguments(parsed_program, error) != 0)
         return -1;
 
-    program = parsed_program;
+    program = std::move(parsed_program);
     return 0;
 }
 

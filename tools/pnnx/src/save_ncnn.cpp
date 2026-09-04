@@ -396,6 +396,18 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
+            if (r->type == 13)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bfloat16 input %s\")\n", input_name.c_str());
+                continue;
+            }
+
+            if (r->type == 10 || r->type == 11 || r->type == 12)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support complex input %s\")\n", input_name.c_str());
+                continue;
+            }
+
             if (input_shape.empty())
             {
                 fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support scalar input %s\")\n", input_name.c_str());

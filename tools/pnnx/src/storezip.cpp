@@ -284,7 +284,20 @@ try
     const uint32_t eocd_cd_size = read_le32(eocd + 12);
     const uint32_t eocd_cd_offset = read_le32(eocd + 16);
 
-    const bool zip64 = eocd_disk_number == 0xffff || eocd_start_disk == 0xffff || eocd_disk_records == 0xffff || eocd_total_records == 0xffff || eocd_cd_size == 0xffffffff || eocd_cd_offset == 0xffffffff;
+    // Maximum-valued EOCD fields can also describe a classic ZIP archive.
+    // Only use ZIP64 metadata when its locator is actually present.
+    unsigned char locator[20];
+    bool zip64 = false;
+    if (eocd_offset >= sizeof(locator))
+    {
+        if (storezip_fseek_absolute(fp, eocd_offset - sizeof(locator)) != 0 || !storezip_fread_exact(fp, locator, sizeof(locator)))
+        {
+            fprintf(stderr, "read zip64 end of central directory locator failed\n");
+            close();
+            return fail_open;
+        }
+        zip64 = read_le32(locator) == 0x07064b50;
+    }
 
     uint64_t total_records = eocd_total_records;
     uint64_t cd_size = eocd_cd_size;
@@ -293,21 +306,6 @@ try
 
     if (zip64)
     {
-        if (eocd_offset < 20 || storezip_fseek_absolute(fp, eocd_offset - 20) != 0)
-        {
-            fprintf(stderr, "zip64 end of central directory locator not found\n");
-            close();
-            return fail_open;
-        }
-
-        unsigned char locator[20];
-        if (!storezip_fread_exact(fp, locator, sizeof(locator)) || read_le32(locator) != 0x07064b50)
-        {
-            fprintf(stderr, "zip64 end of central directory locator not found\n");
-            close();
-            return fail_open;
-        }
-
         const uint64_t locator_offset = eocd_offset - 20;
         const uint32_t zip64_disk_number = read_le32(locator + 4);
         const uint64_t zip64_eocd_offset = read_le64(locator + 8);

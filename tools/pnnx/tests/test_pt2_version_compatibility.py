@@ -137,6 +137,8 @@ class Pt2VersionCompatibilityTest(unittest.TestCase):
             actual = load_generated_output(work_dir, archive_path.stem)
             self.assertEqual(len(actual), len(expected))
             for expected_tensor, actual_tensor in zip(expected, actual):
+                self.assertEqual(expected_tensor.shape, actual_tensor.shape)
+                self.assertEqual(expected_tensor.dtype, actual_tensor.dtype)
                 self.assertTrue(
                     torch.allclose(expected_tensor, actual_tensor, rtol=1e-4, atol=1e-4),
                     "generated output mismatch\nexpected=%s\nactual=%s"
@@ -145,4 +147,8 @@ class Pt2VersionCompatibilityTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    export = getattr(torch, "export", None)
+    if torch_version_tuple() < (2, 8) or not callable(getattr(export, "export", None)) or not callable(getattr(export, "save", None)):
+        print("PT2 archive compatibility tests require torch.export.save from PyTorch 2.8 or newer")
+        sys.exit(77)
     unittest.main()

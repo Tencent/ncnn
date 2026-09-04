@@ -92,12 +92,14 @@ This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` obj
 - Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs
 - Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
 - Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
-- Generated native ncnn python inference with Bool or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
+- Generated native ncnn python inference with Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
 - Compressed or encrypted PT2 entries and PT2 archive versions other than `0`
 
 Unsupported graph and schema features fail with a feature-specific `load exported program failed:` diagnostic. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
 
 ### ExportedProgram contributor tests
+
+The frontend suite requires Python PyTorch 2.9 or newer; the version test also checks explicit rejection of PyTorch 2.8 legacy packages. CTest skips these tests on older producers. The unsupported-input helper tests do not require the Python ncnn binding; native ncnn runtime tests still require it.
 
 ```shell
 ctest --test-dir build --output-on-failure -R '^(test_exported_program.*|test_pt2_version_compatibility|test_pt2_manifest|test_pnnx_test_utils)$'

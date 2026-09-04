@@ -11,16 +11,21 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 import warnings
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 import torch
 
 
 PNNX = Path(sys.argv[1]).resolve()
-sys.argv = [sys.argv[0]]
+sys.argv = [sys.argv[0]] + sys.argv[2:]
+TORCH_VERSION = tuple(
+    int(component) for component in torch.__version__.split("+", 1)[0].split(".")[:2]
+)
 
 
 class TinyModel(torch.nn.Module):
@@ -179,6 +184,11 @@ class Float64OverflowModel(torch.nn.Module):
         return x * 1e100
 
 
+class FloatArgumentModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.nn.functional.leaky_relu(x - 1, negative_slope=0.25)
+
+
 class NegativeInfinityFillModel(torch.nn.Module):
     def forward(self, x):
         return torch.full_like(x, float("-inf"))
@@ -288,7 +298,9 @@ def load_generated_ncnn_module(work_dir, basename):
         raise AssertionError(f"cannot load generated module {module_path}")
 
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # These tests must reject unsupported inputs before using the native binding.
+    with mock.patch.dict(sys.modules, {"ncnn": types.ModuleType("ncnn")}):
+        spec.loader.exec_module(module)
     return module
 
 
@@ -308,13 +320,15 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
     def assert_nested_close(self, expected, actual):
         if isinstance(expected, torch.Tensor):
             self.assertIsInstance(actual, torch.Tensor)
+            self.assertEqual(expected.shape, actual.shape)
+            self.assertEqual(expected.dtype, actual.dtype)
             self.assertTrue(
                 torch.allclose(expected, actual, rtol=1e-4, atol=1e-4),
                 f"generated output mismatch\nexpected={expected}\nactual={actual}",
             )
             return
 
-        self.assertIsInstance(actual, type(expected))
+        self.assertIs(type(actual), type(expected))
         self.assertEqual(len(expected), len(actual))
         for expected_item, actual_item in zip(expected, actual):
             self.assert_nested_close(expected_item, actual_item)
@@ -437,43 +451,50 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 result.returncode, 0, result.stderr.decode(errors="replace")
             )
 
-    def test_generated_ncnn_helper_rejects_bool_inputs(self):
+    def test_generated_ncnn_helper_rejects_unsupported_inputs(self):
+        cases = (
+            ("bool", torch.bool, (2, 3), BoolInputModel()),
+            ("bfloat16", torch.bfloat16, (2, 3), ScalarInputModel()),
+            ("scalar", torch.float32, (), ScalarInputModel()),
+            ("complex", torch.complex32, (2, 3), ScalarInputModel()),
+            ("complex", torch.complex64, (2, 3), ScalarInputModel()),
+            ("complex", torch.complex128, (2, 3), ScalarInputModel()),
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
-            archive_path = work_dir / "bool_input.pt2"
-            save_exported_program(
-                BoolInputModel().eval(),
-                archive_path,
-                (torch.ones(2, 3, dtype=torch.bool),),
-            )
+            for index, (kind, dtype, shape, model) in enumerate(cases):
+                with self.subTest(kind=kind, dtype=dtype):
+                    archive_path = work_dir / f"unsupported_input_{index}.pt2"
+                    save_exported_program(
+                        model, archive_path, (torch.ones(shape, dtype=dtype),)
+                    )
+                    result = run_pnnx(work_dir, archive_path)
+                    self.assertEqual(
+                        result.returncode, 0, result.stderr.decode(errors="replace")
+                    )
+                    torch.manual_seed(0)
+                    example = (
+                        torch.randint(0, 2, shape, dtype=dtype)
+                        if dtype == torch.bool else torch.rand(shape, dtype=dtype)
+                    )
+                    self.assert_nested_close(
+                        model(example), load_generated_output(work_dir, archive_path.stem)
+                    )
+                    module = load_generated_ncnn_module(work_dir, archive_path.stem)
+                    with self.assertRaisesRegex(
+                        RuntimeError, f"ncnn inference does not support {kind} input in0"
+                    ):
+                        module.test_inference()
 
-            result = run_pnnx(work_dir, archive_path)
-            self.assertEqual(
-                result.returncode, 0, result.stderr.decode(errors="replace")
-            )
-            module = load_generated_ncnn_module(work_dir, archive_path.stem)
-            with self.assertRaisesRegex(
-                RuntimeError, "ncnn inference does not support bool input in0"
-            ):
-                module.test_inference()
-
-    def test_generated_ncnn_helper_rejects_scalar_inputs(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
-            archive_path = work_dir / "scalar_input.pt2"
-            save_exported_program(
-                ScalarInputModel().eval(), archive_path, (torch.tensor(2.0),)
-            )
-
-            result = run_pnnx(work_dir, archive_path)
-            self.assertEqual(
-                result.returncode, 0, result.stderr.decode(errors="replace")
-            )
-            module = load_generated_ncnn_module(work_dir, archive_path.stem)
-            with self.assertRaisesRegex(
-                RuntimeError, "ncnn inference does not support scalar input in0"
-            ):
-                module.test_inference()
+    def test_output_comparison_checks_structure_shape_and_dtype(self):
+        expected = (torch.ones(2, 1), torch.zeros(2))
+        for actual in (
+            expected[:1], list(expected),
+            (torch.ones(2), expected[1]),
+            (torch.ones(2, 1, dtype=torch.float64), expected[1]),
+        ):
+            with self.subTest(actual=actual), self.assertRaises(AssertionError):
+                self.assert_nested_close(expected, actual)
 
     def test_torchscript_extra_archive_format_is_not_pt2_marker(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -799,6 +820,33 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 "dynamic range constraints are unsupported",
             )
 
+    def test_float_arguments_accept_integer_json_numbers(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "float_argument.pt2"
+            save_exported_program(FloatArgumentModel(), source_path)
+            for tag in ("as_float", "as_sym_float"):
+                for index, value in enumerate((0, -1, 1, 2**63)):
+                    with self.subTest(tag=tag, value=value):
+                        archive_path = work_dir / f"{tag}_{index}.pt2"
+
+                        def replace_slope(document):
+                            node = next(
+                                node for node in document["graph_module"]["graph"]["nodes"]
+                                if node["target"] == "torch.ops.aten.leaky_relu.default"
+                            )
+                            argument = next(
+                                arg for arg in node["inputs"] if arg["name"] == "negative_slope"
+                            )
+                            argument["arg"] = {
+                                tag: value if tag == "as_float" else {"as_float": value}
+                            }
+
+                        rewrite_model_json(source_path, archive_path, replace_slope)
+                        torch.manual_seed(0)
+                        expected = (torch.rand(2, 4) - 1) * float(value)
+                        self.assert_conversion_matches(work_dir, archive_path, expected)
+
     def test_schema_and_opset_contracts(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
@@ -1096,6 +1144,34 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         entry.write(data)
             self.assert_conversion_matches(work_dir, archive_path)
 
+    def test_zip_entry_count_boundary(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "entry_count_source.pt2"
+            save_exported_program(self.model, source_path)
+            with zipfile.ZipFile(source_path) as source:
+                entries = [(info.filename, source.read(info)) for info in source.infolist()]
+            root = entries[0][0].split("/", 1)[0]
+
+            for count in (65534, 65535, 65536):
+                with self.subTest(entries=count):
+                    archive_path = work_dir / f"entry_count_{count}.pt2"
+                    with zipfile.ZipFile(archive_path, "w") as archive:
+                        for name, data in entries:
+                            archive.writestr(name, data)
+                        for index in range(count - len(entries)):
+                            archive.writestr(f"{root}/extra/filler_{index}", b"")
+                    data = bytearray(archive_path.read_bytes())
+                    eocd = data.rfind(b"PK\x05\x06")
+                    self.assertEqual(data[eocd - 20:eocd - 16] == b"PK\x06\x07", count > 65535)
+                    self.assert_conversion_matches(work_dir, archive_path)
+
+                    if count > 65535:
+                        corrupt_path = work_dir / "missing_zip64_locator.pt2"
+                        data[eocd - 20:eocd - 16] = b"BAD!"
+                        corrupt_path.write_bytes(data)
+                        self.assert_conversion_fails(work_dir, corrupt_path, "detect model format failed")
+
     def test_compressed_payload_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
@@ -1205,4 +1281,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    if TORCH_VERSION < (2, 9):
+        print("modern exported program tests require PyTorch 2.9 or newer")
+        sys.exit(77)
     unittest.main()

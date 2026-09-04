@@ -18,8 +18,10 @@
 #include <exception>
 #include <limits>
 #include <map>
+#include <new>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1335,6 +1337,7 @@ static int materialize_program_state(Pt2ArchiveReader& reader,
 }
 
 int load_exported_program(const std::string& pt2path, const ModelFormatInfo& format_info, Graph& graph, std::string& error)
+try
 {
     error.clear();
 
@@ -1372,6 +1375,16 @@ int load_exported_program(const std::string& pt2path, const ModelFormatInfo& for
         return -1;
 
     return lower_exported_program(program, state, graph, error);
+}
+catch (const std::length_error&)
+{
+    error = "exported program allocation failed";
+    return -1;
+}
+catch (const std::bad_alloc&)
+{
+    error = "exported program allocation failed";
+    return -1;
 }
 
 } // namespace pnnx
