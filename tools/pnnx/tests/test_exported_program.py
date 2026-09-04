@@ -132,6 +132,28 @@ class StringArgumentModel(torch.nn.Module):
         return torch.nn.functional.gelu(x, approximate="tanh")
 
 
+class Int64MaxFillModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.full(
+            (2, 3), torch.iinfo(torch.int64).max, dtype=torch.int64
+        )
+
+
+class Float64OverflowModel(torch.nn.Module):
+    def forward(self, x):
+        return x * 1e100
+
+
+class NegativeInfinityFillModel(torch.nn.Module):
+    def forward(self, x):
+        return torch.full_like(x, float("-inf"))
+
+
+class OpenEndedSliceModel(torch.nn.Module):
+    def forward(self, x):
+        return x[:, 1:]
+
+
 def run_pnnx(work_dir, model_path):
     return subprocess.run(
         [str(PNNX), model_path.name],
@@ -302,6 +324,81 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 traced = torch.jit.trace(self.model, (torch.ones(2, 4),))
             traced.save(str(torchscript_path))
             self.assert_conversion_matches(work_dir, torchscript_path)
+
+    def test_torchscript_extra_archive_format_is_not_pt2_marker(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            torchscript_path = work_dir / "legacy_extra.pt"
+            example_inputs = (torch.ones(2, 4),)
+            traced = torch.jit.trace(self.model, example_inputs)
+            torch.jit.save(
+                traced,
+                str(torchscript_path),
+                _extra_files={"archive_format": "pt2"},
+            )
+
+            with zipfile.ZipFile(torchscript_path, "r") as archive:
+                self.assertTrue(
+                    any(
+                        name.endswith("/extra/archive_format")
+                        for name in archive.namelist()
+                    )
+                )
+
+            torch.manual_seed(0)
+            self.assert_conversion_matches(
+                work_dir, torchscript_path, self.model(torch.rand(2, 4))
+            )
+
+    def test_unrepresentable_integer_parameter_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+
+            int64_path = work_dir / "int64_max.pt2"
+            save_exported_program(Int64MaxFillModel().eval(), int64_path)
+            self.assert_conversion_fails(
+                work_dir,
+                int64_path,
+                "integer value 9223372036854775807 does not fit pnnx integer parameter",
+            )
+
+    def test_unrepresentable_float_parameter_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            float64_path = work_dir / "float64_overflow.pt2"
+            save_exported_program(
+                Float64OverflowModel().eval(),
+                float64_path,
+                (torch.ones(2, dtype=torch.float64),),
+            )
+            self.assert_conversion_fails(
+                work_dir,
+                float64_path,
+                "floating-point value 1e+100 does not fit pnnx float parameter",
+            )
+
+    def test_infinite_float_parameter_uses_pnnx_sentinel(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            model = NegativeInfinityFillModel().eval()
+            archive_path = work_dir / "negative_infinity_fill.pt2"
+            example_inputs = (torch.ones(2, 3),)
+            save_exported_program(model, archive_path, example_inputs)
+            torch.manual_seed(0)
+            self.assert_conversion_matches(
+                work_dir, archive_path, model(torch.rand(2, 3))
+            )
+
+    def test_open_ended_slice_converts_with_pnnx_sentinel(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            model = OpenEndedSliceModel().eval()
+            archive_path = work_dir / "open_ended_slice.pt2"
+            save_exported_program(model, archive_path, (torch.ones(2, 3),))
+            torch.manual_seed(0)
+            self.assert_conversion_matches(
+                work_dir, archive_path, model(torch.rand(2, 3))
+            )
 
     def test_input_and_output_trees(self):
         with tempfile.TemporaryDirectory() as temp_dir:

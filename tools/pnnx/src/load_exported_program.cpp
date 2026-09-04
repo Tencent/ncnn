@@ -9,16 +9,11 @@
 #include "exported_program_tensor.h"
 #include "pt2_archive.h"
 
-#include <torch/csrc/api/include/torch/version.h>
-#if TORCH_VERSION_MAJOR > 2 || (TORCH_VERSION_MAJOR == 2 && TORCH_VERSION_MINOR >= 9)
-#include <ATen/ops/empty.h>
-#include <ATen/ops/einsum.h>
-#include <c10/util/Exception.h>
-#endif
-
 #include <limits.h>
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <complex>
 #include <exception>
 #include <limits>
@@ -299,18 +294,50 @@ static int construct_output_tree(const ExportedTreeSpec& tree_spec,
 
 static int exported_int_to_pnnx(int64_t value, int& converted)
 {
-    if (value == std::numeric_limits<int64_t>::max())
-        converted = INT_MAX;
-    else if (value == std::numeric_limits<int64_t>::max() - 1)
-        converted = INT_MAX - 1;
-    else if (value == std::numeric_limits<int64_t>::min())
-        converted = INT_MIN;
-    else if (value == std::numeric_limits<int64_t>::min() + 1)
-        converted = INT_MIN + 1;
-    else if (value < (int64_t)INT_MIN || value > (int64_t)INT_MAX)
+    if (value < (int64_t)INT_MIN || value > (int64_t)INT_MAX)
         return -1;
-    else
-        converted = (int)value;
+
+    converted = (int)value;
+
+    return 0;
+}
+
+static int exported_slice_sentinel_to_pnnx(const ExportedOperatorTarget& target, const std::string& argument_name, int64_t value, int& converted)
+{
+    const bool is_slice = target.operator_name == "aten::slice" || target.operator_name == "aten::slice_scatter";
+    const bool is_slice_endpoint = argument_name == "start" || argument_name == "end";
+    if (is_slice && is_slice_endpoint)
+    {
+        if (value == std::numeric_limits<int64_t>::max())
+        {
+            converted = INT_MAX;
+            return 0;
+        }
+        if (value == std::numeric_limits<int64_t>::max() - 1)
+        {
+            converted = INT_MAX - 1;
+            return 0;
+        }
+        if (value == std::numeric_limits<int64_t>::min())
+        {
+            converted = INT_MIN;
+            return 0;
+        }
+        if (value == std::numeric_limits<int64_t>::min() + 1)
+        {
+            converted = INT_MIN + 1;
+            return 0;
+        }
+    }
+
+    return exported_int_to_pnnx(value, converted);
+}
+
+static int exported_float_to_pnnx(double value, float& converted)
+{
+    converted = (float)value;
+    if (!std::isfinite(value) || !std::isfinite(converted) || (value != 0.0 && converted == 0.0f))
+        return -1;
 
     return 0;
 }
@@ -382,66 +409,186 @@ static bool exported_string_is_safe_pnnx_parameter(const std::string& value)
     return true;
 }
 
-static bool validate_and_normalize_exported_einsum_equation(const std::string& value, const std::vector<std::vector<int64_t> >& operand_shapes, const std::vector<int64_t>& output_shape, std::string& normalized, std::string& detail)
+struct ExportedEinsumSubscript
 {
-    detail.clear();
-
-#if TORCH_VERSION_MAJOR > 2 || (TORCH_VERSION_MAJOR == 2 && TORCH_VERSION_MINOR >= 9)
-    try
+    ExportedEinsumSubscript()
+        : has_ellipsis(false)
     {
-        const at::TensorOptions options = at::TensorOptions().device(at::kMeta).dtype(at::kFloat);
-        std::vector<at::Tensor> operands;
-        operands.reserve(operand_shapes.size());
-        for (size_t i = 0; i < operand_shapes.size(); i++)
+    }
+
+    std::vector<char> labels;
+    bool has_ellipsis;
+};
+
+static bool is_einsum_label(char c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+}
+
+static bool parse_exported_einsum_subscript(const std::string& value, ExportedEinsumSubscript& subscript, std::string& detail)
+{
+    subscript = ExportedEinsumSubscript();
+
+    for (size_t i = 0; i < value.size();)
+    {
+        if (is_einsum_label(value[i]))
         {
-            if (operand_shapes[i].empty())
+            subscript.labels.push_back(value[i]);
+            i++;
+            continue;
+        }
+
+        if (value.compare(i, 3, "...") == 0)
+        {
+            if (subscript.has_ellipsis)
             {
-                detail = "scalar einsum operands are unsupported";
+                detail = "an einsum subscript may contain at most one ellipsis";
                 return false;
             }
-            operands.push_back(at::empty(operand_shapes[i], options));
+
+            subscript.has_ellipsis = true;
+            i += 3;
+            continue;
         }
 
-        const at::Tensor output = at::einsum(value, operands);
-        if (output.sizes().vec() != output_shape)
-        {
-            detail = "equation result shape does not match tensor metadata";
-            return false;
-        }
-    }
-    catch (const c10::Error& e)
-    {
-        detail = "invalid equation or tensor shapes: ";
-        detail += e.what_without_backtrace();
+        detail = "einsum subscripts may contain only letters and ellipsis";
         return false;
-    }
-    catch (const std::exception& e)
-    {
-        detail = "cannot validate equation: ";
-        detail += e.what();
-        return false;
-    }
-#else
-    (void)value;
-    (void)operand_shapes;
-    (void)output_shape;
-    normalized.clear();
-    detail = "einsum equation validation requires libtorch 2.9 or newer";
-    return false;
-#endif
-
-    normalized.clear();
-    normalized.reserve(value.size());
-    for (size_t i = 0; i < value.size(); i++)
-    {
-        if (value[i] != ' ')
-            normalized.push_back(value[i]);
     }
 
     return true;
 }
 
-static int exported_argument_to_parameter(const ExportedArgument& argument, Parameter& parameter, std::string& detail)
+static bool validate_and_normalize_exported_einsum_equation(const std::string& value, const std::vector<std::vector<int64_t> >& operand_shapes, const std::vector<int64_t>& output_shape, std::string& normalized, std::string& detail)
+{
+    normalized.clear();
+    normalized.reserve(value.size());
+    for (size_t i = 0; i < value.size(); i++)
+    {
+        if (!std::isspace((unsigned char)value[i]))
+            normalized.push_back(value[i]);
+    }
+
+    if (operand_shapes.empty())
+    {
+        detail = "einsum requires at least one operand";
+        return false;
+    }
+
+    for (size_t i = 0; i < operand_shapes.size(); i++)
+    {
+        if (operand_shapes[i].empty())
+        {
+            detail = "scalar einsum operands are unsupported";
+            return false;
+        }
+    }
+
+    const size_t arrow = normalized.find("->");
+    if (arrow != std::string::npos && normalized.find("->", arrow + 2) != std::string::npos)
+    {
+        detail = "einsum equation contains more than one output separator";
+        return false;
+    }
+    if (arrow == std::string::npos && (normalized.find('-') != std::string::npos || normalized.find('>') != std::string::npos))
+    {
+        detail = "einsum equation has an invalid output separator";
+        return false;
+    }
+
+    const std::string input_equation = normalized.substr(0, arrow);
+    std::vector<std::string> input_subscripts;
+    for (size_t begin = 0;;)
+    {
+        const size_t comma = input_equation.find(',', begin);
+        input_subscripts.push_back(input_equation.substr(begin, comma - begin));
+        if (comma == std::string::npos)
+            break;
+        begin = comma + 1;
+    }
+
+    if (input_subscripts.size() != operand_shapes.size())
+    {
+        detail = "einsum subscript count does not match operand count";
+        return false;
+    }
+
+    std::map<char, size_t> label_counts;
+    size_t ellipsis_rank = 0;
+    bool has_input_ellipsis = false;
+    for (size_t i = 0; i < input_subscripts.size(); i++)
+    {
+        ExportedEinsumSubscript subscript;
+        if (!parse_exported_einsum_subscript(input_subscripts[i], subscript, detail))
+            return false;
+
+        if ((!subscript.has_ellipsis && subscript.labels.size() != operand_shapes[i].size())
+            || (subscript.has_ellipsis && subscript.labels.size() > operand_shapes[i].size()))
+        {
+            detail = "einsum subscript rank does not match operand rank";
+            return false;
+        }
+
+        for (size_t j = 0; j < subscript.labels.size(); j++)
+            label_counts[subscript.labels[j]]++;
+
+        if (subscript.has_ellipsis)
+        {
+            has_input_ellipsis = true;
+            ellipsis_rank = std::max(ellipsis_rank, operand_shapes[i].size() - subscript.labels.size());
+        }
+    }
+
+    size_t expected_output_rank = ellipsis_rank;
+    if (arrow == std::string::npos)
+    {
+        for (std::map<char, size_t>::const_iterator it = label_counts.begin(); it != label_counts.end(); ++it)
+        {
+            if (it->second == 1)
+                expected_output_rank++;
+        }
+    }
+    else
+    {
+        ExportedEinsumSubscript output_subscript;
+        if (!parse_exported_einsum_subscript(normalized.substr(arrow + 2), output_subscript, detail))
+            return false;
+        if (output_subscript.has_ellipsis && !has_input_ellipsis)
+        {
+            detail = "einsum output ellipsis is missing from the inputs";
+            return false;
+        }
+
+        std::set<char> output_labels;
+        for (size_t i = 0; i < output_subscript.labels.size(); i++)
+        {
+            const char label = output_subscript.labels[i];
+            if (label_counts.find(label) == label_counts.end())
+            {
+                detail = "einsum output label does not appear in the inputs";
+                return false;
+            }
+            if (!output_labels.insert(label).second)
+            {
+                detail = "einsum output labels must be unique";
+                return false;
+            }
+        }
+
+        expected_output_rank = output_subscript.labels.size();
+        if (output_subscript.has_ellipsis)
+            expected_output_rank += ellipsis_rank;
+    }
+
+    if (expected_output_rank != output_shape.size())
+    {
+        detail = "einsum output rank does not match tensor metadata";
+        return false;
+    }
+
+    return true;
+}
+
+static int exported_argument_to_parameter(const ExportedArgument& argument, const ExportedOperatorTarget& target, const std::string& argument_name, Parameter& parameter, std::string& detail)
 {
     detail.clear();
 
@@ -452,7 +599,7 @@ static int exported_argument_to_parameter(const ExportedArgument& argument, Para
     else if (argument.type == EXPORTED_ARGUMENT_INT)
     {
         parameter.type = 2;
-        if (exported_int_to_pnnx(argument.int_value, parameter.i) != 0)
+        if (exported_slice_sentinel_to_pnnx(target, argument_name, argument.int_value, parameter.i) != 0)
         {
             std::ostringstream message;
             message << "integer value " << argument.int_value << " does not fit pnnx integer parameter";
@@ -479,20 +626,51 @@ static int exported_argument_to_parameter(const ExportedArgument& argument, Para
     }
     else if (argument.type == EXPORTED_ARGUMENT_FLOAT)
     {
-        parameter.type = 3;
-        parameter.f = (float)argument.float_value;
+        if (std::isinf(argument.float_value))
+        {
+            parameter.type = 4;
+            parameter.s = std::signbit(argument.float_value) ? "-inf" : "inf";
+        }
+        else
+        {
+            parameter.type = 3;
+            if (exported_float_to_pnnx(argument.float_value, parameter.f) != 0)
+            {
+                std::ostringstream message;
+                message << "floating-point value " << argument.float_value << " does not fit pnnx float parameter";
+                detail = message.str();
+                return -1;
+            }
+        }
     }
     else if (argument.type == EXPORTED_ARGUMENT_FLOAT_LIST)
     {
         parameter.type = 6;
         parameter.af.reserve(argument.float_values.size());
         for (size_t i = 0; i < argument.float_values.size(); i++)
-            parameter.af.push_back((float)argument.float_values[i]);
+        {
+            float converted = 0.f;
+            if (exported_float_to_pnnx(argument.float_values[i], converted) != 0)
+            {
+                std::ostringstream message;
+                message << "floating-point list item " << i << " value " << argument.float_values[i] << " does not fit pnnx float parameter";
+                detail = message.str();
+                return -1;
+            }
+            parameter.af.push_back(converted);
+        }
     }
     else if (argument.type == EXPORTED_ARGUMENT_COMPLEX)
     {
         parameter.type = 10;
-        parameter.c = std::complex<float>((float)argument.complex_real_value, (float)argument.complex_imag_value);
+        float real = 0.f;
+        float imag = 0.f;
+        if (exported_float_to_pnnx(argument.complex_real_value, real) != 0 || exported_float_to_pnnx(argument.complex_imag_value, imag) != 0)
+        {
+            detail = "complex value does not fit pnnx float parameter";
+            return -1;
+        }
+        parameter.c = std::complex<float>(real, imag);
     }
     else if (argument.type == EXPORTED_ARGUMENT_BOOL)
     {
@@ -913,7 +1091,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
                 operand->producer = constant;
                 constant->outputs.push_back(operand);
                 std::string detail;
-                if (exported_argument_to_parameter(arguments[j].value, constant->params["value"], detail) != 0)
+                if (exported_argument_to_parameter(arguments[j].value, target, arguments[j].name, constant->params["value"], detail) != 0)
                 {
                     error = "cannot lower non-tensor argument " + arguments[j].name + " for " + node.target + ": " + detail;
                     return -1;

@@ -47,12 +47,13 @@ static int model_file_is_zip_candidate(const std::string& path, bool& is_zip, st
     return 0;
 }
 
-static bool has_suffix(const std::string& value, const std::string& suffix)
+static bool is_archive_root_file(const std::string& value, const std::string& filename)
 {
-    if (value.size() <= suffix.size())
+    const size_t separator = value.find('/');
+    if (separator == std::string::npos || separator == 0 || separator != value.rfind('/'))
         return false;
 
-    return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return value.compare(separator + 1, filename.size(), filename) == 0 && separator + 1 + filename.size() == value.size();
 }
 
 int detect_model_format(const std::string& path, ModelFormatInfo& info, std::string& error)
@@ -76,7 +77,7 @@ int detect_model_format(const std::string& path, ModelFormatInfo& info, std::str
         return -1;
     }
 
-    const std::string archive_format_suffix = "/archive_format";
+    const std::string archive_format_filename = "archive_format";
     std::string archive_format_name;
 
     std::vector<std::string> names;
@@ -88,7 +89,7 @@ int detect_model_format(const std::string& path, ModelFormatInfo& info, std::str
     for (size_t i = 0; i < names.size(); i++)
     {
         const std::string& name = names[i];
-        if (!has_suffix(name, archive_format_suffix))
+        if (!is_archive_root_file(name, archive_format_filename))
             continue;
 
         if (!archive_format_name.empty())
@@ -131,7 +132,7 @@ int detect_model_format(const std::string& path, ModelFormatInfo& info, std::str
         return -1;
     }
 
-    const std::string archive_root = archive_format_name.substr(0, archive_format_name.size() - archive_format_suffix.size());
+    const std::string archive_root = archive_format_name.substr(0, archive_format_name.find('/'));
     const std::string archive_version_name = archive_root + "/archive_version";
     if (!reader.has_file(archive_version_name))
     {
