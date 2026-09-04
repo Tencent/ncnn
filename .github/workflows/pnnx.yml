@@ -72,6 +72,8 @@ jobs:
       PYTHONUSERBASE: ${{ github.workspace }}/pt2-python
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
 
     - uses: actions/setup-python@v7
       with:
