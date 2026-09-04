@@ -43,21 +43,30 @@ permissions:
 jobs:
   msvc:
     name: ${{ matrix.vs-version }}
-    runs-on: windows-2022
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - vs-version: vs2015
+            os: windows-2022
             toolset-version: v140
             windows-sdk-version: 22621
           - vs-version: vs2017
+            os: windows-2022
             toolset-version: v141
             windows-sdk-version: 22621
           - vs-version: vs2019
+            os: windows-2022
             toolset-version: v142
             windows-sdk-version: 26100
           - vs-version: vs2022
+            os: windows-2022
             toolset-version: v143
+            windows-sdk-version: 26100
+          - vs-version: vs2026
+            os: windows-2025-vs2026
+            toolset-version: v145
             windows-sdk-version: 26100
 
     env:
@@ -97,7 +106,7 @@ jobs:
       uses: actions/cache@v6
       with:
         path: "protobuf-install"
-        key: protobuf-${{ matrix.vs-version }}-x64-install-3
+        key: protobuf-${{ matrix.vs-version }}-x64-install-4
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -105,7 +114,7 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DCMAKE_POLICY_VERSION_MINIMUM="3.5" ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: cache-swiftshader
@@ -114,14 +123,14 @@ jobs:
       uses: actions/cache@v6
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20260901
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
+        ref: 930d46d31b5d637f313fd5ef55da2bbf053c26c1
     - name: checkout-swiftshader-submodules
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -132,7 +141,7 @@ jobs:
       run: |
         cd swiftshader
         mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM="3.5" ..
         cmake --build . --config Release -j 4
         mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
