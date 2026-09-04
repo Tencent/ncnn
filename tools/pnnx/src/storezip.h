@@ -23,6 +23,8 @@ public:
 
     uint64_t get_file_size(const std::string& name) const;
 
+    bool is_file_stored(const std::string& name) const;
+
     int read_file(const std::string& name, char* data);
 
     int close();
@@ -34,6 +36,8 @@ private:
     {
         uint64_t offset;
         uint64_t size;
+        uint32_t crc32;
+        uint16_t compression;
     };
 
     std::map<std::string, StoreZipMeta> filemetas;

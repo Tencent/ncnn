@@ -216,10 +216,14 @@ private:
         {
             const char ch = *cur++;
             value <<= 4;
-            if (ch >= '0' && ch <= '9') value += ch - '0';
-            else if (ch >= 'a' && ch <= 'f') value += ch - 'a' + 10;
-            else if (ch >= 'A' && ch <= 'F') value += ch - 'A' + 10;
-            else return fail("invalid unicode escape");
+            if (ch >= '0' && ch <= '9')
+                value += ch - '0';
+            else if (ch >= 'a' && ch <= 'f')
+                value += ch - 'a' + 10;
+            else if (ch >= 'A' && ch <= 'F')
+                value += ch - 'A' + 10;
+            else
+                return fail("invalid unicode escape");
         }
         return true;
     }
@@ -248,14 +252,22 @@ private:
                 return fail("incomplete string escape");
 
             const char escape = *cur++;
-            if (escape == '"') value.push_back('"');
-            else if (escape == '\\') value.push_back('\\');
-            else if (escape == '/') value.push_back('/');
-            else if (escape == 'b') value.push_back('\b');
-            else if (escape == 'f') value.push_back('\f');
-            else if (escape == 'n') value.push_back('\n');
-            else if (escape == 'r') value.push_back('\r');
-            else if (escape == 't') value.push_back('\t');
+            if (escape == '"')
+                value.push_back('"');
+            else if (escape == '\\')
+                value.push_back('\\');
+            else if (escape == '/')
+                value.push_back('/');
+            else if (escape == 'b')
+                value.push_back('\b');
+            else if (escape == 'f')
+                value.push_back('\f');
+            else if (escape == 'n')
+                value.push_back('\n');
+            else if (escape == 'r')
+                value.push_back('\r');
+            else if (escape == 't')
+                value.push_back('\t');
             else if (escape == 'u')
             {
                 uint32_t codepoint = 0;
@@ -497,6 +509,12 @@ public:
         if (name.empty() || std::find(names.begin(), names.end(), name) == names.end())
             return false;
 
+        if (!zip.is_file_stored(name))
+        {
+            fprintf(stderr, "compressed zip entry is not supported %s\n", name.c_str());
+            return false;
+        }
+
         const uint64_t size = zip.get_file_size(name);
         if (size > (uint64_t)std::numeric_limits<size_t>::max())
         {
@@ -590,8 +608,10 @@ public:
                 uint64_t frame_size = 0;
                 if (!read(frame_size) || frame_size > (uint64_t)(end - cur)) return fail(error, "invalid pickle frame");
             }
-            else if (opcode == '(') stack.push_back(PickleValue(PickleValue::Mark));
-            else if (opcode == 'N') stack.push_back(PickleValue(PickleValue::None));
+            else if (opcode == '(')
+                stack.push_back(PickleValue(PickleValue::Mark));
+            else if (opcode == 'N')
+                stack.push_back(PickleValue(PickleValue::None));
             else if (opcode == 0x88 || opcode == 0x89)
             {
                 PickleValue value(PickleValue::Boolean);
@@ -666,9 +686,12 @@ public:
                 stack.resize(stack.size() - 2);
                 stack.push_back(value);
             }
-            else if (opcode == ')') stack.push_back(PickleValue(PickleValue::Tuple));
-            else if (opcode == ']') stack.push_back(PickleValue(PickleValue::List));
-            else if (opcode == '}') stack.push_back(PickleValue(PickleValue::Dict));
+            else if (opcode == ')')
+                stack.push_back(PickleValue(PickleValue::Tuple));
+            else if (opcode == ']')
+                stack.push_back(PickleValue(PickleValue::List));
+            else if (opcode == '}')
+                stack.push_back(PickleValue(PickleValue::Dict));
             else if (opcode == 't' || opcode == 'l' || opcode == 'd')
             {
                 const size_t mark = find_mark();
@@ -934,19 +957,97 @@ static bool read_torch_save(const std::string& data, TensorPayload& payload);
 
 static bool serialized_dtype(int64_t value, at::ScalarType& dtype, int& pnnx_type, size_t& elemsize)
 {
-    if (value == 1) { dtype = at::kByte; pnnx_type = 8; elemsize = 1; return true; }
-    if (value == 2) { dtype = at::kChar; pnnx_type = 7; elemsize = 1; return true; }
-    if (value == 3) { dtype = at::kShort; pnnx_type = 6; elemsize = 2; return true; }
-    if (value == 4) { dtype = at::kInt; pnnx_type = 4; elemsize = 4; return true; }
-    if (value == 5) { dtype = at::kLong; pnnx_type = 5; elemsize = 8; return true; }
-    if (value == 6) { dtype = at::kHalf; pnnx_type = 3; elemsize = 2; return true; }
-    if (value == 7) { dtype = at::kFloat; pnnx_type = 1; elemsize = 4; return true; }
-    if (value == 8) { dtype = at::kDouble; pnnx_type = 2; elemsize = 8; return true; }
-    if (value == 9) { dtype = at::kComplexHalf; pnnx_type = 12; elemsize = 4; return true; }
-    if (value == 10) { dtype = at::kComplexFloat; pnnx_type = 10; elemsize = 8; return true; }
-    if (value == 11) { dtype = at::kComplexDouble; pnnx_type = 11; elemsize = 16; return true; }
-    if (value == 12) { dtype = at::kBool; pnnx_type = 9; elemsize = 1; return true; }
-    if (value == 13) { dtype = at::kBFloat16; pnnx_type = 13; elemsize = 2; return true; }
+    if (value == 1)
+    {
+        dtype = at::kByte;
+        pnnx_type = 8;
+        elemsize = 1;
+        return true;
+    }
+    if (value == 2)
+    {
+        dtype = at::kChar;
+        pnnx_type = 7;
+        elemsize = 1;
+        return true;
+    }
+    if (value == 3)
+    {
+        dtype = at::kShort;
+        pnnx_type = 6;
+        elemsize = 2;
+        return true;
+    }
+    if (value == 4)
+    {
+        dtype = at::kInt;
+        pnnx_type = 4;
+        elemsize = 4;
+        return true;
+    }
+    if (value == 5)
+    {
+        dtype = at::kLong;
+        pnnx_type = 5;
+        elemsize = 8;
+        return true;
+    }
+    if (value == 6)
+    {
+        dtype = at::kHalf;
+        pnnx_type = 3;
+        elemsize = 2;
+        return true;
+    }
+    if (value == 7)
+    {
+        dtype = at::kFloat;
+        pnnx_type = 1;
+        elemsize = 4;
+        return true;
+    }
+    if (value == 8)
+    {
+        dtype = at::kDouble;
+        pnnx_type = 2;
+        elemsize = 8;
+        return true;
+    }
+    if (value == 9)
+    {
+        dtype = at::kComplexHalf;
+        pnnx_type = 12;
+        elemsize = 4;
+        return true;
+    }
+    if (value == 10)
+    {
+        dtype = at::kComplexFloat;
+        pnnx_type = 10;
+        elemsize = 8;
+        return true;
+    }
+    if (value == 11)
+    {
+        dtype = at::kComplexDouble;
+        pnnx_type = 11;
+        elemsize = 16;
+        return true;
+    }
+    if (value == 12)
+    {
+        dtype = at::kBool;
+        pnnx_type = 9;
+        elemsize = 1;
+        return true;
+    }
+    if (value == 13)
+    {
+        dtype = at::kBFloat16;
+        pnnx_type = 13;
+        elemsize = 2;
+        return true;
+    }
 
     return false;
 }
@@ -1343,9 +1444,21 @@ static bool set_operand_tensor_meta(const JsonValue& tensor_values, const std::s
 
 static bool parameter_from_ivalue(const torch::jit::IValue& value, Parameter& parameter)
 {
-    if (value.isNone()) { parameter = Parameter(); return true; }
-    if (value.isBool()) { parameter = Parameter(value.toBool()); return true; }
-    if (value.isInt()) { parameter = Parameter((long long)value.toInt()); return true; }
+    if (value.isNone())
+    {
+        parameter = Parameter();
+        return true;
+    }
+    if (value.isBool())
+    {
+        parameter = Parameter(value.toBool());
+        return true;
+    }
+    if (value.isInt())
+    {
+        parameter = Parameter((long long)value.toInt());
+        return true;
+    }
     if (value.isDouble())
     {
         const double number = value.toDouble();
@@ -1353,12 +1466,21 @@ static bool parameter_from_ivalue(const torch::jit::IValue& value, Parameter& pa
         parameter = Parameter(number);
         return true;
     }
-    if (value.isString()) { parameter = Parameter(value.toStringRef()); return true; }
-    if (value.isIntList()) { parameter = Parameter(value.toIntVector()); return true; }
+    if (value.isString())
+    {
+        parameter = Parameter(value.toStringRef());
+        return true;
+    }
+    if (value.isIntList())
+    {
+        parameter = Parameter(value.toIntVector());
+        return true;
+    }
     if (value.isDoubleList())
     {
         const std::vector<double> values = value.toDoubleVector();
-        for (size_t i = 0; i < values.size(); i++) if (!std::isfinite(values[i])) return false;
+        for (size_t i = 0; i < values.size(); i++)
+            if (!std::isfinite(values[i])) return false;
         parameter = Parameter(values);
         return true;
     }
@@ -1369,18 +1491,24 @@ static bool parameter_from_ivalue(const torch::jit::IValue& value, Parameter& pa
         parameter = Parameter(values);
         return true;
     }
-    if (value.isDevice()) { parameter = Parameter(value.toDevice().str()); return true; }
+    if (value.isDevice())
+    {
+        parameter = Parameter(value.toDevice().str());
+        return true;
+    }
     if (value.isScalar())
     {
         const at::Scalar scalar = value.toScalar();
-        if (scalar.isIntegral(false)) parameter = Parameter((long long)scalar.toLong());
+        if (scalar.isIntegral(false))
+            parameter = Parameter((long long)scalar.toLong());
         else if (scalar.isFloatingPoint())
         {
             const double number = scalar.toDouble();
             if (!std::isfinite(number)) return false;
             parameter = Parameter(number);
         }
-        else return false;
+        else
+            return false;
         return true;
     }
     return false;
@@ -1409,20 +1537,49 @@ static bool parameter_from_json(const JsonValue& argument, Parameter& parameter)
     if (argument.type != JsonValue::Object)
         return false;
 
-    if (argument.find("as_none")) { parameter = Parameter(); return true; }
+    if (argument.find("as_none"))
+    {
+        parameter = Parameter();
+        return true;
+    }
 
     const JsonValue* value = argument.find("as_bool");
-    if (value && value->type == JsonValue::Bool) { parameter = Parameter(value->boolean); return true; }
+    if (value && value->type == JsonValue::Bool)
+    {
+        parameter = Parameter(value->boolean);
+        return true;
+    }
 
     value = argument.find("as_int");
     int64_t integer = 0;
-    if (value && json_integer(*value, integer)) { parameter = Parameter((long long)integer); return true; }
+    if (value && json_integer(*value, integer))
+    {
+        parameter = Parameter((long long)integer);
+        return true;
+    }
 
     value = argument.find("as_float");
-    if (value && value->type == JsonValue::Number && std::isfinite(value->number)) { parameter = Parameter(value->number); return true; }
+    if (value && value->type == JsonValue::Number)
+    {
+        if (std::isfinite(value->number))
+        {
+            parameter = Parameter(value->number);
+            return true;
+        }
+        if (std::isinf(value->number))
+        {
+            parameter = Parameter(value->number < 0 ? "-inf" : "inf");
+            return true;
+        }
+        return false;
+    }
 
     value = argument.find("as_string");
-    if (value && value->type == JsonValue::String) { parameter = Parameter(value->string); return true; }
+    if (value && value->type == JsonValue::String)
+    {
+        parameter = Parameter(value->string);
+        return true;
+    }
 
     value = argument.find("as_ints");
     if (value)
@@ -1513,16 +1670,25 @@ static bool parameter_from_json(const JsonValue& argument, Parameter& parameter)
     value = argument.find("as_memory_format");
     if (value && json_integer(*value, integer))
     {
-        if (integer == 1) parameter = Parameter("torch.contiguous_format");
-        else if (integer == 2) parameter = Parameter("torch.channels_last");
-        else if (integer == 3) parameter = Parameter("torch.channels_last_3d");
-        else if (integer == 4) parameter = Parameter("torch.preserve_format");
-        else return false;
+        if (integer == 1)
+            parameter = Parameter("torch.contiguous_format");
+        else if (integer == 2)
+            parameter = Parameter("torch.channels_last");
+        else if (integer == 3)
+            parameter = Parameter("torch.channels_last_3d");
+        else if (integer == 4)
+            parameter = Parameter("torch.preserve_format");
+        else
+            return false;
         return true;
     }
 
     value = argument.find("as_operator");
-    if (value && value->type == JsonValue::String) { parameter = Parameter(value->string); return true; }
+    if (value && value->type == JsonValue::String)
+    {
+        parameter = Parameter(value->string);
+        return true;
+    }
 
     value = argument.find("as_complex");
     if (value && value->type == JsonValue::Object)
@@ -1595,7 +1761,7 @@ class ExportGraphBuilder
 {
 public:
     ExportGraphBuilder(Graph& graph, const JsonValue& tensor_values)
-        : graph(graph), tensor_values(tensor_values), index(0)
+        : graph(graph), tensor_values(&tensor_values), index(0)
     {
     }
 
@@ -1605,20 +1771,52 @@ public:
         Operand* operand = graph.new_operand(name);
         operand->producer = op;
         op->outputs.push_back(operand);
-        set_operand_tensor_meta(tensor_values, name, operand);
+        set_operand_tensor_meta(*tensor_values, name, operand);
         values[name] = operand;
         return operand;
+    }
+
+    void mark_flattened_user_inputs(size_t input_count, const std::string& input_structure)
+    {
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            if (graph.ops[i]->type == "pnnx.Input")
+            {
+                graph.ops[i]->params["__pt2_flattened_input_count"] = (int)input_count;
+                if (!input_structure.empty())
+                    graph.ops[i]->params["__pt2_input_structure"] = input_structure;
+                return;
+            }
+        }
     }
 
     Operand* add_attribute(const std::string& value_name, const std::string& attribute_name, const at::Tensor& tensor)
     {
         Operator* op = graph.new_operator("pnnx.Attribute", attribute_name);
         op->attrs["data"] = tensor;
-        Operand* operand = graph.new_operand(value_name);
+        const bool scalar_tensor = tensor.dim() == 0;
+        Operand* operand = graph.new_operand(scalar_tensor ? value_name + "_scalar_storage" : value_name);
         operand->producer = op;
         operand->type = op->attrs["data"].type;
         operand->shape = op->attrs["data"].shape;
         op->outputs.push_back(operand);
+
+        if (scalar_tensor)
+        {
+            // pnnx Attribute stores a rank-0 tensor as one element with shape
+            // [1]. Restore its scalar rank before feeding the exported graph.
+            Operator* squeeze = graph.new_operator("aten::squeeze", next_name("pnnx_scalar"));
+            operand->consumers.push_back(squeeze);
+            squeeze->inputs.push_back(operand);
+
+            Operand* scalar = graph.new_operand(value_name);
+            scalar->producer = squeeze;
+            scalar->type = operand->type;
+            squeeze->outputs.push_back(scalar);
+            values[value_name] = scalar;
+            return scalar;
+        }
+
         values[value_name] = operand;
         return operand;
     }
@@ -1666,8 +1864,16 @@ public:
 
         const JsonValue* nested = argument.find("as_nested_tensors");
         const char* primitive_key = 0;
-        if (!nested) { nested = argument.find("as_int_lists"); primitive_key = "as_int"; }
-        if (!nested) { nested = argument.find("as_float_lists"); primitive_key = "as_float"; }
+        if (!nested)
+        {
+            nested = argument.find("as_int_lists");
+            primitive_key = "as_int";
+        }
+        if (!nested)
+        {
+            nested = argument.find("as_float_lists");
+            primitive_key = "as_float";
+        }
         if (nested && nested->type == JsonValue::Array)
         {
             std::vector<Operand*> items;
@@ -1705,6 +1911,15 @@ public:
         const JsonValue* outputs = node.find("outputs");
         if (!target || target->type != JsonValue::String || !inputs || inputs->type != JsonValue::Array || !outputs || outputs->type != JsonValue::Array)
             return false;
+
+        if (target->string == "torch.ops.higher_order.wrap_with_set_grad_enabled")
+            return add_disabled_wrapper(*inputs, *outputs, target->string, 0, 1, 2);
+
+        if (target->string == "torch.ops.higher_order.wrap_with_autocast")
+            return add_disabled_wrapper(*inputs, *outputs, target->string, 2, 4, 5);
+
+        if (target->string == "torch.ops.aten.full.default" && add_scalar_full(*inputs, *outputs))
+            return true;
 
         std::string schema_name;
         std::string overload;
@@ -1811,7 +2026,7 @@ public:
                     }
                     Operand* operand = graph.new_operand(item_name);
                     operand->producer = unpack;
-                    set_operand_tensor_meta(tensor_values, item_name, operand);
+                    set_operand_tensor_meta(*tensor_values, item_name, operand);
                     unpack->outputs.push_back(operand);
                     values[item_name] = operand;
                 }
@@ -1824,7 +2039,7 @@ public:
             }
             Operand* operand = graph.new_operand(name);
             operand->producer = op;
-            set_operand_tensor_meta(tensor_values, name, operand);
+            set_operand_tensor_meta(*tensor_values, name, operand);
             op->outputs.push_back(operand);
             values[name] = operand;
         }
@@ -1842,7 +2057,146 @@ public:
         return true;
     }
 
+    bool add_structured_output(const JsonValue& tree_spec, const std::vector<std::string>& value_names)
+    {
+        size_t leaf_index = 0;
+        Operand* value = build_output_tree(tree_spec, value_names, leaf_index);
+        if (!value || leaf_index != value_names.size())
+            return false;
+
+        Operator* op = graph.new_operator("pnnx.Output", "pnnx_output_0");
+        value->consumers.push_back(op);
+        op->inputs.push_back(value);
+        return true;
+    }
+
 private:
+    Operand* build_output_tree(const JsonValue& tree_spec, const std::vector<std::string>& value_names, size_t& leaf_index)
+    {
+        if (tree_spec.type != JsonValue::Object)
+            return 0;
+
+        const JsonValue* type = tree_spec.find("type");
+        const JsonValue* children = tree_spec.find("children_spec");
+        if (!type || !children || children->type != JsonValue::Array)
+            return 0;
+
+        if (type->type == JsonValue::Null)
+        {
+            if (!children->array.empty() || leaf_index >= value_names.size())
+                return 0;
+            std::map<std::string, Operand*>::const_iterator it = values.find(value_names[leaf_index++]);
+            return it == values.end() ? 0 : it->second;
+        }
+
+        if (type->type != JsonValue::String || (type->string != "builtins.tuple" && type->string != "builtins.list"))
+            return 0;
+
+        std::vector<Operand*> items;
+        for (size_t i = 0; i < children->array.size(); i++)
+        {
+            Operand* item = build_output_tree(children->array[i], value_names, leaf_index);
+            if (!item) return 0;
+            items.push_back(item);
+        }
+        return container_operand(type->string == "builtins.tuple" ? "prim::TupleConstruct" : "prim::ListConstruct", items);
+    }
+
+    bool add_scalar_full(const JsonValue& inputs, const JsonValue& outputs)
+    {
+        const JsonValue* size = 0;
+        const JsonValue* fill_value = 0;
+        for (size_t i = 0; i < inputs.array.size(); i++)
+        {
+            const JsonValue* name = inputs.array[i].find("name");
+            const JsonValue* argument = inputs.array[i].find("arg");
+            if (!name || name->type != JsonValue::String || !argument)
+                return false;
+            if (name->string == "size") size = argument;
+            if (name->string == "fill_value") fill_value = argument;
+        }
+
+        const JsonValue* dimensions = size ? size->find("as_ints") : 0;
+        if (!dimensions || dimensions->type != JsonValue::Array || !dimensions->array.empty() || !fill_value || outputs.array.size() != 1)
+            return false;
+
+        Parameter value;
+        if (!parameter_from_json(*fill_value, value))
+            return false;
+
+        const std::string output_name = argument_name(outputs.array[0]);
+        if (output_name.empty())
+            return false;
+
+        Operator* op = graph.new_operator("prim::Constant", next_name("pnnx_scalar_full"));
+        op->params["value"] = value;
+        Operand* operand = graph.new_operand(output_name);
+        operand->producer = op;
+        set_operand_tensor_meta(*tensor_values, output_name, operand);
+        op->outputs.push_back(operand);
+        values[output_name] = operand;
+        return true;
+    }
+
+    bool add_disabled_wrapper(const JsonValue& inputs, const JsonValue& outputs, const std::string& target, size_t enabled_index, size_t graph_index, size_t capture_index)
+    {
+        if (inputs.array.size() < capture_index || enabled_index >= inputs.array.size() || graph_index >= inputs.array.size())
+            return false;
+
+        const JsonValue* enabled_arg = inputs.array[enabled_index].find("arg");
+        const JsonValue* enabled = enabled_arg ? enabled_arg->find("as_bool") : 0;
+        if (!enabled || enabled->type != JsonValue::Bool || enabled->boolean)
+        {
+            fprintf(stderr, "unsupported enabled higher-order wrapper %s\n", target.c_str());
+            return false;
+        }
+
+        const JsonValue* graph_arg = inputs.array[graph_index].find("arg");
+        const JsonValue* serialized = graph_arg ? graph_arg->find("as_graph") : 0;
+        const JsonValue* nested_graph = serialized ? serialized->find("graph") : 0;
+        const JsonValue* nested_inputs = nested_graph ? nested_graph->find("inputs") : 0;
+        const JsonValue* nested_outputs = nested_graph ? nested_graph->find("outputs") : 0;
+        const JsonValue* nested_nodes = nested_graph ? nested_graph->find("nodes") : 0;
+        const JsonValue* nested_tensor_values = nested_graph ? nested_graph->find("tensor_values") : 0;
+        if (!nested_graph || nested_graph->type != JsonValue::Object || !nested_inputs || nested_inputs->type != JsonValue::Array || !nested_outputs || nested_outputs->type != JsonValue::Array || !nested_nodes || nested_nodes->type != JsonValue::Array || !nested_tensor_values || nested_tensor_values->type != JsonValue::Object || nested_inputs->array.size() + capture_index != inputs.array.size())
+            return false;
+
+        for (size_t i = 0; i < nested_inputs->array.size(); i++)
+        {
+            const std::string nested_name = argument_name(nested_inputs->array[i]);
+            const JsonValue* capture = inputs.array[i + capture_index].find("arg");
+            Operand* operand = capture ? argument_operand(*capture) : 0;
+            if (nested_name.empty() || !operand)
+                return false;
+            values[nested_name] = operand;
+        }
+
+        const JsonValue* outer_tensor_values = tensor_values;
+        tensor_values = nested_tensor_values;
+        for (size_t i = 0; i < nested_nodes->array.size(); i++)
+        {
+            if (!add_node(nested_nodes->array[i]))
+            {
+                tensor_values = outer_tensor_values;
+                return false;
+            }
+        }
+        tensor_values = outer_tensor_values;
+
+        if (nested_outputs->array.size() != outputs.array.size())
+            return false;
+        for (size_t i = 0; i < outputs.array.size(); i++)
+        {
+            const std::string nested_name = argument_name(nested_outputs->array[i]);
+            const std::string output_name = argument_name(outputs.array[i]);
+            std::map<std::string, Operand*>::const_iterator it = values.find(nested_name);
+            if (nested_name.empty() || output_name.empty() || it == values.end())
+                return false;
+            values[output_name] = it->second;
+        }
+        return true;
+    }
+
     Operand* list_operand(const JsonValue& array, const char* primitive_key = 0)
     {
         if (array.type != JsonValue::Array)
@@ -1892,7 +2246,7 @@ private:
 
 private:
     Graph& graph;
-    const JsonValue& tensor_values;
+    const JsonValue* tensor_values;
     int index;
     std::map<std::string, Operand*> values;
 };
@@ -1937,6 +2291,87 @@ bool model_file_is_exported_program(const std::string& path)
 
     std::string format;
     return archive.read(format_name, format) && format == "pt2";
+}
+
+static bool exported_program_tree_spec(const JsonValue& graph_module, const char* key, JsonValue& tree_spec)
+{
+    const JsonValue* module_call_graph = graph_module.find("module_call_graph");
+    if (!module_call_graph || module_call_graph->type != JsonValue::Array)
+        return false;
+
+    for (size_t i = 0; i < module_call_graph->array.size(); i++)
+    {
+        const JsonValue& call = module_call_graph->array[i];
+        const JsonValue* fqn = call.find("fqn");
+        const JsonValue* signature = call.find("signature");
+        if (!fqn || fqn->type != JsonValue::String || !fqn->string.empty() || !signature || signature->type != JsonValue::Object)
+            continue;
+
+        const JsonValue* serialized = signature->find(key);
+        if (!serialized || serialized->type != JsonValue::String)
+            return false;
+
+        JsonValue protocol;
+        if (!parse_json(serialized->string, protocol, "pt2 pytree spec") || protocol.type != JsonValue::Array || protocol.array.size() != 2)
+            return false;
+        int64_t version = 0;
+        if (!json_integer(protocol.array[0], version) || version != 1 || protocol.array[1].type != JsonValue::Object)
+            return false;
+        tree_spec = protocol.array[1];
+        return true;
+    }
+
+    return false;
+}
+
+static bool pytree_python_expression(const JsonValue& tree_spec, std::string& expression)
+{
+    if (tree_spec.type != JsonValue::Object)
+        return false;
+    const JsonValue* type = tree_spec.find("type");
+    const JsonValue* children = tree_spec.find("children_spec");
+    if (!type || !children || children->type != JsonValue::Array)
+        return false;
+    if (type->type == JsonValue::Null)
+    {
+        if (!children->array.empty()) return false;
+        expression = "0";
+        return true;
+    }
+    if (type->type != JsonValue::String || (type->string != "builtins.tuple" && type->string != "builtins.list"))
+        return false;
+
+    expression = type->string == "builtins.tuple" ? "(" : "[";
+    for (size_t i = 0; i < children->array.size(); i++)
+    {
+        std::string child;
+        if (!pytree_python_expression(children->array[i], child)) return false;
+        expression += child;
+        if (i + 1 != children->array.size() || (type->string == "builtins.tuple" && children->array.size() == 1))
+            expression += ",";
+    }
+    expression += type->string == "builtins.tuple" ? ")" : "]";
+    return true;
+}
+
+static bool exported_program_input_structure(const JsonValue& graph_module, std::string& expression)
+{
+    JsonValue root;
+    if (!exported_program_tree_spec(graph_module, "in_spec", root))
+        return false;
+
+    const JsonValue* type = root.find("type");
+    const JsonValue* children = root.find("children_spec");
+    if (!type || type->type != JsonValue::String || type->string != "builtins.tuple" || !children || children->type != JsonValue::Array || children->array.size() != 2)
+        return false;
+
+    const JsonValue& keyword_arguments = children->array[1];
+    const JsonValue* kwargs_type = keyword_arguments.find("type");
+    const JsonValue* kwargs_children = keyword_arguments.find("children_spec");
+    if (!kwargs_type || kwargs_type->type != JsonValue::String || kwargs_type->string != "builtins.dict" || !kwargs_children || kwargs_children->type != JsonValue::Array || !kwargs_children->array.empty())
+        return false;
+
+    return pytree_python_expression(children->array[0], expression);
 }
 
 int load_exported_program(const std::string& ptpath, Graph& graph,
@@ -2007,6 +2442,15 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
         return -1;
     }
 
+    JsonValue output_tree_spec;
+    const bool has_output_tree_spec = exported_program_tree_spec(*graph_module, "out_spec", output_tree_spec);
+    std::string input_structure;
+    if (!exported_program_input_structure(*graph_module, input_structure))
+    {
+        fprintf(stderr, "unsupported or invalid pt2 input pytree\n");
+        return -1;
+    }
+
     bool need_state_dict = false;
     bool need_constants = false;
     for (size_t i = 0; i < input_specs->array.size(); i++)
@@ -2064,6 +2508,7 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
     fprintf(stderr, "############# pass_level1\n");
 
     ExportGraphBuilder builder(graph, *tensor_values);
+    std::set<std::string> graph_input_names;
     size_t user_input_index = 0;
     for (size_t i = 0; i < input_specs->array.size(); i++)
     {
@@ -2088,6 +2533,7 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
             fprintf(stderr, "non-tensor pt2 graph inputs are not supported\n");
             return -1;
         }
+        graph_input_names.insert(value_name);
 
         if (user_input)
         {
@@ -2138,24 +2584,65 @@ int load_exported_program(const std::string& ptpath, Graph& graph,
         }
     }
 
-    int user_output_index = 0;
+    std::vector<std::string> user_output_names;
     for (size_t i = 0; i < output_specs->array.size(); i++)
     {
         const JsonValue* user_output = output_specs->array[i].find("user_output");
+        const JsonValue* buffer_mutation = output_specs->array[i].find("buffer_mutation");
+        const JsonValue* user_input_mutation = output_specs->array[i].find("user_input_mutation");
+        if (user_input_mutation && user_input_mutation->type == JsonValue::Object)
+        {
+            const JsonValue* arg = user_input_mutation->find("arg");
+            const std::string value_name = arg ? argument_name(*arg) : std::string();
+            if (!value_name.empty())
+                continue;
+        }
+        if (buffer_mutation && buffer_mutation->type == JsonValue::Object)
+        {
+            const JsonValue* arg = buffer_mutation->find("arg");
+            const std::string value_name = arg ? argument_name(*arg) : std::string();
+            if (!value_name.empty() && graph_input_names.find(value_name) != graph_input_names.end())
+                continue;
+        }
         if (!user_output || user_output->type != JsonValue::Object)
-            continue;
+        {
+            fprintf(stderr, "unsupported pt2 graph output kind\n");
+            return -1;
+        }
         const JsonValue* arg = user_output->find("arg");
         const std::string value_name = arg ? argument_name(*arg) : std::string();
-        if (value_name.empty() || !builder.add_output(value_name, user_output_index++))
+        if (value_name.empty())
         {
             fprintf(stderr, "invalid pt2 user output\n");
             return -1;
         }
+        user_output_names.push_back(value_name);
     }
-    if (user_output_index == 0)
+    if (user_output_names.empty())
     {
         fprintf(stderr, "pt2 graph has no user outputs\n");
         return -1;
+    }
+    builder.mark_flattened_user_inputs(user_input_index, input_structure);
+
+    if (has_output_tree_spec)
+    {
+        if (!builder.add_structured_output(output_tree_spec, user_output_names))
+        {
+            fprintf(stderr, "unsupported or invalid pt2 output pytree\n");
+            return -1;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < user_output_names.size(); i++)
+        {
+            if (!builder.add_output(user_output_names[i], (int)i))
+            {
+                fprintf(stderr, "invalid pt2 user output\n");
+                return -1;
+            }
+        }
     }
 
     return 0;

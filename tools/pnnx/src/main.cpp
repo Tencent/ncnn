@@ -480,7 +480,8 @@ int main(int argc, char** argv)
             return -1;
 
         int ret = 0;
-        if (pnnx::model_file_is_exported_program(ptpath))
+        const bool has_pt2_extension = ptpath.size() >= 4 && ptpath.compare(ptpath.size() - 4, 4, ".pt2") == 0;
+        if (pnnx::model_file_is_exported_program(ptpath) || has_pt2_extension)
         {
             ret = pnnx::load_exported_program(ptpath, pnnx_graph, input_shapes, input_types);
         }

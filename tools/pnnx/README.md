@@ -84,6 +84,11 @@ pnnx resnet18.pt2
 The ExportedProgram archive already contains input tensor metadata, so
 `inputshape` is normally not required for `.pt2` input.
 
+The generated `*_pnnx.py` also provides `export_exported_program(example_inputs=None)`.
+It returns a new `torch.export.ExportedProgram` and saves it as `*_pnnx.pt2`.
+Pass a tuple of example inputs to override the generated inputs; positional
+tuple/list input and output structures are preserved.
+
 Normally, you will get seven files
 
 ```resnet18.pnnx.param``` PNNX graph definition

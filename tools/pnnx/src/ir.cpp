@@ -1786,17 +1786,54 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // def forward
     {
-        fprintf(pyfp, "    def forward(self");
-
+        int pt2_flattened_input_count = -1;
+        std::string pt2_input_structure;
         for (const Operator* op : ops)
         {
-            if (op->type != "pnnx.Input")
-                continue;
-
-            fprintf(pyfp, ", v_%s", sanitize_identifier(op->outputs[0]->name).c_str());
+            if (op->type == "pnnx.Input" && op->has_param("__pt2_flattened_input_count"))
+            {
+                pt2_flattened_input_count = op->params.find("__pt2_flattened_input_count")->second.i;
+                if (op->has_param("__pt2_input_structure"))
+                    pt2_input_structure = op->params.find("__pt2_input_structure")->second.s;
+                break;
+            }
         }
 
-        fprintf(pyfp, "):\n");
+        if (pt2_flattened_input_count >= 0)
+        {
+            fprintf(pyfp, "    def forward(self, *args):\n");
+            fprintf(pyfp, "        flattened_args, actual_spec = torch.utils._pytree.tree_flatten(args)\n");
+            if (!pt2_input_structure.empty())
+            {
+                fprintf(pyfp, "        _, expected_spec = torch.utils._pytree.tree_flatten(%s)\n", pt2_input_structure.c_str());
+                fprintf(pyfp, "        if not torch._dynamo.is_compiling() and actual_spec != expected_spec:\n");
+                fprintf(pyfp, "            raise ValueError('input tuple/list structure does not match the exported program')\n");
+            }
+            fprintf(pyfp, "        if len(flattened_args) != %d:\n", pt2_flattened_input_count);
+            fprintf(pyfp, "            raise ValueError('expected %d flattened tensor inputs, got %%d' %% len(flattened_args))\n", pt2_flattened_input_count);
+
+            int input_index = 0;
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+                fprintf(pyfp, "        v_%s = flattened_args[%d]\n", sanitize_identifier(op->outputs[0]->name).c_str(), input_index++);
+            }
+        }
+        else
+        {
+            fprintf(pyfp, "    def forward(self");
+
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+
+                fprintf(pyfp, ", v_%s", sanitize_identifier(op->outputs[0]->name).c_str());
+            }
+
+            fprintf(pyfp, "):\n");
+        }
     }
 
     // forward body
@@ -2237,10 +2274,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
 
                     if (op->type == "Tensor.fill" && op->inputs.size() == 2
-                            && (op->inputs[1]->shape == std::vector<int>{1}
+                            && (op->inputs[1]->shape == std::vector<int> {1}
                                 || (op->inputs[1]->producer && op->inputs[1]->producer->type == "torch.clone"
                                     && !op->inputs[1]->producer->inputs.empty()
-                                    && op->inputs[1]->producer->inputs[0]->shape == std::vector<int>{1})))
+                                    && op->inputs[1]->producer->inputs[0]->shape == std::vector<int> {1})))
                     {
                         // torch.export may serialize a scalar tensor constant
                         // as shape [1], while Tensor.fill_ requires a 0-d tensor.
@@ -2524,6 +2561,23 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    std::string pt2_python_input_structure;
+    for (const Operator* op : ops)
+    {
+        if (op->type == "pnnx.Input" && op->has_param("__pt2_input_structure"))
+        {
+            pt2_python_input_structure = op->params.find("__pt2_input_structure")->second.s;
+            break;
+        }
+    }
+    if (!pt2_python_input_structure.empty())
+    {
+        fprintf(pyfp, "def _pnnx_unflatten_inputs(flattened_inputs):\n");
+        fprintf(pyfp, "    _, input_spec = torch.utils._pytree.tree_flatten(%s)\n", pt2_python_input_structure.c_str());
+        fprintf(pyfp, "    return torch.utils._pytree.tree_unflatten(list(flattened_inputs), input_spec)\n");
+        fprintf(pyfp, "\n");
+    }
+
     // export torchscript
     {
         fprintf(pyfp, "def export_torchscript():\n");
@@ -2567,7 +2621,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         fprintf(pyfp, "\n");
 
-        if (input_names.size() == 1)
+        if (!pt2_python_input_structure.empty())
+        {
+            fprintf(pyfp, "    mod = torch.jit.trace(net, _pnnx_unflatten_inputs((");
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            if (input_names.size() == 1) fprintf(pyfp, ",");
+            fprintf(pyfp, ")))\n");
+        }
+        else if (input_names.size() == 1)
         {
             fprintf(pyfp, "    mod = torch.jit.trace(net, %s)\n", input_names[0].c_str());
         }
@@ -2586,6 +2648,85 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         }
 
         fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+    }
+
+    fprintf(pyfp, "\n");
+
+    // export exported program
+    {
+        std::string pt2path = pypath;
+        if (pt2path.size() >= 3 && pt2path.substr(pt2path.size() - 3) == ".py")
+            pt2path.resize(pt2path.size() - 3);
+        pt2path += ".pt2";
+
+        fprintf(pyfp, "def export_exported_program(example_inputs=None):\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    if example_inputs is None:\n");
+        fprintf(pyfp, "        torch.manual_seed(0)\n");
+
+        std::vector<std::string> input_names;
+        std::string pt2_default_input_structure;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+
+            if (pt2_default_input_structure.empty() && op->has_param("__pt2_input_structure"))
+                pt2_default_input_structure = op->params.find("__pt2_input_structure")->second.s;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "        %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "        %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            input_names.push_back(input_name);
+        }
+
+        if (!pt2_default_input_structure.empty())
+        {
+            fprintf(pyfp, "        _, example_input_spec = torch.utils._pytree.tree_flatten(%s)\n", pt2_default_input_structure.c_str());
+            fprintf(pyfp, "        example_inputs = torch.utils._pytree.tree_unflatten([");
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            fprintf(pyfp, "], example_input_spec)\n");
+        }
+        else
+        {
+            fprintf(pyfp, "        example_inputs = (");
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            if (input_names.size() == 1)
+                fprintf(pyfp, ",");
+            fprintf(pyfp, ")\n");
+        }
+        fprintf(pyfp, "    elif not isinstance(example_inputs, tuple):\n");
+        fprintf(pyfp, "        example_inputs = (example_inputs,)\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    exported_program = torch.export.export(net, example_inputs)\n");
+        fprintf(pyfp, "    torch.export.save(exported_program, '%s')\n", pt2path.c_str());
+        fprintf(pyfp, "    return exported_program\n");
     }
 
     fprintf(pyfp, "\n");
@@ -2635,7 +2776,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         // torch.onnx.export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
 
-        if (input_names.size() == 1)
+        if (!pt2_python_input_structure.empty())
+        {
+            fprintf(pyfp, "    torch.onnx.export(net, _pnnx_unflatten_inputs((");
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            if (input_names.size() == 1) fprintf(pyfp, ",");
+            fprintf(pyfp, "))");
+        }
+        else if (input_names.size() == 1)
         {
             fprintf(pyfp, "    torch.onnx.export(net, %s", input_names[0].c_str());
         }
@@ -2756,7 +2905,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "\n");
 
         fprintf(pyfp, "    import pnnx\n");
-        if (input_names.size() == 1)
+        if (!pt2_python_input_structure.empty())
+        {
+            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", _pnnx_unflatten_inputs((", pypath.c_str());
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            if (input_names.size() == 1) fprintf(pyfp, ",");
+            fprintf(pyfp, ")))\n");
+        }
+        else if (input_names.size() == 1)
         {
             fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", %s)\n", pypath.c_str(), input_names[0].c_str());
         }
@@ -2852,7 +3009,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         fprintf(pyfp, "\n");
 
-        if (input_names.size() == 1)
+        if (!pt2_python_input_structure.empty())
+        {
+            fprintf(pyfp, "    return net(*_pnnx_unflatten_inputs((");
+            for (size_t i = 0; i < input_names.size(); i++)
+                fprintf(pyfp, "%s%s", input_names[i].c_str(), i + 1 == input_names.size() ? "" : ", ");
+            if (input_names.size() == 1) fprintf(pyfp, ",");
+            fprintf(pyfp, ")))\n");
+        }
+        else if (input_names.size() == 1)
         {
             fprintf(pyfp, "    return net(%s)\n", input_names[0].c_str());
         }

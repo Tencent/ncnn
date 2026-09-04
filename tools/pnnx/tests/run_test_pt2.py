@@ -5,9 +5,14 @@ import os
 import runpy
 import shutil
 import sys
+import time
 import traceback
 
 import torch
+
+if os.name == "nt":
+    torch_library_path = os.path.join(os.path.dirname(torch.__file__), "lib")
+    os.environ["PATH"] = torch_library_path + os.pathsep + os.environ.get("PATH", "")
 
 
 original_system = os.system
@@ -83,7 +88,12 @@ def portable_system(command):
         executable, arguments = command.split(" ", 1)
         command = executable.replace("/", "\\") + ".exe " + arguments
 
-    result = original_system(command)
+    attempts = 3 if os.name == "nt" and is_pnnx_command else 1
+    for attempt in range(attempts):
+        result = original_system(command)
+        if result == 0 or result not in (-1073741515, 3221225781) or attempt + 1 == attempts:
+            break
+        time.sleep(2)
     if is_pnnx_command and result != 0:
         raise RuntimeError("pnnx failed with return value " + str(result))
     return result
