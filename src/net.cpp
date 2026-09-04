@@ -1806,6 +1806,14 @@ int Net::load_param_bin(const DataReader& dr)
             int bottom_blob_index;
             READ_VALUE(bottom_blob_index)
 
+            if (bottom_blob_index < 0 || bottom_blob_index >= (int)d->blobs.size())
+            {
+                NCNN_LOGE("layer %d bottom_blob_index %d out of range", i, bottom_blob_index);
+                delete layer;
+                clear();
+                return -1;
+            }
+
             Blob& blob = d->blobs[bottom_blob_index];
 
             blob.consumer = i;
@@ -1818,6 +1826,14 @@ int Net::load_param_bin(const DataReader& dr)
         {
             int top_blob_index;
             READ_VALUE(top_blob_index)
+
+            if (top_blob_index < 0 || top_blob_index >= (int)d->blobs.size())
+            {
+                NCNN_LOGE("layer %d top_blob_index %d out of range", i, top_blob_index);
+                delete layer;
+                clear();
+                return -1;
+            }
 
             Blob& blob = d->blobs[top_blob_index];
 
