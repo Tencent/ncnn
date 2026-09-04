@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import XLMRobertaConfig
 from transformers.models.xlm_roberta.modeling_xlm_roberta import XLMRobertaAttention
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -37,22 +39,16 @@ def test():
 
     a = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_transformers_xlm_roberta_attention.pt")
+    def compare(output, expected):
+        return torch.allclose(output, expected, 1e-4, 1e-4)
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_xlm_roberta_attention.pt inputshape=[3,16,192],[1,5,66]")
-
-    # pnnx inference
-    import test_transformers_xlm_roberta_attention_pnnx
-    b = test_transformers_xlm_roberta_attention_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y),
+        a,
+        "test_transformers_xlm_roberta_attention",
+        compare,
+    )
 
 if __name__ == "__main__":
     if test():

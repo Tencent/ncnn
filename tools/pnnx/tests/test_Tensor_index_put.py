@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -31,22 +33,7 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_Tensor_index_put.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_Tensor_index_put.pt inputshape=[12],[2],[6,9],[3]")
-
-    # pnnx inference
-    import test_Tensor_index_put_pnnx
-    b = test_Tensor_index_put_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, z, w), a, "test_Tensor_index_put")
 
 if __name__ == "__main__":
     if test():

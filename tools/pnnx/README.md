@@ -31,14 +31,18 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
 
 # Usage
 
-1. Export your model to TorchScript
+1. Export your model
+
+PNNX accepts either a TorchScript model (`.pt`) or a PyTorch ExportedProgram (`.pt2`).
+
+Export to TorchScript:
 
 ```python
 import torch
@@ -56,10 +60,37 @@ mod = torch.jit.trace(net, x)
 mod.save("resnet18.pt")
 ```
 
-2. Convert TorchScript to PNNX
+Export to PT2 with PyTorch 2.1 or later:
+
+```python
+import torch
+import torchvision.models as models
+
+net = models.resnet18(weights="DEFAULT").eval()
+x = torch.rand(1, 3, 224, 224)
+
+exported_program = torch.export.export(net, (x,))
+torch.export.save(exported_program, "resnet18.pt2")
+```
+
+For dynamic shapes, declare each dynamic dimension while exporting. PNNX preserves
+the symbolic dimension, its range constraint, and shared symbols between inputs.
+
+```python
+batch = torch.export.Dim("batch", min=1, max=8)
+exported_program = torch.export.export(
+    net,
+    (x,),
+    dynamic_shapes=({0: batch},),
+)
+torch.export.save(exported_program, "resnet18_dynamic.pt2")
+```
+
+2. Convert the model to PNNX
 
 ```shell
 pnnx resnet18.pt inputshape=[1,3,224,224]
+pnnx resnet18.pt2
 ```
 
 Normally, you will get seven files
@@ -85,7 +116,7 @@ Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
 4. PNNX command line options
 
 ```
-Usage: pnnx [model.pt] [(key=value)...]
+Usage: pnnx [model.pt/model.pt2] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
@@ -139,6 +170,47 @@ Parameters:
 `customop` (Optional): list of Torch extensions (dynamic library) for custom operators, separated by ",". For example, `/home/nihui/.cache/torch_extensions/fused/fused.so,...`
 
 `moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
+
+## PT2 compatibility
+
+PNNX reads the current PyTorch ExportedProgram PT2 archive directly without a
+third-party JSON or ZIP dependency. The supported current archive has
+`archive_format="pt2"`, `archive_version="0"`, and ExportedProgram schema major
+version 8. The archive must contain one `models/*.json` graph and its raw tensor
+payload configuration.
+
+Dense CPU tensor payloads are supported, including empty tensors, shared storage,
+non-zero storage offsets, and strided views. Supported scalar types include bool,
+signed and unsigned integer types, float16, float32, float64, and complex
+types that PNNX can represent. Pickled tensor subclasses and custom objects are not
+loaded.
+
+`inputshape` and `inputshape2` may be used with PT2. Every supplied shape is checked
+against static dimensions, symbolic ranges, and shared-symbol constraints from the
+ExportedProgram. A mismatch is reported before graph conversion.
+
+Legacy archives containing `serialized_exported_program.json`,
+`serialized_state_dict.pt`, `serialized_constants.pt`, and
+`serialized_example_inputs.pt` are also supported. Legacy tensor dictionaries
+are decoded with LibTorch and then passed through the same PNNX import pipeline.
+
+Current limitations:
+
+* Higher-order operators that embed an `as_graph` subgraph are reported as unsupported.
+* Pickled custom objects and tensor subclasses are not executed or deserialized.
+* AOTInductor packages are not ExportedProgram archives and cannot be passed to PNNX.
+* Symbolic output expressions without a usable hint may require a more concrete export.
+
+Troubleshooting:
+
+* `unsupported pt2 archive version` or `unsupported exported program schema major`
+    means the model was written by an incompatible PyTorch serialization version.
+* A shape constraint error can be fixed by using an input shape inside the exported
+    range, or by re-exporting with the intended `torch.export.Dim` constraints.
+* `unsupported argument variant as_graph` indicates a higher-order captured subgraph.
+    Export with a decomposed/eager implementation when one is available.
+* If an operator schema cannot be found, build PNNX against the same PyTorch operator
+    set used by the exporter and load any required custom operator library with `customop`.
 
 # The pnnx.param format
 

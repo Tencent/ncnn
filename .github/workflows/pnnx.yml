@@ -59,11 +59,31 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
-    - name: quick-test
+    - name: quick-test-torchscript
       if: matrix.os != 'windows-latest'
+      env:
+        PNNX_TEST_FORMAT: torchscript
       run: |
         cd tools/pnnx
-        cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+        cd build && ctest -C Release --output-on-failure -R '^test_nn_(ReLU|Linear|Conv2d)$'
+
+    - name: quick-test-pt2
+      if: matrix.os != 'windows-latest'
+      env:
+        PNNX_TEST_FORMAT: pt2
+      run: |
+        cd tools/pnnx
+        cd build && ctest -C Release --output-on-failure -R '^test_(nn_(ReLU|Linear|Conv2d)|pnnx_exported_program(_dynamic)?)$'
+
+    - name: quick-test-pt2-windows
+      if: matrix.os == 'windows-latest'
+      env:
+        PNNX_TEST_FORMAT: pt2
+      run: |
+        $torchLib = python -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))"
+        $env:PATH = "$torchLib;$env:PATH"
+        Set-Location tools/pnnx/build
+        ctest -C Release --output-on-failure -R '^test_(nn_(ReLU|Linear|Conv2d)|pnnx_exported_program(_dynamic)?)$'
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -356,7 +376,23 @@ jobs:
         name: pnnx
         path: tools/pnnx/build/src
 
-    - name: test
+    - name: test-torchscript
+      env:
+        PNNX_TEST_FORMAT: torchscript
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        chmod +x tools/pnnx/build/src/pnnx
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        cd tools/pnnx/build
+        ctest --output-on-failure -j 8 -E '^test_pnnx_exported_program(_legacy|_dynamic)?$'
+
+    - name: test-pt2
+      if: matrix.torch == '2.12.1'
+      env:
+        PNNX_TEST_FORMAT: pt2
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx

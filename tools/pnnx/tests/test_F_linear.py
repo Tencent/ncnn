@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -34,19 +36,7 @@ def test():
 
     a0, a1, a2 = net(x, y, z, w0, w1, b1)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w0, w1, b1))
-    mod.save("test_F_linear.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_linear.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[12,16],[32,12],[32]")
-
-    # pnnx inference
-    import test_F_linear_pnnx
-    b0, b1, b2 = test_F_linear_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    return test_model_formats(net, (x, y, z, w0, w1, b1), (a0, a1, a2), "test_F_linear")
 
 if __name__ == "__main__":
     if test():

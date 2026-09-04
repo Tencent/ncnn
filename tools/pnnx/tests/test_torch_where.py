@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -24,21 +26,13 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
 
-    a0, a1 = net(x, y)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_torch_where.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_where.pt inputshape=[3,16],[3,16]")
-
-    # pnnx inference
-    import test_torch_where_pnnx
-    b0, b1 = test_torch_where_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    a = net(x, y)
+    return test_model_formats(
+        net,
+        (x, y),
+        a,
+        "test_torch_where",
+    )
 
 if __name__ == "__main__":
     if test():

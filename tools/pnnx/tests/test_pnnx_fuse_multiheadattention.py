@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 from einops import rearrange
 from typing import Any, Optional, Tuple, Union
 import math
@@ -480,28 +482,13 @@ def test():
 
     a = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_pnnx_fuse_multiheadattention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_multiheadattention.pt inputshape=[1,20,64],[1,20,17],[1,64,6,6]")
-
-    # pnnx inference
-    import test_pnnx_fuse_multiheadattention_pnnx
-    if (version.parse(torch.__version__) >= version.parse('1.12') and version.parse(torch.__version__) < version.parse('1.13') or
-        version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1')):
-        # torch-1.12 / 2.0 breaks 3d attention mask in no grad mode
-        net_pnnx = test_pnnx_fuse_multiheadattention_pnnx.Model().float().eval()
-        b = net_pnnx(x, y, z)
-    else:
-        b = test_pnnx_fuse_multiheadattention_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y, z),
+        a,
+        "test_pnnx_fuse_multiheadattention",
+        compare=lambda a0, b0: torch.allclose(a0, b0, 1e-4, 1e-4),
+    )
 
 if __name__ == "__main__":
     if test():

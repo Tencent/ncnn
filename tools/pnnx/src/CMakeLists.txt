@@ -128,6 +128,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_avg_pool3d.cpp
     pass_level2/F_batch_norm.cpp
     pass_level2/F_celu.cpp
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/F_conv1d.cpp
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
@@ -196,6 +197,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_index_put.cpp
     pass_level2/Tensor_masked_fill.cpp
     pass_level2/Tensor_new_empty.cpp
+    pass_level2/Tensor_new_full.cpp
     pass_level2/Tensor_new_ones.cpp
     pass_level2/Tensor_new_zeros.cpp
     pass_level2/Tensor_permute.cpp
@@ -292,6 +294,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
     pass_level2/torch_view_as_real.cpp
+    pass_level2/torch_weight_norm.cpp
     pass_level2/torch_where.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
@@ -759,7 +762,13 @@ endif()
 
 set(pnnx_SRCS
     main.cpp
+    exported_program.cpp
+    exported_program_defaults.cpp
+    exported_program_reader.cpp
     ir.cpp
+    json.cpp
+    load_exported_program.cpp
+    model_format.cpp
     model_stat.cpp
     storezip.cpp
     utils.cpp

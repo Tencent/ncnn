@@ -1,10 +1,10 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-import os
-
 import torch
 import torch.nn as nn
+
+from pnnx_test_utils import test_model_formats
 
 
 class Model(nn.Module):
@@ -41,23 +41,21 @@ def test():
     if a.shape != (1, 4, 28, 28):
         return False
 
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_asymmetric_pad_conv2d.pt")
-
-    os.system("../src/pnnx test_pnnx_fuse_asymmetric_pad_conv2d.pt inputshape=[1,4,56,56]")
-
-    import test_pnnx_fuse_asymmetric_pad_conv2d_pnnx
-    b = test_pnnx_fuse_asymmetric_pad_conv2d_pnnx.test_inference()
-
-    if not torch.allclose(a, b, 1e-4, 1e-4):
+    if not test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_pnnx_fuse_asymmetric_pad_conv2d",
+        compare=lambda a0, b0: torch.allclose(a0, b0, 1e-4, 1e-4),
+    ):
         return False
 
-    with open("test_pnnx_fuse_asymmetric_pad_conv2d.pnnx.param", "r") as f:
+    with open("test_pnnx_fuse_asymmetric_pad_conv2d_torchscript.pnnx.param", "r") as f:
         pnnx_param = f.read()
     if "#2=(1,4,28,28)f32" not in pnnx_param:
         return False
 
-    with open("test_pnnx_fuse_asymmetric_pad_conv2d.ncnn.param", "r") as f:
+    with open("test_pnnx_fuse_asymmetric_pad_conv2d_torchscript.ncnn.param", "r") as f:
         ncnn_param = f.read()
 
     if "ConvolutionDepthWise" in ncnn_param:

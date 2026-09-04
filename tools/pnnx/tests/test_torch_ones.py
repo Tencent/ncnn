@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -14,6 +16,18 @@ class Model(nn.Module):
         y = torch.ones(y.size())
         z = torch.ones(z.size(), dtype=torch.long)
         return x, y, z
+
+class InputAnchoredModel(nn.Module):
+    def __init__(self, model):
+        super(InputAnchoredModel, self).__init__()
+        self.model = model
+
+    def forward(self, x, y, z):
+        out = self.model(x, y, z)
+        zx = x.sum() * 0
+        zy = y.sum() * 0
+        zz = z.sum() * 0
+        return out[0] + zx, out[1] + zy, out[2] + zz.to(dtype=out[2].dtype)
 
 def test():
     net = Model()
@@ -25,23 +39,15 @@ def test():
     z = torch.rand(14, 8, 5, 9, 10)
 
     a = net(x, y, z)
+    wrapped = InputAnchoredModel(net)
+    wrapped.eval()
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_ones.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_ones.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
-
-    # pnnx inference
-    import test_torch_ones_pnnx
-    b = test_torch_ones_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(
+        wrapped,
+        (x, y, z),
+        a,
+        "test_torch_ones",
+    )
 
 if __name__ == "__main__":
     if test():

@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import GPT2Config
 from transformers.models.gpt2.modeling_gpt2 import GPT2Attention, Conv1D
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -34,19 +36,16 @@ def test():
 
     a = net(x, mask0)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, mask0))
-    mod.save("test_transformers_gpt2_attention.pt")
+    def compare(output, expected):
+        return torch.allclose(output, expected, 1e-4, 1e-4)
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_gpt2_attention.pt inputshape=[3,16,192],[3,8,16,16]")
-
-    # pnnx inference
-    import test_transformers_gpt2_attention_pnnx
-    b = test_transformers_gpt2_attention_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return test_model_formats(
+        net,
+        (x, mask0),
+        a,
+        "test_transformers_gpt2_attention",
+        compare,
+    )
 
 if __name__ == "__main__":
     if test():

@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 class T5LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
@@ -42,22 +44,13 @@ def test():
 
     a0, a1 = net(x, y)
 
-    # export onnx
-    torch.onnx.export(net, (x,y), "test.onnx")
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_fuse_rmsnorm.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_rmsnorm.pt inputshape=[1,64,26],[3,15,15,21]")
-
-    # pnnx inference
-    import test_pnnx_fuse_rmsnorm_pnnx
-    b0, b1 = test_pnnx_fuse_rmsnorm_pnnx.test_inference()
-
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return test_model_formats(
+        net,
+        (x, y),
+        (a0, a1),
+        "test_pnnx_fuse_rmsnorm",
+        compare=lambda a, b: torch.allclose(a, b, 1e-4, 1e-4),
+    )
 
 if __name__ == "__main__":
     if test():

@@ -1,6 +1,26 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(test_pnnx_exported_program test_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_reader.cpp ../src/json.cpp ../src/model_format.cpp ../src/storezip.cpp)
+target_include_directories(test_pnnx_exported_program PRIVATE ../src)
+target_compile_options(test_pnnx_exported_program PRIVATE "${TORCH_CXX_FLAGS}")
+target_link_libraries(test_pnnx_exported_program PRIVATE ${TORCH_LIBRARIES})
+add_test(NAME test_pnnx_exported_program_schema COMMAND test_pnnx_exported_program)
+
+add_executable(test_pnnx_json test_json.cpp ../src/json.cpp)
+target_include_directories(test_pnnx_json PRIVATE ../src)
+add_test(NAME test_pnnx_json COMMAND test_pnnx_json)
+
+add_executable(test_pnnx_model_format test_model_format.cpp ../src/model_format.cpp ../src/storezip.cpp)
+target_include_directories(test_pnnx_model_format PRIVATE ../src)
+add_test(NAME test_pnnx_model_format COMMAND test_pnnx_model_format)
+
+add_executable(test_pnnx_load_exported_program test_load_exported_program.cpp ../src/load_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_defaults.cpp ../src/exported_program_reader.cpp ../src/ir.cpp ../src/json.cpp ../src/model_format.cpp ../src/model_stat.cpp ../src/storezip.cpp ../src/utils.cpp)
+target_include_directories(test_pnnx_load_exported_program PRIVATE ../src)
+target_compile_options(test_pnnx_load_exported_program PRIVATE "${TORCH_CXX_FLAGS}")
+target_link_libraries(test_pnnx_load_exported_program PRIVATE ${TORCH_LIBRARIES})
+add_test(NAME test_pnnx_load_exported_program COMMAND test_pnnx_load_exported_program)
+
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
@@ -79,6 +99,9 @@ pnnx_add_test(F_unfold)
 pnnx_add_test(F_upsample_bilinear)
 pnnx_add_test(F_upsample_nearest)
 pnnx_add_test(F_upsample)
+pnnx_add_test(pnnx_exported_program_legacy)
+pnnx_add_test(pnnx_exported_program)
+pnnx_add_test(pnnx_exported_program_dynamic)
 
 pnnx_add_test(nn_AdaptiveAvgPool1d)
 pnnx_add_test(nn_AdaptiveAvgPool2d)
