@@ -608,7 +608,7 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 8 OR NCNN_TARG
             endif()
         endif()
         if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-            set(ARM_MARCH_FLAG "-march=armv8.6-a+sve")
+            set(ARM_MARCH_FLAG "-march=armv8.6-a+fp16+dotprod+sve")
             if(NCNN_ARM86SVE2)
                 set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+sve2")
             endif()
