@@ -921,7 +921,9 @@ static int lower_exported_program(const ExportedProgram& source_program,
                 return -1;
             }
 
-            Operator* op = candidate.new_operator("pnnx.Attribute", unique_name(spec.target, operator_names));
+            std::ostringstream state_name;
+            state_name << "pnnx_state_" << i;
+            Operator* op = candidate.new_operator("pnnx.Attribute", unique_name(state_name.str(), operator_names));
             Operand* operand = candidate.new_operand(name);
             operand_names.insert(name);
             operand->producer = op;

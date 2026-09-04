@@ -107,6 +107,26 @@ class SharedStorageLinearModel(torch.nn.Module):
         return torch.relu(torch.nn.functional.linear(x, self.second_weight))
 
 
+class StateNameCollisionSubmodule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(
+            torch.tensor([1.0, 2.0, 3.0, 4.0]), requires_grad=False
+        )
+
+
+class StateNameCollisionModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.foo = StateNameCollisionSubmodule()
+        self.foo_weight = torch.nn.Parameter(
+            torch.tensor([10.0, 20.0, 30.0, 40.0]), requires_grad=False
+        )
+
+    def forward(self, x):
+        return x * self.foo.weight + self.foo_weight
+
+
 class StaticSymbolArgumentModel(torch.nn.Module):
     def forward(self, x):
         x = torch.ops.aten.leaky_relu.default(x, 0.25)
@@ -462,6 +482,18 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_matches(
                         work_dir, archive_path, expected
                     )
+
+    def test_state_names_remain_distinct_after_python_sanitization(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            model = StateNameCollisionModel().eval()
+            archive_path = work_dir / "state_name_collision.pt2"
+            save_exported_program(model, archive_path)
+            torch.manual_seed(0)
+            expected = model(torch.rand(2, 4))
+            self.assert_conversion_matches(
+                work_dir, archive_path, expected
+            )
 
     def test_dtype_stride_and_shared_storage(self):
         with tempfile.TemporaryDirectory() as temp_dir:
