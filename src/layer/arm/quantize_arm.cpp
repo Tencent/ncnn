@@ -217,8 +217,11 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
 }
 #endif // __ARM_NEON
 
-int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82

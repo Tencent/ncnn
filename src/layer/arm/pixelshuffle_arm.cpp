@@ -32,8 +32,11 @@ PixelShuffle_arm::PixelShuffle_arm()
 #endif
 }
 
-int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82

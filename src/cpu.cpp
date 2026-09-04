@@ -32,6 +32,10 @@
 #endif
 #endif
 
+#if defined(_MSC_VER) && defined(_M_ARM64)
+#include <intrin.h> // __emit() and __getReg()
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten/threading.h>
 #endif
@@ -2615,10 +2619,11 @@ int cpu_support_arm_sve()
 int cpu_arm_sve_vlenb()
 {
     try_initialize_global_cpu_info();
-#if __aarch64__ && NCNN_GNU_INLINE_ASM
+#if __aarch64__
     if (!cpu_support_arm_sve())
         return 0;
 
+#if NCNN_GNU_INLINE_ASM
     size_t vlenb;
     asm volatile(
         ".word  0x0420e3e9  \n" // cntb x9
@@ -2627,6 +2632,12 @@ int cpu_arm_sve_vlenb()
         :
         : "memory", "x9");
     return (int)vlenb;
+#elif defined(_MSC_VER) && !defined(__clang__)
+    __emit(0x0420e3e9); // cntb x9
+    return (int)__getReg(9);
+#else
+    return 0;
+#endif
 #else
     return 0;
 #endif
