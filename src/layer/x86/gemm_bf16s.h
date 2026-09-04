@@ -4198,7 +4198,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 32;
             }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
             __m512 _sum00 = _mm512_setzero_ps();
             __m512 _sum01 = _mm512_setzero_ps();
             __m512 _sum02 = _mm512_setzero_ps();
@@ -4228,6 +4228,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sum02 = _mm512_add_ps(_sum02, _sum03);
             _sum00 = _mm512_add_ps(_sum00, _sum02);
             _sum0 = _mm512_add_ps(_sum0, _sum00);
+#endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = _mm512_set1_ps(bfloat16_to_float32(pA[0]));
@@ -4263,6 +4264,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __AVX512BF16__ || __AVXNECONVERT__
 #if __AVX512BF16__
             __m512 _sumz0 = _mm512_setzero_ps();
             __m512 _sumz1 = _mm512_setzero_ps();
@@ -4377,7 +4379,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 16;
             }
             _sum0 = _mm256_add_ps(_sum0, _sum1);
-#elif __AVXNECONVERT__
+#else  // __AVX512BF16__
             __m256 _sum1 = _mm256_setzero_ps();
             __m256 _sum2 = _mm256_setzero_ps();
             __m256 _sum3 = _mm256_setzero_ps();
@@ -4424,7 +4426,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 16;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__
+#else  // __AVX512BF16__ || __AVXNECONVERT__
 #if __AVX__
             __m256 _sum00 = _mm256_setzero_ps();
             __m256 _sum01 = _mm256_setzero_ps();
@@ -4506,7 +4509,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sum10 = _mm_add_ps(_sum10, _sum12);
             _sum0 = _mm_add_ps(_sum0, _sum00);
             _sum1 = _mm_add_ps(_sum1, _sum10);
-#endif
+#endif // __AVX__
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             for (; kk < max_kk; kk++)
             {
 #if __AVX__
@@ -4547,6 +4551,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __AVX512BF16__ || __AVXNECONVERT__
 #if __AVX512BF16__
             __m512 _sumz0 = _mm512_setzero_ps();
             __m512 _sumz1 = _mm512_setzero_ps();
@@ -4665,7 +4670,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 8;
             }
             _sum0 = _mm_add_ps(_sum0, _sum1);
-#elif __AVXNECONVERT__
+#else  // __AVX512BF16__
             __m256 _sumy0 = _mm256_setzero_ps();
             __m256 _sumy1 = _mm256_setzero_ps();
             __m256 _sumy2 = _mm256_setzero_ps();
@@ -4727,7 +4732,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 8;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#endif // __AVX512BF16__
+#else  // __AVX512BF16__ || __AVXNECONVERT__
             __m128 _sum00 = _mm_setzero_ps();
             __m128 _sum01 = _mm_setzero_ps();
             __m128 _sum02 = _mm_setzero_ps();
@@ -4757,6 +4763,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             _sum02 = _mm_add_ps(_sum02, _sum03);
             _sum00 = _mm_add_ps(_sum00, _sum02);
             _sum0 = _mm_add_ps(_sum0, _sum00);
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA0 = _mm_comp_bcstnebf16_ps(pA);
@@ -5068,7 +5075,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 4;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || __AVXNECONVERT__
             float sum00 = 0.f;
             float sum01 = 0.f;
             float sum02 = 0.f;
@@ -5100,6 +5107,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum12 += sum13;
             sum0 += sum00 + sum02;
             sum1 += sum10 + sum12;
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             for (; kk < max_kk; kk++)
             {
                 float a0 = bfloat16_to_float32(pA[0]);
@@ -5227,7 +5235,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pA += 2;
                 pB += 2;
             }
-#endif // __AVX512BF16__ || __AVXNECONVERT__
+#else  // __AVX512BF16__ || __AVXNECONVERT__
             float sum0 = 0.f;
             float sum1 = 0.f;
             float sum2 = 0.f;
@@ -5244,6 +5252,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             sum0 += sum1;
             sum2 += sum3;
             sum += sum0 + sum2;
+#endif // __AVX512BF16__ || __AVXNECONVERT__
             for (; kk < max_kk; kk++)
             {
                 sum += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);

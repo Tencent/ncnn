@@ -1203,7 +1203,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 32;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
                             _sum0 = _mm512_fmadd_ps(bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA)), _mm512_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
@@ -1213,6 +1213,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 64;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
                             _sum0 = _mm512_fmadd_ps(bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA)), _mm512_set1_ps(bfloat16_to_float32(*pK)), _sum0);
@@ -2322,7 +2323,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 16;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
                             _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_comp_bcstnebf16_ps(pK), _sum0);
@@ -2332,6 +2333,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 32;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
                             _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_comp_bcstnebf16_ps(pK), _sum0);
@@ -3168,7 +3170,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 8;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
                             _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_comp_bcstnebf16_ps(pK), _sum0);
@@ -3178,6 +3180,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 16;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
                             _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_comp_bcstnebf16_ps(pK), _sum0);

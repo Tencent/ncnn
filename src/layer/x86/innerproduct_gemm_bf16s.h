@@ -738,7 +738,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     m += 2;
                     kptr += 16;
                 }
-#endif // __AVXNECONVERT__
+#else  // __AVXNECONVERT__
                 for (; i + 7 < num_input; i += 8)
                 {
                     __m256 _val0 = _mm256_comp_bcstnebf16_ps(m);
@@ -797,6 +797,7 @@ static void innerproduct_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                     m += 4;
                     kptr += 32;
                 }
+#endif // __AVXNECONVERT__
                 for (; i < num_input; i++)
                 {
                     __m256 _val = _mm256_comp_bcstnebf16_ps(m);
