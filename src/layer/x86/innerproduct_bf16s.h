@@ -987,22 +987,8 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
             }
             for (; p < num_input; p++)
             {
-                g0[0] = float32_to_bfloat16(*k0++);
-                g0[1] = float32_to_bfloat16(*k1++);
-                g0[2] = float32_to_bfloat16(*k2++);
-                g0[3] = float32_to_bfloat16(*k3++);
-                g0[4] = float32_to_bfloat16(*k4++);
-                g0[5] = float32_to_bfloat16(*k5++);
-                g0[6] = float32_to_bfloat16(*k6++);
-                g0[7] = float32_to_bfloat16(*k7++);
-                g0[8] = float32_to_bfloat16(*k8++);
-                g0[9] = float32_to_bfloat16(*k9++);
-                g0[10] = float32_to_bfloat16(*ka++);
-                g0[11] = float32_to_bfloat16(*kb++);
-                g0[12] = float32_to_bfloat16(*kc++);
-                g0[13] = float32_to_bfloat16(*kd++);
-                g0[14] = float32_to_bfloat16(*ke++);
-                g0[15] = float32_to_bfloat16(*kf++);
+                __m512 _r0 = _mm512_set_ps(*kf++, *ke++, *kd++, *kc++, *kb++, *ka++, *k9++, *k8++, *k7++, *k6++, *k5++, *k4++, *k3++, *k2++, *k1++, *k0++);
+                _mm256_storeu_si256((__m256i*)g0, float2bfloat_avx512(_r0));
                 g0 += 16;
             }
         }
@@ -1120,22 +1106,17 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
 #if __AVXNECONVERT__
             for (; p + 1 < num_input; p += 2)
             {
-                g0[0] = float32_to_bfloat16(k0[0]);
-                g0[1] = float32_to_bfloat16(k0[1]);
-                g0[2] = float32_to_bfloat16(k1[0]);
-                g0[3] = float32_to_bfloat16(k1[1]);
-                g0[4] = float32_to_bfloat16(k2[0]);
-                g0[5] = float32_to_bfloat16(k2[1]);
-                g0[6] = float32_to_bfloat16(k3[0]);
-                g0[7] = float32_to_bfloat16(k3[1]);
-                g0[8] = float32_to_bfloat16(k4[0]);
-                g0[9] = float32_to_bfloat16(k4[1]);
-                g0[10] = float32_to_bfloat16(k5[0]);
-                g0[11] = float32_to_bfloat16(k5[1]);
-                g0[12] = float32_to_bfloat16(k6[0]);
-                g0[13] = float32_to_bfloat16(k6[1]);
-                g0[14] = float32_to_bfloat16(k7[0]);
-                g0[15] = float32_to_bfloat16(k7[1]);
+                __m128 _r0 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k0));
+                __m128 _r1 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k1));
+                __m128 _r2 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k2));
+                __m128 _r3 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k3));
+                __m128 _r4 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k4));
+                __m128 _r5 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k5));
+                __m128 _r6 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k6));
+                __m128 _r7 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)k7));
+                __m256 _r01 = combine4x2_ps(_mm_movelh_ps(_r0, _r1), _mm_movelh_ps(_r2, _r3));
+                __m256 _r45 = combine4x2_ps(_mm_movelh_ps(_r4, _r5), _mm_movelh_ps(_r6, _r7));
+                _mm256_storeu_si256((__m256i*)g0, float2bfloat_avx(_r01, _r45));
 
                 k0 += 2;
                 k1 += 2;
@@ -1150,14 +1131,8 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
 #endif // __AVXNECONVERT__
             for (; p < num_input; p++)
             {
-                g0[0] = float32_to_bfloat16(*k0++);
-                g0[1] = float32_to_bfloat16(*k1++);
-                g0[2] = float32_to_bfloat16(*k2++);
-                g0[3] = float32_to_bfloat16(*k3++);
-                g0[4] = float32_to_bfloat16(*k4++);
-                g0[5] = float32_to_bfloat16(*k5++);
-                g0[6] = float32_to_bfloat16(*k6++);
-                g0[7] = float32_to_bfloat16(*k7++);
+                __m256 _r0 = _mm256_set_ps(*k7++, *k6++, *k5++, *k4++, *k3++, *k2++, *k1++, *k0++);
+                _mm_storeu_si128((__m128i*)g0, float2bfloat_avx(_r0));
                 g0 += 8;
             }
         }
@@ -1208,10 +1183,8 @@ static void innerproduct_transform_kernel_bf16s(const Mat& weight_data, Mat& wei
             }
             for (; p < num_input; p++)
             {
-                g0[0] = float32_to_bfloat16(*k0++);
-                g0[1] = float32_to_bfloat16(*k1++);
-                g0[2] = float32_to_bfloat16(*k2++);
-                g0[3] = float32_to_bfloat16(*k3++);
+                __m128 _r0 = _mm_set_ps(*k3++, *k2++, *k1++, *k0++);
+                _mm_storel_epi64((__m128i*)g0, float2bfloat_sse(_r0));
                 g0 += 4;
             }
         }

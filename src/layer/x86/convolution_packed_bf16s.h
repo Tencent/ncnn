@@ -1602,30 +1602,25 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 if (out_elempack == 1)
                 {
-#ifdef _MSC_VER
-                    __declspec(align(64))
-#else
-                    __attribute__((aligned(64)))
-#endif
-                    float sum[16];
-                    _mm512_store_ps(sum, _sum0);
-
-                    outptr[0] = float32_to_bfloat16(sum[0]);
-                    outptr[M] = float32_to_bfloat16(sum[1]);
-                    outptr[M * 2] = float32_to_bfloat16(sum[2]);
-                    outptr[M * 3] = float32_to_bfloat16(sum[3]);
-                    outptr[M * 4] = float32_to_bfloat16(sum[4]);
-                    outptr[M * 5] = float32_to_bfloat16(sum[5]);
-                    outptr[M * 6] = float32_to_bfloat16(sum[6]);
-                    outptr[M * 7] = float32_to_bfloat16(sum[7]);
-                    outptr[M * 8] = float32_to_bfloat16(sum[8]);
-                    outptr[M * 9] = float32_to_bfloat16(sum[9]);
-                    outptr[M * 10] = float32_to_bfloat16(sum[10]);
-                    outptr[M * 11] = float32_to_bfloat16(sum[11]);
-                    outptr[M * 12] = float32_to_bfloat16(sum[12]);
-                    outptr[M * 13] = float32_to_bfloat16(sum[13]);
-                    outptr[M * 14] = float32_to_bfloat16(sum[14]);
-                    outptr[M * 15] = float32_to_bfloat16(sum[15]);
+                    __m256i _bf0 = float2bfloat_avx512(_sum0);
+                    __m128i _bf0l = _mm256_castsi256_si128(_bf0);
+                    __m128i _bf0h = _mm256_extractf128_si256(_bf0, 1);
+                    outptr[0] = (unsigned short)_mm_extract_epi16(_bf0l, 0);
+                    outptr[M] = (unsigned short)_mm_extract_epi16(_bf0l, 1);
+                    outptr[M * 2] = (unsigned short)_mm_extract_epi16(_bf0l, 2);
+                    outptr[M * 3] = (unsigned short)_mm_extract_epi16(_bf0l, 3);
+                    outptr[M * 4] = (unsigned short)_mm_extract_epi16(_bf0l, 4);
+                    outptr[M * 5] = (unsigned short)_mm_extract_epi16(_bf0l, 5);
+                    outptr[M * 6] = (unsigned short)_mm_extract_epi16(_bf0l, 6);
+                    outptr[M * 7] = (unsigned short)_mm_extract_epi16(_bf0l, 7);
+                    outptr[M * 8] = (unsigned short)_mm_extract_epi16(_bf0h, 0);
+                    outptr[M * 9] = (unsigned short)_mm_extract_epi16(_bf0h, 1);
+                    outptr[M * 10] = (unsigned short)_mm_extract_epi16(_bf0h, 2);
+                    outptr[M * 11] = (unsigned short)_mm_extract_epi16(_bf0h, 3);
+                    outptr[M * 12] = (unsigned short)_mm_extract_epi16(_bf0h, 4);
+                    outptr[M * 13] = (unsigned short)_mm_extract_epi16(_bf0h, 5);
+                    outptr[M * 14] = (unsigned short)_mm_extract_epi16(_bf0h, 6);
+                    outptr[M * 15] = (unsigned short)_mm_extract_epi16(_bf0h, 7);
                     outptr += 1;
                 }
             }
@@ -2048,22 +2043,15 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 if (out_elempack == 1)
                 {
-#ifdef _MSC_VER
-                    __declspec(align(32))
-#else
-                    __attribute__((aligned(32)))
-#endif
-                    float sum[8];
-                    _mm256_store_ps(sum, _sum0);
-
-                    outptr[0] = float32_to_bfloat16(sum[0]);
-                    outptr[M] = float32_to_bfloat16(sum[1]);
-                    outptr[M * 2] = float32_to_bfloat16(sum[2]);
-                    outptr[M * 3] = float32_to_bfloat16(sum[3]);
-                    outptr[M * 4] = float32_to_bfloat16(sum[4]);
-                    outptr[M * 5] = float32_to_bfloat16(sum[5]);
-                    outptr[M * 6] = float32_to_bfloat16(sum[6]);
-                    outptr[M * 7] = float32_to_bfloat16(sum[7]);
+                    __m128i _bf0 = float2bfloat_avx(_sum0);
+                    outptr[0] = (unsigned short)_mm_extract_epi16(_bf0, 0);
+                    outptr[M] = (unsigned short)_mm_extract_epi16(_bf0, 1);
+                    outptr[M * 2] = (unsigned short)_mm_extract_epi16(_bf0, 2);
+                    outptr[M * 3] = (unsigned short)_mm_extract_epi16(_bf0, 3);
+                    outptr[M * 4] = (unsigned short)_mm_extract_epi16(_bf0, 4);
+                    outptr[M * 5] = (unsigned short)_mm_extract_epi16(_bf0, 5);
+                    outptr[M * 6] = (unsigned short)_mm_extract_epi16(_bf0, 6);
+                    outptr[M * 7] = (unsigned short)_mm_extract_epi16(_bf0, 7);
                     outptr += 1;
                 }
             }
@@ -2484,18 +2472,11 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 if (out_elempack == 1)
                 {
-#ifdef _MSC_VER
-                    __declspec(align(16))
-#else
-                    __attribute__((aligned(16)))
-#endif
-                    float sum[4];
-                    _mm_store_ps(sum, _sum0);
-
-                    outptr[0] = float32_to_bfloat16(sum[0]);
-                    outptr[M] = float32_to_bfloat16(sum[1]);
-                    outptr[M * 2] = float32_to_bfloat16(sum[2]);
-                    outptr[M * 3] = float32_to_bfloat16(sum[3]);
+                    __m128i _bf0 = float2bfloat_sse(_sum0);
+                    outptr[0] = (unsigned short)_mm_extract_epi16(_bf0, 0);
+                    outptr[M] = (unsigned short)_mm_extract_epi16(_bf0, 1);
+                    outptr[M * 2] = (unsigned short)_mm_extract_epi16(_bf0, 2);
+                    outptr[M * 3] = (unsigned short)_mm_extract_epi16(_bf0, 3);
                     outptr += 1;
                 }
             }
