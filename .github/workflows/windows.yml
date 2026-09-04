@@ -1,7 +1,7 @@
 name: windows
 on:
   push:
-    branches: [master, ci-vs2026]
+    branches: [master]
     paths:
     - '.github/workflows/windows.yml'
     - 'CMakeLists.txt'
@@ -43,29 +43,29 @@ permissions:
 jobs:
   msvc:
     name: ${{ matrix.vs-version }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - vs-version: vs2015
-            runner: windows-2022
+            os: windows-2022
             toolset-version: v140
             windows-sdk-version: 22621
           - vs-version: vs2017
-            runner: windows-2022
+            os: windows-2022
             toolset-version: v141
             windows-sdk-version: 22621
           - vs-version: vs2019
-            runner: windows-2022
+            os: windows-2022
             toolset-version: v142
             windows-sdk-version: 26100
           - vs-version: vs2022
-            runner: windows-2022
+            os: windows-2022
             toolset-version: v143
             windows-sdk-version: 26100
           - vs-version: vs2026
-            runner: windows-2025-vs2026
+            os: windows-2025-vs2026
             toolset-version: v145
             windows-sdk-version: 26100
 
