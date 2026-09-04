@@ -44,8 +44,11 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 #endif
 }
 
-int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
+int DeconvolutionDepthWise_arm::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     if (dynamic_weight)
         return 0;
 
@@ -595,8 +598,11 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
     return 0;
 }
 #endif // NCNN_ARM82
-int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
@@ -852,8 +858,11 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     return 0;
 }
 
-int DeconvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int DeconvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& _weight_data = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];

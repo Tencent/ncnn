@@ -210,8 +210,11 @@ static void convolution_transform_kernel_packed_neon(const Mat& weight_data, Mat
     }
 }
 
-int Convolution_arm::create_pipeline(const Option& opt)
+int Convolution_arm::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     if (dynamic_weight)
         return 0;
 
@@ -510,8 +513,11 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 }
 #endif // NCNN_ARM82
 
-int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
@@ -927,8 +933,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     return 0;
 }
 
-int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& _weight_data = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];

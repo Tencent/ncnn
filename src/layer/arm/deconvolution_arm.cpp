@@ -128,8 +128,11 @@ Deconvolution_arm::Deconvolution_arm()
     gemm = 0;
 }
 
-int Deconvolution_arm::create_pipeline(const Option& opt)
+int Deconvolution_arm::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     if (dynamic_weight)
         return 0;
 
@@ -555,8 +558,11 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 }
 #endif // NCNN_ARM82
 
-int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
@@ -1072,8 +1078,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     return 0;
 }
 
-int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& _weight_data = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];

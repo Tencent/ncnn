@@ -208,8 +208,11 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 }
 #endif // NCNN_ARM82
 
-int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_top_blob.elembits();
 
 #if NCNN_ARM82
