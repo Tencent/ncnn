@@ -5,6 +5,57 @@
 
 #include "deconvolution_4x4_fp16s.h"
 
+static void deconvolution_transform_kernel_fp16s(const Mat& kernel, Mat& kernel_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
+{
+    const int maxk = kernel_w * kernel_h;
+
+    Mat kernel_transposed(kernel.w);
+    {
+        float* pt = kernel_transposed;
+        const float* p = kernel;
+
+        for (int i = 0; i < num_input * num_output; i++)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                pt[maxk - 1 - k] = p[k];
+            }
+
+            p += maxk;
+            pt += maxk;
+        }
+    }
+
+    // src = kw-kh-inch-outch
+    // dst = pb-pa-kw-kh-inch/pa-outch/pb
+    Mat kernel_r2 = kernel_transposed.reshape(maxk, num_input, num_output);
+
+    kernel_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+
+    for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+    {
+        __fp16* g00 = kernel_tm.channel(q / out_elempack);
+
+        for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < elempack; i++)
+                {
+                    for (int j = 0; j < out_elempack; j++)
+                    {
+                        const float* k00 = kernel_r2.channel(q + j).row(p + i);
+
+                        g00[0] = (__fp16)k00[k];
+
+                        g00++;
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void deconvolution_fp16s(const Mat& bottom_blob, Mat& top_blob_bordered, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int num_output, int bias_term, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int w = bottom_blob.w;

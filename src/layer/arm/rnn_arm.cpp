@@ -363,45 +363,6 @@ static int rnn_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob, int reverse
 #endif
 }
 
-int RNN_arm::create_pipeline_fp16s(const Option& opt)
-{
-    const int num_directions = direction == 2 ? 2 : 1;
-    const int size = weight_data_size / num_directions / num_output;
-
-    if (opt.use_fp16_arithmetic)
-    {
-        weight_xc_data_packed.create(size * 8, num_output / 8 + (num_output % 8) / 4 + num_output % 4, num_directions, 2u, 1);
-        weight_hc_data_packed.create(num_output * 8, num_output / 8 + (num_output % 8) / 4 + num_output % 4, num_directions, 2u, 1);
-    }
-    else
-    {
-        weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
-        weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
-    }
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int dr = 0; dr < num_directions; dr++)
-    {
-        const Mat weight_xc = weight_xc_data.channel(dr);
-        const Mat weight_hc = weight_hc_data.channel(dr);
-
-        Mat weight_xc_data_packed_dr = weight_xc_data_packed.channel(dr);
-        Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
-
-        rnn_transform_kernel_fp16s_dispatch(weight_xc, weight_hc, weight_xc_data_packed_dr, weight_hc_data_packed_dr, size, num_output, opt.use_fp16_arithmetic);
-    }
-
-    cast_float32_to_float16(bias_c_data, bias_c_data_packed, opt);
-
-    if (opt.lightmode)
-    {
-        weight_xc_data.release();
-        bias_c_data.release();
-        weight_hc_data.release();
-    }
-
-    return 0;
-}
 
 #endif // NCNN_ARM82
 
@@ -584,6 +545,46 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 }
 
 #if NCNN_ARM82
+int RNN_arm::create_pipeline_fp16s(const Option& opt)
+{
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / num_output;
+
+    if (opt.use_fp16_arithmetic)
+    {
+        weight_xc_data_packed.create(size * 8, num_output / 8 + (num_output % 8) / 4 + num_output % 4, num_directions, 2u, 1);
+        weight_hc_data_packed.create(num_output * 8, num_output / 8 + (num_output % 8) / 4 + num_output % 4, num_directions, 2u, 1);
+    }
+    else
+    {
+        weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
+        weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int dr = 0; dr < num_directions; dr++)
+    {
+        const Mat weight_xc = weight_xc_data.channel(dr);
+        const Mat weight_hc = weight_hc_data.channel(dr);
+
+        Mat weight_xc_data_packed_dr = weight_xc_data_packed.channel(dr);
+        Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
+
+        rnn_transform_kernel_fp16s_dispatch(weight_xc, weight_hc, weight_xc_data_packed_dr, weight_hc_data_packed_dr, size, num_output, opt.use_fp16_arithmetic);
+    }
+
+    cast_float32_to_float16(bias_c_data, bias_c_data_packed, opt);
+
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
+    return 0;
+}
+
 int RNN_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int T = bottom_blob.h;

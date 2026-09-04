@@ -265,133 +265,6 @@ static void deconvolutiondepthwise_fp16sa_dispatch(const Mat& bottom_blob, Mat& 
 #endif
 }
 
-int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
-{
-    // create Deconvolution op for each group
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    // depth-wise
-    if (channels == group && group == num_output)
-    {
-        Mat weight_data_transposed(weight_data.w);
-        {
-            float* pt = weight_data_transposed;
-            const float* p = weight_data;
-
-            for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    pt[maxk - 1 - k] = p[k];
-                }
-
-                p += maxk;
-                pt += maxk;
-            }
-        }
-
-        int elempack = 1;
-        if (opt.use_packing_layout)
-        {
-            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-        }
-
-        if (elempack == 8)
-        {
-            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
-
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
-        }
-
-        if (elempack == 4)
-        {
-            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
-
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
-        }
-
-        if (elempack == 1)
-        {
-            ncnn::cast_float32_to_float16(weight_data_transposed, weight_data_tm, opt);
-        }
-
-        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
-    }
-    else
-    {
-        // group deconvolution
-        for (int i = 0; i < (int)group_ops.size(); i++)
-            delete group_ops[i];
-
-        group_ops.clear();
-
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
-
-        group_ops.resize(group);
-
-        for (int g = 0; g < group; g++)
-        {
-            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
-            Mat bias_data_g;
-            if (bias_term)
-                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
-
-            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
-
-            // set param
-            ncnn::ParamDict pd;
-            pd.set(0, num_output_g); // num_output
-            pd.set(1, kernel_w);
-            pd.set(11, kernel_h);
-            pd.set(2, dilation_w);
-            pd.set(12, dilation_h);
-            pd.set(3, stride_w);
-            pd.set(13, stride_h);
-            pd.set(4, 0);  // pad_w
-            pd.set(14, 0); // pad_h
-            pd.set(18, output_pad_right);
-            pd.set(19, output_pad_bottom);
-            pd.set(5, bias_term);
-            pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
-            pd.set(9, activation_type);
-            pd.set(10, activation_params);
-
-            op->load_param(pd);
-
-            // set weights
-            if (bias_term)
-            {
-                ncnn::Mat weights[2];
-                weights[0] = weight_data_g;
-                weights[1] = bias_data_g;
-
-                op->load_model(ModelBinFromMatArray(weights));
-            }
-            else
-            {
-                ncnn::Mat weights[1];
-                weights[0] = weight_data_g;
-
-                op->load_model(ModelBinFromMatArray(weights));
-            }
-
-            op->create_pipeline(opt);
-
-            group_ops[g] = op;
-        }
-    }
-
-    if (opt.lightmode)
-        weight_data.release();
-
-    return 0;
-}
 
 #endif // NCNN_ARM82
 int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
@@ -799,6 +672,134 @@ int DeconvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, st
 }
 
 #if NCNN_ARM82
+int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
+{
+    // create Deconvolution op for each group
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        Mat weight_data_transposed(weight_data.w);
+        {
+            float* pt = weight_data_transposed;
+            const float* p = weight_data;
+
+            for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    pt[maxk - 1 - k] = p[k];
+                }
+
+                p += maxk;
+                pt += maxk;
+            }
+        }
+
+        int elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+        }
+
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+            Mat weight_data_r2_packed;
+            convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
+
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
+        }
+
+        if (elempack == 4)
+        {
+            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+            Mat weight_data_r2_packed;
+            convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
+
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
+        }
+
+        if (elempack == 1)
+        {
+            ncnn::cast_float32_to_float16(weight_data_transposed, weight_data_tm, opt);
+        }
+
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
+    else
+    {
+        // group deconvolution
+        for (int i = 0; i < (int)group_ops.size(); i++)
+            delete group_ops[i];
+
+        group_ops.clear();
+
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
+
+        group_ops.resize(group);
+
+        for (int g = 0; g < group; g++)
+        {
+            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
+
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output_g); // num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);  // pad_w
+            pd.set(14, 0); // pad_h
+            pd.set(18, output_pad_right);
+            pd.set(19, output_pad_bottom);
+            pd.set(5, bias_term);
+            pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
+            pd.set(9, activation_type);
+            pd.set(10, activation_params);
+
+            op->load_param(pd);
+
+            // set weights
+            if (bias_term)
+            {
+                ncnn::Mat weights[2];
+                weights[0] = weight_data_g;
+                weights[1] = bias_data_g;
+
+                op->load_model(ModelBinFromMatArray(weights));
+            }
+            else
+            {
+                ncnn::Mat weights[1];
+                weights[0] = weight_data_g;
+
+                op->load_model(ModelBinFromMatArray(weights));
+            }
+
+            op->create_pipeline(opt);
+
+            group_ops[g] = op;
+        }
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
 int DeconvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

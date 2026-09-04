@@ -76,22 +76,6 @@ Convolution1D_arm::Convolution1D_arm()
 #endif
 }
 
-#if NCNN_ARM82
-int Convolution1D_arm::create_pipeline_fp16s(const Option& opt)
-{
-    const int num_input = weight_data_size / kernel_w / num_output;
-
-    convolution1d_transform_kernel_packed_fp16s_dispatch(weight_data, weight_data_tm, num_input, num_output, kernel_w);
-
-    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
-
-    if (opt.lightmode)
-        weight_data.release();
-
-    return 0;
-}
-#endif // NCNN_ARM82
-
 int Convolution1D_arm::create_pipeline(const Option& opt)
 {
     if (dynamic_weight)
@@ -281,6 +265,20 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 }
 
 #if NCNN_ARM82
+int Convolution1D_arm::create_pipeline_fp16s(const Option& opt)
+{
+    const int num_input = weight_data_size / kernel_w / num_output;
+
+    convolution1d_transform_kernel_packed_fp16s_dispatch(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+
+    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
 int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

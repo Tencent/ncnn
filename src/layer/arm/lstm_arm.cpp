@@ -453,48 +453,6 @@ static int lstm_fp16s_dispatch(const Mat& bottom_blob, Mat& top_blob, int revers
 #endif
 }
 
-int LSTM_arm::create_pipeline_fp16s(const Option& opt)
-{
-    // pack IFOG
-    const int num_directions = direction == 2 ? 2 : 1;
-    const int size = weight_data_size / num_directions / hidden_size / 4;
-
-    if (opt.use_fp16_arithmetic)
-    {
-        weight_xc_data_packed.create(size, hidden_size / 2 + hidden_size % 2, num_directions, 16u, 8);
-        bias_c_data_packed.create(hidden_size, 1, num_directions, 8u, 4);
-        weight_hc_data_packed.create(num_output, hidden_size / 2 + hidden_size % 2, num_directions, 16u, 8);
-    }
-    else
-    {
-        weight_xc_data_packed.create(size, hidden_size, num_directions, 8u, 4);
-        bias_c_data_packed.create(hidden_size, 1, num_directions, 8u, 4);
-        weight_hc_data_packed.create(num_output, hidden_size, num_directions, 8u, 4);
-    }
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int dr = 0; dr < num_directions; dr++)
-    {
-        const Mat weight_xc = weight_xc_data.channel(dr);
-        const Mat bias_c = bias_c_data.channel(dr);
-        const Mat weight_hc = weight_hc_data.channel(dr);
-
-        Mat weight_xc_data_packed_dr = weight_xc_data_packed.channel(dr);
-        Mat bias_c_data_packed_dr = bias_c_data_packed.channel(dr);
-        Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
-
-        lstm_transform_kernel_fp16s_dispatch(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, opt.use_fp16_arithmetic);
-    }
-
-    if (opt.lightmode)
-    {
-        weight_xc_data.release();
-        bias_c_data.release();
-        weight_hc_data.release();
-    }
-
-    return 0;
-}
 
 #endif // NCNN_ARM82
 
@@ -693,6 +651,49 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 }
 
 #if NCNN_ARM82
+int LSTM_arm::create_pipeline_fp16s(const Option& opt)
+{
+    // pack IFOG
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / hidden_size / 4;
+
+    if (opt.use_fp16_arithmetic)
+    {
+        weight_xc_data_packed.create(size, hidden_size / 2 + hidden_size % 2, num_directions, 16u, 8);
+        bias_c_data_packed.create(hidden_size, 1, num_directions, 8u, 4);
+        weight_hc_data_packed.create(num_output, hidden_size / 2 + hidden_size % 2, num_directions, 16u, 8);
+    }
+    else
+    {
+        weight_xc_data_packed.create(size, hidden_size, num_directions, 8u, 4);
+        bias_c_data_packed.create(hidden_size, 1, num_directions, 8u, 4);
+        weight_hc_data_packed.create(num_output, hidden_size, num_directions, 8u, 4);
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int dr = 0; dr < num_directions; dr++)
+    {
+        const Mat weight_xc = weight_xc_data.channel(dr);
+        const Mat bias_c = bias_c_data.channel(dr);
+        const Mat weight_hc = weight_hc_data.channel(dr);
+
+        Mat weight_xc_data_packed_dr = weight_xc_data_packed.channel(dr);
+        Mat bias_c_data_packed_dr = bias_c_data_packed.channel(dr);
+        Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
+
+        lstm_transform_kernel_fp16s_dispatch(weight_xc, bias_c, weight_hc, weight_xc_data_packed_dr, bias_c_data_packed_dr, weight_hc_data_packed_dr, size, num_output, hidden_size, opt.use_fp16_arithmetic);
+    }
+
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
+    return 0;
+}
+
 int LSTM_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int T = bottom_blob.h;

@@ -401,23 +401,6 @@ int Convolution_arm::create_pipeline(const Option& _opt)
     return 0;
 }
 
-#if NCNN_ARM82
-int Convolution_arm::create_pipeline_fp16s(const Option& opt)
-{
-    convolution_transform_kernel_fp16s_dispatch(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-    if (opt.use_fp16_arithmetic)
-    {
-        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
-    }
-
-    if (opt.lightmode)
-        weight_data.release();
-
-    return 0;
-}
-#endif // NCNN_ARM82
-
 int Convolution_arm::destroy_pipeline(const Option& opt)
 {
     if (activation)
@@ -969,6 +952,21 @@ int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 }
 
 #if NCNN_ARM82
+int Convolution_arm::create_pipeline_fp16s(const Option& opt)
+{
+    convolution_transform_kernel_fp16s_dispatch(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+    if (opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
 int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

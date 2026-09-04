@@ -353,60 +353,6 @@ static int convolutiondepthwise_fp16sa_dispatch(const Mat& bottom_blob_bordered,
 #endif
 }
 
-int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
-{
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    // depth-wise
-    if (channels == group && group == num_output)
-    {
-        int elempack = 1;
-
-        if (opt.use_packing_layout)
-        {
-            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-        }
-
-        if (elempack == 8)
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
-
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
-        }
-
-        if (elempack == 4)
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
-
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
-        }
-
-        if (elempack == 1)
-        {
-            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
-        }
-
-        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
-
-        if (opt.lightmode)
-            weight_data.release();
-
-        return 0;
-    }
-
-    // group convolution
-    create_group_ops(opt);
-
-    if (opt.lightmode)
-        weight_data.release();
-
-    return 0;
-}
 
 #endif // NCNN_ARM82
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
@@ -814,6 +760,61 @@ int ConvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, std:
 }
 
 #if NCNN_ARM82
+int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        int elempack = 1;
+
+        if (opt.use_packing_layout)
+        {
+            elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+        }
+
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            Mat weight_data_r2_packed;
+            convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
+
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
+        }
+
+        if (elempack == 4)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            Mat weight_data_r2_packed;
+            convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
+
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
+        }
+
+        if (elempack == 1)
+        {
+            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
+        }
+
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+        if (opt.lightmode)
+            weight_data.release();
+
+        return 0;
+    }
+
+    // group convolution
+    create_group_ops(opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
 int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

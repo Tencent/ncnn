@@ -5742,262 +5742,6 @@ static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat
 }
 #endif // NCNN_ARM82
 
-#if NCNN_VFPV4
-int Gemm_arm::create_pipeline_fp16s(const Option& opt)
-{
-    if (constantA)
-    {
-        const int M = constantM;
-        const int K = constantK;
-
-        int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16s(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_M = (M + TILE_M - 1) / TILE_M;
-
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
-        if (AT_data.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppj = 0; ppj < nn_M; ppj++)
-        {
-            const int i = ppj * TILE_M;
-
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_kk = std::min((K - k), TILE_K);
-
-                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
-
-                if (transA)
-                {
-                    transpose_pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
-                else
-                {
-                    pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
-            }
-        }
-
-        if (opt.lightmode)
-            A_data.release();
-    }
-
-    if (constantB)
-    {
-        const int N = constantN;
-        const int K = constantK;
-
-        int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16s(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_N = (N + TILE_N - 1) / TILE_N;
-
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
-        if (BT_data.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppj = 0; ppj < nn_N; ppj++)
-        {
-            const int j = ppj * TILE_N;
-
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_jj = std::min((N - j), TILE_N);
-                const int max_kk = std::min((K - k), TILE_K);
-
-                Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (transB)
-                {
-                    pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
-                }
-                else
-                {
-                    transpose_pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
-                }
-            }
-        }
-
-        if (opt.lightmode)
-            B_data.release();
-    }
-
-    if (constantC && constant_broadcast_type_C != -1)
-    {
-        CT_data = C_data;
-
-#if __ARM_NEON
-        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
-        {
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
-            convert_packing(C_data, CT_data, C_elempack, opt);
-            if (CT_data.empty())
-                return -100;
-        }
-#endif // __ARM_NEON
-
-        // pre-multiply C with beta
-        if (beta != 1.f)
-        {
-            Mat C2;
-            C2.create_like(CT_data);
-            if (C2.empty())
-                return -100;
-
-            const int size = CT_data.total() * CT_data.elempack;
-            for (int i = 0; i < size; i++)
-            {
-                C2[i] = CT_data[i] * beta;
-            }
-
-            CT_data = C2;
-        }
-
-        if (opt.lightmode)
-            C_data.release();
-    }
-
-    if (constantA || constantB || constantC)
-    {
-        nT = opt.num_threads;
-    }
-
-    return 0;
-}
-
-#endif // NCNN_VFPV4
-
-#if NCNN_ARM82
-int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
-{
-    if (constantA)
-    {
-        const int M = constantM;
-        const int K = constantK;
-
-        int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16sa(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_M = (M + TILE_M - 1) / TILE_M;
-
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
-        if (AT_data.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppj = 0; ppj < nn_M; ppj++)
-        {
-            const int i = ppj * TILE_M;
-
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_kk = std::min((K - k), TILE_K);
-
-                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
-
-                if (transA)
-                {
-                    transpose_pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
-                else
-                {
-                    pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
-            }
-        }
-
-        if (opt.lightmode)
-            A_data.release();
-    }
-
-    if (constantB)
-    {
-        const int N = constantN;
-        const int K = constantK;
-
-        int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16sa(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_N = (N + TILE_N - 1) / TILE_N;
-
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
-        if (BT_data.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppj = 0; ppj < nn_N; ppj++)
-        {
-            const int j = ppj * TILE_N;
-
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_jj = std::min((N - j), TILE_N);
-                const int max_kk = std::min((K - k), TILE_K);
-
-                Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (transB)
-                {
-                    pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
-                }
-                else
-                {
-                    transpose_pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
-                }
-            }
-        }
-
-        if (opt.lightmode)
-            B_data.release();
-    }
-
-    if (constantC && constant_broadcast_type_C != -1)
-    {
-        cast_float32_to_float16(C_data, CT_data, opt);
-        if (CT_data.empty())
-            return -100;
-
-        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
-        {
-            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
-            Mat tmp;
-            convert_packing(CT_data, tmp, C_elempack, opt);
-            CT_data = tmp;
-            if (CT_data.empty())
-                return -100;
-        }
-
-        // pre-multiply C with beta
-        if (beta != 1.f)
-        {
-            const int size = CT_data.total() * CT_data.elempack;
-            __fp16* ptr = CT_data;
-            for (int i = 0; i < size; i++)
-            {
-                ptr[i] *= beta;
-            }
-        }
-
-        if (opt.lightmode)
-            C_data.release();
-    }
-
-    if (constantA || constantB || constantC)
-    {
-        nT = opt.num_threads;
-    }
-
-    return 0;
-}
-
-#endif // NCNN_ARM82
-
 int Gemm_arm::create_pipeline(const Option& opt)
 {
     if (weight_block_quantize)
@@ -6394,6 +6138,133 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 }
 
 #if NCNN_VFPV4
+int Gemm_arm::create_pipeline_fp16s(const Option& opt)
+{
+    if (constantA)
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_fp16s(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_M; ppj++)
+        {
+            const int i = ppj * TILE_M;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_ii = std::min((M - i), TILE_M);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                if (transA)
+                {
+                    transpose_pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+                else
+                {
+                    pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+            A_data.release();
+    }
+
+    if (constantB)
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_fp16s(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_N; ppj++)
+        {
+            const int j = ppj * TILE_N;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (transB)
+                {
+                    pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+                else
+                {
+                    transpose_pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+            B_data.release();
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        CT_data = C_data;
+
+#if __ARM_NEON
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
+        {
+            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
+        }
+#endif // __ARM_NEON
+
+        // pre-multiply C with beta
+        if (beta != 1.f)
+        {
+            Mat C2;
+            C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
+
+            const int size = CT_data.total() * CT_data.elempack;
+            for (int i = 0; i < size; i++)
+            {
+                C2[i] = CT_data[i] * beta;
+            }
+
+            CT_data = C2;
+        }
+
+        if (opt.lightmode)
+            C_data.release();
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
+    }
+
+    return 0;
+}
+
 int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int M;
@@ -6574,6 +6445,129 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // NCNN_VFPV4
 
 #if NCNN_ARM82
+int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
+{
+    if (constantA)
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_fp16sa(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_M; ppj++)
+        {
+            const int i = ppj * TILE_M;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_ii = std::min((M - i), TILE_M);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                if (transA)
+                {
+                    transpose_pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+                else
+                {
+                    pack_A_tile_fp32_to_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+            A_data.release();
+    }
+
+    if (constantB)
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_fp16sa(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_N; ppj++)
+        {
+            const int j = ppj * TILE_N;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (transB)
+                {
+                    pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+                else
+                {
+                    transpose_pack_B_tile_fp32_to_fp16(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+            B_data.release();
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        cast_float32_to_float16(C_data, CT_data, opt);
+        if (CT_data.empty())
+            return -100;
+
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
+        {
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
+            Mat tmp;
+            convert_packing(CT_data, tmp, C_elempack, opt);
+            CT_data = tmp;
+            if (CT_data.empty())
+                return -100;
+        }
+
+        // pre-multiply C with beta
+        if (beta != 1.f)
+        {
+            const int size = CT_data.total() * CT_data.elempack;
+            __fp16* ptr = CT_data;
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] *= beta;
+            }
+        }
+
+        if (opt.lightmode)
+            C_data.release();
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
+    }
+
+    return 0;
+}
+
 int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int M;
