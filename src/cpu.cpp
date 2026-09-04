@@ -2621,9 +2621,11 @@ int cpu_arm_sve_vlenb()
 
     size_t vlenb;
     asm volatile(
-        ".arch_extension sve\n"
-        "cntb   %x0        \n"
-        : "=r"(vlenb));
+        ".word  0x0420e3e9  \n" // cntb x9
+        "mov    %x0, x9     \n"
+        : "=r"(vlenb)
+        :
+        : "memory", "x9");
     return (int)vlenb;
 #else
     return 0;
