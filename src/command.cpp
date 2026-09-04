@@ -1431,20 +1431,37 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                         sampler_binding_count++;
                 }
 
+                // VUID-VkDescriptorPoolSize-descriptorCount-00302: each
+                // descriptorCount must be > 0. Skip unused descriptor types
+                // (common on buffer-only compute shaders; Mesa v3dv asserts).
+                // See https://github.com/Tencent/ncnn/issues/6951
                 VkDescriptorPoolSize poolSizes[3];
-                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                poolSizes[0].descriptorCount = buffer_binding_count;
-                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[1].descriptorCount = image_binding_count;
-                poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[2].descriptorCount = sampler_binding_count;
+                uint32_t pool_size_count = 0;
+                if (buffer_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    poolSizes[pool_size_count].descriptorCount = buffer_binding_count;
+                    pool_size_count++;
+                }
+                if (image_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                    poolSizes[pool_size_count].descriptorCount = image_binding_count;
+                    pool_size_count++;
+                }
+                if (sampler_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    poolSizes[pool_size_count].descriptorCount = sampler_binding_count;
+                    pool_size_count++;
+                }
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 descriptorPoolCreateInfo.pNext = 0;
                 descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
                 descriptorPoolCreateInfo.maxSets = 1;
-                descriptorPoolCreateInfo.poolSizeCount = 3;
+                descriptorPoolCreateInfo.poolSizeCount = pool_size_count;
                 descriptorPoolCreateInfo.pPoolSizes = poolSizes;
 
                 VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
