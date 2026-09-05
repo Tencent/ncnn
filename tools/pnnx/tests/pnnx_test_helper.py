@@ -37,44 +37,54 @@ def _load_pnnx_module(tag):
     return sys.modules[mod_name]
 
 
+def _flatten_leaves(x):
+    # flatten a (possibly nested) pytree structure into a flat list of leaves
+    #
+    # torch.export serializes graph outputs as a flat sequence of tensors in
+    # pytree leaf order: a dict return becomes several flat user_outputs, a
+    # nested tuple/list is expanded, and a single-element tuple collapses into
+    # the bare value. its user_inputs follow the same flattening on the input
+    # side. reuse torch.utils._pytree.tree_flatten so the ordering (dict by
+    # insertion order, list/tuple by position) matches the exporter exactly.
+    if isinstance(x, torch.Tensor):
+        return [x]
+    try:
+        from torch.utils._pytree import tree_flatten
+
+        leaves, _ = tree_flatten(x)
+        return list(leaves)
+    except Exception:
+        # a container pytree does not understand (custom object) - keep it as a
+        # single opaque leaf so a length mismatch still surfaces as a failure
+        return [x]
+
+
 def _outputs_equal(a, b, atol=1e-3, rtol=1e-3):
-    if isinstance(a, (tuple, list)):
-        if len(a) != len(b):
-            # torch.export flattens a single-element tuple output into the bare
-            # value (the fx graph ends with one as_tensor output), while the
-            # torchscript path keeps a one-element tuple; only the one-element
-            # case is an equivalent representation - any other length mismatch
-            # is a real dropped-output regression and must not be compared
-            # element-wise
-            if len(a) == 1 and not isinstance(b, (tuple, list)):
-                return _outputs_equal(a[0], b, atol, rtol)
+    # the reference `ref` may be a dict / nested pytree while torch.export and
+    # pnnx both hand back the flat leaf tensors in the same order; flatten both
+    # sides and compare the leaves pairwise
+    a_flat = _flatten_leaves(a)
+    b_flat = _flatten_leaves(b)
+    if len(a_flat) != len(b_flat):
+        return False
+    for x, y in zip(a_flat, b_flat):
+        if x.dtype == torch.bool or y.dtype == torch.bool:
+            if not torch.equal(x, y):
+                return False
+        elif not torch.allclose(x, y, atol=atol, rtol=rtol):
             return False
-        return all(_outputs_equal(x, y, atol, rtol) for x, y in zip(a, b))
-    if isinstance(b, (tuple, list)):
-        if len(b) != 1:
-            return False
-        return _outputs_equal(a, b[0], atol, rtol)
-    if a.dtype == torch.bool:
-        return torch.equal(a, b)
-    return torch.allclose(a, b, atol=atol, rtol=rtol)
+    return True
 
 
 def _outputs_shape_equal(a, b):
     # shape + dtype only; for outputs with unspecified values (e.g. uninitialized
-    # new_empty buffers) the torchscript path only compares shapes, mirror it
-    if isinstance(a, (tuple, list)):
-        if len(a) != len(b):
-            # torch.export flattens a single-element tuple output into the bare
-            # value; see _outputs_equal - only the one-element case is valid
-            if len(a) == 1 and not isinstance(b, (tuple, list)):
-                return _outputs_shape_equal(a[0], b)
-            return False
-        return all(_outputs_shape_equal(x, y) for x, y in zip(a, b))
-    if isinstance(b, (tuple, list)):
-        if len(b) != 1:
-            return False
-        return _outputs_shape_equal(a, b[0])
-    return a.shape == b.shape and a.dtype == b.dtype
+    # new_empty buffers) the torchscript path only compares shapes, mirror it;
+    # flatten both sides first, see _outputs_equal
+    a_flat = _flatten_leaves(a)
+    b_flat = _flatten_leaves(b)
+    if len(a_flat) != len(b_flat):
+        return False
+    return all(x.shape == y.shape and x.dtype == y.dtype for x, y in zip(a_flat, b_flat))
 
 
 def _torch_dtype_to_pnnx(dtype):
@@ -104,14 +114,10 @@ def _torch_dtype_to_pnnx(dtype):
 
 
 def _flatten_args(args):
-    # list/tuple inputs expand into multiple user_inputs in torch.export; flatten them here
-    flat = []
-    for a in args:
-        if isinstance(a, (list, tuple)):
-            flat.extend(a)
-        else:
-            flat.append(a)
-    return flat
+    # dict/list/tuple inputs (possibly nested) expand into multiple user_inputs
+    # in torch.export; flatten them recursively in pytree leaf order so the flat
+    # sequence maps 1:1 to the exported user_input specs / inputshapes
+    return _flatten_leaves(args)
 
 
 def _inputshapes_with_dtype(args, inputshapes):
