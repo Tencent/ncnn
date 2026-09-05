@@ -52,6 +52,7 @@ private:
     Pt2ArchiveReader& operator=(const Pt2ArchiveReader&) = delete;
 
     void reset();
+    int read_entry(const std::string& entry, uint64_t size_limit, std::vector<char>& data, std::string& error);
 
     StoreZipReader reader;
     Pt2PackageLayout package_layout;

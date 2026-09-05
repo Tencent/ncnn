@@ -98,13 +98,7 @@ void Pt2ArchiveReader::reset()
 {
     reader.close();
 
-    package_layout.root.clear();
-    package_layout.archive_version = 0;
-    package_layout.model_name.clear();
-    package_layout.model_json_path.clear();
-    package_layout.weights_config_path.clear();
-    package_layout.constants_config_path.clear();
-    package_layout.byte_order = PT2_BYTE_ORDER_LITTLE;
+    package_layout = Pt2PackageLayout();
     opened = false;
 }
 
@@ -153,13 +147,6 @@ int Pt2ArchiveReader::open(const std::string& path, const ModelFormatInfo& forma
         const std::string& name = names[i];
         if (!starts_with(name, root_prefix))
             continue;
-
-        if (!reader.is_file_stored(name))
-        {
-            error = "compressed pt2 entry is unsupported " + name;
-            reset();
-            return -1;
-        }
 
         if (starts_with(name, aotinductor_prefix))
             has_aotinductor_entry = true;
@@ -221,8 +208,11 @@ int Pt2ArchiveReader::open(const std::string& path, const ModelFormatInfo& forma
         return -1;
     }
 
+    package_layout.root = format_info.archive_root;
+    opened = true;
+
     std::vector<char> byteorder_data;
-    if (read_stored_entry(reader, byteorder_path, 6, byteorder_data, error) != 0)
+    if (read_entry(byteorder_path, 6, byteorder_data, error) != 0)
     {
         reset();
         return -1;
@@ -245,15 +235,12 @@ int Pt2ArchiveReader::open(const std::string& path, const ModelFormatInfo& forma
         return -1;
     }
 
-    package_layout.root = format_info.archive_root;
     package_layout.archive_version = format_info.archive_version;
     package_layout.model_name = model_name;
     package_layout.model_json_path = model_json_path;
     package_layout.weights_config_path = weights_config_path;
     package_layout.constants_config_path = constants_config_path;
     package_layout.byte_order = byte_order;
-    opened = true;
-
     return 0;
 }
 
@@ -264,31 +251,9 @@ const Pt2PackageLayout& Pt2ArchiveReader::layout() const
 
 int Pt2ArchiveReader::read_json(const std::string& entry, JsonValue& value, std::string& error)
 {
-    error.clear();
-
-    if (!opened)
-    {
-        error = "pt2 package is not open";
-        return -1;
-    }
-
-    if (!reader.has_file(entry))
-    {
-        error = entry + " is missing";
-        return -1;
-    }
-
     const uint64_t max_json_size = (uint64_t)512 * 1024 * 1024;
-    if (reader.get_file_size(entry) > max_json_size)
-    {
-        std::ostringstream message;
-        message << entry << " exceeds the " << max_json_size << " byte json limit";
-        error = message.str();
-        return -1;
-    }
-
     std::vector<char> data;
-    if (read_blob(entry, data, error) != 0)
+    if (read_entry(entry, max_json_size, data, error) != 0)
         return -1;
 
     JsonParseError parse_error;
@@ -311,6 +276,11 @@ int Pt2ArchiveReader::read_json(const std::string& entry, JsonValue& value, std:
 
 int Pt2ArchiveReader::read_blob(const std::string& entry, std::vector<char>& data, std::string& error)
 {
+    return read_entry(entry, std::numeric_limits<uint64_t>::max(), data, error);
+}
+
+int Pt2ArchiveReader::read_entry(const std::string& entry, uint64_t size_limit, std::vector<char>& data, std::string& error)
+{
     error.clear();
     data.clear();
 
@@ -327,7 +297,7 @@ int Pt2ArchiveReader::read_blob(const std::string& entry, std::vector<char>& dat
         return -1;
     }
 
-    return read_stored_entry(reader, entry, std::numeric_limits<uint64_t>::max(), data, error);
+    return read_stored_entry(reader, entry, size_limit, data, error);
 }
 
 } // namespace pnnx

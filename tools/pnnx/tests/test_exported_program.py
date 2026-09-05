@@ -1396,31 +1396,68 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
             source_path = work_dir / "compressed_source.pt2"
-            archive_path = work_dir / "compressed.pt2"
             save_exported_program(self.model, source_path)
             with zipfile.ZipFile(source_path, "r") as source:
                 entries = [
                     (info.filename, source.read(info))
                     for info in source.infolist()
                 ]
-            target = next(
-                name
-                for name, _ in entries
-                if "/data/weights/" in name and not name.endswith(".json")
+            root = entries[0][0].split("/", 1)[0]
+            cases = (
+                (
+                    "unused_attachment",
+                    f"{root}/extra/note.txt",
+                    b"unused attachment",
+                    True,
+                ),
+                (
+                    "model_json",
+                    archive_entry(dict(entries), "/models/", ".json"),
+                    None,
+                    False,
+                ),
+                (
+                    "weights_config",
+                    archive_entry(dict(entries), "", "_weights_config.json"),
+                    None,
+                    False,
+                ),
+                (
+                    "weight_blob",
+                    next(
+                        name
+                        for name, _ in entries
+                        if "/data/weights/" in name
+                        and not name.endswith(".json")
+                    ),
+                    None,
+                    False,
+                ),
             )
-            with zipfile.ZipFile(archive_path, "w") as destination:
-                for name, data in entries:
-                    compression = (
-                        zipfile.ZIP_DEFLATED
-                        if name == target
-                        else zipfile.ZIP_STORED
-                    )
-                    destination.writestr(name, data, compress_type=compression)
-            self.assert_conversion_fails(
-                work_dir,
-                archive_path,
-                "compressed pt2 entry is unsupported",
-            )
+            for label, target, attachment, converts in cases:
+                with self.subTest(entry=label):
+                    archive_path = work_dir / f"compressed_{label}.pt2"
+                    archive_entries = list(entries)
+                    if attachment is not None:
+                        archive_entries.append((target, attachment))
+                    with zipfile.ZipFile(archive_path, "w") as destination:
+                        for name, data in archive_entries:
+                            compression = (
+                                zipfile.ZIP_DEFLATED
+                                if name == target
+                                else zipfile.ZIP_STORED
+                            )
+                            destination.writestr(
+                                name, data, compress_type=compression
+                            )
+                    if converts:
+                        self.assert_conversion_matches(work_dir, archive_path)
+                    else:
+                        self.assert_conversion_fails(
+                            work_dir,
+                            archive_path,
+                            "compressed pt2 entry is unsupported",
+                        )
 
     def test_missing_and_truncated_payloads_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
