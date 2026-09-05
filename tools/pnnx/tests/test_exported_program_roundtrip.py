@@ -150,6 +150,7 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
 
         self.assertEqual(source.count("def _create_example_inputs():"), 1)
 
+        torch.manual_seed(0)
         generated_inputs = self.call(module._create_example_inputs)
         output = self.call(module.test_inference)
         self.assertEqual(
@@ -160,6 +161,12 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
             [tensor.dtype for tensor in output],
             [torch.int64, torch.float64, torch.bool],
         )
+        self.assertEqual(len(output), len(generated_inputs))
+        for expected_tensor, actual_tensor in zip(generated_inputs, output):
+            self.assertEqual(actual_tensor.shape, expected_tensor.shape)
+            torch.testing.assert_close(
+                actual_tensor, expected_tensor, rtol=0, atol=0
+            )
         self.call(module.export_torchscript)
         self.assertTrue((self.work_dir / "dtypes_pnnx.py.pt").is_file())
 
