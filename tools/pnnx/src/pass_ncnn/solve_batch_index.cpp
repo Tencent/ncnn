@@ -152,8 +152,15 @@ static int get_known_operator_batch_index(const Operator* op)
     }
     if (op->type == "F.pad")
     {
-        // F.pad input rank depends on the pad dims: 1D/2D inputs have no batch, 3D+ do (axis 0)
-        if (input_rank <= 2)
+        // F.pad pads the trailing dims. the input rank alone is not enough:
+        // when the pad tuple covers every dimension (e.g. a rank-3 tensor
+        // padded on all three axes), axis 0 is itself padded and cannot be the
+        // untouched ncnn batch axis. count the pad pairs and treat a fully
+        // padded input as having no explicit batch.
+        int pad_pairs = 0;
+        if (op->params.find("pad") != op->params.end() && op->params.at("pad").type == 5)
+            pad_pairs = (int)op->params.at("pad").ai.size() / 2;
+        if (input_rank <= 2 || pad_pairs >= input_rank)
             return 233;
     }
     if (op->type == "torch.stft" || op->type == "torchaudio.functional.spectrogram")

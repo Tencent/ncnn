@@ -892,8 +892,14 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     }
     else if (type == "aten::amax" || type == "aten::amin")
     {
+        // dim defaults to None (reduce all); when omitted add the null dim slot
+        // so [self, dim, keepdim] matches the level-2 pattern instead of
+        // leaving a keepdim-only node that no pattern rewrites
+        if (!has_input_name(inputnames, "dim"))
+            add_const("dim", Parameter());
         if (!has_input_name(inputnames, "keepdim"))
             add_const("keepdim", false);
+        reorder_inputs({"self", "dim", "keepdim"});
     }
     else if (type == "aten::max" || type == "aten::min")
     {
@@ -970,13 +976,21 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     }
     else if (type == "aten::addmm")
     {
+        // beta/alpha are trailing keyword-only defaults; a call supplying only
+        // one of them (e.g. addmm(b, m1, m2, alpha=2)) serializes the omitted
+        // one out of place, so restore the canonical [self mat1 mat2 beta alpha]
+        // order for the level-2 pattern
         if (!has_input_name(inputnames, "beta"))
             add_const("beta", 1);
         if (!has_input_name(inputnames, "alpha"))
             add_const("alpha", 1);
+        reorder_inputs({"self", "mat1", "mat2", "beta", "alpha"});
     }
     else if (type == "aten::linalg_vector_norm")
     {
+        // dtype is a keyword-only trailing default; restore the canonical
+        // [self ord dim keepdim dtype] order when it was serialized ahead of
+        // the omitted ord/dim/keepdim defaults
         if (!has_input_name(inputnames, "ord"))
             add_const("ord", 2.0f);
         if (!has_input_name(inputnames, "dim"))
@@ -985,6 +999,7 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
             add_const("keepdim", false);
         if (!has_input_name(inputnames, "dtype"))
             add_const("dtype", Parameter());
+        reorder_inputs({"self", "ord", "dim", "keepdim", "dtype"});
     }
     else if (type == "aten::_weight_norm")
     {
@@ -1185,6 +1200,95 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
 // higher_order node outputs
 static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
                                 std::map<std::string, Operand*>& operands_by_name,
+                                int& constant_index, int& subop_index);
+
+// inline a wrap_with_autocast / wrap_with_set_grad_enabled higher-order node:
+// the wrapper carries scalar context args, one embedded subgraph, and the
+// captured closure tensors (as_tensor inputs). bind those captures to the
+// subgraph placeholders in order, build the subgraph body, then map the
+// subgraph results onto the wrapper output names so later nodes resolve.
+static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
+                                   std::map<std::string, Operand*>& operands_by_name,
+                                   int& constant_index, int& subop_index)
+{
+    const JsonValue& ho_inputs = nd["inputs"];
+    const JsonValue* subgraph = 0;
+    std::vector<Operand*> captures;
+
+    for (size_t j = 0; j < ho_inputs.size(); j++)
+    {
+        const JsonValue& arg = ho_inputs[j]["arg"];
+        if (arg.has("as_graph"))
+        {
+            subgraph = &arg["as_graph"]["graph"];
+        }
+        else if (arg.has("as_tensor"))
+        {
+            // captured closure tensor feeding a subgraph placeholder
+            std::string name = arg["as_tensor"]["name"].as_string();
+            std::map<std::string, Operand*>::iterator it = operands_by_name.find(name);
+            if (it == operands_by_name.end())
+            {
+                fprintf(stderr, "captured operand %s not found for higher_order op\n", name.c_str());
+                return -1;
+            }
+            captures.push_back(it->second);
+        }
+    }
+    if (!subgraph)
+        return 0;
+
+    // bind the subgraph placeholders to the captured operands in order
+    if (subgraph->has("inputs"))
+    {
+        const JsonValue& sub_inputs = (*subgraph)["inputs"];
+        if (sub_inputs.size() == captures.size())
+        {
+            for (size_t k = 0; k < sub_inputs.size(); k++)
+            {
+                if (sub_inputs[k].has("as_tensor"))
+                {
+                    std::string pname = sub_inputs[k]["as_tensor"]["name"].as_string();
+                    if (operands_by_name.find(pname) == operands_by_name.end())
+                        operands_by_name[pname] = captures[k];
+                }
+            }
+        }
+        else if (!captures.empty())
+        {
+            // this torch version may name the placeholders identically to the
+            // captured operands (binding above is then a no-op), but flag the
+            // mismatch so a future naming change does not fail silently
+            fprintf(stderr, "warning: higher_order subgraph has %zu inputs but %zu captured operands\n", sub_inputs.size(), captures.size());
+        }
+    }
+
+    int ret = build_subgraph_nodes(g, *subgraph, operands_by_name, constant_index, subop_index);
+    if (ret != 0)
+        return ret;
+
+    // map the subgraph results to the wrapper output names
+    if (subgraph->has("outputs") && nd.has("outputs"))
+    {
+        const JsonValue& sub_outs = (*subgraph)["outputs"];
+        const JsonValue& wrap_outs = nd["outputs"];
+        for (size_t k = 0; k < sub_outs.size() && k < wrap_outs.size(); k++)
+        {
+            if (!sub_outs[k].has("as_tensor") || !wrap_outs[k].has("as_tensor"))
+                continue;
+            std::string sname = sub_outs[k]["as_tensor"]["name"].as_string();
+            std::string wname = wrap_outs[k]["as_tensor"]["name"].as_string();
+            std::map<std::string, Operand*>::iterator it = operands_by_name.find(sname);
+            if (it != operands_by_name.end() && operands_by_name.find(wname) == operands_by_name.end())
+                operands_by_name[wname] = it->second;
+        }
+    }
+
+    return 0;
+}
+
+static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
+                                std::map<std::string, Operand*>& operands_by_name,
                                 int& constant_index, int& subop_index)
 {
     const JsonValue& nodes = subgraph["nodes"];
@@ -1211,20 +1315,13 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
         if (op_type == "_operator")
             continue;
 
-        // nested higher_order: recursively inline its subgraph
+        // nested higher_order: inline its subgraph (bind captures + outputs)
         if (target.find("higher_order.wrap_with_set_grad_enabled") != std::string::npos
                 || target.find("higher_order.wrap_with_autocast") != std::string::npos)
         {
-            const JsonValue& inputs = nd["inputs"];
-            for (size_t j = 0; j < inputs.size(); j++)
-            {
-                if (inputs[j]["arg"].has("as_graph"))
-                {
-                    int ret = build_subgraph_nodes(g, inputs[j]["arg"]["as_graph"]["graph"], operands_by_name, constant_index, subop_index);
-                    if (ret != 0)
-                        return ret;
-                }
-            }
+            int ret = inline_wrapper_subgraph(g, nd, operands_by_name, constant_index, subop_index);
+            if (ret != 0)
+                return ret;
             continue;
         }
 
@@ -1739,20 +1836,15 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         if (op_type == "_operator")
             continue;
 
-        // higher_order ops (wrap_with_set_grad_enabled / wrap_with_autocast): inline subgraph recursively
+        // higher_order ops (wrap_with_set_grad_enabled / wrap_with_autocast):
+        // inline the subgraph, binding its placeholders to the captured closure
+        // operands and mapping its results to the wrapper output names
         if (target.find("higher_order.wrap_with_set_grad_enabled") != std::string::npos
                 || target.find("higher_order.wrap_with_autocast") != std::string::npos)
         {
-            const JsonValue& ho_inputs = nd["inputs"];
-            for (size_t j = 0; j < ho_inputs.size(); j++)
-            {
-                if (ho_inputs[j]["arg"].has("as_graph"))
-                {
-                    int ret = build_subgraph_nodes(g, ho_inputs[j]["arg"]["as_graph"]["graph"], operands_by_name, constant_index, subop_index);
-                    if (ret != 0)
-                        return ret;
-                }
-            }
+            int ret = inline_wrapper_subgraph(g, nd, operands_by_name, constant_index, subop_index);
+            if (ret != 0)
+                return ret;
             continue;
         }
 
@@ -1810,8 +1902,16 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 {
                     // move weight/bias to attrs (their producer is a pnnx.Attribute)
                     if (r->producer && r->producer->type == "pnnx.Attribute" && r->producer->has_attr("data"))
+                    {
                         op->attrs[argname] = r->producer->attrs["data"];
-                    continue;
+                        continue;
+                    }
+                    // a runtime-produced weight/bias cannot be folded into the
+                    // ncnn layer attribute; reject explicitly instead of
+                    // dropping the tensor (which would throw on attrs.at() for
+                    // weight or silently omit bias and change the result)
+                    fprintf(stderr, "unsupported dynamic %s for %s\n", argname.c_str(), op_type.c_str());
+                    return -1;
                 }
 
                 if (op_type == "torchvision.ops.DeformConv2d" && argname == "mask" && !deform_use_mask)
