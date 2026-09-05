@@ -251,13 +251,14 @@ int parse_exported_program_header(const JsonValue& value, ExportedProgramHeader&
     parsed_header.schema_major = (int)schema_major_value;
     parsed_header.schema_minor = (int)schema_minor_value;
 
-    const JsonValue* torch_version = required_field(value, "torch_version", "$", error);
-    if (!torch_version)
-        return -1;
-    if (read_string(*torch_version, parsed_header.torch_version, "$.torch_version", error) != 0)
-        return -1;
-    if (parsed_header.torch_version.empty())
-        return schema_error(error, "$.torch_version", "torch producer version must not be empty");
+    const JsonValue* torch_version = value.find("torch_version");
+    if (torch_version)
+    {
+        if (read_string(*torch_version, parsed_header.torch_version, "$.torch_version", error) != 0)
+            return -1;
+        if (parsed_header.torch_version.empty())
+            return schema_error(error, "$.torch_version", "torch producer version must not be empty");
+    }
 
     if (parsed_header.schema_major != 8)
         return schema_error(error, "$.schema_version.major", "incompatible schema major");
@@ -331,6 +332,8 @@ static int parse_static_symint_array(const JsonValue& value, std::vector<int64_t
     return 0;
 }
 
+static int read_device(const JsonValue& value, ExportedDevice& device, const std::string& path, ExportedSchemaError& error);
+
 int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tensor_meta, ExportedSchemaError& error, const std::string& path)
 {
     tensor_meta = ExportedTensorMeta();
@@ -363,31 +366,12 @@ int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tenso
     const JsonValue* device = required_field(value, "device", tensor_path, error);
     if (!device)
         return -1;
-    if (device->type() != JSON_OBJECT)
-        return schema_error(error, tensor_path + ".device", "expected object");
-
-    const JsonValue* device_type = required_field(*device, "type", tensor_path + ".device", error);
-    if (!device_type)
+    ExportedDevice parsed_device;
+    if (read_device(*device, parsed_device, tensor_path + ".device", error) != 0)
         return -1;
-    if (read_string(*device_type, parsed_meta.device_type, tensor_path + ".device.type", error) != 0)
-        return -1;
-    if (parsed_meta.device_type.empty())
-        return schema_error(error, tensor_path + ".device.type", "device type must not be empty");
-
-    const JsonValue* device_index = required_field(*device, "index", tensor_path + ".device", error);
-    if (!device_index)
-        return -1;
-    if (device_index->type() == JSON_NULL)
-    {
-        parsed_meta.device_index = 0;
-        parsed_meta.has_device_index = false;
-    }
-    else
-    {
-        if (read_nonnegative_integer(*device_index, parsed_meta.device_index, tensor_path + ".device.index", "device index must be non-negative", error) != 0)
-            return -1;
-        parsed_meta.has_device_index = true;
-    }
+    parsed_meta.device_type = parsed_device.type;
+    parsed_meta.device_index = parsed_device.index;
+    parsed_meta.has_device_index = parsed_device.has_index;
 
     const JsonValue* strides = required_field(value, "strides", tensor_path, error);
     if (!strides)
@@ -540,6 +524,8 @@ static int read_double(const JsonValue& value, double& result, const std::string
 
 static int read_device(const JsonValue& value, ExportedDevice& device, const std::string& path, ExportedSchemaError& error)
 {
+    device = ExportedDevice();
+
     if (value.type() != JSON_OBJECT)
         return schema_error(error, path, "expected object");
 
@@ -551,15 +537,9 @@ static int read_device(const JsonValue& value, ExportedDevice& device, const std
     if (device.type.empty())
         return schema_error(error, path + ".type", "device type must not be empty");
 
-    const JsonValue* index = required_field(value, "index", path, error);
-    if (!index)
-        return -1;
-    if (index->type() == JSON_NULL)
-    {
-        device.index = 0;
-        device.has_index = false;
+    const JsonValue* index = value.find("index");
+    if (!index || index->type() == JSON_NULL)
         return 0;
-    }
 
     if (read_nonnegative_integer(*index, device.index, path + ".index", "device index must be non-negative", error) != 0)
         return -1;
@@ -926,21 +906,6 @@ static int parse_exported_argument_array(const JsonValue& value, std::vector<Exp
     return parse_array(value, arguments, path, parse_exported_argument_value, error);
 }
 
-static int validate_string_map(const JsonValue& value, const std::string& path, ExportedSchemaError& error)
-{
-    if (value.type() != JSON_OBJECT)
-        return schema_error(error, path, "expected object");
-
-    const std::map<std::string, JsonValue>& entries = value.as_object();
-    for (std::map<std::string, JsonValue>::const_iterator it = entries.begin(); it != entries.end(); ++it)
-    {
-        if (it->second.type() != JSON_STRING)
-            return schema_error(error, schema_map_key_path(path, it->first), "expected string");
-    }
-
-    return 0;
-}
-
 static int parse_named_argument(const JsonValue& value, ExportedNamedArgument& named_argument, const std::string& path, ExportedSchemaError& error)
 {
     if (value.type() != JSON_OBJECT)
@@ -1008,12 +973,6 @@ static int parse_exported_node(const JsonValue& value, ExportedNode& node, const
     if (!outputs)
         return -1;
     if (parse_exported_argument_array(*outputs, node.outputs, path + ".outputs", error) != 0)
-        return -1;
-
-    const JsonValue* metadata = required_field(value, "metadata", path, error);
-    if (!metadata)
-        return -1;
-    if (validate_string_map(*metadata, path + ".metadata", error) != 0)
         return -1;
 
     const JsonValue* is_hop_single_tensor_return = value.find("is_hop_single_tensor_return");
@@ -1204,44 +1163,15 @@ static int read_nonempty_string_field(const JsonValue& object, const std::string
 
 static int parse_constant_value(const JsonValue& value, ExportedArgument& argument, const std::string& path, ExportedSchemaError& error)
 {
-    argument = ExportedArgument();
-
     if (value.type() != JSON_OBJECT || value.as_object().size() != 1)
         return schema_error(error, path, "constant value union must contain exactly one tag");
 
-    const std::map<std::string, JsonValue>::const_iterator it = value.as_object().begin();
-    const std::string tag_path = path + "." + it->first;
-    if (it->first == "as_none")
-    {
-        if (it->second.type() != JSON_BOOL)
-            return schema_error(error, tag_path, "expected boolean");
-        if (!it->second.as_bool())
-            return schema_error(error, tag_path, "as_none must be true");
-        argument.type = EXPORTED_ARGUMENT_NONE;
-        return 0;
-    }
-    if (it->first == "as_int")
-    {
-        argument.type = EXPORTED_ARGUMENT_INT;
-        return read_integer(it->second, argument.int_value, tag_path, error);
-    }
-    if (it->first == "as_float")
-    {
-        argument.type = EXPORTED_ARGUMENT_FLOAT;
-        return read_double(it->second, argument.float_value, tag_path, error);
-    }
-    if (it->first == "as_string")
-    {
-        argument.type = EXPORTED_ARGUMENT_STRING;
-        return read_string(it->second, argument.string_value, tag_path, error);
-    }
-    if (it->first == "as_bool")
-    {
-        argument.type = EXPORTED_ARGUMENT_BOOL;
-        return read_bool(it->second, argument.bool_value, tag_path, error);
-    }
+    const std::string& tag = value.as_object().begin()->first;
+    if (tag != "as_none" && tag != "as_int" && tag != "as_float"
+        && tag != "as_string" && tag != "as_bool")
+        return schema_error(error, path, "unknown constant value tag " + tag);
 
-    return schema_error(error, path, "unknown constant value tag " + it->first);
+    return parse_exported_argument_value(value, argument, path, error);
 }
 
 static int parse_input_spec(const JsonValue& value, ExportedInputSpec& spec, const std::string& path, ExportedSchemaError& error)
@@ -1501,32 +1431,42 @@ static int parse_output_tree_node(const JsonValue& value, ExportedTreeSpec& tree
     return 0;
 }
 
-static int parse_serialized_output_tree(const std::string& serialized, ExportedTreeSpec& tree_spec, const std::string& path, ExportedSchemaError& error)
+static int parse_serialized_tree_wrapper(const std::string& serialized, JsonValue& value, const JsonValue*& root, const char* name, const std::string& path, ExportedSchemaError& error)
 {
-    JsonValue value;
     JsonParseError parse_error;
     JsonParseOptions options;
     if (parse_json(serialized.data(), serialized.size(), value, parse_error, options) != 0)
     {
         std::ostringstream message;
-        message << "invalid output treespec JSON at byte " << parse_error.byte_offset << ": " << parse_error.message;
+        message << "invalid " << name << " treespec JSON at byte " << parse_error.byte_offset << ": " << parse_error.message;
         return schema_error(error, path, message.str());
     }
 
     if (value.type() != JSON_ARRAY || value.as_array().size() != 2)
-        return schema_error(error, path, "output treespec must be a protocol and tree pair");
+        return schema_error(error, path, std::string(name) + " treespec must be a protocol and tree pair");
 
     const JsonValue& protocol = value.as_array()[0];
     if (protocol.type() != JSON_INT64)
-        return schema_error(error, path, "output treespec protocol must be an integer");
+        return schema_error(error, path, std::string(name) + " treespec protocol must be an integer");
     if (protocol.as_int64() != 1)
     {
         std::ostringstream message;
-        message << "unsupported output treespec protocol " << protocol.as_int64();
+        message << "unsupported " << name << " treespec protocol " << protocol.as_int64();
         return schema_error(error, path, message.str());
     }
 
-    return parse_output_tree_node(value.as_array()[1], tree_spec, path, error);
+    root = &value.as_array()[1];
+    return 0;
+}
+
+static int parse_serialized_output_tree(const std::string& serialized, ExportedTreeSpec& tree_spec, const std::string& path, ExportedSchemaError& error)
+{
+    JsonValue value;
+    const JsonValue* root = 0;
+    if (parse_serialized_tree_wrapper(serialized, value, root, "output", path, error) != 0)
+        return -1;
+
+    return parse_output_tree_node(*root, tree_spec, path, error);
 }
 
 static int parse_input_tree_node_fields(const JsonValue& value, const JsonValue*& type, const JsonValue*& context, const JsonValue*& children_spec, const std::string& path, ExportedSchemaError& error)
@@ -1604,33 +1544,14 @@ static int validate_input_tree_tuple(const JsonValue& value, const std::string& 
 static int parse_serialized_input_tree(const std::string& serialized, size_t& input_leaf_count, const std::string& path, ExportedSchemaError& error)
 {
     JsonValue value;
-    JsonParseError parse_error;
-    JsonParseOptions options;
-    if (parse_json(serialized.data(), serialized.size(), value, parse_error, options) != 0)
-    {
-        std::ostringstream message;
-        message << "invalid input treespec JSON at byte " << parse_error.byte_offset << ": " << parse_error.message;
-        return schema_error(error, path, message.str());
-    }
-
-    if (value.type() != JSON_ARRAY || value.as_array().size() != 2)
-        return schema_error(error, path, "input treespec must be a protocol and tree pair");
-
-    const JsonValue& protocol = value.as_array()[0];
-    if (protocol.type() != JSON_INT64)
-        return schema_error(error, path, "input treespec protocol must be an integer");
-    if (protocol.as_int64() != 1)
-    {
-        std::ostringstream message;
-        message << "unsupported input treespec protocol " << protocol.as_int64();
-        return schema_error(error, path, message.str());
-    }
-
-    const JsonValue& root = value.as_array()[1];
-    if (validate_input_tree_tuple(root, path, "root input tuple", error) != 0)
+    const JsonValue* root = 0;
+    if (parse_serialized_tree_wrapper(serialized, value, root, "input", path, error) != 0)
         return -1;
 
-    const JsonValue* root_children = root.find("children_spec");
+    if (validate_input_tree_tuple(*root, path, "root input tuple", error) != 0)
+        return -1;
+
+    const JsonValue* root_children = root->find("children_spec");
     if (root_children->as_array().size() != 2)
         return schema_error(error, path + ".children_spec", "root input tuple must contain positional and keyword inputs");
 

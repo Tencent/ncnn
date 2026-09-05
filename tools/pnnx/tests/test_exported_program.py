@@ -999,6 +999,26 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             source_path = work_dir / "contract_source.pt2"
             save_exported_program(self.model, source_path)
 
+            def omit_device_indices(document):
+                for meta in document["graph_module"]["graph"][
+                    "tensor_values"
+                ].values():
+                    meta["device"].pop("index", None)
+
+            def replace_device_indices(document, index):
+                for meta in document["graph_module"]["graph"][
+                    "tensor_values"
+                ].values():
+                    meta["device"]["index"] = index
+
+            def omit_node_metadata(document):
+                for node in document["graph_module"]["graph"]["nodes"]:
+                    node.pop("metadata", None)
+
+            def replace_node_metadata(document):
+                for node in document["graph_module"]["graph"]["nodes"]:
+                    node["metadata"] = ["ignored", {"future": True}]
+
             with zipfile.ZipFile(source_path, "r") as archive:
                 model_path = archive_entry(
                     archive.namelist(), "/models/", ".json"
@@ -1009,7 +1029,61 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assertIsInstance(document["opset_version"]["aten"], int)
             self.assert_conversion_matches(work_dir, source_path)
 
+            for label, mutate in (
+                ("producer_default", lambda doc: doc.pop("torch_version", None)),
+                ("device_default", omit_device_indices),
+                ("metadata_absent", omit_node_metadata),
+                ("metadata_ignored", replace_node_metadata),
+            ):
+                with self.subTest(optional=label):
+                    candidate = work_dir / (label + ".pt2")
+                    rewrite_model_json(source_path, candidate, mutate)
+                    self.assert_conversion_matches(work_dir, candidate)
+
             cases = (
+                (
+                    "torch_version_type",
+                    lambda value: value.update(torch_version=42),
+                    "$.torch_version: expected string",
+                ),
+                (
+                    "device_index_type",
+                    lambda value: replace_device_indices(value, "0"),
+                    ".device.index: expected integer",
+                ),
+                (
+                    "device_index_negative",
+                    lambda value: replace_device_indices(value, -1),
+                    ".device.index: device index must be non-negative",
+                ),
+                (
+                    "node_target_required",
+                    lambda value: value["graph_module"]["graph"]["nodes"][
+                        0
+                    ].pop("target"),
+                    ".nodes[0].target: missing required field",
+                ),
+                (
+                    "node_inputs_required",
+                    lambda value: value["graph_module"]["graph"]["nodes"][
+                        0
+                    ].pop("inputs"),
+                    ".nodes[0].inputs: missing required field",
+                ),
+                (
+                    "node_outputs_required",
+                    lambda value: value["graph_module"]["graph"]["nodes"][
+                        0
+                    ].pop("outputs"),
+                    ".nodes[0].outputs: missing required field",
+                ),
+                (
+                    "tensor_values_required",
+                    lambda value: value["graph_module"]["graph"].pop(
+                        "tensor_values"
+                    ),
+                    ".graph.tensor_values: missing required field",
+                ),
                 (
                     "schema",
                     lambda value: value["schema_version"].update(minor=999),
