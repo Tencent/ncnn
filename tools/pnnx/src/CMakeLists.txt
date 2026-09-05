@@ -111,9 +111,12 @@ set(pnnx_pass_level1_SRCS
 
 set(pnnx_pass_level2_SRCS
     pass_level2/eliminate_contiguous.cpp
+    pass_level2/eliminate_noop_copy.cpp
     pass_level2/eliminate_size_numtotensor_int.cpp
     pass_level2/functionize.cpp
     pass_level2/fuse_constantlist.cpp
+    pass_level2/torch_rnn_pt2.cpp
+    pass_level2/fuse_unsqueeze_transpose_squeeze.cpp
 
     pass_level2/F_adaptive_avg_pool1d.cpp
     pass_level2/F_adaptive_avg_pool2d.cpp
@@ -215,6 +218,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
     pass_level2/torch_as_strided.cpp
+    pass_level2/torch_conv2d.cpp
+    pass_level2/torch_conv1d.cpp
+    pass_level2/torch_conv3d.cpp
     pass_level2/torch_baddbmm.cpp
     pass_level2/torch_bmm.cpp
     pass_level2/torch_bitwise_not.cpp
@@ -244,6 +250,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_gather.cpp
     pass_level2/torch_ge.cpp
     pass_level2/torch_gt.cpp
+    pass_level2/torch_hann_window.cpp
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
@@ -267,9 +274,12 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
     pass_level2/torch_ones_like.cpp
+    pass_level2/torch_weight_norm.cpp
+    pass_level2/torch_weight_norm_fold.cpp
     pass_level2/torch_positive.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
+    pass_level2/torch_rand_like.cpp
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
     pass_level2/torch_real.cpp
@@ -285,6 +295,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
     pass_level2/torch_tile.cpp
+    pass_level2/torch_tril.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
@@ -320,6 +331,8 @@ set(pnnx_pass_level2_SRCS
 
     pass_level2/torchaudio_F_inverse_spectrogram.cpp
     pass_level2/torchaudio_F_spectrogram.cpp
+
+    pass_level2/nn_ChannelShuffle_direct.cpp
 
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
@@ -367,6 +380,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eliminate_type_as.cpp
+    pass_level5/eliminate_noop_to.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
     pass_level5/fuse_adjacent_permute.cpp
@@ -430,6 +444,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/convert_Tensor_slice.cpp
     pass_ncnn/convert_Tensor_slice_copy.cpp
+    pass_ncnn/convert_Tensor_to.cpp
+    pass_ncnn/convert_aten_new_empty.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
@@ -595,9 +611,11 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_unflatten.cpp
+    pass_ncnn/linalg_vector_norm.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
+    pass_ncnn/torch_baddbmm.cpp
     pass_ncnn/torch_bmm.cpp
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
@@ -613,6 +631,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_min.cpp
     pass_ncnn/torch_mm.cpp
     pass_ncnn/torch_norm.cpp
+    pass_ncnn/torch_ones_like.cpp
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_roll.cpp
     pass_ncnn/torch_slice_scatter.cpp
@@ -625,6 +644,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
     pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
+    pass_ncnn/torchvision_RoIAlign.cpp
 )
 
 if(PROTOBUF_FOUND)
@@ -763,6 +783,8 @@ set(pnnx_SRCS
     model_stat.cpp
     storezip.cpp
     utils.cpp
+    pnnx_json.cpp
+    load_exportedprogram.cpp
 
     pass_level2.cpp
     pass_level3.cpp

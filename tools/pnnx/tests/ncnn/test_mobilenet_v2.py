@@ -25,7 +25,13 @@ def test():
     import test_mobilenet_v2_ncnn
     b = test_mobilenet_v2_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-2, 1e-2)
+    ts_ok = torch.allclose(a, b, 1e-2, 1e-2)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[1,3,224,224]"], "test_mobilenet_v2")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

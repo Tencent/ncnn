@@ -65,13 +65,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_batch_norm.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[16],[16],[16],[16],[2],[2],[2],[2],[3],[3],[3],[3]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_batch_norm.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[16],[16],[16],[16],[2],[2],[2],[2],[3],[3],[3],[3]")
 
     # pnnx inference
     import test_F_batch_norm_pnnx
-    b0, b1, b2 = test_F_batch_norm_pnnx.test_inference()
+    pnnx_b0, pnnx_b1, pnnx_b2 = test_F_batch_norm_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    ts_ok = torch.equal(a0, pnnx_b0) and torch.equal(a1, pnnx_b1) and torch.equal(a2, pnnx_b2)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, m0, v0, w0, b0, m1, v1, w1, b1, m2, v2, w2, b2), ["[1,16]", "[12,2,16]", "[1,3,12,16]", "[16]", "[16]", "[16]", "[16]", "[2]", "[2]", "[2]", "[2]", "[3]", "[3]", "[3]", "[3]"], "test_F_batch_norm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

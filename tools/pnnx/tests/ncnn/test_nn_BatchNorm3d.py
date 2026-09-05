@@ -47,7 +47,13 @@ def test():
     import test_nn_BatchNorm3d_ncnn
     b0, b1, b2 = test_nn_BatchNorm3d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, q), ["[1,32,12,5,64]", "[1,11,3,1,1]", "[2,32,4,5,6]"], "test_nn_BatchNorm3d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

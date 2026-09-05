@@ -39,7 +39,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_fsmt_attention.pt inputshape=[16,3,192],[5,1,66]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_fsmt_attention.pt inputshape=[16,3,192],[5,1,66]")
 
     # pnnx inference
     import test_transformers_fsmt_attention_pnnx
@@ -48,7 +48,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[16,3,192]", "[5,1,66]"], "test_transformers_fsmt_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

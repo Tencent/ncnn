@@ -1,4 +1,7 @@
 # Copyright 2025 Tencent
+# Requires transformers >= 5.x (qwen3 exists only there). This test runs
+# for real under transformers 5.x (both ts and pt2 paths).
+
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
@@ -9,8 +12,12 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import Qwen3Config
-from transformers.models.qwen3.modeling_qwen3 import Qwen3Attention, Qwen3RotaryEmbedding
+try:
+    from transformers import Qwen3Config
+    from transformers.models.qwen3.modeling_qwen3 import Qwen3Attention, Qwen3RotaryEmbedding
+except ImportError:
+    # transformers < 5.x has no qwen3 model, skip
+    Qwen3Config = None
 
 class Model(nn.Module):
     def __init__(self):
@@ -30,6 +37,9 @@ class Model(nn.Module):
 
 def test():
     if version.parse(torch.__version__) < version.parse('2.4'):
+        return True
+
+    if Qwen3Config is None:
         return True
 
     net = Model()
@@ -54,7 +64,13 @@ def test():
     import test_transformers_qwen3_attention_ncnn
     b = test_transformers_qwen3_attention_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, mask0), ["[1,16,192]", "[1,1,16,16]"], "test_transformers_qwen3_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

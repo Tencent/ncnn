@@ -172,7 +172,7 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
     if (shape.size() > 0)
     {
         data.resize(elemcount() * type_to_elemsize(type));
-        memcpy((void*)data.data(), (const void*)t.data(), data.size());
+        memcpy((void*)data.data(), (const void*)t.data(), std::min(data.size(), t.size() * sizeof(float)));
     }
 }
 
@@ -197,17 +197,22 @@ int Attribute::elemcount() const
 
 std::vector<float> Attribute::get_float32_data() const
 {
-    std::vector<float> v(elemcount());
+    const int ec = elemcount();
+    if (ec <= 0)
+        return std::vector<float>();
+
+    std::vector<float> v(ec);
 
     if (type == 1)
     {
-        memcpy((void*)v.data(), (const void*)data.data(), data.size());
+        memcpy((void*)v.data(), (const void*)data.data(), std::min(data.size(), v.size() * sizeof(float)));
     }
     else if (type == 2)
     {
         // f64
         const double* p = (const double*)data.data();
-        for (size_t i = 0; i < v.size(); i++)
+        const size_t n = std::min(v.size(), data.size() / sizeof(double));
+        for (size_t i = 0; i < n; i++)
         {
             v[i] = float(p[i]);
         }
@@ -216,7 +221,8 @@ std::vector<float> Attribute::get_float32_data() const
     {
         // f16
         const unsigned short* p = (const unsigned short*)data.data();
-        for (size_t i = 0; i < v.size(); i++)
+        const size_t n = std::min(v.size(), data.size() / sizeof(unsigned short));
+        for (size_t i = 0; i < n; i++)
         {
             v[i] = float16_to_float32(p[i]);
         }
@@ -1494,6 +1500,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    fprintf(pyfp, "# torch 2.x renamed torch.var/std unbiased to correction; the\n");
+    fprintf(pyfp, "# generated calls pick the right keyword at runtime\n");
+    fprintf(pyfp, "_torch_has_correction = int(torch.__version__.split('.')[0]) >= 2\n");
+
+    fprintf(pyfp, "\n");
+
     fprintf(pyfp, "class Model(nn.Module):\n");
     fprintf(pyfp, "    def __init__(self):\n");
     fprintf(pyfp, "        super(Model, self).__init__()\n");
@@ -1990,7 +2002,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
 
-                if (op->params.at("dim").type == 2)
+                if (!op->has_param("dim") || op->params.at("dim").type == 0)
+                {
+                    // full-reduction prod(input) (e.g. torch.prod(x) in pt2):
+                    // no dim/keepdim parameters were folded in
+                    fprintf(pyfp, "torch.prod(input=v_%s)", sanitize_identifier(op->inputs[0]->name).c_str());
+                }
+                else if (op->params.at("dim").type == 2)
                 {
                     const int dim = op->params.at("dim").i;
                     const bool keepdim = op->params.at("keepdim").b;
@@ -2304,9 +2322,25 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 int i = 0;
                 for (const auto& it : op->params)
                 {
+                    // torch 2.x renamed torch.var/std unbiased to correction;
+                    // emit a runtime-selected kwargs dict so the generated code
+                    // also runs on the torch 1.8-1.13 environments covered by
+                    // pnnx.yml (those only know the unbiased keyword)
+                    if ((op->type == "torch.var" || op->type == "torch.std") && it.first == "unbiased" && it.second.type == 1)
+                    {
+                        if (i != 0)
+                            fprintf(pyfp, ", ");
+                        fprintf(pyfp, "**({'correction': %s} if _torch_has_correction else {'unbiased': %s})",
+                                it.second.b ? "True" : "False", it.second.b ? "True" : "False");
+                        i++;
+                        continue;
+                    }
+
+                    const char* key_name = it.first.c_str();
+
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
                     {
-                        fprintf(pyfp, "%s=", it.first.c_str());
+                        fprintf(pyfp, "%s=", key_name);
                     }
                     else if (op->type == "F.pad" && op->params.at("mode").s != "constant" && it.first == "value")
                     {
@@ -2316,11 +2350,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                     else if (op->inputs.empty() && i == 0)
                     {
-                        fprintf(pyfp, "%s=", it.first.c_str());
+                        fprintf(pyfp, "%s=", key_name);
                     }
                     else
                     {
-                        fprintf(pyfp, ", %s=", it.first.c_str());
+                        fprintf(pyfp, ", %s=", key_name);
                     }
 
                     i++;
@@ -2787,6 +2821,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         int input_shapes_i = 0;
 
+        // count graph inputs; if the user-provided input_shapes count does not
+        // match (some unused inputs were dropped during passes), fall back to
+        // the shape-inferred shapes to avoid misalignment
+        int graph_input_count = 0;
+        for (const Operator* op : ops)
+        {
+            if (op->type == "pnnx.Input")
+                graph_input_count++;
+        }
+        const bool input_shapes_aligned = !input_shapes.empty() && ((int)input_shapes.size() == graph_input_count);
+
         std::vector<std::string> input_names;
         for (const Operator* op : ops)
         {
@@ -2796,7 +2841,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             const Operand* r = op->outputs[0];
 
             std::vector<int> input_shape;
-            if (input_shapes.empty())
+            if (!input_shapes_aligned)
             {
                 input_shape = r->shape;
             }

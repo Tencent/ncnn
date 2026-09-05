@@ -28,15 +28,22 @@ def test():
     # torchscript to pnnx
     import os
     if version.parse(torch.__version__) >= version.parse('2.0'):
-        os.system("../src/pnnx test_vit_b_32.pt")
+        os.system(os.path.join("..", "src", "pnnx") + " test_vit_b_32.pt")
     else:
-        os.system("../src/pnnx test_vit_b_32.pt inputshape=[1,3,224,224]")
+        os.system(os.path.join("..", "src", "pnnx") + " test_vit_b_32.pt inputshape=[1,3,224,224]")
 
     # pnnx inference
     import test_vit_b_32_pnnx
     b = test_vit_b_32_pnnx.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    if not torch.allclose(a, b, 1e-4, 1e-4):
+        return False
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,3,224,224]"], "test_vit_b_32")
+
+    return pt2_ok is not False
 
 if __name__ == "__main__":
     if test():

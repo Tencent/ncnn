@@ -40,13 +40,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_linear.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[12,16],[32,12],[32]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_linear.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[12,16],[32,12],[32]")
 
     # pnnx inference
     import test_F_linear_pnnx
-    b0, b1, b2 = test_F_linear_pnnx.test_inference()
+    b0, pnnx_b1, b2 = test_F_linear_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, pnnx_b1) and torch.equal(a2, b2)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, w0, w1, b1), ["[1,16]", "[12,2,16]", "[1,3,12,16]", "[12,16]", "[32,12]", "[32]"], "test_F_linear")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

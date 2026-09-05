@@ -80,6 +80,12 @@ def test():
             print(a0)
             print(b0)
             return False
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (xq, xk, xv, yq, yk, yv, xmask, ymask, zq), ["[20,1,64]", "[20,1,64]", "[20,1,64]", "[15,1,40]", "[24,1,30]", "[24,1,20]", "[20,20]", "[4,15,24]", "[2,9,64]"], "test_nn_MultiheadAttention")
+    if pt2_ok is False:
+        return False
     return True
 
 if __name__ == "__main__":

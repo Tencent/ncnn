@@ -679,7 +679,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
             fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
         }
 #else
-        void* handle = dlopen(m.c_str(), RTLD_LAZY);
+        void* handle = dlopen(m.c_str(), RTLD_LAZY | RTLD_GLOBAL);
         if (!handle)
         {
             fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());

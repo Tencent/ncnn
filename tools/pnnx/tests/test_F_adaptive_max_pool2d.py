@@ -31,7 +31,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_adaptive_max_pool2d.pt inputshape=[1,12,24,64]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_adaptive_max_pool2d.pt inputshape=[1,12,24,64]")
 
     # pnnx inference
     import test_F_adaptive_max_pool2d_pnnx
@@ -40,7 +40,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,24,64]"], "test_F_adaptive_max_pool2d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

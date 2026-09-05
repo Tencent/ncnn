@@ -29,13 +29,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_upsample_bilinear.pt inputshape=[1,12,24,64]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_upsample_bilinear.pt inputshape=[1,12,24,64]")
 
     # pnnx inference
     import test_F_upsample_bilinear_pnnx
     b = test_F_upsample_bilinear_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,24,64]"], "test_F_upsample_bilinear")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

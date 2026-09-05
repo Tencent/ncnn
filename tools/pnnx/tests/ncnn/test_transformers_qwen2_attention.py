@@ -9,8 +9,13 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import Qwen2Config
-from transformers.models.qwen2.modeling_qwen2 import Qwen2Attention, Qwen2RotaryEmbedding
+from transformers import __version__ as _transformers_version
+if version.parse(_transformers_version) < version.parse('5.0'):
+    # the MLA variant (q_lora_rank/kv_lora_rank) only exists in 5.x
+    Qwen2Config = None
+else:
+    from transformers import Qwen2Config
+    from transformers.models.qwen2.modeling_qwen2 import Qwen2Attention, Qwen2RotaryEmbedding
 
 class Model(nn.Module):
     def __init__(self):
@@ -30,6 +35,9 @@ class Model(nn.Module):
 
 def test():
     if version.parse(torch.__version__) < version.parse('2.4'):
+        return True
+
+    if Qwen2Config is None:
         return True
 
     net = Model()
@@ -54,7 +62,13 @@ def test():
     import test_transformers_qwen2_attention_ncnn
     b = test_transformers_qwen2_attention_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, mask0), ["[1,16,192]", "[1,1,16,16]"], "test_transformers_qwen2_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

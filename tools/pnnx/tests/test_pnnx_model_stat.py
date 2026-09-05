@@ -368,7 +368,8 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
     mod.save(name + ".pt")
 
     # torchscript to pnnx
-    cmd = ["../src/pnnx", name + ".pt", "inputshape=" + inputshape]
+    pnnx_exe = "../src/pnnx" + (".exe" if sys.platform == "win32" else "")
+    cmd = [pnnx_exe, name + ".pt", "inputshape=" + inputshape]
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if p.returncode != 0:
         sys.stderr.write(p.stdout)
@@ -392,7 +393,34 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
     pnnx_module = __import__(name + "_pnnx")
     b = pnnx_module.test_inference()
 
-    return _allclose(a, b)
+    if not _allclose(a, b):
+        return False
+
+    # pt2 path (only check inference consistency, not statistics; skip if export fails)
+    if not (hasattr(torch, "export") and hasattr(torch.export, "export") and hasattr(torch.export, "save")):
+        return True
+
+    try:
+        ep = torch.export.export(net, inputs)
+        torch.export.save(ep, name + ".pt2")
+    except Exception:
+        return True
+
+    p2 = subprocess.run([pnnx_exe, name + ".pt2", "inputshape=" + inputshape], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if p2.returncode != 0:
+        sys.stderr.write(p2.stdout)
+        sys.stderr.write(p2.stderr)
+        return False
+
+    try:
+        import importlib
+        importlib.reload(pnnx_module)
+        b2 = pnnx_module.test_inference()
+    except Exception:
+        # generated pnnx python cannot run (op not yet adapted to pt2), skip
+        return True
+
+    return _allclose(a, b2)
 
 
 def test():

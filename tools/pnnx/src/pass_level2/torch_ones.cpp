@@ -2,8 +2,99 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "utils.h"
+
+#include <string.h>
 
 namespace pnnx {
+
+static inline unsigned short float32_to_bfloat16_round(float f)
+{
+    unsigned int bits;
+    memcpy(&bits, &f, 4);
+    unsigned int rounding_bias = 0x7fff + ((bits >> 16) & 1);
+    return (unsigned short)((bits + rounding_bias) >> 16);
+}
+
+// fill an all-zero byte buffer with the value 1 for the attribute dtype
+static void fill_ones(Attribute& a)
+{
+    char* d = a.data.data();
+    const size_t count = a.data.size() / (size_t)a.elemsize();
+
+    if (a.type == 1) // f32
+    {
+        float* p = (float*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1.f;
+    }
+    else if (a.type == 2) // f64
+    {
+        double* p = (double*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1.0;
+    }
+    else if (a.type == 3) // f16
+    {
+        const unsigned short v = float32_to_float16(1.f);
+        unsigned short* p = (unsigned short*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = v;
+    }
+    else if (a.type == 13) // bf16
+    {
+        const unsigned short v = float32_to_bfloat16_round(1.f);
+        unsigned short* p = (unsigned short*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = v;
+    }
+    else if (a.type == 4) // i32
+    {
+        int* p = (int*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1;
+    }
+    else if (a.type == 5) // i64
+    {
+        long long* p = (long long*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1;
+    }
+    else if (a.type == 6) // i16
+    {
+        short* p = (short*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1;
+    }
+    else if (a.type == 7) // i8
+    {
+        signed char* p = (signed char*)d;
+        for (size_t i = 0; i < count; i++)
+            p[i] = 1;
+    }
+    else if (a.type == 8 || a.type == 9) // u8 / bool
+    {
+        memset(d, 1, a.data.size());
+    }
+    else if (a.type == 10) // complex64
+    {
+        float* p = (float*)d;
+        for (size_t i = 0; i < count; i++)
+        {
+            p[i * 2] = 1.f;
+            p[i * 2 + 1] = 0.f;
+        }
+    }
+    else if (a.type == 11) // complex128
+    {
+        double* p = (double*)d;
+        for (size_t i = 0; i < count; i++)
+        {
+            p[i * 2] = 1.0;
+            p[i * 2 + 1] = 0.0;
+        }
+    }
+}
 
 class torch_ones : public GraphRewriterPass
 {
@@ -79,5 +170,65 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_ones_onnx, 20)
+
+class torch_ones_fold : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // pt2: torch.ones with constant size/dtype (e.g. ones(x.size()) where
+        // the shape is concretized); fold to an all-ones Attribute
+        return R"PNNXIR(7767517
+6 5
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 dtype value=%dtype
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 pin_memory value=*
+aten::ones              op_4        4 1 size dtype device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "pnnx.Attribute";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& shape = captured_params.at("size").ai;
+
+        Attribute& a = op->attrs["data"];
+        a.type = op->outputs[0]->type;
+        a.shape = shape;
+
+        size_t es = 4;
+        if (a.type == 2 || a.type == 5) es = 8;                 // f64/i64
+        if (a.type == 3 || a.type == 6 || a.type == 13) es = 2; // f16/i16/bf16
+        if (a.type == 7 || a.type == 8 || a.type == 9) es = 1;  // i8/u8/bool
+        if (a.type == 10) es = 8;                               // complex64
+        if (a.type == 11) es = 16;                              // complex128
+
+        size_t count = 1;
+        bool valid = true;
+        for (int s : shape)
+        {
+            if (s <= 0 || count > (size_t)-1 / (size_t)s)
+            {
+                valid = false;
+                break;
+            }
+            count *= (size_t)s;
+        }
+        if (!valid || count > (size_t)-1 / es)
+            count = 0;
+
+        a.data.resize(count * es, 0);
+        fill_ones(a);
+        op->params.clear();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_ones_fold, 30)
 
 } // namespace pnnx

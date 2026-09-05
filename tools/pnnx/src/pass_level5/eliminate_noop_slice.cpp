@@ -27,7 +27,20 @@ void eliminate_noop_slice(Graph& graph)
 
             if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
             {
-                matched = true;
+                // with -1 (unresolved symbolic/dynamic dims) we cannot prove the
+                // slice is a no-op (the real size may be hidden behind -1, e.g.
+                // funnel relative_shift 32->31->16), skip deletion
+                bool has_dynamic = false;
+                for (int s : op->inputs[0]->shape)
+                {
+                    if (s == -1)
+                    {
+                        has_dynamic = true;
+                        break;
+                    }
+                }
+                if (!has_dynamic)
+                    matched = true;
             }
 
             if (op->has_param("start") && op->has_param("end") && op->has_param("step"))

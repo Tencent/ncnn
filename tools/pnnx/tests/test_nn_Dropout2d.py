@@ -33,13 +33,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_Dropout2d.pt inputshape=[1,12,24,64],[1,3,4,5]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_nn_Dropout2d.pt inputshape=[1,12,24,64],[1,3,4,5]")
 
     # pnnx inference
     import test_nn_Dropout2d_pnnx
     b0, b1 = test_nn_Dropout2d_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, b1)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[1,12,24,64]", "[1,3,4,5]"], "test_nn_Dropout2d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

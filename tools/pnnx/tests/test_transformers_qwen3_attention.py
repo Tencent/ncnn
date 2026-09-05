@@ -9,8 +9,12 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import Qwen3Config
-from transformers.models.qwen3.modeling_qwen3 import Qwen3Attention, Qwen3RotaryEmbedding
+try:
+    from transformers import Qwen3Config
+    from transformers.models.qwen3.modeling_qwen3 import Qwen3Attention, Qwen3RotaryEmbedding
+except ImportError:
+    # transformers < 5.x has no qwen3 model, skip
+    Qwen3Config = None
 
 class Model(nn.Module):
     def __init__(self):
@@ -32,6 +36,9 @@ def test():
     if version.parse(torch.__version__) < version.parse('2.4'):
         return True
 
+    if Qwen3Config is None:
+        return True
+
     net = Model()
     net.eval()
 
@@ -48,13 +55,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_qwen3_attention.pt inputshape=[3,16,192],[3,1,16,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_qwen3_attention.pt inputshape=[3,16,192],[3,1,16,16]")
 
     # pnnx inference
     import test_transformers_qwen3_attention_pnnx
     b = test_transformers_qwen3_attention_pnnx.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, mask0), ["[3,16,192]", "[3,1,16,16]"], "test_transformers_qwen3_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

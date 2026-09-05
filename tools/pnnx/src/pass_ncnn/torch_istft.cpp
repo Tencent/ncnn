@@ -31,6 +31,14 @@ pnnx.Output             output      1 0 out
         return "istft";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // InverseSpectrogram always computes the natural output length, so an
+        // explicit length that trims or zero-pads cannot be reproduced; keep
+        // the original operators in that case
+        return captured_params.at("length").type == 0;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["0"] = captured_params.at("n_fft");
@@ -137,8 +145,14 @@ pnnx.Output             output      1 0 out
         return "istft";
     }
 
-    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        // InverseSpectrogram always computes the natural output length, so an
+        // explicit length that trims or zero-pads cannot be reproduced; keep
+        // the original operators in that case
+        if (captured_params.at("length").type != 0)
+            return false;
+
         const std::vector<float> window_data = captured_attrs.at("op_1.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
         return window_type != -1;
@@ -186,6 +200,126 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_3, 20)
+
+// pt2: torch.view_as_complex + Reshape + torch.istft + Reshape (inverse_spectrogram expansion chain)
+class torch_istft_pt2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+torch.view_as_complex   op_0        1 1 input a
+Reshape                 op_1        1 1 a b %*=%*
+pnnx.Attribute          op_2        0 1 window @data
+torch.istft             op_3        2 1 b window c center=%center hop_length=%hop_length length=%length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=False win_length=%win_length
+Reshape                 op_4        1 1 c out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "InverseSpectrogram";
+    }
+
+    const char* name_str() const
+    {
+        return "istft";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        // InverseSpectrogram always computes the natural output length, so an
+        // explicit length that trims or zero-pads cannot be reproduced; keep
+        // the original operators in that case
+        if (captured_params.at("length").type != 0)
+            return false;
+
+        const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
+        const int window_type = detect_window_type(window_data);
+        return window_type != -1;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
+        const int window_type = detect_window_type(window_data);
+
+        op->params["0"] = captured_params.at("n_fft");
+        op->params["1"] = 1; // returns
+        op->params["2"] = captured_params.at("hop_length");
+        op->params["3"] = captured_params.at("win_length");
+        op->params["4"] = window_type;
+        op->params["5"] = captured_params.at("center").type == 1 && captured_params.at("center").b ? 1 : 0;
+        op->params["7"] = captured_params.at("normalized").type == 1 && captured_params.at("normalized").b ? 1 : 0;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2, 20)
+
+// pt2: torch.view_as_complex + UnaryOp sqrt + BinaryOp mul(window normalization)
+// + Reshape + torch.istft + Reshape
+class torch_istft_pt2_norm : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+11 10
+pnnx.Input              input       0 1 input
+torch.view_as_complex   op_0        1 1 input a
+pnnx.Input              norm        0 1 norm
+UnaryOp                 op_sqrt     1 1 norm sqrt_out 0=5
+BinaryOp                op_mul      2 1 a sqrt_out b 0=2
+Reshape                 op_1        1 1 b c %*=%*
+pnnx.Attribute          op_2        0 1 window @data
+torch.istft             op_3        2 1 c window d center=%center hop_length=%hop_length length=%length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=False win_length=%win_length
+Reshape                 op_4        1 1 d out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "InverseSpectrogram";
+    }
+
+    const char* name_str() const
+    {
+        return "istft";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        // InverseSpectrogram always computes the natural output length, so an
+        // explicit length that trims or zero-pads cannot be reproduced; keep
+        // the original operators in that case
+        if (captured_params.at("length").type != 0)
+            return false;
+
+        const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
+        const int window_type = detect_window_type(window_data);
+        return window_type != -1;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
+        const int window_type = detect_window_type(window_data);
+
+        op->params["0"] = captured_params.at("n_fft");
+        op->params["1"] = 1; // returns
+        op->params["2"] = captured_params.at("hop_length");
+        op->params["3"] = captured_params.at("win_length");
+        op->params["4"] = window_type;
+        op->params["5"] = captured_params.at("center").type == 1 && captured_params.at("center").b ? 1 : 0;
+        op->params["7"] = 2; // window normalization
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2_norm, 20)
 
 } // namespace ncnn
 

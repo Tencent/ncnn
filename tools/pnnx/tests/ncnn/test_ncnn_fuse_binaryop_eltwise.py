@@ -46,10 +46,13 @@ def test():
     import test_ncnn_fuse_binaryop_eltwise_ncnn
     b = test_ncnn_fuse_binaryop_eltwise_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-4, 1e-4) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x0, x1, y0, y1, z0, z1, q0, q1), ["[14]", "[14]", "[23,14]", "[23,14]", "[20,15,9]", "[20,15,9]", "[2,3,4,5]", "[2,3,4,5]"], "test_ncnn_fuse_binaryop_eltwise")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

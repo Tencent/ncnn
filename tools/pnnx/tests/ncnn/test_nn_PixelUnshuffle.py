@@ -41,7 +41,13 @@ def test():
     import test_nn_PixelUnshuffle_ncnn
     b0, b1 = test_nn_PixelUnshuffle_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, q), ["[1,3,128,128]", "[2,3,128,128]"], "test_nn_PixelUnshuffle")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

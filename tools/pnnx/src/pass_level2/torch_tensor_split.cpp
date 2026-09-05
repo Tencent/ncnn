@@ -61,4 +61,51 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_sections, 60)
 
+// dynamo output order is input indices/sections dim (indices/sections first, dim last)
+class torch_tensor_split_indices_direct : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 indices
+pnnx.Input              input_2     0 1 dim
+aten::tensor_split      op_0        3 1 input indices dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.tensor_split";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_indices_direct, 60)
+
+class torch_tensor_split_sections_direct : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 sections
+pnnx.Input              input_2     0 1 dim
+aten::tensor_split      op_0        3 1 input sections dim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.tensor_split";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_tensor_split_sections_direct, 60)
+
 } // namespace pnnx
