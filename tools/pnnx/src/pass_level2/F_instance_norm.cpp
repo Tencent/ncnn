@@ -48,10 +48,10 @@ public:
         return R"PNNXIR(7767517
 10 9
 pnnx.Input              input_1     0 1 input
-pnnx.Input              input_2     0 1 weight
-pnnx.Input              input_3     0 1 bias
-pnnx.Input              input_4     0 1 running_mean
-pnnx.Input              input_5     0 1 running_var
+pnnx.Input              input_2     0 1 running_mean
+pnnx.Input              input_3     0 1 running_var
+pnnx.Input              input_4     0 1 weight
+pnnx.Input              input_5     0 1 bias
 prim::Constant          op_0        0 1 use_input_stats value=%use_input_stats
 prim::Constant          op_1        0 1 momentum value=*
 prim::Constant          op_2        0 1 eps value=%eps

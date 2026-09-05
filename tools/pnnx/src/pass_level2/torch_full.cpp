@@ -143,7 +143,9 @@ pnnx.Output             output      1 0 out
 
         double fv = 0;
         const Parameter& fill_value = captured_params.at("fill_value");
-        if (fill_value.type == 3)
+        if (fill_value.type == 1)
+            fv = fill_value.b ? 1 : 0; // bool fill_value (torch.full(..., True))
+        else if (fill_value.type == 3)
             fv = fill_value.f;
         else if (fill_value.type == 2)
             fv = fill_value.i;
@@ -221,7 +223,17 @@ pnnx.Output             output      1 0 out
             for (size_t i = 0; i < count; i++)
                 p[i] = (short)fv;
         }
-        else if (a.type == 7 || a.type == 8 || a.type == 9) // i8/u8/bool
+        else if (a.type == 7) // i8: write the wrapping signed byte, not 0/1
+        {
+            const signed char v = (signed char)(long long)fv;
+            memset(d, (unsigned char)v, count);
+        }
+        else if (a.type == 8) // u8: write the wrapping unsigned byte, not 0/1
+        {
+            const unsigned char v = (unsigned char)(long long)fv;
+            memset(d, v, count);
+        }
+        else if (a.type == 9) // bool: true becomes 1
         {
             memset(d, fv ? 1 : 0, count);
         }
@@ -267,7 +279,9 @@ pnnx.Output             output      1 0 out
 
         double fv = 0;
         const Parameter& fill_value = captured_params.at("fill_value");
-        if (fill_value.type == 3)
+        if (fill_value.type == 1)
+            fv = fill_value.b ? 1 : 0; // bool fill_value (torch.full(..., True))
+        else if (fill_value.type == 3)
             fv = fill_value.f;
         else if (fill_value.type == 2)
             fv = fill_value.i;
@@ -345,7 +359,17 @@ pnnx.Output             output      1 0 out
             for (size_t i = 0; i < count; i++)
                 p[i] = (short)fv;
         }
-        else if (a.type == 7 || a.type == 8 || a.type == 9) // i8/u8/bool
+        else if (a.type == 7) // i8: write the wrapping signed byte, not 0/1
+        {
+            const signed char v = (signed char)(long long)fv;
+            memset(d, (unsigned char)v, count);
+        }
+        else if (a.type == 8) // u8: write the wrapping unsigned byte, not 0/1
+        {
+            const unsigned char v = (unsigned char)(long long)fv;
+            memset(d, v, count);
+        }
+        else if (a.type == 9) // bool: true becomes 1
         {
             memset(d, fv ? 1 : 0, count);
         }

@@ -2002,7 +2002,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
 
-                if (op->params.at("dim").type == 2)
+                if (!op->has_param("dim") || op->params.at("dim").type == 0)
+                {
+                    // full-reduction prod(input) (e.g. torch.prod(x) in pt2):
+                    // no dim/keepdim parameters were folded in
+                    fprintf(pyfp, "torch.prod(input=v_%s)", sanitize_identifier(op->inputs[0]->name).c_str());
+                }
+                else if (op->params.at("dim").type == 2)
                 {
                     const int dim = op->params.at("dim").i;
                     const bool keepdim = op->params.at("keepdim").b;

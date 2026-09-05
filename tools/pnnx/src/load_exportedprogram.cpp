@@ -396,8 +396,9 @@ static void load_tensor_data(StoreZipReader& zip, const std::vector<std::string>
         const size_t expect = count * (size_t)elemsize;
         if (raw.size() > expect)
             raw.resize(expect);
-        else if (raw.size() < expect)
-            raw.resize(expect, 0);
+        // raw < expect would mean the meta claims more bytes than the storage
+        // holds; never fabricate the missing tail with zeros - keep the short
+        // storage so readers see an undersized buffer instead of fake data
         a.data = raw;
         return;
     }
@@ -744,10 +745,18 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     }
     else if (type == "aten::slice_scatter")
     {
+        // slice_scatter(self, src) omits the dim=0/start=None defaults; the
+        // [input src dim start end step] level-2 pattern needs every slot or the
+        // node survives as an illegal aten::slice_scatter call
+        if (!has_input_name(inputnames, "dim"))
+            add_const("dim", 0);
+        if (!has_input_name(inputnames, "start"))
+            add_const("start", Parameter());
         if (!has_input_name(inputnames, "end"))
             add_const("end", INT_MAX);
         if (!has_input_name(inputnames, "step"))
             add_const("step", 1);
+        reorder_inputs({"self", "src", "dim", "start", "end", "step"});
     }
     else if (type == "aten::flatten")
     {
@@ -1634,6 +1643,13 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
                 float imag = (float)arg["as_complex"]["imag"].as_double();
                 new_constant(g, op, std::complex<float>(real, imag), constant_index);
             }
+            else
+            {
+                // unknown scalar arg: fail loudly (mirror the main loader loop)
+                // instead of silently skipping it and skewing inputs/inputnames
+                fprintf(stderr, "unsupported subgraph arg type for %s arg %s\n", op_type.c_str(), argname.c_str());
+                return -1;
+            }
         }
 
         // outputs
@@ -2402,6 +2418,11 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
     const JsonValue& outputs = graph["outputs"];
     for (size_t i = 0; i < outputs.size(); i++)
     {
+        if (!outputs[i].has("as_tensor"))
+        {
+            fprintf(stderr, "unsupported exported program graph output %zu (not a plain tensor)\n", i);
+            return -1;
+        }
         std::string name = outputs[i]["as_tensor"]["name"].as_string();
 
         char op_name[32];
