@@ -267,8 +267,10 @@ def test_pnnx(net, args, inputshapes, tag, shape_only=False):
         mod_pnnx = _load_pnnx_module(tag)
         out = mod_pnnx.test_inference()
     except Exception:
-        # the generated pnnx python cannot run (op not yet adapted to pt2), skip
-        return None
+        # the generated pnnx python cannot be imported or run: that is a real
+        # conversion/generation regression, report it as a failure instead of
+        # silently skipping (None is reserved for torch.export incompatibility)
+        return False
 
     if shape_only:
         return _outputs_shape_equal(ref, out)
@@ -318,6 +320,7 @@ def test_pnnx_ncnn(net, args, inputshapes, tag, atol=1e-3, rtol=1e-3, fp16=0):
         mod_ncnn = _load_ncnn_module(tag)
         out = mod_ncnn.test_inference()
     except Exception:
-        return None
+        # generated ncnn module cannot be imported/run: a real regression
+        return False
 
     return _outputs_equal(ref, out, atol, rtol)

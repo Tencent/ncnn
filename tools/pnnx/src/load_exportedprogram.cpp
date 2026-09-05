@@ -938,6 +938,42 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
         if (!has_input_name(inputnames, "dtype"))
             add_const("dtype", Parameter());
     }
+    else if (type == "aten::cumprod")
+    {
+        // cumprod(x, dim) carries an omitted kwonly dtype default; append it so
+        // the [input dim dtype] level-2 pattern matches
+        if (!has_input_name(inputnames, "dtype"))
+            add_const("dtype", Parameter());
+        reorder_inputs({"self", "dim", "dtype"});
+    }
+    else if (type == "aten::roll")
+    {
+        // roll(x, shifts) with omitted dims=None: restore [input shifts dims]
+        if (!has_input_name(inputnames, "dims"))
+            add_const("dims", Parameter());
+        reorder_inputs({"self", "shifts", "dims"});
+    }
+    else if (type == "aten::repeat_interleave")
+    {
+        // repeat_interleave(x, repeats) omits dim/output_size defaults
+        if (!has_input_name(inputnames, "dim"))
+            add_const("dim", Parameter());
+        if (!has_input_name(inputnames, "output_size"))
+            add_const("output_size", Parameter());
+        reorder_inputs({"self", "repeats", "dim", "output_size"});
+    }
+    else if (type == "aten::topk")
+    {
+        // topk(x, k) omits dim=-1/largest=True/sorted=True defaults; torch's
+        // sorted default is True so the emitted values are in descending order
+        if (!has_input_name(inputnames, "dim"))
+            add_const("dim", -1);
+        if (!has_input_name(inputnames, "largest"))
+            add_const("largest", true);
+        if (!has_input_name(inputnames, "sorted"))
+            add_const("sorted", true);
+        reorder_inputs({"self", "k", "dim", "largest", "sorted"});
+    }
     else if (type == "aten::istft")
     {
         // dynamo omits istft trailing defaults (onesided/length/return_complex)
@@ -1012,6 +1048,36 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
             add_const("min", Parameter());
         if (!has_input_name(inputnames, "max"))
             add_const("max", Parameter());
+    }
+    else if (type == "aten::zeros" || type == "aten::ones")
+    {
+        // dynamo omits the dtype default (None) from aten::zeros/ones, leaving
+        // [size device pin_memory] which matches neither the level-2 fold nor
+        // the torch.zeros rewrite; restore the canonical [size dtype device
+        // pin_memory] order so the constant folds to an Attribute
+        if (!has_input_name(inputnames, "dtype"))
+            add_const("dtype", Parameter());
+        reorder_inputs({"self", "size", "dtype", "layout", "device", "pin_memory"});
+    }
+    else if (type == "aten::full")
+    {
+        // same dtype-default omission for aten::full; restore
+        // [size fill_value dtype device pin_memory] for the level-2 fold
+        if (!has_input_name(inputnames, "dtype"))
+            add_const("dtype", Parameter());
+        reorder_inputs({"self", "size", "fill_value", "dtype", "layout", "device", "pin_memory"});
+    }
+    else if (type == "aten::new_full")
+    {
+        // Tensor.new_full(self, size, fill_value) omits the dtype/layout/
+        // device defaults; restore the canonical order for the level-2 fold
+        if (!has_input_name(inputnames, "dtype"))
+            add_const("dtype", Parameter());
+        if (!has_input_name(inputnames, "layout"))
+            add_const("layout", Parameter());
+        if (!has_input_name(inputnames, "device"))
+            add_const("device", Parameter());
+        reorder_inputs({"self", "size", "fill_value", "dtype", "layout", "device", "pin_memory"});
     }
     else if (type == "aten::new_zeros" || type == "aten::new_ones" || type == "aten::new_empty")
     {

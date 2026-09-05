@@ -18,6 +18,16 @@ namespace pnnx {
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
 #endif
 
+// 64-bit file positioning: on Windows long/ftell/fseek stay 32-bit even in a
+// 64-bit build, which truncates offsets for archives larger than 2 GiB
+#ifdef _MSC_VER
+#define PNNX_FSEEK _fseeki64
+#define PNNX_FTELL _ftelli64
+#else
+#define PNNX_FSEEK fseeko
+#define PNNX_FTELL ftello
+#endif
+
 PACK(struct local_file_header {
     uint16_t version;
     uint16_t flag;
@@ -140,21 +150,21 @@ int StoreZipReader::open(const std::string& path)
     }
 
     // locate end of central directory record by scanning backwards
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    PNNX_FSEEK(fp, 0, SEEK_END);
+    int64_t file_size = PNNX_FTELL(fp);
 
     uint64_t cd_offset = 0;
     uint64_t cd_size = 0;
     int found = 0;
 
     // eocd is at most 65557 bytes from the end (22 fixed + up to 65535 comment)
-    long minpos = file_size - 65557;
+    int64_t minpos = file_size - 65557;
     if (minpos < 0)
         minpos = 0;
 
-    for (long pos = file_size - 22; pos >= minpos; pos--)
+    for (int64_t pos = file_size - 22; pos >= minpos; pos--)
     {
-        fseek(fp, pos, SEEK_SET);
+        PNNX_FSEEK(fp, pos, SEEK_SET);
         uint32_t signature = 0;
         if (fread((char*)&signature, sizeof(signature), 1, fp) != 1)
             break;
@@ -177,7 +187,7 @@ int StoreZipReader::open(const std::string& path)
         if (eocdr.cd_records == 0xffff || eocdr.total_cd_records == 0xffff || eocdr.cd_offset == 0xffffffff || eocdr.cd_size == 0xffffffff)
         {
             // zip64 : the locator is exactly 20 bytes before the eocd
-            fseek(fp, pos - 20, SEEK_SET);
+            PNNX_FSEEK(fp, pos - 20, SEEK_SET);
             uint32_t sig64 = 0;
             fread((char*)&sig64, sizeof(sig64), 1, fp);
             if (sig64 == 0x07064b50)
@@ -185,7 +195,7 @@ int StoreZipReader::open(const std::string& path)
                 zip64_end_of_central_directory_locator eocdl64;
                 fread((char*)&eocdl64, sizeof(eocdl64), 1, fp);
 
-                fseek(fp, (long)eocdl64.eocdr64_offset, SEEK_SET);
+                PNNX_FSEEK(fp, (int64_t)eocdl64.eocdr64_offset, SEEK_SET);
                 uint32_t sig_eocd64 = 0;
                 fread((char*)&sig_eocd64, sizeof(sig_eocd64), 1, fp);
                 if (sig_eocd64 == 0x06064b50)
@@ -213,7 +223,7 @@ int StoreZipReader::open(const std::string& path)
     }
 
     // walk central directory
-    fseek(fp, (long)cd_offset, SEEK_SET);
+    PNNX_FSEEK(fp, (int64_t)cd_offset, SEEK_SET);
 
     uint64_t pos = cd_offset;
     uint64_t end = cd_offset + cd_size;
@@ -253,7 +263,7 @@ int StoreZipReader::open(const std::string& path)
 
                 if (extra_id != 0x0001)
                 {
-                    fseek(fp, extra_size, SEEK_CUR);
+                    PNNX_FSEEK(fp, extra_size, SEEK_CUR);
                     extra_read += extra_size;
                     continue;
                 }
@@ -275,7 +285,7 @@ int StoreZipReader::open(const std::string& path)
                 }
 
                 // skip remaining bytes of this extra field
-                fseek(fp, cdfh.extra_field_length - extra_read, SEEK_CUR);
+                PNNX_FSEEK(fp, cdfh.extra_field_length - extra_read, SEEK_CUR);
                 extra_read = cdfh.extra_field_length;
                 break;
             }
@@ -283,11 +293,11 @@ int StoreZipReader::open(const std::string& path)
         else
         {
             // skip extra field
-            fseek(fp, cdfh.extra_field_length, SEEK_CUR);
+            PNNX_FSEEK(fp, cdfh.extra_field_length, SEEK_CUR);
         }
 
         // skip file comment
-        fseek(fp, cdfh.file_comment_length, SEEK_CUR);
+        PNNX_FSEEK(fp, cdfh.file_comment_length, SEEK_CUR);
 
         if (cdfh.compression != 0 || compressed_size != uncompressed_size)
         {
@@ -297,9 +307,9 @@ int StoreZipReader::open(const std::string& path)
 
         // read local file header to compute the data offset
         // (the local header may carry a data descriptor, sizes there are unreliable)
-        long cd_cur = ftell(fp);
+        int64_t cd_cur = PNNX_FTELL(fp);
 
-        fseek(fp, (long)lfh_offset, SEEK_SET);
+        PNNX_FSEEK(fp, (int64_t)lfh_offset, SEEK_SET);
         uint32_t lfh_sig = 0;
         fread((char*)&lfh_sig, sizeof(lfh_sig), 1, fp);
         if (lfh_sig != 0x04034b50)
@@ -319,7 +329,7 @@ int StoreZipReader::open(const std::string& path)
         filemetas[name] = fm;
 
         // back to central directory
-        fseek(fp, cd_cur, SEEK_SET);
+        PNNX_FSEEK(fp, cd_cur, SEEK_SET);
 
         pos += 46 + cdfh.file_name_length + cdfh.extra_field_length + cdfh.file_comment_length;
     }
@@ -360,7 +370,7 @@ int StoreZipReader::read_file(const std::string& name, char* data)
     uint64_t offset = filemetas[name].offset;
     uint64_t size = filemetas[name].size;
 
-    fseek(fp, offset, SEEK_SET);
+    PNNX_FSEEK(fp, (int64_t)offset, SEEK_SET);
     fread(data, size, 1, fp);
 
     return 0;
@@ -405,7 +415,7 @@ int StoreZipWriter::open(const std::string& path)
 
 int StoreZipWriter::write_file(const std::string& name, const char* data, uint64_t size)
 {
-    long offset = ftell(fp);
+    int64_t offset = PNNX_FTELL(fp);
 
     uint32_t signature = 0x04034b50;
     fwrite((char*)&signature, sizeof(signature), 1, fp);
@@ -461,7 +471,7 @@ int StoreZipWriter::close()
     if (!fp)
         return 0;
 
-    long offset = ftell(fp);
+    int64_t offset = PNNX_FTELL(fp);
 
     for (const StoreZipMeta& szm : filemetas)
     {
@@ -506,7 +516,7 @@ int StoreZipWriter::close()
         fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
     }
 
-    long offset2 = ftell(fp);
+    int64_t offset2 = PNNX_FTELL(fp);
 
     {
         uint32_t signature = 0x06064b50;
