@@ -681,121 +681,44 @@ static int canonicalize_with_schema(const ExportedNode& node,
     return 0;
 }
 
+static const c10::FunctionSchema& torchvision_deform_conv2d_schema()
+{
+    static const c10::FunctionSchema schema(
+        "torchvision::deform_conv2d", "",
+        {c10::Argument("input", c10::TensorType::get()),
+         c10::Argument("weight", c10::TensorType::get()),
+         c10::Argument("offset", c10::TensorType::get()),
+         c10::Argument("mask", c10::TensorType::get()),
+         c10::Argument("bias", c10::TensorType::get()),
+         c10::Argument("stride_h", c10::SymIntType::get()),
+         c10::Argument("stride_w", c10::SymIntType::get()),
+         c10::Argument("pad_h", c10::SymIntType::get()),
+         c10::Argument("pad_w", c10::SymIntType::get()),
+         c10::Argument("dilation_h", c10::SymIntType::get()),
+         c10::Argument("dilation_w", c10::SymIntType::get()),
+         c10::Argument("groups", c10::SymIntType::get()),
+         c10::Argument("offset_groups", c10::SymIntType::get()),
+         c10::Argument("use_mask", c10::BoolType::get())},
+        {c10::Argument("", c10::TensorType::get())});
+    return schema;
+}
+
+static const c10::FunctionSchema& torchvision_roi_align_schema()
+{
+    static const c10::FunctionSchema schema(
+        "torchvision::roi_align", "",
+        {c10::Argument("input", c10::TensorType::get()),
+         c10::Argument("rois", c10::TensorType::get()),
+         c10::Argument("spatial_scale", c10::FloatType::get()),
+         c10::Argument("pooled_height", c10::SymIntType::get()),
+         c10::Argument("pooled_width", c10::SymIntType::get()),
+         c10::Argument("sampling_ratio", c10::IntType::get()),
+         c10::Argument("aligned", c10::BoolType::get())},
+        {c10::Argument("", c10::TensorType::get())});
+    return schema;
+}
+
 #endif
-
-enum ExportedCustomArgumentType
-{
-    EXPORTED_CUSTOM_TENSOR,
-    EXPORTED_CUSTOM_INT,
-    EXPORTED_CUSTOM_SYM_INT,
-    EXPORTED_CUSTOM_FLOAT,
-    EXPORTED_CUSTOM_BOOL
-};
-
-struct ExportedCustomArgument
-{
-    const char* name;
-    ExportedCustomArgumentType type;
-};
-
-static const ExportedCustomArgument torchvision_deform_conv2d_arguments[] = {
-    {"input", EXPORTED_CUSTOM_TENSOR},
-    {"weight", EXPORTED_CUSTOM_TENSOR},
-    {"offset", EXPORTED_CUSTOM_TENSOR},
-    {"mask", EXPORTED_CUSTOM_TENSOR},
-    {"bias", EXPORTED_CUSTOM_TENSOR},
-    {"stride_h", EXPORTED_CUSTOM_SYM_INT},
-    {"stride_w", EXPORTED_CUSTOM_SYM_INT},
-    {"pad_h", EXPORTED_CUSTOM_SYM_INT},
-    {"pad_w", EXPORTED_CUSTOM_SYM_INT},
-    {"dilation_h", EXPORTED_CUSTOM_SYM_INT},
-    {"dilation_w", EXPORTED_CUSTOM_SYM_INT},
-    {"groups", EXPORTED_CUSTOM_SYM_INT},
-    {"offset_groups", EXPORTED_CUSTOM_SYM_INT},
-    {"use_mask", EXPORTED_CUSTOM_BOOL},
-};
-
-static const ExportedCustomArgument torchvision_roi_align_arguments[] = {
-    {"input", EXPORTED_CUSTOM_TENSOR},
-    {"rois", EXPORTED_CUSTOM_TENSOR},
-    {"spatial_scale", EXPORTED_CUSTOM_FLOAT},
-    {"pooled_height", EXPORTED_CUSTOM_SYM_INT},
-    {"pooled_width", EXPORTED_CUSTOM_SYM_INT},
-    {"sampling_ratio", EXPORTED_CUSTOM_INT},
-    {"aligned", EXPORTED_CUSTOM_BOOL},
-};
-
-static const char* custom_argument_type_name(ExportedCustomArgumentType type)
-{
-    if (type == EXPORTED_CUSTOM_TENSOR)
-        return "Tensor";
-    if (type == EXPORTED_CUSTOM_INT)
-        return "int";
-    if (type == EXPORTED_CUSTOM_SYM_INT)
-        return "SymInt";
-    if (type == EXPORTED_CUSTOM_FLOAT)
-        return "float";
-    return "bool";
-}
-
-static bool custom_argument_type_matches(ExportedCustomArgumentType expected, ExportedArgumentType actual)
-{
-    if (expected == EXPORTED_CUSTOM_TENSOR)
-        return actual == EXPORTED_ARGUMENT_TENSOR;
-    if (expected == EXPORTED_CUSTOM_INT)
-        return actual == EXPORTED_ARGUMENT_INT;
-    if (expected == EXPORTED_CUSTOM_SYM_INT)
-        return actual == EXPORTED_ARGUMENT_INT;
-    if (expected == EXPORTED_CUSTOM_FLOAT)
-        return actual == EXPORTED_ARGUMENT_FLOAT;
-    return actual == EXPORTED_ARGUMENT_BOOL;
-}
-
-static int canonicalize_with_custom_schema(const ExportedNode& node,
-        const ExportedProgramHeader& header,
-        const ExportedCustomArgument* schema_arguments,
-        size_t schema_argument_count,
-        std::vector<CanonicalExportedArgument>& result,
-        std::string& error)
-{
-    if (node.outputs.size() != 1)
-        return operator_error(header, node, "custom operator return count must be 1", error);
-    if (node.outputs[0].type != EXPORTED_ARGUMENT_TENSOR && node.outputs[0].type != EXPORTED_ARGUMENT_NONE)
-        return operator_error(header, node, "custom operator return 0 must be Tensor", error);
-
-    std::vector<ExportedSchemaArgumentBinding> argument_bindings(schema_argument_count);
-    for (size_t i = 0; i < schema_argument_count; i++)
-    {
-        argument_bindings[i].name = schema_arguments[i].name;
-        argument_bindings[i].keyword_only = false;
-    }
-
-    std::vector<const ExportedNamedArgument*> bound_arguments;
-    if (bind_exported_arguments(node, header, argument_bindings, bound_arguments, error) != 0)
-        return -1;
-
-    for (size_t i = 0; i < schema_argument_count; i++)
-    {
-        if (bound_arguments[i] && !custom_argument_type_matches(schema_arguments[i].type, bound_arguments[i]->arg.type))
-            return operator_error(header, node, "argument " + std::string(schema_arguments[i].name) + " must be " + custom_argument_type_name(schema_arguments[i].type), error);
-    }
-
-    std::vector<CanonicalExportedArgument> canonical_arguments;
-    canonical_arguments.reserve(schema_argument_count);
-    for (size_t i = 0; i < schema_argument_count; i++)
-    {
-        if (!bound_arguments[i])
-            return operator_error(header, node, "missing required argument " + std::string(schema_arguments[i].name), error);
-
-        CanonicalExportedArgument argument;
-        argument.name = schema_arguments[i].name;
-        argument.value = bound_arguments[i]->arg;
-        canonical_arguments.push_back(argument);
-    }
-
-    result.swap(canonical_arguments);
-    return 0;
-}
 
 int canonicalize_exported_arguments(const ExportedNode& node,
                                     const ExportedProgramHeader& header,
@@ -811,13 +734,9 @@ int canonicalize_exported_arguments(const ExportedNode& node,
     if (parse_exported_operator_target(node.target, target, target_error) != 0)
         return operator_error(header, node, target_error, error);
 
-    if (target.namespace_name == "torchvision" && target.operator_name == "torchvision::deform_conv2d" && target.overload_name.empty())
-        return canonicalize_with_custom_schema(node, header, torchvision_deform_conv2d_arguments, sizeof(torchvision_deform_conv2d_arguments) / sizeof(torchvision_deform_conv2d_arguments[0]), result, error);
-
-    if (target.namespace_name == "torchvision" && target.operator_name == "torchvision::roi_align" && target.overload_name.empty())
-        return canonicalize_with_custom_schema(node, header, torchvision_roi_align_arguments, sizeof(torchvision_roi_align_arguments) / sizeof(torchvision_roi_align_arguments[0]), result, error);
-
-    if (target.namespace_name != "aten")
+    const bool is_torchvision_deform_conv2d = target.namespace_name == "torchvision" && target.operator_name == "torchvision::deform_conv2d" && target.overload_name.empty();
+    const bool is_torchvision_roi_align = target.namespace_name == "torchvision" && target.operator_name == "torchvision::roi_align" && target.overload_name.empty();
+    if (target.namespace_name != "aten" && !is_torchvision_deform_conv2d && !is_torchvision_roi_align)
         return operator_error(header, node, "unsupported exported operator " + node.target, error);
 
 #if TORCH_VERSION_MAJOR < 2 || (TORCH_VERSION_MAJOR == 2 && TORCH_VERSION_MINOR < 9)
@@ -825,6 +744,12 @@ int canonicalize_exported_arguments(const ExportedNode& node,
 #else
     try
     {
+        if (is_torchvision_deform_conv2d)
+            return canonicalize_with_schema(node, header, torchvision_deform_conv2d_schema(), false, result, error);
+
+        if (is_torchvision_roi_align)
+            return canonicalize_with_schema(node, header, torchvision_roi_align_schema(), false, result, error);
+
         const c10::OperatorHandle operator_handle = c10::Dispatcher::singleton().findSchemaOrThrow(target.operator_name.c_str(), target.overload_name.c_str());
         const c10::FunctionSchema& schema = operator_handle.schema();
         return canonicalize_with_schema(node, header, schema, operator_allows_numbers_as_tensors(target.operator_name), result, error);

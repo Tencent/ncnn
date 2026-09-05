@@ -536,6 +536,80 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assert_nested_close(loaded.module()(*inputs), expected)
                     self.assert_conversion_matches(work_dir, archive_path, expected)
 
+    def test_torchvision_operator_schema_contracts(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "torchvision_contract_source.pt2"
+            save_exported_program(ScalarInputModel().eval(), source_path)
+
+            def replace_with_roi_align(document):
+                graph = document["graph_module"]["graph"]
+                node = graph["nodes"][0]
+                tensor = node["inputs"][0]["arg"]
+                node["target"] = "torch.ops.torchvision.roi_align.default"
+                node["inputs"] = [
+                    {"name": "input", "arg": tensor, "kind": 1},
+                    {"name": "rois", "arg": tensor, "kind": 1},
+                    {"name": "spatial_scale", "arg": {"as_float": 0.25}, "kind": 1},
+                    {"name": "pooled_height", "arg": {"as_int": 3}, "kind": 1},
+                    {"name": "pooled_width", "arg": {"as_int": 3}, "kind": 1},
+                    {"name": "sampling_ratio", "arg": {"as_int": 2}, "kind": 1},
+                    {"name": "aligned", "arg": {"as_bool": False}, "kind": 1},
+                ]
+
+            cases = (
+                (
+                    "return_count",
+                    lambda node: node.update(outputs=[]),
+                    ("torch.ops.torchvision.roi_align.default", "return count"),
+                ),
+                (
+                    "return_type",
+                    lambda node: node.update(outputs=[{"as_int": 1}]),
+                    ("torch.ops.torchvision.roi_align.default", "return 0", "Tensor"),
+                ),
+                (
+                    "argument_type",
+                    lambda node: node["inputs"][2].update(arg={"as_int": 1}),
+                    ("argument spatial_scale", "float"),
+                ),
+                (
+                    "missing_argument",
+                    lambda node: node["inputs"].pop(),
+                    ("missing required argument aligned",),
+                ),
+                (
+                    "duplicate_argument",
+                    lambda node: node["inputs"].append(dict(node["inputs"][-1])),
+                    ("duplicate argument aligned",),
+                ),
+                (
+                    "argument_kind",
+                    lambda node: node["inputs"][0].update(kind=0),
+                    ("unknown argument kind for input",),
+                ),
+                (
+                    "unknown_operator",
+                    lambda node: node.update(target="torch.ops.torchvision.unknown.default"),
+                    ("unsupported exported operator",),
+                ),
+                (
+                    "non_default_overload",
+                    lambda node: node.update(target="torch.ops.torchvision.roi_align.special"),
+                    ("unsupported exported operator",),
+                ),
+            )
+            for name, mutate, messages in cases:
+                with self.subTest(contract=name):
+                    archive_path = work_dir / f"torchvision_contract_{name}.pt2"
+
+                    def mutate_document(document):
+                        replace_with_roi_align(document)
+                        mutate(document["graph_module"]["graph"]["nodes"][0])
+
+                    rewrite_model_json(source_path, archive_path, mutate_document)
+                    self.assert_conversion_fails(work_dir, archive_path, *messages)
+
     def test_input_shape_overrides_are_validated(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
