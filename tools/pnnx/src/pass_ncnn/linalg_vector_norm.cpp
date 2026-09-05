@@ -122,15 +122,34 @@ void convert_aten_linalg_vector_norm(Graph& graph)
 
         float p = 2.f;
         std::vector<int> dims;
-        int keepdim = 1;
+        int keepdim = 0; // aten::linalg_vector_norm defaults to keepdim=False
 
         if (!get_const_float(op->inputs[1], p))
             p = 2.f;
 
         get_const_int(op->inputs[3], keepdim);
 
+        // detect dim=None (the default reduces every axis); it serializes as a
+        // prim::Constant with a null value and must stay null so the torch.norm
+        // rewrite keeps the reduce-all path instead of an empty axis list
+        bool dim_none = false;
+        if (op->inputs[2]->producer)
+        {
+            const Operator* dp = op->inputs[2]->producer;
+            if (dp->type == "prim::Constant" || dp->type == "pnnx.Constant")
+            {
+                std::map<std::string, Parameter>::const_iterator dit = dp->params.find("value");
+                if (dit != dp->params.end() && dit->second.type == 0)
+                    dim_none = true;
+            }
+        }
+
         // parse dim (Expression expr could be "0" or "[0,1]")
-        if (op->inputs[2]->producer && op->inputs[2]->producer->type == "pnnx.Expression")
+        if (dim_none)
+        {
+            // reduce all axes
+        }
+        else if (op->inputs[2]->producer && op->inputs[2]->producer->type == "pnnx.Expression")
         {
             const std::string& expr = op->inputs[2]->producer->params.at("expr").s;
             if (!expr.empty() && expr[0] == '[')
@@ -165,7 +184,10 @@ void convert_aten_linalg_vector_norm(Graph& graph)
         v->consumers.push_back(norm);
 
         norm->params["p"] = p;
-        norm->params["dim"] = dims;
+        if (dim_none)
+            norm->params["dim"] = Parameter();
+        else
+            norm->params["dim"] = dims;
         norm->params["keepdim"] = keepdim ? true : false;
 
         for (Operand* r : op->outputs)

@@ -504,6 +504,31 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
         op->inputnames.push_back(name);
     };
 
+    // reorder op inputs/inputnames to a canonical schema order (the exported
+    // overload may omit middle defaults, and blindly appending them would
+    // misalign the level-2 patterns that match by position)
+    auto reorder_inputs = [&](const std::vector<std::string>& order) {
+        std::vector<Operand*> new_inputs;
+        std::vector<std::string> new_names;
+        for (const std::string& nm : order)
+        {
+            for (size_t k = 0; k < op->inputnames.size(); k++)
+            {
+                if (op->inputnames[k] == nm)
+                {
+                    new_inputs.push_back(op->inputs[k]);
+                    new_names.push_back(nm);
+                    break;
+                }
+            }
+        }
+        if (new_names.size() == op->inputnames.size())
+        {
+            op->inputs = new_inputs;
+            op->inputnames = new_names;
+        }
+    };
+
     if (type == "aten::conv1d" || type == "aten::conv2d" || type == "aten::conv3d")
     {
         int dim = 2;
@@ -611,19 +636,55 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
         {
             if (!has_input_name(inputnames, "keepdim"))
                 add_const("keepdim", false);
+            if (!has_input_name(inputnames, "dtype"))
+                add_const("dtype", Parameter());
+            // keepdim sits before dtype in the schema; when dtype was already
+            // serialized but keepdim omitted, reorder so the level-2 pattern
+            // does not read dtype as keepdim
+            reorder_inputs({"self", "dim", "keepdim", "dtype"});
         }
-        if (!has_input_name(inputnames, "dtype"))
-            add_const("dtype", Parameter());
+        else
+        {
+            // full-reduction overload: self (+ optional dtype) is already in order
+            if (!has_input_name(inputnames, "dtype"))
+                add_const("dtype", Parameter());
+        }
     }
     else if (type == "aten::var" || type == "aten::std")
     {
-        // both aten::var.correction and aten::std.correction take optional
-        // correction/keepdim defaults that dynamo may omit; without them the
-        // two-input std/var cannot match the torch_std/torch_var rewrites
-        if (!has_input_name(inputnames, "correction"))
-            add_const("correction", 1);
-        if (!has_input_name(inputnames, "keepdim"))
-            add_const("keepdim", false);
+        // aten::var/std.dim overloads serialize an unbiased argument; the
+        // .correction overload serializes correction. never mix the two families
+        // (a 5-input node matches no level-2 pattern), and keep the defaults in
+        // canonical schema order so the torch_std/torch_var rewrites match.
+        if (has_input_name(inputnames, "unbiased"))
+        {
+            if (!has_input_name(inputnames, "keepdim"))
+                add_const("keepdim", false);
+            reorder_inputs({"self", "dim", "unbiased", "keepdim"});
+        }
+        else if (has_input_name(inputnames, "correction"))
+        {
+            if (!has_input_name(inputnames, "keepdim"))
+                add_const("keepdim", false);
+            reorder_inputs({"self", "dim", "correction", "keepdim"});
+        }
+        else if (has_input_name(inputnames, "dim"))
+        {
+            // dim overload with the default unbiased/keepdim omitted
+            if (!has_input_name(inputnames, "unbiased"))
+                add_const("unbiased", true);
+            if (!has_input_name(inputnames, "keepdim"))
+                add_const("keepdim", false);
+            reorder_inputs({"self", "dim", "unbiased", "keepdim"});
+        }
+        else
+        {
+            // reduce-all overload (self only, serialized under .correction)
+            if (!has_input_name(inputnames, "correction"))
+                add_const("correction", 1);
+            if (!has_input_name(inputnames, "keepdim"))
+                add_const("keepdim", false);
+        }
     }
     else if (type == "aten::softmax" || type == "aten::log_softmax")
     {
@@ -848,10 +909,23 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     }
     else if (type == "aten::prod")
     {
-        if (!has_input_name(inputnames, "keepdim"))
-            add_const("keepdim", false);
-        if (!has_input_name(inputnames, "dtype"))
-            add_const("dtype", Parameter());
+        // only the dim overload (prod(x, dim)) takes keepdim; the full-reduction
+        // overload prod(x) has no dim/keepdim inputs, and appending keepdim here
+        // would yield [input, keepdim, dtype], which no level-2 pattern matches
+        if (has_input_name(inputnames, "dim"))
+        {
+            if (!has_input_name(inputnames, "keepdim"))
+                add_const("keepdim", false);
+            if (!has_input_name(inputnames, "dtype"))
+                add_const("dtype", Parameter());
+            reorder_inputs({"self", "dim", "keepdim", "dtype"});
+        }
+        else
+        {
+            // full-reduction prod(x): self (+ optional dtype) is already in order
+            if (!has_input_name(inputnames, "dtype"))
+                add_const("dtype", Parameter());
+        }
     }
     else if (type == "aten::cumsum")
     {

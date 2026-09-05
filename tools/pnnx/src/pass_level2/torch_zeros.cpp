@@ -115,6 +115,8 @@ pnnx.Output             output      1 0 out
         if (a.type == 2 || a.type == 5) es = 8;                 // f64/i64
         if (a.type == 3 || a.type == 6 || a.type == 13) es = 2; // f16/i16/bf16
         if (a.type == 7 || a.type == 8 || a.type == 9) es = 1;  // i8/u8/bool
+        if (a.type == 10) es = 8;                               // complex64 (2 x f32)
+        if (a.type == 11) es = 16;                              // complex128 (2 x f64)
 
         // reject dynamic / invalid (non-positive) dimensions before allocating
         size_t count = 1;

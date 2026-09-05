@@ -63,4 +63,34 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_std_1, 50)
 
+class torch_std_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // reduce-all torch.std(x) is exported under std.correction with no dim
+        // input: self correction keepdim
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 correction value=%correction
+prim::Constant          op_1        0 1 keepdim value=%keepdim
+aten::std               op_2        3 1 input correction keepdim out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("correction").type == 2;
+    }
+
+    const char* type_str() const
+    {
+        return "torch.std";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_std_2, 49)
+
 } // namespace pnnx

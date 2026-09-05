@@ -125,6 +125,26 @@ static void fold_window(Operator* op, const std::map<std::string, Parameter>& ca
     op->params.clear();
 }
 
+// a dtype param is only foldable when it stays in the float family; an
+// integer/bool window folds to truncated values pnnx cannot express here
+static bool is_foldable_window_dtype(const std::map<std::string, Parameter>& captured_params)
+{
+    for (const auto& x : captured_params)
+    {
+        std::string key = x.first;
+        size_t dot = key.rfind('.');
+        if (dot != std::string::npos)
+            key = key.substr(dot + 1);
+        if (key == "dtype" && x.second.type == 2)
+        {
+            const int t = x.second.i;
+            if (t != 1 && t != 2 && t != 3 && t != 13) // f32/f64/f16/bf16
+                return false;
+        }
+    }
+    return true;
+}
+
 class torch_hann_window_fold : public GraphRewriterPass
 {
 public:
@@ -140,6 +160,11 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "pnnx.Attribute";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return is_foldable_window_dtype(captured_params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -163,6 +188,11 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "pnnx.Attribute";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return is_foldable_window_dtype(captured_params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
