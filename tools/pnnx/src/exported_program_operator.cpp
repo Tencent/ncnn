@@ -143,21 +143,15 @@ static int operator_error(const ExportedProgramHeader& header, const ExportedNod
     return -1;
 }
 
-struct ExportedSchemaArgumentBinding
-{
-    std::string name;
-    bool keyword_only;
-};
-
 static int bind_exported_arguments(const ExportedNode& node,
                                    const ExportedProgramHeader& header,
-                                   const std::vector<ExportedSchemaArgumentBinding>& schema_arguments,
+                                   const std::vector<c10::Argument>& schema_arguments,
                                    std::vector<const ExportedNamedArgument*>& bound_arguments,
                                    std::string& error)
 {
     std::map<std::string, size_t> schema_indices;
     for (size_t i = 0; i < schema_arguments.size(); i++)
-        schema_indices[schema_arguments[i].name] = i;
+        schema_indices[schema_arguments[i].name()] = i;
 
     bool has_missing_kind = false;
     bool has_explicit_kind = false;
@@ -191,11 +185,11 @@ static int bind_exported_arguments(const ExportedNode& node,
         {
             if (saw_keyword)
                 return operator_error(header, node, "positional argument " + input.name + " follows a keyword argument", error);
-            if (schema_arguments[schema_index].keyword_only)
+            if (schema_arguments[schema_index].kwarg_only())
                 return operator_error(header, node, "keyword-only argument " + input.name + " was serialized as positional", error);
             if (schema_index != next_positional)
             {
-                const std::string expected_name = next_positional < schema_arguments.size() ? schema_arguments[next_positional].name : std::string("<none>");
+                const std::string expected_name = next_positional < schema_arguments.size() ? schema_arguments[next_positional].name() : std::string("<none>");
                 return operator_error(header, node, "expected positional argument " + expected_name + " but found " + input.name, error);
             }
             next_positional++;
@@ -637,15 +631,8 @@ static int canonicalize_with_schema(const ExportedNode& node,
     }
 
     const std::vector<c10::Argument>& schema_arguments = schema.arguments();
-    std::vector<ExportedSchemaArgumentBinding> argument_bindings(schema_arguments.size());
-    for (size_t i = 0; i < schema_arguments.size(); i++)
-    {
-        argument_bindings[i].name = schema_arguments[i].name();
-        argument_bindings[i].keyword_only = schema_arguments[i].kwarg_only();
-    }
-
     std::vector<const ExportedNamedArgument*> bound_arguments;
-    if (bind_exported_arguments(node, header, argument_bindings, bound_arguments, error) != 0)
+    if (bind_exported_arguments(node, header, schema_arguments, bound_arguments, error) != 0)
         return -1;
 
     std::vector<CanonicalExportedArgument> canonical_arguments;
