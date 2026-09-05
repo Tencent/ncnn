@@ -3,7 +3,9 @@
 
 #include "torch_weight_norm.h"
 
-#include <math.h>
+#include <ATen/ATen.h>
+
+#include <exception>
 
 #include "pass_level2.h"
 
@@ -64,34 +66,36 @@ static bool fold_static_weight_norm(Operator* op)
         }
     }
 
-    size_t dim_stride = 1;
     if (!whole_tensor)
     {
         for (int i = dim + 1; i < ndim; i++)
         {
             if (v.shape[i] <= 0)
                 return false;
-            dim_stride *= (size_t)v.shape[i];
         }
     }
 
-    const std::vector<float> v_data = v.get_float32_data();
-    const std::vector<float> g_data = g.get_float32_data();
-    std::vector<double> norms(norm_count, 0.0);
-    for (size_t i = 0; i < v_data.size(); i++)
+    std::vector<float> v_data = v.get_float32_data();
+    std::vector<float> g_data = g.get_float32_data();
+    std::vector<float> weight_data;
+    try
     {
-        const int norm_index = whole_tensor ? 0 : (int)((i / dim_stride) % (size_t)norm_count);
-        const double value = v_data[i];
-        norms[norm_index] += value * value;
+        // Use ATen's reduction order and float32 intermediate rounding.
+        const std::vector<int64_t> v_shape(v.shape.begin(), v.shape.end());
+        const std::vector<int64_t> g_shape(g.shape.begin(), g.shape.end());
+        const auto options = at::TensorOptions().dtype(at::kFloat).device(at::kCPU);
+        const at::Tensor vt = at::from_blob(v_data.data(), v_shape, options);
+        const at::Tensor gt = at::from_blob(g_data.data(), g_shape, options);
+        const at::Tensor weight = at::_weight_norm(vt, gt, dim_param.i).contiguous();
+        if (weight.numel() != 0)
+        {
+            const float* data = weight.data_ptr<float>();
+            weight_data.assign(data, data + weight.numel());
+        }
     }
-    for (int i = 0; i < norm_count; i++)
-        norms[i] = sqrt(norms[i]);
-
-    std::vector<float> weight_data(v_data.size());
-    for (size_t i = 0; i < v_data.size(); i++)
+    catch (const std::exception&)
     {
-        const int norm_index = whole_tensor ? 0 : (int)((i / dim_stride) % (size_t)norm_count);
-        weight_data[i] = (float)((double)v_data[i] * g_data[norm_index] / norms[norm_index]);
+        return false;
     }
 
     for (size_t i = 0; i < op->inputs.size(); i++)

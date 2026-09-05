@@ -492,6 +492,8 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             (v, g, 1),
             (v, g, -2),
             (torch.tensor([[1e10, 1e10]]), torch.tensor([[1e30]]), 0),
+            (torch.cat((torch.tensor([256.]), torch.full((32767,), 0.0625))).reshape(1, -1),
+             torch.ones(1, 1), 0),
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
@@ -504,6 +506,33 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     expected = model(torch.rand(weight.shape))
                     self.assertTrue(torch.isfinite(expected).all())
                     self.assert_conversion_matches(work_dir, archive_path, expected)
+
+    def test_static_weight_norm_float32_range(self):
+        cases = (
+            (1e20, 1.),       # Each squared value overflows.
+            (1e19, 1.),       # Only the sum of squares overflows.
+            (1e-30, 1e-30),   # The squared values underflow to zero.
+            (1e-20, 1e30),    # The scale / norm ratio overflows.
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            for dim in (0, 1, 2, -1):
+                shape = [1, 1, 1]
+                if dim != -1:
+                    shape[dim] = 2
+                for index, (value, scale) in enumerate(cases):
+                    with self.subTest(dim=dim, case=index):
+                        weight = torch.full((2, 2, 2), value)
+                        model = StaticWeightNormModel(
+                            weight, torch.full(shape, scale), dim
+                        ).eval()
+                        archive_path = work_dir / f"range_{dim + 1}_{index}.pt2"
+                        save_exported_program(model, archive_path, (torch.zeros_like(weight),))
+                        torch.manual_seed(0)
+                        expected = model(torch.rand(weight.shape))
+                        self.assert_conversion_matches(work_dir, archive_path, expected)
+                        graph = archive_path.with_suffix(".pnnx.param").read_text()
+                        self.assertNotIn("torch._weight_norm ", graph)
 
     def test_empty_state_view_beyond_storage(self):
         with tempfile.TemporaryDirectory() as temp_dir:
