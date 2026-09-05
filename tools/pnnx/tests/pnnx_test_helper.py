@@ -42,8 +42,13 @@ def _outputs_equal(a, b, atol=1e-3, rtol=1e-3):
         if len(a) != len(b):
             # torch.export flattens a single-element tuple output into the bare
             # value (the fx graph ends with one as_tensor output), while the
-            # torchscript path keeps a one-element tuple; compare the element
-            return False if isinstance(b, (tuple, list)) else _outputs_equal(a[0], b, atol, rtol)
+            # torchscript path keeps a one-element tuple; only the one-element
+            # case is an equivalent representation - any other length mismatch
+            # is a real dropped-output regression and must not be compared
+            # element-wise
+            if len(a) == 1 and not isinstance(b, (tuple, list)):
+                return _outputs_equal(a[0], b, atol, rtol)
+            return False
         return all(_outputs_equal(x, y, atol, rtol) for x, y in zip(a, b))
     if isinstance(b, (tuple, list)):
         if len(b) != 1:
@@ -60,8 +65,10 @@ def _outputs_shape_equal(a, b):
     if isinstance(a, (tuple, list)):
         if len(a) != len(b):
             # torch.export flattens a single-element tuple output into the bare
-            # value; see _outputs_equal
-            return False if isinstance(b, (tuple, list)) else _outputs_shape_equal(a[0], b)
+            # value; see _outputs_equal - only the one-element case is valid
+            if len(a) == 1 and not isinstance(b, (tuple, list)):
+                return _outputs_shape_equal(a[0], b)
+            return False
         return all(_outputs_shape_equal(x, y) for x, y in zip(a, b))
     if isinstance(b, (tuple, list)):
         if len(b) != 1:

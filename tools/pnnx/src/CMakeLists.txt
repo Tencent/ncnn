@@ -296,7 +296,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_tensor_split.cpp
     pass_level2/torch_tile.cpp
     pass_level2/torch_tril.cpp
-    pass_level2/torch_topk.cpp    pass_level2/torch_transpose.cpp
+    pass_level2/torch_topk.cpp
+    pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
