@@ -375,7 +375,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     // coeffs a and b ---
     // coeffs_workspace stores {a, b} for each group, so size is num_groups_total * 2
-    VkMat coeffs_workspace(num_groups_total * 2, elemsize, elempack, opt.workspace_vkallocator);
+    VkMat coeffs_workspace(num_groups_total * 2, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> coeff_bindings(3);
         coeff_bindings[0] = coeffs_workspace;

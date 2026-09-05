@@ -53,6 +53,8 @@ void main()
 
 ncnn GLSL 扩展为存储、计算、共享内存以及缓冲区和图像的加载、存储、转换函数提供了必要的数据类型。我们还提供了一些缓冲区和图像复制函数，以防止在使用 fp16 作为中间数据类型时丢失精度，并避免不必要的 `unpackHalf2x16` 和 `packHalf2x16` 配对。
 
+该扩展实现在 `src/ncnn_glsl_ext.comp` 中，由 `compile_spirv_module()` 在选项和设备能力宏之后自动注入。
+
 # 编译GLSL的入口点
 
 ncnn库中的 gpu.h 头文件公开了3个用于将 GLSL 代码编译为 Spir-V 二进制的API函数，它们支持 ncnn GLSL 扩展，这3个函数接受 opt switch 来控制 ncnn GLSL 扩展形式。前两个函数接受原始 GLSL 代码字符串作为参数，最后一个函数用于创建 ncnn 的已存在的内置着色器。

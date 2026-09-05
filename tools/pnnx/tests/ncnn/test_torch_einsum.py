@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1):
+    def forward(self, x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1, t0, t1):
         # identity
         a0 = torch.einsum('i', y0)
         a1 = torch.einsum('ij', x)
@@ -142,7 +142,11 @@ class Model(nn.Module):
         # tensor contraction
         j = torch.einsum('pqrs,tqvr->pstv', s0, s1)
 
-        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g0, g1, h0, h1, i, j
+        t0 = F.max_pool2d(t0, 1)
+        t1 = F.max_pool2d(t1, 1)
+        k = torch.einsum('nchw,ncwo->ncho', t0, t1)
+
+        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g0, g1, h0, h1, i, j, k
 
 def test():
     net = Model()
@@ -160,16 +164,18 @@ def test():
     r2 = torch.rand(2, 4)
     s0 = torch.rand(2, 3, 5, 7)
     s1 = torch.rand(11, 3, 17, 5)
+    t0 = torch.rand(2, 3, 5, 7)
+    t1 = torch.rand(2, 3, 7, 4)
 
-    a = net(x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1)
+    a = net(x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1, t0, t1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1))
+    mod = torch.jit.trace(net, (x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1, t0, t1))
     mod.save("test_torch_einsum.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
+    os.system("../../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5],[2,3,5,7],[2,3,7,4]")
 
     # ncnn inference
     import test_torch_einsum_ncnn

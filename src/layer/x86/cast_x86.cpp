@@ -68,13 +68,13 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
 
     if (dims == 1)
-        top_blob.create_batch(w, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 2)
-        top_blob.create_batch(w, h, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 3)
-        top_blob.create_batch(w, h, channels, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, batch, opt.blob_allocator);
     else if (dims == 4)
-        top_blob.create_batch(w, h, d, channels, batch, out_elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, batch, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -82,12 +82,12 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (type_from == 1 && type_to == 2)
     {
-        cast_fp32_to_fp16_sse(bottom_blob, top_blob, opt);
+        cast_fp32_to_fp16(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 2 && type_to == 1)
     {
-        cast_fp16_to_fp32_sse(bottom_blob, top_blob, opt);
+        cast_fp16_to_fp32(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 3 && type_to == 1)
@@ -110,12 +110,12 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (type_from == 1 && type_to == 4)
     {
-        cast_fp32_to_bf16_sse(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 4 && type_to == 1)
     {
-        cast_bf16_to_fp32_sse(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32(bottom_blob, top_blob, opt);
     }
 
     return 0;

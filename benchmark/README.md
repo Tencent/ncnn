@@ -27,6 +27,14 @@ Usage
   param=model.param
   shape=[227,227,3],..
 ```
+
+### LLM benchmark
+
+`benchncnn_llm` benchmarks 256-token prefill and cached single-token decode
+for each LLM. When weight quantization is enabled, every model is followed by
+an `_int8` dynamic W8A8 per-block variant using the same graph shapes and
+runtime options. W8A8 entries run on CPU only.
+
 run benchncnn on android device
 ```shell
 # for running on android device, upload to /data/local/tmp/ folder

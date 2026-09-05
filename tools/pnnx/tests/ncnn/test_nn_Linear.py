@@ -22,7 +22,7 @@ class Model(nn.Module):
         else:
             self.linear_2 = torch.nn.utils.parametrizations.weight_norm(self.linear_2)
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = self.linear_0(x)
         x = self.linear_1(x)
         x = self.linear_2(x)
@@ -39,7 +39,11 @@ class Model(nn.Module):
         w = self.linear_0(w)
         w = self.linear_1(w)
         w = self.linear_2(w)
-        return x, y, z, w
+        q = F.max_pool2d(q, 1)
+        q = self.linear_0(q)
+        q = self.linear_1(q)
+        q = self.linear_2(q)
+        return x, y, z, w, q
 
 def test():
     net = Model().half().float()
@@ -50,16 +54,17 @@ def test():
     y = torch.rand(12, 64)
     z = torch.rand(1, 3, 12, 64)
     w = torch.rand(1, 64)
+    q = torch.rand(2, 3, 5, 64)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_nn_Linear.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64],[1,64]")
+    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64],[1,64],[2,3,5,64]")
 
     # ncnn inference
     import test_nn_Linear_ncnn

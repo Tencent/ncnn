@@ -454,13 +454,6 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif// NCNN_RUNTIME_CPU && NCNN_AVX512
-#if NCNN_RUNTIME_CPU && NCNN_FMA
-    if (ncnn::cpu_support_x86_fma())
-    {
-        layer_creator = layer_registry_fma[index].creator;
-    }
-    else
-#endif// NCNN_RUNTIME_CPU && NCNN_FMA
 #if NCNN_RUNTIME_CPU && NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
     {

@@ -1,0 +1,29 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer cache_blob { sfp cache_blob_data[]; };
+layout(binding = 1) writeonly buffer new_cache_blob { sfp new_cache_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cache_cstep;
+    int new_cache_cstep;
+} p;
+
+void main()
+{
+    const int x = int(gl_GlobalInvocationID.x);
+    const int y = int(gl_GlobalInvocationID.y);
+    const int z = int(gl_GlobalInvocationID.z);
+
+    if (x >= p.w || y >= p.h)
+        return;
+
+    const int src_index = z * p.cache_cstep + y * p.w + x;
+    const int dst_index = z * p.new_cache_cstep + y * p.w + x;
+    buffer_cp1(new_cache_blob_data, dst_index, cache_blob_data, src_index);
+}

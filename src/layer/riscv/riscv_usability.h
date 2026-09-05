@@ -94,6 +94,11 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
 }
 #endif // __riscv_zvfh
 
+static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
+{
+    return __riscv_vnclipu_wx_u16m1(__riscv_vreinterpret_v_f32m2_u32m2(v), 16, __RISCV_VXRM_RNE, vl);
+}
+
 static inline int csrr_vl()
 {
     int a = 0;

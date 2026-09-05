@@ -102,6 +102,8 @@ void fuse_slice_to_tensor_split(Graph& graph)
                 {
                     if (dim < 0)
                         dim += op_in->shape.size();
+                    if (dim < 0 || dim >= (int)op_in->shape.size())
+                        continue;
 
                     if (end2 == op_in->shape[dim])
                     {

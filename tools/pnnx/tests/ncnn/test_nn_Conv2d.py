@@ -40,6 +40,15 @@ class Model(nn.Module):
 
         return x
 
+class ModelBatch(nn.Module):
+    def __init__(self):
+        super(ModelBatch, self).__init__()
+
+        self.conv = nn.Conv2d(3, 4, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        return self.conv(x)
+
 def test():
     net = Model().half().float()
     net.eval()
@@ -60,6 +69,31 @@ def test():
     # ncnn inference
     import test_nn_Conv2d_ncnn
     b = test_nn_Conv2d_ncnn.test_inference()
+
+    if not torch.allclose(a, b, 1e-3, 1e-3):
+        return False
+    return test_batch()
+
+def test_batch():
+    net = ModelBatch().half().float()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 11, 13)
+
+    a = net(x)
+
+    # export torchscript
+    mod = torch.jit.trace(net, x)
+    mod.save("test_nn_Conv2d_batch.pt")
+
+    # torchscript to pnnx
+    import os
+    os.system("../../src/pnnx test_nn_Conv2d_batch.pt inputshape=[2,3,11,13]")
+
+    # ncnn inference
+    import test_nn_Conv2d_batch_ncnn
+    b = test_nn_Conv2d_batch_ncnn.test_inference()
 
     return torch.allclose(a, b, 1e-3, 1e-3)
 

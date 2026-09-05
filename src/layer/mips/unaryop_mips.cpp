@@ -5,6 +5,7 @@
 
 // #include <fenv.h>
 #include <float.h>
+#include "mips_usability.h"
 
 #if __mips_msa
 #include <msa.h>
@@ -171,7 +172,7 @@ struct unary_op_rsqrt
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        return __msa_frsqrt_w(x);
+        return __ncnn_msa_comp_rsqrt1_w(x);
     }
 #endif // __mips_msa
 };
@@ -507,7 +508,6 @@ struct unary_op_log1p
 } // namespace UnaryOp_mips_functor
 
 #if NCNN_BF16
-#include "mips_usability.h"
 
 template<typename Op>
 static int unary_op_inplace_bf16s(Mat& a, const Option& opt)

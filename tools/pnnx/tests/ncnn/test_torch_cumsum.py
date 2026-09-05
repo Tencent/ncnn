@@ -10,11 +10,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         # x - 3d
         # y - 2d
         # z - 1d
         # w - 4d
+        # q - 4d batch
         x0 = torch.cumsum(x, dim=0)
         x1 = torch.cumsum(x, dim=1)
         x2 = torch.cumsum(x, dim=2)
@@ -29,7 +30,12 @@ class Model(nn.Module):
         w2 = torch.cumsum(w, dim=2)
         w3 = torch.cumsum(w, dim=3)
         w4 = torch.cumsum(w, dim=-1)
-        return x0, x1, x2, y0, y1, z0, w0, w1, w2, w3, w4
+        q = F.max_pool2d(q, 1)
+        q0 = torch.cumsum(q, dim=1)
+        q1 = torch.cumsum(q, dim=2)
+        q2 = torch.cumsum(q, dim=3)
+        q3 = torch.cumsum(q, dim=-1)
+        return x0, x1, x2, y0, y1, z0, w0, w1, w2, w3, w4, q0, q1, q2, q3
 
 def test():
     net = Model()
@@ -40,16 +46,17 @@ def test():
     y = torch.rand(5, 9)
     z = torch.rand(3)
     w = torch.rand(2, 3, 4, 5)
+    q = torch.rand(2, 3, 4, 5)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_torch_cumsum.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_cumsum.pt inputshape=[2,3,16],[5,9],[3],[2,3,4,5]")
+    os.system("../../src/pnnx test_torch_cumsum.pt inputshape=[2,3,16],[5,9],[3],[2,3,4,5],[2,3,4,5]")
 
     # ncnn inference
     import test_torch_cumsum_ncnn

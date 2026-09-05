@@ -196,6 +196,12 @@ static std::string eval_expression(const Operator* op)
                     {
                         if (bi < 0)
                             bi = op->inputs[input_index]->shape.size() + bi;
+                        if (bi < 0 || bi >= (int)op->inputs[input_index]->shape.size())
+                        {
+                            std::string r = std::string("size(") + a + "," + std::to_string(b.i) + ")";
+                            exprstack.push(typed_expr(r, 0));
+                            continue;
+                        }
                         int r = op->inputs[input_index]->shape[bi];
                         if (r == -1)
                         {

@@ -14,12 +14,13 @@ class Model(nn.Module):
         self.pool_2 = nn.AdaptiveMaxPool3d(output_size=(None,4,3))
         self.pool_3 = nn.AdaptiveMaxPool3d(output_size=(5,None,None))
 
-    def forward(self, x):
+    def forward(self, x, q):
         out0 = self.pool_0(x)
         out1 = self.pool_1(x)
         out2 = self.pool_2(x)
         out3 = self.pool_3(x)
-        return out0, out1, out2, out3
+        q = self.pool_0(q)
+        return out0, out1, out2, out3, q
 
 def test():
     net = Model()
@@ -27,16 +28,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 128, 13, 13, 13)
+    q = torch.rand(2, 128, 13, 13, 13)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_AdaptiveMaxPool3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_AdaptiveMaxPool3d.pt inputshape=[1,128,13,13,13]")
+    os.system("../../src/pnnx test_nn_AdaptiveMaxPool3d.pt inputshape=[1,128,13,13,13],[2,128,13,13,13]")
 
     # ncnn inference
     import test_nn_AdaptiveMaxPool3d_ncnn

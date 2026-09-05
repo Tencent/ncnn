@@ -13,11 +13,14 @@ class Model(nn.Module):
         self.pad_1 = nn.ReplicationPad3d(padding=(1,2,3,4,5,6))
         self.pad_2 = nn.ReplicationPad3d(padding=(1,0,2,0,0,3))
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = self.pad_0(x)
         x = self.pad_1(x)
         x = self.pad_2(x)
-        return x
+        y = self.pad_0(y)
+        y = self.pad_1(y)
+        y = self.pad_2(y)
+        return x, y
 
 def test():
     net = Model()
@@ -25,22 +28,26 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 13, 13, 13)
+    y = torch.rand(2, 12, 13, 13, 13)
 
-    a = net(x)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_nn_ReplicationPad3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_ReplicationPad3d.pt inputshape=[1,12,13,13,13]")
+    os.system("../../src/pnnx test_nn_ReplicationPad3d.pt inputshape=[1,12,13,13,13],[2,12,13,13,13]")
 
     # ncnn inference
     import test_nn_ReplicationPad3d_ncnn
     b = test_nn_ReplicationPad3d_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

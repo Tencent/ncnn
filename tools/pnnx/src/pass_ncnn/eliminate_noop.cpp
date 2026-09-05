@@ -29,7 +29,17 @@ void eliminate_noop(Graph& graph)
 
             op_in->remove_consumer(op);
 
+            bool keep_input_batch_index = false;
+            int input_batch_index = 233;
+            if (op_in->producer && op_in->producer->type == "pnnx.Input" && op_in->params.find("__batch_index") != op_in->params.end())
+            {
+                keep_input_batch_index = true;
+                input_batch_index = op_in->params.at("__batch_index").i;
+            }
+
             op_in->params = op_out->params;
+            if (keep_input_batch_index)
+                op_in->params["__batch_index"] = input_batch_index;
 
             for (auto& x : op_out->consumers)
             {

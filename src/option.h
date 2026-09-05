@@ -43,6 +43,12 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
+    // kv cache memory allocator
+    Allocator* kvcache_allocator;
+
+    // maximum kv cache sequence length hint
+    int kvcache_max_seqlen_hint;
+
 #if NCNN_VULKAN
     // blob memory allocator
     VkAllocator* blob_vkallocator;
@@ -52,6 +58,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // kv cache memory allocator
+    VkAllocator* kvcache_vkallocator;
 
     // pipeline cache
     PipelineCache* pipeline_cache;

@@ -7,10 +7,6 @@
 
 #include <stdio.h>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
     // clang-format off
@@ -404,6 +400,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     return check_top2(cls_scores, epsilon);
 }
 
+#if NCNN_BATCH
 static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 {
     ncnn::Net squeezenet;
@@ -457,10 +454,10 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 
     // create batch input
     ncnn::Mat in_batch;
-    in_batch.create_batch(in.w, in.h, in.c, B, in.elemsize, in.elempack);
+    in_batch.create(in.w, in.h, in.c, in.elemsize, in.elempack, B);
     if (in_batch.empty())
     {
-        fprintf(stderr, "test_squeezenet_batch create_batch failed\n");
+        fprintf(stderr, "test_squeezenet_batch create failed\n");
         return -1;
     }
 
@@ -514,16 +511,11 @@ static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
 
     return 0;
 }
+#endif // NCNN_BATCH
 
 int main()
 {
     SRAND(7767517);
-
-#ifdef __EMSCRIPTEN__
-    EM_ASM(
-        FS.mkdir('/working');
-        FS.mount(NODEFS, {root: '../../examples'}, '/working'););
-#endif // __EMSCRIPTEN__
 
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -619,6 +611,7 @@ int main()
 #endif // NCNN_VULKAN
     }
 
+#if NCNN_BATCH
     // batch inference tests
     for (int i = 0; i < 4; i++)
     {
@@ -656,6 +649,7 @@ int main()
         }
 #endif // NCNN_VULKAN
     }
+#endif // NCNN_BATCH
 
     return 0;
 }

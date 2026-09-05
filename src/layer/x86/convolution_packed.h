@@ -1,6 +1,13 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void convolution_packed_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void convolution_packed_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
 static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1061,6 +1068,21 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 
 static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convolution_packed_fma(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        convolution_packed_fma4(bottom_blob, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
     const int w = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
@@ -1614,22 +1636,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _we = _mm256_load_ps(kptr + 8 * 14);
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
-                            _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r0s[4]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r0s[5]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r0s[6]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r0s[7]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r0s[8]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r0s[9]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r0s[10]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r0s[11]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r0s[12]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r0s[13]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r0s[14]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r0s[15]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r0s[4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r0s[5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r0s[6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r0s[7]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(r0s[8]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(r0s[9]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(r0s[10]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(r0s[11]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(r0s[12]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(r0s[13]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(r0s[14]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(r0s[15]), _sum3);
 
                             kptr += 128;
                         }
@@ -1660,22 +1682,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _we = _mm256_load_ps(kptr + 8 * 14);
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
-                            _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r0s[4]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r0s[5]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r0s[6]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r0s[7]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r1s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r1s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r1s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r1s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r1s[4]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r1s[5]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r1s[6]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r1s[7]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r0s[4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r0s[5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r0s[6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r0s[7]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(r1s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(r1s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(r1s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(r1s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(r1s[4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(r1s[5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(r1s[6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(r1s[7]), _sum3);
 
                             kptr += 128;
                         }
@@ -1710,22 +1732,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _we = _mm256_load_ps(kptr + 8 * 14);
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
-                            _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r1s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r1s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r1s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r1s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r2s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r2s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r2s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r2s[3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r3s[0]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r3s[1]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r3s[2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r3s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r1s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r1s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r1s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r1s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(r2s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(r2s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(r2s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(r2s[3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(r3s[0]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(r3s[1]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(r3s[2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(r3s[3]), _sum3);
 
                             kptr += 128;
                         }
@@ -1753,22 +1775,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _we = _mm256_load_ps(kptr + 8 * 14);
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
-                            _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r0[sok + N * 8]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r0[sok + N * 9]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r0[sok + N * 10]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r0[sok + N * 11]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r0[sok + N * 12]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r0[sok + N * 13]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r0[sok + N * 14]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r0[sok + N * 15]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w8, _mm256_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w9, _mm256_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_wa, _mm256_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wb, _mm256_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_wc, _mm256_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_wd, _mm256_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_we, _mm256_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_wf, _mm256_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 128;
                         }
@@ -2055,22 +2077,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _we = _mm_load_ps(kptr + 4 * 14);
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
-                            _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r0s[4]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r0s[5]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r0s[6]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r0s[7]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r0s[8]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r0s[9]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r0s[10]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r0s[11]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r0s[12]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r0s[13]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r0s[14]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r0s[15]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r0s[4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r0s[5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r0s[6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r0s[7]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(r0s[8]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(r0s[9]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(r0s[10]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(r0s[11]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(r0s[12]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(r0s[13]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(r0s[14]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(r0s[15]), _sum3);
 
                             kptr += 64;
                         }
@@ -2101,22 +2123,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _we = _mm_load_ps(kptr + 4 * 14);
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
-                            _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r0s[4]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r0s[5]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r0s[6]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r0s[7]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r1s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r1s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r1s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r1s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r1s[4]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r1s[5]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r1s[6]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r1s[7]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r0s[4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r0s[5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r0s[6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r0s[7]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(r1s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(r1s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(r1s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(r1s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(r1s[4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(r1s[5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(r1s[6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(r1s[7]), _sum3);
 
                             kptr += 64;
                         }
@@ -2151,22 +2173,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _we = _mm_load_ps(kptr + 4 * 14);
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
-                            _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r1s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r1s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r1s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r1s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r2s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r2s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r2s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r2s[3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r3s[0]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r3s[1]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r3s[2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r3s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r1s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r1s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r1s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r1s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(r2s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(r2s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(r2s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(r2s[3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(r3s[0]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(r3s[1]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(r3s[2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(r3s[3]), _sum3);
 
                             kptr += 64;
                         }
@@ -2194,22 +2216,22 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _we = _mm_load_ps(kptr + 4 * 14);
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
-                            _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r0[sok + N * 8]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r0[sok + N * 9]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r0[sok + N * 10]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r0[sok + N * 11]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r0[sok + N * 12]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r0[sok + N * 13]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r0[sok + N * 14]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r0[sok + N * 15]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w8, _mm_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w9, _mm_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_wa, _mm_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wb, _mm_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_wc, _mm_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_wd, _mm_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_we, _mm_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_wf, _mm_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 64;
                         }

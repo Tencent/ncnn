@@ -25,7 +25,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
     specializations[2].u32 = shape.total() * shape.elempack / 4;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     pipeline_eltwise[0] = new Pipeline(vkdev);
     pipeline_eltwise[0]->set_optimal_local_size_xyz(local_size_x, 1, 1);

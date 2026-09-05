@@ -24,7 +24,7 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     specializations[1].f = beta;
     specializations[2 + 0].u32 = shape.total() * shape.elempack / 4;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     pipeline_hardsigmoid = new Pipeline(vkdev);
     pipeline_hardsigmoid->set_optimal_local_size_xyz(local_size_x, 1, 1);

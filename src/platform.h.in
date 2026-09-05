@@ -14,6 +14,7 @@
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
 #cmakedefine01 NCNN_PLATFORM_API
+#cmakedefine01 NCNN_BATCH
 #cmakedefine01 NCNN_WINXP
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
@@ -27,6 +28,7 @@
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA
+#cmakedefine01 NCNN_FMA4
 #cmakedefine01 NCNN_F16C
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI
@@ -57,6 +59,7 @@
 #cmakedefine01 NCNN_ZVFH
 #cmakedefine01 NCNN_XTHEADVECTOR
 #cmakedefine01 NCNN_INT8
+#cmakedefine01 NCNN_WEIGHT_QUANT
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE
 

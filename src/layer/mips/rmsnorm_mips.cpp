@@ -58,7 +58,7 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         v4f32 _eps = __msa_fill_w_f32(eps);
         _rms = __msa_fdiv_w(_rms, _elemcount);
         _rms = __msa_fadd_w(_rms, _eps);
-        _rms = __msa_frsqrt_w(_rms);
+        _rms = __ncnn_msa_comp_rsqrt_w(_rms);
     }
 #endif // __mips_msa
     if (elempack == 1)
@@ -288,8 +288,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         _rms1 = __msa_fdiv_w(_rms1, _elemcount);
         _rms0 = __msa_fadd_w(_rms0, _eps);
         _rms1 = __msa_fadd_w(_rms1, _eps);
-        _rms0 = __msa_frsqrt_w(_rms0);
-        _rms1 = __msa_frsqrt_w(_rms1);
+        _rms0 = __ncnn_msa_comp_rsqrt_w(_rms0);
+        _rms1 = __ncnn_msa_comp_rsqrt_w(_rms1);
     }
     if (elempack == 4)
     {
@@ -299,7 +299,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         v4f32 _eps = __msa_fill_w_f32(eps);
         _rms0 = __msa_fdiv_w(_rms0, _elemcount);
         _rms0 = __msa_fadd_w(_rms0, _eps);
-        _rms0 = __msa_frsqrt_w(_rms0);
+        _rms0 = __ncnn_msa_comp_rsqrt_w(_rms0);
         _rms1 = _rms0;
     }
 #endif // __mips_msa

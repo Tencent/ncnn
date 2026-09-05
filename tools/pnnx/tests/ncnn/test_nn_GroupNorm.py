@@ -13,7 +13,7 @@ class Model(nn.Module):
         self.gn_1 = nn.GroupNorm(num_groups=12, num_channels=12, eps=1e-2, affine=True)
         self.gn_2 = nn.GroupNorm(num_groups=1, num_channels=12, eps=1e-4, affine=True)
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, q):
         x = self.gn_0(x)
         x = self.gn_1(x)
         x = self.gn_2(x)
@@ -25,7 +25,10 @@ class Model(nn.Module):
         z = self.gn_0(z)
         z = self.gn_1(z)
         z = self.gn_2(z)
-        return x, y, z
+        q = self.gn_0(q)
+        q = self.gn_1(q)
+        q = self.gn_2(q)
+        return x, y, z, q
 
 def test():
     net = Model()
@@ -35,16 +38,17 @@ def test():
     x = torch.rand(1, 12, 64)
     y = torch.rand(1, 12, 24, 64)
     z = torch.rand(1, 12, 24, 32, 64)
+    q = torch.rand(2, 12, 24, 64)
 
-    a = net(x, y, z)
+    a = net(x, y, z, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, q))
     mod.save("test_nn_GroupNorm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_GroupNorm.pt inputshape=[1,12,64],[1,12,24,64],[1,12,24,32,64]")
+    os.system("../../src/pnnx test_nn_GroupNorm.pt inputshape=[1,12,64],[1,12,24,64],[1,12,24,32,64],[2,12,24,64]")
 
     # ncnn inference
     import test_nn_GroupNorm_ncnn

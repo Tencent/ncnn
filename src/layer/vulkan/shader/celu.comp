@@ -24,7 +24,7 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-    v = max(v, afpvec4(0.0f)) + min(alpha * (exp(v / afpvec4(alpha)) - afpvec4(1.0f)), afpvec4(0.0f));
+    v = max(v, afpvec4(0.0f)) + min(afpvec4(alpha) * (exp(v / afpvec4(alpha)) - afpvec4(1.0f)), afpvec4(0.0f));
 
     buffer_st4(bottom_top_blob_data, gi, v);
 }

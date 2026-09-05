@@ -20,7 +20,7 @@ static inline uint16x4_t float2bfloat(float32x4_t _v)
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
     return (uint16x4_t)vcvt_bf16_f32(_v);
 #else
-    return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
+    return vrshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
 #endif
 }
 static inline float32x4_t bfloat2float(uint16x4_t _v)
@@ -125,9 +125,9 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
 // ncnn::float32_to_float16 from mat.cpp:
 //  - arm_usability.h is a low-level header included outside the ncnn namespace
 //    and should not depend on an exported runtime symbol from mat.cpp.
-//  - the mat.cpp helper is a storage conversion that truncates and flushes
-//    fp16 subnormals to zero, while fp16 NEON constants should match hardware
-//    fcvt behavior with round-to-nearest-even and subnormal generation.
+//  - the mat.cpp helper is a storage conversion that flushes fp16 subnormals
+//    to zero and does not implement exact round-to-nearest-even, while fp16
+//    NEON constants should match hardware fcvt behavior.
 // With NCNN_FORCEINLINE, MSVC folds literal inputs to immediate half
 // bit-patterns, so vdup*_n_f16(1.f) becomes movi/dup instead of a conversion.
 static NCNN_FORCEINLINE unsigned short ncnn_float32_to_float16_msvc(float value)

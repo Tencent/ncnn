@@ -1,0 +1,376 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+// storage types
+#if NCNN_bf16_storage
+#define sfp bfloat16_t
+#define sfpvec2 bf16vec2
+#define sfpvec4 bf16vec4
+#define unpackBFloat2x16(v) vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))
+#define packBFloat2x16(v) packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))
+#elif NCNN_bf16_packed
+#if ncnn_storageBuffer16BitAccess
+#define sfp uint16_t
+#else
+#define sfp uint
+#endif
+#define sfpvec2 uint
+#define sfpvec4 uvec2
+#define unpackBFloat2x16(v) vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))
+#define packBFloat2x16(v) uint(((floatBitsToUint(v.x)+0x8000u)>>16)|((floatBitsToUint(v.y)+0x8000u)&0xffff0000u))
+#elif NCNN_fp16_storage
+#define sfp float16_t
+#define sfpvec2 f16vec2
+#define sfpvec4 f16vec4
+#if NCNN_fp16_arithmetic
+#define sfpmat4 f16mat4
+#endif
+#elif NCNN_fp16_packed
+#define sfp uint
+#define sfpvec2 uint
+#define sfpvec4 uvec2
+#else
+#define sfp float
+#define sfpvec2 vec2
+#define sfpvec4 vec4
+#define sfpmat4 mat4
+#endif
+
+// arithmetic types
+#if NCNN_bf16_storage || NCNN_bf16_packed
+#define afp float
+#define afpvec2 vec2
+#define afpvec4 vec4
+#define afpmat4 mat4
+#elif NCNN_fp16_arithmetic
+#define afp float16_t
+#define afpvec2 f16vec2
+#define afpvec4 f16vec4
+#define afpmat4 f16mat4
+#else
+#define afp float
+#define afpvec2 vec2
+#define afpvec4 vec4
+#define afpmat4 mat4
+#endif
+
+// shared local-memory types
+#if NCNN_bf16_storage
+#define lfp bfloat16_t
+#define lfpvec4 bf16vec4
+#elif NCNN_bf16_packed
+#if ncnn_uniformAndStorageBuffer16BitAccess
+#define lfp uint16_t
+#else
+#define lfp float
+#endif
+#define lfpvec4 uvec2
+#elif NCNN_fp16_storage && NCNN_fp16_uniform && NCNN_fp16_arithmetic
+#define lfp float16_t
+#define lfpvec4 f16vec4
+#elif NCNN_fp16_storage && NCNN_fp16_arithmetic && ncnn_shaderInt64 && ncnn_shaderInt16
+#define lfp float
+#define lfpvec4 uint64_t
+#elif NCNN_fp16_storage || NCNN_fp16_packed
+#define lfp float
+#define lfpvec4 uvec2
+#else
+#define lfp float
+#define lfpvec4 vec4
+#endif
+
+// shared local-memory access and conversion
+#if NCNN_bf16_storage
+#define buffer_sm1(buf,i) buf[i]
+#define buffer_sm4(buf,i) buf[i]
+#define lfp2afp(v) float(v)
+#define afp2lfp(v) bfloat16_t(v)
+#define lfp2afpvec4(v) vec4(v)
+#define afp2lfpvec4(v) bf16vec4(v)
+#elif NCNN_bf16_packed
+#if ncnn_uniformAndStorageBuffer16BitAccess
+#define buffer_sm1(buf,i) buf[i]
+#elif ncnn_storageBuffer16BitAccess
+#define buffer_sm1(buf,i) uintBitsToFloat(uint(buf[i])<<16)
+#else
+#define buffer_sm1(buf,i) unpackBFloat2x16(buf[(i)/2])[(i)%2]
+#endif
+#define buffer_sm4(buf,i) buf[i]
+#if ncnn_uniformAndStorageBuffer16BitAccess
+#define lfp2afp(v) uintBitsToFloat(uint(v)<<16)
+#define afp2lfp(v) uint16_t((floatBitsToUint(v)+0x8000u)>>16)
+#else
+#define lfp2afp(v) v
+#define afp2lfp(v) v
+#endif
+#define lfp2afpvec4(v) vec4(unpackBFloat2x16(v.x),unpackBFloat2x16(v.y))
+#define afp2lfpvec4(v) uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba))
+#elif NCNN_fp16_storage && NCNN_fp16_uniform && NCNN_fp16_arithmetic
+#define buffer_sm1(buf,i) buf[i]
+#define buffer_sm4(buf,i) buf[i]
+#define lfp2afp(v) v
+#define afp2lfp(v) v
+#define lfp2afpvec4(v) v
+#define afp2lfpvec4(v) v
+#elif NCNN_fp16_storage && NCNN_fp16_arithmetic && ncnn_shaderInt64 && ncnn_shaderInt16
+#define buffer_sm1(buf,i) float(buf[i])
+#define buffer_sm4(buf,i) pack64(halfBitsToUint16(buf[i]))
+#define lfp2afp(v) float16_t(v)
+#define afp2lfp(v) float(v)
+#define lfp2afpvec4(v) uint16BitsToHalf(unpack16(v))
+#define afp2lfpvec4(v) pack64(halfBitsToUint16(v))
+#elif NCNN_fp16_storage && NCNN_fp16_arithmetic
+#define buffer_sm1(buf,i) float(buf[i])
+#define buffer_sm4(buf,i) uvec2(packFloat2x16(buf[i].rg),packFloat2x16(buf[i].ba))
+#define lfp2afp(v) float16_t(v)
+#define afp2lfp(v) float(v)
+#define lfp2afpvec4(v) f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))
+#define afp2lfpvec4(v) uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))
+#elif NCNN_fp16_packed && NCNN_fp16_arithmetic
+#define buffer_sm1(buf,i) unpackHalf2x16(buf[(i)/2])[(i)%2]
+#define buffer_sm4(buf,i) buf[i]
+#define lfp2afp(v) float16_t(v)
+#define afp2lfp(v) float(v)
+#define lfp2afpvec4(v) f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))
+#define afp2lfpvec4(v) uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))
+#elif NCNN_fp16_storage
+#define buffer_sm1(buf,i) float(buf[i])
+#define buffer_sm4(buf,i) uvec2(packHalf2x16(vec4(buf[i]).rg),packHalf2x16(vec4(buf[i]).ba))
+#define lfp2afp(v) v
+#define afp2lfp(v) float(v)
+#define lfp2afpvec4(v) vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))
+#define afp2lfpvec4(v) uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))
+#elif NCNN_fp16_packed
+#define buffer_sm1(buf,i) unpackHalf2x16(buf[(i)/2])[(i)%2]
+#define buffer_sm4(buf,i) buf[i]
+#define lfp2afp(v) v
+#define afp2lfp(v) v
+#define lfp2afpvec4(v) vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))
+#define afp2lfpvec4(v) uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))
+#else
+#define buffer_sm1(buf,i) buf[i]
+#define buffer_sm4(buf,i) buf[i]
+#define lfp2afp(v) v
+#define afp2lfp(v) v
+#define lfp2afpvec4(v) v
+#define afp2lfpvec4(v) v
+#endif
+
+// storage buffer access and conversion
+#if NCNN_bf16_storage
+#define buffer_ld1(buf,i) float(buf[i])
+#define buffer_st1(buf,i,v) {buf[i]=bfloat16_t(v);}
+#define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp1to4(buf,i,sbuf,si4) {buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}
+#define buffer_ld2(buf,i) vec2(buf[i])
+#define buffer_st2(buf,i,v) {buf[i]=bf16vec2(v);}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) vec4(buf[i])
+#define buffer_st4(buf,i,v) {buf[i]=bf16vec4(v);}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
+#elif NCNN_bf16_packed
+#if ncnn_storageBuffer16BitAccess
+#define buffer_ld1(buf,i) uintBitsToFloat(uint(buf[i])<<16)
+#define buffer_st1(buf,i,v) {buf[i]=uint16_t((floatBitsToUint(v)+0x8000u)>>16);}
+#define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp1to4(buf,i,sbuf,si4) {buf[i]=uvec2(pack32(u16vec2(sbuf[si4.r],sbuf[si4.g])),pack32(u16vec2(sbuf[si4.b],sbuf[si4.a])));}
+#define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=unpack16(sbuf[si].x).x;buf[i4.g]=unpack16(sbuf[si].x).y;buf[i4.b]=unpack16(sbuf[si].y).x;buf[i4.a]=unpack16(sbuf[si].y).y;}
+#else
+#define buffer_ld1(buf,i) unpackBFloat2x16(buf[(i)/2])[(i)%2]
+#define buffer_st1(buf,i,v) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=_vs;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1(buf,i,sbuf,si) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackBFloat2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=v;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1to4(buf,i,sbuf,si4) {uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2;buf[i]=uvec2(packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.r])[_si4m2.r],unpackBFloat2x16(sbuf[_si4d2.g])[_si4m2.g])),packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.b])[_si4m2.b],unpackBFloat2x16(sbuf[_si4d2.a])[_si4m2.a])));}
+#define buffer_cp4to1(buf,i4,sbuf,si) {uvec2 _v=sbuf[si];vec2 _v0=unpackBFloat2x16(_v.x);vec2 _v1=unpackBFloat2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}
+#endif
+#define buffer_ld2(buf,i) unpackBFloat2x16(buf[i])
+#define buffer_st2(buf,i,v) {buf[i]=packBFloat2x16(v);}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) vec4(unpackBFloat2x16(buf[i].x),unpackBFloat2x16(buf[i].y))
+#define buffer_st4(buf,i,v) {buf[i]=uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba));}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#elif NCNN_fp16_storage && NCNN_fp16_arithmetic
+#define buffer_ld1(buf,i) buf[i]
+#define buffer_st1(buf,i,v) {buf[i]=v;}
+#define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp1to4(buf,i,sbuf,si4) {buf[i]=f16vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}
+#define buffer_ld2(buf,i) buf[i]
+#define buffer_st2(buf,i,v) {buf[i]=v;}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) buf[i]
+#define buffer_st4(buf,i,v) {buf[i]=v;}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
+#define sfp2afpmat4(v) v
+#define afp2sfpmat4(v) v
+#elif NCNN_fp16_packed && NCNN_fp16_arithmetic
+#define buffer_ld1(buf,i) float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])
+#define buffer_st1(buf,i,v) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1(buf,i,sbuf,si) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1to4(buf,i,sbuf,si4) {uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2;buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}
+#define buffer_ld2(buf,i) unpackFloat2x16(buf[i])
+#define buffer_st2(buf,i,v) {buf[i]=packFloat2x16(v)}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) f16vec4(unpackFloat2x16(buf[i].x),unpackFloat2x16(buf[i].y))
+#define buffer_st4(buf,i,v) {buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}
+#elif NCNN_fp16_storage
+#define buffer_ld1(buf,i) float(buf[i])
+#define buffer_st1(buf,i,v) {buf[i]=float16_t(v);}
+#define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp1to4(buf,i,sbuf,si4) {buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}
+#define buffer_ld2(buf,i) vec2(buf[i])
+#define buffer_st2(buf,i,v) {buf[i]=f16vec2(v);}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) vec4(buf[i])
+#define buffer_st4(buf,i,v) {buf[i]=f16vec4(v);}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
+#elif NCNN_fp16_packed
+#define buffer_ld1(buf,i) unpackHalf2x16(buf[(i)/2])[(i)%2]
+#define buffer_st1(buf,i,v) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1(buf,i,sbuf,si) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#define buffer_cp1to4(buf,i,sbuf,si4) {uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2;buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}
+#define buffer_ld2(buf,i) unpackHalf2x16(buf[i])
+#define buffer_st2(buf,i,v) {buf[i]=packHalf2x16(v);}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))
+#define buffer_st4(buf,i,v) {buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}
+#else
+#define buffer_ld1(buf,i) buf[i]
+#define buffer_st1(buf,i,v) {buf[i]=v;}
+#define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp1to4(buf,i,sbuf,si4) {buf[i]=vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}
+#define buffer_ld2(buf,i) buf[i]
+#define buffer_st2(buf,i,v) {buf[i]=v;}
+#define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_ld4(buf,i) buf[i]
+#define buffer_st4(buf,i,v) {buf[i]=v;}
+#define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define buffer_cp4to1(buf,i4,sbuf,si) {vec4 _v=sbuf[si];buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}
+#define sfp2afpmat4(v) v
+#define afp2sfpmat4(v) v
+#endif
+
+// integer types and helpers
+#if NCNN_int8_storage
+#define sint8 int8_t
+#else
+#define sint8 int
+#endif
+#define sint8vec4 int
+#define aint8 int
+#define aint8vec4 ivec4
+
+#if NCNN_int16_storage
+#define sint16 int16_t
+#define sint16vec4 i16vec4
+#define lint16 int16_t
+#define lint16vec4 i16vec4
+#if ncnn_shaderInt16
+#define aint16 int16_t
+#define aint16vec4 i16vec4
+#define lint162aint16(v) v
+#define lint162aint16vec4(v) v
+#else
+#define aint16 int
+#define aint16vec4 ivec4
+#define lint162aint16(v) int(v)
+#define lint162aint16vec4(v) ivec4(v)
+#endif
+#elif NCNN_int16_packed
+#define sint16 int
+#define sint16vec4 ivec2
+#define lint16 int
+#define lint16vec4 ivec2
+#if ncnn_shaderInt16
+#define aint16 int16_t
+#define aint16vec4 i16vec4
+#define lint162aint16(v) int16_t(v)
+#define lint162aint16vec4(v) i16vec4(unpack16(v.r),unpack16(v.g))
+#else
+#define aint16 int
+#define aint16vec4 ivec4
+#define lint162aint16(v) int(v)
+#define lint162aint16vec4(v) ivec4(unpackInt2x16(v.r),unpackInt2x16(v.g))
+#endif
+#else
+#define sint16 int
+#define sint16vec4 ivec4
+#define lint16 int
+#define lint16vec4 ivec4
+#define aint16 int
+#define aint16vec4 ivec4
+#define lint162aint16(v) v
+#define lint162aint16vec4(v) v
+#endif
+
+#define unpackInt4x8(v) ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)
+#define packInt4x8(v) int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))
+#define unpackInt2x16(v) ivec2((int(v)<<16)>>16,int(v)>>16)
+#define packInt2x16(v) int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))
+#define float2int8(v) int(clamp(float(v)+(float(v)>=0.f?0.5f:-0.5f),-127.f,127.f))
+#define float2int8vec4(v) ivec4(clamp(vec4(v)+mix(vec4(-0.5f),vec4(0.5f),greaterThanEqual(vec4(v),vec4(0.f))),vec4(-127.f),vec4(127.f)))
+
+#if NCNN_int8_storage
+#define i8buffer_ld1(buf,i) int(buf[i])
+#define i8buffer_st1(buf,i,v) {buf[i]=int8_t(v);}
+#define i8buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#else
+#define i8buffer_ld1(buf,i) int(((buf[(i)/4])<<(24-((i)%4)*8))>>24)
+#define i8buffer_st1(buf,i,v) {uint _i=uint(i);uint _id4=_i/4;uint _im4=_i%4;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id4],0,0);ivec4 _v=unpackInt4x8(_old_v);_v[_im4]=_vs;_new_v=packInt4x8(_v);} while(atomicCompSwap(buf[_id4],_old_v,_new_v)!=_old_v);}
+#define i8buffer_cp1(buf,i,sbuf,si) {int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}
+#endif
+#define i8buffer_ld4(buf,i) unpackInt4x8(buf[i])
+#define i8buffer_sm4(buf,i) buf[i]
+#define i8buffer_st4(buf,i,v) {buf[i]=packInt4x8(v);}
+#define i8buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
+#define i8buffer_cp1to4(buf,i,sbuf,si) {ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}
+#define i8buffer_cp4to1(buf,i4,sbuf,si) {ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}
+
+#if NCNN_int16_storage
+#define i16buffer_ld1(buf,i) int(buf[i])
+#define i16buffer_st1(buf,i,v) {buf[i]=int16_t(v);}
+#elif NCNN_int16_packed
+#define i16buffer_ld1(buf,i) unpackInt2x16(buf[(i)/2])[(i)%2]
+#define i16buffer_st1(buf,i,v) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);ivec2 _v=unpackInt2x16(_old_v);_v[_im2]=_vs;_new_v=packInt2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
+#else
+#define i16buffer_ld1(buf,i) int(buf[i])
+#define i16buffer_st1(buf,i,v) {buf[i]=int(v);}
+#endif
+#define i16buffer_ld2(buf,i) ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))
+
+#if NCNN_int16_storage
+#define i16buffer_st2(buf,i,v) {ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}
+#define i16buffer_sm4(buf,i) buf[i]
+#if ncnn_shaderInt16
+#define i16buffer_ld4(buf,i) buf[i]
+#else
+#define i16buffer_ld4(buf,i) ivec4(buf[i])
+#endif
+#define i16buffer_st4(buf,i,v) {buf[i]=i16vec4(v);}
+#elif NCNN_int16_packed
+#define i16buffer_st2(buf,i,v) {uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}
+#define i16buffer_sm4(buf,i) buf[i]
+#if ncnn_shaderInt16
+#define i16buffer_ld4(buf,i) i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))
+#else
+#define i16buffer_ld4(buf,i) ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))
+#endif
+#define i16buffer_st4(buf,i,v) {ivec4 _v=ivec4(v);buf[i]=ivec2(packInt2x16(ivec2(_v.r,_v.g)),packInt2x16(ivec2(_v.b,_v.a)));}
+#else
+#define i16buffer_st2(buf,i,v) {ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}
+#define i16buffer_sm4(buf,i) buf[i]
+#define i16buffer_ld4(buf,i) ivec4(buf[i])
+#define i16buffer_st4(buf,i,v) {buf[i]=ivec4(v);}
+#endif
+
+#define psc(x) (x==0?p.x:x)
+#define ncnn_glsl_version 1
+
+#if ncnn_enable_validation_layer
+#define NCNN_LOGE debugPrintfEXT
+#endif

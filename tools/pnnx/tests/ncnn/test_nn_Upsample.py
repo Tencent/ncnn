@@ -52,7 +52,7 @@ class Model(nn.Module):
 
         self.up_w = nn.Upsample(scale_factor=(1.499,1.499), mode='nearest')
 
-    def forward(self, x, y, w):
+    def forward(self, x, y, w, q):
         x = self.up_1d_0_0(x)
         x = self.up_1d_0_1(x)
         x = self.up_1d_0_2(x)
@@ -82,8 +82,9 @@ class Model(nn.Module):
         y = self.up_2d_2_5(y)
 
         w = self.up_w(w)
+        q = self.up_2d_1_1(q)
 
-        return x, y, w
+        return x, y, w, q
 
 def test():
     net = Model()
@@ -93,16 +94,17 @@ def test():
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
     w = torch.rand(1, 8, 12, 12)
+    q = torch.rand(2, 3, 16, 16)
 
-    a = net(x, y, w)
+    a = net(x, y, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, w))
+    mod = torch.jit.trace(net, (x, y, w, q))
     mod.save("test_nn_Upsample.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,8,12,12]")
+    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,8,12,12],[2,3,16,16]")
 
     # ncnn inference
     import test_nn_Upsample_ncnn

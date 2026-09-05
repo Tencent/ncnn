@@ -9,10 +9,11 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, q):
         x = F.instance_norm(x, None, None, None, None, True, 0.1, 1e-5)
         y = F.instance_norm(y, None, None, None, None, True, 0.1, 1e-3)
-        return x, y
+        q = F.instance_norm(q, None, None, None, None, True, 0.1, 1e-5)
+        return x, y, q
 
 def test():
     net = Model()
@@ -21,16 +22,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 10, 12, 16)
     y = torch.rand(1, 10, 3, 12, 16)
+    q = torch.rand(2, 10, 12, 16)
 
-    a = net(x, y)
+    a = net(x, y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, q))
     mod.save("test_F_instance_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_instance_norm.pt inputshape=[1,10,12,16],[1,10,3,12,16]")
+    os.system("../../src/pnnx test_F_instance_norm.pt inputshape=[1,10,12,16],[1,10,3,12,16],[2,10,12,16]")
 
     # ncnn inference
     import test_F_instance_norm_ncnn

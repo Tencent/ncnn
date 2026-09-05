@@ -9,16 +9,19 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = F.alpha_dropout(x, training=False)
         y = F.alpha_dropout(y, training=False)
         z = F.alpha_dropout(z, p=0.6, training=False)
         w = F.alpha_dropout(w, p=0.1, training=False)
+        q = F.max_pool2d(q, 1)
+        q = F.alpha_dropout(q, training=False)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
         w = F.relu(w)
-        return x, y, z, w
+        q = F.relu(q)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -29,16 +32,17 @@ def test():
     y = torch.rand(2, 16)
     z = torch.rand(3, 12, 16)
     w = torch.rand(5, 7, 9, 11)
+    q = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_alpha_dropout.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_alpha_dropout.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../../src/pnnx test_F_alpha_dropout.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11],[2,3,5,7]")
 
     # ncnn inference
     import test_F_alpha_dropout_ncnn

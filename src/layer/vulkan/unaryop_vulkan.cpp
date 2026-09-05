@@ -23,7 +23,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     specializations[0].i = op_type;
     specializations[1].u32 = shape.total() * shape.elempack / 4;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     pipeline_unaryop = new Pipeline(vkdev);
     pipeline_unaryop->set_optimal_local_size_xyz(local_size_x, 1, 1);

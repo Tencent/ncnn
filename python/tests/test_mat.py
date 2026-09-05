@@ -283,6 +283,21 @@ def test_numpy():
     array2[0] = 100
     assert array[0] == 100
 
+def test_numpy_batch_index():
+    array = np.arange(3 * 5 * 2 * 7, dtype=np.float32).reshape(3, 5, 2, 7)
+    mat = ncnn.Mat(array, batch_index=2)
+    array2 = mat.numpy(batch_index=2)
+    assert (array == array2).all()
+
+    mat2 = mat.clone()
+    array3 = mat2.numpy(batch_index=2)
+    assert (array == array3).all()
+
+    array = np.arange(2 * 3 * 4 * 5 * 6, dtype=np.float32).reshape(2, 3, 4, 5, 6)
+    mat = ncnn.Mat(array, batch_index=-2)
+    array2 = mat.numpy(batch_index=-2)
+    assert (array == array2).all()
+
 def test_fill():
     mat = ncnn.Mat(1)
     mat.fill(1.0)

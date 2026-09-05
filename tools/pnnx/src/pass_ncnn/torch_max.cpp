@@ -34,19 +34,31 @@ pnnx.Output             output      2 0 out indices
     {
         int dim = captured_params.at("dim").i;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-
-        if (dim == batch_index)
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
         {
-            fprintf(stderr, "max along batch axis is not supported\n");
-            return;
+            input_rank = op->outputs[0]->shape.size();
+            if (!captured_params.at("keepdim").b && input_rank > 0)
+                input_rank += 1;
         }
+        if (dim < 0 && input_rank > 0)
+            dim += input_rank;
 
-        int new_dim = dim > batch_index ? dim - 1 : dim;
+        std::vector<int> dims;
+        if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
+        {
+            fprintf(stderr, "max along batch axis is not supported yet\n");
+        }
+        else
+        {
+            int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
+            dims = std::vector<int>{new_dim};
+        }
 
         op->params["0"] = 4;
         op->params["1"] = 0;
-        op->params["3"] = std::vector<int>{new_dim};
+        op->params["3"] = dims;
         op->params["4"] = captured_params.at("keepdim").b ? 1 : 0;
         op->params["5"] = 1;
     }
@@ -95,6 +107,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        if (ncnn_batch_axis != 233)
+        {
+            fprintf(stderr, "max along batch axis is not supported yet\n");
+        }
+
         op->params["0"] = 4;
         op->params["1"] = 1;
         op->params["4"] = 0;

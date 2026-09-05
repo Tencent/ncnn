@@ -56,6 +56,13 @@ cmake -DNCNN_INT8=OFF ..
 
 * Cannot use quantized int8 inference.
 
+### disable NCNN_WEIGHT_QUANT
+
+```
+cmake -DNCNN_WEIGHT_QUANT=OFF ..
+```
+
+* Cannot use weight quantized inference.
 
 ### drop pixel drawing functions
 

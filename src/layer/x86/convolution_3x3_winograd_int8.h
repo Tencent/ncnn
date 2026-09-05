@@ -6,7 +6,7 @@ int conv3x3s1_winograd23_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, 
 int conv3x3s1_winograd43_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 int conv3x3s1_winograd23_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 int conv3x3s1_winograd43_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
@@ -4298,7 +4298,7 @@ static int conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, cons
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         return conv3x3s1_winograd23_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);
@@ -6142,7 +6142,7 @@ static int conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, cons
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         return conv3x3s1_winograd43_int8_avxvnni(bottom_blob, top_blob, AT, nT, opt);

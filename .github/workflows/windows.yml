@@ -63,7 +63,7 @@ jobs:
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
         
@@ -94,7 +94,7 @@ jobs:
 
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.vs-version }}-x64-install-3
@@ -111,13 +111,13 @@ jobs:
     - name: cache-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
       id: cache-swiftshader
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: swiftshader-install
         key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -160,7 +160,7 @@ jobs:
     - name: x64-avx
       run: |
         mkdir build-x64-avx; cd build-x64-avx
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_FMA4=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x64-avx-test
       run: cd build-x64-avx; ctest -C Release --output-on-failure -j 4

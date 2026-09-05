@@ -18,11 +18,11 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
@@ -80,7 +80,7 @@ jobs:
         -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
@@ -156,7 +156,7 @@ jobs:
     - name: cache-openmp for macos
       if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-15'
       id: cache-openmp
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: openmp-install
         key: openmp-macos-install-20251004
@@ -281,7 +281,7 @@ jobs:
         build_sub: [manylinux, musllinux]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 

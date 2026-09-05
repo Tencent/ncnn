@@ -19,6 +19,9 @@ public:
     // 1 = float32
     // 2 = float16
     // 3 = int8
+    // 4 = weight block quantize int4
+    // 6 = weight block quantize int6
+    // 8 = weight block quantize int8
     // load vec
     virtual Mat load(int w, int type) const;
     // load image

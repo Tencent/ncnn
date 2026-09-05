@@ -24,7 +24,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     bool use_int8_shader = cast_type_from == 4 || cast_type_to == 4;
 
@@ -259,14 +259,16 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = bottom_blob.elemsize / elempack;
             top_blob.elempack = out_elempack;
+#if NCNN_BATCH
             top_blob.nstep = bottom_blob.nstep * bottom_blob.elemsize / top_blob.elemsize;
+#endif
             return 0;
         }
 
         int outw = (w * elempack + out_elempack - 1) / out_elempack;
 
         if (B > 1)
-            top_blob.create_batch(outw, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+            top_blob.create(outw, out_elemsize, out_elempack, B, opt.blob_vkallocator);
         else
             top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -278,7 +280,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
 
         if (B > 1)
-            top_blob.create_batch(w, outh, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+            top_blob.create(w, outh, out_elemsize, out_elempack, B, opt.blob_vkallocator);
         else
             top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -290,7 +292,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
 
         if (B > 1)
-            top_blob.create_batch(w, h, outc, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, B, opt.blob_vkallocator);
         else
             top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -302,7 +304,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
 
         if (B > 1)
-            top_blob.create_batch(w, h, d, outc, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, B, opt.blob_vkallocator);
         else
             top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())

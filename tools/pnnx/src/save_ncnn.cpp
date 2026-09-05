@@ -65,7 +65,7 @@ static int32_t safe_int64_to_int32(int64_t value)
 {
     if (value > INT32_MAX || value < INT32_MIN)
     {
-        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", value);
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", (long long)value);
         return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
     }
     return static_cast<int32_t>(value);
@@ -114,6 +114,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             if (!string_is_positive_integer(it.first))
             {
+                // skip internal pass metadata
+                if (it.first.size() >= 2 && it.first[0] == '_' && it.first[1] == '_')
+                    continue;
+
                 fprintf(stderr, "ignore %s %s param %s=", op->type.c_str(), op->name.c_str(), it.first.c_str());
 
                 if (param.type == 0)
@@ -414,15 +418,15 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
-            const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(%d).numpy()).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
-            }
+            int batch_index = 233;
+            if (r->params.find("__batch_index") != r->params.end())
+                batch_index = r->params.at("__batch_index").i;
+            else if (r->params.find("__ncnn_batch_axis") != r->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
+            if (r->shape.size() < 2)
+                batch_index = 233;
+
+            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");
@@ -436,15 +440,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
-            const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)).unsqueeze(%d))\n", output_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)))\n", output_name.c_str());
-            }
+            int batch_index = 233;
+            if (r->params.find("__ncnn_batch_axis") != r->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
+            fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");

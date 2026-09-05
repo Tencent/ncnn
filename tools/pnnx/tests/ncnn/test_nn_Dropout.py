@@ -12,16 +12,19 @@ class Model(nn.Module):
         self.dropout_0 = nn.Dropout()
         self.dropout_1 = nn.Dropout(p=0.7)
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = self.dropout_0(x)
         y = self.dropout_0(y)
         z = self.dropout_1(z)
         w = self.dropout_1(w)
+        q = F.max_pool2d(q, 1)
+        q = self.dropout_0(q)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
         w = F.relu(w)
-        return x, y, z, w
+        q = F.relu(q)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -32,16 +35,17 @@ def test():
     y = torch.rand(12, 64)
     z = torch.rand(12, 24, 64)
     w = torch.rand(12, 24, 32, 64)
+    q = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_nn_Dropout.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Dropout.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64]")
+    os.system("../../src/pnnx test_nn_Dropout.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64],[2,3,5,7]")
 
     # ncnn inference
     import test_nn_Dropout_ncnn

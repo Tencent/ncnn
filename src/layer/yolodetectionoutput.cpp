@@ -11,6 +11,7 @@ YoloDetectionOutput::YoloDetectionOutput()
 {
     one_blob_only = false;
     support_inplace = true;
+    softmax = 0;
 }
 
 int YoloDetectionOutput::load_param(const ParamDict& pd)

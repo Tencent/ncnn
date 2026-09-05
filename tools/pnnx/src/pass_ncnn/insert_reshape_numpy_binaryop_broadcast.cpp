@@ -29,7 +29,10 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
 
             int batch_index0 = op->inputs[0]->params["__batch_index"].i;
             int batch_index1 = op->inputs[1]->params["__batch_index"].i;
-            if (batch_index0 != batch_index1)
+            int ncnn_batch_axis0 = op->inputs[0]->params["__ncnn_batch_axis"].i;
+            int ncnn_batch_axis1 = op->inputs[1]->params["__ncnn_batch_axis"].i;
+
+            if (batch_index0 != batch_index1 && batch_index0 != 233 && batch_index1 != 233)
             {
                 fprintf(stderr, "binaryop broadcast across batch axis %d and %d is not supported\n", batch_index0, batch_index1);
                 continue;
@@ -41,6 +44,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 {
                     fprintf(stderr, "assume reshape 5-rank tensor has batch_index 0\n");
                     batch_index0 = 0;
+                    ncnn_batch_axis0 = 0;
                 }
             }
             if (op->inputs[1]->shape.size() == 5 && batch_index1 == 233)
@@ -49,6 +53,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 {
                     fprintf(stderr, "assume reshape 5-rank tensor has batch_index 0\n");
                     batch_index1 = 0;
+                    ncnn_batch_axis1 = 0;
                 }
             }
 
@@ -57,14 +62,14 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             std::vector<int> new_shape1;
             for (int j = 0; j < (int)op->inputs[0]->shape.size(); j++)
             {
-                if (j == batch_index0 && (op->inputs[0]->shape[j] == 1 || op->inputs[0]->shape[j] == op->inputs[1]->shape[j]))
+                if (j == ncnn_batch_axis0)
                     continue;
 
                 new_shape0.push_back(op->inputs[0]->shape[j]);
             }
             for (int j = 0; j < (int)op->inputs[1]->shape.size(); j++)
             {
-                if (j == batch_index1 && (op->inputs[1]->shape[j] == 1 || op->inputs[1]->shape[j] == op->inputs[0]->shape[j]))
+                if (j == ncnn_batch_axis1)
                     continue;
 
                 new_shape1.push_back(op->inputs[1]->shape[j]);
@@ -118,7 +123,11 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             reshape0_out->producer = reshape0;
             reshape0_out->consumers.push_back(op);
 
-            reshape0_out->params["__batch_index"] = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
+            const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
+            const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
+
+            reshape0_out->params["__batch_index"] = lower_batch_index;
+            reshape0_out->params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
 
             // insert explicit broadcast index for missing ranks
             std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
@@ -127,9 +136,9 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 reshape0_shape.insert(reshape0_shape.begin(), 1);
             }
 
-            if (batch_index0 != 233)
+            if (lower_ncnn_batch_axis != 233)
             {
-                reshape0_shape.insert(reshape0_shape.begin() + batch_index0, 1);
+                reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
             }
 
             reshape0->params["shape"] = reshape0_shape;

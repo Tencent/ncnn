@@ -34,16 +34,30 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& dims = captured_params.at("dim").ai;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+        {
+            input_rank = op->outputs[0]->shape.size();
+            if (!captured_params.at("keepdim").b && input_rank > 0)
+                input_rank += dims.size();
+        }
 
         // drop batch index
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (dims[i] == batch_index)
-                continue;
+            int dim = dims[i];
+            if (dim < 0 && input_rank > 0)
+                dim += input_rank;
 
-            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
+            {
+                fprintf(stderr, "mean along batch axis is not supported yet\n");
+                continue;
+            }
+
+            int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
             new_dims.push_back(new_dim);
         }
 
@@ -82,6 +96,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        if (ncnn_batch_axis != 233)
+        {
+            fprintf(stderr, "mean along batch axis is not supported yet\n");
+        }
+
         op->params["0"] = 3;
         op->params["1"] = 1;
         op->params["4"] = 0;
