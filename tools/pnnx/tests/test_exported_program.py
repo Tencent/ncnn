@@ -863,6 +863,62 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 work_dir, archive_path, model(torch.rand(2, 3))
             )
 
+    def test_negative_zero_preserves_division_sign(self):
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x / -0.0, x / torch.tensor(-0.0, dtype=torch.float64)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "negative_zero.pt2"
+            model = Model().eval()
+            save_exported_program(model, archive_path)
+            expected = torch.full((2, 4), float("-inf"))
+            self.assert_conversion_matches(
+                work_dir, archive_path, (expected, expected)
+            )
+
+    def test_device_arguments_are_safely_representable(self):
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x + torch.zeros_like(x, device="cpu")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "device_source.pt2"
+            save_exported_program(Model(), source_path)
+
+            def replace_device(document, device_type, index):
+                device = next(
+                    item["arg"]["as_device"]
+                    for node in document["graph_module"]["graph"]["nodes"]
+                    for item in node["inputs"]
+                    if "as_device" in item["arg"]
+                )
+                device.update(type=device_type, index=index)
+
+            devices = [("cpu", None), ("cpu", 0), ("cuda", 0), ("privateuseone", 0)]
+            devices += [(value, None) for value in (
+                "torch.device", "cpu'", 'cpu"', "cpu\\x", "cpu\nx", " cpu"
+            )]
+            for i, (device_type, index) in enumerate(devices):
+                with self.subTest(device_type=device_type, index=index):
+                    archive_path = work_dir / f"device_{i}.pt2"
+                    rewrite_model_json(
+                        source_path, archive_path,
+                        lambda value: replace_device(value, device_type, index),
+                    )
+                    if i < 4:
+                        torch.manual_seed(0)
+                        self.assert_conversion_matches(
+                            work_dir, archive_path, torch.rand(2, 4)
+                        )
+                    else:
+                        self.assert_conversion_fails(
+                            work_dir, archive_path,
+                            "device is not representable by pnnx Parameter",
+                        )
+
     def test_open_ended_slice_converts_with_pnnx_sentinel(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)

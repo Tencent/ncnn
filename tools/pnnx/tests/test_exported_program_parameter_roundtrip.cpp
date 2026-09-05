@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
+#include "utils.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
+#include <cmath>
 #include <string>
 
 int main()
@@ -33,5 +36,27 @@ int main()
         return 1;
     }
 
-    return 0;
+    int failures = 0;
+    const pnnx::Parameter zero = pnnx::Parameter::parse_from_string(pnnx::Parameter::encode_to_string(pnnx::Parameter(-0.f)));
+    if (zero.type != 3 || zero.f != 0.f || !std::signbit(zero.f))
+    {
+        fprintf(stderr, "negative zero scalar lost its sign\n");
+        failures++;
+    }
+
+    const pnnx::Parameter zeros = pnnx::Parameter::parse_from_string(pnnx::Parameter::encode_to_string(pnnx::Parameter{-0.f, 0.f}));
+    if (zeros.type != 6 || zeros.af.size() != 2 || zeros.af[0] != 0.f || !std::signbit(zeros.af[0]) || zeros.af[1] != 0.f || std::signbit(zeros.af[1]))
+    {
+        fprintf(stderr, "float list zeros lost their signs\n");
+        failures++;
+    }
+
+    const double zero64 = strtod(pnnx::double_to_string(-0.0).c_str(), 0);
+    if (zero64 != 0.0 || !std::signbit(zero64))
+    {
+        fprintf(stderr, "negative zero double lost its sign\n");
+        failures++;
+    }
+
+    return failures ? 1 : 0;
 }

@@ -699,7 +699,7 @@ static int exported_argument_to_parameter(const ExportedArgument& argument, cons
     }
     else if (argument.type == EXPORTED_ARGUMENT_DEVICE)
     {
-        if (argument.device_value.type.empty())
+        if (!exported_string_is_safe_pnnx_parameter(argument.device_value.type))
         {
             detail = "device is not representable by pnnx Parameter";
             return -1;
