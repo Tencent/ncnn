@@ -84,7 +84,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_rms_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[24],[12,16],[24],[3,22,66]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_rms_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[24],[12,16],[24],[3,22,66]")
 
     # pnnx inference
     import test_F_rms_norm_pnnx
@@ -93,7 +93,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, w0, w1, w2, x2), ["[1,12,24]", "[2,3,12,16]", "[1,10,12,16,24]", "[24]", "[12,16]", "[24]", "[3,22,66]"], "test_F_rms_norm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

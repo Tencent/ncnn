@@ -161,7 +161,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_eliminate_noop_expand.pt inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_eliminate_noop_expand.pt inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1]")
 
     # pnnx inference
     import test_pnnx_eliminate_noop_expand_pnnx
@@ -173,7 +173,13 @@ def test():
             return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15), ["[5]", "[1]", "[7,5]", "[1,5]", "[7,1]", "[1,1]", "[4,7,5]", "[1,7,5]", "[4,1,5]", "[4,7,1]", "[1,1,5]", "[1,7,1]", "[4,1,1]", "[1,1,1]", "[6,4,7,5]", "[1,4,7,5]", "[6,1,7,5]", "[6,4,1,5]", "[6,4,7,1]", "[1,1,7,5]", "[1,4,1,5]", "[1,4,7,1]", "[6,1,1,5]", "[6,1,7,1]", "[6,4,1,1]", "[1,1,1,5]", "[1,1,7,1]", "[1,4,1,1]", "[6,1,1,1]", "[1,1,1,1]"], "test_pnnx_eliminate_noop_expand")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

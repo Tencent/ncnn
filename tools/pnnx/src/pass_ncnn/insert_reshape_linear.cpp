@@ -27,16 +27,20 @@ void insert_reshape_linear(Graph& graph)
 
             // nn.Linear    4d-2d-4d
             // nn.Linear    5d-2d-5d
+            // nn.Linear    3d(S,B,F) batch>1 -> 2d -> 3d ((S,B,F) layout, batch on dim1)
+            // note the (B,S,F) layout (batch on dim0) must not trigger; distinguish by shape[0]>1 && shape[1]>1
             bool insert_reshape = false;
             if (op->type == "nn.Linear" && (input_rank == 4 || input_rank == 5))
+            {
+                insert_reshape = true;
+            }
+            if (op->type == "nn.Linear" && input_rank == 3 && op->inputs[0]->shape.size() >= 2 && op->inputs[0]->shape[0] > 1 && op->inputs[0]->shape[1] > 1)
             {
                 insert_reshape = true;
             }
 
             if (!insert_reshape)
                 continue;
-
-            fprintf(stderr, "insert_reshape_linear %d\n", input_rank);
 
             matched = true;
 
@@ -91,17 +95,25 @@ void insert_reshape_linear(Graph& graph)
                 reshape_h *= linear_in->shape[j];
             }
 
+            // output shape may be unknown; guard the out-rank access
+            const int out_last = linear_out->shape.size() >= (size_t)input_rank ? linear_out->shape[input_rank - 1] : -1;
             std::vector<int> reshape0_out_shape;
             std::vector<int> reshape1_in_shape;
-            if (ncnn_batch_axis == 0)
+            if (input_rank == 3 && linear_in->shape.size() >= 2 && linear_in->shape[0] > 1 && linear_in->shape[1] > 1)
+            {
+                // 3D (S,B,F) batch>1: flatten to 2D (S*B, F), Gemm 2D, then reshape back to (S,B,N)
+                reshape0_out_shape = {reshape_h, linear_in->shape[input_rank - 1]};
+                reshape1_in_shape = {reshape_h, out_last};
+            }
+            else if (ncnn_batch_axis == 0)
             {
                 reshape0_out_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
-                reshape1_in_shape = {1, reshape_h, linear_out->shape[input_rank - 1]};
+                reshape1_in_shape = {1, reshape_h, out_last};
             }
             else
             {
                 reshape0_out_shape = {reshape_h, linear_in->shape[input_rank - 1]};
-                reshape1_in_shape = {reshape_h, linear_out->shape[input_rank - 1]};
+                reshape1_in_shape = {reshape_h, out_last};
             }
             std::vector<int> reshape1_out_shape = linear_out->shape;
 

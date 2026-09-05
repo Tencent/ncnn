@@ -130,7 +130,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
 
     # pnnx inference
     import test_torch_einsum_pnnx
@@ -142,7 +142,13 @@ def test():
             return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y0, y1, z0, z1, w, r0, r1, r2, s0, s1), ["[4,4]", "[5]", "[4]", "[3,2,5]", "[3,5,4]", "[2,3,4,5]", "[2,5]", "[3,5,4]", "[2,4]", "[2,3,5,7]", "[11,3,17,5]"], "test_torch_einsum")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

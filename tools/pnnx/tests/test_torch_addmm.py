@@ -39,16 +39,22 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_addmm.pt inputshape=[13,1],[13,16],[16,23],[7,33],[7,26],[26,33],[16,48]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_addmm.pt inputshape=[13,1],[13,16],[16,23],[7,33],[7,26],[26,33],[16,48]")
 
     # pnnx inference
     import test_torch_addmm_pnnx
     b = test_torch_addmm_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+    for r0, r1 in zip(a, b):
+        if not torch.equal(r0, r1):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (a0, a1, a2, b0, b1, b2, c1), ["[13,1]", "[13,16]", "[16,23]", "[7,33]", "[7,26]", "[26,33]", "[16,48]"], "test_torch_addmm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -33,7 +33,15 @@ def test():
     import test_vit_b_32_ncnn
     b = test_vit_b_32_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    if not torch.allclose(a, b, 1e-4, 1e-4):
+        return False
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[1,3,224,224]"], "test_vit_b_32", atol=1e-4, rtol=1e-4)
+    if pt2_ok is False:
+        return False
+    return True
 
 if __name__ == "__main__":
     if test():

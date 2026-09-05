@@ -81,7 +81,20 @@ pnnx.Output             output      1 0 out
                     continue;
                 }
 
-                int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
+                int new_dim;
+                if (ncnn_batch_axis != 233)
+                {
+                    new_dim = dim > ncnn_batch_axis ? dim - 1 : dim;
+                }
+                else if (input_rank == 2)
+                {
+                    // torch 2D (H,W) -> ncnn 2D (w=W, h=H)：dim 0 <-> dim 1
+                    new_dim = 1 - dim;
+                }
+                else
+                {
+                    new_dim = dim;
+                }
                 new_dims.push_back(new_dim);
             }
 

@@ -43,6 +43,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.max_pool1d",
         "F.max_pool2d",
         "F.max_pool3d",
+        "F.pad",
         "F.pixel_shuffle",
         "F.pixel_unshuffle",
         "F.prelu",
@@ -58,6 +59,9 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "torch.stft",
         "torchaudio.functional.inverse_spectrogram",
         "torchaudio.functional.spectrogram",
+
+        "torchvision.ops.DeformConv2d",
+        "torchvision.ops.RoIAlign",
 
         "nn.AdaptiveAvgPool1d",
         "nn.AdaptiveAvgPool2d",
@@ -146,6 +150,12 @@ static int get_known_operator_batch_index(const Operator* op)
         if (input_rank == 4)
             return 233;
     }
+    if (op->type == "F.pad")
+    {
+        // F.pad input rank depends on the pad dims: 1D/2D inputs have no batch, 3D+ do (axis 0)
+        if (input_rank <= 2)
+            return 233;
+    }
     if (op->type == "torch.stft" || op->type == "torchaudio.functional.spectrogram")
     {
         if (input_rank == 1)
@@ -155,6 +165,27 @@ static int get_known_operator_batch_index(const Operator* op)
     {
         if (input_rank == 2)
             return 233;
+    }
+    if (op->type == "F.linear" || op->type == "nn.Linear")
+    {
+        // 3D input (S,B,F) with middle dim B==1 (e.g. MHA decomposed graphs):
+        // batch on dim1, ncnn 3D Mat (w=F,h=B,c=S) maps fully, no explicit batch
+        // (233); otherwise (e.g. (B,T,F) with middle dim>1) batch on dim0, keep default 0
+        if (input_rank == 3 && op->inputs.size() >= 1 && op->inputs[0]->shape.size() >= 2 && op->inputs[0]->shape[1] == 1)
+            return 233;
+    }
+    if (op->type == "torch.bmm")
+    {
+        // 3D batch matmul: heads/batch on dim0 map to ncnn 3D's c dim (MatMul
+        // 3D supports c-batch), no explicit batch (233) so heads are not
+        // treated as a global batch
+        return 233;
+    }
+    if (op->type == "F.softmax" && input_rank == 3)
+    {
+        // MHA decomposed attn (H,S,S) 3D: heads on dim0 (c dim), softmax on
+        // dim=-1, no explicit batch (233)
+        return 233;
     }
 
     return 0;

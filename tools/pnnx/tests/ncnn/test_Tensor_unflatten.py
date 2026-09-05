@@ -59,6 +59,12 @@ def test():
         if not torch.equal(a0, b0):
             return False
 
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, q), ["[16]", "[9,12]", "[8,9,10]", "[2,12,5,7]"], "test_Tensor_unflatten")
+    if pt2_ok is False:
+        return False
+
     net = ModelMiddleBatch()
     net.eval()
 
@@ -77,6 +83,11 @@ def test():
     b = test_Tensor_unflatten_middle_batch_ncnn.test_inference()
 
     if not torch.equal(a, b):
+        return False
+
+    # pt2 path (batched)
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[6,5,7]"], "test_Tensor_unflatten_middle_batch")
+    if pt2_ok is False:
         return False
 
     return True

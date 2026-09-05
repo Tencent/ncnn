@@ -45,10 +45,13 @@ def test():
     import test_torch_stft_ncnn
     b = test_torch_stft_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-3, 1e-3) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, q), ["[2560]", "[1000]", "[2,2560]"], "test_torch_stft")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

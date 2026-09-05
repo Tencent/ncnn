@@ -10,7 +10,10 @@ if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
 from transformers import XLNetConfig
+from transformers import __version__ as _transformers_version
 from transformers.models.xlnet.modeling_xlnet import XLNetRelativeAttention
+
+_is_tf5 = version.parse(_transformers_version) >= version.parse('5.0')
 
 class Model(nn.Module):
     def __init__(self):
@@ -34,7 +37,11 @@ class Model(nn.Module):
 
         mask0 = torch.zeros_like(mask0)
 
-        out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, head_mask=None, output_attentions=True)
+        if _is_tf5:
+            # transformers 5.x removed the head_mask argument
+            out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, output_attentions=True)
+        else:
+            out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, head_mask=None, output_attentions=True)
 
         return out0[0]
 
@@ -55,7 +62,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_xlnet_attention.pt inputshape=[16,3,192],[32,3,192],[16,16,3,12]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_xlnet_attention.pt inputshape=[16,3,192],[32,3,192],[16,16,3,12]")
 
     # pnnx inference
     import test_transformers_xlnet_attention_pnnx
@@ -64,7 +71,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, r, mask0), ["[16,3,192]", "[32,3,192]", "[16,16,3,12]"], "test_transformers_xlnet_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

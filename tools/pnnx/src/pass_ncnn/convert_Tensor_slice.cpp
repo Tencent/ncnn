@@ -11,6 +11,122 @@ namespace ncnn {
 
 void convert_Tensor_slice(Graph& graph)
 {
+    // pre-process: expand single-axis slice with step>1 (strided sampling, e.g.
+    // deepseek MLA x[..., ::2]) into reshape(-> K*step) + Crop(take the start-th)
+    // + reshape(-> K). Only supports 4D input with the step axis being the last
+    // dim (dim=rank-1) and the axis length divisible by step.
+    while (1)
+    {
+        bool matched = false;
+
+        for (Operator* op : graph.ops)
+        {
+            if (op->type != "Tensor.slice")
+                continue;
+            if (op->inputs.size() != 1 || op->outputs.size() != 1)
+                continue;
+            if (!op->has_param("dim") || !op->has_param("start") || !op->has_param("end") || !op->has_param("step"))
+                continue;
+
+            const int dim = op->params.at("dim").i;
+            const int start = op->params.at("start").i;
+            const int step = op->params.at("step").i;
+            if (step == 1)
+                continue;
+
+            Operand* in = op->inputs[0];
+            Operand* out = op->outputs[0];
+            const std::vector<int>& in_shape = in->shape;
+            const int rank = (int)in_shape.size();
+
+            // only support 4D with the step axis being the last dim
+            if (rank != 4 || dim != rank - 1)
+            {
+                fprintf(stderr, "slice with step %d not supported (rank=%d dim=%d)\n", step, rank, dim);
+                continue;
+            }
+            const int L = in_shape[dim];
+            if (L <= 0 || L % step != 0 || start < 0 || start >= step)
+                continue;
+            // this lowering (reshape into step-wide groups + Crop of one column)
+            // samples the full tail [..., start::step] with exactly L / step
+            // elements. A finite end such as [..., 1:5:2] must not use it: the
+            // K = L / step reshape would sample past the end and change both the
+            // output shape and values. full-tail slices arrive with end = INT_MAX.
+            {
+                const int end = op->params.at("end").i;
+                if (end != INT_MAX && end < L)
+                    continue;
+            }
+            const int K = L / step;
+
+            // copy the input batch axis (avoid Tensor_reshape reading unset garbage that triggers batch mode)
+            int fl_batch_axis = 233;
+            if (in->params.find("__ncnn_batch_axis") != in->params.end())
+                fl_batch_axis = in->params.at("__ncnn_batch_axis").i;
+
+            matched = true;
+
+            // reshape0: (b,a,c,L) -> (b,a,c*K,step) (keep 4D and batch, step on the w dim)
+            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
+            Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
+            reshape0->inputs.push_back(in);
+            reshape0->outputs.push_back(reshape0_out);
+            reshape0_out->producer = reshape0;
+            reshape0_out->consumers.push_back(op);
+            std::vector<int> reshape0_shape = {in_shape[0], in_shape[1], in_shape[2] * K, step};
+            reshape0->params["shape"] = reshape0_shape;
+            reshape0_out->shape = reshape0_shape;
+            reshape0_out->type = in->type;
+            reshape0_out->params["__ncnn_batch_axis"] = fl_batch_axis;
+
+            // original op -> Crop: take [start, start+1) on the w dim
+            // ncnn Crop axis mapping: dims=3 -> 0=c 1=h 2=w; dims=4 -> 0=c 1=d 2=h 3=w.
+            // reshape0 output (b, a, c*K, step): when the batch dim is stripped
+            // (batch_axis!=233) the physical tensor is 3D (c,h,w) and w is axis 2;
+            // otherwise it is 4D and w is axis 3.
+            const int crop_axis = (fl_batch_axis == 233) ? 3 : 2;
+            op->type = "Crop";
+            op->inputs[0] = reshape0_out;
+            // consumer bookkeeping: reshape0 consumes in now, op consumes reshape0_out
+            {
+                auto itc = std::find(in->consumers.begin(), in->consumers.end(), op);
+                if (itc != in->consumers.end())
+                    *itc = reshape0;
+            }
+            op->params["9"] = std::vector<int> {start};
+            op->params["10"] = std::vector<int> {start + 1};
+            op->params["11"] = std::vector<int> {crop_axis};
+            op->params.erase("dim");
+            op->params.erase("start");
+            op->params.erase("end");
+            op->params.erase("step");
+
+            // reshape1: (b*a, c, K, 1) -> (b, a, c, K)
+            Operand* crop_out = op->outputs[0];
+            Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
+            Operand* reshape1_in = graph.new_operand(op->name + "_ncnnreshape1_in");
+            reshape1->inputs.push_back(reshape1_in);
+            reshape1->outputs.push_back(crop_out);
+            op->outputs[0] = reshape1_in;
+            crop_out->producer = reshape1;
+            reshape1_in->producer = op;
+            reshape1_in->consumers.push_back(reshape1);
+
+            std::vector<int> reshape1_shape = {in_shape[0], in_shape[1], in_shape[2], K};
+            reshape1->params["shape"] = reshape1_shape;
+            reshape1_in->shape = {in_shape[0], in_shape[1], in_shape[2] * K, 1};
+            reshape1_in->type = in->type;
+            reshape1_in->params["__ncnn_batch_axis"] = fl_batch_axis;
+            crop_out->shape = reshape1_shape;
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+
     int op_index = 0;
 
     while (1)
@@ -112,6 +228,12 @@ void convert_Tensor_slice(Graph& graph)
                 if (steps[i] == 0)
                 {
                     // simulate select as slice
+                    if (i >= (int)selects.size())
+                    {
+                        fprintf(stderr, "slice with step 0 but no select index is not supported\n");
+                        unsupported = true;
+                        break;
+                    }
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;

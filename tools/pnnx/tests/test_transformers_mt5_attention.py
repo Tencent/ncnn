@@ -45,7 +45,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_mt5_attention.pt inputshape=[3,16,192],[3,1,16,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_mt5_attention.pt inputshape=[3,16,192],[3,1,16,16]")
 
     # pnnx inference
     import test_transformers_mt5_attention_pnnx
@@ -54,7 +54,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, mask), ["[3,16,192]", "[3,1,16,16]"], "test_transformers_mt5_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

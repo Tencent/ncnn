@@ -60,3 +60,8 @@ python/setup.py
 
 # Xmake
 .xmake/
+
+# pnnx generated test artifacts
+tools/pnnx/tests/**/*.pt
+tools/pnnx/tests/**/*.pt2
+tools/pnnx/tests/**/*.onnx

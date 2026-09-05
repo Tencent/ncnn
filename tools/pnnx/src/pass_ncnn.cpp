@@ -15,12 +15,18 @@
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
 #include "pass_ncnn/convert_torch_split.h"
+#include "pass_ncnn/torch_baddbmm.h"
+#include "pass_ncnn/linalg_vector_norm.h"
+#include "pass_ncnn/F_linear.h"
+#include "pass_ncnn/nn_Linear.h"
 #include "pass_ncnn/convert_torch_stack.h"
 #include "pass_ncnn/convert_torch_tensor_split.h"
 #include "pass_ncnn/convert_torch_unbind.h"
 #include "pass_ncnn/convert_Tensor_select.h"
 #include "pass_ncnn/convert_Tensor_slice.h"
 #include "pass_ncnn/convert_Tensor_slice_copy.h"
+#include "pass_ncnn/convert_Tensor_to.h"
+#include "pass_ncnn/convert_aten_new_empty.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
@@ -105,6 +111,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_torch_chunk(g);
     ncnn::convert_torch_stack(g);
     ncnn::convert_torch_split(g);
+    ncnn::convert_aten_baddbmm(g);
+    ncnn::convert_aten_F_linear(g);
+    ncnn::convert_nn_Linear_3d_flatten(g);
+    ncnn::convert_aten_linalg_vector_norm(g);
     ncnn::convert_torch_unbind(g);
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
@@ -115,6 +125,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_Tensor_select(g);
     ncnn::convert_Tensor_slice(g);
     ncnn::convert_Tensor_slice_copy(g);
+    ncnn::convert_Tensor_to(g);
+    ncnn::convert_aten_new_empty(g);
 
     // slice        -> crop + reshape
     // slice_copy   -> reshape + copyto

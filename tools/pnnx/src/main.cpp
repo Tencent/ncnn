@@ -19,7 +19,10 @@
 #include "pass_level3.h"
 #include "pass_level4.h"
 #include "pass_level5.h"
+#include "storezip.h"
 #include "utils.h"
+
+#include "load_exportedprogram.h"
 
 #if BUILD_TORCH2PNNX
 #include "load_torchscript.h"
@@ -257,6 +260,25 @@ static bool model_file_maybe_tnnproto(const std::string& path)
     return signature == 4206624772;
 }
 
+static bool model_file_maybe_exportedprogram(const std::string& path)
+{
+    // a torch dynamo exported program (.pt2) is also a zip; check for models/model.json or archive_format
+    pnnx::StoreZipReader zip;
+    if (zip.open(path) != 0)
+        return false;
+
+    std::vector<std::string> names = zip.get_names();
+    zip.close();
+
+    for (size_t i = 0; i < names.size(); i++)
+    {
+        if (names[i].find("models/model.json") != std::string::npos || names[i].find("archive_format") != std::string::npos)
+            return true;
+    }
+
+    return false;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
@@ -471,6 +493,13 @@ int main(int argc, char** argv)
     }
     else
 #endif
+    if (model_file_maybe_exportedprogram(ptpath))
+    {
+        int ret = load_exportedprogram(ptpath, pnnx_graph, input_shapes, input_types);
+        if (ret != 0)
+            return ret;
+    }
+    else
     {
         if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
             return -1;

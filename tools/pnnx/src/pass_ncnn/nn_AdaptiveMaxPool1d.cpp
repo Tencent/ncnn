@@ -33,7 +33,12 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["0"] = 0;
-        op->params["4"] = 1;
+        // output_size=(1) cannot use global_pooling: ncnn global_pooling on 1D
+        // data emits a dims=1 (C,) Mat while torch outputs (N,C,1) 3D. Use
+        // adaptive_pooling (out_w=1) to keep the length dim, emitting dims=2
+        // (w=1,h=C), serialized as (N,C,1).
+        op->params["7"] = 1;
+        op->params["8"] = 1;
     }
 };
 

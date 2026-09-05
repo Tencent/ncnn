@@ -46,7 +46,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_slice_copy.pt inputshape=[18,15,19,20],[15,19,20],[19,20],[120]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_Tensor_slice_copy.pt inputshape=[18,15,19,20],[15,19,20],[19,20],[120]")
 
     # pnnx inference
     import test_Tensor_slice_copy_pnnx
@@ -55,7 +55,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, w), ["[18,15,19,20]", "[15,19,20]", "[19,20]", "[120]"], "test_Tensor_slice_copy")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -10,7 +10,10 @@ if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
 from transformers import CLIPTextConfig, CLIPVisionConfig
+from transformers import __version__ as _transformers_version
 from transformers.models.clip.modeling_clip import CLIPAttention
+
+_is_tf5 = version.parse(_transformers_version) >= version.parse('5.0')
 
 class Model(nn.Module):
     def __init__(self):
@@ -52,20 +55,37 @@ class Model(nn.Module):
         vision_config0_sdpa = CLIPVisionConfig(hidden_size=14, num_attention_heads=2, attention_dropout=0.0, attn_implementation='sdpa')
         self.vision_attn0_sdpa = CLIPAttention(vision_config0_sdpa)
 
-    def forward(self, x, y, mask0, casual_mask0, z):
-        out0, _ = self.text_attn0(x, attention_mask=None, causal_attention_mask=None, output_attentions=True)
-        out0_sdpa, _ = self.text_attn0_sdpa(x, attention_mask=None, causal_attention_mask=None, output_attentions=False)
-        out1, _ = self.text_attn1(y, attention_mask=None, causal_attention_mask=None, output_attentions=False)
-        out1_sdpa, _ = self.text_attn1_sdpa(y, attention_mask=None, causal_attention_mask=None, output_attentions=False)
-        out2, _ = self.text_attn2(y, attention_mask=mask0, causal_attention_mask=None, output_attentions=True)
-        out2_sdpa, _ = self.text_attn2_sdpa(y, attention_mask=mask0, causal_attention_mask=None, output_attentions=False)
-        out3, _ = self.text_attn3(y, attention_mask=None, causal_attention_mask=casual_mask0, output_attentions=True)
-        out3_sdpa, _ = self.text_attn3_sdpa(y, attention_mask=None, causal_attention_mask=casual_mask0, output_attentions=False)
-        out4, _ = self.text_attn4(y, attention_mask=mask0, causal_attention_mask=casual_mask0, output_attentions=True)
-        out4_sdpa, _ = self.text_attn4_sdpa(y, attention_mask=mask0, causal_attention_mask=casual_mask0, output_attentions=False)
-        out5, _ = self.vision_attn0(z, attention_mask=None, causal_attention_mask=None)
-        out5_sdpa, _ = self.vision_attn0_sdpa(z, attention_mask=None, causal_attention_mask=None, output_attentions=False)
-        return out0, out0_sdpa, out1, out1_sdpa, out2, out2_sdpa, out3, out3_sdpa, out4, out4_sdpa, out5, out5_sdpa
+    if _is_tf5:
+        # transformers 5.x dropped the causal_attention_mask/output_attentions arguments
+        def forward(self, x, y, mask0, z):
+            out0, _ = self.text_attn0(x, attention_mask=None)
+            out0_sdpa, _ = self.text_attn0_sdpa(x, attention_mask=None)
+            out1, _ = self.text_attn1(y, attention_mask=None)
+            out1_sdpa, _ = self.text_attn1_sdpa(y, attention_mask=None)
+            out2, _ = self.text_attn2(y, attention_mask=mask0)
+            out2_sdpa, _ = self.text_attn2_sdpa(y, attention_mask=mask0)
+            out3, _ = self.text_attn3(y, attention_mask=None)
+            out3_sdpa, _ = self.text_attn3_sdpa(y, attention_mask=None)
+            out4, _ = self.text_attn4(y, attention_mask=mask0)
+            out4_sdpa, _ = self.text_attn4_sdpa(y, attention_mask=mask0)
+            out5, _ = self.vision_attn0(z, attention_mask=None)
+            out5_sdpa, _ = self.vision_attn0_sdpa(z, attention_mask=None)
+            return out0, out0_sdpa, out1, out1_sdpa, out2, out2_sdpa, out3, out3_sdpa, out4, out4_sdpa, out5, out5_sdpa
+    else:
+        def forward(self, x, y, mask0, casual_mask0, z):
+            out0, _ = self.text_attn0(x, attention_mask=None, causal_attention_mask=None, output_attentions=True)
+            out0_sdpa, _ = self.text_attn0_sdpa(x, attention_mask=None, causal_attention_mask=None, output_attentions=False)
+            out1, _ = self.text_attn1(y, attention_mask=None, causal_attention_mask=None, output_attentions=False)
+            out1_sdpa, _ = self.text_attn1_sdpa(y, attention_mask=None, causal_attention_mask=None, output_attentions=False)
+            out2, _ = self.text_attn2(y, attention_mask=mask0, causal_attention_mask=None, output_attentions=True)
+            out2_sdpa, _ = self.text_attn2_sdpa(y, attention_mask=mask0, causal_attention_mask=None, output_attentions=False)
+            out3, _ = self.text_attn3(y, attention_mask=None, causal_attention_mask=casual_mask0, output_attentions=True)
+            out3_sdpa, _ = self.text_attn3_sdpa(y, attention_mask=None, causal_attention_mask=casual_mask0, output_attentions=False)
+            out4, _ = self.text_attn4(y, attention_mask=mask0, causal_attention_mask=casual_mask0, output_attentions=True)
+            out4_sdpa, _ = self.text_attn4_sdpa(y, attention_mask=mask0, causal_attention_mask=casual_mask0, output_attentions=False)
+            out5, _ = self.vision_attn0(z, attention_mask=None, causal_attention_mask=None)
+            out5_sdpa, _ = self.vision_attn0_sdpa(z, attention_mask=None, causal_attention_mask=None, output_attentions=False)
+            return out0, out0_sdpa, out1, out1_sdpa, out2, out2_sdpa, out3, out3_sdpa, out4, out4_sdpa, out5, out5_sdpa
 
 def test():
     net = Model()
@@ -75,18 +95,27 @@ def test():
     x = torch.rand(3, 16, 192)
     y = torch.rand(2, 5, 66)
     mask0 = torch.rand(2, 1, 5, 5)
-    casual_mask0 = torch.rand(2, 1, 5, 5)
-    z = torch.rand(2, 10, 14)
 
-    a = net(x, y, mask0, casual_mask0, z)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, mask0, casual_mask0, z))
-    mod.save("test_transformers_clip_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_clip_attention.pt inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,1,5,5],[2,10,14]")
+    if _is_tf5:
+        # transformers 5.x: casual_mask0 unused (dropped), 4 inputs
+        z = torch.rand(2, 10, 14)
+        a = net(x, y, mask0, z)
+        mod = torch.jit.trace(net, (x, y, mask0, z))
+        mod.save("test_transformers_clip_attention.pt")
+        import os
+        os.system(os.path.join("..", "src", "pnnx") + " test_transformers_clip_attention.pt inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,10,14]")
+        inputshapes = ["[3,16,192]", "[2,5,66]", "[2,1,5,5]", "[2,10,14]"]
+        args = (x, y, mask0, z)
+    else:
+        casual_mask0 = torch.rand(2, 1, 5, 5)
+        z = torch.rand(2, 10, 14)
+        a = net(x, y, mask0, casual_mask0, z)
+        mod = torch.jit.trace(net, (x, y, mask0, casual_mask0, z))
+        mod.save("test_transformers_clip_attention.pt")
+        import os
+        os.system(os.path.join("..", "src", "pnnx") + " test_transformers_clip_attention.pt inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,1,5,5],[2,10,14]")
+        inputshapes = ["[3,16,192]", "[2,5,66]", "[2,1,5,5]", "[2,1,5,5]", "[2,10,14]"]
+        args = (x, y, mask0, casual_mask0, z)
 
     # pnnx inference
     import test_transformers_clip_attention_pnnx
@@ -95,7 +124,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, args, inputshapes, "test_transformers_clip_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

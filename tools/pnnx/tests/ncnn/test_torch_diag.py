@@ -38,10 +38,13 @@ def test():
     import test_torch_diag_ncnn
     b = test_torch_diag_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    ts_ok = all(torch.equal(a0, b0) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z), ["[7]", "[5,5]", "[4,8]"], "test_torch_diag")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

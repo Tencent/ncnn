@@ -1,4 +1,7 @@
 # Copyright 2025 Tencent
+# Requires transformers >= 5.x (deepseek_v3 exists only there). This test runs
+# for real under transformers 5.x (both ts and pt2 paths).
+
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
@@ -9,8 +12,12 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import DeepseekV3Config
-from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3Attention, DeepseekV3RotaryEmbedding
+try:
+    from transformers import DeepseekV3Config
+    from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3Attention, DeepseekV3RotaryEmbedding
+except ImportError:
+    # transformers < 5.x has no deepseek_v3 model, skip
+    DeepseekV3Config = None
 
 class Model(nn.Module):
     def __init__(self):
@@ -30,6 +37,9 @@ class Model(nn.Module):
 
 def test():
     if version.parse(torch.__version__) < version.parse('2.4'):
+        return True
+
+    if DeepseekV3Config is None:
         return True
 
     net = Model()
@@ -54,7 +64,13 @@ def test():
     import test_transformers_deepseek_v3_attention_ncnn
     b = test_transformers_deepseek_v3_attention_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, mask0), ["[1,16,192]", "[1,1,16,16]"], "test_transformers_deepseek_v3_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

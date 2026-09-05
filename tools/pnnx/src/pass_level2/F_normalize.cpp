@@ -85,4 +85,45 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_2, 130)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_dims, 131)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_3, 131)
 
+class F_normalize_linalg : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input       0 1 input
+prim::Constant          op_ord      0 1 ord value=%p
+prim::Constant          op_dim      0 1 dim value=%dim
+prim::Constant          op_keepdim  0 1 keepdim value=True
+aten::linalg_vector_norm op_0       4 1 input ord dim keepdim 9
+prim::Constant          op_1        0 1 eps value=%eps
+aten::clamp_min         op_2        2 1 9 eps 11
+Tensor.expand_as        op_3        2 1 11 input denorm
+aten::div               op_4        2 1 input denorm out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.normalize";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["p"] = captured_params.at("p");
+
+        const Parameter& dim = captured_params.at("dim");
+        if (dim.type == 5 && dim.ai.size() == 1)
+            op->params["dim"] = dim.ai[0];
+        else
+            op->params["dim"] = dim;
+
+        op->params["eps"] = captured_params.at("eps");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_linalg, 130)
+
 } // namespace pnnx

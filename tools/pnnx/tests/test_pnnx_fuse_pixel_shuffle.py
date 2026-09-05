@@ -47,13 +47,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_pixel_shuffle.pt inputshape=[1,64,15,15]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_pixel_shuffle.pt inputshape=[1,64,15,15]")
 
     # pnnx inference
     import test_pnnx_fuse_pixel_shuffle_pnnx
     b0 = test_pnnx_fuse_pixel_shuffle_pnnx.test_inference()
 
-    return torch.equal(a0, b0)
+    ts_ok = torch.equal(a0, b0)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,64,15,15]"], "test_pnnx_fuse_pixel_shuffle")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

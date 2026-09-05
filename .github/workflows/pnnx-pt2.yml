@@ -1,0 +1,163 @@
+name: pnnx-pt2
+on:
+  push:
+    paths:
+    - '.github/workflows/pnnx-pt2.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx-pt2.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  workflow_dispatch:
+concurrency:
+  group: pnnx-pt2-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  pt2:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-torch
+      run: |
+        pip3 install torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+        pip3 install numpy einops packaging onnxscript
+
+    - name: setup-transformers
+      run: |
+        pip3 install transformers==5.16.1
+
+    - name: build-pnnx
+      shell: bash
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+        # the VS generator on windows puts the exe into the Release subdir;
+        # copy it next to the path expected by the tests (../src/pnnx)
+        if [ -f src/Release/pnnx.exe ]; then cp src/Release/pnnx.exe src/pnnx.exe; fi
+        # on windows, pnnx.exe links c10.dll / torch_cpu.dll (and friends) from
+        # the torch install. copy them next to the exe: windows dll search checks
+        # the exe dir first, which is far more reliable than PATH under the
+        # git-bash -> python -> cmd chain (msys path mangling drops the entry).
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          TLIB="$(python -c 'import torch,os;print(os.path.join(os.path.dirname(torch.__file__),"lib"))' | tr -d '\r')"
+          cp "$TLIB"/*.dll src/
+        fi
+
+    - name: run-pt2-tests
+      shell: bash
+      run: |
+        cd tools/pnnx/build/tests
+        # relative cwd entry (the generated *_pnnx.py modules live here);
+        # the test helper is found via the script dir in sys.path
+        export PYTHONPATH="."
+        # keep MKL off the newest ISA kernels: the hosted windows runners have
+        # recent CPUs and torch's MKL FFT dispatch crashes on some
+        # half-spectrum fftn shapes (hfftn/ihfftn/irfftn) under AVX-512;
+        # SSE4.2 matches the upstream pnnx.yml test job
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        # make pnnx.exe find c10.dll / torch_cpu.dll on windows only
+        # (macos/linux pnnx does not link torch dylibs; keep PATH untouched there)
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          export PATH="$(python -c 'import torch,os;print(os.path.join(os.path.dirname(torch.__file__),"lib"))' | tr -d '\r'):$PATH"
+        fi
+        fail=0
+        for t in ../../tests/test_*.py; do
+          if out=$(python "$t" 2>&1); then
+            echo "PASS: $(basename "$t")"
+          else
+            rc=$?
+            echo "FAIL: $(basename "$t") (exit $rc)"
+            echo "$out" | tail -80
+            fail=1
+          fi
+        done
+        exit $fail
+
+  pt2-transformers4:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+
+    - name: setup-torch
+      run: |
+        pip3 install torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+        pip3 install numpy einops packaging onnxscript
+
+    - name: setup-transformers
+      run: |
+        pip3 install transformers==4.48.3
+
+    - name: build-pnnx
+      shell: bash
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --config Release -j 4
+        # the VS generator on windows puts the exe into the Release subdir;
+        # copy it next to the path expected by the tests (../src/pnnx)
+        if [ -f src/Release/pnnx.exe ]; then cp src/Release/pnnx.exe src/pnnx.exe; fi
+        # on windows, pnnx.exe links c10.dll / torch_cpu.dll (and friends) from
+        # the torch install. copy them next to the exe: windows dll search checks
+        # the exe dir first, which is far more reliable than PATH under the
+        # git-bash -> python -> cmd chain (msys path mangling drops the entry).
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          TLIB="$(python -c 'import torch,os;print(os.path.join(os.path.dirname(torch.__file__),"lib"))' | tr -d '\r')"
+          cp "$TLIB"/*.dll src/
+        fi
+
+    - name: run-transformers4-tests
+      shell: bash
+      run: |
+        cd tools/pnnx/build/tests
+        # relative cwd entry (the generated *_pnnx.py modules live here);
+        # the test helper is found via the script dir in sys.path
+        export PYTHONPATH="."
+        # same MKL pinning as the pt2 job above
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        # make pnnx.exe find c10.dll / torch_cpu.dll on windows only
+        # (macos/linux pnnx does not link torch dylibs; keep PATH untouched there)
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          export PATH="$(python -c 'import torch,os;print(os.path.join(os.path.dirname(torch.__file__),"lib"))' | tr -d '\r'):$PATH"
+        fi
+        fail=0
+        for t in ../../tests/test_transformers_*.py; do
+          if out=$(python "$t" 2>&1); then
+            echo "PASS: $(basename "$t")"
+          else
+            rc=$?
+            echo "FAIL: $(basename "$t") (exit $rc)"
+            echo "$out" | tail -40
+            fail=1
+          fi
+        done
+        exit $fail
