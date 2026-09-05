@@ -685,21 +685,22 @@ static const c10::FunctionSchema& torchvision_deform_conv2d_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::deform_conv2d", "",
-        {c10::Argument("input", c10::TensorType::get()),
-         c10::Argument("weight", c10::TensorType::get()),
-         c10::Argument("offset", c10::TensorType::get()),
-         c10::Argument("mask", c10::TensorType::get()),
-         c10::Argument("bias", c10::TensorType::get()),
-         c10::Argument("stride_h", c10::SymIntType::get()),
-         c10::Argument("stride_w", c10::SymIntType::get()),
-         c10::Argument("pad_h", c10::SymIntType::get()),
-         c10::Argument("pad_w", c10::SymIntType::get()),
-         c10::Argument("dilation_h", c10::SymIntType::get()),
-         c10::Argument("dilation_w", c10::SymIntType::get()),
-         c10::Argument("groups", c10::SymIntType::get()),
-         c10::Argument("offset_groups", c10::SymIntType::get()),
-         c10::Argument("use_mask", c10::BoolType::get())},
-        {c10::Argument("", c10::TensorType::get())});
+    {   c10::Argument("input", c10::TensorType::get()),
+        c10::Argument("weight", c10::TensorType::get()),
+        c10::Argument("offset", c10::TensorType::get()),
+        c10::Argument("mask", c10::TensorType::get()),
+        c10::Argument("bias", c10::TensorType::get()),
+        c10::Argument("stride_h", c10::SymIntType::get()),
+        c10::Argument("stride_w", c10::SymIntType::get()),
+        c10::Argument("pad_h", c10::SymIntType::get()),
+        c10::Argument("pad_w", c10::SymIntType::get()),
+        c10::Argument("dilation_h", c10::SymIntType::get()),
+        c10::Argument("dilation_w", c10::SymIntType::get()),
+        c10::Argument("groups", c10::SymIntType::get()),
+        c10::Argument("offset_groups", c10::SymIntType::get()),
+        c10::Argument("use_mask", c10::BoolType::get())
+    },
+    {c10::Argument("", c10::TensorType::get())});
     return schema;
 }
 
@@ -707,14 +708,15 @@ static const c10::FunctionSchema& torchvision_roi_align_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::roi_align", "",
-        {c10::Argument("input", c10::TensorType::get()),
-         c10::Argument("rois", c10::TensorType::get()),
-         c10::Argument("spatial_scale", c10::FloatType::get()),
-         c10::Argument("pooled_height", c10::SymIntType::get()),
-         c10::Argument("pooled_width", c10::SymIntType::get()),
-         c10::Argument("sampling_ratio", c10::IntType::get()),
-         c10::Argument("aligned", c10::BoolType::get())},
-        {c10::Argument("", c10::TensorType::get())});
+    {   c10::Argument("input", c10::TensorType::get()),
+        c10::Argument("rois", c10::TensorType::get()),
+        c10::Argument("spatial_scale", c10::FloatType::get()),
+        c10::Argument("pooled_height", c10::SymIntType::get()),
+        c10::Argument("pooled_width", c10::SymIntType::get()),
+        c10::Argument("sampling_ratio", c10::IntType::get()),
+        c10::Argument("aligned", c10::BoolType::get())
+    },
+    {c10::Argument("", c10::TensorType::get())});
     return schema;
 }
 

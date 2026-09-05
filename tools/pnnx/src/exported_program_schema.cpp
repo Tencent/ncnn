@@ -1178,7 +1178,7 @@ static int parse_constant_value(const JsonValue& value, ExportedArgument& argume
 
     const std::string& tag = value.as_object().begin()->first;
     if (tag != "as_none" && tag != "as_int" && tag != "as_float"
-        && tag != "as_string" && tag != "as_bool")
+            && tag != "as_string" && tag != "as_bool")
         return schema_error(error, path, "unknown constant value tag " + tag);
 
     return parse_exported_argument_value(value, argument, path, error);
