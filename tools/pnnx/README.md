@@ -70,7 +70,7 @@ This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` obj
 
 ### Current ExportedProgram support
 
-- PT2 archive version `0` with one ExportedProgram and uncompressed, unencrypted ZIP entries
+- PT2 archive version `0` with one ExportedProgram; consumed ZIP entries must be uncompressed, while unconsumed compressed attachments are ignored and encryption is unsupported for every entry
 - PyTorch 2.13 ExportedProgram schema 8.20 with raw tensor payloads; compatibility paths for the older raw-payload schema minors 8.14, 8.15 and 8.17 are retained but are not part of the continuously tested compatibility contract
 - Inference graphs with protocol-1 positional tensor input PyTrees composed only of tuple/list containers; their leaves are flattened in treespec order at the PNNX model boundary, while tensor output leaves may be reconstructed into protocol-1 tuple/list trees
 - Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments
@@ -93,16 +93,16 @@ This creates `model_pnnx.pt2` and returns the `torch.export.ExportedProgram` obj
 - Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
 - Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
 - Generated native ncnn python inference with Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
-- Compressed or encrypted PT2 entries and PT2 archive versions other than `0`
+- Compressed PT2 entries consumed by the frontend, any encrypted PT2 entry, and PT2 archive versions other than `0`
 
 Unsupported graph and schema features fail with a feature-specific `load exported program failed:` diagnostic. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
 
 ### ExportedProgram contributor tests
 
-The frontend suite requires Python PyTorch 2.9 or newer; the version test also checks explicit rejection of PyTorch 2.8 legacy packages. CTest skips these tests on older producers. The unsupported-input helper tests do not require the Python ncnn binding; native ncnn runtime tests still require it.
+The frontend suite requires Python PyTorch 2.9 or newer. `test_real_producer_omits_default_arguments` checks the current producer layout, while `test_legacy_pickled_payload_layout_is_rejected` checks rejection of a synthetic legacy payload. The helper suite keeps six expected-failure contracts strict. CTest skips these tests on older producers. The unsupported-input helper tests do not require the Python ncnn binding; native ncnn runtime tests still require it.
 
 ```shell
-ctest --test-dir build --output-on-failure -R '^(test_exported_program.*|test_pt2_version_compatibility|test_pt2_manifest|test_pnnx_test_utils)$'
+ctest --test-dir build --output-on-failure -R '^(test_exported_program.*|test_pnnx_test_utils)$'
 ```
 
 Run all PT2-named tests, including the complete operator and model expectation suite and the focused bool-attribute ncnn smoke test, with:
