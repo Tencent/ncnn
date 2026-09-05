@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -32,17 +34,14 @@ def test():
 
     a0, a1, a2, a3 = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_softshrink.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z, w),
+        "test_F_softshrink",
+        pnnx_args=("inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_softshrink.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
-
-    # pnnx inference
-    import test_F_softshrink_pnnx
-    b0, b1, b2, b3 = test_F_softshrink_pnnx.test_inference()
+    b0, b1, b2, b3 = mod.test_inference()
 
     return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
 

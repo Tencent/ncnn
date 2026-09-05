@@ -22,6 +22,7 @@
 #include "utils.h"
 
 #if BUILD_TORCH2PNNX
+#include "load_exported_program.h"
 #include "load_torchscript.h"
 #endif
 #if BUILD_ONNX2PNNX
@@ -31,6 +32,7 @@
 #include "load_tnn.h"
 #endif
 
+#include "model_format.h"
 #include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -154,6 +156,91 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
     }
 }
 
+#if BUILD_TORCH2PNNX
+static const char* pnnx_type_to_string(int type)
+{
+    if (type == 1) return "f32";
+    if (type == 2) return "f64";
+    if (type == 3) return "f16";
+    if (type == 4) return "i32";
+    if (type == 5) return "i64";
+    if (type == 6) return "i16";
+    if (type == 7) return "i8";
+    if (type == 8) return "u8";
+    if (type == 9) return "bool";
+    if (type == 10) return "c64";
+    if (type == 11) return "c128";
+    if (type == 12) return "c32";
+    if (type == 13) return "bf16";
+    return "null";
+}
+
+static bool check_exported_program_input_shape(const pnnx::Graph& graph, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+{
+    if (input_shapes.empty())
+        return true;
+
+    std::vector<const pnnx::Operand*> graph_inputs;
+    for (const pnnx::Operator* op : graph.ops)
+    {
+        if (op->type == "pnnx.Input" && !op->outputs.empty())
+            graph_inputs.push_back(op->outputs[0]);
+    }
+
+    if (input_shapes.size() != graph_inputs.size())
+    {
+        fprintf(stderr, "input_shape expect %d tensors but got %d\n", (int)graph_inputs.size(), (int)input_shapes.size());
+        return false;
+    }
+
+    if (input_types.size() != input_shapes.size())
+    {
+        fprintf(stderr, "input_shape type metadata count mismatch\n");
+        return false;
+    }
+
+    for (size_t i = 0; i < graph_inputs.size(); i++)
+    {
+        const pnnx::Operand* input = graph_inputs[i];
+        bool matched = input_shapes[i].size() == input->shape.size();
+        if (matched)
+        {
+            for (size_t j = 0; j < input->shape.size(); j++)
+            {
+                if (input_shapes[i][j] != input->shape[j])
+                    matched = false;
+            }
+        }
+
+        const char* expected_type = pnnx_type_to_string(input->type);
+        if (input_types[i] != expected_type)
+            matched = false;
+
+        if (matched)
+            continue;
+
+        fprintf(stderr, "input_shapes[%d] expect [", (int)i);
+        for (size_t j = 0; j < input->shape.size(); j++)
+        {
+            fprintf(stderr, "%d", input->shape[j]);
+            if (j + 1 != input->shape.size())
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]%s but got [", expected_type);
+        for (size_t j = 0; j < input_shapes[i].size(); j++)
+        {
+            fprintf(stderr, "%ld", input_shapes[i][j]);
+            if (j + 1 != input_shapes[i].size())
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]%s\n", input_types[i].c_str());
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 static bool parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents, std::vector<std::string>& paths, bool load_data)
 {
     std::vector<std::string> list;
@@ -211,6 +298,7 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
     return true;
 }
 
+#if BUILD_ONNX2PNNX
 static bool model_file_maybe_torchscript(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -228,6 +316,7 @@ static bool model_file_maybe_torchscript(const std::string& path)
     // torchscript is a zip
     return signature == 0x04034b50;
 }
+#endif
 
 static bool model_file_maybe_tnnproto(const std::string& path)
 {
@@ -448,42 +537,74 @@ int main(int argc, char** argv)
 
     pnnx::Graph pnnx_graph;
 
+    pnnx::ModelFormatInfo model_format;
+    std::string model_format_error;
+    if (pnnx::detect_model_format(ptpath, model_format, model_format_error) != 0)
+    {
+        fprintf(stderr, "detect model format failed: %s\n", model_format_error.c_str());
+        return -1;
+    }
+
     // clang-format off
     // *INDENT-OFF*
 
-#if BUILD_TNN2PNNX
-    if (model_file_maybe_tnnproto(ptpath))
+#if BUILD_TORCH2PNNX
+    if (model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2)
     {
-        int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
+        std::string error;
+        int ret = pnnx::load_exported_program(ptpath, model_format, pnnx_graph, error);
         if (ret != 0)
+        {
+            fprintf(stderr, "load exported program failed: %s\n", error.c_str());
             return ret;
-    }
-    else
-#endif
-#if BUILD_ONNX2PNNX
-    if (!model_file_maybe_torchscript(ptpath))
-    {
-        int ret = load_onnx(ptpath.c_str(), pnnx_graph,
-                            input_shapes, input_types,
-                            input_shapes2, input_types2);
-        if (ret != 0)
-            return ret;
-    }
-    else
-#endif
-    {
-        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
-            return -1;
-        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+        }
+
+        if (!check_exported_program_input_shape(pnnx_graph, input_shapes, input_types))
             return -1;
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
-                                   device, input_shapes, input_types, input_contents,
-                                   input_shapes2, input_types2, input_contents2,
-                                   customop_modules, module_operators,
-                                   foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
+        if (!input_shapes2.empty())
+        {
+            fprintf(stderr, "inputshape2 and input2 are unsupported for exported program\n");
+            return -1;
+        }
+    }
+    else
+#endif
+    {
+#if BUILD_TNN2PNNX
+        if (model_file_maybe_tnnproto(ptpath))
+        {
+            int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+#if BUILD_ONNX2PNNX
+        if (!model_file_maybe_torchscript(ptpath))
+        {
+            int ret = load_onnx(ptpath.c_str(), pnnx_graph,
+                                input_shapes, input_types,
+                                input_shapes2, input_types2);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
+
+            int ret = load_torchscript(ptpath, pnnx_graph,
+                                       device, input_shapes, input_types, input_contents,
+                                       input_shapes2, input_types2, input_contents2,
+                                       customop_modules, module_operators,
+                                       foldable_constants_zippath, foldable_constants);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     // *INDENT-ON*
@@ -524,7 +645,8 @@ int main(int argc, char** argv)
     const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
+    const bool preserve_module_dtype = model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2;
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat, preserve_module_dtype);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);

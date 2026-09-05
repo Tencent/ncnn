@@ -8,6 +8,9 @@ import torch
 import torch.nn as nn
 from packaging import version
 
+from pnnx_test_utils import PT2_SKIP_RETURN_CODE
+from pnnx_test_utils import convert_and_import
+
 
 def _allclose(a, b):
     for a0, b0 in zip(a, b):
@@ -43,15 +46,15 @@ def _test_basic():
 
     a = net(x, y)
 
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_input_npy_basic.pt")
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_pnnx_input_npy_basic",
+        pnnx_args=("input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy",),
+        output_basename="test_pnnx_input_npy_basic",
+    )
 
-    ret = os.system("../src/pnnx test_pnnx_input_npy_basic.pt input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_basic_pnnx
-    pnnx_net = test_pnnx_input_npy_basic_pnnx.Model()
+    pnnx_net = mod.Model()
     pnnx_net.eval()
     b = pnnx_net(x, y)
 
@@ -94,21 +97,35 @@ def _test_input2():
     a0 = net(x0, y0)
     a1 = net(x1, y1)
 
-    if version.parse(torch.__version__) < version.parse("2.0"):
-        mod = torch.jit.trace(net, (x0, y0))
-    else:
-        mod = torch.jit.trace(net, (x0, y0), _store_inputs=False)
-    mod.save("test_pnnx_input_npy_input2.pt")
+    export_kwargs = {}
+    if os.environ.get("PNNX_TEST_FORMAT") == "pt2":
+        channels = torch.export.Dim("channels", min=2, max=3)
+        width = torch.export.Dim("width", min=6, max=8)
+        export_kwargs["dynamic_shapes"] = (
+            {1: channels, 2: width},
+            {1: channels, 2: width},
+        )
 
-    ret = os.system("../src/pnnx test_pnnx_input_npy_input2.pt input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy")
-    if ret != 0:
-        return False
+    mod = convert_and_import(
+        net,
+        (x0, y0),
+        "test_pnnx_input_npy",
+        pnnx_args=(
+            "input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy",
+            "input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy",
+        ),
+        trace_kwargs={"_store_inputs": False} if version.parse(torch.__version__) >= version.parse("2.0") else {},
+        export_kwargs=export_kwargs,
+        output_basename="test_pnnx_input_npy_input2",
+    )
 
-    import test_pnnx_input_npy_input2_pnnx
-    pnnx_net = test_pnnx_input_npy_input2_pnnx.Model()
+    pnnx_net = mod.Model()
     pnnx_net.eval()
     b0 = pnnx_net(x0, y0)
-    b1 = pnnx_net(x1, y1)
+    try:
+        b1 = pnnx_net(x1, y1)
+    except RuntimeError:
+        return False
 
     return _allclose(a0, b0) and _allclose(a1, b1)
 
@@ -138,15 +155,15 @@ def _test_int64():
 
     a = net(x, y)
 
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_input_npy_int64.pt")
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_pnnx_input_npy_int64",
+        pnnx_args=("input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy",),
+        output_basename="test_pnnx_input_npy_int64",
+    )
 
-    ret = os.system("../src/pnnx test_pnnx_input_npy_int64.pt input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_int64_pnnx
-    pnnx_net = test_pnnx_input_npy_int64_pnnx.Model()
+    pnnx_net = mod.Model()
     pnnx_net.eval()
     b = pnnx_net(x, y)
 
@@ -177,15 +194,15 @@ def _test_embedding():
 
     a = net(x)
 
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_input_npy_embedding.pt")
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_input_npy_embedding",
+        pnnx_args=("input=test_pnnx_input_npy_embedding_x.npy",),
+        output_basename="test_pnnx_input_npy_embedding",
+    )
 
-    ret = os.system("../src/pnnx test_pnnx_input_npy_embedding.pt input=test_pnnx_input_npy_embedding_x.npy")
-    if ret != 0:
-        return False
-
-    import test_pnnx_input_npy_embedding_pnnx
-    pnnx_net = test_pnnx_input_npy_embedding_pnnx.Model()
+    pnnx_net = mod.Model()
     pnnx_net.eval()
     b = pnnx_net(x)
 
@@ -193,7 +210,27 @@ def _test_embedding():
 
 
 def test():
-    return _test_basic() and _test_input2() and _test_int64() and _test_embedding()
+    test_cases = (
+        ("test_pnnx_input_npy_basic", _test_basic),
+        ("test_pnnx_input_npy", _test_input2),
+        ("test_pnnx_input_npy_int64", _test_int64),
+        ("test_pnnx_input_npy_embedding", _test_embedding),
+    )
+    skipped = False
+    for basename, test_case in test_cases:
+        try:
+            result = test_case()
+        except SystemExit as exc:
+            if exc.code != PT2_SKIP_RETURN_CODE:
+                raise
+            skipped = True
+            continue
+        if not result:
+            return False
+
+    if skipped:
+        raise SystemExit(PT2_SKIP_RETURN_CODE)
+    return True
 
 
 if __name__ == "__main__":

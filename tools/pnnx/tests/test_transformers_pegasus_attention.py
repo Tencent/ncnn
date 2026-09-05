@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import PegasusConfig
 from transformers.models.pegasus.modeling_pegasus import PegasusAttention
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -36,17 +38,13 @@ def test():
 
     a = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_transformers_pegasus_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_pegasus_attention.pt inputshape=[3,16,192],[1,5,66]")
-
-    # pnnx inference
-    import test_transformers_pegasus_attention_pnnx
-    b = test_transformers_pegasus_attention_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_transformers_pegasus_attention",
+        pnnx_args=("inputshape=[3,16,192],[1,5,66]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

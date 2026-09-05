@@ -288,6 +288,22 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
+            if (attr.type == 9) // bool --> fp32
+            {
+                const unsigned char* p = (const unsigned char*)attr.data.data();
+                int len = attr.data.size();
+
+                std::vector<float> data_fp32(len);
+
+                for (int i = 0; i < len; i++)
+                {
+                    data_fp32[i] = p[i] ? 1.f : 0.f;
+                }
+
+                fwrite(data_fp32.data(), data_fp32.size() * sizeof(float), 1, binfp);
+                continue;
+            }
+
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }
 
@@ -372,6 +388,30 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 {
                     input_shape.push_back((int)d);
                 }
+            }
+
+            if (r->type == 9)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bool input %s\")\n", input_name.c_str());
+                continue;
+            }
+
+            if (r->type == 13)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bfloat16 input %s\")\n", input_name.c_str());
+                continue;
+            }
+
+            if (r->type == 10 || r->type == 11 || r->type == 12)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support complex input %s\")\n", input_name.c_str());
+                continue;
+            }
+
+            if (input_shape.empty())
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support scalar input %s\")\n", input_name.c_str());
+                continue;
             }
 
             if (type_is_integer(r->type))

@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 
 class Model(nn.Module):
     def __init__(self):
@@ -37,19 +39,14 @@ def test():
 
     x0, y0, y1, z0, z1, z2 = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_GLU.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z),
+        "test_nn_GLU",
+        pnnx_args=("inputshape=[18],[12,16],[24,28,34]",),
+    )
 
-    # torchscript to pnnx
-    import os
-
-    os.system("../src/pnnx test_nn_GLU.pt inputshape=[18],[12,16],[24,28,34]")
-
-    # pnnx inference
-    import test_nn_GLU_pnnx
-
-    x0p, y0p, y1p, z0p, z1p, z2p = test_nn_GLU_pnnx.test_inference()
+    x0p, y0p, y1p, z0p, z1p, z2p = mod.test_inference()
 
     return (
         torch.equal(x0, x0p)

@@ -7,6 +7,8 @@ import torch.nn.functional as F
 import torchaudio
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -37,17 +39,13 @@ def test():
 
     a = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_torchaudio_Spectrogram.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torchaudio_Spectrogram.pt inputshape=[3,2560],[1000]")
-
-    # pnnx inference
-    import test_torchaudio_Spectrogram_pnnx
-    b = test_torchaudio_Spectrogram_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_torchaudio_Spectrogram",
+        pnnx_args=("inputshape=[3,2560],[1000]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

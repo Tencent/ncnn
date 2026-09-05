@@ -237,6 +237,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 6)
         {
             // floats
+            if (param.af.empty())
+            {
+                expr += Parameter::encode_to_string(param);
+                return;
+            }
+
             expr += "[";
             for (int i = 0; i < (int)param.af.size(); i++)
             {
