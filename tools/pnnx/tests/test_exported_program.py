@@ -1023,22 +1023,96 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
             source_path = work_dir / "dynamic_source.pt2"
-            archive_path = work_dir / "dynamic.pt2"
             save_exported_program(self.model, source_path)
 
-            rewrite_model_json(
-                source_path,
-                archive_path,
-                lambda document: document["range_constraints"].update(
-                    {"s0": {"min_val": 1, "max_val": 4}}
+            def first_tensor_meta(document):
+                return next(
+                    iter(
+                        document["graph_module"]["graph"][
+                            "tensor_values"
+                        ].values()
+                    )
+                )
+
+            def use_symbolic_size(document):
+                first_tensor_meta(document)["sizes"][0] = {
+                    "as_expr": {
+                        "expr_str": "s0",
+                        "hint": {"as_int": 2},
+                    }
+                }
+
+            def use_symbolic_stride(document):
+                first_tensor_meta(document)["strides"][0] = {
+                    "as_expr": {"expr_str": "s0"}
+                }
+
+            def use_symbolic_storage_offset(document):
+                first_tensor_meta(document)["storage_offset"] = {
+                    "as_expr": {"expr_str": "s0"}
+                }
+
+            def add_symbol_value(document):
+                document["graph_module"]["graph"]["sym_int_values"][
+                    "s0"
+                ] = {"as_int": 2}
+
+            def add_range_constraint(document):
+                document["range_constraints"]["s0"] = {
+                    "min_val": 1,
+                    "max_val": 4,
+                }
+
+            def use_named_operator_symint(document):
+                document["graph_module"]["graph"]["nodes"][0][
+                    "inputs"
+                ][0]["arg"] = {"as_sym_int": {"as_name": "s0"}}
+
+            cases = (
+                (
+                    "size_expression_with_hint",
+                    use_symbolic_size,
+                    (".sizes[0].as_expr", "dynamic tensor shapes are unsupported"),
+                ),
+                (
+                    "stride_expression",
+                    use_symbolic_stride,
+                    (".strides[0].as_expr", "dynamic tensor shapes are unsupported"),
+                ),
+                (
+                    "storage_offset_expression",
+                    use_symbolic_storage_offset,
+                    (
+                        ".storage_offset.as_expr",
+                        "dynamic tensor shapes are unsupported",
+                    ),
+                ),
+                (
+                    "symbol_value",
+                    add_symbol_value,
+                    (".sym_int_values", "dynamic symbolic values are unsupported"),
+                ),
+                (
+                    "range_constraint",
+                    add_range_constraint,
+                    (
+                        "$.range_constraints",
+                        "dynamic range constraints are unsupported",
+                    ),
+                ),
+                (
+                    "named_operator_symint",
+                    use_named_operator_symint,
+                    ("unsupported serialized argument as_sym_int",),
                 ),
             )
-            self.assert_conversion_fails(
-                work_dir,
-                archive_path,
-                "$.range_constraints",
-                "dynamic range constraints are unsupported",
-            )
+            for label, mutate, messages in cases:
+                with self.subTest(dynamic=label):
+                    archive_path = work_dir / f"dynamic_{label}.pt2"
+                    rewrite_model_json(source_path, archive_path, mutate)
+                    self.assert_conversion_fails(
+                        work_dir, archive_path, *messages
+                    )
 
     def test_float_arguments_accept_integer_json_numbers(self):
         with tempfile.TemporaryDirectory() as temp_dir:

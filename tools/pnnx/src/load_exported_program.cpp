@@ -28,6 +28,31 @@
 
 namespace pnnx {
 
+static int set_exported_tensor_shape(const ExportedTensorMeta& meta, const std::string& name, Operand* operand, std::string& error)
+{
+    std::vector<int> shape;
+    shape.reserve(meta.sizes.size());
+    for (size_t i = 0; i < meta.sizes.size(); i++)
+    {
+        if (meta.sizes[i] < 0)
+        {
+            std::ostringstream message;
+            message << "tensor " << name << " has a negative or symbolic size at dimension " << i;
+            error = message.str();
+            return -1;
+        }
+        if (meta.sizes[i] > INT_MAX)
+        {
+            error = "tensor shape does not fit pnnx for " + name;
+            return -1;
+        }
+        shape.push_back((int)meta.sizes[i]);
+    }
+
+    operand->shape.swap(shape);
+    return 0;
+}
+
 static int set_tensor_metadata(const ExportedGraph& graph, const std::string& name, Operand* operand, std::string& error)
 {
     const std::map<std::string, ExportedTensorMeta>::const_iterator meta_it = graph.tensor_values.find(name);
@@ -54,27 +79,10 @@ static int set_tensor_metadata(const ExportedGraph& graph, const std::string& na
         return -1;
     }
 
-    std::vector<int> shape;
-    shape.reserve(meta.sizes.size());
-    for (size_t i = 0; i < meta.sizes.size(); i++)
-    {
-        if (meta.sizes[i] < 0)
-        {
-            std::ostringstream message;
-            message << "tensor " << name << " has a negative or symbolic size at dimension " << i;
-            error = message.str();
-            return -1;
-        }
-        if (meta.sizes[i] > INT_MAX)
-        {
-            error = "tensor shape does not fit pnnx for " + name;
-            return -1;
-        }
-        shape.push_back((int)meta.sizes[i]);
-    }
+    if (set_exported_tensor_shape(meta, name, operand, error) != 0)
+        return -1;
 
     operand->type = pnnx_type;
-    operand->shape.swap(shape);
     return 0;
 }
 

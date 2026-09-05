@@ -1067,6 +1067,16 @@ static int reject_nonempty_symbol_map(const JsonValue& graph, const std::string&
     return 0;
 }
 
+static int validate_static_range_constraints(const JsonValue& value, const std::string& path, ExportedSchemaError& error)
+{
+    if (value.type() != JSON_OBJECT)
+        return schema_error(error, path, "expected object");
+    if (!value.as_object().empty())
+        return schema_error(error, path, "dynamic range constraints are unsupported");
+
+    return 0;
+}
+
 static int parse_exported_graph(const JsonValue& value, ExportedGraph& graph, const std::string& path, ExportedSchemaError& error)
 {
     if (value.type() != JSON_OBJECT)
@@ -1735,10 +1745,8 @@ int parse_exported_program(const JsonValue& value, ExportedProgram& program, Exp
     const JsonValue* range_constraints = required_field(value, "range_constraints", "$", error);
     if (!range_constraints)
         return -1;
-    if (range_constraints->type() != JSON_OBJECT)
-        return schema_error(error, "$.range_constraints", "expected object");
-    if (!range_constraints->as_object().empty())
-        return schema_error(error, "$.range_constraints", "dynamic range constraints are unsupported");
+    if (validate_static_range_constraints(*range_constraints, "$.range_constraints", error) != 0)
+        return -1;
 
     if (parsed_program.input_specs.size() != parsed_program.graph.inputs.size())
         return schema_error(error, "$.graph_module.signature.input_specs", "input spec count does not match graph inputs");
