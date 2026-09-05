@@ -508,6 +508,12 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     // overload may omit middle defaults, and blindly appending them would
     // misalign the level-2 patterns that match by position)
     auto reorder_inputs = [&](const std::vector<std::string>& order) {
+        // guard against name/operand skew (e.g. a scalar arg the loader has no
+        // branch for leaves a dangling inputname with no matching operand);
+        // never index past op->inputs on a longer inputnames list
+        if (op->inputs.size() != op->inputnames.size())
+            return;
+
         std::vector<Operand*> new_inputs;
         std::vector<std::string> new_names;
         for (const std::string& nm : order)
@@ -1598,6 +1604,35 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
             else if (arg.has("as_string"))
             {
                 new_constant(g, op, arg["as_string"].as_string(), constant_index);
+            }
+            else if (arg.has("as_strings"))
+            {
+                std::vector<std::string> as;
+                for (size_t k = 0; k < arg["as_strings"].size(); k++)
+                    as.push_back(arg["as_strings"][k].as_string());
+                new_constant(g, op, as, constant_index);
+            }
+            else if (arg.has("as_floats"))
+            {
+                std::vector<float> af;
+                for (size_t k = 0; k < arg["as_floats"].size(); k++)
+                    af.push_back((float)arg["as_floats"][k].as_double());
+                new_constant(g, op, af, constant_index);
+            }
+            else if (arg.has("as_layout"))
+            {
+                new_constant(g, op, (int)arg["as_layout"].as_int(), constant_index);
+            }
+            else if (arg.has("as_memory_format"))
+            {
+                new_constant(g, op, serde_memory_format_to_pnnx(arg["as_memory_format"].as_int()), constant_index);
+            }
+            else if (arg.has("as_complex"))
+            {
+                // complex constant {"real": r, "imag": i}
+                float real = (float)arg["as_complex"]["real"].as_double();
+                float imag = (float)arg["as_complex"]["imag"].as_double();
+                new_constant(g, op, std::complex<float>(real, imag), constant_index);
             }
         }
 
