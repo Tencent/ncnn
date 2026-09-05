@@ -902,6 +902,28 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             expected = tuple_model(torch.rand(2, 4))
             self.assert_conversion_matches(work_dir, tuple_path, expected)
 
+            leaf = {"type": None, "context": None, "children_spec": []}
+            cases = (
+                ("unsupported_type", {"type": "builtins.dict", "context": "null", "children_spec": [leaf]},
+                 "unsupported output treespec type builtins.dict"),
+                ("leaf_children", {"type": None, "context": None, "children_spec": [leaf]},
+                 "leaf must not have children"),
+                ("leaf_count", {"type": "builtins.tuple", "context": "null", "children_spec": [leaf, leaf]},
+                 "output treespec leaf count does not match graph outputs"),
+            )
+            for label, tree, message in cases:
+                with self.subTest(output_tree=label):
+                    archive_path = work_dir / (label + ".pt2")
+
+                    def replace_tree(document):
+                        root = next(entry for entry in document["graph_module"]["module_call_graph"]
+                                    if entry["fqn"] == "")
+                        root["signature"]["out_spec"] = json.dumps([1, tree])
+
+                    rewrite_model_json(tuple_path, archive_path, replace_tree)
+                    self.assert_conversion_fails(work_dir, archive_path,
+                                                 "invalid exported program", message)
+
     def test_keyword_inputs_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)

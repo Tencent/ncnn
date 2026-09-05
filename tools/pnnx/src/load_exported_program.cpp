@@ -225,35 +225,6 @@ static std::string unique_name(const std::string& requested, std::set<std::strin
     }
 }
 
-static int validate_output_tree(const ExportedTreeSpec& tree_spec, size_t& leaf_count, std::string& error)
-{
-    if (tree_spec.type == EXPORTED_TREE_SPEC_LEAF)
-    {
-        if (!tree_spec.children.empty())
-        {
-            error = "output treespec leaf must not have children";
-            return -1;
-        }
-
-        leaf_count++;
-        return 0;
-    }
-
-    if (tree_spec.type != EXPORTED_TREE_SPEC_TUPLE && tree_spec.type != EXPORTED_TREE_SPEC_LIST)
-    {
-        error = "invalid output treespec type";
-        return -1;
-    }
-
-    for (size_t i = 0; i < tree_spec.children.size(); i++)
-    {
-        if (validate_output_tree(tree_spec.children[i], leaf_count, error) != 0)
-            return -1;
-    }
-
-    return 0;
-}
-
 static int construct_output_tree(const ExportedTreeSpec& tree_spec,
                                  const std::vector<Operand*>& flat_outputs,
                                  size_t& flat_index,
@@ -857,6 +828,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
                                   Graph& graph,
                                   std::string& error)
 {
+    // source_program has passed parse_exported_program, including output treespec validation.
     error.clear();
     if (!graph.ops.empty() || !graph.operands.empty())
     {
@@ -884,18 +856,6 @@ static int lower_exported_program(const ExportedProgram& source_program,
         return -1;
     if (validate_exported_program_opset(source_program.header, error) != 0)
         return -1;
-    if (source_program.output_tree_spec.type != EXPORTED_TREE_SPEC_NONE)
-    {
-        size_t leaf_count = 0;
-        if (validate_output_tree(source_program.output_tree_spec, leaf_count, error) != 0)
-            return -1;
-        if (leaf_count != normalized_graph.outputs.size())
-        {
-            error = "output treespec leaf count does not match graph outputs";
-            return -1;
-        }
-    }
-
     Graph candidate;
     std::map<std::string, Operand*> values;
     std::set<std::string> operand_names;
