@@ -17,7 +17,7 @@ pnnx.Input              input_2     0 1 running_mean
 pnnx.Input              input_3     0 1 running_var
 pnnx.Input              input_4     0 1 weight
 pnnx.Input              input_5     0 1 bias
-prim::Constant          op_0        0 1 use_input_stats value=True
+prim::Constant          op_0        0 1 use_input_stats value=%use_input_stats
 prim::Constant          op_1        0 1 momentum value=*
 prim::Constant          op_2        0 1 eps value=%eps
 prim::Constant          op_3        0 1 cudnn_enabled value=*
@@ -33,6 +33,35 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm, 130)
+
+class F_instance_norm_2 : public F_instance_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // pt2/dynamo reorders instance_norm inputs and names the first argument
+        // "input" with use_input_stats=False for eval modules that track
+        // running statistics; the pattern above requires the aten 9-input form.
+        // additionally accept the pnnx-level aten::instance_norm node shape
+        // emitted by the exported-program loader (input, weight, bias,
+        // running_mean, running_var, use_input_stats, momentum, eps).
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input_1     0 1 input
+pnnx.Input              input_2     0 1 weight
+pnnx.Input              input_3     0 1 bias
+pnnx.Input              input_4     0 1 running_mean
+pnnx.Input              input_5     0 1 running_var
+prim::Constant          op_0        0 1 use_input_stats value=%use_input_stats
+prim::Constant          op_1        0 1 momentum value=*
+prim::Constant          op_2        0 1 eps value=%eps
+aten::instance_norm     op_3        8 1 input weight bias running_mean running_var use_input_stats momentum eps out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm_2, 130)
 
 class F_instance_norm_onnx : public GraphRewriterPass
 {

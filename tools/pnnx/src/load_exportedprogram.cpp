@@ -700,12 +700,30 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
     }
     else if (type == "aten::to")
     {
+        // dynamo emits to.dtype / to.device / to.dtype_layout overloads with
+        // the trailing defaults omitted; fill them to match the Tensor_to
+        // patterns. the dtype_layout overload also carries pin_memory between
+        // device and non_blocking.
         if (!has_input_name(inputnames, "non_blocking"))
             add_const("non_blocking", false);
         if (!has_input_name(inputnames, "copy"))
             add_const("copy", false);
         if (!has_input_name(inputnames, "memory_format"))
             add_const("memory_format", Parameter());
+        if (has_input_name(inputnames, "layout"))
+        {
+            if (!has_input_name(inputnames, "pin_memory"))
+                add_const("pin_memory", false);
+            reorder_inputs({"self", "dtype", "layout", "device", "pin_memory", "non_blocking", "copy", "memory_format"});
+        }
+        else if (has_input_name(inputnames, "device"))
+        {
+            reorder_inputs({"self", "device", "dtype", "non_blocking", "copy", "memory_format"});
+        }
+        else
+        {
+            reorder_inputs({"self", "dtype", "non_blocking", "copy", "memory_format"});
+        }
     }
     else if (type == "aten::contiguous")
     {
@@ -983,6 +1001,21 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
             add_const("length", Parameter());
         if (!has_input_name(inputnames, "return_complex"))
             add_const("return_complex", false);
+    }
+    else if (type == "aten::cross")
+    {
+        // cross(x, y) omits the dim=None default; append the null dim slot so
+        // the [input other dim] level-2 pattern matches
+        if (!has_input_name(inputnames, "dim"))
+            add_const("dim", Parameter());
+    }
+    else if (type == "aten::index_put" || type == "aten::index_put_")
+    {
+        // index_put(x, indices, values) omits accumulate=False; append it so
+        // the [input indices values accumulate] level-2 pattern matches
+        if (!has_input_name(inputnames, "accumulate"))
+            add_const("accumulate", false);
+        reorder_inputs({"self", "indices", "values", "accumulate"});
     }
     else if (type == "aten::cat" || type == "aten::stack")
     {
@@ -1503,7 +1536,10 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
                 char lc_name[32];
                 snprintf(lc_name, 32, "pnnx_list_%d", constant_index++);
 
-                Operator* lc = g.new_operator("prim::ListConstruct", lc_name);
+                // insert before the consumer so the saved python keeps the list
+                // construct ahead of the op that consumes it (the ops follow the
+                // json node order and are appended one by one)
+                Operator* lc = g.new_operator_before("prim::ListConstruct", lc_name, op);
                 Operand* lr = g.new_operand(lc_name);
                 lr->producer = lc;
                 lc->outputs.push_back(lr);
@@ -2186,7 +2222,8 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                     char lc_name[32];
                     snprintf(lc_name, 32, "pnnx_list_%d", constant_index++);
 
-                    Operator* lc = g.new_operator("prim::ListConstruct", lc_name);
+                    // insert before the consumer to keep graph order topological
+                    Operator* lc = g.new_operator_before("prim::ListConstruct", lc_name, op);
                     Operand* lr = g.new_operand(lc_name);
                     lr->producer = lc;
                     lc->outputs.push_back(lr);
