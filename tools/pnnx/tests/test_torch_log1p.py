@@ -38,11 +38,10 @@ def test():
 
     b = mod.test_inference()
 
-    passed = True
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-6, 1e-6):
-            passed = False
-    return passed
+            return False
+    return True
 
 
 if __name__ == "__main__":

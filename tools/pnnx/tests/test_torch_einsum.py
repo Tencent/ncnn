@@ -135,15 +135,13 @@ def test():
 
     b = mod.test_inference()
 
-    passed = True
     for a0, b0 in zip(a, b):
         # allclose may auto broadcast compare
         if a0.shape != b0.shape:
-            passed = False
-            continue
+            return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            passed = False
-    return passed
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

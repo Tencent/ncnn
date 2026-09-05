@@ -79,11 +79,10 @@ def test():
 
     b = mod.test_inference()
 
-    passed = True
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
-            passed = False
-    return passed
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

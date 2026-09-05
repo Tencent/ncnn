@@ -13,11 +13,17 @@ from unittest import mock
 import torch
 
 import run_pt2_test
+import pnnx_test_utils
 
 from pnnx_test_utils import convert_and_import
 from pnnx_test_utils import LEGACY_PT2_UNSUPPORTED
 from pnnx_test_utils import SUPPORTED
 from pnnx_test_utils import pt2_producer_status
+from pt2_expectations import EXPORT_UNSUPPORTED
+from pt2_expectations import PASS
+from pt2_expectations import PT2_EXPECTED_FAILURES
+from pt2_expectations import PT2_FRONTEND_UNSUPPORTED
+from pt2_expectations import PNNX_LOWERING_UNSUPPORTED
 
 
 class Pt2ProducerStatusTest(unittest.TestCase):
@@ -52,6 +58,37 @@ class Pt2ProducerStatusTest(unittest.TestCase):
                 with self.assertRaises(SystemExit) as raised:
                     convert_and_import(None, (), "test_Tensor_index")
         self.assertEqual(raised.exception.code, 77)
+
+    def test_expected_failure_table_contract(self):
+        self.assertEqual(len(PT2_EXPECTED_FAILURES), 6)
+        categories = {
+            EXPORT_UNSUPPORTED,
+            PT2_FRONTEND_UNSUPPORTED,
+            PNNX_LOWERING_UNSUPPORTED,
+        }
+        test_dir = Path(__file__).resolve().parent
+        for name, (category, diagnostic) in PT2_EXPECTED_FAILURES.items():
+            with self.subTest(name=name):
+                self.assertTrue((test_dir / (name + ".py")).is_file())
+                self.assertIn(category, categories)
+                self.assertIsInstance(diagnostic, str)
+                self.assertTrue(diagnostic)
+
+    def test_expected_failure_stage_diagnostic_and_xpass_are_strict(self):
+        name = "test_Tensor_index"
+        diagnostic = PT2_EXPECTED_FAILURES[name][1]
+        with self.assertRaisesRegex(AssertionError, "failure category changed"):
+            pnnx_test_utils._handle_pt2_failure(
+                name, PT2_FRONTEND_UNSUPPORTED, diagnostic
+            )
+        with self.assertRaisesRegex(AssertionError, "diagnostic changed"):
+            pnnx_test_utils._handle_pt2_failure(
+                name, EXPORT_UNSUPPORTED, "different failure"
+            )
+        with self.assertRaisesRegex(AssertionError, "conversion now passes"):
+            pnnx_test_utils._handle_pt2_conversion_success(name)
+
+        self.assertEqual(pnnx_test_utils.pt2_expectation("ordinary_test"), (PASS, ""))
 
 
 class Pt2RunnerTest(unittest.TestCase):

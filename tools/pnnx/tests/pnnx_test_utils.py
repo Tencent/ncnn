@@ -15,7 +15,6 @@ from pt2_expectations import EXPORT_UNSUPPORTED
 from pt2_expectations import PASS
 from pt2_expectations import PT2_FRONTEND_UNSUPPORTED
 from pt2_expectations import PNNX_LOWERING_UNSUPPORTED
-from pt2_expectations import UNCLASSIFIED
 from pt2_expectations import pt2_expectation
 
 
@@ -55,13 +54,6 @@ def _selected_format():
 
 def _handle_pt2_failure(basename, category, detail):
     expected_category, expected_substring = pt2_expectation(basename)
-
-    if expected_category == UNCLASSIFIED:
-        raise AssertionError(
-            "%s produced an unclassified pt2 failure\n"
-            "category: %s\n"
-            "diagnostic:\n%s" % (basename, category, detail)
-        )
 
     if expected_category != category:
         raise AssertionError(

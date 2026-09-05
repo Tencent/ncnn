@@ -67,11 +67,9 @@ def test():
         ncnn_param = f.read()
 
     if "ConvolutionDepthWise" in ncnn_param:
-        passed = " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
-        return passed
+        return " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
 
-    passed = "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
-    return passed
+    return "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
 
 
 if __name__ == "__main__":

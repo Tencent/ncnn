@@ -37,8 +37,7 @@ def test():
 
     b0, b1 = mod.test_inference()
 
-    passed = torch.equal(a0, b0) and torch.equal(a1, b1)
-    return passed
+    return torch.equal(a0, b0) and torch.equal(a1, b1)
 
 if __name__ == "__main__":
     if test():

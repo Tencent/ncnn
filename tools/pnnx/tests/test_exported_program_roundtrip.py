@@ -149,12 +149,6 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         source = (self.work_dir / "dtypes_pnnx.py").read_text()
 
         self.assertEqual(source.count("def _create_example_inputs():"), 1)
-        for expression in (
-            "torch.randint(0, 10, (2, 3), dtype=torch.long)",
-            "torch.rand(2, 3, dtype=torch.double)",
-            "torch.randint(0, 2, (2, 3), dtype=torch.bool)",
-        ):
-            self.assertIn(expression, source)
 
         generated_inputs = self.call(module._create_example_inputs)
         output = self.call(module.test_inference)

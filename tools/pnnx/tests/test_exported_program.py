@@ -38,6 +38,22 @@ class TinyModel(torch.nn.Module):
         return torch.relu(self.linear(x))
 
 
+class CompatibilityModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(
+            torch.ones(2, 1, 3, 3), requires_grad=False
+        )
+
+    def forward(self, x):
+        added = torch.ops.aten.add.Tensor(x, x)
+        flattened = torch.ops.aten.flatten.using_ints(added, 1)
+        convolved = torch.ops.aten.conv2d.default(
+            x, self.weight, None, [1, 1], [0, 0]
+        )
+        return flattened, convolved
+
+
 class TwoInputModel(torch.nn.Module):
     def forward(self, x, y):
         return x + y
@@ -429,6 +445,44 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assertIn(
                 "net.float()", (work_dir / "legacy_pnnx.py").read_text()
             )
+
+    def test_real_producer_omits_default_arguments(self):
+        model = CompatibilityModel().eval()
+        example_inputs = (torch.ones(1, 1, 5, 5),)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            archive_path = work_dir / "producer_defaults.pt2"
+            save_exported_program(model, archive_path, example_inputs)
+
+            with zipfile.ZipFile(archive_path) as archive:
+                model_path = archive_entry(
+                    archive.namelist(), "/models/", ".json"
+                )
+                document = json.loads(archive.read(model_path))
+            self.assertEqual(document["schema_version"]["major"], 8)
+            self.assertIsInstance(document["schema_version"]["minor"], int)
+            self.assertIsInstance(document["opset_version"]["aten"], int)
+
+            serialized_nodes = {
+                node["target"]: [argument["name"] for argument in node["inputs"]]
+                for node in document["graph_module"]["graph"]["nodes"]
+            }
+            self.assertEqual(
+                serialized_nodes["torch.ops.aten.add.Tensor"],
+                ["self", "other"],
+            )
+            self.assertEqual(
+                serialized_nodes["torch.ops.aten.flatten.using_ints"],
+                ["self", "start_dim"],
+            )
+            self.assertEqual(
+                serialized_nodes["torch.ops.aten.conv2d.default"],
+                ["input", "weight"],
+            )
+
+            torch.manual_seed(0)
+            expected = model(torch.rand(1, 1, 5, 5))
+            self.assert_conversion_matches(work_dir, archive_path, expected)
 
     def test_static_weight_norm_broadcast_and_finite_values(self):
         v = torch.arange(1, 19, dtype=torch.float32).reshape(2, 3, 3)
@@ -1606,6 +1660,40 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                             archive_path,
                             "compressed pt2 entry is unsupported",
                         )
+
+    def test_legacy_pickled_payload_layout_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_dir = Path(temp_dir)
+            source_path = work_dir / "legacy_layout_source.pt2"
+            archive_path = work_dir / "legacy_layout.pt2"
+            save_exported_program(self.model, source_path)
+
+            def replace_configs_with_legacy_entries(entries):
+                weights_path = archive_entry(
+                    entries, "", "_weights_config.json"
+                )
+                constants_path = archive_entry(
+                    entries, "", "_constants_config.json"
+                )
+                del entries[weights_path]
+                del entries[constants_path]
+                entries[
+                    weights_path[: -len("_weights_config.json")] + ".pt"
+                ] = b"synthetic legacy weights"
+                entries[
+                    constants_path[: -len("_constants_config.json")] + ".pt"
+                ] = b"synthetic legacy constants"
+
+            rewrite_archive(
+                source_path,
+                archive_path,
+                replace_configs_with_legacy_entries,
+            )
+            self.assert_conversion_fails(
+                work_dir,
+                archive_path,
+                "PyTorch 2.8 legacy pickled-payload PT2 is unsupported",
+            )
 
     def test_missing_and_truncated_payloads_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:

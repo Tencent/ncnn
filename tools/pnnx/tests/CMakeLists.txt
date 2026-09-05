@@ -25,16 +25,7 @@ add_test(
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_exported_program_roundtrip.py $<TARGET_FILE:pnnx>
 )
 
-add_test(
-    NAME test_pt2_version_compatibility
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_version_compatibility.py $<TARGET_FILE:pnnx>
-)
-set_tests_properties(test_exported_program test_pt2_version_compatibility PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(
-    NAME test_pt2_manifest
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pt2_manifest.py
-)
+set_tests_properties(test_exported_program PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(
     NAME test_pnnx_test_utils

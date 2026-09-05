@@ -38,11 +38,10 @@ def test():
 
     b = mod.test_inference()
 
-    passed = True
     for a0, b0 in zip(a, b):
         if a0.shape != b0.shape or a0.dtype != b0.dtype or not torch.equal(a0, b0):
-            passed = False
-    return passed
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
