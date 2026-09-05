@@ -3,6 +3,7 @@
 
 #include "pnnx_json.h"
 
+#include <limits>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,8 @@ int64_t JsonValue::as_int() const
         return (int64_t)f;
     if (t == BOOL_TYPE)
         return b ? 1 : 0;
+    if (t == STRING_TYPE)
+        return strtoll(s.c_str(), 0, 10);
     return 0;
 }
 
@@ -38,6 +41,8 @@ double JsonValue::as_double() const
         return f;
     if (t == INT_TYPE)
         return (double)i;
+    if (t == STRING_TYPE)
+        return strtod(s.c_str(), 0); // torch.export serializes inf/nan floats as strings, e.g. "-Infinity"
     return 0.f;
 }
 
@@ -174,6 +179,27 @@ private:
             return parse_literal("false", JsonValue::BOOL_TYPE, out);
         if (c == 'n')
             return parse_literal("null", JsonValue::NULL_TYPE, out);
+        if (c == 'N' && (size_t)(end - cur) >= 3 && strncmp(cur, "NaN", 3) == 0)
+        {
+            cur += 3;
+            out.t = JsonValue::DOUBLE_TYPE;
+            out.f = std::numeric_limits<double>::quiet_NaN();
+            return true;
+        }
+        if (c == 'I' && (size_t)(end - cur) >= 8 && strncmp(cur, "Infinity", 8) == 0)
+        {
+            cur += 8;
+            out.t = JsonValue::DOUBLE_TYPE;
+            out.f = std::numeric_limits<double>::infinity();
+            return true;
+        }
+        if (c == '-' && (size_t)(end - cur) >= 9 && strncmp(cur, "-Infinity", 9) == 0)
+        {
+            cur += 9;
+            out.t = JsonValue::DOUBLE_TYPE;
+            out.f = -std::numeric_limits<double>::infinity();
+            return true;
+        }
         if (c == '-' || (c >= '0' && c <= '9'))
             return parse_number(out);
 

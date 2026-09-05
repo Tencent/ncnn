@@ -40,8 +40,15 @@ def _load_pnnx_module(tag):
 def _outputs_equal(a, b, atol=1e-3, rtol=1e-3):
     if isinstance(a, (tuple, list)):
         if len(a) != len(b):
-            return False
+            # torch.export flattens a single-element tuple output into the bare
+            # value (the fx graph ends with one as_tensor output), while the
+            # torchscript path keeps a one-element tuple; compare the element
+            return False if isinstance(b, (tuple, list)) else _outputs_equal(a[0], b, atol, rtol)
         return all(_outputs_equal(x, y, atol, rtol) for x, y in zip(a, b))
+    if isinstance(b, (tuple, list)):
+        if len(b) != 1:
+            return False
+        return _outputs_equal(a, b[0], atol, rtol)
     if a.dtype == torch.bool:
         return torch.equal(a, b)
     return torch.allclose(a, b, atol=atol, rtol=rtol)
@@ -52,8 +59,14 @@ def _outputs_shape_equal(a, b):
     # new_empty buffers) the torchscript path only compares shapes, mirror it
     if isinstance(a, (tuple, list)):
         if len(a) != len(b):
-            return False
+            # torch.export flattens a single-element tuple output into the bare
+            # value; see _outputs_equal
+            return False if isinstance(b, (tuple, list)) else _outputs_shape_equal(a[0], b)
         return all(_outputs_shape_equal(x, y) for x, y in zip(a, b))
+    if isinstance(b, (tuple, list)):
+        if len(b) != 1:
+            return False
+        return _outputs_shape_equal(a, b[0])
     return a.shape == b.shape and a.dtype == b.dtype
 
 

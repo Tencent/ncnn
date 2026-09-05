@@ -818,6 +818,20 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
         if (!has_input_name(inputnames, "bias"))
             add_const("bias", Parameter());
     }
+    else if (type == "aten::as_strided")
+    {
+        // as_strided(self, size, stride) omits storage_offset=0; append it so
+        // the [input size stride storage_offset] level-2 pattern matches
+        if (!has_input_name(inputnames, "storage_offset"))
+            add_const("storage_offset", 0);
+    }
+    else if (type == "aten::tril")
+    {
+        // tril(input) omits the diagonal=0 default; append it so the
+        // [input diagonal] level-2 pattern matches
+        if (!has_input_name(inputnames, "diagonal"))
+            add_const("diagonal", 0);
+    }
     else if (type == "aten::rms_norm")
     {
         if (!has_input_name(inputnames, "weight"))
@@ -1054,6 +1068,16 @@ static void append_default_kwargs(Graph& g, Operator* op, const std::string& typ
         if (!has_input_name(inputnames, "alpha"))
             add_const("alpha", 1);
         reorder_inputs({"self", "mat1", "mat2", "beta", "alpha"});
+    }
+    else if (type == "aten::baddbmm")
+    {
+        // baddbmm(self, batch1, batch2) omits beta=1/alpha=1; restore the
+        // canonical [self batch1 batch2 beta alpha] order for the level-2 pattern
+        if (!has_input_name(inputnames, "beta"))
+            add_const("beta", 1);
+        if (!has_input_name(inputnames, "alpha"))
+            add_const("alpha", 1);
+        reorder_inputs({"self", "batch1", "batch2", "beta", "alpha"});
     }
     else if (type == "aten::linalg_vector_norm")
     {
