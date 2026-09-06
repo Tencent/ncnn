@@ -339,6 +339,30 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int 
 
     dst = tmp;
 }
+
+void copyMakeBorder(const Mat& src, Mat& dst, int top, int bottom, int left, int right, BorderType borderType, const Scalar& value = Scalar())
+{
+    ncnn::BorderType ncnn_border_type;
+    switch (borderType)
+    {
+    case BORDER_CONSTANT:
+        ncnn_border_type = ncnn::BORDER_CONSTANT;
+        break;
+    case BORDER_REPLICATE:
+        ncnn_border_type = ncnn::BORDER_REPLICATE;
+        break;
+    case BORDER_REFLECT:
+        ncnn_border_type = ncnn::BORDER_REFLECT;
+        break;
+    case BORDER_TRANSPARENT:
+        ncnn_border_type = ncnn::BORDER_TRANSPARENT;
+        break;
+    default:
+        ncnn_border_type = ncnn::BORDER_CONSTANT;
+        break;
+    }
+    ncnn::copy_make_border(src, dst, top, bottom, left, right, ncnn_border_type, value[0]);
+}
 #endif // NCNN_PIXEL
 
 #if NCNN_PIXEL_DRAWING
