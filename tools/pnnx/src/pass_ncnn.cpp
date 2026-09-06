@@ -52,6 +52,9 @@
 #include "pass_level4/canonicalize.h"
 #include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/eliminate_maxpool_indices.h"
+#include "pass_level5/eliminate_noop_reshape.h"
+#include "pass_level5/fuse_adjacent_reshape.h"
+#include "pass_level5/fuse_reshape_activation_reshape.h"
 #include "pass_level5/unroll_rnn_op.h"
 
 namespace pnnx {
@@ -98,6 +101,15 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::insert_reshape_pooling(g);
     ncnn::legalize_global_pooling_layout(g);
     ncnn::insert_reshape_linear(g);
+
+    // fuse reshape chains introduced by the reshape insertion passes,
+    // then re-solve the batch layout as the fusion may alter operand shapes
+    fuse_adjacent_reshape(g);
+    fuse_reshape_activation_reshape(g);
+    eliminate_noop_reshape(g);
+
+    ncnn::solve_batch_index(g);
+    ncnn::convert_batch_layout(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
 
