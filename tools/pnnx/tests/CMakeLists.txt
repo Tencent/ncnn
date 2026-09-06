@@ -382,6 +382,7 @@ pnnx_add_test(pnnx_fuse_pixel_shuffle)
 pnnx_add_test(pnnx_fuse_pixel_unshuffle)
 
 if(TorchVision_FOUND)
+    pnnx_add_test(exported_program_deform_conv2d)
     pnnx_add_test(torchvision_DeformConv2d)
     pnnx_add_test(torchvision_RoIAlign)
 endif()

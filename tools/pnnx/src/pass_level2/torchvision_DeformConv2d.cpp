@@ -17,16 +17,16 @@ pnnx.Attribute          weight      0 1 weight @data=(%out_channels,%in_channels
 pnnx.Input              offset      0 1 offset
 pnnx.Input              mask        0 1 mask
 pnnx.Attribute          bias        0 1 bias @data=(%out_channels)f32
-prim::Constant          stride_w    0 1 stride_w value=%stride_w
 prim::Constant          stride_h    0 1 stride_h value=%stride_h
-prim::Constant          pad_w       0 1 pad_w value=%pad_w
+prim::Constant          stride_w    0 1 stride_w value=%stride_w
 prim::Constant          pad_h       0 1 pad_h value=%pad_h
-prim::Constant          dilation_w  0 1 dilation_w value=%dilation_w
+prim::Constant          pad_w       0 1 pad_w value=%pad_w
 prim::Constant          dilation_h  0 1 dilation_h value=%dilation_h
+prim::Constant          dilation_w  0 1 dilation_w value=%dilation_w
 prim::Constant          groups      0 1 groups value=%groups
 prim::Constant          offset_groups 0 1 offset_groups value=*
 prim::Constant          use_mask    0 1 use_mask value=False
-torchvision::deform_conv2d op_0     14 1 input weight offset mask bias stride_w stride_h pad_w pad_h dilation_w dilation_h groups offset_groups use_mask out
+torchvision::deform_conv2d op_0     14 1 input weight offset mask bias stride_h stride_w pad_h pad_w dilation_h dilation_w groups offset_groups use_mask out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -74,16 +74,16 @@ pnnx.Attribute          weight      0 1 weight @data=(%out_channels,%in_channels
 pnnx.Input              offset      0 1 offset
 pnnx.Input              mask        0 1 mask
 pnnx.Attribute          bias        0 1 bias @data=(%out_channels)f32
-prim::Constant          stride_w    0 1 stride_w value=%stride_w
 prim::Constant          stride_h    0 1 stride_h value=%stride_h
-prim::Constant          pad_w       0 1 pad_w value=%pad_w
+prim::Constant          stride_w    0 1 stride_w value=%stride_w
 prim::Constant          pad_h       0 1 pad_h value=%pad_h
-prim::Constant          dilation_w  0 1 dilation_w value=%dilation_w
+prim::Constant          pad_w       0 1 pad_w value=%pad_w
 prim::Constant          dilation_h  0 1 dilation_h value=%dilation_h
+prim::Constant          dilation_w  0 1 dilation_w value=%dilation_w
 prim::Constant          groups      0 1 groups value=%groups
 prim::Constant          offset_groups 0 1 offset_groups value=*
 prim::Constant          use_mask    0 1 use_mask value=True
-torchvision::deform_conv2d op_0     14 1 input weight offset mask bias stride_w stride_h pad_w pad_h dilation_w dilation_h groups offset_groups use_mask out
+torchvision::deform_conv2d op_0     14 1 input weight offset mask bias stride_h stride_w pad_h pad_w dilation_h dilation_w groups offset_groups use_mask out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
