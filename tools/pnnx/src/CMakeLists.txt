@@ -786,6 +786,7 @@ set(pnnx_SRCS
     pnnx_json.cpp
     load_exportedprogram.cpp
     load_exportedprogram_legacy.cpp
+    load_pt2_defaults.cpp
     load_pt2_serde.cpp
     load_pt2_tensor.cpp
 
