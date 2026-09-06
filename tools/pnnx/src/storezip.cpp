@@ -366,7 +366,7 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
 
     // The EOCD record sits at the very end of the file, optionally followed by a
     // comment of at most 65535 bytes. Scan backward for its signature.
-    long scan_start = file_size - 22 - 65535;
+    int64_t scan_start = file_size - 22 - 65535;
     if (scan_start < 0)
         scan_start = 0;
 
@@ -381,12 +381,12 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
     // rejects spurious 50 4b 05 06 byte sequences that may appear in trailing
     // comment bytes or elsewhere in the payload (such as a PK\x05\x06 that some
     // serializers embed).
-    for (long p = (long)buf.size() - 22; p >= 0; p--)
+    for (int64_t p = (int64_t)buf.size() - 22; p >= 0; p--)
     {
         if (!(buf[p] == 0x50 && buf[p + 1] == 0x4b && buf[p + 2] == 0x05 && buf[p + 3] == 0x06))
             continue;
 
-        long eocd_buf_off = p;
+        size_t eocd_buf_off = (size_t)p;
         uint16_t eocd_records = read_le16(buf.data() + eocd_buf_off + 10);
         uint32_t eocd_cd_size = read_le32(buf.data() + eocd_buf_off + 12);
         uint32_t eocd_cd_offset = read_le32(buf.data() + eocd_buf_off + 16);
@@ -415,7 +415,7 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
         }
 
         // Zip64: the zip64 EOCD locator is 20 bytes before this EOCD candidate.
-        long loc_pos = (scan_start + p) - 20;
+        int64_t loc_pos = (scan_start + p) - 20;
         if (loc_pos < 0)
             continue;
         unsigned char locator[20];

@@ -13,6 +13,212 @@
 
 namespace pnnx {
 
+struct Pt2ModuleParamRule
+{
+    const char* cls;
+    const char* name;
+    const char* key;
+};
+
+static const Pt2ModuleParamRule pt2_module_param_rules[] = {
+    {"ChannelShuffle", "groups", "groups"},
+    {"PixelShuffle", "upscale_factor", "upscale_factor"},
+    {"MaxPool1d", "kernel_size", "kernel_size"},
+    {"MaxPool1d", "stride", "stride"},
+    {"MaxPool1d", "padding", "padding"},
+    {"MaxPool1d", "dilation", "dilation"},
+    {"MaxPool1d", "ceil_mode", "ceil_mode"},
+    {"MaxPool2d", "kernel_size", "kernel_size"},
+    {"MaxPool2d", "stride", "stride"},
+    {"MaxPool2d", "padding", "padding"},
+    {"MaxPool2d", "dilation", "dilation"},
+    {"MaxPool2d", "ceil_mode", "ceil_mode"},
+    {"MaxPool3d", "kernel_size", "kernel_size"},
+    {"MaxPool3d", "stride", "stride"},
+    {"MaxPool3d", "padding", "padding"},
+    {"MaxPool3d", "dilation", "dilation"},
+    {"MaxPool3d", "ceil_mode", "ceil_mode"},
+    {"AdaptiveAvgPool1d", "output_size", "output_size"},
+    {"AdaptiveAvgPool2d", "output_size", "output_size"},
+    {"AdaptiveAvgPool3d", "output_size", "output_size"},
+    {"ConstantPad1d", "pad", "padding"},
+    {"ConstantPad1d", "value", "value"},
+    {"ConstantPad2d", "pad", "padding"},
+    {"ConstantPad2d", "value", "value"},
+    {"ConstantPad3d", "pad", "padding"},
+    {"ConstantPad3d", "value", "value"},
+    {"ReflectionPad1d", "pad", "padding"},
+    {"ReflectionPad2d", "pad", "padding"},
+    {"ReplicationPad1d", "pad", "padding"},
+    {"ReplicationPad2d", "pad", "padding"},
+    {"ReplicationPad3d", "pad", "padding"},
+    {"ZeroPad2d", "pad", "padding"},
+    {"Upsample", "output_size", "size"},
+    {"Upsample", "scale_factors", "scale_factor"},
+    {"Upsample", "align_corners", "align_corners"},
+    {"UpsamplingNearest2d", "output_size", "size"},
+    {"UpsamplingNearest2d", "scale_factors", "scale_factor"},
+    {"UpsamplingBilinear2d", "output_size", "size"},
+    {"UpsamplingBilinear2d", "scale_factors", "scale_factor"},
+    {"LayerNorm", "normalized_shape", "normalized_shape"},
+    {"LayerNorm", "eps", "eps"},
+    {"RMSNorm", "normalized_shape", "normalized_shape"},
+    {"RMSNorm", "eps", "eps"},
+};
+
+static std::string pt2_module_param_key(const std::string& cls, const std::string& name)
+{
+    for (size_t i = 0; i < sizeof(pt2_module_param_rules) / sizeof(pt2_module_param_rules[0]); i++)
+    {
+        if (cls == pt2_module_param_rules[i].cls && name == pt2_module_param_rules[i].name)
+            return pt2_module_param_rules[i].key;
+    }
+    return "";
+}
+
+static int pt2_module_spatial_ndim(const std::string& aten)
+{
+    const size_t n = aten.size();
+    if (n >= 2 && aten[n - 2] == '1' && aten[n - 1] == 'd')
+        return 1;
+    if (n >= 2 && aten[n - 2] == '2' && aten[n - 1] == 'd')
+        return 2;
+    if (n >= 2 && aten[n - 2] == '3' && aten[n - 1] == 'd')
+        return 3;
+    return 0;
+}
+
+static void fold_pt2_module_param(Operator* op, const std::string& key, const Parameter& raw, int nd)
+{
+    Parameter value = raw;
+    if (nd > 0 && value.type == 2)
+        value = Parameter(std::vector<int>(nd, value.i));
+    if (nd > 0 && value.type == 3)
+        value = Parameter(std::vector<float>(nd, value.f));
+    op->params[key] = value;
+}
+
+static const char* pt2_module_upsample_mode(const std::string& aten)
+{
+    if (aten == "aten::upsample_nearest1d" || aten == "aten::upsample_nearest2d" || aten == "aten::upsample_nearest3d")
+        return "nearest";
+    if (aten == "aten::_upsample_nearest_exact1d" || aten == "aten::_upsample_nearest_exact2d" || aten == "aten::_upsample_nearest_exact3d")
+        return "nearest-exact";
+    if (aten == "aten::upsample_linear1d")
+        return "linear";
+    if (aten == "aten::upsample_bilinear2d")
+        return "bilinear";
+    if (aten == "aten::upsample_bicubic2d")
+        return "bicubic";
+    if (aten == "aten::upsample_trilinear3d")
+        return "trilinear";
+    return 0;
+}
+
+void normalize_pt2_module_forms(Graph& g)
+{
+    for (size_t i = 0; i < g.ops.size(); i++)
+    {
+        Operator* op = g.ops[i];
+        const std::map<std::string, Parameter>::const_iterator marker = op->params.find("__pt2_module_class");
+        if (marker == op->params.end() || marker->second.type != 4)
+            continue;
+
+        const std::string cls = marker->second.s;
+        const std::map<std::string, Parameter>::const_iterator names_it = op->params.find("__pt2_module_input_names");
+        if (names_it == op->params.end() || names_it->second.type != 7 || names_it->second.as.size() != op->inputs.size())
+        {
+            fprintf(stderr, "pass_level2: malformed PT2 module input metadata for %s\n", op->name.c_str());
+            continue;
+        }
+
+        const std::vector<std::string>& names = names_it->second.as;
+        const int ndim = pt2_module_spatial_ndim(op->type);
+        std::vector<Operand*> kept_inputs;
+        kept_inputs.reserve(op->inputs.size());
+        bool has_weight = false;
+
+        for (size_t j = 0; j < op->inputs.size(); j++)
+        {
+            Operand* input = op->inputs[j];
+            const std::string& name = names[j];
+
+            if ((cls == "LayerNorm" || cls == "RMSNorm") && (name == "weight" || name == "bias")
+                    && input->producer && input->producer->type == "pnnx.Attribute")
+            {
+                op->attrs[name] = input->producer->attrs["data"];
+                input->remove_consumer(op);
+                if (name == "weight")
+                    has_weight = true;
+                continue;
+            }
+
+            const std::string key = pt2_module_param_key(cls, name);
+            if (!key.empty() && input->producer && input->producer->type == "prim::Constant")
+            {
+                const std::map<std::string, Parameter>::const_iterator value = input->producer->params.find("value");
+                if (value != input->producer->params.end())
+                {
+                    fold_pt2_module_param(op, key, value->second, ndim);
+                    input->remove_consumer(op);
+                    continue;
+                }
+            }
+
+            if (key.empty() && input->producer && input->producer->type == "prim::Constant")
+            {
+                input->remove_consumer(op);
+                continue;
+            }
+
+            if (name == "weight")
+                has_weight = true;
+            kept_inputs.push_back(input);
+        }
+
+        op->inputs.swap(kept_inputs);
+
+        const std::map<std::string, Parameter>::const_iterator none_it = op->params.find("__pt2_none_axes");
+        std::map<std::string, Parameter>::iterator output_size_it = op->params.find("output_size");
+        if (none_it != op->params.end() && none_it->second.type == 4 && output_size_it != op->params.end()
+                && output_size_it->second.type == 5 && !op->inputs.empty())
+        {
+            const std::string& none_axes = none_it->second.s;
+            const std::vector<int>& input_shape = op->inputs[0]->shape;
+            for (size_t j = 0; j < output_size_it->second.ai.size(); j++)
+            {
+                const int dim_index = (int)input_shape.size() - (int)output_size_it->second.ai.size() + (int)j;
+                if (j < none_axes.size() && none_axes[j] == '1' && dim_index >= 0 && dim_index < (int)input_shape.size()
+                        && output_size_it->second.ai[j] == input_shape[dim_index])
+                    output_size_it->second.ai[j] = 0;
+            }
+        }
+
+        if (cls == "LayerNorm" && op->attrs.find("weight") != op->attrs.end() && op->attrs.find("bias") == op->attrs.end())
+        {
+            const Attribute& weight = op->attrs.at("weight");
+            Attribute bias;
+            bias.type = weight.type;
+            bias.shape = weight.shape;
+            bias.data.resize(weight.data.size(), 0);
+            op->attrs["bias"] = bias;
+        }
+
+        if (cls == "MaxPool1d" || cls == "MaxPool2d" || cls == "MaxPool3d")
+            op->params["return_indices"] = op->outputs.size() > 1;
+        if (cls == "Upsample")
+            op->params["mode"] = std::string(pt2_module_upsample_mode(op->type));
+        if (cls == "LayerNorm" || cls == "RMSNorm")
+            op->params["elementwise_affine"] = has_weight;
+
+        op->type = "nn." + cls;
+        op->params.erase("__pt2_module_class");
+        op->params.erase("__pt2_module_name");
+        op->params.erase("__pt2_module_input_names");
+        op->params.erase("__pt2_none_axes");
+    }
+}
+
 // Fold the value-independent ones_like + scalar subgraph without libtorch.
 class F_pt2_fold_ones_like : public GraphRewriterPass
 {

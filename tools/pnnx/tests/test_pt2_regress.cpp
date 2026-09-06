@@ -487,6 +487,34 @@ static void test_output_spec_filter()
           "signature: mutation specs are rejected explicitly");
 }
 
+static void test_module_form_normalization()
+{
+    Graph graph;
+    graph.parse(R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          kernel      0 1 kernel value=3
+aten::max_pool2d        op          2 1 input kernel out
+pnnx.Output              output      1 0 out
+)PNNXIR");
+
+    Operator* op = find_op(graph, "aten::max_pool2d");
+    CHECK(op != 0, "module-form: finds raw aten operator before normalization");
+    if (!op)
+        return;
+
+    op->params["__pt2_module_class"] = "MaxPool2d";
+    op->params["__pt2_module_input_names"] = std::vector<std::string>{"input", "kernel_size"};
+    normalize_pt2_module_forms(graph);
+
+    CHECK(op->type == "nn.MaxPool2d" && op->inputs.size() == 1,
+          "module-form: moves operator type and removes folded constant input");
+    CHECK(op->params.find("kernel_size") != op->params.end() && op->params.at("kernel_size").type == 5
+              && op->params.at("kernel_size").ai.size() == 2 && op->params.at("kernel_size").ai[0] == 3
+              && op->params.at("kernel_size").ai[1] == 3,
+          "module-form: folds scalar parameter in pass_level2");
+}
+
 int main()
 {
     test_ones_like_fold();
@@ -501,6 +529,7 @@ int main()
     test_storezip_eocd_validation();
     test_storezip_long_comment_zip64();
     test_output_spec_filter();
+    test_module_form_normalization();
 
     if (g_failed == 0)
     {

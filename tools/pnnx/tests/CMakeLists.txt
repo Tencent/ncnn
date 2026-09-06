@@ -439,6 +439,10 @@ add_executable(test_pt2_regress
 target_include_directories(test_pt2_regress PRIVATE ../src)
 add_test(NAME test_pt2_regress COMMAND test_pt2_regress)
 
+add_executable(test_storezip_zip64 test_storezip_zip64.cpp ../src/storezip.cpp)
+target_include_directories(test_storezip_zip64 PRIVATE ../src)
+add_test(NAME test_storezip_zip64 COMMAND test_storezip_zip64)
+
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()

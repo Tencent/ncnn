@@ -1136,6 +1136,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
 void pass_level2(Graph& g)
 {
+    normalize_pt2_module_forms(g);
+
     functionize(g);
 
     eliminate_contiguous(g);

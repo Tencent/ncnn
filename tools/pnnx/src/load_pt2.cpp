@@ -567,136 +567,52 @@ static const char* pt2_upsample_mode(const std::string& aten)
     return 0;
 }
 
-// Infer spatial rank and broadcast scalar module arguments to JIT list shape.
-static int pt2_aten_spatial_ndim(const std::string& aten)
+struct Pt2ModuleFormRule
 {
-    const size_t n = aten.size();
-    if (n >= 2 && aten[n - 2] == '1' && aten[n - 1] == 'd')
-        return 1;
-    if (n >= 2 && aten[n - 2] == '2' && aten[n - 1] == 'd')
-        return 2;
-    if (n >= 2 && aten[n - 2] == '3' && aten[n - 1] == 'd')
-        return 3;
-    return 0;
-}
+    const char* cls;
+    const char* aten;
+};
 
-// Normalize module-form arguments, including scalar broadcasting.
-static void fold_module_param(Operator* op, const std::string& key, const Parameter& raw, int nd)
-{
-    Parameter value = raw;
-    if (nd > 0 && value.type == 2)
-        value = Parameter(std::vector<int>(nd, (int)value.i));
-    if (nd > 0 && value.type == 3)
-        value = Parameter(std::vector<float>(nd, value.f));
+static const Pt2ModuleFormRule pt2_module_form_rules[] = {
+    {"ReLU6", "aten::hardtanh"},
+    {"Softmax2d", "aten::softmax"},
+    {"ChannelShuffle", "aten::channel_shuffle"},
+    {"PixelShuffle", "aten::pixel_shuffle"},
+    {"MaxPool1d", "aten::max_pool1d"},
+    {"MaxPool1d", "aten::max_pool1d_with_indices"},
+    {"MaxPool2d", "aten::max_pool2d"},
+    {"MaxPool2d", "aten::max_pool2d_with_indices"},
+    {"MaxPool3d", "aten::max_pool3d"},
+    {"MaxPool3d", "aten::max_pool3d_with_indices"},
+    {"AdaptiveAvgPool1d", "aten::adaptive_avg_pool1d"},
+    {"AdaptiveAvgPool2d", "aten::adaptive_avg_pool2d"},
+    {"AdaptiveAvgPool3d", "aten::adaptive_avg_pool3d"},
+    {"ConstantPad1d", "aten::pad"},
+    {"ConstantPad2d", "aten::pad"},
+    {"ConstantPad3d", "aten::pad"},
+    {"ReflectionPad1d", "aten::pad"},
+    {"ReflectionPad2d", "aten::pad"},
+    {"ReplicationPad1d", "aten::pad"},
+    {"ReplicationPad2d", "aten::pad"},
+    {"ReplicationPad3d", "aten::pad"},
+    {"ZeroPad2d", "aten::pad"},
+    {"UpsamplingNearest2d", "aten::upsample_nearest2d"},
+    {"UpsamplingBilinear2d", "aten::upsample_bilinear2d"},
+    {"LayerNorm", "aten::layer_norm"},
+    {"RMSNorm", "aten::rms_norm"},
+};
 
-    op->params[key] = value;
-}
-
-// Only exact module/operator pairs use module-form normalization.
 static bool pt2_module_form_allowed(const std::string& cls, const std::string& aten)
 {
-    if (cls == "ReLU6")
-        return aten == "aten::hardtanh";
-    if (cls == "Softmax2d")
-        return aten == "aten::softmax";
-    if (cls == "ChannelShuffle")
-        return aten == "aten::channel_shuffle";
-    if (cls == "PixelShuffle")
-        return aten == "aten::pixel_shuffle";
-    if (cls == "MaxPool1d")
-        return aten == "aten::max_pool1d" || aten == "aten::max_pool1d_with_indices";
-    if (cls == "MaxPool2d")
-        return aten == "aten::max_pool2d" || aten == "aten::max_pool2d_with_indices";
-    if (cls == "MaxPool3d")
-        return aten == "aten::max_pool3d" || aten == "aten::max_pool3d_with_indices";
-    if (cls == "AdaptiveAvgPool1d")
-        return aten == "aten::adaptive_avg_pool1d";
-    if (cls == "AdaptiveAvgPool2d")
-        return aten == "aten::adaptive_avg_pool2d";
-    if (cls == "AdaptiveAvgPool3d")
-        return aten == "aten::adaptive_avg_pool3d";
-    if (cls == "ConstantPad1d" || cls == "ConstantPad2d" || cls == "ConstantPad3d"
-            || cls == "ReflectionPad1d" || cls == "ReflectionPad2d"
-            || cls == "ReplicationPad1d" || cls == "ReplicationPad2d" || cls == "ReplicationPad3d"
-            || cls == "ZeroPad2d")
-        return aten == "aten::pad";
     if (cls == "Upsample")
         return pt2_upsample_mode(aten) != 0;
-    if (cls == "UpsamplingNearest2d")
-        return aten == "aten::upsample_nearest2d";
-    if (cls == "UpsamplingBilinear2d")
-        return aten == "aten::upsample_bilinear2d";
-    if (cls == "LayerNorm")
-        return aten == "aten::layer_norm";
-    if (cls == "RMSNorm")
-        return aten == "aten::rms_norm";
+
+    for (size_t i = 0; i < sizeof(pt2_module_form_rules) / sizeof(pt2_module_form_rules[0]); i++)
+    {
+        if (cls == pt2_module_form_rules[i].cls && aten == pt2_module_form_rules[i].aten)
+            return true;
+    }
     return false;
-}
-
-// Names mirror the level1 module conversion output exactly.
-static std::string pt2_module_param_key(const std::string& cls, const std::string& name)
-{
-    if (cls == "ReLU6" || cls == "Softmax2d")
-        return "";
-
-    if (cls == "ChannelShuffle")
-        return name == "groups" ? name : "";
-
-    if (cls == "PixelShuffle")
-        return name == "upscale_factor" ? name : "";
-
-    if (cls == "MaxPool1d" || cls == "MaxPool2d" || cls == "MaxPool3d")
-    {
-        if (name == "kernel_size" || name == "stride" || name == "padding" || name == "dilation"
-                || name == "ceil_mode")
-            return name;
-        return "";
-    }
-
-    if (cls == "AdaptiveAvgPool1d" || cls == "AdaptiveAvgPool2d" || cls == "AdaptiveAvgPool3d")
-        return name == "output_size" ? name : "";
-
-    if (cls == "ConstantPad1d" || cls == "ConstantPad2d" || cls == "ConstantPad3d")
-    {
-        if (name == "pad")
-            return "padding";
-        if (name == "value")
-            return "value";
-        return ""; // Not folded by level1 module conversion.
-    }
-
-    if (cls == "ReflectionPad1d" || cls == "ReflectionPad2d" || cls == "ReplicationPad1d"
-            || cls == "ReplicationPad2d" || cls == "ReplicationPad3d" || cls == "ZeroPad2d")
-        return name == "pad" ? "padding" : "";
-
-    if (cls == "Upsample")
-    {
-        if (name == "output_size")
-            return "size";
-        if (name == "scale_factors")
-            return "scale_factor";
-        if (name == "align_corners")
-            return "align_corners";
-        return "";
-    }
-
-    if (cls == "UpsamplingNearest2d" || cls == "UpsamplingBilinear2d")
-    {
-        if (name == "output_size")
-            return "size";
-        if (name == "scale_factors")
-            return "scale_factor";
-        return "";
-    }
-
-    if (cls == "LayerNorm" || cls == "RMSNorm")
-    {
-        if (name == "normalized_shape" || name == "eps")
-            return name;
-        return "";
-    }
-
-    return "";
 }
 
 int load_pt2(const std::string& ptpath, Graph& pg,
@@ -805,8 +721,13 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         const bool is_module_form = parse_nn_module_stack(node.nn_module_stack, module_class, module_name)
                                     && pt2_module_form_allowed(module_class, aten_type);
 
-        Operator* op = pg.new_operator(is_module_form ? ("nn." + module_class) : aten_type,
-                                       "pnnx_" + std::to_string(pnnx_unknown_index++));
+        Operator* op = pg.new_operator(aten_type, "pnnx_" + std::to_string(pnnx_unknown_index++));
+
+        if (is_module_form)
+        {
+            op->params["__pt2_module_class"] = module_class;
+            op->params["__pt2_module_name"] = module_name;
+        }
 
         // Mark only PT2-originated materialized None dimensions.
         bool adaptive_pool_has_none = node.adaptive_pool_has_none;
@@ -825,170 +746,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             op->params["__pt2_none_axes"] = marker;
         }
 
-        if (is_module_form)
-        {
-            for (size_t j = 0; j < node.inputs.size(); j++)
-            {
-                const Pt2NodeInput& input = node.inputs[j];
-                const Pt2Argument& arg = input.arg;
-
-                if (arg.type == Pt2Argument::TENSOR)
-                {
-                    if (arg.tensor_refs.size() != 1 || arg.tensor_refs[0].is_none)
-                    {
-                        fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(),
-                                input.name.c_str());
-                        return -1;
-                    }
-
-                    Operand* r = pg.get_operand(arg.tensor_refs[0].name);
-                    if (!r)
-                    {
-                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_refs[0].name.c_str(),
-                                node.name.c_str());
-                        return -1;
-                    }
-
-                    if ((module_class == "LayerNorm" || module_class == "RMSNorm")
-                            && (input.name == "weight" || input.name == "bias") && r->producer
-                            && r->producer->type == "pnnx.Attribute")
-                    {
-                        op->attrs[input.name] = r->producer->attrs["data"];
-                        continue;
-                    }
-
-                    r->consumers.push_back(op);
-                    op->inputs.push_back(r);
-                    continue;
-                }
-
-                if (arg.type == Pt2Argument::TENSORS)
-                {
-                    Operator* op_list = pg.new_operator("prim::ListConstruct",
-                                                        "pnnx_" + std::to_string(pnnx_unknown_index++));
-
-                    for (size_t k = 0; k < arg.tensor_refs.size(); k++)
-                    {
-                        if (!append_tensor_list_item(pg, op_list, arg.tensor_refs[k], node.name, input.name, k,
-                                                     pnnx_unknown_index))
-                            return -1;
-                    }
-
-                    Operand* r = pg.new_operand(node.name + "." + input.name);
-                    r->producer = op_list;
-                    op_list->outputs.push_back(r);
-
-                    r->consumers.push_back(op);
-                    op->inputs.push_back(r);
-                    continue;
-                }
-
-                const std::string key = pt2_module_param_key(module_class, input.name);
-                if (key.empty())
-                    continue;
-
-                Parameter value;
-                if (!argument_to_constant(arg, value))
-                    return -1;
-
-                fold_module_param(op, key, value, pt2_aten_spatial_ndim(aten_type));
-            }
-
-            if (module_class == "LayerNorm" && op->attrs.find("weight") != op->attrs.end()
-                    && op->attrs.find("bias") == op->attrs.end())
-            {
-                const Attribute& weight = op->attrs.at("weight");
-                Attribute bias;
-                bias.type = weight.type;
-                bias.shape = weight.shape;
-                bias.data.resize(weight.data.size(), 0);
-                op->attrs["bias"] = bias;
-            }
-
-            const std::string full_target = pt2_full_target_name(node.target);
-            const Pt2DefaultsEntry* defaults = find_pt2_aten_defaults(full_target.c_str());
-            if (defaults)
-            {
-                bool table_matches = true;
-                for (size_t j = 0; j < node.inputs.size(); j++)
-                {
-                    bool found = false;
-                    for (size_t k = 0; k < defaults->arg_count; k++)
-                    {
-                        if (defaults->args[k].name == node.inputs[j].name)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found)
-                    {
-                        table_matches = false;
-                        break;
-                    }
-                }
-
-                if (table_matches)
-                {
-                    for (size_t j = 0; j < defaults->arg_count; j++)
-                    {
-                        const Pt2ArgDefault& d = defaults->args[j];
-
-                        bool provided = false;
-                        for (size_t k = 0; k < node.inputs.size(); k++)
-                        {
-                            if (node.inputs[k].name == d.name)
-                            {
-                                provided = true;
-                                break;
-                            }
-                        }
-                        if (provided)
-                            continue;
-
-                        if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED)
-                            continue;
-
-                        const std::string key = pt2_module_param_key(module_class, d.name);
-                        if (key.empty())
-                            continue;
-
-                        Parameter value;
-                        if (!default_value_to_parameter(d.type, d.value, value))
-                            continue;
-
-                        fold_module_param(op, key, value, pt2_aten_spatial_ndim(aten_type));
-                    }
-                }
-            }
-
-            if (module_class == "MaxPool1d" || module_class == "MaxPool2d" || module_class == "MaxPool3d")
-            {
-                size_t out_count = 0;
-                for (size_t j = 0; j < node.outputs.size(); j++)
-                    out_count += node.outputs[j].tensor_refs.size();
-                op->params["return_indices"] = (out_count > 1);
-            }
-
-            if (module_class == "Upsample")
-                op->params["mode"] = std::string(pt2_upsample_mode(aten_type));
-
-            if (module_class == "LayerNorm" || module_class == "RMSNorm")
-            {
-                bool has_weight = false;
-                for (size_t j = 0; j < node.inputs.size(); j++)
-                {
-                    if (node.inputs[j].name == "weight" && node.inputs[j].arg.type == Pt2Argument::TENSOR)
-                    {
-                        has_weight = true;
-                        break;
-                    }
-                }
-                op->params["elementwise_affine"] = has_weight;
-            }
-        }
-
-        if (!is_module_form)
         {
             // Fill omitted defaults to match TorchScript parameter arity.
             const std::string full_target = pt2_full_target_name(node.target);
@@ -1035,6 +792,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 }
             }
 
+            std::vector<std::string> pt2_input_names;
             for (size_t j = 0; j < ordered_inputs.size(); j++)
             {
                 const Pt2NodeInput* input = ordered_inputs[j];
@@ -1065,6 +823,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                     r->consumers.push_back(op);
                     op->inputs.push_back(r);
+                    pt2_input_names.push_back(d.name);
                     continue;
                 }
 
@@ -1088,6 +847,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                     r->consumers.push_back(op);
                     op->inputs.push_back(r);
+                    pt2_input_names.push_back(input->name);
                     continue;
                 }
 
@@ -1109,6 +869,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                     r->consumers.push_back(op);
                     op->inputs.push_back(r);
+                    pt2_input_names.push_back(input->name);
                     continue;
                 }
 
@@ -1126,8 +887,12 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                 r->consumers.push_back(op);
                 op->inputs.push_back(r);
+                pt2_input_names.push_back(input->name);
             }
-        } // if (!is_module_form)
+
+            if (is_module_form)
+                op->params["__pt2_module_input_names"] = pt2_input_names;
+        }
 
         std::vector<std::string> out_tensor_names;
         for (size_t j = 0; j < node.outputs.size(); j++)
