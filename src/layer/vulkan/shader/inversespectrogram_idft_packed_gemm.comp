@@ -1,0 +1,427 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout(constant_id = 0) const int n_fft = 1;
+layout(constant_id = 1) const int freqs = 1;
+layout(constant_id = 2) const int in_elempack = 1;
+layout(constant_id = 3) const int onesided = 0;
+
+#define shape_constant_id_offset 4
+layout(constant_id = shape_constant_id_offset + 0) const int frames = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int n_fft_shape = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int in_cstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer yre_blob { sfp yre_blob_data[]; };
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer yim_blob { sfp yim_blob_data[]; };
+layout(binding = 4) readonly buffer basis_cos_blob { sfpvec4 basis_cos_data[]; };
+layout(binding = 5) readonly buffer basis_sin_blob { sfpvec4 basis_sin_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_fft;
+    int freqs;
+    int in_w;
+    int in_elempack;
+    int in_cstep;
+    int y_row_stride;
+    int outh;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_v_re[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_v_im[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k_cos[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k_sin[8][LOCAL_MEMORY_UNROLL_INCH][4];
+#endif
+
+void load_spectrum4(int kg, int frame, out afpvec4 v_re, out afpvec4 v_im)
+{
+    if (frame >= p.frames)
+    {
+        v_re = afpvec4(0.f);
+        v_im = afpvec4(0.f);
+        return;
+    }
+
+    if (p.in_elempack == 4 && p.freqs == p.n_fft && kg * 4 < p.freqs)
+    {
+        const int base = kg * p.in_cstep + frame * p.in_w;
+        v_re = buffer_ld4(bottom_blob_data_4, base + 0);
+        v_im = buffer_ld4(bottom_blob_data_4, base + 1);
+        return;
+    }
+
+    afp re[4];
+    afp im[4];
+
+    for (int lane = 0; lane < 4; lane++)
+    {
+        int k = kg * 4 + lane;
+
+        if (k < p.n_fft)
+        {
+            int src_k = k;
+            afp im_sign = afp(1.f);
+
+            if (p.freqs < p.n_fft && k >= p.freqs)
+            {
+                src_k = p.n_fft - k;
+                im_sign = afp(-1.f);
+            }
+
+            if (src_k < p.freqs)
+            {
+                if (p.in_elempack == 4)
+                {
+                    int ch = src_k / 4;
+                    int src_lane = src_k % 4;
+                    int base = ch * p.in_cstep + frame * p.in_w;
+
+                    afpvec4 re4 = buffer_ld4(bottom_blob_data_4, base + 0);
+                    afpvec4 im4 = buffer_ld4(bottom_blob_data_4, base + 1);
+
+                    re[lane] = re4[src_lane];
+                    im[lane] = im4[src_lane] * im_sign;
+                }
+                else
+                {
+                    int base = src_k * p.in_cstep + frame * p.in_w;
+
+                    re[lane] = buffer_ld1(bottom_blob_data_1, base + 0);
+                    im[lane] = buffer_ld1(bottom_blob_data_1, base + 1) * im_sign;
+                }
+            }
+            else
+            {
+                re[lane] = afp(0.f);
+                im[lane] = afp(0.f);
+            }
+        }
+        else
+        {
+            re[lane] = afp(0.f);
+            im[lane] = afp(0.f);
+        }
+    }
+
+    v_re = afpvec4(re[0], re[1], re[2], re[3]);
+    v_im = afpvec4(im[0], im[1], im[2], im[3]);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
+
+    const int framecount = p.frames;
+
+#if !NCNN_shader_local_memory
+    if (gx >= framecount || gy >= psc(outh))
+        return;
+#endif
+
+    afpvec4 re0 = afpvec4(0.f);
+    afpvec4 re1 = afpvec4(0.f);
+    afpvec4 re2 = afpvec4(0.f);
+    afpvec4 re3 = afpvec4(0.f);
+
+    afpvec4 im0 = afpvec4(0.f);
+    afpvec4 im1 = afpvec4(0.f);
+    afpvec4 im2 = afpvec4(0.f);
+    afpvec4 im3 = afpvec4(0.f);
+
+    const int N = (psc(freqs) + 3) / 4;
+    const int weight_N = p.outh;
+
+    const ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
+
+    int w_offset = gy * weight_N * 4;
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int z = 0;
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < N; z += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                const int kg = z + z4;
+
+                afpvec4 v_re;
+                afpvec4 v_im;
+                load_spectrum4(kg, gx4[ly], v_re, v_im);
+                tmp_v_re[lx][z4][ly] = afp2lfpvec4(v_re);
+                tmp_v_im[lx][z4][ly] = afp2lfpvec4(v_im);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_k_cos[ly][z4][lx] = buffer_sm4(basis_cos_data, w_offset + z4 * 4 + lx);
+                tmp_k_sin[ly][z4][lx] = buffer_sm4(basis_sin_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 v_re0 = lfp2afpvec4(tmp_v_re[lx][z4][0]);
+            afpvec4 v_re1 = lfp2afpvec4(tmp_v_re[lx][z4][1]);
+            afpvec4 v_re2 = lfp2afpvec4(tmp_v_re[lx][z4][2]);
+            afpvec4 v_re3 = lfp2afpvec4(tmp_v_re[lx][z4][3]);
+
+            afpvec4 v_im0 = lfp2afpvec4(tmp_v_im[lx][z4][0]);
+            afpvec4 v_im1 = lfp2afpvec4(tmp_v_im[lx][z4][1]);
+            afpvec4 v_im2 = lfp2afpvec4(tmp_v_im[lx][z4][2]);
+            afpvec4 v_im3 = lfp2afpvec4(tmp_v_im[lx][z4][3]);
+
+            afpvec4 kc0 = lfp2afpvec4(tmp_k_cos[ly][z4][0]);
+            afpvec4 kc1 = lfp2afpvec4(tmp_k_cos[ly][z4][1]);
+            afpvec4 kc2 = lfp2afpvec4(tmp_k_cos[ly][z4][2]);
+            afpvec4 kc3 = lfp2afpvec4(tmp_k_cos[ly][z4][3]);
+
+            afpvec4 ks0 = lfp2afpvec4(tmp_k_sin[ly][z4][0]);
+            afpvec4 ks1 = lfp2afpvec4(tmp_k_sin[ly][z4][1]);
+            afpvec4 ks2 = lfp2afpvec4(tmp_k_sin[ly][z4][2]);
+            afpvec4 ks3 = lfp2afpvec4(tmp_k_sin[ly][z4][3]);
+
+            afpmat4 k_cos = afpmat4(kc0, kc1, kc2, kc3);
+            afpmat4 k_sin = afpmat4(ks0, ks1, ks2, ks3);
+            re0 += v_re0 * k_cos - v_im0 * k_sin;
+            re1 += v_re1 * k_cos - v_im1 * k_sin;
+            re2 += v_re2 * k_cos - v_im2 * k_sin;
+            re3 += v_re3 * k_cos - v_im3 * k_sin;
+
+            im0 += v_re0 * k_sin + v_im0 * k_cos;
+            im1 += v_re1 * k_sin + v_im1 * k_cos;
+            im2 += v_re2 * k_sin + v_im2 * k_cos;
+            im3 += v_re3 * k_sin + v_im3 * k_cos;
+        }
+
+        w_offset += LOCAL_MEMORY_UNROLL_INCH * 4;
+
+        barrier();
+    }
+
+    if (z < N)
+    {
+        const int remain = N - z;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                const int kg = z + z4;
+
+                afpvec4 v_re;
+                afpvec4 v_im;
+                load_spectrum4(kg, gx4[ly], v_re, v_im);
+                tmp_v_re[lx][z4][ly] = afp2lfpvec4(v_re);
+                tmp_v_im[lx][z4][ly] = afp2lfpvec4(v_im);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_k_cos[ly][z4][lx] = buffer_sm4(basis_cos_data, w_offset + z4 * 4 + lx);
+                tmp_k_sin[ly][z4][lx] = buffer_sm4(basis_sin_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            afpvec4 v_re0 = lfp2afpvec4(tmp_v_re[lx][z4][0]);
+            afpvec4 v_re1 = lfp2afpvec4(tmp_v_re[lx][z4][1]);
+            afpvec4 v_re2 = lfp2afpvec4(tmp_v_re[lx][z4][2]);
+            afpvec4 v_re3 = lfp2afpvec4(tmp_v_re[lx][z4][3]);
+
+            afpvec4 v_im0 = lfp2afpvec4(tmp_v_im[lx][z4][0]);
+            afpvec4 v_im1 = lfp2afpvec4(tmp_v_im[lx][z4][1]);
+            afpvec4 v_im2 = lfp2afpvec4(tmp_v_im[lx][z4][2]);
+            afpvec4 v_im3 = lfp2afpvec4(tmp_v_im[lx][z4][3]);
+
+            afpvec4 kc0 = lfp2afpvec4(tmp_k_cos[ly][z4][0]);
+            afpvec4 kc1 = lfp2afpvec4(tmp_k_cos[ly][z4][1]);
+            afpvec4 kc2 = lfp2afpvec4(tmp_k_cos[ly][z4][2]);
+            afpvec4 kc3 = lfp2afpvec4(tmp_k_cos[ly][z4][3]);
+
+            afpvec4 ks0 = lfp2afpvec4(tmp_k_sin[ly][z4][0]);
+            afpvec4 ks1 = lfp2afpvec4(tmp_k_sin[ly][z4][1]);
+            afpvec4 ks2 = lfp2afpvec4(tmp_k_sin[ly][z4][2]);
+            afpvec4 ks3 = lfp2afpvec4(tmp_k_sin[ly][z4][3]);
+
+            afpmat4 k_cos = afpmat4(kc0, kc1, kc2, kc3);
+            afpmat4 k_sin = afpmat4(ks0, ks1, ks2, ks3);
+            re0 += v_re0 * k_cos - v_im0 * k_sin;
+            re1 += v_re1 * k_cos - v_im1 * k_sin;
+            re2 += v_re2 * k_cos - v_im2 * k_sin;
+            re3 += v_re3 * k_cos - v_im3 * k_sin;
+
+            im0 += v_re0 * k_sin + v_im0 * k_cos;
+            im1 += v_re1 * k_sin + v_im1 * k_cos;
+            im2 += v_re2 * k_sin + v_im2 * k_cos;
+            im3 += v_re3 * k_sin + v_im3 * k_cos;
+        }
+    }
+#else
+    for (int z = 0; z < N; z++)
+    {
+        const int kg = z;
+
+        afpvec4 v_re0, v_re1, v_re2, v_re3;
+        afpvec4 v_im0, v_im1, v_im2, v_im3;
+
+        load_spectrum4(kg, gx4[0], v_re0, v_im0);
+        load_spectrum4(kg, gx4[1], v_re1, v_im1);
+        load_spectrum4(kg, gx4[2], v_re2, v_im2);
+        load_spectrum4(kg, gx4[3], v_re3, v_im3);
+
+        afpmat4 k_cos = afpmat4(
+            buffer_ld4(basis_cos_data, w_offset + 0),
+            buffer_ld4(basis_cos_data, w_offset + 1),
+            buffer_ld4(basis_cos_data, w_offset + 2),
+            buffer_ld4(basis_cos_data, w_offset + 3));
+
+        afpmat4 k_sin = afpmat4(
+            buffer_ld4(basis_sin_data, w_offset + 0),
+            buffer_ld4(basis_sin_data, w_offset + 1),
+            buffer_ld4(basis_sin_data, w_offset + 2),
+            buffer_ld4(basis_sin_data, w_offset + 3));
+        re0 += v_re0 * k_cos - v_im0 * k_sin;
+        re1 += v_re1 * k_cos - v_im1 * k_sin;
+        re2 += v_re2 * k_cos - v_im2 * k_sin;
+        re3 += v_re3 * k_cos - v_im3 * k_sin;
+
+        im0 += v_re0 * k_sin + v_im0 * k_cos;
+        im1 += v_re1 * k_sin + v_im1 * k_cos;
+        im2 += v_re2 * k_sin + v_im2 * k_cos;
+        im3 += v_re3 * k_sin + v_im3 * k_cos;
+
+        w_offset += 4;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= framecount || gy >= psc(outh))
+        return;
+#endif
+
+    {
+        const int j0 = gx + 0;
+        const int gi0 = j0 * p.y_row_stride + gy * 4;
+
+        if (j0 < framecount)
+        {
+            buffer_st1(yre_blob_data, gi0 + 0, re0.r);
+            buffer_st1(yim_blob_data, gi0 + 0, im0.r);
+            if (gy * 4 + 1 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi0 + 1, re0.g);
+                buffer_st1(yim_blob_data, gi0 + 1, im0.g);
+            }
+            if (gy * 4 + 2 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi0 + 2, re0.b);
+                buffer_st1(yim_blob_data, gi0 + 2, im0.b);
+            }
+            if (gy * 4 + 3 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi0 + 3, re0.a);
+                buffer_st1(yim_blob_data, gi0 + 3, im0.a);
+            }
+        }
+
+        const int j1 = gx + 1;
+        const int gi1 = j1 * p.y_row_stride + gy * 4;
+
+        if (j1 < framecount)
+        {
+            buffer_st1(yre_blob_data, gi1 + 0, re1.r);
+            buffer_st1(yim_blob_data, gi1 + 0, im1.r);
+            if (gy * 4 + 1 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi1 + 1, re1.g);
+                buffer_st1(yim_blob_data, gi1 + 1, im1.g);
+            }
+            if (gy * 4 + 2 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi1 + 2, re1.b);
+                buffer_st1(yim_blob_data, gi1 + 2, im1.b);
+            }
+            if (gy * 4 + 3 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi1 + 3, re1.a);
+                buffer_st1(yim_blob_data, gi1 + 3, im1.a);
+            }
+        }
+
+        const int j2 = gx + 2;
+        const int gi2 = j2 * p.y_row_stride + gy * 4;
+
+        if (j2 < framecount)
+        {
+            buffer_st1(yre_blob_data, gi2 + 0, re2.r);
+            buffer_st1(yim_blob_data, gi2 + 0, im2.r);
+            if (gy * 4 + 1 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi2 + 1, re2.g);
+                buffer_st1(yim_blob_data, gi2 + 1, im2.g);
+            }
+            if (gy * 4 + 2 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi2 + 2, re2.b);
+                buffer_st1(yim_blob_data, gi2 + 2, im2.b);
+            }
+            if (gy * 4 + 3 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi2 + 3, re2.a);
+                buffer_st1(yim_blob_data, gi2 + 3, im2.a);
+            }
+        }
+
+        const int j3 = gx + 3;
+        const int gi3 = j3 * p.y_row_stride + gy * 4;
+
+        if (j3 < framecount)
+        {
+            buffer_st1(yre_blob_data, gi3 + 0, re3.r);
+            buffer_st1(yim_blob_data, gi3 + 0, im3.r);
+            if (gy * 4 + 1 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi3 + 1, re3.g);
+                buffer_st1(yim_blob_data, gi3 + 1, im3.g);
+            }
+            if (gy * 4 + 2 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi3 + 2, re3.b);
+                buffer_st1(yim_blob_data, gi3 + 2, im3.b);
+            }
+            if (gy * 4 + 3 < p.n_fft)
+            {
+                buffer_st1(yre_blob_data, gi3 + 3, re3.a);
+                buffer_st1(yim_blob_data, gi3 + 3, im3.a);
+            }
+        }
+    }
+}
