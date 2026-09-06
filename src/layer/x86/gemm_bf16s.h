@@ -164,8 +164,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             for (; kk < max_kk; kk++)
             {
                 __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
-                __m256i _p16 = _mm512_cvtepi32_epi16(_p);
-                _mm256_storeu_si256((__m256i*)pp, _p16);
+                _mm512_mask_cvtepi32_storeu_epi16(pp, (__mmask16)-1, _p);
                 pp += 16;
                 p0++;
             }
@@ -247,8 +246,12 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             {
 #if __AVX2__
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+#if __AVX512F__
+                _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _p);
+#else
                 __m128i _p16 = _mm256_comp_cvtepi32_epi16(_p);
                 _mm_storeu_si128((__m128i*)pp, _p16);
+#endif
 #else
                 pp[0] = p0[0];
                 pp[1] = p0[A_hstep];
@@ -1193,8 +1196,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             for (; kk < max_kk; kk++)
             {
                 __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
-                __m256i _p16 = _mm512_cvtepi32_epi16(_p);
-                _mm256_storeu_si256((__m256i*)pp, _p16);
+                _mm512_mask_cvtepi32_storeu_epi16(pp, (__mmask16)-1, _p);
                 pp += 16;
                 p0++;
             }
@@ -1278,8 +1280,12 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             {
 #if __AVX2__
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+#if __AVX512F__
+                _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _p);
+#else
                 __m128i _p16 = _mm256_comp_cvtepi32_epi16(_p);
                 _mm_storeu_si128((__m128i*)pp, _p16);
+#endif
 #else
                 pp[0] = p0[0];
                 pp[1] = p0[B_hstep];
