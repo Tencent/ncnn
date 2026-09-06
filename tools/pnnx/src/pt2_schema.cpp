@@ -111,11 +111,11 @@ static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
     return Pt2Argument::NONE;
 }
 
-static void collect_tensor_names(const JsonValue& v, std::vector<std::string>& names)
+static void collect_tensor_refs(const JsonValue& v, std::vector<Pt2TensorRef>& refs)
 {
     if (v.isObject() && v.hasMember("name"))
     {
-        names.push_back(v["name"].asString());
+        refs.push_back(Pt2TensorRef(v["name"].asString(), false));
         return;
     }
     if (v.isArray())
@@ -123,7 +123,9 @@ static void collect_tensor_names(const JsonValue& v, std::vector<std::string>& n
         for (size_t i = 0; i < v.size(); i++)
         {
             if (v[i].isObject() && v[i].hasMember("name"))
-                names.push_back(v[i]["name"].asString());
+                refs.push_back(Pt2TensorRef(v[i]["name"].asString(), false));
+            else if (v[i].isNull())
+                refs.push_back(Pt2TensorRef(std::string(), true));
         }
     }
 }
@@ -139,7 +141,7 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
     {
     case Pt2Argument::TENSOR:
     case Pt2Argument::TENSORS:
-        collect_tensor_names(arg[a.type == Pt2Argument::TENSOR ? "as_tensor" : "as_tensors"], a.tensor_names);
+        collect_tensor_refs(arg[a.type == Pt2Argument::TENSOR ? "as_tensor" : "as_tensors"], a.tensor_refs);
         break;
     case Pt2Argument::INT:
         a.int_value = json_as_int(arg["as_int"]);
@@ -213,9 +215,9 @@ static Pt2Node parse_node(const JsonValue& n)
     {
         Pt2NodeOutput output;
         if (outputs[i].hasMember("as_tensor"))
-            collect_tensor_names(outputs[i]["as_tensor"], output.tensor_names);
+            collect_tensor_refs(outputs[i]["as_tensor"], output.tensor_refs);
         else if (outputs[i].hasMember("as_tensors"))
-            collect_tensor_names(outputs[i]["as_tensors"], output.tensor_names);
+            collect_tensor_refs(outputs[i]["as_tensors"], output.tensor_refs);
         node.outputs.push_back(output);
     }
 
@@ -346,6 +348,48 @@ static int parse_output_specs(const JsonValue& specs, std::vector<Pt2OutputSpec>
     }
 
     return 0;
+}
+
+static bool is_mutation_target(const std::string& target)
+{
+    const size_t prefix = target.find("aten.");
+    if (prefix == std::string::npos)
+        return false;
+    const size_t begin = prefix + 5;
+    const size_t end = target.find('.', begin);
+    return end != std::string::npos && end > begin && target[end - 1] == '_';
+}
+
+static bool mutates_external_input(const Pt2Program& program)
+{
+    for (size_t i = 0; i < program.nodes.size(); i++)
+    {
+        const Pt2Node& node = program.nodes[i];
+        if (!is_mutation_target(node.target))
+            continue;
+
+        for (size_t j = 0; j < node.inputs.size(); j++)
+        {
+            const Pt2Argument& arg = node.inputs[j].arg;
+            if (arg.type != Pt2Argument::TENSOR || arg.tensor_refs.size() != 1 || arg.tensor_refs[0].is_none)
+                continue;
+
+            const std::string& name = arg.tensor_refs[0].name;
+            for (size_t k = 0; k < program.input_specs.size(); k++)
+            {
+                const Pt2InputSpec& spec = program.input_specs[k];
+                if ((spec.kind == Pt2InputSpec::USER_INPUT || spec.kind == Pt2InputSpec::BUFFER)
+                        && spec.graph_name == name)
+                {
+                    fprintf(stderr, "load_pt2_schema: mutation of external input %s is unsupported\n", name.c_str());
+                    return true;
+                }
+            }
+            break;
+        }
+    }
+
+    return false;
 }
 
 static std::vector<long long> parse_int_list_of_objects(const JsonValue& v)
@@ -495,14 +539,6 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         for (size_t i = 0; i < nodes.size(); i++)
         {
             Pt2Node node = parse_node(nodes[i]);
-            const size_t target_begin = node.target.find("aten.");
-            const size_t target_end = node.target.find('.', target_begin + 5);
-            if (target_begin != std::string::npos && target_end != std::string::npos
-                    && target_end > target_begin + 5 && node.target[target_end - 1] == '_')
-            {
-                fprintf(stderr, "load_pt2_schema: mutation operator %s is unsupported\n", node.target.c_str());
-                return -1;
-            }
             program.nodes.push_back(node);
         }
 
@@ -519,6 +555,9 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
                     && parse_output_specs(signature["output_specs"], program.output_specs) != 0)
                 return -1;
         }
+
+        if (mutates_external_input(program))
+            return -1;
 
         const std::string weights_entry = program.archive_root + "data/weights/model_weights_config.json";
         const std::string constants_entry = program.archive_root + "data/constants/model_constants_config.json";

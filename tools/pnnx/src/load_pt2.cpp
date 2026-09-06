@@ -18,10 +18,32 @@ static int pt2_dtype_enum_to_pnnx_type(long long dtype)
 {
     switch (dtype)
     {
+    case 1:
+        return 8; // u8
+    case 2:
+        return 7; // i8
+    case 3:
+        return 6; // i16
+    case 4:
+        return 4; // i32
     case 7:
         return 1; // f32
     case 5:
         return 5; // i64
+    case 6:
+        return 3; // f16
+    case 8:
+        return 2; // f64
+    case 9:
+        return 12; // c32
+    case 10:
+        return 10; // c64
+    case 11:
+        return 11; // c128
+    case 12:
+        return 9; // bool
+    case 13:
+        return 13; // bf16
     default:
         return 0;
     }
@@ -94,7 +116,49 @@ static int pnnx_type_from_string(const std::string& t)
     if (t == "i8") return 7;
     if (t == "u8") return 8;
     if (t == "bool") return 9;
+    if (t == "c64") return 10;
+    if (t == "c128") return 11;
+    if (t == "c32") return 12;
+    if (t == "bf16") return 13;
     return 0;
+}
+
+static void apply_input_shape(Operand* r, const std::vector<int64_t>& input_shape)
+{
+    if (!r->shape.empty())
+        return;
+
+    for (size_t i = 0; i < input_shape.size(); i++)
+        r->shape.push_back((int)input_shape[i]);
+}
+
+static bool append_tensor_list_item(Graph& pg, Operator* op_list, const Pt2TensorRef& tensor_ref,
+                                    const std::string& node_name, const std::string& input_name,
+                                    size_t item_index, int& pnnx_unknown_index)
+{
+    Operand* r = 0;
+    if (tensor_ref.is_none)
+    {
+        Operator* op_const = pg.new_operator("prim::Constant", "pnnx_" + std::to_string(pnnx_unknown_index++));
+        op_const->params["value"] = Parameter();
+
+        r = pg.new_operand(node_name + "." + input_name + "." + std::to_string(item_index));
+        r->producer = op_const;
+        op_const->outputs.push_back(r);
+    }
+    else
+    {
+        r = pg.get_operand(tensor_ref.name);
+        if (!r)
+        {
+            fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", tensor_ref.name.c_str(), node_name.c_str());
+            return false;
+        }
+    }
+
+    r->consumers.push_back(op_list);
+    op_list->inputs.push_back(r);
+    return true;
 }
 
 // Match TorchScript kind display by dropping the PT2 overload suffix.
@@ -670,23 +734,27 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             op->outputs.push_back(r);
 
             std::map<std::string, Pt2TensorMeta>::const_iterator it = program.tensor_values.find(spec.graph_name);
-            if (it != program.tensor_values.end())
+            const bool has_tensor_meta = it != program.tensor_values.end();
+            if (has_tensor_meta)
             {
                 r->type = pt2_dtype_enum_to_pnnx_type(it->second.dtype);
                 for (size_t j = 0; j < it->second.sizes.size(); j++)
                     r->shape.push_back((int)it->second.sizes[j]);
             }
 
+            if (has_tensor_meta && r->type == 0)
+            {
+                fprintf(stderr, "load_pt2: unsupported input dtype enum %lld for %s\n", it->second.dtype,
+                        spec.graph_name.c_str());
+                return -1;
+            }
+
             if (input_index < (int)input_shapes.size())
             {
-                if (r->type == 0)
+                if (!has_tensor_meta && r->type == 0)
                     r->type = pnnx_type_from_string(input_types[input_index]);
 
-                if (r->shape.empty())
-                {
-                    for (size_t j = 0; j < input_shapes[input_index].size(); j++)
-                        r->shape.push_back((int)input_shapes[input_index][j]);
-                }
+                apply_input_shape(r, input_shapes[input_index]);
             }
 
             input_index++;
@@ -766,17 +834,17 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                 if (arg.type == Pt2Argument::TENSOR)
                 {
-                    if (arg.tensor_names.size() != 1)
+                    if (arg.tensor_refs.size() != 1 || arg.tensor_refs[0].is_none)
                     {
                         fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(),
                                 input.name.c_str());
                         return -1;
                     }
 
-                    Operand* r = pg.get_operand(arg.tensor_names[0]);
+                    Operand* r = pg.get_operand(arg.tensor_refs[0].name);
                     if (!r)
                     {
-                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[0].c_str(),
+                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_refs[0].name.c_str(),
                                 node.name.c_str());
                         return -1;
                     }
@@ -799,17 +867,11 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     Operator* op_list = pg.new_operator("prim::ListConstruct",
                                                         "pnnx_" + std::to_string(pnnx_unknown_index++));
 
-                    for (size_t k = 0; k < arg.tensor_names.size(); k++)
+                    for (size_t k = 0; k < arg.tensor_refs.size(); k++)
                     {
-                        Operand* r = pg.get_operand(arg.tensor_names[k]);
-                        if (!r)
-                        {
-                            fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[k].c_str(),
-                                    node.name.c_str());
+                        if (!append_tensor_list_item(pg, op_list, arg.tensor_refs[k], node.name, input.name, k,
+                                                     pnnx_unknown_index))
                             return -1;
-                        }
-                        r->consumers.push_back(op_list);
-                        op_list->inputs.push_back(r);
                     }
 
                     Operand* r = pg.new_operand(node.name + "." + input.name);
@@ -904,7 +966,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
             {
                 size_t out_count = 0;
                 for (size_t j = 0; j < node.outputs.size(); j++)
-                    out_count += node.outputs[j].tensor_names.size();
+                    out_count += node.outputs[j].tensor_refs.size();
                 op->params["return_indices"] = (out_count > 1);
             }
 
@@ -1010,16 +1072,16 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
                 if (arg.type == Pt2Argument::TENSOR)
                 {
-                    if (arg.tensor_names.size() != 1)
+                    if (arg.tensor_refs.size() != 1 || arg.tensor_refs[0].is_none)
                     {
                         fprintf(stderr, "load_pt2: bad tensor argument %s.%s\n", node.name.c_str(), input->name.c_str());
                         return -1;
                     }
 
-                    Operand* r = pg.get_operand(arg.tensor_names[0]);
+                    Operand* r = pg.get_operand(arg.tensor_refs[0].name);
                     if (!r)
                     {
-                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[0].c_str(),
+                        fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_refs[0].name.c_str(),
                                 node.name.c_str());
                         return -1;
                     }
@@ -1034,17 +1096,11 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     Operator* op_list = pg.new_operator("prim::ListConstruct",
                                                         "pnnx_" + std::to_string(pnnx_unknown_index++));
 
-                    for (size_t k = 0; k < arg.tensor_names.size(); k++)
+                    for (size_t k = 0; k < arg.tensor_refs.size(); k++)
                     {
-                        Operand* r = pg.get_operand(arg.tensor_names[k]);
-                        if (!r)
-                        {
-                            fprintf(stderr, "load_pt2: operand not found %s (node %s)\n", arg.tensor_names[k].c_str(),
-                                    node.name.c_str());
+                        if (!append_tensor_list_item(pg, op_list, arg.tensor_refs[k], node.name, input->name, k,
+                                                     pnnx_unknown_index))
                             return -1;
-                        }
-                        r->consumers.push_back(op_list);
-                        op_list->inputs.push_back(r);
                     }
 
                     Operand* r = pg.new_operand(node.name + "." + input->name);
@@ -1076,9 +1132,14 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         std::vector<std::string> out_tensor_names;
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
-            for (size_t k = 0; k < node.outputs[j].tensor_names.size(); k++)
+            for (size_t k = 0; k < node.outputs[j].tensor_refs.size(); k++)
             {
-                out_tensor_names.push_back(node.outputs[j].tensor_names[k]);
+                if (node.outputs[j].tensor_refs[k].is_none)
+                {
+                    fprintf(stderr, "load_pt2: output tensor cannot be None (node %s)\n", node.name.c_str());
+                    return -1;
+                }
+                out_tensor_names.push_back(node.outputs[j].tensor_refs[k].name);
             }
         }
 

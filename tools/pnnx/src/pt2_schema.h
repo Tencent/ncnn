@@ -15,6 +15,22 @@
 
 namespace pnnx {
 
+struct Pt2TensorRef
+{
+    std::string name;
+    bool is_none;
+
+    Pt2TensorRef()
+        : is_none(false)
+    {
+    }
+
+    Pt2TensorRef(const std::string& n, bool none)
+        : name(n), is_none(none)
+    {
+    }
+};
+
 // Node argument, represented by one of the as_* variants.
 struct Pt2Argument
 {
@@ -41,7 +57,7 @@ struct Pt2Argument
     bool is_kwarg;
     std::string name;
 
-    std::vector<std::string> tensor_names;
+    std::vector<Pt2TensorRef> tensor_refs;
     long long int_value;
     std::vector<long long> int_values;
     double float_value;
@@ -67,7 +83,7 @@ struct Pt2NodeInput
 
 struct Pt2NodeOutput
 {
-    std::vector<std::string> tensor_names;
+    std::vector<Pt2TensorRef> tensor_refs;
 };
 
 struct Pt2Node

@@ -420,6 +420,25 @@ pnnx_add_test(transformers_xlnet_attention)
 
 add_subdirectory(ncnn)
 
+# PT2 schema 与 pass 回归 harness 不依赖 libtorch。
+add_executable(test_pt2_schema test_pt2_schema.cpp ../src/pt2_schema.cpp ../src/storezip.cpp)
+target_include_directories(test_pt2_schema PRIVATE ../src)
+add_test(NAME test_pt2_schema COMMAND test_pt2_schema --self-test)
+
+add_executable(test_pt2_regress
+    ../src/pass_level2.cpp
+    ../src/ir.cpp
+    ../src/utils.cpp
+    ../src/storezip.cpp
+    ../src/model_stat.cpp
+    ../src/pass_level2/functionize.cpp
+    ../src/pass_level2/eliminate_contiguous.cpp
+    ../src/pass_level2/eliminate_size_numtotensor_int.cpp
+    ../src/pass_level2/fuse_constantlist.cpp
+    test_pt2_regress.cpp)
+target_include_directories(test_pt2_regress PRIVATE ../src)
+add_test(NAME test_pt2_regress COMMAND test_pt2_regress)
+
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()

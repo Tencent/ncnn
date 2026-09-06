@@ -1,4 +1,4 @@
-// Tencent 2026
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 // json.hpp 边界单测（独立 harness，不进 CMake 构建）。

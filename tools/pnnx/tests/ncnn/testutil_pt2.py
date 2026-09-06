@@ -120,23 +120,23 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         out_names = re.findall(r'ex\.extract\("([^"]+)"\)', src)
         if not out_names:
             out_names = ["out0"]
-        # batch_index 语义是 pnnx 按 Input operand 的 __ncnn_batch_axis 生成的权威值，
-        # 直接从产物 _ncnn.py 提取，不自行假设（硬编码错值会丢 batch 维/形状错乱）
-        m = re.search(r'ncnn\.Mat\([^)]*batch_index=(\d+)\)', src)
-        in_batch_index = int(m.group(1)) if m else 233
-        m = re.search(r'numpy\(batch_index=(\d+)\)', src)
-        out_batch_index = int(m.group(1)) if m else 233
+        # batch_index 由每个 Input/Output operand 独立决定，直接读取生成 wrapper。
+        in_batch_indices = [int(v) for v in re.findall(r'ncnn\.Mat\(.*batch_index=(\d+)\)', src)]
+        out_batch_indices = [int(v) for v in re.findall(r'numpy\(batch_index=(\d+)\)', src)]
+        if len(in_batch_indices) < len(inputs) or len(out_batch_indices) < len(out_names):
+            raise ValueError("generated ncnn wrapper is missing per-operand batch_index")
         outs = []
         with ncnn.Net() as net:
             net.load_param(base_name + ".ncnn.param")
             net.load_model(base_name + ".ncnn.bin")
             with net.create_extractor() as ex:
                 for i, t in enumerate(inputs):
-                    tnp = _prepare_ncnn_input(t, in_batch_index)
-                    ex.input(f"in{i}", ncnn.Mat(tnp, batch_index=in_batch_index).clone())
-                for nm in out_names:
+                    batch_index = in_batch_indices[i]
+                    tnp = _prepare_ncnn_input(t, batch_index)
+                    ex.input(f"in{i}", ncnn.Mat(tnp, batch_index=batch_index).clone())
+                for i, nm in enumerate(out_names):
                     _, o = ex.extract(nm)
-                    raw = o.numpy(batch_index=out_batch_index)
+                    raw = o.numpy(batch_index=out_batch_indices[i])
                     outs.append(torch.from_numpy(raw))
         b = tuple(outs)
     except Exception as e:
@@ -161,7 +161,7 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
     ok = True
     for i, (a0, b0) in enumerate(zip(a, b)):
         # 只允许 ncnn wrapper 明确声明的 batch_index=0 维度剥离关系。
-        b0 = torch.from_numpy(_restore_ncnn_output(b0.numpy(), a0.numpy(), out_batch_index))
+        b0 = torch.from_numpy(_restore_ncnn_output(b0.numpy(), a0.numpy(), out_batch_indices[i]))
         if torch.allclose(a0, b0, atol, atol):
             print(f"[pt2] out[{i}]  shape a={tuple(a0.shape)} b={tuple(b0.shape)}  MATCH")
         else:

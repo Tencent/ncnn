@@ -195,6 +195,56 @@ static void test_scalar_type_argument()
     CHECK(!argument_to_constant(a, v), "scalar_type: unknown enum is rejected");
 }
 
+static void test_tensor_list_null_slot()
+{
+    const JsonValue tensors = parse_json(R"JSON([null, {"name":"index"}])JSON");
+    std::vector<Pt2TensorRef> refs;
+    collect_tensor_refs(tensors, refs);
+    CHECK(refs.size() == 2 && refs[0].is_none && !refs[1].is_none && refs[1].name == "index",
+          "tensor list: null slot is preserved during schema parsing");
+
+    Graph g;
+    Operator* input = g.new_operator("pnnx.Input", "input");
+    Operand* index = g.new_operand("index");
+    index->producer = input;
+    input->outputs.push_back(index);
+
+    Operator* list = g.new_operator("prim::ListConstruct", "list");
+    int pnnx_unknown_index = 0;
+    CHECK(append_tensor_list_item(g, list, refs[0], "index", "indices", 0, pnnx_unknown_index)
+              && append_tensor_list_item(g, list, refs[1], "index", "indices", 1, pnnx_unknown_index),
+          "tensor list: None and tensor operands are created");
+    CHECK(list->inputs.size() == 2 && list->inputs[0]->producer
+              && list->inputs[0]->producer->type == "prim::Constant"
+              && list->inputs[0]->producer->params.at("value").type == 0 && list->inputs[1] == index,
+          "tensor list: None remains before its indexed tensor");
+}
+
+static void test_input_shape_override()
+{
+    Graph g;
+    Operand* dynamic_input = g.new_operand("dynamic_input");
+    dynamic_input->shape = std::vector<int>{-1, 3, -1, 8};
+    apply_input_shape(dynamic_input, std::vector<int64_t>{2, 3, 11, 8});
+    CHECK(dynamic_input->shape == std::vector<int>({-1, 3, -1, 8}),
+          "input shape: exported symbolic dimensions remain authoritative");
+
+    Operand* mismatched_input = g.new_operand("mismatched_input");
+    mismatched_input->shape = std::vector<int>{-1, 3, -1};
+    apply_input_shape(mismatched_input, std::vector<int64_t>{2, 3});
+    CHECK(mismatched_input->shape == std::vector<int>({-1, 3, -1}),
+          "input shape: mismatched rank leaves exported dimensions unchanged");
+}
+
+static void test_input_dtype_mapping()
+{
+    const int expected[] = {8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
+    for (long long dtype = 1; dtype <= 13; dtype++)
+        CHECK(pt2_dtype_enum_to_pnnx_type(dtype) == expected[dtype - 1], "input dtype: PT2 enum mapping");
+    CHECK(pt2_dtype_enum_to_pnnx_type(0) == 0 && pt2_dtype_enum_to_pnnx_type(99) == 0,
+          "input dtype: unknown enum is rejected");
+}
+
 static void build_adaptive_pool_graph(Graph& g)
 {
     // clang-format off
@@ -442,6 +492,9 @@ int main()
     test_ones_like_fold();
     test_device_argument();
     test_scalar_type_argument();
+    test_tensor_list_null_slot();
+    test_input_shape_override();
+    test_input_dtype_mapping();
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();

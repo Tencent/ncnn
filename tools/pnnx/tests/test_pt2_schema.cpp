@@ -1,4 +1,4 @@
-// Tencent 2026
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 // pt2_schema 解析 dump(独立 harness,N1 验收工具)。
@@ -71,10 +71,10 @@ static void print_argument_list(std::string& line, const std::vector<Pt2NodeInpu
         if (a.type == Pt2Argument::TENSOR || a.type == Pt2Argument::TENSORS)
         {
             line += ":";
-            for (size_t j = 0; j < a.tensor_names.size(); j++)
+            for (size_t j = 0; j < a.tensor_refs.size(); j++)
             {
-                line += a.tensor_names[j];
-                if (j + 1 < a.tensor_names.size())
+                line += a.tensor_refs[j].is_none ? "<none>" : a.tensor_refs[j].name;
+                if (j + 1 < a.tensor_refs.size())
                     line += ",";
             }
         }
@@ -87,10 +87,10 @@ static void print_node_outputs(std::string& line, const std::vector<Pt2NodeOutpu
 {
     for (size_t i = 0; i < outputs.size(); i++)
     {
-        for (size_t j = 0; j < outputs[i].tensor_names.size(); j++)
+        for (size_t j = 0; j < outputs[i].tensor_refs.size(); j++)
         {
-            line += outputs[i].tensor_names[j];
-            if (j + 1 < outputs[i].tensor_names.size() || i + 1 < outputs.size())
+            line += outputs[i].tensor_refs[j].is_none ? "<none>" : outputs[i].tensor_refs[j].name;
+            if (j + 1 < outputs[i].tensor_refs.size() || i + 1 < outputs.size())
                 line += ",";
         }
     }
@@ -202,12 +202,13 @@ static void dump_human(const Pt2Program& program)
             switch (a.type)
             {
             case Pt2Argument::TENSOR:
-                printf("tensor(%s)", a.tensor_names[0].c_str());
+                printf("tensor(%s)", a.tensor_refs[0].is_none ? "<none>" : a.tensor_refs[0].name.c_str());
                 break;
             case Pt2Argument::TENSORS:
                 printf("tensors(");
-                for (size_t k = 0; k < a.tensor_names.size(); k++)
-                    printf("%s%s", k ? ", " : "", a.tensor_names[k].c_str());
+                for (size_t k = 0; k < a.tensor_refs.size(); k++)
+                    printf("%s%s", k ? ", " : "",
+                           a.tensor_refs[k].is_none ? "<none>" : a.tensor_refs[k].name.c_str());
                 printf(")");
                 break;
             case Pt2Argument::INT:
@@ -265,8 +266,9 @@ static void dump_human(const Pt2Program& program)
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
             printf("      out ");
-            for (size_t k = 0; k < node.outputs[j].tensor_names.size(); k++)
-                printf("%s%s", k ? ", " : "", node.outputs[j].tensor_names[k].c_str());
+            for (size_t k = 0; k < node.outputs[j].tensor_refs.size(); k++)
+                printf("%s%s", k ? ", " : "",
+                       node.outputs[j].tensor_refs[k].is_none ? "<none>" : node.outputs[j].tensor_refs[k].name.c_str());
             printf("\n");
         }
     }
@@ -297,6 +299,23 @@ static void dump_human(const Pt2Program& program)
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
+    {
+        const std::string path = "test_pt2_schema_selftest.pt2";
+        const char* json = R"JSON({"schema_version":{"major":1,"minor":0},"torch_version":"test","graph_module":{"graph":{"nodes":[],"tensor_values":{}},"signature":{"input_specs":[],"output_specs":[]}}})JSON";
+        StoreZipWriter writer;
+        if (writer.open(path) != 0 || writer.write_file("models/model.json", json, strlen(json)) != 0
+                || writer.close() != 0)
+        {
+            remove(path.c_str());
+            return 1;
+        }
+        Pt2Program program;
+        const int ret = load_pt2_schema(path, program);
+        remove(path.c_str());
+        return ret == 0 && program.nodes.empty() ? 0 : 1;
+    }
+
     const char* mode = "human";
     const char* path = 0;
 

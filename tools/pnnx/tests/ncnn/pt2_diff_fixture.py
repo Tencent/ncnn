@@ -14,6 +14,7 @@ import os
 import sys
 import importlib
 import warnings
+from itertools import zip_longest
 
 warnings.filterwarnings("ignore")
 
@@ -40,6 +41,15 @@ DIFF_SCENARIOS = (
     "test_nn_RNN",               # M4 循环网络分解
     "test_Tensor_slice_copy",    # M5 copy_ in-place 链
 )
+
+
+def param_diffs(a, b):
+    """比较规范化参数，不能隐藏尾部新增或删除。"""
+    return [
+        f"line{i}: pt2={la!r} pt={lb!r}"
+        for i, (la, lb) in enumerate(zip_longest(a, b))
+        if la != lb
+    ]
 
 # 每场景收集的产物:pnnx 中间 IR(+权重) + ncnn param/bin + 源模型
 ARTIFACTS = (
@@ -93,7 +103,7 @@ def dispose(modname, keep):
     if os.path.exists(m + ".ncnn.param") and os.path.exists(m + "_ts.ncnn.param"):
         a = normalize_param(m + ".ncnn.param")
         b = normalize_param(m + "_ts.ncnn.param")
-        diffs = [f"line{i}: pt2={la!r} pt={lb!r}" for i, (la, lb) in enumerate(zip(a, b)) if la != lb]
+        diffs = param_diffs(a, b)
     for pat in ARTIFACTS:
         f = pat.format(m=m)
         if not os.path.exists(f):
@@ -147,11 +157,7 @@ def verify(mods):
             print(f"[??] {modname:32s} no baseline, run capture first")
             bad += 1
             continue
-        base_diffs = [
-            f"line{i}: pt2={la!r} pt={lb!r}"
-            for i, (la, lb) in enumerate(zip(normalize_param(pa), normalize_param(pb)))
-            if la != lb
-        ]
+        base_diffs = param_diffs(normalize_param(pa), normalize_param(pb))
         ish, err = run_scenario(modname)
         if err:
             print(f"[EE] {modname:32s} {err}")
