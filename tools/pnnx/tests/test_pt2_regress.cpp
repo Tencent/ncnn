@@ -542,6 +542,36 @@ static void test_window_function_fold()
     }
 }
 
+static void test_window_function_one_element_fold()
+{
+    // PyTorch defines both windows as {1} for window_length == 1
+    Graph graph;
+    graph.parse(R"PNNXIR(7767517
+9 8
+prim::Constant          length      0 1 length value=1
+prim::Constant          dtype       0 1 dtype value=None
+prim::Constant          layout      0 1 layout value=None
+prim::Constant          device      0 1 device value=cpu
+prim::Constant          pin_memory  0 1 pin_memory value=False
+aten::hann_window       op0         5 1 length dtype layout device pin_memory out0
+aten::hamming_window    op1         5 1 length dtype layout device pin_memory out1
+pnnx.Output             output      2 0 out0 out1
+)PNNXIR");
+
+    fold_pt2_window_functions(graph);
+    int folded_one = 0;
+    for (size_t i = 0; i < graph.ops.size(); i++)
+    {
+        if (graph.ops[i]->type != "pnnx.Attribute")
+            continue;
+        const Attribute& data = graph.ops[i]->attrs.at("data");
+        const std::vector<float> values = data.get_float32_data();
+        if (data.shape == std::vector<int>({1}) && values.size() == 1 && values[0] == 1.f)
+            folded_one++;
+    }
+    CHECK(folded_one == 2, "window: one-element hann/hamming fold to {1} like PyTorch");
+}
+
 int main()
 {
     test_ones_like_fold();
@@ -558,6 +588,7 @@ int main()
     test_output_spec_filter();
     test_module_form_normalization();
     test_window_function_fold();
+    test_window_function_one_element_fold();
 
     if (g_failed == 0)
     {

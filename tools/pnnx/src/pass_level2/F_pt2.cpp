@@ -371,6 +371,12 @@ void fold_pt2_window_functions(Graph& pg)
         float* data = (float*)attr.data.data();
         for (int j = 0; j < window_length; j++)
         {
+            if (window_length == 1)
+            {
+                // ATen defines one-element windows as {1}, not the formula limit
+                data[j] = 1.f;
+                continue;
+            }
             const double phase = 2.0 * 3.14159265358979323846 * j / window_length;
             data[j] = op->type == "aten::hann_window" ? (float)(0.5 * (1.0 - cos(phase)))
                                                       : (float)(0.54 - 0.46 * cos(phase));
