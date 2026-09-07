@@ -1,0 +1,56 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int block_x = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int cstep;
+    int outcstep;
+    int block_x;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gz >= c)
+        return;
+
+    // load 4 elements from input (1D: only x dimension)
+    int sx = gx * 2; // each tile produces 2 output elements, needs 4 input elements
+
+    int v_offset = gz * psc(cstep) + sx;
+
+    afpvec4 d0 = buffer_ld4(bottom_blob_data, v_offset + 0);
+    afpvec4 d1 = sx + 1 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset + 1) : afpvec4(0.f);
+    afpvec4 d2 = sx + 2 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset + 2) : afpvec4(0.f);
+    afpvec4 d3 = sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset + 3) : afpvec4(0.f);
+
+    // B^T transform (4x4) - only once (1D)
+    afpvec4 v0 = d0 - d2;
+    afpvec4 v1 = d1 + d2;
+    afpvec4 v2 = d2 - d1;
+    afpvec4 v3 = d3 - d1;
+
+    // store 4 transformed values
+    int v_tm_offset = gz * psc(outcstep) + gx;
+
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * c, v0);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep) * c, v1);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep) * c, v2);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep) * c, v3);
+}
