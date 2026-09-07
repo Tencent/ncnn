@@ -1062,8 +1062,8 @@ static int get_physical_cpucount()
         int thread_siblings = get_thread_siblings(i);
         if (thread_siblings == -1)
         {
-            // incomplete topology, fallback to the logical cpu count
-            return g_cpucount;
+            // ignore malformed one
+            continue;
         }
 
         bool thread_siblings_exists = false;
@@ -1213,8 +1213,8 @@ static int get_data_cache_size(int cpuid, int level)
             int thread_siblings = get_thread_siblings(i);
             if (thread_siblings == -1)
             {
-                // incomplete topology, let the caller use its cache size fallback
-                return 0;
+                // ignore malformed one
+                continue;
             }
 
             bool thread_siblings_exists = false;

@@ -60,6 +60,22 @@ endif()
 
 ncnn_add_test(c_api)
 ncnn_add_test(cpu)
+
+# --wrap cannot intercept calls inside a shared ncnn library. Keep these
+# fault-injection tests on native Linux static builds with GNU-compatible linkers.
+get_target_property(ncnn_library_type ncnn TYPE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING AND ncnn_library_type STREQUAL "STATIC_LIBRARY" AND CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$")
+    add_executable(test_cpu_topology test_cpu_topology.cpp)
+    target_link_libraries(test_cpu_topology PRIVATE ncnn)
+    set_property(TARGET test_cpu_topology APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--wrap=fopen -Wl,--wrap=fopen64")
+    set_property(TARGET test_cpu_topology PROPERTY FOLDER "tests")
+
+    foreach(scenario normal non_smt no_sysfs missing empty malformed partial empty_map outside_map)
+        add_test(NAME test_cpu_topology_${scenario} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_cpu_topology> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+        set_tests_properties(test_cpu_topology_${scenario} PROPERTIES ENVIRONMENT "NCNN_TEST_CPU_TOPOLOGY=${scenario}")
+    endforeach()
+endif()
+
 ncnn_add_test(expression)
 ncnn_add_test(modelbin)
 ncnn_add_test(paramdict)
