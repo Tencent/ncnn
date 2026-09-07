@@ -515,6 +515,33 @@ pnnx.Output              output      1 0 out
           "module-form: folds scalar parameter in pass_level2");
 }
 
+static void test_window_function_fold()
+{
+    Graph graph;
+    graph.parse(R"PNNXIR(7767517
+7 6
+prim::Constant          length      0 1 length value=4
+prim::Constant          dtype       0 1 dtype value=None
+prim::Constant          layout      0 1 layout value=None
+prim::Constant          device      0 1 device value=cpu
+prim::Constant          pin_memory  0 1 pin_memory value=False
+aten::hann_window       op          5 1 length dtype layout device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR");
+
+    fold_pt2_window_functions(graph);
+    Operator* attr = find_op(graph, "pnnx.Attribute");
+    CHECK(attr != 0 && attr->inputs.empty(), "window: static hann_window folds to pnnx.Attribute");
+    if (attr)
+    {
+        const Attribute& data = attr->attrs.at("data");
+        const std::vector<float> values = data.get_float32_data();
+        CHECK(data.shape == std::vector<int>({4}) && values.size() == 4 && values[0] == 0.f
+                  && values[1] == 0.5f && values[2] == 1.f && values[3] == 0.5f,
+              "window: folded hann_window has periodic f32 values");
+    }
+}
+
 int main()
 {
     test_ones_like_fold();
@@ -530,6 +557,7 @@ int main()
     test_storezip_long_comment_zip64();
     test_output_spec_filter();
     test_module_form_normalization();
+    test_window_function_fold();
 
     if (g_failed == 0)
     {

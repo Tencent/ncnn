@@ -1138,6 +1138,8 @@ void pass_level2(Graph& g)
 {
     normalize_pt2_module_forms(g);
 
+    fold_pt2_window_functions(g);
+
     functionize(g);
 
     eliminate_contiguous(g);

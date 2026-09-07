@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <math.h>
+
 namespace pnnx {
 
 struct Pt2ModuleParamRule
@@ -308,6 +310,81 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pt2_fold_ones_like, 90)
+
+static bool get_pt2_constant(const Operand* operand, Parameter& value)
+{
+    if (!operand || !operand->producer || operand->producer->type != "prim::Constant")
+        return false;
+
+    std::map<std::string, Parameter>::const_iterator it = operand->producer->params.find("value");
+    if (it == operand->producer->params.end())
+        return false;
+
+    value = it->second;
+    return true;
+}
+
+static bool is_pt2_default_window_argument(const Parameter& value, int index)
+{
+    if (index == 1 || index == 2)
+        return value.type == 0;
+    if (index == 3)
+        return value.type == 4 && value.s == "cpu";
+    if (index == 4)
+        return value.type == 1 && !value.b;
+
+    return false;
+}
+
+void fold_pt2_window_functions(Graph& pg)
+{
+    for (size_t i = 0; i < pg.ops.size(); i++)
+    {
+        Operator* op = pg.ops[i];
+        if (op->type != "aten::hann_window" && op->type != "aten::hamming_window")
+            continue;
+        if (op->inputs.size() != 5 || op->outputs.size() != 1)
+            continue;
+
+        Parameter length;
+        if (!get_pt2_constant(op->inputs[0], length) || length.type != 2 || length.i <= 0)
+            continue;
+
+        bool is_default = true;
+        for (int j = 1; j < 5; j++)
+        {
+            Parameter value;
+            if (!get_pt2_constant(op->inputs[j], value) || !is_pt2_default_window_argument(value, j))
+            {
+                is_default = false;
+                break;
+            }
+        }
+        if (!is_default)
+            continue;
+
+        const int window_length = length.i;
+        Attribute attr;
+        attr.type = 1;
+        attr.shape = std::vector<int>(1, window_length);
+        attr.data.resize((size_t)window_length * sizeof(float));
+        float* data = (float*)attr.data.data();
+        for (int j = 0; j < window_length; j++)
+        {
+            const double phase = 2.0 * 3.14159265358979323846 * j / window_length;
+            data[j] = op->type == "aten::hann_window" ? (float)(0.5 * (1.0 - cos(phase)))
+                                                           : (float)(0.54 - 0.46 * cos(phase));
+        }
+
+        for (size_t j = 0; j < op->inputs.size(); j++)
+            op->inputs[j]->remove_consumer(op);
+        op->inputs.clear();
+        op->type = "pnnx.Attribute";
+        op->params.clear();
+        op->attrs.clear();
+        op->attrs["data"] = attr;
+    }
+}
 
 // Walk weight norm imperatively because shared parameters defeat pattern matching.
 void fold_pt2_weight_norm(Graph& pg)

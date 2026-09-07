@@ -51,6 +51,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
 void fold_pt2_weight_norm(Graph& g);
 
+void fold_pt2_window_functions(Graph& g);
+
 void normalize_pt2_module_forms(Graph& g);
 
 void pass_level2(Graph& g);
