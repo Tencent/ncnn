@@ -14,11 +14,13 @@ namespace ncnn {
 #include "convolution_im2col_gemm_int8.h"
 #include "convolution_3x3_winograd_int8.h"
 
+#if NCNN_BF16
 #include "convolution_packed_bf16s.h"
 #include "convolution_im2col_gemm_bf16s.h"
 // convolution_3x3_winograd.h provides gemm_transB_packed_tile() used by convolution_3x3_winograd_bf16s.h
 #include "convolution_3x3_winograd.h"
 #include "convolution_3x3_winograd_bf16s.h"
+#endif // NCNN_BF16
 
 // packed
 void convolution_transform_kernel_packed_int8_avx2(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
@@ -63,6 +65,7 @@ int conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const 
     return conv3x3s1_winograd43_int8(bottom_blob, top_blob, AT, nT, opt);
 }
 
+#if NCNN_BF16
 void convolution_transform_kernel_packed_bf16s_avx2(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h)
 {
     convolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
@@ -127,5 +130,6 @@ int conv3x3s1_winograd63_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const
 {
     return conv3x3s1_winograd63_bf16s(bottom_blob, top_blob, AT, bias_data, nT, activation_type, activation_params, opt);
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

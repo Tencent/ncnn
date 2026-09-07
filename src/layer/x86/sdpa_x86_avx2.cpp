@@ -23,6 +23,7 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "sdpa_prefill.h"
 #include "sdpa_decode.h"
 #include "sdpa_prefill_bf16s.h"
@@ -43,5 +44,6 @@ int sdpa_kvcache_bf16s_avx2(const Mat& query, const Mat& past_key, const Mat& pa
 {
     return sdpa_kvcache_bf16s(query, past_key, past_value, cur_key, cur_value, cached_key, cached_value, attn_mask_blob, top_blob, scale, opt);
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

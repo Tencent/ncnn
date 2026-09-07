@@ -12,6 +12,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 namespace BinaryOp_x86_functor {
 
 #include "binaryop_functor.h"
@@ -46,5 +48,7 @@ void binary_op_vector_bf16s_avx2(const unsigned short* ptr, const unsigned short
 
     // should never reach here
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

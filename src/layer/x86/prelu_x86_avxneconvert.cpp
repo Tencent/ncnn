@@ -1,0 +1,31 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "cpu.h"
+#include "mat.h"
+#include "x86_usability.h"
+
+namespace ncnn {
+
+#if NCNN_BF16
+
+#include "prelu_bf16s.h"
+
+void prelu_bf16s_avxneconvert(unsigned short* ptr, const float* slope, int size, int elempack)
+{
+    prelu_bf16s(ptr, slope, size, elempack);
+}
+
+void prelu_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* slope, int size, int num_threads)
+{
+    prelu_bf16s_per_element(ptr, slope, size, num_threads);
+}
+
+void prelu_bf16s_single_slope_avxneconvert(unsigned short* ptr, float slope, int size, int num_threads)
+{
+    prelu_bf16s_single_slope(ptr, slope, size, num_threads);
+}
+
+#endif // NCNN_BF16
+
+} // namespace ncnn

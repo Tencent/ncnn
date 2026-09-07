@@ -1332,7 +1332,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     pp += 16;
                     p0 += 16;
                 }
-#endif // __AVX512F__
+#else // __AVX512F__
                 __m256 _scale256 = _mm256_set1_ps(scale);
                 for (; kk + 15 < max_kk0; kk += 16)
                 {
@@ -1348,6 +1348,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     pp += 16;
                     p0 += 16;
                 }
+#endif // __AVX512F__
 #endif // __AVX__
                 __m128 _scale128 = _mm_set1_ps(scale);
                 for (; kk + 3 < max_kk0; kk += 4)
@@ -2823,7 +2824,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 p0 += 16;
                 ps += 16;
             }
-#endif // __AVX512F__
+#else // __AVX512F__
             __m256 _scale256 = _mm256_set1_ps(scale);
             for (; kk + 15 < max_kk0; kk += 16)
             {
@@ -2842,6 +2843,7 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 p0 += 16;
                 ps += 16;
             }
+#endif // __AVX512F__
 #endif // __AVX__
             __m128 _scale128 = _mm_set1_ps(scale);
             for (; kk + 3 < max_kk0; kk += 4)
@@ -4760,7 +4762,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         pp += 16;
                         p0 += A_hstep * 16;
                     }
-#endif // __AVX512F__
+#else // __AVX512F__
                     __m256 _scale256 = _mm256_set1_ps(scale);
                     for (; kk + 15 < max_kk0; kk += 16)
                     {
@@ -4783,6 +4785,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                         pp += 16;
                         p0 += A_hstep * 16;
                     }
+#endif // __AVX512F__
 #endif // __AVX__
                     __m128 _scale128 = _mm_set1_ps(scale);
                     for (; kk + 3 < max_kk0; kk += 4)
@@ -6650,7 +6653,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     p0 += A_hstep * 16;
                     ps += 16;
                 }
-#endif // __AVX512F__
+#else // __AVX512F__
                 __m256 _scale256 = _mm256_set1_ps(scale);
                 for (; kk + 15 < max_kk0; kk += 16)
                 {
@@ -6676,6 +6679,7 @@ static void transpose_quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, 
                     p0 += A_hstep * 16;
                     ps += 16;
                 }
+#endif // __AVX512F__
 #endif // __AVX__
                 __m128 _scale128 = _mm_set1_ps(scale);
                 for (; kk + 3 < max_kk0; kk += 4)
