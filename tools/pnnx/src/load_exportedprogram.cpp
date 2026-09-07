@@ -431,6 +431,56 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         return -1;
     }
 
+    // container metadata records written by torch.export.save (2.8+ layouts):
+    // archive_format ("pt2"), archive_version ("0") and byteorder ("little").
+    // validate them up front so a mislabeled/tampered container is rejected at
+    // the container boundary instead of mis-decoding later (the legacy <2.8
+    // flat layout carries no such records and is simply skipped)
+    if (!is_legacy)
+    {
+        for (size_t i = 0; i < names.size(); i++)
+        {
+            const std::string& n = names[i];
+            const char* expect = 0;
+            const char* what = 0;
+            if (n.find("archive_format") != std::string::npos)
+            {
+                expect = "pt2";
+                what = "archive_format";
+            }
+            else if (n.find("archive_version") != std::string::npos)
+            {
+                expect = "0";
+                what = "archive_version";
+            }
+            else if (n.find("byteorder") != std::string::npos)
+            {
+                expect = "little";
+                what = "byteorder";
+            }
+            if (!what)
+                continue;
+
+            uint64_t size = zip.get_file_size(n);
+            std::vector<char> buf((size_t)size + 1);
+            if (zip.read_file(n, buf.data()) != 0)
+            {
+                fprintf(stderr, "read %s failed\n", n.c_str());
+                return -1;
+            }
+            buf[size] = 0;
+            // tolerate trailing \r\n written by other tools
+            while (size > 0 && (buf[size - 1] == '\r' || buf[size - 1] == '\n'))
+                buf[--size] = 0;
+
+            if (strcmp(buf.data(), expect) != 0)
+            {
+                fprintf(stderr, "unsupported %s \"%s\" (expected \"%s\")\n", what, buf.data(), expect);
+                return -1;
+            }
+        }
+    }
+
     // read and parse model json
     JsonValue root;
     {

@@ -3009,6 +3009,57 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         if (py_any_dynamic)
         {
+            // runtime input validation: the exported program recorded dynamic
+            // dimension ranges (range_constraints); check caller-provided
+            // inputs against them so an out-of-range shape fails with a clear
+            // message instead of an opaque guard error inside torch.export
+            fprintf(pyfp, "def _validate_inputs(inputs):\n");
+            fprintf(pyfp, "    # dynamic dimension constraints recorded from the original export\n");
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+                if (it == py_spec_by_name.end())
+                    continue;
+
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                bool has_dyn = false;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (!ds[j].empty())
+                        has_dyn = true;
+                }
+                if (!has_dyn)
+                    continue;
+
+                fprintf(pyfp, "    x%d = inputs[%zu]\n", (int)i, i);
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
+                    int64_t mn = 2;
+                    int64_t mx = INT64_MAX;
+                    if (rit != pt2_sym_ranges.end())
+                    {
+                        mn = rit->second.first;
+                        mx = rit->second.second;
+                    }
+
+                    if (mx != INT64_MAX)
+                        fprintf(pyfp, "    if x%d.size(%zu) < %lld or x%d.size(%zu) > %lld:\n        raise ValueError(\"input '%s' dim %zu (%s) must be within [%lld, %lld], got %%d\" %% x%d.size(%zu))\n",
+                                (int)i, j, (long long)mn, (int)i, j, (long long)mx, iname.c_str(), j, ds[j].c_str(), (long long)mn, (long long)mx, (int)i, j);
+                    else
+                        fprintf(pyfp, "    if x%d.size(%zu) < %lld:\n        raise ValueError(\"input '%s' dim %zu (%s) must be at least %lld, got %%d\" %% x%d.size(%zu))\n",
+                                (int)i, j, (long long)mn, iname.c_str(), j, ds[j].c_str(), (long long)mn, (int)i, j);
+                }
+            }
+            fprintf(pyfp, "\n");
+
+            fprintf(pyfp, "    _validate_inputs(example_inputs)\n");
+            fprintf(pyfp, "\n");
+
             fprintf(pyfp, "    dynamic_shapes = (\n");
             for (size_t i = 0; i < py_input_operands.size(); i++)
             {
