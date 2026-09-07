@@ -151,11 +151,32 @@ static int test_cpu_powersave()
 
 #endif
 
+static int test_physical_cpu_info()
+{
+    const int cpucount = ncnn::get_cpu_count();
+    const int physical_cpucount = ncnn::get_physical_cpu_count();
+    if (cpucount < 1 || physical_cpucount < 1 || physical_cpucount > cpucount)
+    {
+        fprintf(stderr, "Invalid cpu count: logical=%d physical=%d\n", cpucount, physical_cpucount);
+        return 1;
+    }
+
+    const int level2_cache_size = ncnn::get_cpu_level2_cache_size();
+    if (level2_cache_size < 1)
+    {
+        fprintf(stderr, "Invalid L2 cache size: %d\n", level2_cache_size);
+        return 1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     return 0
            || test_cpu_set()
            || test_cpu_info()
+           || test_physical_cpu_info()
            || test_cpu_omp()
            || test_cpu_powersave();
 }
