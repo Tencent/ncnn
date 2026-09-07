@@ -373,7 +373,7 @@ void fold_pt2_window_functions(Graph& pg)
         {
             const double phase = 2.0 * 3.14159265358979323846 * j / window_length;
             data[j] = op->type == "aten::hann_window" ? (float)(0.5 * (1.0 - cos(phase)))
-                                                           : (float)(0.54 - 0.46 * cos(phase));
+                                                      : (float)(0.54 - 0.46 * cos(phase));
         }
 
         for (size_t j = 0; j < op->inputs.size(); j++)

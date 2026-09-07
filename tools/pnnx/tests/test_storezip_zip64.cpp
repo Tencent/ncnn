@@ -50,8 +50,8 @@ static bool write_le64(FILE* fp, uint64_t value)
 static bool write_local_header(FILE* fp)
 {
     return write_le32(fp, 0x04034b50) && write_le16(fp, 45) && write_le16(fp, 0) && write_le16(fp, 0)
-            && write_le16(fp, 0) && write_le16(fp, 0) && write_le32(fp, 0) && write_le32(fp, 0)
-            && write_le32(fp, 0) && write_le16(fp, 1) && write_le16(fp, 0) && write_bytes(fp, "x", 1);
+           && write_le16(fp, 0) && write_le16(fp, 0) && write_le32(fp, 0) && write_le32(fp, 0)
+           && write_le32(fp, 0) && write_le16(fp, 1) && write_le16(fp, 0) && write_bytes(fp, "x", 1);
 }
 
 static bool write_central_header(FILE* fp, uint64_t central_offset, uint64_t central_size)
@@ -70,11 +70,11 @@ static bool write_central_header(FILE* fp, uint64_t central_offset, uint64_t cen
 static bool write_end_records(FILE* fp, uint64_t central_offset, uint64_t central_size, uint64_t eocdr64_offset)
 {
     return write_le32(fp, 0x06064b50) && write_le64(fp, 44) && write_le16(fp, 45) && write_le16(fp, 45)
-            && write_le32(fp, 0) && write_le32(fp, 0) && write_le64(fp, 1) && write_le64(fp, 1)
-            && write_le64(fp, central_size) && write_le64(fp, central_offset) && write_le32(fp, 0x07064b50)
-            && write_le32(fp, 0) && write_le64(fp, eocdr64_offset) && write_le32(fp, 1) && write_le32(fp, 0x06054b50)
-            && write_le16(fp, 0) && write_le16(fp, 0) && write_le16(fp, 0xffff) && write_le16(fp, 0xffff)
-            && write_le32(fp, 0xffffffff) && write_le32(fp, 0xffffffff) && write_le16(fp, 0);
+           && write_le32(fp, 0) && write_le32(fp, 0) && write_le64(fp, 1) && write_le64(fp, 1)
+           && write_le64(fp, central_size) && write_le64(fp, central_offset) && write_le32(fp, 0x07064b50)
+           && write_le32(fp, 0) && write_le64(fp, eocdr64_offset) && write_le32(fp, 1) && write_le32(fp, 0x06054b50)
+           && write_le16(fp, 0) && write_le16(fp, 0) && write_le16(fp, 0xffff) && write_le16(fp, 0xffff)
+           && write_le32(fp, 0xffffffff) && write_le32(fp, 0xffffffff) && write_le16(fp, 0);
 }
 
 int main()

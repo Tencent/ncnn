@@ -302,7 +302,7 @@ int main(int argc, char** argv)
     if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
     {
         const std::string path = "test_pt2_schema_selftest.pt2";
-        const char* json = R"JSON({"schema_version":{"major":1,"minor":0},"torch_version":"test","graph_module":{"graph":{"nodes":[],"tensor_values":{}},"signature":{"input_specs":[],"output_specs":[]}}})JSON";
+        const char* json = R "JSON({" schema_version ":{" major ":1," minor ":0}," torch_version ":" test "," graph_module ":{" graph ":{" nodes ":[]," tensor_values ":{}}," signature ":{" input_specs ":[]," output_specs ":[]}}})JSON";
         StoreZipWriter writer;
         if (writer.open(path) != 0 || writer.write_file("models/model.json", json, strlen(json)) != 0
                 || writer.close() != 0)
