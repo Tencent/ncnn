@@ -283,15 +283,17 @@ def test():
         # hostile tensor_meta must not OOM / crash / hang the process: the run
         # must finish (within timeout) with a clean (non-signal) returncode. a
         # negative returncode means the process was killed by a signal.
+        # note: pnnx exits via `return -1` on rejection; Linux reports 255,
+        # Windows reports the unsigned 0xffffffff (4294967295)
         for name in ("huge_shape", "oob_offset"):
             rc, text = _run_pnnx(pnnx, cases[name], outdir)
-            ok = rc is not None and rc >= 0 and rc in (0, 1, 255)
+            ok = rc is not None and rc >= 0 and rc in (0, 1, 255, 4294967295)
             results.append(_case(name + "(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
         # deflate header overrun (hostile HLIT/HDIST) must be rejected cleanly,
         # not abort with a smashed stack (SIGABRT -> negative returncode)
         rc, text = _run_pnnx(pnnx, cases["hostile_deflate"], outdir)
-        ok = rc is not None and rc >= 0 and rc in (0, 1, 255)
+        ok = rc is not None and rc >= 0 and rc in (0, 1, 255, 4294967295)
         results.append(_case("hostile_inflate(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
     return all(results)
