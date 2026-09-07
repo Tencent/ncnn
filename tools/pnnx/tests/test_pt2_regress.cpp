@@ -183,7 +183,7 @@ static void test_scalar_type_argument()
     Pt2Argument a;
     a.type = Pt2Argument::SCALAR_TYPE;
 
-    const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15};
     for (int i = 1; i <= 13; i++)
     {
         a.int_value = i;

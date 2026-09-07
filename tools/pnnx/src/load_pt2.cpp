@@ -98,7 +98,7 @@ static bool pt2_scalar_type_to_jit_type(long long scalar_type, long long& jit_ty
         jit_type = 11;
         return true;
     case 13:
-        jit_type = 12;
+        jit_type = 15;
         return true;
     default:
         return false;
