@@ -301,22 +301,24 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                     if (kk < max_kk0)
                     {
                         __mmask16 _mask = (__mmask16)((1 << (max_kk0 - kk)) - 1);
-                        _absmax0 = _mm512_max_ps(_absmax0, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a))));
-                        _absmax1 = _mm512_max_ps(_absmax1, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep))));
-                        _absmax2 = _mm512_max_ps(_absmax2, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 2))));
-                        _absmax3 = _mm512_max_ps(_absmax3, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 3))));
-                        _absmax4 = _mm512_max_ps(_absmax4, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 4))));
-                        _absmax5 = _mm512_max_ps(_absmax5, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 5))));
-                        _absmax6 = _mm512_max_ps(_absmax6, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 6))));
-                        _absmax7 = _mm512_max_ps(_absmax7, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 7))));
-                        _absmax8 = _mm512_max_ps(_absmax8, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 8))));
-                        _absmax9 = _mm512_max_ps(_absmax9, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 9))));
-                        _absmaxa = _mm512_max_ps(_absmaxa, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 10))));
-                        _absmaxb = _mm512_max_ps(_absmaxb, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 11))));
-                        _absmaxc = _mm512_max_ps(_absmaxc, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 12))));
-                        _absmaxd = _mm512_max_ps(_absmaxd, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 13))));
-                        _absmaxe = _mm512_max_ps(_absmaxe, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 14))));
-                        _absmaxf = _mm512_max_ps(_absmaxf, abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 15))));
+                        // avoid vs2017 dropping the mask when folding bf16 loads
+                        __m256i _zero = _mm256_setzero_si256();
+                        _absmax0 = _mm512_max_ps(_absmax0, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a))));
+                        _absmax1 = _mm512_max_ps(_absmax1, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep))));
+                        _absmax2 = _mm512_max_ps(_absmax2, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 2))));
+                        _absmax3 = _mm512_max_ps(_absmax3, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 3))));
+                        _absmax4 = _mm512_max_ps(_absmax4, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 4))));
+                        _absmax5 = _mm512_max_ps(_absmax5, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 5))));
+                        _absmax6 = _mm512_max_ps(_absmax6, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 6))));
+                        _absmax7 = _mm512_max_ps(_absmax7, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 7))));
+                        _absmax8 = _mm512_max_ps(_absmax8, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 8))));
+                        _absmax9 = _mm512_max_ps(_absmax9, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 9))));
+                        _absmaxa = _mm512_max_ps(_absmaxa, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 10))));
+                        _absmaxb = _mm512_max_ps(_absmaxb, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 11))));
+                        _absmaxc = _mm512_max_ps(_absmaxc, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 12))));
+                        _absmaxd = _mm512_max_ps(_absmaxd, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 13))));
+                        _absmaxe = _mm512_max_ps(_absmaxe, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 14))));
+                        _absmaxf = _mm512_max_ps(_absmaxf, abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 15))));
                     }
 
                     transpose16x16_ps(_absmax0, _absmax1, _absmax2, _absmax3, _absmax4, _absmax5, _absmax6, _absmax7, _absmax8, _absmax9, _absmaxa, _absmaxb, _absmaxc, _absmaxd, _absmaxe, _absmaxf);
@@ -1681,23 +1683,25 @@ static void quantize_A_tile_wq_int8_bf16s(const Mat& A, Mat& AT_tile, Mat& AT_de
                 if (kk < max_kk0)
                 {
                     __mmask16 _mask = (__mmask16)((1 << (max_kk0 - kk)) - 1);
+                    // avoid vs2017 dropping the mask when folding bf16 loads
+                    __m256i _zero = _mm256_setzero_si256();
                     __m512 _s = _mm512_maskz_loadu_ps(_mask, psa);
-                    _absmax0 = _mm512_max_ps(_absmax0, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a))), _s));
-                    _absmax1 = _mm512_max_ps(_absmax1, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep))), _s));
-                    _absmax2 = _mm512_max_ps(_absmax2, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 2))), _s));
-                    _absmax3 = _mm512_max_ps(_absmax3, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 3))), _s));
-                    _absmax4 = _mm512_max_ps(_absmax4, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 4))), _s));
-                    _absmax5 = _mm512_max_ps(_absmax5, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 5))), _s));
-                    _absmax6 = _mm512_max_ps(_absmax6, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 6))), _s));
-                    _absmax7 = _mm512_max_ps(_absmax7, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 7))), _s));
-                    _absmax8 = _mm512_max_ps(_absmax8, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 8))), _s));
-                    _absmax9 = _mm512_max_ps(_absmax9, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 9))), _s));
-                    _absmaxa = _mm512_max_ps(_absmaxa, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 10))), _s));
-                    _absmaxb = _mm512_max_ps(_absmaxb, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 11))), _s));
-                    _absmaxc = _mm512_max_ps(_absmaxc, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 12))), _s));
-                    _absmaxd = _mm512_max_ps(_absmaxd, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 13))), _s));
-                    _absmaxe = _mm512_max_ps(_absmaxe, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 14))), _s));
-                    _absmaxf = _mm512_max_ps(_absmaxf, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_maskz_loadu_epi16(_mask, p0a + A_hstep * 15))), _s));
+                    _absmax0 = _mm512_max_ps(_absmax0, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a))), _s));
+                    _absmax1 = _mm512_max_ps(_absmax1, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep))), _s));
+                    _absmax2 = _mm512_max_ps(_absmax2, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 2))), _s));
+                    _absmax3 = _mm512_max_ps(_absmax3, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 3))), _s));
+                    _absmax4 = _mm512_max_ps(_absmax4, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 4))), _s));
+                    _absmax5 = _mm512_max_ps(_absmax5, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 5))), _s));
+                    _absmax6 = _mm512_max_ps(_absmax6, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 6))), _s));
+                    _absmax7 = _mm512_max_ps(_absmax7, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 7))), _s));
+                    _absmax8 = _mm512_max_ps(_absmax8, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 8))), _s));
+                    _absmax9 = _mm512_max_ps(_absmax9, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 9))), _s));
+                    _absmaxa = _mm512_max_ps(_absmaxa, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 10))), _s));
+                    _absmaxb = _mm512_max_ps(_absmaxb, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 11))), _s));
+                    _absmaxc = _mm512_max_ps(_absmaxc, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 12))), _s));
+                    _absmaxd = _mm512_max_ps(_absmaxd, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 13))), _s));
+                    _absmaxe = _mm512_max_ps(_absmaxe, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 14))), _s));
+                    _absmaxf = _mm512_max_ps(_absmaxf, _mm512_mul_ps(abs512_ps(bfloat2float_avx512(_mm256_mask_loadu_epi16(_zero, _mask, p0a + A_hstep * 15))), _s));
                 }
 
                 transpose16x16_ps(_absmax0, _absmax1, _absmax2, _absmax3, _absmax4, _absmax5, _absmax6, _absmax7, _absmax8, _absmax9, _absmaxa, _absmaxb, _absmaxc, _absmaxd, _absmaxe, _absmaxf);
