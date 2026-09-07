@@ -572,6 +572,38 @@ pnnx.Output             output      2 0 out0 out1
     CHECK(folded_one == 2, "window: one-element hann/hamming fold to {1} like PyTorch");
 }
 
+static void test_window_function_periodic_fold()
+{
+    // torch.export routes periodic=False to the .periodic overload whose
+    // periodic is a required positional bool, so the fill shape is 6 inputs
+    Graph graph;
+    graph.parse(R"PNNXIR(7767517
+8 7
+prim::Constant          length      0 1 length value=8
+prim::Constant          periodic    0 1 periodic value=False
+prim::Constant          dtype       0 1 dtype value=None
+prim::Constant          layout      0 1 layout value=None
+prim::Constant          device      0 1 device value=cpu
+prim::Constant          pin_memory  0 1 pin_memory value=False
+aten::hann_window       op          6 1 length periodic dtype layout device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR");
+
+    fold_pt2_window_functions(graph);
+    Operator* attr = find_op(graph, "pnnx.Attribute");
+    CHECK(attr != 0 && attr->inputs.empty(), "window: periodic overload folds to pnnx.Attribute");
+    if (attr)
+    {
+        const Attribute& data = attr->attrs.at("data");
+        const std::vector<float> values = data.get_float32_data();
+        // symmetric hann: 0.5*(1-cos(2*pi*j/(n-1))), zero at both ends
+        CHECK(data.shape == std::vector<int>({8}) && values.size() == 8
+                  && values[0] == 0.f && values[7] == 0.f
+                  && values[1] > 0.1882f && values[1] < 0.1883f,
+              "window: non-periodic hann_window uses symmetric n-1 formula");
+    }
+}
+
 int main()
 {
     test_ones_like_fold();
@@ -589,6 +621,7 @@ int main()
     test_module_form_normalization();
     test_window_function_fold();
     test_window_function_one_element_fold();
+    test_window_function_periodic_fold();
 
     if (g_failed == 0)
     {

@@ -324,13 +324,16 @@ static bool get_pt2_constant(const Operand* operand, Parameter& value)
     return true;
 }
 
+// Keyword fill shape: [dtype, layout, device, pin_memory]. torch.export keeps
+// every non-default keyword value, so dtype/layout must stay None while device
+// stays "cpu" and pin_memory false; anything else is a user override to skip.
 static bool is_pt2_default_window_argument(const Parameter& value, int index)
 {
-    if (index == 1 || index == 2)
+    if (index == 0 || index == 1)
         return value.type == 0;
-    if (index == 3)
+    if (index == 2)
         return value.type == 4 && value.s == "cpu";
-    if (index == 4)
+    if (index == 3)
         return value.type == 1 && !value.b;
 
     return false;
@@ -343,18 +346,34 @@ void fold_pt2_window_functions(Graph& pg)
         Operator* op = pg.ops[i];
         if (op->type != "aten::hann_window" && op->type != "aten::hamming_window")
             continue;
-        if (op->inputs.size() != 5 || op->outputs.size() != 1)
+
+        // torch.export routes periodic=True to the .default overload (no
+        // periodic arg in the schema) and periodic=False to the .periodic
+        // overload where periodic is a required positional bool. After the
+        // defaults fill the shapes are therefore 5 inputs or 6 inputs.
+        const bool has_periodic_arg = op->inputs.size() == 6;
+        if ((!has_periodic_arg && op->inputs.size() != 5) || op->outputs.size() != 1)
             continue;
 
         Parameter length;
         if (!get_pt2_constant(op->inputs[0], length) || length.type != 2 || length.i <= 0)
             continue;
 
+        bool periodic = true;
+        if (has_periodic_arg)
+        {
+            Parameter flag;
+            if (!get_pt2_constant(op->inputs[1], flag) || flag.type != 1)
+                continue;
+            periodic = flag.b;
+        }
+
+        const size_t kwarg_base = has_periodic_arg ? 2 : 1;
         bool is_default = true;
-        for (int j = 1; j < 5; j++)
+        for (int j = 0; j < 4; j++)
         {
             Parameter value;
-            if (!get_pt2_constant(op->inputs[j], value) || !is_pt2_default_window_argument(value, j))
+            if (!get_pt2_constant(op->inputs[kwarg_base + j], value) || !is_pt2_default_window_argument(value, j))
             {
                 is_default = false;
                 break;
@@ -377,7 +396,8 @@ void fold_pt2_window_functions(Graph& pg)
                 data[j] = 1.f;
                 continue;
             }
-            const double phase = 2.0 * 3.14159265358979323846 * j / window_length;
+            const int denom = periodic ? window_length : window_length - 1;
+            const double phase = 2.0 * 3.14159265358979323846 * j / denom;
             data[j] = op->type == "aten::hann_window" ? (float)(0.5 * (1.0 - cos(phase)))
                                                       : (float)(0.54 - 0.46 * cos(phase));
         }

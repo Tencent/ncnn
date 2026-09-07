@@ -1,7 +1,34 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
-// Generated from torch 2.13.0+cpu; do not edit manually.
-// Encoded values preserve schema arity and distinguish None from empty lists.
+//
+// aten 参数默认值静态表(离线生成,勿手改)。
+//
+// torch.export 会把等于默认值的实参从图里省略(cat 的 dim=0、flatten 的
+// end_dim=-1、conv2d 的 dilation/groups 等);pt2 builder 据本表把省略的
+// 实参补全为完整 schema 形态,使 pt2 图与 torchscript 图同构、下游
+// pass_level2 形态分支(torch_cat / torch_flatten / F_conv2d_1 ...)零改动复用。
+//
+// 再生成:python scripts/dump_aten_defaults.py --ops aten::_weight_norm.default aten::abs.default aten::acos.default aten::acosh.default aten::adaptive_avg_pool1d.default aten::adaptive_avg_pool2d.default aten::adaptive_avg_pool3d.default aten::adaptive_max_pool1d.default aten::adaptive_max_pool2d.default aten::adaptive_max_pool3d.default aten::add.Tensor aten::add_.Tensor aten::addmm.default aten::alias.default aten::alpha_dropout.default aten::amax.default aten::amin.default aten::asin.default aten::asinh.default aten::atan.default aten::atan2.default aten::atanh.default aten::avg_pool1d.default aten::avg_pool2d.default aten::avg_pool3d.default aten::baddbmm.default aten::batch_norm.default aten::bmm.default aten::cat.default aten::ceil.default aten::celu.default aten::channel_shuffle.default aten::chunk.default aten::clamp.default aten::clamp_.default aten::clamp_min.default aten::clone.default aten::col2im.default aten::contiguous.default aten::conv1d.default aten::conv1d.padding aten::conv2d.default aten::conv2d.padding aten::conv3d.default aten::conv3d.padding aten::conv_transpose1d.default aten::conv_transpose2d.input aten::conv_transpose3d.input aten::copy_.default aten::cos.default aten::cosh.default aten::cumsum.default aten::diag.default aten::div.Tensor aten::dropout.default aten::einsum.default aten::elu.default aten::embedding.default aten::erf.default aten::exp.default aten::exp_.default aten::expand.default aten::expand_as.default aten::expm1.default aten::feature_alpha_dropout.default aten::feature_dropout.default aten::flatten.using_ints aten::flip.default aten::floor.default aten::gelu.default aten::glu.default aten::grid_sampler.default aten::group_norm.default aten::gru.input aten::hamming_window.default aten::hamming_window.periodic aten::hann_window.default aten::hann_window.periodic aten::hardshrink.default aten::hardsigmoid.default aten::hardswish.default aten::hardtanh.default aten::im2col.default aten::instance_norm.default aten::istft.default aten::layer_norm.default aten::leaky_relu.default aten::linalg_vector_norm.default aten::linear.default aten::log.default aten::log10.default aten::log1p.default aten::log_sigmoid.default aten::log_softmax.int aten::logsumexp.default aten::lstm.input aten::matmul.default aten::max.default aten::max.dim aten::max.other aten::max_pool1d.default aten::max_pool1d_with_indices.default aten::max_pool2d.default aten::max_pool2d_with_indices.default aten::max_pool3d.default aten::max_pool3d_with_indices.default aten::maximum.default aten::mean.default aten::mean.dim aten::min.default aten::min.dim aten::min.other aten::minimum.default aten::mish.default aten::mm.default aten::mul.Tensor aten::neg.default aten::ones_like.default aten::pad.default aten::permute.default aten::pixel_shuffle.default aten::pixel_unshuffle.default aten::pow.Tensor_Scalar aten::pow.Tensor_Tensor aten::prelu.default aten::prod.dim_int aten::reciprocal.default aten::relu.default aten::relu6.default aten::relu6_.default aten::relu_.default aten::repeat.default aten::reshape.default aten::reshape_as.default aten::rms_norm.default aten::rnn_tanh.input aten::roll.default aten::round.default aten::rsqrt.default aten::scaled_dot_product_attention.default aten::select.int aten::selu.default aten::sigmoid.default aten::sign.default aten::silu.default aten::sin.default aten::sinh.default aten::slice.Tensor aten::slice_scatter.default aten::softmax.int aten::softplus.default aten::softshrink.default aten::split.Tensor aten::split_with_sizes.default aten::sqrt.default aten::square.default aten::squeeze.default aten::squeeze.dim aten::stack.default aten::stft.default aten::sub.Tensor aten::sum.default aten::sum.dim_IntList aten::t.default aten::tan.default aten::tanh.default aten::tensor_split.indices aten::tensor_split.sections aten::transpose.int aten::trunc.default aten::unbind.int aten::unflatten.int aten::unsqueeze.default aten::upsample_bicubic2d.vec aten::upsample_bilinear2d.vec aten::upsample_linear1d.vec aten::upsample_nearest1d.vec aten::upsample_nearest2d.vec aten::view.default aten::view_as_complex.default aten::view_as_real.default aten::zeros.default aten::zeros_like
+// 来源:torch 2.14.0+cu130 的 torch._C._jit_get_all_schemas()(4400 个 schema)
+// 生成时间:2026-09-07 22:54
+// 收录算子:183 个
+//
+// 值编码(type 标签 + 字符串值):
+//   NO_DEFAULT=-1  无默认值的必填参数(占位,保证形参顺序)
+//   NONE=0         ""
+//   INT=1          十进制整数
+//   FLOAT=2        strtod 可解析(含 inf/-inf/nan)
+//   BOOL=3         "0"/"1"
+//   STRING=4       原文
+//   INTS/FLOATS/STRINGS=5/6/7  逗号分隔平铺;值为 "" 表示空列表,builder 转
+//                  type 0(None)—— ts 侧空列表实参物化为 None 常量(如
+//                  max_pool2d 的 stride=()),下游转换器按 type 0 解释
+//   DEVICE=8       ""=None,否则 "cpu"/"cuda:0" 形态(builder 转 STRING)
+//   UNSUPPORTED=9  bool 列表/嵌套列表/Tensor 等 builder 无法表达的默认值,
+//                  不参与补全(生成时告警留痕)
+//
+// 限制:覆盖随测试语料增长按需重跑扩充;表未收录的算子 builder 保持
+// torch.export 原样转写(缺参不补,stderr 告警)。
 
 #ifndef PNNX_ATEN_DEFAULTS_TABLE_H
 #define PNNX_ATEN_DEFAULTS_TABLE_H
@@ -35,12 +62,13 @@ struct Pt2ArgDefault
 
 struct Pt2DefaultsEntry
 {
-    const char* op; // Full name including overload.
+    const char* op; // 全名含 overload,如 "aten::conv2d.default"
     const Pt2ArgDefault* args;
     size_t arg_count;
 };
 
-// Returns the defaults for a full PT2 target name, or 0 if absent.
+// 按 pt2 target 全名(如 "aten::flatten.using_ints")查参数默认值表。
+// 未收录返回 0。
 inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
 {
     static const Pt2ArgDefault args_aten__weight_norm_default[] = {
@@ -670,6 +698,17 @@ inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
     static const Pt2DefaultsEntry entry_aten_hamming_window_default = {"aten::hamming_window.default", args_aten_hamming_window_default, 5};
     if (strcmp(op, entry_aten_hamming_window_default.op) == 0) return &entry_aten_hamming_window_default;
 
+    static const Pt2ArgDefault args_aten_hamming_window_periodic[] = {
+        {"window_length", PT2_D_NO_DEFAULT, ""},
+        {"periodic", PT2_D_NO_DEFAULT, ""},
+        {"dtype", PT2_D_NONE, ""},
+        {"layout", PT2_D_NONE, ""},
+        {"device", PT2_D_NONE, ""},
+        {"pin_memory", PT2_D_NONE, ""},
+    };
+    static const Pt2DefaultsEntry entry_aten_hamming_window_periodic = {"aten::hamming_window.periodic", args_aten_hamming_window_periodic, 6};
+    if (strcmp(op, entry_aten_hamming_window_periodic.op) == 0) return &entry_aten_hamming_window_periodic;
+
     static const Pt2ArgDefault args_aten_hann_window_default[] = {
         {"window_length", PT2_D_NO_DEFAULT, ""},
         {"dtype", PT2_D_NONE, ""},
@@ -679,6 +718,17 @@ inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
     };
     static const Pt2DefaultsEntry entry_aten_hann_window_default = {"aten::hann_window.default", args_aten_hann_window_default, 5};
     if (strcmp(op, entry_aten_hann_window_default.op) == 0) return &entry_aten_hann_window_default;
+
+    static const Pt2ArgDefault args_aten_hann_window_periodic[] = {
+        {"window_length", PT2_D_NO_DEFAULT, ""},
+        {"periodic", PT2_D_NO_DEFAULT, ""},
+        {"dtype", PT2_D_NONE, ""},
+        {"layout", PT2_D_NONE, ""},
+        {"device", PT2_D_NONE, ""},
+        {"pin_memory", PT2_D_NONE, ""},
+    };
+    static const Pt2DefaultsEntry entry_aten_hann_window_periodic = {"aten::hann_window.periodic", args_aten_hann_window_periodic, 6};
+    if (strcmp(op, entry_aten_hann_window_periodic.op) == 0) return &entry_aten_hann_window_periodic;
 
     static const Pt2ArgDefault args_aten_hardshrink_default[] = {
         {"self", PT2_D_NO_DEFAULT, ""},
@@ -1500,6 +1550,17 @@ inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
     };
     static const Pt2DefaultsEntry entry_aten_zeros_default = {"aten::zeros.default", args_aten_zeros_default, 5};
     if (strcmp(op, entry_aten_zeros_default.op) == 0) return &entry_aten_zeros_default;
+
+    static const Pt2ArgDefault args_aten_zeros_like_default[] = {
+        {"self", PT2_D_NO_DEFAULT, ""},
+        {"dtype", PT2_D_NONE, ""},
+        {"layout", PT2_D_NONE, ""},
+        {"device", PT2_D_NONE, ""},
+        {"pin_memory", PT2_D_NONE, ""},
+        {"memory_format", PT2_D_NONE, ""},
+    };
+    static const Pt2DefaultsEntry entry_aten_zeros_like_default = {"aten::zeros_like.default", args_aten_zeros_like_default, 6};
+    if (strcmp(op, entry_aten_zeros_like_default.op) == 0) return &entry_aten_zeros_like_default;
     return 0;
 }
 

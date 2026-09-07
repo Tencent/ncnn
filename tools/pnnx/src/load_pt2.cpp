@@ -785,6 +785,13 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     fprintf(stderr, "load_pt2: %s node %s: arg names mismatch defaults table, fallback to raw order\n",
                             full_target.c_str(), node.name.c_str());
                 }
+                else if (strncmp(aten_type.c_str(), "aten::", 6) == 0 && !node.inputs.empty())
+                {
+                    // Omitted defaults stay unfilled, so a matching rewrite may
+                    // never fire; surface it instead of failing downstream.
+                    fprintf(stderr, "load_pt2: %s node %s: not in defaults table, %d arg(s) emitted as-is\n",
+                            full_target.c_str(), node.name.c_str(), (int)node.inputs.size());
+                }
 
                 for (size_t j = 0; j < node.inputs.size(); j++)
                 {
