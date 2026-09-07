@@ -415,6 +415,7 @@ public:
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
     VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceMaintenance4FeaturesKHR queryMaintenance4Features;
     VkPhysicalDeviceRobustness2FeaturesKHR queryRobustness2Features;
     VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
     VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
@@ -1093,6 +1094,16 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
     }
 
+    // query maintenance4
+    memset(&queryMaintenance4Features, 0, sizeof(queryMaintenance4Features));
+    queryMaintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
+    queryMaintenance4Features.pNext = 0;
+    if (physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
+    {
+        queryMaintenance4Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryMaintenance4Features;
+    }
+
     // query robustness2
     memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
     queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR;
@@ -1283,14 +1294,6 @@ void GpuInfoPrivate::query_extension_features()
         default:
             break;
         }
-    }
-
-    if (physicalDeviceProperties.vendorID == 0x5143)
-    {
-        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
-        // TODO special unroll strategy needs to be designed for adreno
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
     }
 }
 
@@ -2458,6 +2461,11 @@ const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& GpuInfo::queryCooperativeMat
 const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVectorFeaturesNV() const
 {
     return d->queryCooperativeVectorFeaturesNV;
+}
+
+const VkPhysicalDeviceMaintenance4FeaturesKHR& GpuInfo::queryMaintenance4Features() const
+{
+    return d->queryMaintenance4Features;
 }
 
 const VkPhysicalDeviceRobustness2FeaturesKHR& GpuInfo::queryRobustness2Features() const
@@ -4310,6 +4318,11 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     uint32_t local_size_y_id = -1;
     uint32_t local_size_z_id = -1;
     uint32_t gl_WorkGroupSize_id = -1;
+    std::vector<std::pair<uint32_t, uint32_t> > local_size_ids;
+    const uint32_t local_size_xyz[3] = {local_size_x, local_size_y, local_size_z};
+    const bool use_local_size_id = code[1] >= 0x00010600;
+    uint32_t uint_type_id = -1;
+    bool inject_local_size_constants = false;
 
     const uint32_t* p = code;
     uint32_t* dp = dstcode;
@@ -4327,27 +4340,63 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         uint16_t wordcount = opcode >> 16;
         uint16_t op = opcode & 0xffff;
 
-        if (op == 16) // OpExecutionMode
+        // OpExecutionMode LocalSize or OpExecutionModeId LocalSizeId
+        if ((op == 16 && p[2] == 17) || (op == 331 && p[2] == 38 && use_local_size_id))
         {
-            uint32_t mode = p[2];
-            if (mode == 17) // LocalSize
-            {
-                memcpy(dp, p, wordcount * sizeof(uint32_t));
+            memcpy(dp, p, wordcount * sizeof(uint32_t));
 
-                // set local_size_xyz
+            if (use_local_size_id)
+            {
+                dp[0] = (wordcount << 16) | 331; // OpExecutionModeId
+                dp[2] = 38; // LocalSizeId
+                dp[3] = code[3];
+                dp[4] = code[3] + 1;
+                dp[5] = code[3] + 2;
+                dstcode[3] = code[3] + 3;
+                inject_local_size_constants = true;
+            }
+            else
+            {
                 dp[3] = local_size_x;
                 dp[4] = local_size_y;
                 dp[5] = local_size_z;
-
-                p += wordcount;
-                dp += wordcount;
-                continue;
             }
+
+            p += wordcount;
+            dp += wordcount;
+            continue;
+        }
+        else if (op == 21) // OpTypeInt
+        {
+            if (p[2] == 32 && p[3] == 0)
+                uint_type_id = p[1];
         }
         else if (op == 50) // OpSpecConstant
         {
             uint32_t id = p[2];
-            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
+            if (use_local_size_id)
+            {
+                // replace reserved local size constants also used by gl_WorkGroupSize
+                bool local_size_constant = false;
+                for (size_t i = 0; i < local_size_ids.size(); i++)
+                {
+                    if (id != local_size_ids[i].first)
+                        continue;
+
+                    memcpy(dp, p, wordcount * sizeof(uint32_t));
+                    dp[0] = (wordcount << 16) | 43; // OpConstant
+                    dp[3] = local_size_ids[i].second;
+                    local_size_constant = true;
+                    break;
+                }
+                if (local_size_constant)
+                {
+                    p += wordcount;
+                    dp += wordcount;
+                    continue;
+                }
+            }
+            else if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
             {
                 p += wordcount;
                 continue;
@@ -4365,6 +4414,29 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 }
             }
         }
+        else if (op == 54 && inject_local_size_constants) // OpFunction
+        {
+            // insert local size constants after types and before functions
+            if (uint_type_id == (uint32_t)-1)
+            {
+                uint_type_id = dstcode[3]++;
+                dp[0] = (4 << 16) | 21; // OpTypeInt
+                dp[1] = uint_type_id;
+                dp[2] = 32;
+                dp[3] = 0;
+                dp += 4;
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                dp[0] = (4 << 16) | 43; // OpConstant
+                dp[1] = uint_type_id;
+                dp[2] = code[3] + i;
+                dp[3] = local_size_xyz[i];
+                dp += 4;
+            }
+            inject_local_size_constants = false;
+        }
         else if (op == 71) // OpDecorate
         {
             uint32_t id = p[1];
@@ -4377,6 +4449,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 if (specid == 235) local_size_z_id = id;
                 if (specid == 233 || specid == 234 || specid == 235)
                 {
+                    if (use_local_size_id)
+                        local_size_ids.push_back(std::make_pair(id, local_size_xyz[specid - 233]));
                     p += wordcount;
                     continue;
                 }
@@ -4403,7 +4477,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
+    // reserve space for a uint type and three local size constants
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 16 * sizeof(uint32_t));
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
@@ -5552,6 +5627,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(storagePushConstant16)
             DD_APPEND_FEATURE(storageInputOutput16)
         }
+        {
+            const VkPhysicalDeviceMaintenance4FeaturesKHR& features = info.queryMaintenance4Features();
+            DD_APPEND_FEATURE(maintenance4)
+        }
         if (info.support_VK_KHR_robustness2() || info.support_VK_EXT_robustness2())
         {
             const VkPhysicalDeviceRobustness2FeaturesKHR& features = info.queryRobustness2Features();
@@ -6126,7 +6205,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         s.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientVulkan, 1);
 
-        if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
+        if (info.queryMaintenance4Features().maintenance4)
+        {
+            // maintenance4 supports LocalSizeId generated with spirv-1.6
+            s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+            s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_6);
+        }
+        else if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
         {
             // subgroup / cooperative_matrix need vulkan-1.1 and spirv-1.3
             s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
@@ -6299,7 +6384,8 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             uint32_t binding_id = p[3];
             if (decoration == 1) // SpecId
             {
-                specialization_count++;
+                if (binding_id != 233 && binding_id != 234 && binding_id != 235)
+                    specialization_count = std::max(specialization_count, (int)binding_id + 1);
             }
             if (decoration == 3) // BufferBlock
             {

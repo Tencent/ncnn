@@ -1703,6 +1703,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -1713,6 +1720,13 @@ void main()
                         {
 #if ncnn_VK_KHR_cooperative_matrix
                             coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                             coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -1721,6 +1735,13 @@ void main()
                         {
 #if ncnn_VK_KHR_cooperative_matrix
                             coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                             coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -1732,6 +1753,13 @@ void main()
                         {
 #if ncnn_VK_KHR_cooperative_matrix
                             coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                             coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -1740,6 +1768,13 @@ void main()
                         {
 #if ncnn_VK_KHR_cooperative_matrix
                             coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                             coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -1747,6 +1782,8 @@ void main()
                     }
                 }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
                 // sum += k * v
                 [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
                 {
@@ -1759,6 +1796,7 @@ void main()
 #endif
                     }
                 }
+#endif
             }
         }
 
@@ -1993,6 +2031,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2003,6 +2048,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -2011,6 +2063,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2022,6 +2081,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2030,6 +2096,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -2037,6 +2110,8 @@ void main()
                 }
             }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
             // sum += k * v
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
@@ -2049,6 +2124,7 @@ void main()
 #endif
                 }
             }
+#endif
         }
     }
     else if (kk >= UNROLL_SG_K)
@@ -2688,6 +2764,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2698,6 +2781,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -2706,6 +2796,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2717,6 +2814,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
 #endif
@@ -2725,6 +2829,13 @@ void main()
                     {
 #if ncnn_VK_KHR_cooperative_matrix
                         coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                         coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
 #endif
@@ -2732,6 +2843,8 @@ void main()
                 }
             }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
             // sum += k * v
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
@@ -2744,6 +2857,7 @@ void main()
 #endif
                 }
             }
+#endif
         }
 
         k += UNROLL_SG_K;
@@ -3342,6 +3456,13 @@ void main()
             {
 #if ncnn_VK_KHR_cooperative_matrix
                 coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                // adreno driver must consume the matrix before merging layout branches
+                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                {
+                    sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                 coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
 #endif
@@ -3352,6 +3473,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, true);
 #endif
@@ -3360,6 +3488,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
 #endif
@@ -3371,6 +3506,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
 #endif
@@ -3379,6 +3521,13 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
                     coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
                     coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, true);
 #endif
@@ -3386,6 +3535,8 @@ void main()
             }
         }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
         // sum += k * v
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
@@ -3398,6 +3549,7 @@ void main()
 #endif
             }
         }
+#endif
     }
 
     if (alpha != 1.f)

@@ -26,6 +26,7 @@ Gemm_vulkan::Gemm_vulkan()
     support_vulkan_any_packing = true;
 
     pipeline_gemm = 0;
+    pipeline_gemm_pack4 = 0;
 #if NCNN_INT8
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
@@ -101,12 +102,18 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_subgroup_ops = false;
     }
 
+    if (vkdev->info.vendor_id() == 0x5143 && !vkdev->info.queryMaintenance4Features().maintenance4)
+    {
+        // adreno subgroup shuffle workaround requires spirv-1.6 LocalSizeId
+        use_subgroup_ops = false;
+    }
+
+    const int M = constantM ? constantM : 1024;
+    const int N = constantN ? constantN : 1024;
+    const int K = constantK ? constantK : 1024;
+
     if (use_cooperative_matrix)
     {
-        int M = constantM ? constantM : 1024;
-        int N = constantN ? constantN : 1024;
-        int K = constantK ? constantK : 1024;
-
         if (use_bf16_cooperative_matrix)
         {
             vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
@@ -125,6 +132,42 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
+        const int pad = vkdev->info.support_VK_KHR_cooperative_matrix() ? 1 : 0;
+        const size_t shared_a = 8 * std::max(coopmat_M * (coopmat_K / 4 + pad), coopmat_K * (coopmat_M / 4 + pad));
+        const size_t shared_b = 8 * std::max(coopmat_K * (coopmat_N / 4 + pad), coopmat_N * (coopmat_K / 4 + pad));
+        const size_t shared_o = 2 * coopmat_M * coopmat_N;
+
+        for (;;)
+        {
+            const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                        + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                        + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+            const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+            if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                break;
+
+            // reduce K first to preserve output reuse
+            if (UNROLL_SG_K > 1)
+                UNROLL_SG_K = 1;
+            else if (UNROLL_WG_N > 1)
+                UNROLL_WG_N = 1;
+            else if (UNROLL_WG_M > 1)
+                UNROLL_WG_M = 1;
+            else if (UNROLL_SG_N > 1)
+                UNROLL_SG_N = 1;
+            else if (UNROLL_SG_M > 1)
+                UNROLL_SG_M = 1;
+            else
+            {
+                use_cooperative_matrix = false;
+                break;
+            }
+        }
+    }
+
+    if (use_cooperative_matrix)
+    {
         if (constantA == 1)
         {
             //        +-K-+
@@ -492,10 +535,25 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[18 + 7].u32 = UNROLL_WG_M;
         specializations[18 + 8].u32 = UNROLL_WG_N;
 
+        // specialize dynamic output packing to avoid adreno store layout branches
+        const bool use_output_pack_variants = vkdev->info.vendor_id() == 0x5143 && specializations[17].i == 0;
+        if (use_output_pack_variants)
+            specializations[17].i = 1;
+
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
+
+        if (use_output_pack_variants)
+        {
+            specializations[17].i = 4;
+
+            pipeline_gemm_pack4 = new Pipeline(vkdev);
+            pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt, specializations);
+        }
     }
     else if (opt.use_shader_local_memory)
     {
@@ -624,6 +682,9 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_gemm;
     pipeline_gemm = 0;
+
+    delete pipeline_gemm_pack4;
+    pipeline_gemm_pack4 = 0;
 
 #if NCNN_INT8
     delete pipeline_gemm_quantize_A_int8;
@@ -857,7 +918,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.h = 1;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        const Pipeline* pipeline = out_elempack == 4 && pipeline_gemm_pack4 ? pipeline_gemm_pack4 : pipeline_gemm;
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
     }
     else
     {
@@ -965,6 +1027,39 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
             UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
             UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+            const int pad = vkdev->info.support_VK_KHR_cooperative_matrix() ? 1 : 0;
+            const size_t shared_a = 4 * coopmat_M * (coopmat_K / 4 + pad);
+            const size_t shared_b = 4 * coopmat_K * (coopmat_N / 4 + pad);
+            const size_t shared_o = 4 * coopmat_M * coopmat_N;
+
+            for (;;)
+            {
+                const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                            + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+                if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                    && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                    break;
+
+                // reduce K first to preserve output reuse
+                if (UNROLL_SG_K > 1)
+                    UNROLL_SG_K = 1;
+                else if (UNROLL_WG_N > 1)
+                    UNROLL_WG_N = 1;
+                else if (UNROLL_WG_M > 1)
+                    UNROLL_WG_M = 1;
+                else if (UNROLL_SG_N > 1)
+                    UNROLL_SG_N = 1;
+                else if (UNROLL_SG_M > 1)
+                    UNROLL_SG_M = 1;
+                else
+                {
+                    use_cooperative_matrix = false;
+                    break;
+                }
+            }
         }
     }
 
@@ -1419,10 +1514,25 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         specializations[9 + 7].u32 = UNROLL_WG_M;
         specializations[9 + 8].u32 = UNROLL_WG_N;
 
+        // specialize dynamic output packing to avoid adreno store layout branches
+        const bool use_output_pack_variants = vkdev->info.vendor_id() == 0x5143 && output_transpose == 0 && out_elempack == 0;
+        if (use_output_pack_variants)
+            specializations[8].u32 = 1;
+
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         pipeline_gemm->create(LayerShaderType::gemm_int8_cm, opt_int8, specializations);
+
+        if (use_output_pack_variants)
+        {
+            specializations[8].u32 = 4;
+
+            pipeline_gemm_pack4 = new Pipeline(vkdev);
+            pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_gemm_pack4->create(LayerShaderType::gemm_int8_cm, opt_int8, specializations);
+        }
     }
     else
     {
@@ -1859,7 +1969,8 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         dispatcher.h = 1;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        const Pipeline* pipeline = out_elempack == 4 && pipeline_gemm_pack4 ? pipeline_gemm_pack4 : pipeline_gemm;
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
     }
     else
     {
