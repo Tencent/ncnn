@@ -20,7 +20,7 @@ void convert_aten_new_empty(Graph& graph)
     {
         Operator* op = graph.ops[i];
 
-        if (op->type != "aten::new_empty")
+        if (op->type != "aten::new_empty" && op->type != "Tensor.new_empty")
             continue;
         if (op->inputs.size() != 1 || op->outputs.size() != 1)
             continue;
