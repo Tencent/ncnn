@@ -998,7 +998,7 @@ static const struct DefaultsDispatchEntry
 {
     const char* type;
     DefaultsHandler handler;
-} kDefaultsDispatch[] = {
+} defaults_dispatch[] = {
     {"aten::conv1d", &append_conv_defaults},
     {"aten::conv2d", &append_conv_defaults},
     {"aten::conv3d", &append_conv_defaults},
@@ -1101,11 +1101,11 @@ void append_default_kwargs(Graph& g, Operator* op, const std::string& type, cons
 {
     DefaultsCtx ctx = {g, op, type, inputnames, constant_index};
 
-    for (size_t i = 0; i < sizeof(kDefaultsDispatch) / sizeof(kDefaultsDispatch[0]); i++)
+    for (size_t i = 0; i < sizeof(defaults_dispatch) / sizeof(defaults_dispatch[0]); i++)
     {
-        if (strcmp(kDefaultsDispatch[i].type, type.c_str()) == 0)
+        if (strcmp(defaults_dispatch[i].type, type.c_str()) == 0)
         {
-            kDefaultsDispatch[i].handler(ctx);
+            defaults_dispatch[i].handler(ctx);
             return;
         }
     }
