@@ -450,6 +450,23 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         }
     }
 
+    // dynamic re-export: keep the sym ranges from the archive so the generated
+    // *_pnnx.py can rebuild the dynamic shape constraints (torch.export.Dim)
+    if (root.has("range_constraints"))
+    {
+        const std::map<std::string, JsonValue>& rc = root["range_constraints"].as_object();
+        for (std::map<std::string, JsonValue>::const_iterator it = rc.begin(); it != rc.end(); ++it)
+        {
+            int64_t min_val = 2;
+            int64_t max_val = INT64_MAX;
+            if (it->second.has("min_val"))
+                min_val = it->second["min_val"].as_int();
+            if (it->second.has("max_val"))
+                max_val = it->second["max_val"].as_int();
+            g.pt2_sym_ranges[it->first] = std::make_pair(min_val, max_val);
+        }
+    }
+
     // weights payload config : fqn -> { path_name, tensor_meta }
     std::map<std::string, std::pair<std::string, JsonValue> > weights;
     if (!weights_config_name.empty())
@@ -753,6 +770,35 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 // no inputshape= and no static shape in tensor_values for this input
                 fprintf(stderr, "input '%s' shape unknown, please specify inputshape= explicitly\n", graph_name.c_str());
                 return -1;
+            }
+
+            // record symbolic dim names for dynamic re-export: a size entry
+            // that is an expression like "Symbol('s77', ...)" names the sym
+            // governing that dimension (works both with and without an
+            // explicit inputshape override)
+            if (tensor_values.has(graph_name) && tensor_values[graph_name].has("sizes"))
+            {
+                Pt2InputSymSpec symspec;
+                symspec.input_name = graph_name;
+                const JsonValue& sizes = tensor_values[graph_name]["sizes"];
+                for (size_t j = 0; j < sizes.size(); j++)
+                {
+                    std::string sym;
+                    const JsonValue& sj = sizes[j];
+                    if (sj.has("as_expr") && sj["as_expr"].has("expr_str"))
+                    {
+                        const std::string expr = sj["as_expr"]["expr_str"].as_string();
+                        const size_t p = expr.find("Symbol('");
+                        if (p != std::string::npos)
+                        {
+                            const size_t e = expr.find("'", p + 8);
+                            if (e != std::string::npos)
+                                sym = expr.substr(p + 8, e - p - 8);
+                        }
+                    }
+                    symspec.dim_syms.push_back(sym);
+                }
+                g.pt2_input_sym_specs.push_back(symspec);
             }
 
             user_input_index++;

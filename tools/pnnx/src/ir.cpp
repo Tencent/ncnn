@@ -2928,6 +2928,145 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    // pt2 round-trip / dynamic re-export helper: rebuilds the model from the
+    // pnnx archive and exports it again as an ExportedProgram, restoring the
+    // symbolic dims recorded by the loader as torch.export.Dim constraints
+    {
+        std::vector<const Operator*> py_input_ops;
+        std::vector<const Operand*> py_input_operands;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+            py_input_ops.push_back(op);
+            py_input_operands.push_back(op->outputs[0]);
+        }
+
+        // the loader records specs keyed by the pnnx.Input op name (the
+        // graph-level name, e.g. "x"), while operands get renamed to
+        // numeric ids during graph construction
+        std::map<std::string, const Pt2InputSymSpec*> py_spec_by_name;
+        for (size_t i = 0; i < pt2_input_sym_specs.size(); i++)
+            py_spec_by_name[pt2_input_sym_specs[i].input_name] = &pt2_input_sym_specs[i];
+
+        bool py_any_dynamic = false;
+        for (size_t i = 0; i < py_input_ops.size(); i++)
+        {
+            const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(py_input_ops[i]->name);
+            if (it == py_spec_by_name.end())
+                continue;
+            for (size_t j = 0; j < it->second->dim_syms.size(); j++)
+            {
+                if (!it->second->dim_syms[j].empty())
+                    py_any_dynamic = true;
+            }
+        }
+
+        fprintf(pyfp, "def export_exported_program(example_inputs=None, out_path=None):\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    if example_inputs is None:\n");
+        fprintf(pyfp, "        torch.manual_seed(0)\n");
+        for (size_t i = 0; i < py_input_operands.size(); i++)
+        {
+            const Operand* r = py_input_operands[i];
+            const std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            std::vector<int> input_shape = r->shape;
+            for (size_t j = 0; j < input_shape.size(); j++)
+            {
+                if (input_shape[j] == -1)
+                    input_shape[j] = 128; // try with a good default
+            }
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "        %s = torch.randint(10, (", input_name.c_str());
+                for (size_t j = 0; j < input_shape.size(); j++)
+                {
+                    fprintf(pyfp, "%d", input_shape[j]);
+                    if (j + 1 != input_shape.size() || input_shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "        %s = torch.rand(", input_name.c_str());
+                for (size_t j = 0; j < input_shape.size(); j++)
+                    fprintf(pyfp, "%d, ", input_shape[j]);
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+        }
+        fprintf(pyfp, "        example_inputs = (");
+        for (size_t i = 0; i < py_input_operands.size(); i++)
+        {
+            fprintf(pyfp, "v_%s", sanitize_identifier(py_input_operands[i]->name).c_str());
+            if (i + 1 != py_input_operands.size() || py_input_operands.size() == 1)
+                fprintf(pyfp, ", ");
+        }
+        fprintf(pyfp, ")\n");
+        fprintf(pyfp, "\n");
+
+        if (py_any_dynamic)
+        {
+            fprintf(pyfp, "    dynamic_shapes = (\n");
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+
+                bool has_dyn = false;
+                if (it != py_spec_by_name.end())
+                {
+                    for (size_t j = 0; j < it->second->dim_syms.size(); j++)
+                    {
+                        if (!it->second->dim_syms[j].empty())
+                            has_dyn = true;
+                    }
+                }
+
+                if (!has_dyn)
+                {
+                    fprintf(pyfp, "        None,\n");
+                    continue;
+                }
+
+                fprintf(pyfp, "        {\n");
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    fprintf(pyfp, "            %zu: torch.export.Dim('%s'", j, ds[j].c_str());
+                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
+                    if (rit != pt2_sym_ranges.end())
+                    {
+                        if (rit->second.first > 2)
+                            fprintf(pyfp, ", min=%lld", (long long)rit->second.first);
+                        if (rit->second.second != INT64_MAX)
+                            fprintf(pyfp, ", max=%lld", (long long)rit->second.second);
+                    }
+                    fprintf(pyfp, "),\n");
+                }
+                fprintf(pyfp, "        },\n");
+            }
+            fprintf(pyfp, "    )\n");
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs, dynamic_shapes=dynamic_shapes)\n");
+        }
+        else
+        {
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs)\n");
+        }
+
+        fprintf(pyfp, "    if out_path is None:\n");
+        fprintf(pyfp, "        out_path = os.path.splitext(os.path.abspath(__file__))[0] + '_reexported.pt2'\n");
+        fprintf(pyfp, "    torch.export.save(ep, out_path)\n");
+        fprintf(pyfp, "    return ep\n");
+    }
+
+    fprintf(pyfp, "\n");
+
     // main
     {
         fprintf(pyfp, "if __name__ == \"__main__\":\n");
