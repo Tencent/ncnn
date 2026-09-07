@@ -125,15 +125,13 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #endif // __AVX512VNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
-            __m256i _p = _mm512_cvtepi32_epi16(_mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
-            _mm256_storeu_si256((__m256i*)pp, _p);
+            _mm512_mask_cvtepi32_storeu_epi16(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
             pp += 32;
             p0 += 2;
         }
         for (; kk < max_kk; kk++)
         {
-            __m128i _p = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
-            _mm_store_si128((__m128i*)pp, _p);
+            _mm512_mask_cvtepi32_storeu_epi8(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
             pp += 16;
             p0++;
         }
@@ -172,10 +170,10 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #endif // __AVX512VNNI__ || __AVXVNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
-            __m128i _p = _mm256_comp_cvtepi32_epi16(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #if __AVX512F__
-            _mm_store_si128((__m128i*)pp, _p);
+            _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #else
+            __m128i _p = _mm256_comp_cvtepi32_epi16(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storeu_si128((__m128i*)pp, _p);
 #endif
             pp += 16;
@@ -183,8 +181,12 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk < max_kk; kk++)
         {
+#if __AVX512F__
+            _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storel_epi64((__m128i*)pp, _p);
+#endif
             pp += 8;
             p0++;
         }
@@ -230,8 +232,12 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         for (; kk + 1 < max_kk; kk += 2)
         {
 #if __AVX2__
+#if __AVX512F__
+            _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storel_epi64((__m128i*)pp, _p);
+#endif
             pp += 8;
             p0 += 2;
 #else
@@ -253,8 +259,12 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         for (; kk < max_kk; kk++)
         {
 #if __AVX2__
+#if __AVX512F__
+            _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_store_ss((float*)pp, _mm_castsi128_ps(_p));
+#endif
             pp += 4;
             p0++;
 #else
@@ -751,15 +761,13 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 #endif // __AVX512VNNI__
         for (; kk + 1 < max_kk; kk += 2)
         {
-            __m256i _p = _mm512_cvtepi32_epi16(_mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
-            _mm256_storeu_si256((__m256i*)pp, _p);
+            _mm512_mask_cvtepi32_storeu_epi16(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
             pp += 32;
             p0 += 2;
         }
         for (; kk < max_kk; kk++)
         {
-            __m128i _p = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
-            _mm_store_si128((__m128i*)pp, _p);
+            _mm512_mask_cvtepi32_storeu_epi8(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, p0, sizeof(signed char)));
             pp += 16;
             p0++;
         }
@@ -801,10 +809,10 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         for (; kk + 1 < max_kk; kk += 2)
         {
 #if __AVX2__
-            __m128i _p = _mm256_comp_cvtepi32_epi16(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #if __AVX512F__
-            _mm_store_si128((__m128i*)pp, _p);
+            _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #else
+            __m128i _p = _mm256_comp_cvtepi32_epi16(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storeu_si128((__m128i*)pp, _p);
 #endif
             pp += 16;
@@ -840,8 +848,12 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         for (; kk < max_kk; kk++)
         {
 #if __AVX2__
+#if __AVX512F__
+            _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storel_epi64((__m128i*)pp, _p);
+#endif
             pp += 8;
             p0++;
 #else
@@ -898,8 +910,12 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         for (; kk + 1 < max_kk; kk += 2)
         {
 #if __AVX2__
+#if __AVX512F__
+            _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_storel_epi64((__m128i*)pp, _p);
+#endif
             pp += 8;
             p0 += 2;
 #else
@@ -921,8 +937,12 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         for (; kk < max_kk; kk++)
         {
 #if __AVX2__
+#if __AVX512F__
+            _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+#else
             __m128i _p = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
             _mm_store_ss((float*)pp, _mm_castsi128_ps(_p));
+#endif
             pp += 4;
             p0++;
 #else
