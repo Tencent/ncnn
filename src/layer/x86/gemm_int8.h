@@ -13099,7 +13099,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 #if __AVXVNNIINT8__
                 _sum0 = _mm256_dpbssd_epi32(_sum0, _pB, _pA);
 #else // __AVXVNNIINT8__
-#if __AVX512VNNI__ && _MSC_VER < 1932
+#if __AVX512VNNI__ && defined(_MSC_VER) && _MSC_VER < 1932
                 // old msvc crash here  --- nihui
                 __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
                 __m512i _pB0 = _mm512_cvtepu8_epi16(_pB);
@@ -13846,7 +13846,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 #if __AVXVNNIINT8__
                 _sum0 = _mm_dpbssd_epi32(_sum0, _pB, _pA);
 #else // __AVXVNNIINT8__
-#if __AVX512VNNI__ && _MSC_VER < 1932
+#if __AVX512VNNI__ && defined(_MSC_VER) && _MSC_VER < 1932
                 // old msvc crash here  --- nihui
                 __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
                 __m256i _pB0 = _mm256_cvtepu8_epi16(_pB);
