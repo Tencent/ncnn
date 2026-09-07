@@ -436,7 +436,11 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
     {
         uint64_t size = zip.get_file_size(model_json_name);
         std::vector<char> buf((size_t)size + 1);
-        zip.read_file(model_json_name, buf.data());
+        if (zip.read_file(model_json_name, buf.data()) != 0)
+        {
+            fprintf(stderr, "read %s failed\n", model_json_name.c_str());
+            return -1;
+        }
         buf[size] = 0;
 
         if (!JsonParser::parse(buf.data(), (size_t)size, root))
@@ -453,18 +457,25 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         JsonValue cfg;
         uint64_t size = zip.get_file_size(weights_config_name);
         std::vector<char> buf((size_t)size + 1);
-        zip.read_file(weights_config_name, buf.data());
+        if (zip.read_file(weights_config_name, buf.data()) != 0)
+        {
+            fprintf(stderr, "read %s failed\n", weights_config_name.c_str());
+            return -1;
+        }
         buf[size] = 0;
 
-        if (JsonParser::parse(buf.data(), (size_t)size, cfg))
+        if (!JsonParser::parse(buf.data(), (size_t)size, cfg))
         {
-            const std::map<std::string, JsonValue>& c = cfg["config"].as_object();
-            for (std::map<std::string, JsonValue>::const_iterator it = c.begin(); it != c.end(); ++it)
-            {
-                std::string path_name = it->second["path_name"].as_string();
-                JsonValue meta = it->second["tensor_meta"];
-                weights[it->first] = std::make_pair(path_name, meta);
-            }
+            fprintf(stderr, "parse %s failed\n", weights_config_name.c_str());
+            return -1;
+        }
+
+        const std::map<std::string, JsonValue>& c = cfg["config"].as_object();
+        for (std::map<std::string, JsonValue>::const_iterator it = c.begin(); it != c.end(); ++it)
+        {
+            std::string path_name = it->second["path_name"].as_string();
+            JsonValue meta = it->second["tensor_meta"];
+            weights[it->first] = std::make_pair(path_name, meta);
         }
     }
 
@@ -477,18 +488,25 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         JsonValue cfg;
         uint64_t size = zip.get_file_size(constants_config_name);
         std::vector<char> buf((size_t)size + 1);
-        zip.read_file(constants_config_name, buf.data());
+        if (zip.read_file(constants_config_name, buf.data()) != 0)
+        {
+            fprintf(stderr, "read %s failed\n", constants_config_name.c_str());
+            return -1;
+        }
         buf[size] = 0;
 
-        if (JsonParser::parse(buf.data(), (size_t)size, cfg))
+        if (!JsonParser::parse(buf.data(), (size_t)size, cfg))
         {
-            const std::map<std::string, JsonValue>& c = cfg["config"].as_object();
-            for (std::map<std::string, JsonValue>::const_iterator it = c.begin(); it != c.end(); ++it)
-            {
-                std::string path_name = it->second["path_name"].as_string();
-                JsonValue meta = it->second["tensor_meta"];
-                constants[it->first] = std::make_pair(path_name, meta);
-            }
+            fprintf(stderr, "parse %s failed\n", constants_config_name.c_str());
+            return -1;
+        }
+
+        const std::map<std::string, JsonValue>& c = cfg["config"].as_object();
+        for (std::map<std::string, JsonValue>::const_iterator it = c.begin(); it != c.end(); ++it)
+        {
+            std::string path_name = it->second["path_name"].as_string();
+            JsonValue meta = it->second["tensor_meta"];
+            constants[it->first] = std::make_pair(path_name, meta);
         }
     }
 

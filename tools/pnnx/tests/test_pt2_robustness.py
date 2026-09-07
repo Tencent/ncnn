@@ -138,6 +138,14 @@ def _build_cases(workdir, base):
     _copy_and_replace(base, p, drop=("base/data/weights/weight_0",))
     cases["missing_weight"] = p
 
+    # payload config (weights / constants) truncated: must be rejected at the
+    # config boundary instead of silently emitting an incomplete model
+    for tag, blob in (("cfg_weights", "base/data/weights/model_weights_config.json"),
+                      ("cfg_constants", "base/data/constants/model_constants_config.json")):
+        p = os.path.join(workdir, "case_%s.pt2" % tag)
+        _copy_and_replace(base, p, replace={blob: b""})
+        cases[tag] = p
+
     # graph body (models/model.json) emptied -> parse failure
     p = os.path.join(workdir, "case_no_model.pt2")
     _copy_and_replace(base, p, replace={"base/models/model.json": b""})
@@ -264,6 +272,13 @@ def test():
         rc, text = _run_pnnx(pnnx, cases["missing_weight"], outdir)
         ok = rc != 0 and rc is not None and "not found" in text
         results.append(_case("missing_weight", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # truncated weights/constants config must be rejected at the config
+        # boundary (parse diagnostic), not silently converted without data
+        for name in ("cfg_weights", "cfg_constants"):
+            rc, text = _run_pnnx(pnnx, cases[name], outdir)
+            ok = rc != 0 and rc is not None and "config" in text and "failed" in text
+            results.append(_case(name + "(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
         # hostile tensor_meta must not OOM / crash / hang the process: the run
         # must finish (within timeout) with a clean (non-signal) returncode. a

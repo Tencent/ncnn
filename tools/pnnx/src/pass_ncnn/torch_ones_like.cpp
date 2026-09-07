@@ -45,6 +45,8 @@ pnnx.Output             output      1 0 out
             return true; // dtype=None: inherits the input dtype
         if (dt.type == 2 && dt.i == 6)
             return true; // torch.float
+        if (dt.type == 4 && dt.s == "torch.float")
+            return true; // normalized string form (level2 writes "torch.float" for dtype=float32)
 
         return false;
     }
