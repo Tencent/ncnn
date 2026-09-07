@@ -397,6 +397,12 @@ static int deflate_inflate_stream(DeflateBitReader& br, unsigned char* out, size
             hdist += 1;
             hclen += 4;
 
+            // RFC1951 caps: HLIT in 257..286, HDIST in 1..30. a hostile header
+            // (HLIT=288, HDIST=32) would overflow all_lengths below, so reject
+            // it before decoding instead of writing past the stack array
+            if (hlit > 286 || hdist > 30)
+                return -1;
+
             int lengths_cl[19] = {0};
             for (int i = 0; i < hclen; i++)
             {

@@ -16,6 +16,7 @@
 
 import json
 import os
+import struct
 import subprocess
 import tempfile
 import zipfile
@@ -66,6 +67,45 @@ def _copy_and_replace(src, out, drop=(), replace=None, method=zipfile.ZIP_STORED
             data = replace.get(i.filename, zin.read(i.filename))
             zout.writestr(i.filename, data)
     zin.close()
+
+
+def _make_hostile_deflate_zip(path):
+    # a method-8 entry whose dynamic-huffman header declares HLIT=288 / HDIST=32
+    # (total 320 length codes): RFC1951 caps them at 286/30, so an inflate that
+    # trusts the header writes past its length array. the loader must reject it
+    # cleanly (nonzero) instead of crashing with a corrupted stack (SIGABRT).
+    def _bits():
+        out = []
+
+        def put(v, n):
+            for i in range(n):
+                out.append((v >> i) & 1)
+
+        put(1, 1)  # BFINAL
+        put(2, 2)  # BTYPE = dynamic
+        put(31, 5)  # HLIT -> 288
+        put(31, 5)  # HDIST -> 32
+        put(0, 4)  # HCLEN -> 4
+        # code-length tree with only symbol 0 (len 1), the rest zero
+        put(0, 3)
+        put(0, 3)
+        put(0, 3)
+        put(1, 3)
+        out += [0] * 320  # 320 length-0 codes -> overflows an unchecked table
+        while len(out) % 8:
+            out.append(0)
+        return bytes(int("".join(str(b) for b in out[i:i + 8][::-1]), 2) for i in range(0, len(out), 8))
+
+    raw = _bits()
+    name = b"base/models/model.json"
+    crc = 0x12345678
+    csize = len(raw)
+    usize = 100
+    lh = struct.pack("<IHHHHHIIIHH", 0x04034b50, 20, 0, 8, 0, 0, crc, csize, usize, len(name), 0) + name
+    cd = struct.pack("<IHHHHHHIIIHHHHHII", 0x02014b50, 20, 20, 0, 8, 0, 0, crc, csize, usize, len(name), 0, 0, 0, 0, 0, 0) + name
+    eocd = struct.pack("<IHHHHIIH", 0x06054b50, 0, 0, 1, 1, len(cd), len(lh) + len(raw), 0)
+    with open(path, "wb") as f:
+        f.write(lh + raw + cd + eocd)
 
 
 def _weights_config(src):
@@ -125,6 +165,12 @@ def _build_cases(workdir, base):
     p = os.path.join(workdir, "case_garbage.pt2")
     open(p, "wb").write(b"this is not a zip archive at all " * 10)
     cases["garbage"] = p
+
+    # deflated entry with an out-of-range dynamic-huffman header (HLIT=288 /
+    # HDIST=32): an inflate that trusts the header overwrites its length table
+    p = os.path.join(workdir, "case_hostile_deflate.pt2")
+    _make_hostile_deflate_zip(p)
+    cases["hostile_deflate"] = p
 
     return cases
 
@@ -226,6 +272,12 @@ def test():
             rc, text = _run_pnnx(pnnx, cases[name], outdir)
             ok = rc is not None and rc >= 0 and rc in (0, 1, 255)
             results.append(_case(name + "(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # deflate header overrun (hostile HLIT/HDIST) must be rejected cleanly,
+        # not abort with a smashed stack (SIGABRT -> negative returncode)
+        rc, text = _run_pnnx(pnnx, cases["hostile_deflate"], outdir)
+        ok = rc is not None and rc >= 0 and rc in (0, 1, 255)
+        results.append(_case("hostile_inflate(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
     return all(results)
 
