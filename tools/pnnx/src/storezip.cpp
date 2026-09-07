@@ -576,6 +576,10 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
+    // CRC32_TABLE is shared with the writer and only initialized there; the
+    // reader now verifies entry crc32s, so make sure the table exists
+    CRC32_TABLE_INIT();
+
     // locate end of central directory record by scanning backwards
     PNNX_FSEEK(fp, 0, SEEK_END);
     int64_t file_size = PNNX_FTELL(fp);
@@ -732,6 +736,12 @@ int StoreZipReader::open(const std::string& path)
             return -1;
         }
 
+        if (cdfh.flag & 1)
+        {
+            fprintf(stderr, "encrypted zip entry %s\n", name.c_str());
+            return -1;
+        }
+
         // read local file header to compute the data offset
         // (the local header may carry a data descriptor, sizes there are unreliable)
         int64_t cd_cur = PNNX_FTELL(fp);
@@ -755,6 +765,7 @@ int StoreZipReader::open(const std::string& path)
         fm.size = compressed_size;
         fm.uncompressed_size = uncompressed_size;
         fm.compression = cdfh.compression;
+        fm.crc32 = cdfh.crc32;
         filemetas[name] = fm;
 
         // back to central directory
@@ -819,10 +830,20 @@ int StoreZipReader::read_file(const std::string& name, char* data)
             fprintf(stderr, "inflate size mismatch %s %lu %lu\n", name.c_str(), (unsigned long)out_pos, (unsigned long)uncompressed_size);
             return -1;
         }
-        return 0;
+    }
+    else
+    {
+        fread(data, size, 1, fp);
     }
 
-    fread(data, size, 1, fp);
+    // data integrity: the central directory carries the crc32 of the
+    // uncompressed entry; reject silently-corrupted payloads here instead of
+    // materializing wrong weights/constants downstream
+    if (CRC32_buffer((const unsigned char*)data, uncompressed_size) != filemetas[name].crc32)
+    {
+        fprintf(stderr, "crc mismatch %s\n", name.c_str());
+        return -1;
+    }
 
     return 0;
 }

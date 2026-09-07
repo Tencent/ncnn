@@ -108,6 +108,32 @@ def _make_hostile_deflate_zip(path):
         f.write(lh + raw + cd + eocd)
 
 
+def _patch_central(path, entry, crc=None, flag=None):
+    # byte-level patch of one central-directory record: overwrite its crc32 or
+    # OR its general-purpose flag bits (zipfile cannot express a deliberately
+    # wrong crc / encrypted flag, so the hostile archive is built by hand).
+    b = bytearray(open(path, "rb").read())
+    pos = 0
+    hit = False
+    while True:
+        p = b.find(struct.pack("<I", 0x02014b50), pos)
+        if p < 0:
+            break
+        nlen = struct.unpack_from("<H", b, p + 28)[0]
+        if bytes(b[p + 46:p + 46 + nlen]) == entry:
+            if crc is not None:
+                struct.pack_into("<I", b, p + 16, crc & 0xffffffff)
+            if flag is not None:
+                cur = struct.unpack_from("<H", b, p + 8)[0]
+                struct.pack_into("<H", b, p + 8, cur | (flag & 0xffff))
+            hit = True
+            break
+        pos = p + 1
+    if not hit:
+        raise RuntimeError("central entry %s not found" % entry)
+    open(path, "wb").write(b)
+
+
 def _weights_config(src):
     zin = zipfile.ZipFile(src)
     cfg = json.loads(zin.read("base/data/weights/model_weights_config.json"))
@@ -137,6 +163,30 @@ def _build_cases(workdir, base):
     p = os.path.join(workdir, "case_missing_weight.pt2")
     _copy_and_replace(base, p, drop=("base/data/weights/weight_0",))
     cases["missing_weight"] = p
+
+    # weight payload byte flipped but the central crc32 kept (zipfile rewrites
+    # the real crc, so the central record is patched back to a wrong value): a
+    # loader that trusts the archive silently materializes corrupt weights
+    p = os.path.join(workdir, "case_crc.pt2")
+    zin = zipfile.ZipFile(base)
+    data = bytearray(zin.read("base/data/weights/weight_0"))
+    zin.close()
+    data[8] ^= 0xFF
+    _copy_and_replace(base, p, replace={"base/data/weights/weight_0": bytes(data)})
+    _patch_central(p, b"base/data/weights/weight_0", crc=0xDEADBEEF)
+    cases["crc"] = p
+
+    # one entry flagged encrypted (general-purpose bit 0); zip readers refuse
+    # it, the loader must too instead of reading an unencrypted-looking blob
+    p = os.path.join(workdir, "case_encrypted.pt2")
+    _copy_and_replace(base, p)
+    _patch_central(p, b"base/models/model.json", flag=1)
+    cases["encrypted"] = p
+
+    # container metadata claims an archive_version the loader does not know
+    p = os.path.join(workdir, "case_bad_version.pt2")
+    _copy_and_replace(base, p, replace={"base/archive_version": b"1"})
+    cases["bad_version"] = p
 
     # payload config (weights / constants) truncated: must be rejected at the
     # config boundary instead of silently emitting an incomplete model
@@ -272,6 +322,22 @@ def test():
         rc, text = _run_pnnx(pnnx, cases["missing_weight"], outdir)
         ok = rc != 0 and rc is not None and "not found" in text
         results.append(_case("missing_weight", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # crc32 integrity: a payload that no longer matches its central crc32
+        # must be rejected with the crc diagnostic (not silently converted)
+        rc, text = _run_pnnx(pnnx, cases["crc"], outdir)
+        ok = rc != 0 and rc is not None and "crc mismatch" in text
+        results.append(_case("crc(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # encrypted entry must be rejected with the encrypted diagnostic
+        rc, text = _run_pnnx(pnnx, cases["encrypted"], outdir)
+        ok = rc != 0 and rc is not None and "encrypted" in text
+        results.append(_case("encrypted(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # unknown archive_version must be rejected with the unsupported diagnostic
+        rc, text = _run_pnnx(pnnx, cases["bad_version"], outdir)
+        ok = rc != 0 and rc is not None and "unsupported archive_version" in text
+        results.append(_case("archive_version(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
         # truncated weights/constants config must be rejected at the config
         # boundary (parse diagnostic), not silently converted without data

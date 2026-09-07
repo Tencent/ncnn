@@ -1,0 +1,5 @@
+7767517
+3 3
+Input                    in0                      0 1 in0
+Convolution              convrelu_0               1 1 in0 1 0=4 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=108 9=1
+BinaryOp                 add_0                    1 1 1 out0 0=0 1=1 2=1.0
