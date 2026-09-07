@@ -128,6 +128,427 @@ static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
     return x ^ 0xffffffff;
 }
 
+// minimal raw-DEFLATE (RFC 1951) inflate for compressed zip entries.
+// zip method 8 stores a raw deflate stream (no zlib wrapper). supports the
+// stored / fixed-huffman / dynamic-huffman blocks that python/torch/zip emit.
+// zero third-party dependency, mirroring the rest of the storezip reader.
+struct DeflateBitReader
+{
+    const unsigned char* in;
+    size_t in_len;
+    size_t in_pos;
+    unsigned int bitbuf;
+    int bitcnt;
+
+    DeflateBitReader(const unsigned char* i, size_t l)
+    {
+        in = i;
+        in_len = l;
+        in_pos = 0;
+        bitbuf = 0;
+        bitcnt = 0;
+    }
+
+    int getbit(int& bit)
+    {
+        if (bitcnt == 0)
+        {
+            if (in_pos >= in_len)
+                return -1;
+            bitbuf = in[in_pos++];
+            bitcnt = 8;
+        }
+        bit = (int)(bitbuf & 1);
+        bitbuf >>= 1;
+        bitcnt--;
+        return 0;
+    }
+
+    int getbits(int n, int& val)
+    {
+        val = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int b;
+            if (getbit(b))
+                return -1;
+            val |= b << i;
+        }
+        return 0;
+    }
+};
+
+struct DeflateHuff
+{
+    int count[16];   // count[code_length]
+    int symbol[288]; // symbols in canonical order (length asc, then value asc)
+    int maxbits;
+};
+
+static void deflate_build_huff(const int* lengths, int num_symbols, DeflateHuff& h)
+{
+    for (int i = 0; i < 16; i++)
+        h.count[i] = 0;
+    h.maxbits = 0;
+
+    for (int s = 0; s < num_symbols; s++)
+    {
+        const int len = lengths[s];
+        if (len > 0)
+        {
+            h.count[len]++;
+            if (len > h.maxbits)
+                h.maxbits = len;
+        }
+    }
+
+    int idx = 0;
+    for (int len = 1; len <= h.maxbits; len++)
+    {
+        for (int s = 0; s < num_symbols; s++)
+        {
+            if (lengths[s] == len)
+                h.symbol[idx++] = s;
+        }
+    }
+}
+
+static int deflate_decode_symbol(DeflateBitReader& br, const DeflateHuff& h, int& symbol)
+{
+    int code = 0;
+    int first = 0;
+    int index = 0;
+
+    for (int len = 1; len <= h.maxbits; len++)
+    {
+        int b;
+        if (br.getbit(b))
+            return -1;
+        code |= b;
+
+        const int count = h.count[len];
+        if (code - count < first)
+        {
+            symbol = h.symbol[index + (code - first)];
+            return 0;
+        }
+
+        index += count;
+        first += count;
+        first <<= 1;
+        code <<= 1;
+    }
+
+    return -1;
+}
+
+// length code 257..285 -> (base, extra bits)
+static const unsigned short DEFLATE_LEN_BASE[29] = {
+    3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
+    35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258
+};
+static const unsigned char DEFLATE_LEN_EXTRA[29] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
+    3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0
+};
+
+// distance code 0..29 -> (base, extra bits)
+static const unsigned short DEFLATE_DIST_BASE[30] = {
+    1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
+    257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577
+};
+static const unsigned char DEFLATE_DIST_EXTRA[30] = {
+    0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
+    7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13
+};
+
+static int deflate_inflate_stream(DeflateBitReader& br, unsigned char* out, size_t out_cap, size_t& out_pos)
+{
+    // code-length-code alphabet order (RFC 1951)
+    static const int CLCLS[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
+
+    int lengths_lit[288] = {0};
+    int lengths_dist[30] = {0};
+
+    for (;;)
+    {
+        int bfinal = 0;
+        int btype = 0;
+        if (br.getbits(3, btype))
+            return -1;
+        bfinal = btype & 1;
+        btype >>= 1;
+
+        if (btype == 0)
+        {
+            // stored block: skip to byte boundary, then LEN/NLEN
+            br.bitbuf = 0;
+            br.bitcnt = 0;
+
+            int len = 0;
+            int nlen = 0;
+            if (br.getbits(16, len))
+                return -1;
+            if (br.getbits(16, nlen))
+                return -1;
+            if (len != (~nlen & 0xffff))
+                return -1;
+
+            if (br.in_pos + (size_t)len > br.in_len)
+                return -1;
+            if (out_pos + (size_t)len > out_cap)
+                return -1;
+
+            for (int i = 0; i < len; i++)
+                out[out_pos++] = br.in[br.in_pos++];
+        }
+        else if (btype == 1)
+        {
+            // fixed huffman
+            for (int s = 0; s < 144; s++)
+                lengths_lit[s] = 8;
+            for (int s = 144; s < 256; s++)
+                lengths_lit[s] = 9;
+            for (int s = 256; s < 280; s++)
+                lengths_lit[s] = 7;
+            for (int s = 280; s < 288; s++)
+                lengths_lit[s] = 8;
+            for (int s = 0; s < 30; s++)
+                lengths_dist[s] = 5;
+
+            DeflateHuff hlit;
+            DeflateHuff hdist;
+            deflate_build_huff(lengths_lit, 288, hlit);
+            deflate_build_huff(lengths_dist, 30, hdist);
+
+            // decode literals / matches
+            for (;;)
+            {
+                int sym = 0;
+                if (deflate_decode_symbol(br, hlit, sym))
+                    return -1;
+
+                if (sym < 256)
+                {
+                    if (out_pos >= out_cap)
+                        return -1;
+                    out[out_pos++] = (unsigned char)sym;
+                }
+                else if (sym == 256)
+                {
+                    break; // end of block
+                }
+                else
+                {
+                    const int li = sym - 257;
+                    if (li < 0 || li >= 29)
+                        return -1;
+                    int length = DEFLATE_LEN_BASE[li];
+                    int lextra = DEFLATE_LEN_EXTRA[li];
+                    if (lextra > 0)
+                    {
+                        int v = 0;
+                        if (br.getbits(lextra, v))
+                            return -1;
+                        length += v;
+                    }
+
+                    int dsym = 0;
+                    if (deflate_decode_symbol(br, hdist, dsym))
+                        return -1;
+                    if (dsym < 0 || dsym >= 30)
+                        return -1;
+                    int distance = DEFLATE_DIST_BASE[dsym];
+                    int dextra = DEFLATE_DIST_EXTRA[dsym];
+                    if (dextra > 0)
+                    {
+                        int v = 0;
+                        if (br.getbits(dextra, v))
+                            return -1;
+                        distance += v;
+                    }
+
+                    if ((size_t)distance > out_pos)
+                        return -1;
+                    if (out_pos + (size_t)length > out_cap)
+                        return -1;
+
+                    for (int i = 0; i < length; i++)
+                    {
+                        out[out_pos] = out[out_pos - (size_t)distance];
+                        out_pos++;
+                    }
+                }
+            }
+        }
+        else if (btype == 2)
+        {
+            // dynamic huffman
+            int hlit = 0;
+            int hdist = 0;
+            int hclen = 0;
+            if (br.getbits(5, hlit))
+                return -1;
+            if (br.getbits(5, hdist))
+                return -1;
+            if (br.getbits(4, hclen))
+                return -1;
+            hlit += 257;
+            hdist += 1;
+            hclen += 4;
+
+            int lengths_cl[19] = {0};
+            for (int i = 0; i < hclen; i++)
+            {
+                int v = 0;
+                if (br.getbits(3, v))
+                    return -1;
+                lengths_cl[CLCLS[i]] = v;
+            }
+
+            DeflateHuff hcl;
+            deflate_build_huff(lengths_cl, 19, hcl);
+
+            // decode the lit/dist code lengths (with run codes 16/17/18)
+            int all_lengths[288 + 30];
+            int total = hlit + hdist;
+            int idx = 0;
+            int prev = 0;
+            while (idx < total)
+            {
+                int sym = 0;
+                if (deflate_decode_symbol(br, hcl, sym))
+                    return -1;
+
+                if (sym < 16)
+                {
+                    all_lengths[idx++] = sym;
+                    prev = sym;
+                }
+                else if (sym == 16)
+                {
+                    int rep = 0;
+                    if (br.getbits(2, rep))
+                        return -1;
+                    rep += 3;
+                    if (idx + rep > total)
+                        return -1;
+                    for (int i = 0; i < rep; i++)
+                        all_lengths[idx++] = prev;
+                }
+                else if (sym == 17)
+                {
+                    int rep = 0;
+                    if (br.getbits(3, rep))
+                        return -1;
+                    rep += 3;
+                    if (idx + rep > total)
+                        return -1;
+                    for (int i = 0; i < rep; i++)
+                        all_lengths[idx++] = 0;
+                    prev = 0;
+                }
+                else // sym == 18
+                {
+                    int rep = 0;
+                    if (br.getbits(7, rep))
+                        return -1;
+                    rep += 11;
+                    if (idx + rep > total)
+                        return -1;
+                    for (int i = 0; i < rep; i++)
+                        all_lengths[idx++] = 0;
+                    prev = 0;
+                }
+            }
+
+            for (int i = 0; i < hlit; i++)
+                lengths_lit[i] = all_lengths[i];
+            for (int i = 0; i < hdist; i++)
+                lengths_dist[i] = all_lengths[hlit + i];
+
+            DeflateHuff hlit2;
+            DeflateHuff hdist2;
+            deflate_build_huff(lengths_lit, 288, hlit2);
+            deflate_build_huff(lengths_dist, 30, hdist2);
+
+            // decode literals / matches (same as fixed block)
+            for (;;)
+            {
+                int sym = 0;
+                if (deflate_decode_symbol(br, hlit2, sym))
+                    return -1;
+
+                if (sym < 256)
+                {
+                    if (out_pos >= out_cap)
+                        return -1;
+                    out[out_pos++] = (unsigned char)sym;
+                }
+                else if (sym == 256)
+                {
+                    break;
+                }
+                else
+                {
+                    const int li = sym - 257;
+                    if (li < 0 || li >= 29)
+                        return -1;
+                    int length = DEFLATE_LEN_BASE[li];
+                    const int lextra = DEFLATE_LEN_EXTRA[li];
+                    if (lextra > 0)
+                    {
+                        int v = 0;
+                        if (br.getbits(lextra, v))
+                            return -1;
+                        length += v;
+                    }
+
+                    int dsym = 0;
+                    if (deflate_decode_symbol(br, hdist2, dsym))
+                        return -1;
+                    if (dsym < 0 || dsym >= 30)
+                        return -1;
+                    int distance = DEFLATE_DIST_BASE[dsym];
+                    const int dextra = DEFLATE_DIST_EXTRA[dsym];
+                    if (dextra > 0)
+                    {
+                        int v = 0;
+                        if (br.getbits(dextra, v))
+                            return -1;
+                        distance += v;
+                    }
+
+                    if ((size_t)distance > out_pos)
+                        return -1;
+                    if (out_pos + (size_t)length > out_cap)
+                        return -1;
+
+                    for (int i = 0; i < length; i++)
+                    {
+                        out[out_pos] = out[out_pos - (size_t)distance];
+                        out_pos++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            return -1; // reserved block type
+        }
+
+        if (bfinal)
+            return 0;
+    }
+}
+
+static int deflate_inflate(const unsigned char* comp, size_t comp_len, unsigned char* out, size_t out_cap, size_t& out_pos)
+{
+    DeflateBitReader br(comp, comp_len);
+    out_pos = 0;
+    return deflate_inflate_stream(br, out, out_cap, out_pos);
+}
+
 StoreZipReader::StoreZipReader()
 {
     fp = 0;
@@ -299,9 +720,9 @@ int StoreZipReader::open(const std::string& path)
         // skip file comment
         PNNX_FSEEK(fp, cdfh.file_comment_length, SEEK_CUR);
 
-        if (cdfh.compression != 0 || compressed_size != uncompressed_size)
+        if (cdfh.compression != 0 && cdfh.compression != 8)
         {
-            fprintf(stderr, "not stored zip file %d %d\n", cdfh.compressed_size, cdfh.uncompressed_size);
+            fprintf(stderr, "unsupported zip compression method %d\n", cdfh.compression);
             return -1;
         }
 
@@ -326,6 +747,8 @@ int StoreZipReader::open(const std::string& path)
         StoreZipMeta fm;
         fm.offset = data_offset;
         fm.size = compressed_size;
+        fm.uncompressed_size = uncompressed_size;
+        fm.compression = cdfh.compression;
         filemetas[name] = fm;
 
         // back to central directory
@@ -356,7 +779,7 @@ uint64_t StoreZipReader::get_file_size(const std::string& name) const
         return 0;
     }
 
-    return filemetas.at(name).size;
+    return filemetas.at(name).uncompressed_size;
 }
 
 int StoreZipReader::read_file(const std::string& name, char* data)
@@ -369,8 +792,30 @@ int StoreZipReader::read_file(const std::string& name, char* data)
 
     uint64_t offset = filemetas[name].offset;
     uint64_t size = filemetas[name].size;
+    uint64_t uncompressed_size = filemetas[name].uncompressed_size;
+    uint16_t compression = filemetas[name].compression;
 
     PNNX_FSEEK(fp, (int64_t)offset, SEEK_SET);
+
+    if (compression == 8)
+    {
+        std::vector<char> comp((size_t)size);
+        fread(comp.data(), size, 1, fp);
+
+        size_t out_pos = 0;
+        if (deflate_inflate((const unsigned char*)comp.data(), (size_t)size, (unsigned char*)data, (size_t)uncompressed_size, out_pos) != 0)
+        {
+            fprintf(stderr, "inflate failed %s\n", name.c_str());
+            return -1;
+        }
+        if (out_pos != (size_t)uncompressed_size)
+        {
+            fprintf(stderr, "inflate size mismatch %s %lu %lu\n", name.c_str(), (unsigned long)out_pos, (unsigned long)uncompressed_size);
+            return -1;
+        }
+        return 0;
+    }
+
     fread(data, size, 1, fp);
 
     return 0;

@@ -1,14 +1,15 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# White-box / negative robustness tests for the torch.export (pt2) loader.
+# White-box robustness tests for the torch.export (pt2) loader: the negative
+# half deliberately corrupts a minimal real .pt2 archive (conv) and pins that
+# each guard rejects the hostile input (no crash / OOM / hang); the positive
+# half pins that a ZIP_DEFLATED archive is inflated losslessly and converts to
+# byte-identical output as the stored control.
 #
-# A minimal real .pt2 archive (conv) is exported as a base, then deliberately
-# corrupted to exercise the loader's defensive guards: a truncated/hostile
-# archive must be rejected or degrade gracefully instead of crashing / OOMing /
-# hanging. Each rejection case pins a diagnostic substring (the loader-side
-# analogue of the pt2_expectations needles), so a guard that silently starts
-# accepting a bad archive is a visible regression.
+# Each rejection case pins a diagnostic substring (the loader-side analogue of
+# the pt2_expectations needles), so a guard that silently starts accepting a
+# bad archive is a visible regression.
 #
 # Needs a torch with torch.export (2.8+); like the other test_pt2_* files it is
 # collected by the pnnx test suite (runs in a scratch dir, no net needed).
@@ -52,13 +53,13 @@ def _export_base(pt2_path):
         torch.export.save(ep, pt2_path)
 
 
-def _copy_and_replace(src, out, drop=(), replace=None):
-    # rewrite a .pt2 zip with ZIP_STORED (the torch layout is stored entries;
-    # re-deflating trips the loader's container probe). drop = entries omitted,
-    # replace = {entry: new bytes}.
+def _copy_and_replace(src, out, drop=(), replace=None, method=zipfile.ZIP_STORED):
+    # rewrite a .pt2 zip. method controls entry compression: the stored form is
+    # the torch layout, ZIP_DEFLATED exercises the loader's RFC1951 inflate.
+    # drop = entries omitted, replace = {entry: new bytes}.
     zin = zipfile.ZipFile(src)
     replace = replace or {}
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as zout:
+    with zipfile.ZipFile(out, "w", method) as zout:
         for i in zin.infolist():
             if i.filename in drop:
                 continue
@@ -79,6 +80,12 @@ def _build_cases(workdir, base):
 
     # positive control: untouched base converts cleanly
     cases["base"] = base
+
+    # whole archive re-written with ZIP_DEFLATED: the loader must inflate it and
+    # convert identically to the stored control (positive white-box case)
+    p = os.path.join(workdir, "case_deflate.pt2")
+    _copy_and_replace(base, p, method=zipfile.ZIP_DEFLATED)
+    cases["deflate"] = p
 
     # truncated zip (tail cut off)
     raw = open(base, "rb").read()
@@ -177,6 +184,29 @@ def test():
         rc, text = _run_pnnx(pnnx, cases["base"], outdir)
         ok = rc == 0 and os.path.isfile(os.path.splitext(cases["base"])[0] + ".pnnx.param")
         results.append(_case("base(control)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # positive deflate: a ZIP_DEFLATED archive must inflate losslessly and
+        # produce byte-identical param + bin to the stored control (this is the
+        # white-box proof that the RFC1951 inflate restores the exact bytes the
+        # loader saw from the stored form)
+        def _out_pref(pt2):
+            return os.path.splitext(pt2)[0]
+
+        base_pref = _out_pref(cases["base"])
+        deflate_pref = _out_pref(cases["deflate"])
+        rc, text = _run_pnnx(pnnx, cases["deflate"], outdir)
+        same_out = True
+        for ext in (".pnnx.param", ".pnnx.bin"):
+            a = base_pref + ext
+            b = deflate_pref + ext
+            if not (os.path.isfile(a) and os.path.isfile(b)):
+                same_out = False
+                break
+            if open(a, "rb").read() != open(b, "rb").read():
+                same_out = False
+                break
+        ok = rc == 0 and os.path.isfile(deflate_pref + ".pnnx.param") and same_out
+        results.append(_case("deflate(pos)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
         # corrupt archives must be rejected (nonzero), not hang / crash
         for name, needle_expected in (("trunc", None), ("no_model", None), ("garbage", None)):
