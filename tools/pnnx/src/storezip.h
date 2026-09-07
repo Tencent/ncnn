@@ -35,8 +35,8 @@ private:
         uint64_t offset;
         uint64_t size;              // compressed bytes in the archive
         uint64_t uncompressed_size; // logical (inflated) size
-        uint16_t compression;      // 0 = stored, 8 = deflate
-        uint32_t crc32;            // central-directory crc32 of the uncompressed data
+        uint16_t compression;       // 0 = stored, 8 = deflate
+        uint32_t crc32;             // central-directory crc32 of the uncompressed data
 
     };
 
