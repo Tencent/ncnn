@@ -216,6 +216,7 @@ static int g_cpu_support_arm_asimdfhm;
 static int g_cpu_support_arm_bf16;
 static int g_cpu_support_arm_i8mm;
 static int g_cpu_support_arm_sve;
+static int g_cpu_arm_sve_vlenb;
 static int g_cpu_support_arm_sve2;
 static int g_cpu_support_arm_svebf16;
 static int g_cpu_support_arm_svei8mm;
@@ -228,6 +229,7 @@ static int g_cpu_support_arm_vfpv4;
 #elif defined __ANDROID__ || defined __linux__
 static unsigned int g_hwcaps;
 static unsigned int g_hwcaps2;
+static int g_cpu_arm_sve_vlenb;
 #elif __APPLE__
 static unsigned int g_hw_cpufamily;
 static cpu_type_t g_hw_cputype;
@@ -2182,6 +2184,27 @@ static int detect_cpu_is_arm_a53_a55()
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
+#if __aarch64__
+static int get_cpu_arm_sve_vlenb()
+{
+#if NCNN_GNU_INLINE_ASM
+    size_t vlenb;
+    asm volatile(
+        ".word  0x0420e3e9  \n" // cntb x9
+        "mov    %x0, x9     \n"
+        : "=r"(vlenb)
+        :
+        : "memory", "x9");
+    return (int)vlenb;
+#elif defined(_MSC_VER) && !defined(__clang__)
+    __emit(0x0420e3e9); // cntb x9
+    return (int)__getReg(9);
+#else
+    return 0;
+#endif
+}
+#endif // __aarch64__
+
 // the initialization
 static void initialize_global_cpu_info()
 {
@@ -2215,19 +2238,23 @@ static void initialize_global_cpu_info()
     g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm") || IsProcessorFeaturePresent(57);                                    // 57 is PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE
     g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm") || IsProcessorFeaturePresent(58);                                  // 58 is PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
 
+    g_cpu_arm_sve_vlenb = g_cpu_support_arm_sve ? get_cpu_arm_sve_vlenb() : 0;
+
     // sanitize for ncnn armv8.4 and armv8.6 requirements
     if (!(g_cpu_support_arm_asimdhp && g_cpu_support_arm_asimddp && g_cpu_support_arm_asimdfhm))
     {
         g_cpu_support_arm_bf16 = 0;
         g_cpu_support_arm_i8mm = 0;
     }
-    if (!(g_cpu_support_arm_bf16 && g_cpu_support_arm_i8mm))
+    if (!(g_cpu_support_arm_bf16 && g_cpu_support_arm_i8mm) || g_cpu_arm_sve_vlenb == 0)
     {
         g_cpu_support_arm_sve = 0;
         g_cpu_support_arm_sve2 = 0;
         g_cpu_support_arm_svebf16 = 0;
         g_cpu_support_arm_svei8mm = 0;
         g_cpu_support_arm_svef32mm = 0;
+
+        g_cpu_arm_sve_vlenb = 0;
     }
 #elif __arm__
     g_cpu_support_arm_edsp = ruapu_supports("edsp");
@@ -2239,15 +2266,19 @@ static void initialize_global_cpu_info()
     g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 
 #if __aarch64__
+    g_cpu_arm_sve_vlenb = (g_hwcaps & HWCAP_SVE) ? get_cpu_arm_sve_vlenb() : 0;
+
     // sanitize for ncnn armv8.4 and armv8.6 requirements
     if ((g_hwcaps & (HWCAP_ASIMDHP | HWCAP_ASIMDDP | HWCAP_ASIMDFHM)) != (HWCAP_ASIMDHP | HWCAP_ASIMDDP | HWCAP_ASIMDFHM))
     {
         g_hwcaps2 &= ~(HWCAP2_BF16 | HWCAP2_I8MM);
     }
-    if ((g_hwcaps2 & (HWCAP2_BF16 | HWCAP2_I8MM)) != (HWCAP2_BF16 | HWCAP2_I8MM))
+    if ((g_hwcaps2 & (HWCAP2_BF16 | HWCAP2_I8MM)) != (HWCAP2_BF16 | HWCAP2_I8MM) || g_cpu_arm_sve_vlenb == 0)
     {
         g_hwcaps &= ~(HWCAP_SVE);
         g_hwcaps2 &= ~(HWCAP2_SVE2 | HWCAP2_SVEBF16 | HWCAP2_SVEI8MM | HWCAP2_SVEF32MM);
+
+        g_cpu_arm_sve_vlenb = 0;
     }
 #endif // __aarch64__
 #elif __APPLE__
@@ -2668,21 +2699,10 @@ int cpu_arm_sve_vlenb()
 {
     try_initialize_global_cpu_info();
 #if __aarch64__
-    if (!cpu_support_arm_sve())
-        return 0;
-
-#if NCNN_GNU_INLINE_ASM
-    size_t vlenb;
-    asm volatile(
-        ".word  0x0420e3e9  \n" // cntb x9
-        "mov    %x0, x9     \n"
-        : "=r"(vlenb)
-        :
-        : "memory", "x9");
-    return (int)vlenb;
-#elif defined(_MSC_VER) && !defined(__clang__)
-    __emit(0x0420e3e9); // cntb x9
-    return (int)__getReg(9);
+#if defined _WIN32 || defined __ANDROID__ || defined __linux__
+    return g_cpu_arm_sve_vlenb;
+#elif __APPLE__
+    return 0; // no known apple cpu support armv8.6 sve
 #else
     return 0;
 #endif
