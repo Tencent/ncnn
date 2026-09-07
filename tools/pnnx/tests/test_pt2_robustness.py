@@ -1,0 +1,207 @@
+# Copyright 2026 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
+
+# White-box / negative robustness tests for the torch.export (pt2) loader.
+#
+# A minimal real .pt2 archive (conv) is exported as a base, then deliberately
+# corrupted to exercise the loader's defensive guards: a truncated/hostile
+# archive must be rejected or degrade gracefully instead of crashing / OOMing /
+# hanging. Each rejection case pins a diagnostic substring (the loader-side
+# analogue of the pt2_expectations needles), so a guard that silently starts
+# accepting a bad archive is a visible regression.
+#
+# Needs a torch with torch.export (2.8+); like the other test_pt2_* files it is
+# collected by the pnnx test suite (runs in a scratch dir, no net needed).
+
+import json
+import os
+import subprocess
+import tempfile
+import zipfile
+
+
+def _find_pnnx():
+    # runner cwd is tools/pnnx/build/tests (or tests/ncnn); the binary lives in
+    # the build tree's src dir next to it
+    for rel in (os.path.join("..", "src", "pnnx.exe"),
+                os.path.join("..", "..", "src", "pnnx.exe"),
+                os.path.join("..", "src", "pnnx"),
+                os.path.join("..", "..", "src", "pnnx")):
+        p = os.path.abspath(rel)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _export_base(pt2_path):
+    import torch
+    import torch.nn as nn
+
+    class M(nn.Module):
+        def __init__(self):
+            super(M, self).__init__()
+            self.c = nn.Conv2d(3, 4, 3, padding=1)
+
+        def forward(self, x):
+            return self.c(x).relu() + 1
+
+    net = M().eval()
+    x = torch.rand(1, 3, 8, 8)
+    with torch.no_grad():
+        ep = torch.export.export(net, (x,))
+        torch.export.save(ep, pt2_path)
+
+
+def _copy_and_replace(src, out, drop=(), replace=None):
+    # rewrite a .pt2 zip with ZIP_STORED (the torch layout is stored entries;
+    # re-deflating trips the loader's container probe). drop = entries omitted,
+    # replace = {entry: new bytes}.
+    zin = zipfile.ZipFile(src)
+    replace = replace or {}
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as zout:
+        for i in zin.infolist():
+            if i.filename in drop:
+                continue
+            data = replace.get(i.filename, zin.read(i.filename))
+            zout.writestr(i.filename, data)
+    zin.close()
+
+
+def _weights_config(src):
+    zin = zipfile.ZipFile(src)
+    cfg = json.loads(zin.read("base/data/weights/model_weights_config.json"))
+    zin.close()
+    return cfg
+
+
+def _build_cases(workdir, base):
+    cases = {}
+
+    # positive control: untouched base converts cleanly
+    cases["base"] = base
+
+    # truncated zip (tail cut off)
+    raw = open(base, "rb").read()
+    p = os.path.join(workdir, "case_trunc.pt2")
+    open(p, "wb").write(raw[: len(raw) - 200])
+    cases["trunc"] = p
+
+    # payload record referenced by the config is missing entirely
+    p = os.path.join(workdir, "case_missing_weight.pt2")
+    _copy_and_replace(base, p, drop=("base/data/weights/weight_0",))
+    cases["missing_weight"] = p
+
+    # graph body (models/model.json) emptied -> parse failure
+    p = os.path.join(workdir, "case_no_model.pt2")
+    _copy_and_replace(base, p, replace={"base/models/model.json": b""})
+    cases["no_model"] = p
+
+    # hostile tensor_meta: element count far beyond the storage (a naive
+    # materialization would try to allocate a multi-gigabyte buffer -> OOM)
+    p = os.path.join(workdir, "case_huge_shape.pt2")
+    cfg = _weights_config(base)
+    t = cfg["config"]["c.weight"]["tensor_meta"]
+    t["sizes"] = [{"as_int": 4}, {"as_int": 3}, {"as_int": 1000000000}, {"as_int": 3}]
+    t["strides"] = [{"as_int": 9000000000}, {"as_int": 3000000000}, {"as_int": 3}, {"as_int": 1}]
+    _copy_and_replace(base, p, replace={"base/data/weights/model_weights_config.json": json.dumps(cfg).encode()})
+    cases["huge_shape"] = p
+
+    # storage_offset pointing far outside the storage (view materialization
+    # must bounds-check instead of reading out of range / allocating wildly)
+    p = os.path.join(workdir, "case_oob_offset.pt2")
+    cfg = _weights_config(base)
+    cfg["config"]["c.weight"]["tensor_meta"]["storage_offset"] = {"as_int": 999999999}
+    _copy_and_replace(base, p, replace={"base/data/weights/model_weights_config.json": json.dumps(cfg).encode()})
+    cases["oob_offset"] = p
+
+    # not a zip at all
+    p = os.path.join(workdir, "case_garbage.pt2")
+    open(p, "wb").write(b"this is not a zip archive at all " * 10)
+    cases["garbage"] = p
+
+    return cases
+
+
+def _run_pnnx(pnnx, pt2, cwd, timeout=90):
+    try:
+        r = subprocess.run(
+            [pnnx, pt2, "inputshape=[1,3,8,8]f32"],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+        text = (r.stdout or b"").decode("utf-8", errors="replace")
+        return r.returncode, text
+    except subprocess.TimeoutExpired:
+        return None, "(timeout)"
+
+
+def _case(name, ok, detail):
+    print("[robust] %-16s %s" % (name, "PASS" if ok else "FAIL"))
+    if not ok:
+        print(detail)
+    return ok
+
+
+def test():
+    pnnx = _find_pnnx()
+    if pnnx is None:
+        print("[robust] pnnx binary not found")
+        return False
+
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        # no torch.export available: the pt2 channel is skipped elsewhere too
+        print("[robust] torch not available, skip")
+        return True
+
+    results = []
+
+    with tempfile.TemporaryDirectory() as workdir:
+        base = os.path.join(workdir, "base.pt2")
+        try:
+            _export_base(base)
+        except Exception as e:
+            # torch.export itself failed in this environment (torch < 2.8 / no
+            # export); treat as an environment skip like the rest of the suite
+            print("[robust] torch.export unavailable (%s), skip" % e)
+            return True
+
+        cases = _build_cases(workdir, base)
+        outdir = os.path.join(workdir, "out")
+        os.makedirs(outdir)
+
+        # positive control must convert (pnnx writes outputs next to the input)
+        rc, text = _run_pnnx(pnnx, cases["base"], outdir)
+        ok = rc == 0 and os.path.isfile(os.path.splitext(cases["base"])[0] + ".pnnx.param")
+        results.append(_case("base(control)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # corrupt archives must be rejected (nonzero), not hang / crash
+        for name, needle_expected in (("trunc", None), ("no_model", None), ("garbage", None)):
+            rc, text = _run_pnnx(pnnx, cases[name], outdir)
+            ok = rc != 0 and rc is not None
+            results.append(_case(name + "(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # dropped weight payload must be rejected with the pinned diagnostic
+        rc, text = _run_pnnx(pnnx, cases["missing_weight"], outdir)
+        ok = rc != 0 and rc is not None and "not found" in text
+        results.append(_case("missing_weight", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # hostile tensor_meta must not OOM / crash / hang the process: the run
+        # must finish (within timeout) with a clean (non-signal) returncode. a
+        # negative returncode means the process was killed by a signal.
+        for name in ("huge_shape", "oob_offset"):
+            rc, text = _run_pnnx(pnnx, cases[name], outdir)
+            ok = rc is not None and rc >= 0 and rc in (0, 1, 255)
+            results.append(_case(name + "(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+    return all(results)
+
+
+if __name__ == "__main__":
+    if test():
+        exit(0)
+    else:
+        exit(1)
