@@ -320,7 +320,8 @@ int load_tensor_data(StoreZipReader& zip, const std::vector<std::string>& names,
 
     uint64_t size = zip.get_file_size(record);
     std::vector<char> raw((size_t)size);
-    zip.read_file(record, raw.data());
+    if (zip.read_file(record, raw.data()) != 0)
+        return -1;
 
     load_tensor_from_raw(raw, meta, a);
     return 0;

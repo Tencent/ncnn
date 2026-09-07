@@ -733,7 +733,8 @@ static int load_legacy_state_dict(StoreZipReader& zip, const std::vector<std::st
     out.tag = record;
     uint64_t size = zip.get_file_size(record);
     out.bytes.resize((size_t)size);
-    zip.read_file(record, out.bytes.data());
+    if (zip.read_file(record, out.bytes.data()) != 0)
+        return -1;
 
     if (memzip_find_data_pkl_prefix(out.bytes, out.prefix) != 0)
         return -1;

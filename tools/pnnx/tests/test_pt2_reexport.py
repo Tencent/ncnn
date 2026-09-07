@@ -190,6 +190,40 @@ def test():
             if not ok7:
                 return False
 
+        # ---- case 3: the generated *_pnnx.py validates caller inputs against
+        # the recorded range_constraints before torch.export.export, so an
+        # out-of-range shape fails fast with a clear message instead of an
+        # opaque guard error (and in-range shapes still re-export cleanly)
+        dyn_py = os.path.join(workdir, os.path.basename(based) + "_pnnx.py")
+        spec = importlib.util.spec_from_file_location("dyn_pnnx_val", dyn_py)
+        mod = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, workdir)
+        spec.loader.exec_module(mod)
+
+        raised = None
+        try:
+            mod.export_exported_program(
+                example_inputs=(torch.rand(32, 3, 8, 8),),
+                out_path=os.path.join(workdir, "dyn_oob_re.pt2"),
+            )
+        except ValueError as e:
+            raised = str(e)
+        ok8 = raised is not None and "must be within" in raised
+        results.append(_case("dynamic(validate_oob)", ok8, "raised=%r" % raised))
+        if not ok8:
+            return False
+
+        # boundary value (dim0=2, dim3=4) is inside the closed range and must
+        # re-export normally
+        mod.export_exported_program(
+            example_inputs=(torch.rand(2, 3, 8, 4),),
+            out_path=os.path.join(workdir, "dyn_in_re.pt2"),
+        )
+        ok9 = os.path.isfile(os.path.join(workdir, "dyn_in_re.pt2"))
+        results.append(_case("dynamic(validate_inrange)", ok9, ""))
+        if not ok9:
+            return False
+
     return all(results)
 
 

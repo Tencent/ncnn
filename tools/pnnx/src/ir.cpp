@@ -686,7 +686,11 @@ static void load_attribute(Operator* op, const std::string& key, const std::stri
     }
 
     a.data.resize(bytesize);
-    szr.read_file(filename, (char*)a.data.data());
+    if (szr.read_file(filename, (char*)a.data.data()) != 0)
+    {
+        a.data.clear();
+        return;
+    }
 }
 
 int Graph::load(const std::string& parampath, const std::string& binpath)
@@ -3013,8 +3017,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             // dimension ranges (range_constraints); check caller-provided
             // inputs against them so an out-of-range shape fails with a clear
             // message instead of an opaque guard error inside torch.export
-            fprintf(pyfp, "def _validate_inputs(inputs):\n");
-            fprintf(pyfp, "    # dynamic dimension constraints recorded from the original export\n");
+            fprintf(pyfp, "    def _validate_inputs(inputs):\n");
+            fprintf(pyfp, "        # dynamic dimension constraints recorded from the original export\n");
             for (size_t i = 0; i < py_input_operands.size(); i++)
             {
                 const std::string& iname = py_input_ops[i]->name;
@@ -3032,7 +3036,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 if (!has_dyn)
                     continue;
 
-                fprintf(pyfp, "    x%d = inputs[%zu]\n", (int)i, i);
+                fprintf(pyfp, "        x%d = inputs[%zu]\n", (int)i, i);
                 for (size_t j = 0; j < ds.size(); j++)
                 {
                     if (ds[j].empty())
@@ -3048,10 +3052,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
 
                     if (mx != INT64_MAX)
-                        fprintf(pyfp, "    if x%d.size(%zu) < %lld or x%d.size(%zu) > %lld:\n        raise ValueError(\"input '%s' dim %zu (%s) must be within [%lld, %lld], got %%d\" %% x%d.size(%zu))\n",
+                        fprintf(pyfp, "        if x%d.size(%zu) < %lld or x%d.size(%zu) > %lld:\n            raise ValueError(\"input '%s' dim %zu (%s) must be within [%lld, %lld], got %%d\" %% x%d.size(%zu))\n",
                                 (int)i, j, (long long)mn, (int)i, j, (long long)mx, iname.c_str(), j, ds[j].c_str(), (long long)mn, (long long)mx, (int)i, j);
                     else
-                        fprintf(pyfp, "    if x%d.size(%zu) < %lld:\n        raise ValueError(\"input '%s' dim %zu (%s) must be at least %lld, got %%d\" %% x%d.size(%zu))\n",
+                        fprintf(pyfp, "        if x%d.size(%zu) < %lld:\n            raise ValueError(\"input '%s' dim %zu (%s) must be at least %lld, got %%d\" %% x%d.size(%zu))\n",
                                 (int)i, j, (long long)mn, iname.c_str(), j, ds[j].c_str(), (long long)mn, (int)i, j);
                 }
             }
