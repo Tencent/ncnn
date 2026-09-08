@@ -1082,11 +1082,6 @@ static int get_physical_cpucount()
             count++;
         }
     }
-    if (count == 0)
-    {
-        // cannot resolve siblings, fallback to all cpu count
-        count = g_cpucount;
-    }
 #elif __APPLE__
     size_t len = sizeof(count);
     sysctlbyname("hw.physicalcpu_max", &count, &len, NULL, 0);
@@ -1094,7 +1089,8 @@ static int get_physical_cpucount()
     count = g_cpucount;
 #endif
 
-    if (count > g_cpucount)
+    // fallback when the physical cpu count cannot be determined
+    if (count < 1 || count > g_cpucount)
         count = g_cpucount;
 
     return count;
@@ -1238,6 +1234,10 @@ static int get_data_cache_size(int cpuid, int level)
             }
         }
     }
+
+    // no usable cpu in the shared cache map
+    if (shared_physical_cpu_count == 0)
+        return 0;
 
     // return per-physical-core cache size with 4K aligned
     cache_size_K = (cache_size_K / shared_physical_cpu_count + 3) / 4 * 4;
