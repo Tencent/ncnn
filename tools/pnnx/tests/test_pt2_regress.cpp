@@ -56,7 +56,6 @@ pnnx.Output             output      1 0 out
 
         if (string_other)
     {
-        // Non-scalar other must not match.
         for (size_t i = 0; i < g.ops.size(); i++)
         {
             if (g.ops[i]->name == "op_c")
@@ -74,7 +73,6 @@ static void run_ones_like_pass(Graph& g)
 
 static void test_ones_like_fold()
 {
-    // Valid f32 shape folds to an attribute with data.
     {
         Graph g;
         build_ones_like_graph(g, false);
@@ -104,7 +102,6 @@ static void test_ones_like_fold()
         }
     }
 
-    // Invalid shapes remain unchanged.
     {
         Graph g;
         build_ones_like_graph(g, false);
@@ -151,18 +148,15 @@ static void test_device_argument()
     Pt2Argument a;
     a.type = Pt2Argument::DEVICE;
 
-    // cuda:1 must retain its index.
     a.device_type = "cuda";
     a.device_index = 1;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda:1",
           "device: cuda:1 encoded as cuda:1");
 
-    // cuda:0 remains distinct from an unindexed device.
     a.device_index = 0;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda:0",
           "device: cuda:0 encoded as cuda:0");
 
-    // An unindexed device uses the bare type.
     a.device_index = -1;
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cuda",
           "device: cuda with null index encoded as cuda");
@@ -171,7 +165,6 @@ static void test_device_argument()
     CHECK(argument_to_constant(a, v) && v.type == 4 && v.s == "cpu",
           "device: cpu with null index encoded as cpu");
 
-    // An empty device type encodes None.
     a.device_type = "";
     CHECK(argument_to_constant(a, v) && v.type == 0,
           "device: empty device encoded as None");
@@ -515,6 +508,34 @@ pnnx.Output             output      1 0 out
           "module-form: folds scalar parameter in pass_level2");
 }
 
+static void test_module_form_maxpool_default_stride()
+{
+    Graph graph;
+    graph.parse(R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+prim::Constant          kernel      0 1 kernel value=3
+prim::Constant          stride      0 1 stride value=None
+aten::max_pool2d        op          3 1 input kernel stride out
+pnnx.Output             output      1 0 out
+)PNNXIR");
+
+    Operator* op = find_op(graph, "aten::max_pool2d");
+    CHECK(op != 0, "module-form: finds max-pool operator");
+    if (!op)
+        return;
+
+    op->params["__pt2_module_class"] = "MaxPool2d";
+    op->params["__pt2_module_input_names"] = std::vector<std::string>{"input", "kernel_size", "stride"};
+    normalize_pt2_module_forms(graph);
+
+    CHECK(op->type == "nn.MaxPool2d" && op->inputs.size() == 1,
+          "module-form: removes default max-pool stride input");
+    CHECK(op->params.find("stride") != op->params.end() && op->params.at("stride").type == 5
+              && op->params.at("stride").ai == op->params.at("kernel_size").ai,
+          "module-form: default max-pool stride matches kernel_size");
+}
+
 static void test_window_function_fold()
 {
     Graph graph;
@@ -544,7 +565,6 @@ pnnx.Output             output      1 0 out
 
 static void test_window_function_one_element_fold()
 {
-    // PyTorch defines both windows as {1} for window_length == 1
     Graph graph;
     graph.parse(R"PNNXIR(7767517
 9 8
@@ -574,8 +594,6 @@ pnnx.Output             output      2 0 out0 out1
 
 static void test_window_function_periodic_fold()
 {
-    // torch.export routes periodic=False to the .periodic overload whose
-    // periodic is a required positional bool, so the fill shape is 6 inputs
     Graph graph;
     graph.parse(R"PNNXIR(7767517
 8 7
@@ -596,7 +614,6 @@ pnnx.Output             output      1 0 out
     {
         const Attribute& data = attr->attrs.at("data");
         const std::vector<float> values = data.get_float32_data();
-        // symmetric hann: 0.5*(1-cos(2*pi*j/(n-1))), zero at both ends
         CHECK(data.shape == std::vector<int>({8}) && values.size() == 8
                   && values[0] == 0.f && values[7] == 0.f
                   && values[1] > 0.1882f && values[1] < 0.1883f,
@@ -619,6 +636,7 @@ int main()
     test_storezip_long_comment_zip64();
     test_output_spec_filter();
     test_module_form_normalization();
+    test_module_form_maxpool_default_stride();
     test_window_function_fold();
     test_window_function_one_element_fold();
     test_window_function_periodic_fold();

@@ -1,7 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// PT2-specific normalization passes.
 
 #include "pass_level2.h"
 
@@ -207,7 +206,13 @@ void normalize_pt2_module_forms(Graph& g)
         }
 
         if (cls == "MaxPool1d" || cls == "MaxPool2d" || cls == "MaxPool3d")
+        {
+            std::map<std::string, Parameter>::iterator stride = op->params.find("stride");
+            const std::map<std::string, Parameter>::const_iterator kernel_size = op->params.find("kernel_size");
+            if (stride != op->params.end() && stride->second.type == 0 && kernel_size != op->params.end())
+                stride->second = kernel_size->second;
             op->params["return_indices"] = op->outputs.size() > 1;
+        }
         if (cls == "Upsample")
             op->params["mode"] = std::string(pt2_module_upsample_mode(op->type));
         if (cls == "LayerNorm" || cls == "RMSNorm")
@@ -324,9 +329,7 @@ static bool get_pt2_constant(const Operand* operand, Parameter& value)
     return true;
 }
 
-// Keyword fill shape: [dtype, layout, device, pin_memory]. torch.export keeps
-// every non-default keyword value, so dtype/layout must stay None while device
-// stays "cpu" and pin_memory false; anything else is a user override to skip.
+// Fold only default PT2 keywords; other values are user overrides.
 static bool is_pt2_default_window_argument(const Parameter& value, int index)
 {
     if (index == 0 || index == 1)
@@ -347,10 +350,7 @@ void fold_pt2_window_functions(Graph& pg)
         if (op->type != "aten::hann_window" && op->type != "aten::hamming_window")
             continue;
 
-        // torch.export routes periodic=True to the .default overload (no
-        // periodic arg in the schema) and periodic=False to the .periodic
-        // overload where periodic is a required positional bool. After the
-        // defaults fill the shapes are therefore 5 inputs or 6 inputs.
+        // periodic=False uses the six-input .periodic overload.
         const bool has_periodic_arg = op->inputs.size() == 6;
         if ((!has_periodic_arg && op->inputs.size() != 5) || op->outputs.size() != 1)
             continue;
@@ -392,7 +392,7 @@ void fold_pt2_window_functions(Graph& pg)
         {
             if (window_length == 1)
             {
-                // ATen defines one-element windows as {1}, not the formula limit
+                // ATen defines one-element windows as {1}.
                 data[j] = 1.f;
                 continue;
             }
