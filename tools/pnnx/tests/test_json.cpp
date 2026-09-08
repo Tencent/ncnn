@@ -1,7 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-
 #include "json.hpp"
 
 #include <stdio.h>
