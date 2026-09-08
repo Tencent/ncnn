@@ -422,6 +422,41 @@ static void test_storezip_zip64_roundtrip()
     remove(empty_path);
 }
 
+static void test_weight_attribute_reader_reuse()
+{
+    const char* path = "test_pt2_weight_reader_reuse.zip";
+    const float first[] = {1.f};
+    const float second[] = {2.f};
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0
+              && writer.write_file("data/weights/first", (const char*)first, sizeof(first)) == 0
+              && writer.write_file("data/weights/second", (const char*)second, sizeof(second)) == 0
+              && writer.close() == 0,
+          "weight: writes reuse regression archive");
+
+    Pt2Program program;
+    Pt2WeightEntry first_entry;
+    first_entry.path_name = "first";
+    first_entry.dtype = 7;
+    first_entry.sizes.push_back(1);
+    Pt2WeightEntry second_entry = first_entry;
+    second_entry.path_name = "second";
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) == 0, "weight: opens archive once");
+    program.zippath = "does-not-exist.pt2";
+
+    Attribute first_attr;
+    Attribute second_attr;
+    CHECK(load_weight_attribute(reader, program, first_entry, false, first_attr) == 0
+              && load_weight_attribute(reader, program, second_entry, false, second_attr) == 0
+              && first_attr.get_float32_data() == std::vector<float>({1.f})
+              && second_attr.get_float32_data() == std::vector<float>({2.f}),
+          "weight: reuses opened archive for multiple entries");
+    reader.close();
+    remove(path);
+}
+
 static void test_storezip_short_read()
 {
     const char* path = "test_pt2_storezip_short_read.zip";
@@ -744,6 +779,7 @@ int main()
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
+    test_weight_attribute_reader_reuse();
     test_storezip_short_read();
     test_storezip_eocd_validation();
     test_storezip_long_comment_zip64();

@@ -367,7 +367,8 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
     }
 }
 
-static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry& entry, bool is_constant, Attribute& attr)
+static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program, const Pt2WeightEntry& entry,
+                                 bool is_constant, Attribute& attr)
 {
     if (entry.use_pickle)
     {
@@ -378,17 +379,9 @@ static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry
     const std::string entry_path = is_constant ? program.constant_entry_path(entry.path_name)
                                    : program.weight_entry_path(entry.path_name);
 
-    StoreZipReader zip;
-    if (zip.open(program.zippath) != 0)
-    {
-        fprintf(stderr, "load_pt2: reopen zip failed %s\n", program.zippath.c_str());
-        return -1;
-    }
-
     const uint64_t raw_size = zip.get_file_size(entry_path);
     std::vector<char> raw((size_t)raw_size);
     int ret = zip.read_file(entry_path, raw.data());
-    zip.close();
     if (ret != 0)
     {
         fprintf(stderr, "load_pt2: read weight failed %s\n", entry_path.c_str());
@@ -631,6 +624,13 @@ int load_pt2(const std::string& ptpath, Graph& pg,
     if (ret != 0)
         return ret;
 
+    StoreZipReader zip;
+    if (zip.open(ptpath) != 0)
+    {
+        fprintf(stderr, "load_pt2: open zip failed %s\n", ptpath.c_str());
+        return -1;
+    }
+
     fprintf(stderr, "load_pt2: schema_version=%lld.%lld torch_version=%s nodes=%zu params=%zu\n",
             program.schema_version_major, program.schema_version_minor, program.torch_version.c_str(),
             program.nodes.size(), program.weights.size());
@@ -700,7 +700,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
 
         Attribute attr;
-        if (load_weight_attribute(program, *entry, is_constant, attr) != 0)
+        if (load_weight_attribute(zip, program, *entry, is_constant, attr) != 0)
             return -1;
 
         Operator* op = pg.new_operator("pnnx.Attribute", spec.state_dict_name);
