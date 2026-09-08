@@ -26,6 +26,12 @@ int GRU::load_param(const ParamDict& pd)
 #endif
     }
 
+    if (num_output <= 0)
+    {
+        // reject invalid num_output (load_model divides by it)
+        return -100;
+    }
+
     return 0;
 }
 
