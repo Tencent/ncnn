@@ -18,6 +18,12 @@ int GroupNorm::load_param(const ParamDict& pd)
     eps = pd.get(2, 0.001f);
     affine = pd.get(3, 1);
 
+    if (group <= 0)
+    {
+        // reject invalid group (forward divides by group)
+        return -100;
+    }
+
     return 0;
 }
 
