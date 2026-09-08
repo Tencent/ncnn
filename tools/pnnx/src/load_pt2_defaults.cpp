@@ -971,6 +971,11 @@ static void append_ones_like_defaults(DefaultsCtx& c)
             Operand* fill = old_inputs[found_fill];
             c.op->inputs.insert(c.op->inputs.begin() + 1, fill);
             c.op->inputnames.insert(c.op->inputnames.begin() + 1, "fill_value");
+            // the general cleanup above erased fill_value from its consumer
+            // list; restore the reverse edge so the level-2 torch_full_like
+            // pattern (which matches constant outputs by consumer count) can
+            // fire instead of leaving the raw aten::full_like node behind
+            fill->consumers.push_back(c.op);
         }
         else
         {

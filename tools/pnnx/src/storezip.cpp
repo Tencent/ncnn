@@ -384,6 +384,16 @@ static int deflate_inflate_stream(DeflateBitReader& br, unsigned char* out, size
         else if (btype == 2)
         {
             // dynamic huffman
+            // lengths_lit/lengths_dist persist across blocks (only fixed
+            // blocks rewrite all 288/30 entries); a later dynamic block that
+            // advertises fewer symbols would otherwise keep stale lengths
+            // from the previous block and corrupt the Huffman table built
+            // below, so zero both arrays before populating this block
+            for (int i = 0; i < 288; i++)
+                lengths_lit[i] = 0;
+            for (int i = 0; i < 30; i++)
+                lengths_dist[i] = 0;
+
             int hlit = 0;
             int hdist = 0;
             int hclen = 0;
