@@ -428,7 +428,7 @@ static void test_storezip_invalid_record_count()
     const char payload[] = "record count";
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
-              && writer.close() == 0,
+          && writer.close() == 0,
           "storezip: writes record-count regression archive");
 
     FILE* fp = fopen(path, "rb");
@@ -458,10 +458,11 @@ static void test_storezip_invalid_record_count()
     }
 
     const unsigned char records[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+                                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+                                      };
     fp = fopen(path, "r+b");
     CHECK(eocd64 != archive.size() && fp != 0 && fseek(fp, (long)eocd64 + 24, SEEK_SET) == 0
-              && fwrite(records, sizeof(records), 1, fp) == 1,
+          && fwrite(records, sizeof(records), 1, fp) == 1,
           "storezip: corrupts Zip64 record count");
     if (fp)
         fclose(fp);
