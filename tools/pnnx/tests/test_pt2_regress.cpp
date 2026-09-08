@@ -486,7 +486,7 @@ static void test_weight_norm_zero_dim()
     fold_pt2_weight_norm(graph);
 
     CHECK(weight_norm->type == "pnnx.Attribute" && weight_norm->attrs.at("data").shape == std::vector<int>({0, 8})
-              && weight_norm->attrs.at("data").data.empty(),
+          && weight_norm->attrs.at("data").data.empty(),
           "weight_norm: folds zero-dimension weight without division by zero");
 }
 
