@@ -257,7 +257,17 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2, 20)
+// NOTE: torch_istft_pt2 is intentionally NOT registered. it matched the pt2
+// inverse-spectrogram expansion chain through two wildcard Reshape nodes and
+// replaced the whole sequence (dropping those reshapes) with InverseSpectrogram
+// - but the wildcards also matched user reshape ops that reorganize batch/time
+// dims, silently returning the layer's natural layout instead of the requested
+// shape. the chain is not produced by the current torch (2.13 istft exports as
+// a single aten node), so there is no verified standard layout to restrict the
+// match to; until a fixture-backed expansion appears, decline the rewrite so a
+// genuinely different reshape can never be folded away. restore (with shape
+// validation) once such a fixture exists.
+// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2, 20)
 
 // pt2: torch.view_as_complex + UnaryOp sqrt + BinaryOp mul(window normalization)
 // + Reshape + torch.istft + Reshape
@@ -319,7 +329,10 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2_norm, 20)
+// NOTE: torch_istft_pt2_norm is intentionally NOT registered (same reason as
+// torch_istft_pt2 above: wildcard Reshape removal can silently change the
+// requested output layout). see the note on torch_istft_pt2.
+// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2_norm, 20)
 
 } // namespace ncnn
 

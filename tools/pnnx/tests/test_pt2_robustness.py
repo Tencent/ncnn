@@ -54,6 +54,30 @@ def _export_base(pt2_path):
         torch.export.save(ep, pt2_path)
 
 
+def _export_autocast(pt2_path):
+    # a model whose graph carries an *enabled* wrap_with_autocast (cpu bf16):
+    # inlining it would drop the dtype context and silently run fp32, so the
+    # loader must reject the archive instead
+    import torch
+    import torch.nn as nn
+
+    class M(nn.Module):
+        def __init__(self):
+            super(M, self).__init__()
+            self.c = nn.Conv2d(3, 4, 3, padding=1)
+
+        def forward(self, x):
+            with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+                x = self.c(x)
+            return x.relu() + 1
+
+    net = M().eval()
+    x = torch.rand(1, 3, 8, 8)
+    with torch.no_grad():
+        ep = torch.export.export(net, (x,))
+        torch.export.save(ep, pt2_path)
+
+
 def _copy_and_replace(src, out, drop=(), replace=None, method=zipfile.ZIP_STORED):
     # rewrite a .pt2 zip. method controls entry compression: the stored form is
     # the torch layout, ZIP_DEFLATED exercises the loader's RFC1951 inflate.
@@ -190,6 +214,23 @@ def _build_cases(workdir, base):
     p = os.path.join(workdir, "case_bad_version.pt2")
     _copy_and_replace(base, p, replace={"base/archive_version": b"1"})
     cases["bad_version"] = p
+
+    # enabled autocast wrapper: inlining it would drop the dtype context, so
+    # the loader must reject it. some torch.export versions fold autocast away
+    # entirely (nothing to exercise) - detect that and skip instead of failing
+    p = os.path.join(workdir, "case_autocast.pt2")
+    try:
+        _export_autocast(p)
+        z = zipfile.ZipFile(p)
+        mj = json.loads(z.read([n for n in z.namelist() if n.endswith("models/model.json")][0]))
+        z.close()
+        has_autocast = "wrap_with_autocast" in json.dumps(mj)
+        if has_autocast:
+            cases["autocast"] = p
+        else:
+            print("[robust] autocast wrapper not retained by this torch.export, skip case")
+    except Exception as e:
+        print("[robust] autocast export unavailable (%s), skip case" % e)
 
     # one entry's central directory advertises a huge uncompressed size (the
     # real payload is tiny): a loader that trusts it pre-allocates a huge
@@ -370,6 +411,13 @@ def test():
         rc, text = _run_pnnx(pnnx, cases["bad_version"], outdir)
         ok = rc != 0 and rc is not None and "unsupported archive_version" in text
         results.append(_case("archive_version(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # enabled autocast wrapper must be rejected (inlining would drop the
+        # dtype context); skipped when this torch.export folds it away
+        if "autocast" in cases:
+            rc, text = _run_pnnx(pnnx, cases["autocast"], outdir)
+            ok = rc != 0 and rc is not None and "unsupported enabled autocast" in text
+            results.append(_case("autocast(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
         # a lying central uncompressed size must be rejected at the container
         # boundary (diagnostic), not drive a huge allocation / inflate bomb

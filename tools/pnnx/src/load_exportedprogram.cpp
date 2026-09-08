@@ -50,6 +50,41 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
                                    int& constant_index, int& subop_index)
 {
     const JsonValue& ho_inputs = nd["inputs"];
+
+    // an enabled autocast wrapper whose target dtype is not fp32 cannot be
+    // inlined: this loop keeps only the subgraph and the captured tensors and
+    // drops the scalar context args (device / dtype / enabled), so e.g. a cpu
+    // autocast matmul meant to run in bf16 would execute in fp32 and silently
+    // change dtype and numerics. reject it instead. (fp32 autocast is a no-op,
+    // and a disabled wrapper carries no semantics, so both inline safely.)
+    {
+        bool is_autocast = false;
+        int64_t ac_dtype = 0;
+        bool ac_enabled = false;
+        bool seen_enabled = false;
+        for (size_t j = 0; j < ho_inputs.size(); j++)
+        {
+            const JsonValue& arg = ho_inputs[j]["arg"];
+            if (arg.has("as_scalar_type"))
+            {
+                is_autocast = true;
+                ac_dtype = arg["as_scalar_type"].as_int();
+            }
+            else if (arg.has("as_bool") && !seen_enabled)
+            {
+                // wrap_with_autocast inputs: device(string) dtype(scalar_type)
+                // enabled(bool) cache_enabled(bool) graph captures ...
+                seen_enabled = true;
+                ac_enabled = arg["as_bool"].as_bool();
+            }
+        }
+        if (is_autocast && ac_enabled && ac_dtype != 7 /* serde float32 */)
+        {
+            fprintf(stderr, "unsupported enabled autocast wrapper (dtype %lld); only fp32 autocast can be inlined\n", (long long)ac_dtype);
+            return -1;
+        }
+    }
+
     const JsonValue* subgraph = 0;
     std::vector<Operand*> captures;
 
