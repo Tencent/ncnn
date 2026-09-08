@@ -113,7 +113,7 @@ static void test_ones_like_fold()
             CHECK(it != fold->attrs.end() && it->second.data.size() == 6 * sizeof(float),
                   "ones_like: attr data = 6 floats");
             CHECK(it != fold->attrs.end() && it->second.shape.size() == 2 && it->second.shape[0] == 2
-                      && it->second.shape[1] == 3,
+                  && it->second.shape[1] == 3,
                   "ones_like: attr shape = (2,3)");
             float v0 = 0.f;
             if (it != fold->attrs.end() && it->second.data.size() >= 4)
@@ -230,11 +230,11 @@ static void test_tensor_list_null_slot()
     Operator* list = g.new_operator("prim::ListConstruct", "list");
     int pnnx_unknown_index = 0;
     CHECK(append_tensor_list_item(g, list, refs[0], "index", "indices", 0, pnnx_unknown_index)
-              && append_tensor_list_item(g, list, refs[1], "index", "indices", 1, pnnx_unknown_index),
+          && append_tensor_list_item(g, list, refs[1], "index", "indices", 1, pnnx_unknown_index),
           "tensor list: None and tensor operands are created");
     CHECK(list->inputs.size() == 2 && list->inputs[0]->producer
-              && list->inputs[0]->producer->type == "prim::Constant"
-              && list->inputs[0]->producer->params.at("value").type == 0 && list->inputs[1] == index,
+          && list->inputs[0]->producer->type == "prim::Constant"
+          && list->inputs[0]->producer->params.at("value").type == 0 && list->inputs[1] == index,
           "tensor list: None remains before its indexed tensor");
 }
 
@@ -242,14 +242,14 @@ static void test_input_shape_override()
 {
     Graph g;
     Operand* dynamic_input = g.new_operand("dynamic_input");
-    dynamic_input->shape = std::vector<int>{-1, 3, -1, 8};
-    apply_input_shape(dynamic_input, std::vector<int64_t>{2, 3, 11, 8});
+    dynamic_input->shape = std::vector<int> {-1, 3, -1, 8};
+    apply_input_shape(dynamic_input, std::vector<int64_t> {2, 3, 11, 8});
     CHECK(dynamic_input->shape == std::vector<int>({-1, 3, -1, 8}),
           "input shape: exported symbolic dimensions remain authoritative");
 
     Operand* mismatched_input = g.new_operand("mismatched_input");
-    mismatched_input->shape = std::vector<int>{-1, 3, -1};
-    apply_input_shape(mismatched_input, std::vector<int64_t>{2, 3});
+    mismatched_input->shape = std::vector<int> {-1, 3, -1};
+    apply_input_shape(mismatched_input, std::vector<int64_t> {2, 3});
     CHECK(mismatched_input->shape == std::vector<int>({-1, 3, -1}),
           "input shape: mismatched rank leaves exported dimensions unchanged");
 }
@@ -274,7 +274,7 @@ static void build_adaptive_pool_graph(Graph& g)
         "pnnx.Output             output      1 0 out\n");
 
     Operator* pool = find_op(g, "aten::adaptive_avg_pool2d");
-    pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+    pool->inputs[0]->shape = std::vector<int> {1, 3, 8, 8};
 }
 
 static void run_adaptive_pool_pass(Graph& g)
@@ -292,7 +292,7 @@ static void test_adaptive_pool_source_guard()
         run_adaptive_pool_pass(g);
         const Operator* sz = find_op(g, "prim::Constant");
         CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 8
-                  && sz->params.at("value").ai[1] == 8,
+              && sz->params.at("value").ai[1] == 8,
               "adaptive_pool: explicit size equal to input is preserved");
     }
 
@@ -306,7 +306,7 @@ static void test_adaptive_pool_source_guard()
         run_adaptive_pool_pass(g);
         const Operator* sz = find_op(g, "prim::Constant");
         CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0
-                  && sz->params.at("value").ai[1] == 0,
+              && sz->params.at("value").ai[1] == 0,
               "adaptive_pool: PT2 marker permits None restoration");
     }
 
@@ -320,7 +320,7 @@ static void test_adaptive_pool_source_guard()
         run_adaptive_pool_pass(g);
         const Operator* sz = find_op(g, "prim::Constant");
         CHECK(sz != 0 && sz->params.at("value").ai.size() == 2 && sz->params.at("value").ai[0] == 0
-                  && sz->params.at("value").ai[1] == 8,
+              && sz->params.at("value").ai[1] == 8,
               "adaptive_pool: per-axis None mask is preserved");
     }
 }
@@ -334,13 +334,13 @@ static void test_adaptive_pool_module_source_guard()
         "pnnx.Input              input_0     0 1 input\n"
         "nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)\n"
         "pnnx.Output             output      1 0 out\n");
-    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int> {1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
     pnnx_graph_rewrite(g, &pass, opindex);
     CHECK(find_op(g, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[0] == 8
-              && find_op(g, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
+          && find_op(g, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
           "adaptive_pool module: explicit size is preserved");
 
     Graph pt2;
@@ -351,7 +351,7 @@ static void test_adaptive_pool_module_source_guard()
         "nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)\n"
         "pnnx.Output             output      1 0 out\n");
     Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
-    pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
+    pool->inputs[0]->shape = std::vector<int> {1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;
     marker.s = "10";
@@ -359,7 +359,7 @@ static void test_adaptive_pool_module_source_guard()
     opindex = 0;
     pnnx_graph_rewrite(pt2, &pass, opindex);
     CHECK(find_op(pt2, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[0] == 0
-              && find_op(pt2, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
+          && find_op(pt2, "nn.AdaptiveAvgPool2d")->params.at("output_size").ai[1] == 8,
           "adaptive_pool module: per-axis None mask is preserved");
 }
 
@@ -428,7 +428,7 @@ static void test_storezip_long_comment_zip64()
     const char payload[] = "zip64 long comment";
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
-              && writer.close() == 0,
+          && writer.close() == 0,
           "storezip: writes Zip64 archive for long comment regression");
 
     FILE* fp = fopen(path, "rb");
@@ -513,14 +513,14 @@ static void test_module_form_normalization()
         return;
 
     op->params["__pt2_module_class"] = "MaxPool2d";
-    op->params["__pt2_module_input_names"] = std::vector<std::string>{"input", "kernel_size"};
+    op->params["__pt2_module_input_names"] = std::vector<std::string> {"input", "kernel_size"};
     normalize_pt2_module_forms(graph);
 
     CHECK(op->type == "nn.MaxPool2d" && op->inputs.size() == 1,
           "module-form: moves operator type and removes folded constant input");
     CHECK(op->params.find("kernel_size") != op->params.end() && op->params.at("kernel_size").type == 5
-              && op->params.at("kernel_size").ai.size() == 2 && op->params.at("kernel_size").ai[0] == 3
-              && op->params.at("kernel_size").ai[1] == 3,
+          && op->params.at("kernel_size").ai.size() == 2 && op->params.at("kernel_size").ai[0] == 3
+          && op->params.at("kernel_size").ai[1] == 3,
           "module-form: folds scalar parameter in pass_level2");
 }
 
@@ -542,13 +542,13 @@ static void test_module_form_maxpool_default_stride()
         return;
 
     op->params["__pt2_module_class"] = "MaxPool2d";
-    op->params["__pt2_module_input_names"] = std::vector<std::string>{"input", "kernel_size", "stride"};
+    op->params["__pt2_module_input_names"] = std::vector<std::string> {"input", "kernel_size", "stride"};
     normalize_pt2_module_forms(graph);
 
     CHECK(op->type == "nn.MaxPool2d" && op->inputs.size() == 1,
           "module-form: removes default max-pool stride input");
     CHECK(op->params.find("stride") != op->params.end() && op->params.at("stride").type == 5
-              && op->params.at("stride").ai == op->params.at("kernel_size").ai,
+          && op->params.at("stride").ai == op->params.at("kernel_size").ai,
           "module-form: default max-pool stride matches kernel_size");
 }
 
@@ -574,7 +574,7 @@ static void test_window_function_fold()
         const Attribute& data = attr->attrs.at("data");
         const std::vector<float> values = data.get_float32_data();
         CHECK(data.shape == std::vector<int>({4}) && values.size() == 4 && values[0] == 0.f
-                  && values[1] == 0.5f && values[2] == 1.f && values[3] == 0.5f,
+              && values[1] == 0.5f && values[2] == 1.f && values[3] == 0.5f,
               "window: folded hann_window has periodic f32 values");
     }
 }
@@ -631,8 +631,8 @@ static void test_window_function_periodic_fold()
         const Attribute& data = attr->attrs.at("data");
         const std::vector<float> values = data.get_float32_data();
         CHECK(data.shape == std::vector<int>({8}) && values.size() == 8
-                  && values[0] == 0.f && values[7] == 0.f
-                  && values[1] > 0.1882f && values[1] < 0.1883f,
+              && values[0] == 0.f && values[7] == 0.f
+              && values[1] > 0.1882f && values[1] < 0.1883f,
               "window: non-periodic hann_window uses symmetric n-1 formula");
     }
 }
