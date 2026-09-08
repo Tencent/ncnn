@@ -190,7 +190,7 @@ static void test_scalar_type_argument()
 
 static void test_tensor_list_null_slot()
 {
-    const JsonValue tensors = parse_json(R"JSON([null, {"name":"index"}])JSON");
+    const JsonValue tensors = parse_json(R "JSON([null, {" name ":" index "}])JSON");
     std::vector<Pt2TensorRef> refs;
     collect_tensor_refs(tensors, refs);
     CHECK(refs.size() == 2 && refs[0].is_none && !refs[1].is_none && refs[1].name == "index",
@@ -483,15 +483,14 @@ static void test_output_spec_filter()
 static void test_module_form_normalization()
 {
     Graph graph;
-    graph.parse(R"PNNXIR(7767517
-4 3
-pnnx.Input              input       0 1 input
-prim::Constant          kernel      0 1 kernel value=3
-aten::max_pool2d        op          2 1 input kernel out
-pnnx.Output             output      1 0 out
-)PNNXIR");
+    graph.parse(R "PNNXIR(7767517
+                4 3 pnnx.Input input 0 1 input
+                    prim::Constant kernel 0 1 kernel value
+                = 3 aten::max_pool2d op 2 1 input kernel out
+                      pnnx.Output output 1 0 out) PNNXIR ");
 
-    Operator* op = find_op(graph, "aten::max_pool2d");
+        Operator* op
+        = find_op(graph, "aten::max_pool2d");
     CHECK(op != 0, "module-form: finds raw aten operator before normalization");
     if (!op)
         return;
@@ -539,18 +538,19 @@ pnnx.Output             output      1 0 out
 static void test_window_function_fold()
 {
     Graph graph;
-    graph.parse(R"PNNXIR(7767517
-7 6
-prim::Constant          length      0 1 length value=4
-prim::Constant          dtype       0 1 dtype value=None
-prim::Constant          layout      0 1 layout value=None
-prim::Constant          device      0 1 device value=cpu
-prim::Constant          pin_memory  0 1 pin_memory value=False
-aten::hann_window       op          5 1 length dtype layout device pin_memory out
-pnnx.Output             output      1 0 out
-)PNNXIR");
+    graph.parse(R "PNNXIR(7767517
+                7 6 prim::Constant length 0 1 length value
+                = 4 prim::Constant dtype 0 1 dtype value = None
+                    prim::Constant layout 0 1 layout value
+                = None
+                    prim::Constant device 0 1 device value
+                = cpu
+                    prim::Constant pin_memory 0 1 pin_memory value
+                = False
+                      aten::hann_window op 5 1 length dtype layout device pin_memory out
+                          pnnx.Output output 1 0 out) PNNXIR ");
 
-    fold_pt2_window_functions(graph);
+        fold_pt2_window_functions(graph);
     Operator* attr = find_op(graph, "pnnx.Attribute");
     CHECK(attr != 0 && attr->inputs.empty(), "window: static hann_window folds to pnnx.Attribute");
     if (attr)
@@ -566,19 +566,20 @@ pnnx.Output             output      1 0 out
 static void test_window_function_one_element_fold()
 {
     Graph graph;
-    graph.parse(R"PNNXIR(7767517
-9 8
-prim::Constant          length      0 1 length value=1
-prim::Constant          dtype       0 1 dtype value=None
-prim::Constant          layout      0 1 layout value=None
-prim::Constant          device      0 1 device value=cpu
-prim::Constant          pin_memory  0 1 pin_memory value=False
-aten::hann_window       op0         5 1 length dtype layout device pin_memory out0
-aten::hamming_window    op1         5 1 length dtype layout device pin_memory out1
-pnnx.Output             output      2 0 out0 out1
-)PNNXIR");
+    graph.parse(R "PNNXIR(7767517
+                9 8 prim::Constant length 0 1 length value
+                = 1 prim::Constant dtype 0 1 dtype value = None
+                    prim::Constant layout 0 1 layout value
+                = None
+                    prim::Constant device 0 1 device value
+                = cpu
+                    prim::Constant pin_memory 0 1 pin_memory value
+                = False
+                      aten::hann_window op0 5 1 length dtype layout device pin_memory out0
+                          aten::hamming_window op1 5 1 length dtype layout device pin_memory out1
+                              pnnx.Output output 2 0 out0 out1) PNNXIR ");
 
-    fold_pt2_window_functions(graph);
+        fold_pt2_window_functions(graph);
     int folded_one = 0;
     for (size_t i = 0; i < graph.ops.size(); i++)
     {
@@ -595,19 +596,21 @@ pnnx.Output             output      2 0 out0 out1
 static void test_window_function_periodic_fold()
 {
     Graph graph;
-    graph.parse(R"PNNXIR(7767517
-8 7
-prim::Constant          length      0 1 length value=8
-prim::Constant          periodic    0 1 periodic value=False
-prim::Constant          dtype       0 1 dtype value=None
-prim::Constant          layout      0 1 layout value=None
-prim::Constant          device      0 1 device value=cpu
-prim::Constant          pin_memory  0 1 pin_memory value=False
-aten::hann_window       op          6 1 length periodic dtype layout device pin_memory out
-pnnx.Output             output      1 0 out
-)PNNXIR");
+    graph.parse(R "PNNXIR(7767517
+                8 7 prim::Constant length 0 1 length value
+                = 8 prim::Constant periodic 0 1 periodic value = False
+                    prim::Constant dtype 0 1 dtype value
+                = None
+                    prim::Constant layout 0 1 layout value
+                = None
+                    prim::Constant device 0 1 device value
+                = cpu
+                    prim::Constant pin_memory 0 1 pin_memory value
+                = False
+                      aten::hann_window op 6 1 length periodic dtype layout device pin_memory out
+                          pnnx.Output output 1 0 out) PNNXIR ");
 
-    fold_pt2_window_functions(graph);
+        fold_pt2_window_functions(graph);
     Operator* attr = find_op(graph, "pnnx.Attribute");
     CHECK(attr != 0 && attr->inputs.empty(), "window: periodic overload folds to pnnx.Attribute");
     if (attr)
