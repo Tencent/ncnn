@@ -441,7 +441,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_onnx_pad_1, 140)
 
-// pt2 形态分支:torch.export 产出公开算子 aten::conv3d(7 输入),见 F_conv1d_1 注
+// PT2 export uses aten::conv3d instead of TorchScript's aten::_convolution.
 class F_conv3d_1 : public GraphRewriterPass
 {
 public:

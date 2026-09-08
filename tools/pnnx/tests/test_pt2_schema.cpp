@@ -1,15 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// pt2_schema 解析 dump(独立 harness,N1 验收工具)。
-// 编译(在 tests/ 目录下):
-//     g++ -O2 -std=c++11 -Wall -Wextra -I../src test_pt2_schema.cpp ../src/pt2_schema.cpp ../src/storezip.cpp -o test_pt2_schema
-// 用法:
-//     ./test_pt2_schema model.pt2          人类可读 dump
-//     ./test_pt2_schema -c model.pt2       规范化输出(与 python 侧逐行对拍用)
-//     ./test_pt2_schema -q model.pt2       仅退出码(0 = 解析成功)
-//
-// 对拍:pt2-dump/dump_canonical.py 用同一模型生成规范化文本,两者 diff 必须为空。
 
 #include "pt2_schema.h"
 
@@ -19,10 +10,8 @@
 
 using namespace pnnx;
 
-// 规范化文本:每节点一行 "target|name|in:参数名=形态:引用名,|out:名,",
-// 形态记号 t=张量引用 ts=张量列表 i=整 iv=整数表 f=浮点 fv=浮点表 b=布尔
-// bv=布尔表 s=字符串 sv=字符串表 st=dtype dev=设备 mf=内存格式 n=none
-// 参数名前缀 k$ 表示 keyword 实参。
+// Canonical fields: t/ts tensor(s), i/iv integers, f/fv floats, b/bv bools,
+// s/sv strings, st dtype, dev device, mf memory format, n none; k$ is keyword.
 
 static const char* arg_shape(const Pt2Argument& a)
 {
@@ -98,7 +87,6 @@ static void print_node_outputs(std::string& line, const std::vector<Pt2NodeOutpu
 
 static void dump_canonical(const Pt2Program& program)
 {
-    // header
     printf("schema_version=%lld.%lld\ntorch_version=%s\nroot=%s\n", program.schema_version_major,
            program.schema_version_minor, program.torch_version.c_str(), program.archive_root.c_str());
 
@@ -110,7 +98,6 @@ static void dump_canonical(const Pt2Program& program)
     }
     printf("\n");
 
-    // input specs(按 kind 排序键:user_input=0 parameter=1 buffer=2 tensor_constant=3)
     for (size_t i = 0; i < program.input_specs.size(); i++)
     {
         const Pt2InputSpec& s = program.input_specs[i];
@@ -123,7 +110,6 @@ static void dump_canonical(const Pt2Program& program)
         printf("out_spec:%s\n", program.output_specs[i].graph_name.c_str());
     }
 
-    // nodes
     for (size_t i = 0; i < program.nodes.size(); i++)
     {
         const Pt2Node& node = program.nodes[i];
@@ -136,7 +122,6 @@ static void dump_canonical(const Pt2Program& program)
         printf("%s\n", line.c_str());
     }
 
-    // weights / constants
     for (size_t i = 0; i < program.weights.size(); i++)
     {
         const Pt2WeightEntry& w = program.weights[i];
@@ -346,7 +331,6 @@ int main(int argc, char** argv)
         dump_canonical(program);
     else if (strcmp(mode, "human") == 0)
         dump_human(program);
-    // quiet: 仅验证解析成功,无输出
 
     return 0;
 }

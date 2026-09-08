@@ -142,7 +142,7 @@ static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
     return x ^ 0xffffffff;
 }
 
-// Little-endian readers that are safe against misalignment and endianness.
+// Avoid unaligned and host-endian reads.
 static uint16_t read_le16(const unsigned char* p)
 {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
@@ -182,12 +182,7 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
-    // Locate the central directory via the End Of Central Directory (EOCD)
-    // record. The central directory is the authoritative index of a zip and is
-    // not affected by data descriptors (general purpose bit 3, 0x08) that some
-    // writers (e.g. PyTorch's torch.export.save) put on local file headers.
-    // Reading through the central directory makes this reader robust to data
-    // descriptors instead of rejecting them.
+    // Data descriptors make local headers unreliable; use the central directory.
     uint64_t cd_offset = 0;
     uint64_t cd_size = 0;
     uint64_t cd_records = 0;
@@ -199,10 +194,7 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
-    // Phase 1: read every central directory file header into a temporary list.
-    // The central directory is the authoritative index: it carries the true
-    // compressed size (even for entries written with a data descriptor) and the
-    // local-header offset.
+    // Read sizes and local-header offsets before seeking away from this directory.
     if (seek64(fp, (int64_t)cd_offset, SEEK_SET) != 0)
     {
         fprintf(stderr, "store zip: seek to central directory failed\n");
@@ -243,8 +235,7 @@ int StoreZipReader::open(const std::string& path)
         uint64_t uncompressed_size = cdfh.uncompressed_size;
         uint64_t lfh_offset = cdfh.lfh_offset;
 
-        // Resolve zip64 extended information from the central directory extra
-        // field when the 32-bit fields are saturated to 0xffffffff.
+        // Saturated 32-bit fields require the Zip64 extra field.
         if (compressed_size == 0xffffffff || uncompressed_size == 0xffffffff || lfh_offset == 0xffffffff)
         {
             uint16_t extra_offset = 0;
@@ -298,7 +289,6 @@ int StoreZipReader::open(const std::string& path)
             seek64(fp, cdfh.extra_field_length, SEEK_CUR);
         }
 
-        // skip file comment
         seek64(fp, cdfh.file_comment_length, SEEK_CUR);
 
         if (cdfh.compression != 0 || compressed_size != uncompressed_size)
@@ -315,10 +305,7 @@ int StoreZipReader::open(const std::string& path)
         cdentries.push_back(e);
     }
 
-    // Phase 2: for each entry, seek to its local file header to compute the real
-    // data offset (after the local file name + extra field). This is done as a
-    // separate pass so seeking to the local header does not disturb the central
-    // directory scan above.
+    // Compute data offsets after the directory scan, so local-header seeks cannot disturb it.
     for (size_t i = 0; i < cdentries.size(); i++)
     {
         const CDEntry& e = cdentries[i];
@@ -342,7 +329,6 @@ int StoreZipReader::open(const std::string& path)
         local_file_header lfh;
         fread((char*)&lfh, sizeof(lfh), 1, fp);
 
-        // skip file name + extra field of the local header to reach the data
         seek64(fp, lfh.file_name_length + lfh.extra_field_length, SEEK_CUR);
 
         StoreZipMeta fm;
@@ -357,15 +343,13 @@ int StoreZipReader::open(const std::string& path)
 
 int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_size, uint64_t& cd_records)
 {
-    // Determine file size.
     if (seek64(fp, 0, SEEK_END) != 0)
         return -1;
     const int64_t file_size = tell64(fp);
     if (file_size < 22)
         return -1;
 
-    // The EOCD record sits at the very end of the file, optionally followed by a
-    // comment of at most 65535 bytes. Scan backward for its signature.
+    // EOCD may precede a comment of at most 65535 bytes.
     int64_t scan_start = file_size - 22 - 65535;
     if (scan_start < 0)
         scan_start = 0;
@@ -376,11 +360,7 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
     if (fread(buf.data(), buf.size(), 1, fp) != 1)
         return -1;
 
-    // Scan backward for EOCD candidates. Each candidate is validated by checking
-    // that cd_offset really points at a central directory file header; this
-    // rejects spurious 50 4b 05 06 byte sequences that may appear in trailing
-    // comment bytes or elsewhere in the payload (such as a PK\x05\x06 that some
-    // serializers embed).
+    // Validate candidates to reject EOCD signatures embedded in payload data.
     for (int64_t p = (int64_t)buf.size() - 22; p >= 0; p--)
     {
         if (!(buf[p] == 0x50 && buf[p + 1] == 0x4b && buf[p + 2] == 0x05 && buf[p + 3] == 0x06))
@@ -414,7 +394,6 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
             continue;
         }
 
-        // Zip64: the zip64 EOCD locator is 20 bytes before this EOCD candidate.
         int64_t loc_pos = (scan_start + p) - 20;
         if (loc_pos < 0)
             continue;
@@ -425,7 +404,6 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
             continue;
         uint64_t eocdr64_offset = read_le64(locator + 8);
 
-        // Read + validate the zip64 EOCD record.
         if (seek64(fp, (int64_t)eocdr64_offset, SEEK_SET) != 0)
             continue;
         uint32_t sig;
@@ -433,8 +411,7 @@ int StoreZipReader::find_central_directory(uint64_t& cd_offset, uint64_t& cd_siz
             continue;
         if (sig != 0x06064b50)
             continue;
-        // skip size_of_eocd64_m12 (8), version_made_by (2), version_min_required (2),
-        // disk_number (4), start_disk (4)
+        // Skip size, versions, disk number, and start disk.
         if (seek64(fp, 8 + 2 + 2 + 4 + 4, SEEK_CUR) != 0)
             continue;
         uint64_t z64_cd_records;
@@ -720,7 +697,6 @@ int main()
 
     {
         uint64_t len = 1*1024*1024*1024;
-        // uint64_t len = 1*1024*1024;
         char* data1g = new char[len];
 
         StoreZipWriter szw;

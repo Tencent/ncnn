@@ -1,10 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// json.hpp 边界单测（独立 harness，不进 CMake 构建）。
-// 编译（在 tests/ 目录下）：
-//     g++ -O2 -std=c++11 -Wall -Wextra -I../src test_json.cpp -o test_json
-// 运行：./test_json   （全部通过退出码 0）
 
 #include "json.hpp"
 
@@ -66,7 +62,6 @@ static void test_scalars()
     v = pnnx::parse_json("-2.25");
     CHECK(v.isDouble() && v.asDouble() == -2.25);
 
-    // 指数记法 → double；asDouble() 对 int 也成立
     v = pnnx::parse_json("1e-3");
     CHECK(v.isDouble() && v.asDouble() > 0.00099 && v.asDouble() < 0.00101);
 
@@ -76,14 +71,12 @@ static void test_scalars()
     v = pnnx::parse_json("10");
     CHECK(v.isNumber() && v.asDouble() == 10.0);
 
-    // 大整数走 int 通道精确保持（double 在 2^53 附近会失真）
     v = pnnx::parse_json("9007199254740993");
     CHECK(v.isInt() && v.asInt() == 9007199254740993LL);
 
     v = pnnx::parse_json("-9223372036854775807");
     CHECK(v.isInt() && v.asInt() == -9223372036854775807LL);
 
-    // double 精度往返
     v = pnnx::parse_json("3.141592653589793");
     CHECK(v.isDouble() && v.asDouble() == 3.141592653589793);
 }
@@ -96,11 +89,9 @@ static void test_strings()
     v = pnnx::parse_json("\"\"");
     CHECK(v.isString() && v.asString().empty());
 
-    // 全部转义序列
     v = pnnx::parse_json("\"a\\\"b\\\\c\\/d\\be\\ff\\ng\\rh\\ti\"");
     CHECK(v.asString() == "a\"b\\c/d\be\ff\ng\rh\ti");
 
-    // \u 基本平面：1~3 字节 UTF-8
     v = pnnx::parse_json("\"\\u0041\"");
     CHECK(v.asString() == "A");
 
@@ -110,15 +101,12 @@ static void test_strings()
     v = pnnx::parse_json("\"\\u4e2d\"");
     CHECK(v.asString() == "\xE4\xB8\xAD");
 
-    // 代理对展开成 4 字节 UTF-8（U+1F600 = \uD83D\uDE00）
     v = pnnx::parse_json("\"\\ud83d\\ude00\"");
     CHECK(v.asString() == "\xF0\x9F\x98\x80");
 
-    // 孤立高代理：至少不能产出非法 UTF-8 后静默错位——此处按字面 BMP 编码保留
     v = pnnx::parse_json("\"\\ud83d\"");
     CHECK(v.isString() && v.asString().size() == 3);
 
-    // 非 ASCII 字节透传（torch 导出 json 的 ensure_ascii=false 场景）
     v = pnnx::parse_json("\"\xE4\xB8\xAD\xE6\x96\x87\"");
     CHECK(v.asString() == "\xE4\xB8\xAD\xE6\x96\x87");
 }
@@ -139,7 +127,6 @@ static void test_containers()
     CHECK(v[3].isBool() && v[3].asBool() == true);
     CHECK(v[4].isObject() && v[4]["k"].asInt() == -1);
 
-    // .pt2 真实形态：as_ints / as_tensors / sizes 列表元素是单键对象
     v = pnnx::parse_json("{\"as_ints\":[1,1],\"kind\":1}");
     CHECK(v["as_ints"].isArray() && v["as_ints"].size() == 2 && v["as_ints"][1].asInt() == 1);
     CHECK(v["kind"].asInt() == 1);
@@ -153,11 +140,9 @@ static void test_containers()
     v = pnnx::parse_json("{\"as_none\":true}");
     CHECK(v["as_none"].isBool() && v["as_none"].asBool() == true);
 
-    // 键顺序无关；重复键后者覆盖（std::map 语义）
     v = pnnx::parse_json("{\"a\":1,\"b\":2,\"a\":3}");
     CHECK(v["a"].asInt() == 3 && v["b"].asInt() == 2);
 
-    // 深嵌套 500 层
     {
         std::string deep;
         for (int i = 0; i < 500; i++)
@@ -180,7 +165,6 @@ static void test_accessors()
     CHECK(!v.hasMember("x"));
     CHECK(v["x"].isNull());
     CHECK(v["a"]["b"][1].asInt() == 20);
-    // 越界数组下标 / 对非容器取下标 → null（容错访问，不 crash）
     CHECK(v["a"]["b"][5].isNull());
     CHECK(v["a"]["b"]["k"].isNull());
     CHECK(v["a"]["x"].isNull());
@@ -188,11 +172,9 @@ static void test_accessors()
 
 static void test_whitespace_and_errors()
 {
-    // 前后空白合法
     pnnx::JsonValue v = pnnx::parse_json("  \r\n [1, 2] \t\n ");
     CHECK(v.isArray() && v.size() == 2);
 
-    // 非法输入必须报错
     CHECK_PARSE_ERROR("");
     CHECK_PARSE_ERROR("   ");
     CHECK_PARSE_ERROR("{");

@@ -1148,7 +1148,7 @@ void pass_level2(Graph& g)
 
     fuse_constantlist(g);
 
-    // pt2 专属命令式分支:weight_norm 参数化权重折算(见 F_pt2.cpp)
+    // PT2 shared weight_norm parameters require imperative folding.
     fold_pt2_weight_norm(g);
 
     int opindex = 0;

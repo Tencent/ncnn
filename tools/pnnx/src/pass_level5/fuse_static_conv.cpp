@@ -10,9 +10,6 @@
 
 namespace pnnx {
 
-// *_pad 融合族的公共守卫:mode 限 reflect/replicate(ts level1 只识别这
-// 两种),pad 成对相等且长度符合维数,conv 自身无 padding("valid"/全零)。
-// 键名 = pattern 里显式 %name 捕获的裸名(带 op 前缀的是 %*=%* 通配捕获)。
 static bool conv_pad_match_common(const std::map<std::string, Parameter>& captured_params, int expected_pad_count)
 {
     const Parameter& mode = captured_params.at("mode");
@@ -375,13 +372,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-// reflect/replicate padding 模块分解的融合:Conv 模块声明 padding_mode 后,
-// torch.export 把 padding 物化成模块内的 aten::pad + 零 padding 卷积两个
-// 算子;ts 侧 level1 模块转换(nn_Conv*.cpp)把 pad 融回卷积属性,pt2 路径
-// 无 level1,在此对齐(fuse_static_* 的静态折叠本就对应 level1 模块转换的
-// 权重折层,层次对等)。仅融合成对相等的对称 pad 与 reflect/replicate——
-// 非对称 pad、constant pad(显式 F.pad 用法)与自带 padding 的卷积不属于
-// 该分解形态,保持原图交由各自既有转换器处理。
+// PT2 bypasses level1, so restore the Conv padding_mode decomposition here.
 class fuse_static_Fconv1d_pad_pass : public GraphRewriterPass
 {
 public:
@@ -420,7 +411,7 @@ pnnx.Output             output      1 0 out
         const int groups = captured_params.at("groups").i;
 
         ops.at("conv1d")->params["in_channels"] = in_channels_per_group * groups;
-        // torch pad 的成对值从最后一维起排,conv padding 从第一空间维起
+        // torch pad is innermost-first; conv padding is outermost-first.
         const std::vector<int>& pad = captured_params.at("pad").ai;
         ops.at("conv1d")->params["padding"] = std::vector<int>{pad[0]};
     }
@@ -786,8 +777,7 @@ void fuse_static_conv(Graph& graph)
     fuse_static_Fconv3d_no_affine_pass_onnx z3;
     int opindex = 0;
 
-    // pad 融合必须先于静态折叠:普通折叠把 F.conv*d 写死成
-    // padding_mode=zeros 的 nn.Conv*d,pad 就无法再融进卷积属性
+    // Fuse padding before static folding loses padding_mode.
     pnnx_graph_rewrite(graph, &cp1, opindex);
     pnnx_graph_rewrite(graph, &cp2, opindex);
     pnnx_graph_rewrite(graph, &cp3, opindex);

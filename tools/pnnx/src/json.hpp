@@ -12,12 +12,7 @@
 #include <string>
 #include <vector>
 
-// 最小 JSON 解析器（课题 2：pnnx 支持 torch.export .pt2 所需）。
-// 设计约束：不引入任何第三方库。仅依赖 STL。
-// 支持：null / bool / int / double / string(含转义与\u) / array / object。
-// 用法：
-//     pnnx::JsonValue root = pnnx::parse_json(text);
-//     if (root.isObject()) { const JsonValue& v = root["some_key"]; ... }
+// Minimal JSON parser for PT2 archives without third-party dependencies.
 
 namespace pnnx {
 
@@ -330,7 +325,7 @@ private:
                         else
                             throw std::runtime_error("json parse error: bad hex in \\u");
                     }
-                    // 高代理后紧跟合法低代理 → 合并码点展开为 4 字节 UTF-8
+                    // A valid surrogate pair expands to four-byte UTF-8.
                     if (cp >= 0xD800 && cp <= 0xDBFF && pos + 6 <= s.size()
                         && s[pos] == '\\' && s[pos + 1] == 'u')
                     {
@@ -359,7 +354,7 @@ private:
                         else
                             pos = save; // 不是合法低代理，回退按孤立高代理处理
                     }
-                    // Basic Multilingual Plane 直接转 UTF-8；孤立代理按 3 字节保留
+                    // Keep isolated surrogates as three-byte UTF-8.
                     if (cp < 0x80)
                         out.push_back(static_cast<char>(cp));
                     else if (cp < 0x800)
@@ -405,7 +400,7 @@ private:
         if (peek() == '-')
             ++pos;
 
-        // 整数部分：至少一位数字；不允许前导零（"0" 本身除外）
+        // JSON allows no leading zero except for zero itself.
         size_t int_digits_start = pos;
         while (pos < s.size() && isdigit_s(s[pos]))
             ++pos;

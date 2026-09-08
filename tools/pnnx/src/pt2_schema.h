@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// PT2 schema mirror. Normalization belongs to pass_level2.
+// PT2 schema mirror; normalization belongs to pass_level2.
 
 namespace pnnx {
 
@@ -31,7 +31,6 @@ struct Pt2TensorRef
     }
 };
 
-// Node argument, represented by one of the as_* variants.
 struct Pt2Argument
 {
     enum ArgType
@@ -192,7 +191,6 @@ struct Pt2Program
 
 int load_pt2_schema(const std::string& ptpath, Pt2Program& program);
 
-// Locate the model.json entry used to identify a PT2 archive.
 std::string find_pt2_model_json_entry(const std::vector<std::string>& entry_names);
 
 } // namespace pnnx

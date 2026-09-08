@@ -235,8 +235,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose1d_onnx_1, 140)
 
-// pt2 形态分支:torch.export 产出公开算子 aten::conv_transpose1d(8 输入,
-// schema 形参序 output_padding 在 groups 前、dilation 最后),见 F_conv1d_1 注
+// PT2 schema places output_padding before groups and dilation last.
 class F_conv_transpose1d_1 : public GraphRewriterPass
 {
 public:

@@ -216,7 +216,6 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
 
 static bool model_file_maybe_pt2(const std::string& path)
 {
-    // 快速排除:pt2 是 zip
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp)
     {
@@ -233,7 +232,7 @@ static bool model_file_maybe_pt2(const std::string& path)
     if (signature != 0x04034b50)
         return false;
 
-    // pt2 特征:存在 <root>/models/model.json 条目
+    // PT2 archives contain <root>/models/model.json.
     pnnx::StoreZipReader zip;
     if (zip.open(path) != 0)
         return false;

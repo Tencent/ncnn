@@ -13,7 +13,6 @@
 
 namespace pnnx {
 
-// PT2 dtype enum -> pnnx type. Unknown values return 0.
 static int pt2_dtype_enum_to_pnnx_type(long long dtype)
 {
     switch (dtype)
@@ -197,7 +196,6 @@ static std::string pt2_full_target_name(const std::string& target)
     return rest.substr(0, dot1) + "::" + rest.substr(dot1 + 1);
 }
 
-// Decode a default-table value into a prim::Constant.
 static bool default_value_to_parameter(int type, const char* value, Parameter& p)
 {
     switch (type)
@@ -296,7 +294,6 @@ static bool default_value_to_parameter(int type, const char* value, Parameter& p
     }
 }
 
-// Convert a PT2 argument to a prim::Constant value.
 static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
 {
     switch (a.type)
@@ -359,7 +356,6 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
     }
 }
 
-// Read a raw PT2 tensor entry into a pnnx Attribute.
 static int load_weight_attribute(const Pt2Program& program, const Pt2WeightEntry& entry, bool is_constant, Attribute& attr)
 {
     if (entry.use_pickle)
@@ -522,7 +518,6 @@ static bool pt2_target_unpackable(const std::string& op_type)
            || op_type == "aten::tensor_split";
 }
 
-// Decode the innermost nn_module_stack entry from node metadata.
 static bool parse_nn_module_stack(const std::string& nms, std::string& short_class, std::string& module_name)
 {
     if (nms.empty())
@@ -549,7 +544,6 @@ static bool parse_nn_module_stack(const std::string& nms, std::string& short_cla
     return true;
 }
 
-// Infer interpolate mode from the exported aten operator.
 static const char* pt2_upsample_mode(const std::string& aten)
 {
     if (aten == "aten::upsample_nearest1d" || aten == "aten::upsample_nearest2d" || aten == "aten::upsample_nearest3d")
@@ -632,7 +626,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
 
     int pnnx_unknown_index = 0;
 
-    // 1. user_input -> pnnx.Input.
     {
         int input_index = 0;
         for (size_t i = 0; i < program.input_specs.size(); i++)
@@ -677,7 +670,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         }
     }
 
-    // 2. parameter / buffer / tensor_constant -> pnnx.Attribute.
     for (size_t i = 0; i < program.input_specs.size(); i++)
     {
         const Pt2InputSpec& spec = program.input_specs[i];
@@ -710,7 +702,6 @@ int load_pt2(const std::string& ptpath, Graph& pg,
         r->shape = attr.shape;
     }
 
-    // 3. Convert graph nodes to Operators.
     for (size_t i = 0; i < program.nodes.size(); i++)
     {
         const Pt2Node& node = program.nodes[i];
@@ -787,8 +778,7 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                 }
                 else if (strncmp(aten_type.c_str(), "aten::", 6) == 0 && !node.inputs.empty())
                 {
-                    // Omitted defaults stay unfilled, so a matching rewrite may
-                    // never fire; surface it instead of failing downstream.
+                    // Warn when a missing default can prevent a rewrite.
                     fprintf(stderr, "load_pt2: %s node %s: not in defaults table, %d arg(s) emitted as-is\n",
                             full_target.c_str(), node.name.c_str(), (int)node.inputs.size());
                 }

@@ -17,7 +17,7 @@ static bool string_ends_with(const std::string& s, const std::string& suffix)
            && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-// Accept integral JSON doubles to tolerate schema-version drift.
+// Accept integral JSON doubles for schema-version compatibility.
 static long long json_as_int(const JsonValue& v)
 {
     if (v.isInt())
