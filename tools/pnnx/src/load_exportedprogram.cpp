@@ -111,7 +111,14 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
     if (!subgraph)
         return 0;
 
-    // bind the subgraph placeholders to the captured operands in order
+    // bind the subgraph placeholders to the captured operands in order. the
+    // placeholder names are local to this subgraph, so (a) they must always
+    // be (re)bound to this wrapper's captures - a previous wrapper that used
+    // the same placeholder names must not leak its mapping into this one -
+    // and (b) after building the subgraph body the bindings must be undone so
+    // they do not pollute the surrounding main graph. remember what the names
+    // mapped to before (or that they were absent) and restore afterwards.
+    std::vector<std::pair<std::string, std::pair<bool, Operand*> > > saved_placeholders;
     if (subgraph->has("inputs"))
     {
         const JsonValue& sub_inputs = (*subgraph)["inputs"];
@@ -122,8 +129,9 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
                 if (sub_inputs[k].has("as_tensor"))
                 {
                     std::string pname = sub_inputs[k]["as_tensor"]["name"].as_string();
-                    if (operands_by_name.find(pname) == operands_by_name.end())
-                        operands_by_name[pname] = captures[k];
+                    std::map<std::string, Operand*>::iterator it = operands_by_name.find(pname);
+                    saved_placeholders.push_back(std::make_pair(pname, std::make_pair(it != operands_by_name.end(), it != operands_by_name.end() ? it->second : (Operand*)0)));
+                    operands_by_name[pname] = captures[k];
                 }
             }
         }
@@ -139,11 +147,10 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
     }
 
     int ret = build_subgraph_nodes(g, *subgraph, operands_by_name, constant_index, subop_index);
-    if (ret != 0)
-        return ret;
 
-    // map the subgraph results to the wrapper output names
-    if (subgraph->has("outputs") && nd.has("outputs"))
+    // map the subgraph results to the wrapper output names before undoing the
+    // placeholder bindings (the two name sets are disjoint, order is fine)
+    if (ret == 0 && subgraph->has("outputs") && nd.has("outputs"))
     {
         const JsonValue& sub_outs = (*subgraph)["outputs"];
         const JsonValue& wrap_outs = nd["outputs"];
@@ -159,7 +166,20 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
         }
     }
 
-    return 0;
+    // restore the pre-wrapper placeholder mappings so this subgraph's local
+    // names do not leak into later wrappers or the surrounding main graph
+    for (size_t k = 0; k < saved_placeholders.size(); k++)
+    {
+        const std::string& pname = saved_placeholders[k].first;
+        const bool was_present = saved_placeholders[k].second.first;
+        Operand* old_operand = saved_placeholders[k].second.second;
+        if (was_present)
+            operands_by_name[pname] = old_operand;
+        else
+            operands_by_name.erase(pname);
+    }
+
+    return ret;
 }
 
 static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
@@ -861,6 +881,17 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         else if (spec.has("user_input"))
         {
             const JsonValue& u = spec["user_input"];
+
+            // pnnx models only take tensor inputs; a specialized scalar user
+            // argument (int/bool/...) has no as_tensor here, and reading its
+            // (empty) name would create a bogus pnnx.Input and shift the
+            // inputshape index for the real tensor inputs - reject explicitly
+            if (!u["arg"].has("as_tensor"))
+            {
+                fprintf(stderr, "unsupported scalar user input '%s'; pnnx inputs must be tensors\n", u["arg"]["name"].as_string().c_str());
+                return -1;
+            }
+
             std::string graph_name = u["arg"]["as_tensor"]["name"].as_string();
 
             Operator* op = g.new_operator("pnnx.Input", graph_name);
