@@ -18,7 +18,7 @@
 #endif
 
 #if ncnn_vendorID == 0x5143
-// adreno uses the matrix component width for the stride of packed buffers
+// adreno needs stride * 4 for these packed int8 loads; int32 stores are unchanged
 #define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
 #endif
 
@@ -288,7 +288,9 @@ void main()
                             const uint gm = (mi + zm) * Md4 + j;
 
                             const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                            prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
+                            prefetch_tmp_v[q] = ivec2(0);
+                            if (gk < inch)
+                                prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
                         }
                     }
                 }
@@ -314,7 +316,9 @@ void main()
                             const uint gk = (ki + zk) * Kd4 + j;
 
                             const uint gi = (gz * inchd4 + gk) * cstepd2 + gm;
-                            prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
+                            prefetch_tmp_v[q] = ivec2(0);
+                            if (gk < inchd4)
+                                prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
                         }
                     }
                 }
@@ -537,8 +541,12 @@ void main()
 
                             const uint cstepd4 = psc(cstep) / 4;
                             const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                            tmp_v0[sgmi][siq] = i8buffer_sm4(bottom_tm_low_data, gi);
-                            tmp_v1[sgmi][siq] = i8buffer_sm4(bottom_tm_high_data, gi);
+                            // padded K tiles have zero weights but no corresponding input channels
+                            ivec2 v01 = ivec2(0);
+                            if (gk < inch)
+                                v01 = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
+                            tmp_v0[sgmi][siq] = v01.x;
+                            tmp_v1[sgmi][siq] = v01.y;
                         }
                         else
                         {
@@ -553,7 +561,9 @@ void main()
                             const uint gm = (mi + zm) * M + i;
                             const uint gk = (k + zk) * Kd4 + j;
 
-                            const ivec2 v01 = bottom_tm_low_high_data[(gz * (inch / 4) + gk) * cstepd2 + gm];
+                            ivec2 v01 = ivec2(0);
+                            if (gk < inch / 4)
+                                v01 = bottom_tm_low_high_data[(gz * (inch / 4) + gk) * cstepd2 + gm];
                             tmp_v0[sgmi][siq] = v01.x;
                             tmp_v1[sgmi][siq] = v01.y;
                         }

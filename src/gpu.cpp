@@ -1098,7 +1098,9 @@ void GpuInfoPrivate::query_extension_features()
     memset(&queryMaintenance4Features, 0, sizeof(queryMaintenance4Features));
     queryMaintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
     queryMaintenance4Features.pNext = 0;
-    if (physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
+    // expose core maintenance4 only when both the application and device support vulkan-1.3
+    // this shared feature gate controls device enablement, shader targets and subgroup workarounds
+    if (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 3, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
     {
         queryMaintenance4Features.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryMaintenance4Features;
@@ -2691,7 +2693,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
         const int N_pad = (N + cmp.NSize - 1) / cmp.NSize * cmp.NSize;
         const int K_pad = (K + cmp.KSize - 1) / cmp.KSize * cmp.KSize;
 
-        double cost = M_pad * N_pad * K_pad - M * N * K;
+        double cost = (double)M_pad * N_pad * K_pad - (double)M * N * K;
         if (cost < min_cost)
         {
             min_cost = cost;
@@ -4323,6 +4325,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     const bool use_local_size_id = code[1] >= 0x00010600;
     uint32_t uint_type_id = -1;
     bool inject_local_size_constants = false;
+    bool inject_local_size_decorations = false;
 
     const uint32_t* p = code;
     uint32_t* dp = dstcode;
@@ -4340,6 +4343,20 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         uint16_t wordcount = opcode >> 16;
         uint16_t op = opcode & 0xffff;
 
+        // insert the local size SpecId decorations before the types
+        if (op >= 19 && op <= 39 && inject_local_size_decorations)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                dp[0] = (4 << 16) | 71; // OpDecorate
+                dp[1] = code[3] + i;
+                dp[2] = 1; // SpecId
+                dp[3] = 233 + i;
+                dp += 4;
+            }
+            inject_local_size_decorations = false;
+        }
+
         // OpExecutionMode LocalSize or OpExecutionModeId LocalSizeId
         if ((op == 16 && p[2] == 17) || (op == 331 && p[2] == 38 && use_local_size_id))
         {
@@ -4354,6 +4371,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 dp[5] = code[3] + 2;
                 dstcode[3] = code[3] + 3;
                 inject_local_size_constants = true;
+                inject_local_size_decorations = true;
             }
             else
             {
@@ -4416,7 +4434,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         }
         else if (op == 54 && inject_local_size_constants) // OpFunction
         {
-            // insert local size constants after types and before functions
+            // adreno needs LocalSizeId to reference specialization constants
             if (uint_type_id == (uint32_t)-1)
             {
                 uint_type_id = dstcode[3]++;
@@ -4429,7 +4447,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
             for (int i = 0; i < 3; i++)
             {
-                dp[0] = (4 << 16) | 43; // OpConstant
+                dp[0] = (4 << 16) | 50; // OpSpecConstant
                 dp[1] = uint_type_id;
                 dp[2] = code[3] + i;
                 dp[3] = local_size_xyz[i];
@@ -4477,8 +4495,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
-    // reserve space for a uint type and three local size constants
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 16 * sizeof(uint32_t));
+    // reserve space for a uint type, three local size spec constants and their decorations
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 28 * sizeof(uint32_t));
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
@@ -6207,7 +6225,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         if (info.queryMaintenance4Features().maintenance4)
         {
-            // maintenance4 supports LocalSizeId generated with spirv-1.6
+            // enabled core maintenance4 permits spirv-1.6 and LocalSizeId for all shaders
             s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
             s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_6);
         }

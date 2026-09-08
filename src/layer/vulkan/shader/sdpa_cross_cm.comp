@@ -17,7 +17,7 @@
 #endif
 
 #if ncnn_vendorID == 0x5143
-// adreno uses the matrix component width for the stride of packed buffers
+// adreno needs stride * 2 for these packed fp16 buffers
 #define coopMatLoad(m, buf, element, stride, layout)  coopMatLoad(m, buf, element, (stride) * 2, layout)
 #define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
 #endif

@@ -148,6 +148,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_flash_attention = ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     }
 
+    // adreno flash attention cm shaders have not been validated; retain the cross-attention cm path
+    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix)
+        use_flash_attention = false;
+
     if (use_flash_attention)
     {
         if (use_cooperative_matrix)
