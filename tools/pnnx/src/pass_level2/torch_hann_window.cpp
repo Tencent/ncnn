@@ -66,31 +66,39 @@ static void fold_window(Operator* op, const std::map<std::string, Parameter>& ca
         }
     }
 
-    if (n <= 0)
-        return; // cannot fold
-
-    // a hostile window_length requests an enormous constant: folding it would
-    // allocate gigabytes. keep the op instead of terminating the process
-    if (n > 10000000)
-    {
-        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
-        return;
-    }
-
-    // a hostile window_length requests an enormous constant: folding it would
-    // allocate gigabytes. keep the op instead of terminating the process
-    if (n > 10000000)
-    {
-        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
-        return;
-    }
-
     // resolve the attribute dtype: an explicit dtype param wins, otherwise the
     // recorded output operand dtype, otherwise f32
     if (out_type == 0 && op->outputs[0]->type != 0)
         out_type = op->outputs[0]->type;
     if (out_type != 1 && out_type != 2 && out_type != 3 && out_type != 13)
         out_type = 1; // unknown -> f32
+
+    if (n == 0)
+    {
+        // torch.hann_window(0) / torch.hamming_window(0) returns an empty
+        // tensor; the rewrite has already replaced the op with an Attribute,
+        // so materialize a zero-byte data entry (shape {0}) instead of
+        // leaving a data-less attribute that crashes serialization
+        Attribute& a = op->attrs["data"];
+        a.type = out_type;
+        a.shape = {0};
+        a.data.clear();
+        op->outputs[0]->type = out_type;
+        op->outputs[0]->shape = a.shape;
+        op->params.clear();
+        return;
+    }
+
+    if (n < 0)
+        return; // invalid window_length (match() already declined such inputs)
+
+    // a hostile window_length requests an enormous constant: folding it would
+    // allocate gigabytes (match() already declined it, kept as a safety net)
+    if (n > 10000000)
+    {
+        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
+        return;
+    }
 
     const int elemsize = out_type == 1 ? 4 : (out_type == 2 ? 8 : 2);
 
@@ -142,9 +150,14 @@ static void fold_window(Operator* op, const std::map<std::string, Parameter>& ca
 }
 
 // a dtype param is only foldable when it stays in the float family; an
-// integer/bool window folds to truncated values pnnx cannot express here
-static bool is_foldable_window_dtype(const std::map<std::string, Parameter>& captured_params)
+// integer/bool window folds to truncated values pnnx cannot express here.
+// window_length must be present and in (0, 1e7]: 0 is a valid *empty* window
+// (folded to a zero-byte attribute), negative or oversized lengths must not
+// reach write() (the rewrite has already replaced the op by then, so a
+// decline there would leave a data-less Attribute).
+static bool is_foldable_window(const std::map<std::string, Parameter>& captured_params)
 {
+    bool have_len = false;
     for (const auto& x : captured_params)
     {
         std::string key = x.first;
@@ -157,8 +170,17 @@ static bool is_foldable_window_dtype(const std::map<std::string, Parameter>& cap
             if (t != 1 && t != 2 && t != 3 && t != 13) // f32/f64/f16/bf16
                 return false;
         }
+        if (key == "window_length")
+        {
+            if (x.second.type != 2)
+                return false;
+            const int n = x.second.i;
+            if (n < 0 || n > 10000000)
+                return false;
+            have_len = true;
+        }
     }
-    return true;
+    return have_len;
 }
 
 class torch_hann_window_fold : public GraphRewriterPass
@@ -180,7 +202,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return is_foldable_window_dtype(captured_params);
+        return is_foldable_window(captured_params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -208,7 +230,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return is_foldable_window_dtype(captured_params);
+        return is_foldable_window(captured_params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const

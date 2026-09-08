@@ -116,6 +116,12 @@ void convert_aten_F_linear(Graph& graph)
             reshape1_in->type = fl_out->type;
             reshape1_in->shape = reshape1_in_shape;
         }
+        else if (rank == 3 && n1m == 1)
+        {
+            // N1M layout: a rank-3 [S,1,F] input maps directly onto the ncnn
+            // Gemm N1M output (M==1) - no flatten reshape pair is needed and
+            // the output keeps its [S,1,N] form through the Gemm N1M flag
+        }
         else
         {
             // unknown rank or rank>5 cannot be expressed by ncnn Gemm (it

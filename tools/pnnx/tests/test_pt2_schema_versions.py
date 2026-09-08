@@ -81,9 +81,9 @@ def test():
             pt2 = os.path.join(workdir, os.path.basename(pt2_src))
             shutil.copy2(pt2_src, pt2)
             base = os.path.join(workdir, "schema_8_%d" % minor)
-            # forward-slash form for the CLI: pnnx embeds these paths (incl.
-            # the input-derived default py path) literally in the generated py
-            # (windows backslashes would be a \\U escape)
+            # forward-slash form for every path pnnx embeds in the generated py
+            # (the param/bin zipfile path, plus the pnnxpy-derived mod.save /
+            # onnx target; pnnxpy follows the pt2 archive name, here identical)
             pt2_arg = pt2.replace("\\", "/")
             base_arg = base.replace("\\", "/")
             r = subprocess.run(

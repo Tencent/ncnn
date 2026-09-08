@@ -54,9 +54,12 @@ def _export_conv(pt2):
 
 
 def _convert(pnnx, pt2, workdir, base, inputshape="[1,3,8,8]f32"):
-    # forward-slash paths for the CLI: pnnx embeds these literally in the
-    # generated *_pnnx.py (param/bin plus the input-derived default py path),
-    # and a windows backslash path would be a \\U escape
+    # forward-slash output paths for the CLI: pnnx embeds them literally in the
+    # generated *_pnnx.py (the param/bin zipfile path, plus the pnnxpy-derived
+    # mod.save / torch.onnx.export target). the pnnxpy module name follows the
+    # *pt2 archive* (a roundtrip converts conv_re.pt2 -> conv_re_pnnx.py even
+    # with a different param base), so leave the default and only normalize the
+    # slashes - a windows backslash path would be a \\U escape in the source
     pt2_arg = pt2.replace("\\", "/")
     base_arg = base.replace("\\", "/")
     r = subprocess.run(
@@ -70,11 +73,15 @@ def _convert(pnnx, pt2, workdir, base, inputshape="[1,3,8,8]f32"):
 
 
 def _emit_onnx(workdir, mod_name):
-    # run the generated helper: writes <mod_name>.py.onnx next to the module
+    # run the generated helper: writes <mod_name>.py.onnx next to the module.
+    # torch.onnx prints its progress (with emoji) to stdout; on windows the
+    # default cp1252 console encoding then crashes with a UnicodeEncodeError,
+    # so force a utf-8 stdout for the subprocess.
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
     r = subprocess.run(
         [sys.executable, "-c", "import sys; sys.path.insert(0, %r); import %s; %s.export_onnx()"
          % (workdir, mod_name, mod_name)],
-        cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180,
+        cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180, env=env,
     )
     return r.returncode, (r.stdout or b"").decode("utf-8", "replace")
 
@@ -102,8 +109,9 @@ def _onnx_numeric(workdir, mod_name, onnx_path, input_shape=(1, 3, 8, 8)):
         "print('MAXDIFF', err)\n"
         "sys.exit(0 if err < 1e-5 else 1)\n"
     ) % (workdir, mod_name, onnx_path, input_shape)
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
     r = subprocess.run([sys.executable, "-c", code], cwd=workdir,
-                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180, env=env)
     return r.returncode, (r.stdout or b"").decode("utf-8", "replace")
 
 

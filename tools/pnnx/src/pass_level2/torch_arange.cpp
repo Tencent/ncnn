@@ -281,7 +281,13 @@ public:
     {
         // reject unfoldable bounds up front so the rewrite never leaves a
         // parameter-less torch.arange behind (start/end/step must be numeric
-        // and step must be nonzero)
+        // and step must be nonzero); an oversized element count is also
+        // rejected here - by the time write() runs the constant bound inputs
+        // are already gone, so declining in write() cannot restore the op
+        double start = 0;
+        double end = 0;
+        double step = 1;
+        bool has_end = false;
         for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
         {
             std::string key = x->first;
@@ -289,19 +295,54 @@ public:
             if (dot != std::string::npos)
                 key = key.substr(dot + 1);
 
-            if (key == "start" || key == "end")
+            if (key == "start")
             {
-                if (x->second.type != 2 && x->second.type != 3)
+                if (x->second.type == 2)
+                    start = (double)x->second.i;
+                else if (x->second.type == 3)
+                    start = x->second.f;
+                else
                     return false;
             }
-            if (key == "step")
+            else if (key == "end")
             {
-                if (x->second.type == 2 && x->second.i == 0)
+                if (x->second.type == 2)
+                {
+                    end = (double)x->second.i;
+                    has_end = true;
+                }
+                else if (x->second.type == 3)
+                {
+                    end = x->second.f;
+                    has_end = true;
+                }
+                else
                     return false;
-                if (x->second.type != 2 && x->second.type != 3)
+            }
+            else if (key == "step")
+            {
+                if (x->second.type == 2)
+                {
+                    if (x->second.i == 0)
+                        return false;
+                    step = (double)x->second.i;
+                }
+                else if (x->second.type == 3)
+                {
+                    if (x->second.f == 0)
+                        return false;
+                    step = x->second.f;
+                }
+                else
                     return false;
             }
         }
+        if (!has_end)
+            return false;
+        const double dcount = (end - start) / step;
+        // count <= 0 folds to an empty tensor and needs no bound
+        if (dcount > 10000000)
+            return false;
         return true;
     }
 
@@ -311,44 +352,43 @@ public:
         double end = 0;
         double step = 1;
         bool has_end = false;
-
-        for (const auto& x : captured_params)
+        for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
         {
-            std::string key = x.first;
+            std::string key = x->first;
             size_t dot = key.rfind('.');
             if (dot != std::string::npos)
                 key = key.substr(dot + 1);
 
             if (key == "start")
             {
-                if (x.second.type == 2)
-                    start = x.second.i;
-                else if (x.second.type == 3)
-                    start = x.second.f;
+                if (x->second.type == 2)
+                    start = (double)x->second.i;
+                else if (x->second.type == 3)
+                    start = x->second.f;
                 else
                     return;
             }
-            if (key == "end")
+            else if (key == "end")
             {
-                if (x.second.type == 2)
+                if (x->second.type == 2)
                 {
-                    end = x.second.i;
+                    end = (double)x->second.i;
                     has_end = true;
                 }
-                else if (x.second.type == 3)
+                else if (x->second.type == 3)
                 {
-                    end = x.second.f;
+                    end = x->second.f;
                     has_end = true;
                 }
                 else
                     return;
             }
-            if (key == "step")
+            else if (key == "step")
             {
-                if (x.second.type == 2)
-                    step = x.second.i;
-                else if (x.second.type == 3)
-                    step = x.second.f;
+                if (x->second.type == 2)
+                    step = (double)x->second.i;
+                else if (x->second.type == 3)
+                    step = x->second.f;
                 else
                     return;
             }
@@ -365,17 +405,6 @@ public:
         int64_t count = (int64_t)ceil(dcount);
         if (count < 0)
             count = 0;
-
-        // a hostile arange bounds can request an enormous constant: folding it
-        // would allocate gigabytes and terminate the process. keep the op in
-        // that case instead (its data would be unusable anyway)
-        if (count > 10000000)
-        {
-            fprintf(stderr, "unsupported torch.arange count %lld, keep op\n", (long long)count);
-            op->type = "torch.arange";
-            op->params.clear();
-            return;
-        }
 
         Attribute& a = op->attrs["data"];
         a.type = op->outputs[0]->type;
