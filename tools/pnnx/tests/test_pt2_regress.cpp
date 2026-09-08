@@ -603,6 +603,49 @@ static void test_module_form_maxpool_default_stride()
           "module-form: default max-pool stride matches kernel_size");
 }
 
+static void test_module_form_rmsnorm_default_eps()
+{
+    struct TestCase
+    {
+        int input_type;
+        float eps;
+        const char* name;
+    };
+    const TestCase cases[] = {
+        {1, 1.1920928955078125e-7f, "f32"},
+        {2, 2.2204460492503131e-16f, "f64"},
+        {3, 9.765625e-4f, "f16"},
+        {13, 7.8125e-3f, "bf16"},
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        Graph graph;
+        graph.parse(
+            "7767517\n"
+            "6 5\n"
+            "pnnx.Input              input       0 1 input\n"
+            "prim::Constant          shape       0 1 shape value=(3)\n"
+            "prim::Constant          weight      0 1 weight value=None\n"
+            "prim::Constant          eps         0 1 eps value=None\n"
+            "aten::rms_norm          op          4 1 input shape weight eps out\n"
+            "pnnx.Output             output      1 0 out\n");
+
+        Operator* op = find_op(graph, "aten::rms_norm");
+        CHECK(op != 0, "module-form: finds RMSNorm operator");
+        if (!op)
+            continue;
+
+        op->inputs[0]->type = cases[i].input_type;
+        op->params["__pt2_module_class"] = "RMSNorm";
+        op->params["__pt2_module_input_names"] = std::vector<std::string> {"input", "normalized_shape", "weight", "eps"};
+        normalize_pt2_module_forms(graph);
+
+        CHECK(op->type == "nn.RMSNorm" && op->params.at("eps").type == 3 && op->params.at("eps").f == cases[i].eps,
+              cases[i].name);
+    }
+}
+
 static void test_window_function_fold()
 {
     Graph graph;
@@ -707,6 +750,7 @@ int main()
     test_output_spec_filter();
     test_module_form_normalization();
     test_module_form_maxpool_default_stride();
+    test_module_form_rmsnorm_default_eps();
     test_window_function_fold();
     test_window_function_one_element_fold();
     test_window_function_periodic_fold();
