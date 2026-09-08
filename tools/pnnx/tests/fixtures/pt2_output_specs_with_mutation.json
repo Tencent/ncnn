@@ -1,0 +1,4 @@
+[
+  {"user_output":{"arg":{"as_tensor":{"name":"out"}}}},
+  {"buffer_mutation":{"arg":{"as_tensor":{"name":"mut"}}}}
+]

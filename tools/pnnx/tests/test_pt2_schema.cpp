@@ -9,6 +9,28 @@
 
 using namespace pnnx;
 
+static std::string load_fixture(const char* path)
+{
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return "";
+
+    fseek(fp, 0, SEEK_END);
+    const long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    std::string data;
+    if (size > 0)
+    {
+        data.resize(size);
+        if (fread(&data[0], size, 1, fp) != 1)
+            data.clear();
+    }
+
+    fclose(fp);
+    return data;
+}
+
 // Canonical fields: t/ts tensor(s), i/iv integers, f/fv floats, b/bv bools,
 // s/sv strings, st dtype, dev device, mf memory format, n none; k$ is keyword.
 
@@ -286,9 +308,9 @@ int main(int argc, char** argv)
     if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
     {
         const std::string path = "test_pt2_schema_selftest.pt2";
-        const char* json = R "JSON({" schema_version ":{" major ":1," minor ":0}," torch_version ":" test "," graph_module ":{" graph ":{" nodes ":[]," tensor_values ":{}}," signature ":{" input_specs ":[]," output_specs ":[]}}})JSON";
+        const std::string json = load_fixture("pt2_schema_selftest.json");
         StoreZipWriter writer;
-        if (writer.open(path) != 0 || writer.write_file("models/model.json", json, strlen(json)) != 0
+        if (json.empty() || writer.open(path) != 0 || writer.write_file("models/model.json", json.data(), json.size()) != 0
                 || writer.close() != 0)
         {
             remove(path.c_str());

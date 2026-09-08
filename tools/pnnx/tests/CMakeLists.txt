@@ -421,6 +421,10 @@ pnnx_add_test(transformers_xlnet_attention)
 add_subdirectory(ncnn)
 
 # PT2 schema 与 pass 回归 harness 不依赖 libtorch。
+configure_file(fixtures/pt2_tensor_list.json pt2_tensor_list.json COPYONLY)
+configure_file(fixtures/pt2_output_specs_with_mutation.json pt2_output_specs_with_mutation.json COPYONLY)
+configure_file(fixtures/pt2_schema_selftest.json pt2_schema_selftest.json COPYONLY)
+
 add_executable(test_pt2_schema test_pt2_schema.cpp ../src/pt2_schema.cpp ../src/storezip.cpp)
 target_include_directories(test_pt2_schema PRIVATE ../src)
 add_test(NAME test_pt2_schema COMMAND test_pt2_schema --self-test)

@@ -40,21 +40,41 @@ static Operator* find_op(Graph& g, const char* type)
     return 0;
 }
 
+static std::string load_fixture(const char* path)
+{
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return "";
+
+    fseek(fp, 0, SEEK_END);
+    const long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    std::string data;
+    if (size > 0)
+    {
+        data.resize(size);
+        if (fread(&data[0], size, 1, fp) != 1)
+            data.clear();
+    }
+
+    fclose(fp);
+    return data;
+}
+
 static void build_ones_like_graph(Graph& g, bool string_other)
 {
-    // clang-format off
-    g.parse(R"PNNXIR(7767517
-6 5
-pnnx.Input              input_0     0 1 input
-torch.ones_like         op_0        1 1 input ones_out dtype=0
-prim::Constant          op_c        0 1 other value=0.5
-prim::Constant          op_a        0 1 alpha value=1
-aten::add               op_1        3 1 ones_out other alpha out
-pnnx.Output             output      1 0 out
-)PNNXIR");
-        // clang-format on
+    g.parse(
+        "7767517\n"
+        "6 5\n"
+        "pnnx.Input              input_0     0 1 input\n"
+        "torch.ones_like         op_0        1 1 input ones_out dtype=0\n"
+        "prim::Constant          op_c        0 1 other value=0.5\n"
+        "prim::Constant          op_a        0 1 alpha value=1\n"
+        "aten::add               op_1        3 1 ones_out other alpha out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        if (string_other)
+    if (string_other)
     {
         for (size_t i = 0; i < g.ops.size(); i++)
         {
@@ -190,7 +210,12 @@ static void test_scalar_type_argument()
 
 static void test_tensor_list_null_slot()
 {
-    const JsonValue tensors = parse_json(R "JSON([null, {" name ":" index "}])JSON");
+    const std::string json = load_fixture("pt2_tensor_list.json");
+    CHECK(!json.empty(), "tensor list: fixture is readable");
+    if (json.empty())
+        return;
+
+    const JsonValue tensors = parse_json(json);
     std::vector<Pt2TensorRef> refs;
     collect_tensor_refs(tensors, refs);
     CHECK(refs.size() == 2 && refs[0].is_none && !refs[1].is_none && refs[1].name == "index",
@@ -240,18 +265,15 @@ static void test_input_dtype_mapping()
 
 static void build_adaptive_pool_graph(Graph& g)
 {
-    // clang-format off
-    g.parse(R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 input
-prim::Constant          op_sz       0 1 output_size value=(8,8)
-aten::adaptive_avg_pool2d op_0      2 1 input output_size out
-pnnx.Output             output      1 0 out
-)PNNXIR");
-        // clang-format on
+    g.parse(
+        "7767517\n"
+        "5 4\n"
+        "pnnx.Input              input_0     0 1 input\n"
+        "prim::Constant          op_sz       0 1 output_size value=(8,8)\n"
+        "aten::adaptive_avg_pool2d op_0      2 1 input output_size out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        Operator* pool
-        = find_op(g, "aten::adaptive_avg_pool2d");
+    Operator* pool = find_op(g, "aten::adaptive_avg_pool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
 }
 
@@ -306,18 +328,13 @@ static void test_adaptive_pool_source_guard()
 static void test_adaptive_pool_module_source_guard()
 {
     Graph g;
-    // clang-format off
-    g.parse(R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
-pnnx.Output             output      1 0 out
-)PNNXIR");
-        // clang-format on
-        find_op(g, "nn.AdaptiveAvgPool2d")
-            ->inputs[0]
-            ->shape
-        = std::vector<int>{1, 3, 8, 8};
+    g.parse(
+        "7767517\n"
+        "3 2\n"
+        "pnnx.Input              input_0     0 1 input\n"
+        "nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)\n"
+        "pnnx.Output             output      1 0 out\n");
+    find_op(g, "nn.AdaptiveAvgPool2d")->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
 
     F_pt2_nn_adaptive_avg_pool2d pass;
     int opindex = 0;
@@ -327,16 +344,13 @@ pnnx.Output             output      1 0 out
           "adaptive_pool module: explicit size is preserved");
 
     Graph pt2;
-    // clang-format off
-    pt2.parse(R"PNNXIR(7767517
-3 2
-pnnx.Input              input_0     0 1 input
-nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)
-pnnx.Output             output      1 0 out
-)PNNXIR");
-        // clang-format on
-        Operator* pool
-        = find_op(pt2, "nn.AdaptiveAvgPool2d");
+    pt2.parse(
+        "7767517\n"
+        "3 2\n"
+        "pnnx.Input              input_0     0 1 input\n"
+        "nn.AdaptiveAvgPool2d   op_0        1 1 input out output_size=(8,8)\n"
+        "pnnx.Output             output      1 0 out\n");
+    Operator* pool = find_op(pt2, "nn.AdaptiveAvgPool2d");
     pool->inputs[0]->shape = std::vector<int>{1, 3, 8, 8};
     Parameter marker;
     marker.type = 4;
@@ -471,10 +485,12 @@ static void test_storezip_long_comment_zip64()
 
 static void test_output_spec_filter()
 {
-    const JsonValue specs = parse_json(R"JSON([
-        {"user_output":{"arg":{"as_tensor":{"name":"out"}}}},
-        {"buffer_mutation":{"arg":{"as_tensor":{"name":"mut"}}}}
-    ])JSON");
+    const std::string json = load_fixture("pt2_output_specs_with_mutation.json");
+    CHECK(!json.empty(), "signature: fixture is readable");
+    if (json.empty())
+        return;
+
+    const JsonValue specs = parse_json(json);
     Pt2Program program;
     CHECK(parse_output_specs(specs, program.output_specs) != 0,
           "signature: mutation specs are rejected explicitly");
@@ -483,14 +499,15 @@ static void test_output_spec_filter()
 static void test_module_form_normalization()
 {
     Graph graph;
-    graph.parse(R "PNNXIR(7767517
-                4 3 pnnx.Input input 0 1 input
-                    prim::Constant kernel 0 1 kernel value
-                = 3 aten::max_pool2d op 2 1 input kernel out
-                      pnnx.Output output 1 0 out) PNNXIR ");
+    graph.parse(
+        "7767517\n"
+        "4 3\n"
+        "pnnx.Input              input       0 1 input\n"
+        "prim::Constant          kernel      0 1 kernel value=3\n"
+        "aten::max_pool2d        op          2 1 input kernel out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        Operator* op
-        = find_op(graph, "aten::max_pool2d");
+    Operator* op = find_op(graph, "aten::max_pool2d");
     CHECK(op != 0, "module-form: finds raw aten operator before normalization");
     if (!op)
         return;
@@ -510,15 +527,16 @@ static void test_module_form_normalization()
 static void test_module_form_maxpool_default_stride()
 {
     Graph graph;
-    graph.parse(R "PNNXIR(7767517
-                5 4 pnnx.Input input 0 1 input
-                    prim::Constant kernel 0 1 kernel value
-                = 3 prim::Constant stride 0 1 stride value = None
-                                                                 aten::max_pool2d op 3 1 input kernel stride out
-                                                                     pnnx.Output output 1 0 out) PNNXIR ");
+    graph.parse(
+        "7767517\n"
+        "5 4\n"
+        "pnnx.Input              input       0 1 input\n"
+        "prim::Constant          kernel      0 1 kernel value=3\n"
+        "prim::Constant          stride      0 1 stride value=None\n"
+        "aten::max_pool2d        op          3 1 input kernel stride out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        Operator* op
-        = find_op(graph, "aten::max_pool2d");
+    Operator* op = find_op(graph, "aten::max_pool2d");
     CHECK(op != 0, "module-form: finds max-pool operator");
     if (!op)
         return;
@@ -537,19 +555,18 @@ static void test_module_form_maxpool_default_stride()
 static void test_window_function_fold()
 {
     Graph graph;
-    graph.parse(R "PNNXIR(7767517
-                7 6 prim::Constant length 0 1 length value
-                = 4 prim::Constant dtype 0 1 dtype value = None
-                    prim::Constant layout 0 1 layout value
-                = None
-                    prim::Constant device 0 1 device value
-                = cpu
-                    prim::Constant pin_memory 0 1 pin_memory value
-                = False
-                      aten::hann_window op 5 1 length dtype layout device pin_memory out
-                          pnnx.Output output 1 0 out) PNNXIR ");
+    graph.parse(
+        "7767517\n"
+        "7 6\n"
+        "prim::Constant          length      0 1 length value=4\n"
+        "prim::Constant          dtype       0 1 dtype value=None\n"
+        "prim::Constant          layout      0 1 layout value=None\n"
+        "prim::Constant          device      0 1 device value=cpu\n"
+        "prim::Constant          pin_memory  0 1 pin_memory value=False\n"
+        "aten::hann_window       op          5 1 length dtype layout device pin_memory out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        fold_pt2_window_functions(graph);
+    fold_pt2_window_functions(graph);
     Operator* attr = find_op(graph, "pnnx.Attribute");
     CHECK(attr != 0 && attr->inputs.empty(), "window: static hann_window folds to pnnx.Attribute");
     if (attr)
@@ -565,20 +582,19 @@ static void test_window_function_fold()
 static void test_window_function_one_element_fold()
 {
     Graph graph;
-    graph.parse(R "PNNXIR(7767517
-                9 8 prim::Constant length 0 1 length value
-                = 1 prim::Constant dtype 0 1 dtype value = None
-                    prim::Constant layout 0 1 layout value
-                = None
-                    prim::Constant device 0 1 device value
-                = cpu
-                    prim::Constant pin_memory 0 1 pin_memory value
-                = False
-                      aten::hann_window op0 5 1 length dtype layout device pin_memory out0
-                          aten::hamming_window op1 5 1 length dtype layout device pin_memory out1
-                              pnnx.Output output 2 0 out0 out1) PNNXIR ");
+    graph.parse(
+        "7767517\n"
+        "9 8\n"
+        "prim::Constant          length      0 1 length value=1\n"
+        "prim::Constant          dtype       0 1 dtype value=None\n"
+        "prim::Constant          layout      0 1 layout value=None\n"
+        "prim::Constant          device      0 1 device value=cpu\n"
+        "prim::Constant          pin_memory  0 1 pin_memory value=False\n"
+        "aten::hann_window       op0         5 1 length dtype layout device pin_memory out0\n"
+        "aten::hamming_window    op1         5 1 length dtype layout device pin_memory out1\n"
+        "pnnx.Output             output      2 0 out0 out1\n");
 
-        fold_pt2_window_functions(graph);
+    fold_pt2_window_functions(graph);
     int folded_one = 0;
     for (size_t i = 0; i < graph.ops.size(); i++)
     {
@@ -595,21 +611,19 @@ static void test_window_function_one_element_fold()
 static void test_window_function_periodic_fold()
 {
     Graph graph;
-    graph.parse(R "PNNXIR(7767517
-                8 7 prim::Constant length 0 1 length value
-                = 8 prim::Constant periodic 0 1 periodic value = False
-                    prim::Constant dtype 0 1 dtype value
-                = None
-                    prim::Constant layout 0 1 layout value
-                = None
-                    prim::Constant device 0 1 device value
-                = cpu
-                    prim::Constant pin_memory 0 1 pin_memory value
-                = False
-                      aten::hann_window op 6 1 length periodic dtype layout device pin_memory out
-                          pnnx.Output output 1 0 out) PNNXIR ");
+    graph.parse(
+        "7767517\n"
+        "8 7\n"
+        "prim::Constant          length      0 1 length value=8\n"
+        "prim::Constant          periodic    0 1 periodic value=False\n"
+        "prim::Constant          dtype       0 1 dtype value=None\n"
+        "prim::Constant          layout      0 1 layout value=None\n"
+        "prim::Constant          device      0 1 device value=cpu\n"
+        "prim::Constant          pin_memory  0 1 pin_memory value=False\n"
+        "aten::hann_window       op          6 1 length periodic dtype layout device pin_memory out\n"
+        "pnnx.Output             output      1 0 out\n");
 
-        fold_pt2_window_functions(graph);
+    fold_pt2_window_functions(graph);
     Operator* attr = find_op(graph, "pnnx.Attribute");
     CHECK(attr != 0 && attr->inputs.empty(), "window: periodic overload folds to pnnx.Attribute");
     if (attr)
