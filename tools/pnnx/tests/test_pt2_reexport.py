@@ -68,12 +68,14 @@ def _export_dynamic_relu(pt2):
 
 
 def _convert(pnnx, pt2, workdir, base, inputshape="[1,3,8,8]f32"):
-    # pnnx embeds the param/bin paths literally into the generated *_pnnx.py
-    # (e.g. zipfile.ZipFile('<abs path>')): hand it forward-slash paths so a
-    # windows backslash path cannot surface as a \Uxxxx unicode-escape SyntaxError
+    # pnnx embeds the param/bin paths AND the input-archive-derived default py
+    # path literally into the generated *_pnnx.py (zipfile.ZipFile / mod.save /
+    # torch.onnx.export targets): hand it forward-slash paths so a windows
+    # backslash path cannot surface as a \\Uxxxx unicode-escape SyntaxError
+    pt2_arg = pt2.replace("\\", "/")
     base_arg = base.replace("\\", "/")
     r = subprocess.run(
-        [pnnx, pt2, "inputshape=%s" % inputshape, "pnnxparam=%s.pnnx.param" % base_arg, "pnnxbin=%s.pnnx.bin" % base_arg],
+        [pnnx, pt2_arg, "inputshape=%s" % inputshape, "pnnxparam=%s.pnnx.param" % base_arg, "pnnxbin=%s.pnnx.bin" % base_arg],
         cwd=workdir,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
