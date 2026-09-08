@@ -16,6 +16,12 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno uses the matrix component width for the stride of packed buffers
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 2, layout)
+#define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
+#endif
+
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
 layout(constant_id = 2) const int transA = 0;
@@ -88,8 +94,20 @@ const uint Kd4p = Kd4 + PAD;
 
 // cannot alias output with a and b
 // cm store may happen while another subgroup is loading
+#if ncnn_vendorID == 0x5143
+// avoid specialization select in shared array lengths on adreno
+// max(x, y) = x - ((x - y) & ((x - y) >> 31)) for these small tile sizes
+const int tmp_a_size_diff = int(M * Kd4p) - int(K * Md4p);
+const int tmp_b_size_diff = int(K * Nd4p) - int(N * Kd4p);
+const uint tmp_a_size = M * Kd4p - uint(tmp_a_size_diff & (tmp_a_size_diff >> 31));
+const uint tmp_b_size = K * Nd4p - uint(tmp_b_size_diff & (tmp_b_size_diff >> 31));
+
+shared uvec2 tmp_a[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * tmp_a_size];
+shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * tmp_b_size];
+#else
 shared uvec2 tmp_a[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * (M * Kd4p > K * Md4p ? M * Kd4p : K * Md4p)];
 shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * (K * Nd4p > N * Kd4p ? K * Nd4p : N * Kd4p)];
+#endif
 shared uvec2 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
 
 void main()
@@ -120,7 +138,12 @@ void main()
     //
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(GM) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (psc(GN) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -139,7 +162,12 @@ void main()
         return;
 
     const uint li = gl_LocalInvocationID.x;
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;

@@ -20,6 +20,11 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
+#if ncnn_vendorID == 0x5143
+// adreno uses the matrix component width for the stride of packed buffers
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
 layout(constant_id = 0) const uint kernel_w = 1;
 layout(constant_id = 1) const uint kernel_h = 1;
 layout(constant_id = 2) const uint dilation_w = 1;
@@ -99,7 +104,12 @@ void main()
     const uint K04 = psc(num_input) / 4 * maxk;
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (size + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (psc(num_output) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -116,7 +126,12 @@ void main()
     if (wgmi >= wgmm)
         return;
 
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
@@ -143,6 +158,8 @@ void main()
 
     uint k = 0;
 
+    // adreno drops K tiles in the prefetch loop
+#if ncnn_vendorID != 0x5143
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -591,6 +608,7 @@ void main()
         barrier();
     }
     else
+#endif
     {
         for (uint ki = 0; ki < kk; ki += UNROLL_SG_K)
         {

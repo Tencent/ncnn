@@ -67,6 +67,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    // adreno produces incorrect cooperative matrix attention scores with masks
+    if (vkdev->info.vendor_id() == 0x5143 && attn_mask)
+        use_cooperative_matrix = false;
+
     if (use_cooperative_matrix)
     {
         int M = 1024;
@@ -82,45 +86,56 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
         }
 
-        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
-
-        UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
-        UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
-        UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
-
-        UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-        UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
-
-        // qk and qkv share the configuration, account for both B layouts
-        const size_t shared_a = 16 * coopmat_M * (coopmat_K / 8 + 1);
-        const size_t shared_b = 16 * std::max(coopmat_K * (coopmat_N / 8 + 1), coopmat_N * (coopmat_K / 8 + 1));
-        const size_t shared_o = 16 * coopmat_M * (coopmat_N / 8 + 1);
-
-        for (;;)
+        if (coopmat_M == 0)
         {
-            const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
-                                        + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
-                                        + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
-            const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
-            if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
-                && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
-                break;
+            use_cooperative_matrix = false;
+        }
+        else
+        {
+            UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
 
-            // reduce K first to preserve output reuse
-            if (UNROLL_SG_K > 1)
-                UNROLL_SG_K = 1;
-            else if (UNROLL_WG_N > 1)
-                UNROLL_WG_N = 1;
-            else if (UNROLL_WG_M > 1)
-                UNROLL_WG_M = 1;
-            else if (UNROLL_SG_N > 1)
-                UNROLL_SG_N = 1;
-            else if (UNROLL_SG_M > 1)
-                UNROLL_SG_M = 1;
-            else
+            if (vkdev->info.vendor_id() == 0x5143)
             {
-                use_cooperative_matrix = false;
-                break;
+                // adreno driver fails with multiple M tiles per subgroup
+                UNROLL_SG_M = 1;
+            }
+
+            UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+            // qk and qkv share the configuration, account for both B layouts
+            const size_t shared_a = 16 * coopmat_M * (coopmat_K / 8 + 1);
+            const size_t shared_b = 16 * std::max(coopmat_K * (coopmat_N / 8 + 1), coopmat_N * (coopmat_K / 8 + 1));
+            const size_t shared_o = 16 * coopmat_M * (coopmat_N / 8 + 1);
+
+            for (;;)
+            {
+                const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                            + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+                if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                    && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                    break;
+
+                // reduce K first to preserve output reuse
+                if (UNROLL_SG_K > 1)
+                    UNROLL_SG_K = 1;
+                else if (UNROLL_WG_N > 1)
+                    UNROLL_WG_N = 1;
+                else if (UNROLL_WG_M > 1)
+                    UNROLL_WG_M = 1;
+                else if (UNROLL_SG_N > 1)
+                    UNROLL_SG_N = 1;
+                else if (UNROLL_SG_M > 1)
+                    UNROLL_SG_M = 1;
+                else
+                {
+                    use_cooperative_matrix = false;
+                    break;
+                }
             }
         }
     }
@@ -150,9 +165,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
-            // assert FA_coopmat_M != 0 && FA_coopmat_N != 0 && FA_coopmat_K != 0
-
-            if (FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
+            if (FA_coopmat_M == 0 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
             {
                 // not implemented yet
                 use_flash_attention = false;
