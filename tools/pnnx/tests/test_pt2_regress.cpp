@@ -429,9 +429,9 @@ static void test_weight_attribute_reader_reuse()
     const float second[] = {2.f};
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0
-              && writer.write_file("data/weights/first", (const char*)first, sizeof(first)) == 0
-              && writer.write_file("data/weights/second", (const char*)second, sizeof(second)) == 0
-              && writer.close() == 0,
+          && writer.write_file("data/weights/first", (const char*)first, sizeof(first)) == 0
+          && writer.write_file("data/weights/second", (const char*)second, sizeof(second)) == 0
+          && writer.close() == 0,
           "weight: writes reuse regression archive");
 
     Pt2Program program;
@@ -449,9 +449,9 @@ static void test_weight_attribute_reader_reuse()
     Attribute first_attr;
     Attribute second_attr;
     CHECK(load_weight_attribute(reader, program, first_entry, false, first_attr) == 0
-              && load_weight_attribute(reader, program, second_entry, false, second_attr) == 0
-              && first_attr.get_float32_data() == std::vector<float>({1.f})
-              && second_attr.get_float32_data() == std::vector<float>({2.f}),
+          && load_weight_attribute(reader, program, second_entry, false, second_attr) == 0
+          && first_attr.get_float32_data() == std::vector<float>({1.f})
+          && second_attr.get_float32_data() == std::vector<float>({2.f}),
           "weight: reuses opened archive for multiple entries");
     reader.close();
     remove(path);
