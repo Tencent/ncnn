@@ -49,9 +49,10 @@ class BFloat16Weights(torch.nn.Module):
         super(BFloat16Weights, self).__init__()
         self.weight = torch.nn.Parameter(torch.arange(8, dtype=torch.bfloat16).reshape(2, 1, 2, 2) / 16)
         self.bias = torch.nn.Parameter(torch.arange(2, dtype=torch.bfloat16) / 8)
+        self.scale = torch.nn.Parameter(torch.tensor(0.5, dtype=torch.bfloat16))
 
     def forward(self, x):
-        return torch.nn.functional.conv2d(x.to(torch.bfloat16), self.weight, self.bias).float()
+        return (torch.nn.functional.conv2d(x.to(torch.bfloat16), self.weight, self.bias) * self.scale).float()
 
 
 def load_module(path, name):
@@ -125,9 +126,21 @@ def check_bfloat16(args, root):
     run([args.archive_tester, "--weights-archive", workdir / "model.pt2", "bfloat16_weights"])
     run([args.graph_tester, workdir / "model.pt2", "bfloat16_weights"])
     run([args.pnnx, "model.pt2", "fp16=0"], workdir)
+    oldcwd = pathlib.Path.cwd()
+    try:
+        os.chdir(workdir)
+        generated = load_module(workdir / "model_pnnx.py", "pt2_bfloat16_pnnx").Model()
+        torch.testing.assert_close(generated.conv2d_0.weight, model.weight)
+        torch.testing.assert_close(generated.conv2d_0.bias, model.bias)
+        torch.testing.assert_close(generated.scale_data, model.scale)
+    finally:
+        os.chdir(oldcwd)
+    ncnn_bin = (workdir / "model.ncnn.bin").read_bytes()
     weights = struct.pack("=8f", *(x / 16 for x in range(8)))
-    if weights not in (workdir / "model.ncnn.bin").read_bytes():
+    if weights not in ncnn_bin:
         raise AssertionError("bfloat16 weights were not converted to float32")
+    if struct.pack("=f", 0.5) not in ncnn_bin:
+        raise AssertionError("scalar bfloat16 weight was dropped")
 
 
 def main():

@@ -119,7 +119,8 @@ static int check_real_graph(const pnnx::Graph& graph, const std::string& name)
         const pnnx::Operator* conv = find_operator(graph, "conv2d");
         const pnnx::Operator* weight = find_operator(graph, "weight");
         const pnnx::Operator* bias = find_operator(graph, "bias");
-        return conv && conv->type == "aten::conv2d" && weight && weight->attrs.at("data").type == 13 && bias && bias->attrs.at("data").type == 13
+        const pnnx::Operator* scale = find_operator(graph, "scale");
+        return conv && conv->type == "aten::conv2d" && weight && weight->attrs.at("data").type == 13 && bias && bias->attrs.at("data").type == 13 && scale && scale->attrs.at("data").type == 13 && scale->attrs.at("data").shape.empty()
                ? 0
                : -1;
     }

@@ -198,7 +198,7 @@ int Attribute::elemcount() const
 
 std::vector<float> Attribute::get_float32_data() const
 {
-    std::vector<float> v(elemcount());
+    std::vector<float> v(data.size() / elemsize());
 
     if (type == 1)
     {
@@ -1787,14 +1787,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             if (is_empty)
             {
-                fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+                if (attr.type == 13)
+                {
+                    fprintf(pyfp, "        self.%s_%s = torch.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+                }
 
                 for (size_t i = 0; i < attr.shape.size(); i++)
                 {
                     fprintf(pyfp, "%d,", attr.shape[i]);
                 }
 
-                fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
+                if (attr.type == 13)
+                    fprintf(pyfp, "), dtype=torch.bfloat16)\n");
+                else
+                    fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
             }
             else
             {
@@ -1834,6 +1844,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
+        fprintf(pyfp, "        if dtype == 'bfloat16':\n");
+        fprintf(pyfp, "            return torch.frombuffer(bytearray(archive.read(key)), dtype=torch.bfloat16).reshape(shape)\n");
         fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
         fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
         fprintf(pyfp, "            tmpf.write(keyfile.read())\n");

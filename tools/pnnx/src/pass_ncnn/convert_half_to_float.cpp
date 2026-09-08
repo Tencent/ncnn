@@ -29,9 +29,9 @@ void convert_half_to_float(Graph& graph)
                 Attribute attr_new;
                 attr_new.type = 1;
                 attr_new.shape = attr.shape;
-                attr_new.data.resize(attr.elemcount() * 4);
 
                 auto p = attr.get_float32_data();
+                attr_new.data.resize(p.size() * 4);
                 memcpy((void*)attr_new.data.data(), (const void*)p.data(), attr_new.data.size());
 
                 op->attrs[x.first] = attr_new;

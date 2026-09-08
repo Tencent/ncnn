@@ -110,7 +110,7 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
         std::vector<float> weight(8);
         for (size_t i = 0; i < weight.size(); i++)
             weight[i] = i / 16.f;
-        return weights.values.size() == 2 && check_bf16(weights, "weight", std::vector<int> {2, 1, 2, 2}, weight) && check_bf16(weights, "bias", std::vector<int> {2}, std::vector<float> {0.f, .125f})
+        return weights.values.size() == 3 && check_bf16(weights, "weight", std::vector<int> {2, 1, 2, 2}, weight) && check_bf16(weights, "bias", std::vector<int> {2}, std::vector<float> {0.f, .125f}) && check_bf16(weights, "scale", std::vector<int>(), std::vector<float> {.5f})
                ? 0
                : -1;
     }
