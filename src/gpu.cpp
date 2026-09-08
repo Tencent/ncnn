@@ -6384,8 +6384,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             uint32_t binding_id = p[3];
             if (decoration == 1) // SpecId
             {
-                if (binding_id != 233 && binding_id != 234 && binding_id != 235)
-                    specialization_count = std::max(specialization_count, (int)binding_id + 1);
+                specialization_count++;
             }
             if (decoration == 3) // BufferBlock
             {
