@@ -13,6 +13,7 @@ endmacro()
 pnnx_add_test(exported_program)
 pnnx_add_test(exported_program_ops)
 pnnx_add_test(exported_program_pytree_roundtrip)
+pnnx_add_test(exported_program_roundtrip_dtypes)
 pnnx_add_test(exported_program_invalid)
 
 pnnx_add_test(F_adaptive_avg_pool1d)

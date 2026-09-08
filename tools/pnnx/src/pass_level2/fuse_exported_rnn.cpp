@@ -153,7 +153,8 @@ void fuse_exported_rnn(Graph& graph)
                         valid = false;
                         break;
                     }
-                    attributes[std::string(names[j]) + suffix] = attribute;
+                    const char* name = has_projection && j == group_size - 1 ? "weight_hr" : names[j];
+                    attributes[std::string(name) + suffix] = attribute;
                     if (has_projection && j == group_size - 1 && attribute.shape.size() == 2)
                         projection_size = attribute.shape[0];
                 }

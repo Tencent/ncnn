@@ -2673,7 +2673,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         fprintf(pyfp, "def export_exported_program(example_inputs=None):\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    if example_inputs is None:\n");
@@ -2691,7 +2690,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             const Operand* r = op->outputs[0];
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            if (type_is_integer(r->type))
+            if (r->type == 9)
+            {
+                fprintf(pyfp, "        %s = torch.randint(2, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=torch.bool)\n");
+            }
+            else if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "        %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
