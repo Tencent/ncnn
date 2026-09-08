@@ -1,0 +1,4 @@
+# These .pt2 archives are checked-in fixtures (pre-generated schema / legacy
+# samples), not scratch conversion outputs; the tests-wide ignore rule
+# `tools/pnnx/tests/**/*.pt2` in the repo root must not drop them.
+!*.pt2
