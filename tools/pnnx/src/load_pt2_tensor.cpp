@@ -87,7 +87,16 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
     size_t count = 1;
     for (int i = 0; i < dims; i++)
     {
-        if (sizes[i] <= 0)
+        // a zero-sized dim is a valid *empty* tensor (e.g. an empty view of a
+        // shared nonempty storage): its logical element count is zero, not
+        // symbolic. only negative sizes (the loader's dynamic marker) are
+        // unresolvable and fall back to the raw storage.
+        if (sizes[i] == 0)
+        {
+            count = 0;
+            break;
+        }
+        if (sizes[i] < 0)
         {
             symbolic = true;
             break;
@@ -98,6 +107,16 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
             break;
         }
         count *= (size_t)sizes[i];
+    }
+
+    if (count == 0)
+    {
+        // empty tensor: an empty view of shared storage must not drag the
+        // whole backing buffer into the attribute (it would bloat the archive
+        // and duplicate the storage); the caller has already recorded the
+        // declared shape, so materialize a zero-byte attribute
+        a.data.clear();
+        return;
     }
 
     if (symbolic)

@@ -1176,13 +1176,36 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 }
                 else if (arg.has("as_float"))
                 {
-                    new_constant(g, op, (float)arg["as_float"].as_double(), constant_index);
+                    // pnnx Parameter carries no double scalar (same as the
+                    // torchscript front end), so the serialized double is
+                    // narrowed to binary32 here. a plain narrowing is the
+                    // correct f32 semantics for python literals feeding f32
+                    // ops (e.g. 0.1); but a value whose magnitude exceeds the
+                    // f32 range would silently fold to inf/0 and change the
+                    // model, so reject those instead of materializing them
+                    const double d = arg["as_float"].as_double();
+                    const float f = (float)d;
+                    if (std::isfinite(d) && !std::isfinite(f))
+                    {
+                        fprintf(stderr, "unsupported scalar %g out of float32 range in node %s\n", d, op_type.c_str());
+                        return -1;
+                    }
+                    new_constant(g, op, f, constant_index);
                 }
                 else if (arg.has("as_floats"))
                 {
                     std::vector<float> af;
                     for (size_t k = 0; k < arg["as_floats"].size(); k++)
-                        af.push_back((float)arg["as_floats"][k].as_double());
+                    {
+                        const double d = arg["as_floats"][k].as_double();
+                        const float f = (float)d;
+                        if (std::isfinite(d) && !std::isfinite(f))
+                        {
+                            fprintf(stderr, "unsupported scalar %g out of float32 range in node %s\n", d, op_type.c_str());
+                            return -1;
+                        }
+                        af.push_back(f);
+                    }
                     new_constant(g, op, af, constant_index);
                 }
                 else if (arg.has("as_bool"))
@@ -1235,9 +1258,17 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 }
                 else if (arg.has("as_complex"))
                 {
-                    // complex constant {"real": r, "imag": i}
-                    float real = (float)arg["as_complex"]["real"].as_double();
-                    float imag = (float)arg["as_complex"]["imag"].as_double();
+                    // complex constant {"real": r, "imag": i}; same f64->f32
+                    // range guard as the as_float branch
+                    const double dr = arg["as_complex"]["real"].as_double();
+                    const double di = arg["as_complex"]["imag"].as_double();
+                    const float real = (float)dr;
+                    const float imag = (float)di;
+                    if ((std::isfinite(dr) && !std::isfinite(real)) || (std::isfinite(di) && !std::isfinite(imag)))
+                    {
+                        fprintf(stderr, "unsupported complex scalar out of float32 range in node %s\n", op_type.c_str());
+                        return -1;
+                    }
                     new_constant(g, op, std::complex<float>(real, imag), constant_index);
                 }
                 else if (arg.has("as_tensors"))

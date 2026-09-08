@@ -50,6 +50,13 @@ static int memzip_read_entry(const std::vector<char>& z, const std::string& want
     const char* data = z.data();
     const size_t size = z.size();
 
+    // a zip is at least a 22-byte EOCD record; anything shorter (or a payload
+    // truncated to a few bytes) would walk past the vector below
+    if (size < 22)
+    {
+        fprintf(stderr, "legacy weights: nested zip payload too short (%zu bytes)\n", size);
+        return -1;
+    }
     // locate the end of central directory record by scanning backwards (the
     // eocd is at most 65557 bytes from the end: 22 fixed + 65535 comment)
     size_t eocd_pos = (size_t)-1;
@@ -650,6 +657,13 @@ static int memzip_find_data_pkl_prefix(const std::vector<char>& bytes, std::stri
     const char* p = bytes.data();
     const size_t sz = bytes.size();
 
+    // a zip is at least a 22-byte EOCD record; anything shorter (or a payload
+    // truncated to a few bytes) would walk past the vector below
+    if (sz < 22)
+    {
+        fprintf(stderr, "legacy weights: nested zip payload too short (%zu bytes)\n", sz);
+        return -1;
+    }
     size_t eocd_pos = (size_t)-1;
     const size_t minpos = sz >= 65557 ? sz - 65557 : 0;
     for (size_t q = sz >= 22 ? sz - 22 : 0; q >= minpos; q--)
