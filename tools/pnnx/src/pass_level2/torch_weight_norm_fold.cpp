@@ -126,6 +126,22 @@ pnnx.Output             output      1 0 out
         // a scalar v cannot be folded (no per-coord norm); reject before rewrite
         if (m_v.shape.empty())
             return false;
+        // the weight bytes must decode to exactly the declared element count;
+        // an empty/undersized data buffer would make write() bail after the
+        // graph was already rewritten (leaving an empty pnnx.Attribute). the
+        // scalar (shape-empty) g case is checked separately below.
+        if (m_v.elemcount() <= 0 || m_v.data.size() != m_v.elemcount() * m_v.elemsize())
+            return false;
+        if (m_g.shape.empty())
+        {
+            if (m_g.data.empty())
+                return false;
+        }
+        else
+        {
+            if (m_g.elemcount() <= 0 || m_g.data.size() != m_g.elemcount() * m_g.elemsize())
+                return false;
+        }
         // a scalar (dim=-1) f16 g cannot be decoded without a half helper,
         // and the scalar decoders need full element bytes
         if (m_g.shape.empty() && m_g.type == 3)
@@ -138,6 +154,16 @@ pnnx.Output             output      1 0 out
         // reject before the graph is rewritten
         if ((int)m_v.shape.size() > 16)
             return false;
+
+        // scalar-dim mode: the preserved axis must be a valid index (-1 is the
+        // all-coords scalar-norm case), otherwise write() would have to bail
+        // after the graph was rewritten
+        if (!m_use_reduce_list)
+        {
+            const int vdims = (int)m_v.shape.size();
+            if (m_dim < -1 || m_dim >= vdims)
+                return false;
+        }
 
         // reduce-list form: the axes reduced by linalg_vector_norm leave the
         // preserved weight_norm axis as their complement. reject when more than

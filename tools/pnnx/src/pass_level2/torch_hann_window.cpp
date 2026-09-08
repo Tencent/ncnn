@@ -89,16 +89,8 @@ static void fold_window(Operator* op, const std::map<std::string, Parameter>& ca
         return;
     }
 
-    if (n < 0)
-        return; // invalid window_length (match() already declined such inputs)
-
-    // a hostile window_length requests an enormous constant: folding it would
-    // allocate gigabytes (match() already declined it, kept as a safety net)
-    if (n > 10000000)
-    {
-        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
-        return;
-    }
+    // n is guaranteed in (0, 10000000] here: is_foldable_window (the match())
+    // gate already declined a missing / negative / oversized window_length
 
     const int elemsize = out_type == 1 ? 4 : (out_type == 2 ? 8 : 2);
 

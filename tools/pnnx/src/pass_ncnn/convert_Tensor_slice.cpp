@@ -45,6 +45,25 @@ void convert_Tensor_slice(Graph& graph)
                 fprintf(stderr, "slice with step %d not supported (rank=%d dim=%d)\n", step, rank, dim);
                 continue;
             }
+
+            // copy the input batch axis (avoid Tensor_reshape reading unset garbage that triggers batch mode)
+            int fl_batch_axis = 233;
+            if (in->params.find("__ncnn_batch_axis") != in->params.end())
+                fl_batch_axis = in->params.at("__ncnn_batch_axis").i;
+
+            // a strided slice on the (logical) batch axis itself is invalid
+            // here: batch extraction has removed that axis from every physical
+            // blob, but this rewrite crops physical axis 2/3 instead - reject
+            // the op without touching it
+            if (fl_batch_axis != 233 && dim == fl_batch_axis)
+            {
+                fprintf(stderr, "slice with step %d on the batch axis not supported\n", step);
+                continue;
+            }
+
+            // validate everything that the rewrite depends on *before* claiming
+            // a match: the outer while restarts on matched, so a continue below
+            // would otherwise re-encounter the same op forever and hang
             const int L = in_shape[dim];
             if (L <= 0 || L % step != 0 || start < 0 || start >= step)
                 continue;
@@ -58,17 +77,11 @@ void convert_Tensor_slice(Graph& graph)
                 if (end != INT_MAX && end < L)
                     continue;
             }
-            const int K = L / step;
-
-            // copy the input batch axis (avoid Tensor_reshape reading unset garbage that triggers batch mode)
-            int fl_batch_axis = 233;
-            if (in->params.find("__ncnn_batch_axis") != in->params.end())
-                fl_batch_axis = in->params.at("__ncnn_batch_axis").i;
-
-            matched = true;
-
             if (in_shape.size() < 4 || in_shape[2] <= 0)
                 continue; // the c dim must be concrete to build the reshapes
+            const int K = L / step;
+
+            matched = true;
 
             // reshape0: (b,a,c,L) -> (b,a,c*K,step) (keep 4D and batch, step on the w dim)
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);

@@ -698,7 +698,11 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 fprintf(stderr, "legacy weight bytes for '%s' not found\n", fqn.c_str());
                 return -1;
             }
-            load_tensor_from_raw(lit->second, meta, a);
+            if (load_tensor_from_raw(lit->second, meta, a) != 0)
+            {
+                fprintf(stderr, "legacy weight '%s' cannot be materialized (inconsistent sizes/strides/storage)\n", fqn.c_str());
+                return -1;
+            }
         }
         else
         {

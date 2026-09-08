@@ -351,7 +351,6 @@ public:
         double start = 0;
         double end = 0;
         double step = 1;
-        bool has_end = false;
         for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
         {
             std::string key = x->first;
@@ -365,23 +364,13 @@ public:
                     start = (double)x->second.i;
                 else if (x->second.type == 3)
                     start = x->second.f;
-                else
-                    return;
             }
             else if (key == "end")
             {
                 if (x->second.type == 2)
-                {
                     end = (double)x->second.i;
-                    has_end = true;
-                }
                 else if (x->second.type == 3)
-                {
                     end = x->second.f;
-                    has_end = true;
-                }
-                else
-                    return;
             }
             else if (key == "step")
             {
@@ -389,17 +378,12 @@ public:
                     step = (double)x->second.i;
                 else if (x->second.type == 3)
                     step = x->second.f;
-                else
-                    return;
             }
         }
 
-        // no end or step==0 (non-constant/invalid bounds): do not fold, keep the op
-        if (!has_end || step == 0)
-        {
-            op->type = "torch.arange";
-            return;
-        }
+        // match() already declined every case that cannot fold (missing /
+        // non-numeric end, step == 0, oversized count), so start/end/step are
+        // all numeric and step is nonzero here.
 
         double dcount = (end - start) / step;
         int64_t count = (int64_t)ceil(dcount);

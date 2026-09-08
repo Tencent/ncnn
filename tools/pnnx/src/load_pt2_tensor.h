@@ -20,8 +20,12 @@ class JsonValue;
 class StoreZipReader;
 
 // materialize the logical row-major tensor described by tensor_meta out of raw
-// storage bytes into a (transposed/sliced/shared-storage views handled here)
-void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute& a);
+// storage bytes into a (transposed/sliced/shared-storage views handled here).
+// returns 0 when a.data holds exactly elemcount(a.shape) bytes, and -1 when the
+// meta cannot be materialized consistently (symbolic / out-of-range / absurd
+// expansion): the caller must then reject the archive instead of installing an
+// attribute whose data bytes disagree with its declared shape.
+int load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute& a);
 
 // read one weight/constant record (raw storage bytes) from the zip into an
 // Attribute. returns 0 on success, -1 when the referenced payload record is

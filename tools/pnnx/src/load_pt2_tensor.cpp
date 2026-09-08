@@ -23,7 +23,7 @@ namespace pnnx {
 // correctly. shared by the 2.8+ archive path (raw byte records) and the
 // legacy(<2.8) path (raw storage shards from a pickled state dict). raw is
 // taken by value because the contiguous path may resize it.
-void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute& a)
+int load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute& a)
 {
     // parse serialized sizes / strides / storage_offset from tensor_meta
     std::vector<int> sizes;
@@ -74,13 +74,14 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
                 if (off <= raw.size() - (size_t)es)
                 {
                     a.data.assign(raw.begin() + (size_t)off, raw.begin() + (size_t)off + (size_t)es);
-                    return;
+                    return 0;
                 }
             }
         }
-        // no usable tensor_meta: keep the raw storage bytes as-is
-        a.data = raw;
-        return;
+        // no usable tensor_meta: the declared shape cannot be satisfied
+        // consistently, so reject instead of attaching mismatched bytes
+        a.data.clear();
+        return -1;
     }
 
     bool symbolic = false;
@@ -116,23 +117,23 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
         // and duplicate the storage); the caller has already recorded the
         // declared shape, so materialize a zero-byte attribute
         a.data.clear();
-        return;
+        return 0;
     }
 
     if (symbolic)
     {
-        // dynamic dimension cannot be materialized; keep raw storage
-        a.data = raw;
-        return;
+        // a dynamic/unresolvable dimension cannot be materialized as a static
+        // constant; reject the archive instead of installing mismatched bytes
+        a.data.clear();
+        return -1;
     }
 
     const int elemsize = (int)a.elemsize();
     if (elemsize <= 0)
     {
-        // unknown/unsupported dtype maps to type 0 with no element size;
-        // dividing by zero below would be UB, keep the raw storage instead
-        a.data = raw;
-        return;
+        // unknown/unsupported dtype maps to type 0 with no element size
+        a.data.clear();
+        return -1;
     }
 
     // the logical tensor is a view of this storage: materializing must never
@@ -157,17 +158,16 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
         }
         if (has_zero_stride)
         {
-            // bound the expansion so a hostile meta cannot force a huge allocation:
-            // each zero-stride dim may repeat its elements at most to its declared
-            // size; a count beyond that product is not a valid expanded view.
-            // when every dim is zero-stride that product always covers the count,
-            // so also cap the total expansion ratio like the overlapping
-            // (nonzero-stride) branch below - a genuine expand repeats each
-            // element a handful of times, never a huge multiple of the storage
-            if (raw_elems_total == 0 || count / raw_elems_total > 65536)
+            // a genuine expanded view (torch.tensor([1.]).expand(n), a
+            // broadcast buffer) has exactly one source element per output run;
+            // verify count == the zero-stride expansion product so an
+            // inconsistent meta cannot pass. a hostile meta may still ask for a
+            // huge count, but that is bounded by the absolute byte cap below
+            // (shared with the materialization path).
+            if (raw_elems_total == 0)
             {
-                a.data = raw;
-                return;
+                a.data.clear();
+                return -1;
             }
             size_t expanded = raw_elems_total;
             for (int i = 0; i < dims; i++)
@@ -176,17 +176,17 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
                 {
                     if (expanded > (size_t)-1 / (size_t)sizes[i])
                     {
-                        a.data = raw;
-                        return;
+                        a.data.clear();
+                        return -1;
                     }
                     expanded *= (size_t)sizes[i];
                 }
             }
-            if (count > expanded)
+            if (count != expanded)
             {
-                // still more elements than any zero-stride expansion can explain
-                a.data = raw;
-                return;
+                // inconsistent with any zero-stride expansion
+                a.data.clear();
+                return -1;
             }
         }
         else
@@ -214,8 +214,8 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
                 const uint64_t need = ((uint64_t)raw_elems_total + as - 1) / as;
                 if ((uint64_t)extent >= need)
                 {
-                    a.data = raw;
-                    return;
+                    a.data.clear();
+                    return -1;
                 }
                 const int64_t span = extent * st;
                 if (st >= 0)
@@ -226,11 +226,9 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
             if (min_addr < 0 || (uint64_t)max_addr >= (uint64_t)raw_elems_total)
             {
                 // some element address would fall outside the storage: the
-                // shape/strides are inconsistent with it; keep the raw bytes
-                // as-is (never grow it to the claimed size - that is how
-                // corrupt meta turns into a multi-gigabyte allocation)
-                a.data = raw;
-                return;
+                // shape/strides are inconsistent with it
+                a.data.clear();
+                return -1;
             }
             // in-bounds overlap is legitimate (e.g. base.as_strided((3,3),(1,1))
             // over a five-element storage), but the materialization loop below
@@ -242,8 +240,8 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
             // fraction of a quadratic blowup.
             if (raw_elems_total == 0 || count / raw_elems_total > 16)
             {
-                a.data = raw;
-                return;
+                a.data.clear();
+                return -1;
             }
         }
     }
@@ -271,24 +269,24 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
         const size_t expect = count * (size_t)elemsize;
         if (raw.size() > expect)
             raw.resize(expect);
-        // raw < expect would mean the meta claims more bytes than the storage
-        // holds; never fabricate the missing tail with zeros - keep the short
-        // storage so readers see an undersized buffer instead of fake data
+        // raw < expect means the meta claims more bytes than the storage
+        // holds; do not fabricate the missing tail - reject the archive
+        if (raw.size() != expect)
+        {
+            a.data.clear();
+            return -1;
+        }
         a.data = raw;
-        return;
+        return 0;
     }
 
-    if (elemsize <= 0)
+    // guard against integer overflow when allocating the materialized buffer,
+    // and cap the absolute output size (a hostile meta must not drive a
+    // multi-gigabyte allocation / OOM)
+    if (count > (size_t)-1 / (size_t)elemsize || count * (size_t)elemsize > (size_t)0x40000000)
     {
-        a.data = raw;
-        return;
-    }
-
-    // guard against integer overflow when allocating the materialized buffer
-    if (count > (size_t)-1 / (size_t)elemsize)
-    {
-        a.data = raw;
-        return;
+        a.data.clear();
+        return -1;
     }
 
     // materialize row-major from (sizes, strides, storage_offset), bounds-checking
@@ -311,15 +309,14 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
         if (sto < 0 || (uint64_t)sto >= (uint64_t)raw_elems)
         {
             // out-of-bounds source: this tensor_meta cannot address the raw
-            // storage, so the shape/strides are inconsistent with it. keep the
-            // raw bytes as-is (never grow it to the claimed size - that is how
-            // corrupt meta turns into a multi-gigabyte allocation).
-            a.data = raw;
-            return;
+            // storage, so the shape/strides are inconsistent with it
+            a.data.clear();
+            return -1;
         }
         memcpy(dst + n * (size_t)elemsize, src + sto * (size_t)elemsize, (size_t)elemsize);
     }
     a.data = out;
+    return 0;
 }
 
 // read one weight/constant record (raw storage bytes) from the zip into an
@@ -351,7 +348,11 @@ int load_tensor_data(StoreZipReader& zip, const std::vector<std::string>& names,
     if (zip.read_file(record, raw.data()) != 0)
         return -1;
 
-    load_tensor_from_raw(raw, meta, a);
+    if (load_tensor_from_raw(raw, meta, a) != 0)
+    {
+        fprintf(stderr, "tensor record %s cannot be materialized (inconsistent sizes/strides/storage)\n", record.c_str());
+        return -1;
+    }
     return 0;
 }
 
