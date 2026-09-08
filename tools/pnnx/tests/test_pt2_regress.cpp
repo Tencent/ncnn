@@ -457,6 +457,39 @@ static void test_weight_attribute_reader_reuse()
     remove(path);
 }
 
+static void test_weight_norm_zero_dim()
+{
+    Graph graph;
+    graph.parse(
+        "7767517\n"
+        "5 4\n"
+        "pnnx.Input              v           0 1 v\n"
+        "pnnx.Input              g           0 1 g\n"
+        "prim::Constant          dim         0 1 dim value=0\n"
+        "aten::_weight_norm      op          3 1 v g dim out\n"
+        "pnnx.Output             output      1 0 out\n");
+
+    Operator* weight_norm = find_op(graph, "aten::_weight_norm");
+    CHECK(weight_norm != 0, "weight_norm: finds zero-dimension operator");
+    if (!weight_norm)
+        return;
+
+    Operator* v = weight_norm->inputs[0]->producer;
+    Operator* g = weight_norm->inputs[1]->producer;
+    v->type = "pnnx.Attribute";
+    g->type = "pnnx.Attribute";
+    v->attrs["data"].type = 1;
+    v->attrs["data"].shape = std::vector<int> {0, 8};
+    g->attrs["data"].type = 1;
+    g->attrs["data"].shape = std::vector<int> {0, 1};
+
+    fold_pt2_weight_norm(graph);
+
+    CHECK(weight_norm->type == "pnnx.Attribute" && weight_norm->attrs.at("data").shape == std::vector<int>({0, 8})
+              && weight_norm->attrs.at("data").data.empty(),
+          "weight_norm: folds zero-dimension weight without division by zero");
+}
+
 static void test_storezip_short_read()
 {
     const char* path = "test_pt2_storezip_short_read.zip";
@@ -780,6 +813,7 @@ int main()
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
     test_weight_attribute_reader_reuse();
+    test_weight_norm_zero_dim();
     test_storezip_short_read();
     test_storezip_eocd_validation();
     test_storezip_long_comment_zip64();

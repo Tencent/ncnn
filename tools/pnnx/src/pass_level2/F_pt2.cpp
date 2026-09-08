@@ -502,9 +502,11 @@ void fold_pt2_weight_norm(Graph& pg)
         std::vector<float> weight = attr_v.get_float32_data();
         const std::vector<float>& weight_g = attr_g.get_float32_data();
 
-        const int size = (int)(weight.size() / dim0);
-
-        apply_weight_norm(weight, weight_g, dim0, size);
+        if (dim0 > 0)
+        {
+            const int size = (int)(weight.size() / dim0);
+            apply_weight_norm(weight, weight_g, dim0, size);
+        }
 
         op->type = "pnnx.Attribute";
         op->params.clear();
