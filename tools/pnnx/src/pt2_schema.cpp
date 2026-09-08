@@ -108,7 +108,7 @@ static Pt2Argument::ArgType detect_arg_type(const JsonValue& arg)
         fprintf(stderr, " %s", it->first.c_str());
     }
     fprintf(stderr, "\n");
-    return Pt2Argument::NONE;
+    return Pt2Argument::INVALID;
 }
 
 static void collect_tensor_refs(const JsonValue& v, std::vector<Pt2TensorRef>& refs)
@@ -195,9 +195,9 @@ static Pt2Argument parse_argument(const JsonValue& arg, const std::string& name,
     return a;
 }
 
-static Pt2Node parse_node(const JsonValue& n)
+static bool parse_node(const JsonValue& n, Pt2Node& node)
 {
-    Pt2Node node;
+    node = Pt2Node();
     node.name = n["name"].asString();
     node.target = n["target"].asString();
 
@@ -207,6 +207,8 @@ static Pt2Node parse_node(const JsonValue& n)
         Pt2NodeInput input;
         input.name = inputs[i]["name"].asString();
         input.arg = parse_argument(inputs[i]["arg"], input.name, json_as_int(inputs[i]["kind"]) == 2);
+        if (input.arg.type == Pt2Argument::INVALID)
+            return false;
         node.inputs.push_back(input);
     }
 
@@ -269,7 +271,7 @@ static Pt2Node parse_node(const JsonValue& n)
                                       != node.adaptive_pool_none_axes.end();
     }
 
-    return node;
+    return true;
 }
 
 static std::string parse_spec_graph_name(const JsonValue& inner)
@@ -538,7 +540,9 @@ int load_pt2_schema(const std::string& ptpath, Pt2Program& program)
         const JsonValue& nodes = graph_module["graph"]["nodes"];
         for (size_t i = 0; i < nodes.size(); i++)
         {
-            Pt2Node node = parse_node(nodes[i]);
+            Pt2Node node;
+            if (!parse_node(nodes[i], node))
+                return -1;
             program.nodes.push_back(node);
         }
 

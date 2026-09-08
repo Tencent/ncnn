@@ -49,7 +49,8 @@ struct Pt2Argument
         SCALAR_TYPE,   // as_scalar_type
         DEVICE,        // as_device
         MEMORY_FORMAT, // as_memory_format
-        SYMBOLIC       // as_sym_int / as_sym_ints
+        SYMBOLIC,      // as_sym_int / as_sym_ints
+        INVALID
     };
 
     ArgType type;

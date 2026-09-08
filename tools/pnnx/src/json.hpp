@@ -352,7 +352,7 @@ private:
                         if (low_ok && low >= 0xDC00 && low <= 0xDFFF)
                             cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
                         else
-                            pos = save; // 不是合法低代理，回退按孤立高代理处理
+                            pos = save; // Treat it as an isolated high surrogate.
                     }
                     // Keep isolated surrogates as three-byte UTF-8.
                     if (cp < 0x80)

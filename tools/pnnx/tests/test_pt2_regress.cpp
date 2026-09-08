@@ -208,6 +208,33 @@ static void test_scalar_type_argument()
     CHECK(!argument_to_constant(a, v), "scalar_type: unknown enum is rejected");
 }
 
+static void test_list_constant_arguments()
+{
+    Parameter v;
+    Pt2Argument a;
+
+    a.type = Pt2Argument::BOOLS;
+    a.bool_values.push_back(true);
+    a.bool_values.push_back(false);
+    CHECK(argument_to_constant(a, v) && v.type == 5 && v.ai == std::vector<int>({1, 0}),
+          "bools: encoded as integer list");
+
+    a = Pt2Argument();
+    a.type = Pt2Argument::STRINGS;
+    a.string_values.push_back("sum");
+    a.string_values.push_back("mean");
+    CHECK(argument_to_constant(a, v) && v.type == 7 && v.as == std::vector<std::string>({"sum", "mean"}),
+          "strings: encoded as string list");
+}
+
+static void test_unknown_argument_variant()
+{
+    const JsonValue json = parse_json(
+        "{\"name\":\"unknown\",\"target\":\"aten::test.default\",\"inputs\":[{\"name\":\"x\",\"kind\":1,\"arg\":{\"as_future_scalar\":7}}],\"outputs\":[]}");
+    Pt2Node node;
+    CHECK(!parse_node(json, node), "schema: unknown argument variant is rejected");
+}
+
 static void test_tensor_list_null_slot()
 {
     const std::string json = load_fixture("pt2_tensor_list.json");
@@ -393,6 +420,30 @@ static void test_storezip_zip64_roundtrip()
           "storezip: empty Zip64 archive is accepted");
     empty_reader.close();
     remove(empty_path);
+}
+
+static void test_storezip_short_read()
+{
+    const char* path = "test_pt2_storezip_short_read.zip";
+    const char payload[] = "short read";
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
+              && writer.close() == 0,
+          "storezip: writes short-read regression archive");
+
+    const unsigned char extra_length[] = {0xff, 0xff};
+    FILE* fp = fopen(path, "r+b");
+    CHECK(fp != 0 && fseek(fp, 28, SEEK_SET) == 0 && fwrite(extra_length, sizeof(extra_length), 1, fp) == 1,
+          "storezip: corrupts local extra length for short-read regression");
+    if (fp)
+        fclose(fp);
+
+    StoreZipReader reader;
+    char loaded[sizeof(payload)] = {0};
+    CHECK(reader.open(path) == 0 && reader.read_file("payload.txt", loaded) != 0,
+          "storezip: truncated payload is rejected");
+    reader.close();
+    remove(path);
 }
 
 static void test_storezip_eocd_validation()
@@ -642,12 +693,15 @@ int main()
     test_ones_like_fold();
     test_device_argument();
     test_scalar_type_argument();
+    test_list_constant_arguments();
+    test_unknown_argument_variant();
     test_tensor_list_null_slot();
     test_input_shape_override();
     test_input_dtype_mapping();
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
+    test_storezip_short_read();
     test_storezip_eocd_validation();
     test_storezip_long_comment_zip64();
     test_output_spec_filter();

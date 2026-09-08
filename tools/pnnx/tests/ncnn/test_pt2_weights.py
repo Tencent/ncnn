@@ -5,7 +5,7 @@
 # 的首次端到端验证。结构对拍（.param diff）验不出权重字节错误，只有 pyncnn 推理
 # allclose(<1e-3) 能证明 state_dict 字节原样到达 ncnn。
 # 覆盖：linear / conv2d / grouped conv2d / batchnorm(running stats) / layernorm /
-#       conv+bn+relu 融合链 / smoke 对照（无权重）。
+#       conv+bn+relu fusion / Conv2d with alternate spatial dimensions / unweighted smoke baseline.
 
 import torch
 import torch.nn as nn
@@ -76,6 +76,7 @@ class MConvBnRelu(nn.Module):
 CASES = [
     ("test_pt2_w_linear", MLinear, "[1,4,8]", (torch.rand(1, 4, 8),)),
     ("test_pt2_w_conv2d", MConv2d, "[1,3,8,8]", (torch.rand(1, 3, 8, 8),)),
+    ("test_pt2_w_conv2d_shape2", MConv2d, "[1,3,5,7]", (torch.rand(1, 3, 5, 7),)),
     ("test_pt2_w_conv2d_groups", MConv2dGroups, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),)),
     ("test_pt2_w_batchnorm", MBatchNorm2d, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),)),
     ("test_pt2_w_layernorm", MLayerNorm, "[1,4,8]", (torch.rand(1, 4, 8),)),

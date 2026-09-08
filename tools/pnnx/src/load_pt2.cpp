@@ -347,8 +347,19 @@ static bool argument_to_constant(const Pt2Argument& a, Parameter& value)
     case Pt2Argument::BOOL:
         value = Parameter(a.bool_value);
         return true;
+    case Pt2Argument::BOOLS:
+    {
+        std::vector<int> ai;
+        for (size_t k = 0; k < a.bool_values.size(); k++)
+            ai.push_back(a.bool_values[k] ? 1 : 0);
+        value = Parameter(ai);
+        return true;
+    }
     case Pt2Argument::STRING:
         value = Parameter(a.string_value);
+        return true;
+    case Pt2Argument::STRINGS:
+        value = Parameter(a.string_values);
         return true;
     default:
         fprintf(stderr, "load_pt2: unsupported constant argument %s (%d)\n", a.name.c_str(), a.type);

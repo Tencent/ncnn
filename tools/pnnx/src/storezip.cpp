@@ -161,6 +161,11 @@ static uint64_t read_le64(const unsigned char* p)
     return v;
 }
 
+static bool read_exact(FILE* fp, void* data, size_t size)
+{
+    return size == 0 || fread(data, 1, size, fp) == size;
+}
+
 StoreZipReader::StoreZipReader()
 {
     fp = 0;
@@ -214,8 +219,12 @@ int StoreZipReader::open(const std::string& path)
     for (uint64_t i = 0; i < cd_records; i++)
     {
         uint32_t signature;
-        if (fread((char*)&signature, sizeof(signature), 1, fp) != 1)
-            break;
+        if (!read_exact(fp, &signature, sizeof(signature)))
+        {
+            fprintf(stderr, "store zip: truncated central directory\n");
+            close();
+            return -1;
+        }
 
         if (signature != 0x02014b50)
         {
@@ -225,11 +234,21 @@ int StoreZipReader::open(const std::string& path)
         }
 
         central_directory_file_header cdfh;
-        fread((char*)&cdfh, sizeof(cdfh), 1, fp);
+        if (!read_exact(fp, &cdfh, sizeof(cdfh)))
+        {
+            fprintf(stderr, "store zip: truncated central directory header\n");
+            close();
+            return -1;
+        }
 
         std::string name;
         name.resize(cdfh.file_name_length);
-        fread((char*)name.data(), name.size(), 1, fp);
+        if (!read_exact(fp, (char*)name.data(), name.size()))
+        {
+            fprintf(stderr, "store zip: truncated central directory name\n");
+            close();
+            return -1;
+        }
 
         uint64_t compressed_size = cdfh.compressed_size;
         uint64_t uncompressed_size = cdfh.uncompressed_size;
@@ -243,9 +262,19 @@ int StoreZipReader::open(const std::string& path)
             {
                 uint16_t extra_id;
                 uint16_t extra_size;
-                fread((char*)&extra_id, sizeof(extra_id), 1, fp);
-                fread((char*)&extra_size, sizeof(extra_size), 1, fp);
+                if (!read_exact(fp, &extra_id, sizeof(extra_id)) || !read_exact(fp, &extra_size, sizeof(extra_size)))
+                {
+                    fprintf(stderr, "store zip: truncated central directory extra field\n");
+                    close();
+                    return -1;
+                }
                 extra_offset += 4;
+                if (extra_size > cdfh.extra_field_length - extra_offset)
+                {
+                    fprintf(stderr, "store zip: invalid central directory extra field\n");
+                    close();
+                    return -1;
+                }
                 if (extra_id == 0x0001)
                 {
                     uint16_t zip64_size = 0;
@@ -257,39 +286,66 @@ int StoreZipReader::open(const std::string& path)
                         zip64_size += sizeof(uint64_t);
                     if (extra_size < zip64_size)
                     {
-                        seek64(fp, extra_size, SEEK_CUR);
+                        if (seek64(fp, extra_size, SEEK_CUR) != 0)
+                        {
+                            close();
+                            return -1;
+                        }
                         extra_offset += extra_size;
                         continue;
                     }
-                    if (uncompressed_size == 0xffffffff
-                            && fread((char*)&uncompressed_size, sizeof(uncompressed_size), 1, fp) != 1)
-                        continue;
-                    if (compressed_size == 0xffffffff
-                            && fread((char*)&compressed_size, sizeof(compressed_size), 1, fp) != 1)
-                        continue;
-                    if (lfh_offset == 0xffffffff
-                            && fread((char*)&lfh_offset, sizeof(lfh_offset), 1, fp) != 1)
-                        continue;
+                    if ((uncompressed_size == 0xffffffff && !read_exact(fp, &uncompressed_size, sizeof(uncompressed_size)))
+                            || (compressed_size == 0xffffffff && !read_exact(fp, &compressed_size, sizeof(compressed_size)))
+                            || (lfh_offset == 0xffffffff && !read_exact(fp, &lfh_offset, sizeof(lfh_offset))))
+                    {
+                        fprintf(stderr, "store zip: truncated Zip64 extra field\n");
+                        close();
+                        return -1;
+                    }
                     if (extra_size > zip64_size)
-                        seek64(fp, extra_size - zip64_size, SEEK_CUR);
+                    {
+                        if (seek64(fp, extra_size - zip64_size, SEEK_CUR) != 0)
+                        {
+                            close();
+                            return -1;
+                        }
+                    }
                     extra_offset += extra_size;
                     if (extra_offset <= cdfh.extra_field_length)
-                        seek64(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR);
+                    {
+                        if (seek64(fp, cdfh.extra_field_length - extra_offset, SEEK_CUR) != 0)
+                        {
+                            close();
+                            return -1;
+                        }
+                    }
                     break;
                 }
                 else
                 {
-                    seek64(fp, extra_size, SEEK_CUR);
+                    if (seek64(fp, extra_size, SEEK_CUR) != 0)
+                    {
+                        close();
+                        return -1;
+                    }
                     extra_offset += extra_size;
                 }
             }
         }
         else
         {
-            seek64(fp, cdfh.extra_field_length, SEEK_CUR);
+            if (seek64(fp, cdfh.extra_field_length, SEEK_CUR) != 0)
+            {
+                close();
+                return -1;
+            }
         }
 
-        seek64(fp, cdfh.file_comment_length, SEEK_CUR);
+        if (seek64(fp, cdfh.file_comment_length, SEEK_CUR) != 0)
+        {
+            close();
+            return -1;
+        }
 
         if (cdfh.compression != 0 || compressed_size != uncompressed_size)
         {
@@ -318,7 +374,12 @@ int StoreZipReader::open(const std::string& path)
         }
 
         uint32_t lfh_signature;
-        fread((char*)&lfh_signature, sizeof(lfh_signature), 1, fp);
+        if (!read_exact(fp, &lfh_signature, sizeof(lfh_signature)))
+        {
+            fprintf(stderr, "store zip: truncated local header for %s\n", e.name.c_str());
+            close();
+            return -1;
+        }
         if (lfh_signature != 0x04034b50)
         {
             fprintf(stderr, "store zip: bad local header signature for %s\n", e.name.c_str());
@@ -327,12 +388,29 @@ int StoreZipReader::open(const std::string& path)
         }
 
         local_file_header lfh;
-        fread((char*)&lfh, sizeof(lfh), 1, fp);
+        if (!read_exact(fp, &lfh, sizeof(lfh)))
+        {
+            fprintf(stderr, "store zip: truncated local header for %s\n", e.name.c_str());
+            close();
+            return -1;
+        }
 
-        seek64(fp, lfh.file_name_length + lfh.extra_field_length, SEEK_CUR);
+        if (seek64(fp, lfh.file_name_length + lfh.extra_field_length, SEEK_CUR) != 0)
+        {
+            fprintf(stderr, "store zip: skip local header fields failed for %s\n", e.name.c_str());
+            close();
+            return -1;
+        }
+
+        const int64_t data_offset = tell64(fp);
+        if (data_offset < 0)
+        {
+            close();
+            return -1;
+        }
 
         StoreZipMeta fm;
-        fm.offset = (uint64_t)tell64(fp);
+        fm.offset = (uint64_t)data_offset;
         fm.size = e.compressed_size;
 
         filemetas[e.name] = fm;
@@ -484,12 +562,16 @@ int StoreZipReader::read_file(const std::string& name, char* data)
         return -1;
     }
 
-    uint64_t offset = filemetas[name].offset;
-    uint64_t size = filemetas[name].size;
+    const uint64_t offset = filemetas[name].offset;
+    const uint64_t size = filemetas[name].size;
 
     if (seek64(fp, (int64_t)offset, SEEK_SET) != 0)
         return -1;
-    fread(data, size, 1, fp);
+    if (size > (uint64_t)SIZE_MAX || !read_exact(fp, data, (size_t)size))
+    {
+        fprintf(stderr, "store zip: read failed for %s\n", name.c_str());
+        return -1;
+    }
 
     return 0;
 }

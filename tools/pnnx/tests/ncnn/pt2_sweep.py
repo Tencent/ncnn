@@ -136,29 +136,10 @@ def run_pnnx_quiet(ptx, ish):
     return retcode, err[-400:]
 
 
-def classify(name, src):
-    modname = name[:-3]
-    try:
-        mod = importlib.import_module(modname)
-    except Exception as e:
-        # 报真实异常，否则无法诊断（曾导致 conv2d/conv3d 等 12 个测试只显示 "import error"）
-        return ("IMPORT_FAIL", f"{type(e).__name__}: {str(e)[:110]}")
-    Model = getattr(mod, "Model", None)
-    if Model is None:
-        return ("SKIP", "no Model class")
-
-    ish, ish2 = extract_inputshape(src)
-    shapes = parse_shapes(ish)
-    if not shapes:
-        return ("SKIP", "no/complex inputshape")
-    inputs = [torch.rand(*s) for s in shapes]
-
-    net = Model().eval()
-    base = "sw_" + modname
+def export_and_compare(net, inputs, ish, base):
     pt2 = base + ".pt2"
     pt = base + "_ts.pt"
 
-    # 导出 .pt2
     try:
         torch.export.save(torch.export.export(net, tuple(inputs)), pt2)
     except Exception as e:
@@ -195,6 +176,39 @@ def classify(name, src):
             if len(diff) >= 2:
                 break
     return ("DIFF", " | ".join(diff) if diff else f"len pt2={len(a)} pt={len(b)}")
+
+
+def classify(name, src):
+    modname = name[:-3]
+    try:
+        mod = importlib.import_module(modname)
+    except Exception as e:
+        # Keep the actual exception for diagnosis.
+        return ("IMPORT_FAIL", f"{type(e).__name__}: {str(e)[:110]}")
+    Model = getattr(mod, "Model", None)
+    if Model is None:
+        return ("SKIP", "no Model class")
+
+    ish, ish2 = extract_inputshape(src)
+    shapes = parse_shapes(ish)
+    if not shapes:
+        return ("SKIP", "no/complex inputshape")
+
+    net = Model().eval()
+    base = "sw_" + modname
+    status, detail = export_and_compare(net, [torch.rand(*s) for s in shapes], ish, base)
+    if status != "PASS" or not ish2:
+        return status, detail
+
+    shapes2 = parse_shapes(ish2)
+    if not shapes2 or len(shapes2) != len(shapes):
+        return ("SKIP", "no/complex inputshape2")
+
+    # PT2 exports are static, so export both source shape variants independently.
+    status2, detail2 = export_and_compare(net, [torch.rand(*s) for s in shapes2], ish2, base + "_inputshape2")
+    if status2 != "PASS":
+        return status2, f"inputshape2: {detail2}"
+    return ("PASS", f"{detail}; inputshape2 {detail2}")
 
 
 def dump_ts(name, src):
