@@ -122,7 +122,7 @@ class Parser
 {
 public:
     Parser(const char* text, size_t len)
-        : cur(text), end(text + len), ok(true)
+        : cur(text), end(text + len), ok(true), depth(0)
     {
     }
 
@@ -147,6 +147,27 @@ private:
     const char* cur;
     const char* end;
     bool ok;
+    int depth;
+
+    // bounds container nesting so a hostile deeply-nested JSON ([[[[...]]]])
+    // cannot overflow the parser stack before any schema check runs
+    struct NestGuard
+    {
+        int& d;
+        bool valid;
+
+        NestGuard(int& depth)
+            : d(depth), valid(true)
+        {
+            if (++d > 1024)
+                valid = false;
+        }
+
+        ~NestGuard()
+        {
+            --d;
+        }
+    };
 
     void skip_ws()
     {
@@ -365,6 +386,10 @@ private:
 
     bool parse_array(JsonValue& out)
     {
+        NestGuard g(depth);
+        if (!g.valid)
+            return false;
+
         // cur points at '['
         cur++;
 
@@ -407,6 +432,10 @@ private:
 
     bool parse_object(JsonValue& out)
     {
+        NestGuard g(depth);
+        if (!g.valid)
+            return false;
+
         // cur points at '{'
         cur++;
 

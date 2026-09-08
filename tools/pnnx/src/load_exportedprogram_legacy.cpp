@@ -339,7 +339,9 @@ private:
 
     bool memo_put(uint32_t index)
     {
-        if (stack.empty() || index >= memo.max_size())
+        // memo indexes come straight from the pickle stream; cap them so a
+        // hostile 'r' (u32 index) cannot drive memo.resize() to gigabytes (OOM)
+        if (stack.empty() || index >= 65536)
             return fail("invalid memo write");
         if (memo.size() <= index)
             memo.resize((size_t)index + 1);

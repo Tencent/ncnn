@@ -776,6 +776,31 @@ int StoreZipReader::open(const std::string& path)
         fm.uncompressed_size = uncompressed_size;
         fm.compression = cdfh.compression;
         fm.crc32 = cdfh.crc32;
+
+        // reject malformed central-directory records up front so a hostile
+        // archive is refused at the container boundary instead of driving a
+        // caller into a huge allocation / inflate bomb: the compressed bytes
+        // must lie inside the file, and the advertised uncompressed size is
+        // capped (single weight shards stay well below this)
+        if ((uint64_t)file_size < fm.offset || fm.size > (uint64_t)file_size - fm.offset)
+        {
+            fprintf(stderr, "invalid data range for %s\n", name.c_str());
+            return -1;
+        }
+        if (fm.uncompressed_size > (uint64_t)0x80000000)
+        {
+            fprintf(stderr, "oversized uncompressed entry %s (%llu bytes)\n", name.c_str(), (unsigned long long)fm.uncompressed_size);
+            return -1;
+        }
+        // a stored entry's "compressed" bytes are the content itself: the two
+        // sizes must agree, otherwise read_file copies size bytes into a caller
+        // buffer sized by uncompressed_size (heap overflow before the crc check)
+        if (fm.compression == 0 && fm.size != fm.uncompressed_size)
+        {
+            fprintf(stderr, "invalid stored entry %s (compressed %llu != uncompressed %llu)\n", name.c_str(), (unsigned long long)fm.size, (unsigned long long)fm.uncompressed_size);
+            return -1;
+        }
+
         filemetas[name] = fm;
 
         // back to central directory

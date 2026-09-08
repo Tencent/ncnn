@@ -108,10 +108,11 @@ def _make_hostile_deflate_zip(path):
         f.write(lh + raw + cd + eocd)
 
 
-def _patch_central(path, entry, crc=None, flag=None):
-    # byte-level patch of one central-directory record: overwrite its crc32 or
-    # OR its general-purpose flag bits (zipfile cannot express a deliberately
-    # wrong crc / encrypted flag, so the hostile archive is built by hand).
+def _patch_central(path, entry, crc=None, flag=None, usize=None):
+    # byte-level patch of one central-directory record: overwrite its crc32 /
+    # OR its general-purpose flag bits / overwrite its uncompressed size
+    # (zipfile cannot express a deliberately wrong crc / encrypted flag /
+    # lying size, so the hostile archive is built by hand).
     b = bytearray(open(path, "rb").read())
     pos = 0
     hit = False
@@ -126,6 +127,8 @@ def _patch_central(path, entry, crc=None, flag=None):
             if flag is not None:
                 cur = struct.unpack_from("<H", b, p + 8)[0]
                 struct.pack_into("<H", b, p + 8, cur | (flag & 0xffff))
+            if usize is not None:
+                struct.pack_into("<I", b, p + 24, usize & 0xffffffff)
             hit = True
             break
         pos = p + 1
@@ -188,6 +191,14 @@ def _build_cases(workdir, base):
     _copy_and_replace(base, p, replace={"base/archive_version": b"1"})
     cases["bad_version"] = p
 
+    # one entry's central directory advertises a huge uncompressed size (the
+    # real payload is tiny): a loader that trusts it pre-allocates a huge
+    # buffer / inflate bomb. must be rejected at the container boundary.
+    p = os.path.join(workdir, "case_big_size.pt2")
+    _copy_and_replace(base, p)
+    _patch_central(p, b"base/data/weights/weight_0", usize=0xFFFFFF00)
+    cases["big_size"] = p
+
     # payload config (weights / constants) truncated: must be rejected at the
     # config boundary instead of silently emitting an incomplete model
     for tag, blob in (("cfg_weights", "base/data/weights/model_weights_config.json"),
@@ -229,6 +240,27 @@ def _build_cases(workdir, base):
     p = os.path.join(workdir, "case_hostile_deflate.pt2")
     _make_hostile_deflate_zip(p)
     cases["hostile_deflate"] = p
+
+    # graph body is valid JSON but deeply nested: a parser that recurses
+    # without a depth bound overflows the stack (SIGSEGV) before any schema
+    # check runs; it must reject cleanly instead
+    p = os.path.join(workdir, "case_deep_json.pt2")
+    _copy_and_replace(base, p, replace={"base/models/model.json": b"[" * 5000 + b"0" + b"]" * 5000})
+    cases["deep_json"] = p
+
+    # graph body is valid JSON but carries no graph/signature structure: a
+    # container loader that trusts it silently emits an empty model (exit 0)
+    p = os.path.join(workdir, "case_no_graph.pt2")
+    _copy_and_replace(base, p, replace={"base/models/model.json": b'{"range_constraints": {}}'})
+    cases["no_graph"] = p
+
+    # stored entry whose central sizes disagree (compressed != uncompressed):
+    # read_file would copy compressed bytes into a buffer sized by the
+    # uncompressed size (heap overflow before the crc check can fire)
+    p = os.path.join(workdir, "case_stored_mismatch.pt2")
+    _copy_and_replace(base, p)
+    _patch_central(p, b"base/data/weights/weight_0", usize=100)
+    cases["stored_mismatch"] = p
 
     return cases
 
@@ -339,6 +371,12 @@ def test():
         ok = rc != 0 and rc is not None and "unsupported archive_version" in text
         results.append(_case("archive_version(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
+        # a lying central uncompressed size must be rejected at the container
+        # boundary (diagnostic), not drive a huge allocation / inflate bomb
+        rc, text = _run_pnnx(pnnx, cases["big_size"], outdir)
+        ok = rc is not None and rc >= 0 and rc in (0, 1, 255, 4294967295) and rc != 0 and "oversized uncompressed entry" in text
+        results.append(_case("big_size(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
         # truncated weights/constants config must be rejected at the config
         # boundary (parse diagnostic), not silently converted without data
         for name in ("cfg_weights", "cfg_constants"):
@@ -361,6 +399,24 @@ def test():
         rc, text = _run_pnnx(pnnx, cases["hostile_deflate"], outdir)
         ok = rc is not None and rc >= 0 and rc in (0, 1, 255, 4294967295)
         results.append(_case("hostile_inflate(guarded)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # deeply nested model.json must be rejected (parser depth bound), not
+        # crash with a stack overflow (SIGSEGV -> negative returncode)
+        rc, text = _run_pnnx(pnnx, cases["deep_json"], outdir)
+        ok = rc is not None and rc >= 0 and rc in (0, 1, 255, 4294967295) and rc != 0
+        results.append(_case("deep_json(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # structurally-empty model.json must be rejected at the container
+        # boundary, not silently converted into an empty model (exit 0)
+        rc, text = _run_pnnx(pnnx, cases["no_graph"], outdir)
+        ok = rc != 0 and rc is not None and "graph structure" in text
+        results.append(_case("no_graph(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
+
+        # stored entry with disagreeing central sizes must be rejected (would
+        # otherwise overflow the read buffer before the crc check)
+        rc, text = _run_pnnx(pnnx, cases["stored_mismatch"], outdir)
+        ok = rc != 0 and rc is not None and "invalid stored entry" in text
+        results.append(_case("stored_mismatch(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
     return all(results)
 

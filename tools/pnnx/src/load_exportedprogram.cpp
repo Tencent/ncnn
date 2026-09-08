@@ -589,6 +589,16 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
     const JsonValue& graph = root["graph_module"]["graph"];
     const JsonValue& signature = root["graph_module"]["signature"];
 
+    // minimum structure: a model whose graph/signature is missing, or has no
+    // node / input arrays, is not an exported program - a hostile but
+    // JSON-valid container would otherwise silently produce an empty model
+    // and exit 0 instead of being rejected
+    if (!graph.is_object() || !signature.is_object() || !graph["nodes"].is_array() || !signature["input_specs"].is_array())
+    {
+        fprintf(stderr, "unsupported exported program graph structure\n");
+        return -1;
+    }
+
     // tensor_values : name -> { dtype, sizes, ... }
     const JsonValue& tensor_values = graph["tensor_values"];
 
@@ -979,7 +989,12 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
 
             if (op_type == "torchvision.ops.DeformConv2d")
             {
-                const Attribute& w = op->attrs.at("weight");
+                if (!op->has_attr("weight") || op->attrs["weight"].shape.size() < 4)
+                {
+                    fprintf(stderr, "unsupported DeformConv2d without a 4-d weight attribute\n");
+                    return -1;
+                }
+                const Attribute& w = op->attrs["weight"];
                 int groups = int_params["groups"];
                 op->params["in_channels"] = w.shape[1] * groups;
                 op->params["out_channels"] = w.shape[0];

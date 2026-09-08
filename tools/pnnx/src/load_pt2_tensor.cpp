@@ -140,7 +140,16 @@ void load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribut
         {
             // bound the expansion so a hostile meta cannot force a huge allocation:
             // each zero-stride dim may repeat its elements at most to its declared
-            // size; a count beyond that product is not a valid expanded view
+            // size; a count beyond that product is not a valid expanded view.
+            // when every dim is zero-stride that product always covers the count,
+            // so also cap the total expansion ratio like the overlapping
+            // (nonzero-stride) branch below - a genuine expand repeats each
+            // element a handful of times, never a huge multiple of the storage
+            if (raw_elems_total == 0 || count / raw_elems_total > 65536)
+            {
+                a.data = raw;
+                return;
+            }
             size_t expanded = raw_elems_total;
             for (int i = 0; i < dims; i++)
             {
