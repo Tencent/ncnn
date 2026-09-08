@@ -199,6 +199,13 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
+    if (cd_records > (uint64_t)SIZE_MAX || cd_records > cd_size / sizeof(central_directory_file_header))
+    {
+        fprintf(stderr, "store zip: invalid central directory record count\n");
+        close();
+        return -1;
+    }
+
     // Read sizes and local-header offsets before seeking away from this directory.
     if (seek64(fp, (int64_t)cd_offset, SEEK_SET) != 0)
     {

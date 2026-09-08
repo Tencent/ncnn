@@ -422,6 +422,56 @@ static void test_storezip_zip64_roundtrip()
     remove(empty_path);
 }
 
+static void test_storezip_invalid_record_count()
+{
+    const char* path = "test_pt2_storezip_record_count.zip";
+    const char payload[] = "record count";
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
+              && writer.close() == 0,
+          "storezip: writes record-count regression archive");
+
+    FILE* fp = fopen(path, "rb");
+    std::vector<unsigned char> archive;
+    if (fp)
+    {
+        fseek(fp, 0, SEEK_END);
+        const long size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        if (size > 0)
+        {
+            archive.resize(size);
+            if (fread(archive.data(), archive.size(), 1, fp) != 1)
+                archive.clear();
+        }
+        fclose(fp);
+    }
+
+    size_t eocd64 = archive.size();
+    for (size_t i = 0; i + 4 <= archive.size(); i++)
+    {
+        if (archive[i] == 0x50 && archive[i + 1] == 0x4b && archive[i + 2] == 0x06 && archive[i + 3] == 0x06)
+        {
+            eocd64 = i;
+            break;
+        }
+    }
+
+    const unsigned char records[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    fp = fopen(path, "r+b");
+    CHECK(eocd64 != archive.size() && fp != 0 && fseek(fp, (long)eocd64 + 24, SEEK_SET) == 0
+              && fwrite(records, sizeof(records), 1, fp) == 1,
+          "storezip: corrupts Zip64 record count");
+    if (fp)
+        fclose(fp);
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) != 0, "storezip: rejects oversized Zip64 record count");
+    reader.close();
+    remove(path);
+}
+
 static void test_weight_attribute_reader_reuse()
 {
     const char* path = "test_pt2_weight_reader_reuse.zip";
@@ -812,6 +862,7 @@ int main()
     test_adaptive_pool_source_guard();
     test_adaptive_pool_module_source_guard();
     test_storezip_zip64_roundtrip();
+    test_storezip_invalid_record_count();
     test_weight_attribute_reader_reuse();
     test_weight_norm_zero_dim();
     test_storezip_short_read();
