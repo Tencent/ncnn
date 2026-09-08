@@ -120,7 +120,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
                                                 + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
                     const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
                     if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
-                        && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                            && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
                         break;
 
                     // reduce K first to preserve output reuse
@@ -376,7 +376,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
                                                 + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
                     const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
                     if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
-                        && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                            && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
                         break;
 
                     // reduce K first to preserve output reuse

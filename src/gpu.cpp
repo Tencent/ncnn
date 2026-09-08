@@ -4348,7 +4348,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
             if (use_local_size_id)
             {
                 dp[0] = (wordcount << 16) | 331; // OpExecutionModeId
-                dp[2] = 38; // LocalSizeId
+                dp[2] = 38;                      // LocalSizeId
                 dp[3] = code[3];
                 dp[4] = code[3] + 1;
                 dp[5] = code[3] + 2;
