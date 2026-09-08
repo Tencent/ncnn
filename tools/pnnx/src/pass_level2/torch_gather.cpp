@@ -48,7 +48,7 @@ pnnx.Output             output      1 0 out
         return "torch.gather";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>&, const std::map<std::string, int>&) const
+    void write(Operator* op, const std::map<std::string, Parameter>&, const std::map<std::string, Attribute>&) const
     {
         op->params["sparse_grad"] = false;
     }

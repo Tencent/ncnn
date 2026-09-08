@@ -207,7 +207,13 @@ void torch_rnn_pt2(Graph& graph)
             continue;
         op->params["input_size"] = wih0.shape[1];
         if (new_type == "nn.LSTM")
+        {
+            // LSTM packs the 4 gates; a hostile/nonstandard shape must not be
+            // silently truncated by integer division
+            if (wih0.shape[0] % 4 != 0)
+                continue;
             op->params["hidden_size"] = wih0.shape[0] / 4;
+        }
         else
             op->params["hidden_size"] = whh0.shape[1];
         op->params["num_layers"] = num_layers;

@@ -24,7 +24,10 @@ static bool get_const_int(Operand* in, int& val)
 
     if (p->type == "pnnx.Expression")
     {
-        const std::string& expr = p->params.at("expr").s;
+        const std::map<std::string, Parameter>::const_iterator it = p->params.find("expr");
+        if (it == p->params.end())
+            return false;
+        const std::string& expr = it->second.s;
         if (expr == "True")
         {
             val = 1;
@@ -35,7 +38,12 @@ static bool get_const_int(Operand* in, int& val)
             val = 0;
             return true;
         }
-        val = atoi(expr.c_str());
+        // strict integer parse: a non-numeric expr must not silently become 0
+        char* endptr = 0;
+        long v = strtol(expr.c_str(), &endptr, 10);
+        if (endptr == expr.c_str() || *endptr != '\0')
+            return false;
+        val = (int)v;
         return true;
     }
 

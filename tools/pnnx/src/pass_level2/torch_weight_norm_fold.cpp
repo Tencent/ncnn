@@ -227,6 +227,16 @@ pnnx.Output             output      1 0 out
         bool g_is_scalar = g_shape.empty();
         if (!g_is_scalar && (int)g_shape.size() != dims)
             return;
+        // broadcast compatibility: each g dim must be 1 or exactly the v dim,
+        // otherwise the flat g index below would walk past the g data
+        if (!g_is_scalar)
+        {
+            for (int dd = 0; dd < dims; dd++)
+            {
+                if (g_shape[dd] != 1 && g_shape[dd] != v_shape[dd])
+                    return;
+            }
+        }
         int g_count = 1;
         for (int s : g_shape)
             g_count *= s;

@@ -110,6 +110,20 @@ pnnx.Output             output      1 0 out
         return "F.normalize";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // ncnn F.normalize reads params["dim"] as a scalar int; reject a
+        // missing / vector dim instead of emitting a garbage axis
+        const std::map<std::string, Parameter>::const_iterator it = captured_params.find("dim");
+        if (it == captured_params.end())
+            return false;
+        if (it->second.type == 2)
+            return true;
+        if (it->second.type == 5 && it->second.ai.size() == 1)
+            return true;
+        return false;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["p"] = captured_params.at("p");

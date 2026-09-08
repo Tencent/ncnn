@@ -114,7 +114,9 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_aten_baddbmm(g);
     ncnn::convert_aten_F_linear(g);
     ncnn::convert_nn_Linear_3d_flatten(g);
-    ncnn::convert_aten_linalg_vector_norm(g);
+    // note: convert_aten_linalg_vector_norm runs in pass_level2 (it folds the
+    // expression chain before ncnn conversion); calling it again here is a
+    // no-op that would also pull a pass_ncnn header into the level2 build
     ncnn::convert_torch_unbind(g);
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);

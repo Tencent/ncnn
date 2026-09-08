@@ -32,7 +32,7 @@ pnnx.Output             output      1 0 out
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators,
-               const std::map<std::string, Parameter>& /*captured_params*/,
+               const std::map<std::string, Parameter>& captured_params,
                const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         // ncnn ROIAlign reads exactly four coordinates and produces one output;
@@ -56,6 +56,22 @@ pnnx.Output             output      1 0 out
         const std::vector<float> f = a.get_float32_data();
         if (f.size() < 5 || f[0] != 0.f)
             return false; // batch index must be zero
+
+        // the captured params are read with typed accessors in write();
+        // reject wrong/missing types here instead of reading uninitialized
+        // Parameter members (or indexing a short output_size) later
+        const std::map<std::string, Parameter>::const_iterator sz = captured_params.find("output_size");
+        if (sz == captured_params.end() || sz->second.type != 5 || sz->second.ai.size() != 2)
+            return false;
+        const std::map<std::string, Parameter>::const_iterator ss = captured_params.find("spatial_scale");
+        if (ss == captured_params.end() || ss->second.type != 3)
+            return false;
+        const std::map<std::string, Parameter>::const_iterator sr = captured_params.find("sampling_ratio");
+        if (sr == captured_params.end() || sr->second.type != 2)
+            return false;
+        const std::map<std::string, Parameter>::const_iterator al = captured_params.find("aligned");
+        if (al == captured_params.end() || al->second.type != 1)
+            return false;
 
         return true;
     }

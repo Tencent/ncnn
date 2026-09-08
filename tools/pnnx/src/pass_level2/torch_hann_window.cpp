@@ -69,6 +69,22 @@ static void fold_window(Operator* op, const std::map<std::string, Parameter>& ca
     if (n <= 0)
         return; // cannot fold
 
+    // a hostile window_length requests an enormous constant: folding it would
+    // allocate gigabytes. keep the op instead of terminating the process
+    if (n > 10000000)
+    {
+        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
+        return;
+    }
+
+    // a hostile window_length requests an enormous constant: folding it would
+    // allocate gigabytes. keep the op instead of terminating the process
+    if (n > 10000000)
+    {
+        fprintf(stderr, "unsupported window_length %d, keep op\n", n);
+        return;
+    }
+
     // resolve the attribute dtype: an explicit dtype param wins, otherwise the
     // recorded output operand dtype, otherwise f32
     if (out_type == 0 && op->outputs[0]->type != 0)

@@ -67,6 +67,9 @@ void convert_Tensor_slice(Graph& graph)
 
             matched = true;
 
+            if (in_shape.size() < 4 || in_shape[2] <= 0)
+                continue; // the c dim must be concrete to build the reshapes
+
             // reshape0: (b,a,c,L) -> (b,a,c*K,step) (keep 4D and batch, step on the w dim)
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");

@@ -89,6 +89,11 @@ pnnx.Output             output      1 0 out
                 else if (input_rank == 2)
                 {
                     // torch 2D (H,W) -> ncnn 2D (w=W, h=H)：dim 0 <-> dim 1
+                    if (dim != 0 && dim != 1)
+                    {
+                        fprintf(stderr, "unsupported norm dim %d for rank-2 input\n", dim);
+                        continue;
+                    }
                     new_dim = 1 - dim;
                 }
                 else

@@ -42,10 +42,10 @@ void insert_reshape_linear(Graph& graph)
             {
                 insert_reshape = true;
             }
-            if (op->type == "nn.Linear" && input_rank == 3 && linear_in->shape.size() >= 2 && linear_in->shape[0] > 1 && linear_in->shape[1] > 1 && ncnn_batch_axis != 0)
-            {
-                insert_reshape = true;
-            }
+            // note: no rank-3 branch here - solve_batch_index always assigns
+            // batch axis 0 when both leading dims are >1 (the condition
+            // ncnn_batch_axis != 0 can then never hold), and the middle==1
+            // case is handled by convert_nn_Linear_3d_flatten.
 
             if (!insert_reshape)
                 continue;

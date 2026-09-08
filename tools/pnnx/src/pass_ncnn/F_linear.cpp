@@ -62,6 +62,11 @@ void convert_aten_F_linear(Graph& graph)
                     reshape_h = -1;
                     break;
                 }
+                if (in_shape[j] > 0 && reshape_h > 2147483647 / in_shape[j])
+                {
+                    reshape_h = -1;
+                    break;
+                }
                 reshape_h *= in_shape[j];
             }
 
@@ -110,6 +115,13 @@ void convert_aten_F_linear(Graph& graph)
             reshape0_out->shape = reshape0_out_shape;
             reshape1_in->type = fl_out->type;
             reshape1_in->shape = reshape1_in_shape;
+        }
+        else
+        {
+            // unknown rank or rank>5 cannot be expressed by ncnn Gemm (it
+            // would silently drop the middle dims); keep the op untouched
+            fprintf(stderr, "unsupported F.linear input rank %d\n", rank);
+            continue;
         }
 
         op->type = "Gemm";

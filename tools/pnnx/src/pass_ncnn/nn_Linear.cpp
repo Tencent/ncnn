@@ -53,6 +53,8 @@ void convert_nn_Linear_3d_flatten(Graph& graph)
         // weight is stored as an attribute (constantB); bias optional
         if (op->attrs.find("weight") == op->attrs.end())
             continue;
+        if (op->params.find("in_features") == op->params.end() || op->params.find("out_features") == op->params.end() || op->outputs.empty())
+            continue;
         const bool has_bias = op->attrs.find("bias") != op->attrs.end();
         const int in_features = op->params.at("in_features").i;
         const int out_features = op->params.at("out_features").i;

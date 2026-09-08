@@ -98,6 +98,9 @@ void convert_aten_new_empty(Graph& graph)
         attr_out->shape = shape;
         attr_out->type = dtype;
         attr_out->consumers = out->consumers;
+        // mark "no explicit batch axis" so downstream batch-aware passes do
+        // not read an uninitialized __ncnn_batch_axis member
+        attr_out->params["__ncnn_batch_axis"] = 233;
 
         Attribute a;
         a.type = dtype;

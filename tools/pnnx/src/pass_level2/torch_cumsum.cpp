@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
         {
             op->params["dtype"] = Parameter();
         }
-        else
+        else if (captured_params.at("dtype").type == 2)
         {
             if (captured_params.at("dtype").i == 0) op->params["dtype"] = "torch.uint8";
             if (captured_params.at("dtype").i == 1) op->params["dtype"] = "torch.int8";

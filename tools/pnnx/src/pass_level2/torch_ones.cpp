@@ -19,6 +19,9 @@ static inline unsigned short float32_to_bfloat16_round(float f)
 // fill an all-zero byte buffer with the value 1 for the attribute dtype
 static void fill_ones(Attribute& a)
 {
+    if (a.elemsize() == 0)
+        return; // unknown dtype: no element size, leave the zero bytes
+
     char* d = a.data.data();
     const size_t count = a.data.size() / (size_t)a.elemsize();
 

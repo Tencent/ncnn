@@ -159,7 +159,14 @@ static int get_known_operator_batch_index(const Operator* op)
         // padded input as having no explicit batch.
         int pad_pairs = 0;
         if (op->params.find("pad") != op->params.end() && op->params.at("pad").type == 5)
-            pad_pairs = (int)op->params.at("pad").ai.size() / 2;
+        {
+            // torch pads come in pairs; an odd-length list is malformed input,
+            // treat it as fully padded so no batch axis is invented
+            const int pn = (int)op->params.at("pad").ai.size();
+            if (pn % 2 != 0)
+                return 233;
+            pad_pairs = pn / 2;
+        }
         if (input_rank <= 2 || pad_pairs >= input_rank)
             return 233;
     }

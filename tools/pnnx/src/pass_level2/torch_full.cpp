@@ -31,6 +31,23 @@ pnnx.Output             output      1 0 out
         return "torch.full";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // write() reads fill_value/size with typed accessors and requires a
+        // positive size; decline anything else instead of folding wrong data
+        const std::map<std::string, Parameter>::const_iterator fv = captured_params.find("fill_value");
+        if (fv != captured_params.end() && fv->second.type != 1 && fv->second.type != 2 && fv->second.type != 3)
+            return false;
+        const std::map<std::string, Parameter>::const_iterator sz = captured_params.find("size");
+        if (sz != captured_params.end() && sz->second.type == 5)
+        {
+            for (int s : sz->second.ai)
+                if (s <= 0)
+                    return false;
+        }
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("dtype").type == 0)

@@ -256,7 +256,10 @@ pnnx.Output             output      1 0 out
             if (dtype == 5) dtype_str = "torch.half";
             if (dtype == 6) dtype_str = "torch.float";
             if (dtype == 7) dtype_str = "torch.double";
-            if (dtype == 9) dtype_str = "torch.bool";
+            if (dtype == 8) dtype_str = "torch.complex32";
+            if (dtype == 9) dtype_str = "torch.complex64";
+            if (dtype == 10) dtype_str = "torch.complex128";
+            if (dtype == 11) dtype_str = "torch.bool";
             if (dtype == 15) dtype_str = "torch.bfloat16";
             if (dtype_str)
                 op->params["dtype"] = dtype_str;
@@ -266,45 +269,40 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange_params, 20)
 
-static void propagate_f32_dtype_from_arange(Operand* start)
-{
-    // starting from a folded f32 Attribute output, propagate dtype=1(f32) to
-    // downstream ops that keep the dtype (views/type casts) so the ncnn
-    // conversion needs no i64->f32 Cast. Integer arange results (e.g. position
-    // ids) are exactly representable in f32, so the conversion is safe.
-    std::vector<Operand*> queue;
-    queue.push_back(start);
-    std::set<std::string> visited;
-    while (!queue.empty())
-    {
-        Operand* opd = queue.back();
-        queue.pop_back();
-        if (visited.find(opd->name) != visited.end())
-            continue;
-        visited.insert(opd->name);
-
-        for (Operator* consumer : opd->consumers)
-        {
-            const std::string& t = consumer->type;
-            const bool dtype_preserving = t == "aten::unsqueeze" || t == "Tensor.unsqueeze" || t == "aten::expand" || t == "Tensor.expand" || t == "aten::reshape" || t == "Tensor.reshape" || t == "aten::view" || t == "Tensor.view" || t == "aten::permute" || t == "Tensor.permute" || t == "aten::transpose" || t == "Tensor.transpose" || t == "aten::contiguous" || t == "Tensor.contiguous" || t == "aten::squeeze" || t == "Tensor.squeeze" || t == "aten::flatten" || t == "Tensor.flatten" || t == "aten::to" || t == "Tensor.to" || t == "aten::_to_copy";
-            if (!dtype_preserving)
-                continue;
-
-            for (Operand* out : consumer->outputs)
-            {
-                out->type = 1;
-                queue.push_back(out);
-            }
-        }
-    }
-}
-
 class torch_arange_fold : public GraphRewriterPass
 {
 public:
     const char* type_str() const
     {
         return "pnnx.Attribute";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // reject unfoldable bounds up front so the rewrite never leaves a
+        // parameter-less torch.arange behind (start/end/step must be numeric
+        // and step must be nonzero)
+        for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
+        {
+            std::string key = x->first;
+            size_t dot = key.rfind('.');
+            if (dot != std::string::npos)
+                key = key.substr(dot + 1);
+
+            if (key == "start" || key == "end")
+            {
+                if (x->second.type != 2 && x->second.type != 3)
+                    return false;
+            }
+            if (key == "step")
+            {
+                if (x->second.type == 2 && x->second.i == 0)
+                    return false;
+                if (x->second.type != 2 && x->second.type != 3)
+                    return false;
+            }
+        }
+        return true;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -365,7 +363,19 @@ public:
 
         double dcount = (end - start) / step;
         int64_t count = (int64_t)ceil(dcount);
-        if (count < 0) count = 0;
+        if (count < 0)
+            count = 0;
+
+        // a hostile arange bounds can request an enormous constant: folding it
+        // would allocate gigabytes and terminate the process. keep the op in
+        // that case instead (its data would be unusable anyway)
+        if (count > 10000000)
+        {
+            fprintf(stderr, "unsupported torch.arange count %lld, keep op\n", (long long)count);
+            op->type = "torch.arange";
+            op->params.clear();
+            return;
+        }
 
         Attribute& a = op->attrs["data"];
         a.type = op->outputs[0]->type;
@@ -375,9 +385,7 @@ public:
         const int dtype = a.type;
 
         // keep the original dtype of integer arange (e.g. i64) so downstream
-        // torch.gather index types stay correct. Note: do not unconditionally
-        // cast to f32 here; if f32 is needed downstream, Tensor.to /
-        // propagate_f32_dtype_from_arange handle it.
+        // torch.gather index types stay correct.
         int fold_dtype = dtype;
 
         if (fold_dtype == 5) // i64
@@ -458,13 +466,6 @@ public:
             float* p = (float*)a.data.data();
             for (int64_t i = 0; i < count; i++)
                 p[i] = (float)(start + i * step);
-        }
-
-        if (fold_dtype != dtype)
-        {
-            a.type = fold_dtype;
-            op->outputs[0]->type = fold_dtype;
-            propagate_f32_dtype_from_arange(op->outputs[0]);
         }
 
         op->params.clear();

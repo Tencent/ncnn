@@ -134,6 +134,8 @@ void convert_Tensor_to(Graph& graph)
             clone_out->producer = clone_op;
             clone_out->type = 1;
             clone_out->shape = a.shape;
+            // the cloned attribute carries no batch axis either
+            clone_out->params["__ncnn_batch_axis"] = 233;
 
             Attribute fattr = a;
             fattr.type = 1;
