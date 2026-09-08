@@ -1,0 +1,199 @@
+// Copyright 2026 MYQ
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
+
+layout(constant_id = 0) const int transB = 0;
+layout(constant_id = 1) const uint subgroup_size = 32;
+
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int batch;
+
+    int A_layout;
+    int B_layout;
+    int out_layout;
+
+    int A_hstep;
+    int A_cstep;
+    int A_dstep;
+    int A_batch_c;
+    int A_batch_d;
+
+    int B_hstep;
+    int B_cstep;
+    int B_dstep;
+    int B_batch_c;
+    int B_batch_d;
+
+    int out_hstep;
+    int out_cstep;
+    int out_dstep;
+    int out_batch_c;
+    int out_batch_d;
+
+    int transB_dynamic;
+} p;
+
+uint get_a_index(uint m, uint k, uint a_c_idx, uint a_d_idx)
+{
+    if (p.A_layout == 2)
+        return k;
+
+    if (p.A_layout == 1)
+        return a_c_idx * uint(p.A_cstep) + a_d_idx * uint(p.A_dstep) + m * uint(p.A_hstep) + k;
+
+    return m * uint(p.A_hstep) + k;
+}
+
+uint get_b_index(uint k, uint n, uint b_c_idx, uint b_d_idx)
+{
+    if (p.B_layout == 2)
+        return k;
+
+    const bool tb = transB == 1 || p.transB_dynamic == 1;
+
+    if (p.B_layout == 1)
+    {
+        const uint base = b_c_idx * uint(p.B_cstep) + b_d_idx * uint(p.B_dstep);
+        return tb ? (base + n * uint(p.B_hstep) + k) : (base + k * uint(p.B_hstep) + n);
+    }
+
+    return tb ? (n * uint(p.B_hstep) + k) : (k * uint(p.B_hstep) + n);
+}
+
+uint get_o_index(uint m, uint n, uint out_c_idx, uint out_d_idx)
+{
+    if (p.out_layout == 1)
+        return n;
+
+    if (p.out_layout == 2)
+        return m;
+
+    if (p.out_layout == 3)
+        return out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_dstep) + m * uint(p.out_hstep) + n;
+
+    if (p.out_layout == 4)
+        return out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_hstep) + n;
+
+    if (p.out_layout == 5)
+        return out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_hstep) + m;
+
+    return m * uint(p.out_hstep) + n;
+}
+
+afp subgroup_reduce_add(afp v)
+{
+    // Fast path for power-of-two subgroup size.
+    if ((subgroup_size & (subgroup_size - 1u)) == 0u)
+    {
+        for (uint offset = subgroup_size >> 1; offset > 0; offset >>= 1)
+        {
+            v += subgroupShuffleXor(v, offset);
+        }
+        return v;
+    }
+
+    afp total = afp(0.f);
+    for (uint i = 0; i < subgroup_size; i++)
+    {
+        total += subgroupShuffle(v, i);
+    }
+    return total;
+}
+
+void main()
+{
+    const uint lane = gl_SubgroupInvocationID;
+
+    const uint gx = gl_GlobalInvocationID.x / subgroup_size;
+    const uint gy = gl_GlobalInvocationID.y;
+    const uint gz = gl_GlobalInvocationID.z;
+
+    if (gx >= uint(p.N) || gy >= uint(p.M) || gz >= uint(p.batch))
+        return;
+
+    uint out_c_idx = 0;
+    uint out_d_idx = 0;
+    if (p.out_batch_c > 1 || p.out_batch_d > 1)
+    {
+        out_c_idx = p.out_batch_c == 1 ? 0 : gz / uint(p.out_batch_d);
+        out_d_idx = p.out_batch_d == 1 ? 0 : gz % uint(p.out_batch_d);
+    }
+
+    uint a_c_idx = 0;
+    uint a_d_idx = 0;
+    if (p.A_batch_c > 1 || p.A_batch_d > 1)
+    {
+        if (p.out_batch_c == 1 && p.A_batch_c > 1 && p.A_batch_d == 1)
+            a_c_idx = gz;
+        else
+            a_c_idx = p.A_batch_c == 1 ? 0 : out_c_idx;
+
+        a_d_idx = p.A_batch_d == 1 ? 0 : out_d_idx;
+    }
+
+    uint b_c_idx = 0;
+    uint b_d_idx = 0;
+    if (p.B_batch_c > 1 || p.B_batch_d > 1)
+    {
+        if (p.out_batch_c == 1 && p.B_batch_c > 1 && p.B_batch_d == 1)
+            b_c_idx = gz;
+        else
+            b_c_idx = p.B_batch_c == 1 ? 0 : out_c_idx;
+
+        b_d_idx = p.B_batch_d == 1 ? 0 : out_d_idx;
+    }
+
+    afp sum = afp(0.f);
+
+    uint k = lane;
+    for (; k + subgroup_size * 3 < uint(p.K); k += subgroup_size * 4)
+    {
+        const uint ai0 = get_a_index(gy, k, a_c_idx, a_d_idx);
+        const uint bi0 = get_b_index(k, gx, b_c_idx, b_d_idx);
+        const uint k1 = k + subgroup_size;
+        const uint ai1 = get_a_index(gy, k1, a_c_idx, a_d_idx);
+        const uint bi1 = get_b_index(k1, gx, b_c_idx, b_d_idx);
+        const uint k2 = k1 + subgroup_size;
+        const uint ai2 = get_a_index(gy, k2, a_c_idx, a_d_idx);
+        const uint bi2 = get_b_index(k2, gx, b_c_idx, b_d_idx);
+        const uint k3 = k2 + subgroup_size;
+        const uint ai3 = get_a_index(gy, k3, a_c_idx, a_d_idx);
+        const uint bi3 = get_b_index(k3, gx, b_c_idx, b_d_idx);
+
+        sum += afp(buffer_ld1(A_blob_data, ai0)) * afp(buffer_ld1(B_blob_data, bi0));
+        sum += afp(buffer_ld1(A_blob_data, ai1)) * afp(buffer_ld1(B_blob_data, bi1));
+        sum += afp(buffer_ld1(A_blob_data, ai2)) * afp(buffer_ld1(B_blob_data, bi2));
+        sum += afp(buffer_ld1(A_blob_data, ai3)) * afp(buffer_ld1(B_blob_data, bi3));
+    }
+
+    for (; k < uint(p.K); k += subgroup_size)
+    {
+        const uint ai = get_a_index(gy, k, a_c_idx, a_d_idx);
+        const uint bi = get_b_index(k, gx, b_c_idx, b_d_idx);
+
+        sum += afp(buffer_ld1(A_blob_data, ai)) * afp(buffer_ld1(B_blob_data, bi));
+    }
+
+    const afp total = subgroup_reduce_add(sum);
+
+    if (lane == 0)
+    {
+        const uint oi = get_o_index(gy, gx, out_c_idx, out_d_idx);
+        buffer_st1(top_blob_data, oi, total);
+    }
+}

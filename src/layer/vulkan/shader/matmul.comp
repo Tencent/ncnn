@@ -1,0 +1,238 @@
+// Copyright 2026 MYQ
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int batch;
+
+    int A_layout;
+    int B_layout;
+    int out_layout;
+
+    int A_hstep;
+    int A_cstep;
+    int A_dstep;
+    int A_batch_c;
+    int A_batch_d;
+
+    int B_hstep;
+    int B_cstep;
+    int B_dstep;
+    int B_batch_c;
+    int B_batch_d;
+
+    int out_hstep;
+    int out_cstep;
+    int out_dstep;
+    int out_batch_c;
+    int out_batch_d;
+
+    int transB_dynamic;
+} p;
+
+#if NCNN_shader_local_memory
+#define TILE_K 8
+shared lfp shA[8][TILE_K];
+shared lfp shB[TILE_K][8];
+#endif
+
+void main()
+{
+    const uint gx = gl_GlobalInvocationID.x;
+    const uint gy = gl_GlobalInvocationID.y;
+    const uint gz = gl_GlobalInvocationID.z;
+    const bool valid = gx < uint(p.N) && gy < uint(p.M) && gz < uint(p.batch);
+    
+#if !NCNN_shader_local_memory
+    if (!valid)
+        return;
+#endif
+
+    uint out_c_idx = 0;
+    uint out_d_idx = 0;
+    if (p.out_batch_c > 1 || p.out_batch_d > 1)
+    {
+        out_c_idx = p.out_batch_c == 1 ? 0 : gz / uint(p.out_batch_d);
+        out_d_idx = p.out_batch_d == 1 ? 0 : gz % uint(p.out_batch_d);
+    }
+
+    uint a_c_idx = 0;
+    uint a_d_idx = 0;
+    if (p.A_batch_c > 1 || p.A_batch_d > 1)
+    {
+        if (p.out_batch_c == 1 && p.A_batch_c > 1 && p.A_batch_d == 1)
+            a_c_idx = gz;
+        else
+            a_c_idx = p.A_batch_c == 1 ? 0 : out_c_idx;
+
+        a_d_idx = p.A_batch_d == 1 ? 0 : out_d_idx;
+    }
+
+    uint b_c_idx = 0;
+    uint b_d_idx = 0;
+    if (p.B_batch_c > 1 || p.B_batch_d > 1)
+    {
+        if (p.out_batch_c == 1 && p.B_batch_c > 1 && p.B_batch_d == 1)
+            b_c_idx = gz;
+        else
+            b_c_idx = p.B_batch_c == 1 ? 0 : out_c_idx;
+
+        b_d_idx = p.B_batch_d == 1 ? 0 : out_d_idx;
+    }
+
+    const bool tb = transB == 1 || p.transB_dynamic == 1;
+    afp sum = afp(0.f);
+
+#if NCNN_shader_local_memory
+    const uint lx = gl_LocalInvocationID.x;
+    const uint ly = gl_LocalInvocationID.y;
+    const bool valid_batch = gz < uint(p.batch);
+    const bool valid_a = gy < uint(p.M) && valid_batch;
+    const bool valid_b = gx < uint(p.N) && valid_batch;
+    const uint baseA = p.A_layout == 1 ? (a_c_idx * uint(p.A_cstep) + a_d_idx * uint(p.A_dstep) + gy * uint(p.A_hstep))
+                                       : (p.A_layout == 0 ? gy * uint(p.A_hstep) : 0u);
+    const uint baseB = p.B_layout == 1 ? (b_c_idx * uint(p.B_cstep) + b_d_idx * uint(p.B_dstep))
+                                       : 0u;
+    const uint gx_B_hstep = gx * uint(p.B_hstep);
+
+    for (uint k0 = 0; k0 < uint(p.K); k0 += TILE_K)
+    {
+        afp a = afp(0.f);
+        afp b = afp(0.f);
+
+        const uint ka = k0 + lx;
+        const uint kb = k0 + ly;
+
+        if (valid_a && ka < uint(p.K))
+        {
+            uint ai = 0;
+            if (p.A_layout == 2)
+            {
+                ai = ka;
+            }
+            else
+            {
+                ai = baseA + ka;
+            }
+
+            a = afp(buffer_ld1(A_blob_data, ai));
+        }
+
+        if (valid_b && kb < uint(p.K))
+        {
+            const uint kb_B_hstep = kb * uint(p.B_hstep);
+            uint bi = 0;
+            if (p.B_layout == 2)
+            {
+                bi = kb;
+            }
+            else if (p.B_layout == 1)
+            {
+                if (tb)
+                    bi = baseB + gx_B_hstep + kb;
+                else
+                    bi = baseB + kb_B_hstep + gx;
+            }
+            else
+            {
+                if (tb)
+                    bi = gx_B_hstep + kb;
+                else
+                    bi = kb_B_hstep + gx;
+            }
+
+            b = afp(buffer_ld1(B_blob_data, bi));
+        }
+
+        shA[ly][lx] = afp2lfp(a);
+        shB[ly][lx] = afp2lfp(b);
+
+        barrier();
+
+        const uint kend = min(uint(TILE_K), uint(p.K) - k0);
+        for (uint kk = 0; kk < kend; kk++)
+        {
+            sum += lfp2afp(shA[ly][kk]) * lfp2afp(shB[kk][lx]);
+        }
+
+        barrier();
+    }
+#else
+    const uint baseA = p.A_layout == 1 ? (a_c_idx * uint(p.A_cstep) + a_d_idx * uint(p.A_dstep) + gy * uint(p.A_hstep))
+                                       : (p.A_layout == 0 ? gy * uint(p.A_hstep) : 0u);
+    const uint baseB = p.B_layout == 1 ? (b_c_idx * uint(p.B_cstep) + b_d_idx * uint(p.B_dstep))
+                                       : 0u;
+    const uint gx_B_hstep = gx * uint(p.B_hstep);
+
+    for (uint k = 0; k < uint(p.K); k++)
+    {
+        uint ai = 0;
+        ai = p.A_layout == 2 ? k : (baseA + k);
+
+        const uint k_B_hstep = k * uint(p.B_hstep);
+        uint bi = 0;
+        if (p.B_layout == 2)
+        {
+            bi = k;
+        }
+        else if (p.B_layout == 1)
+        {
+            if (tb)
+                bi = baseB + gx_B_hstep + k;
+            else
+                bi = baseB + k_B_hstep + gx;
+        }
+        else
+        {
+            if (tb)
+                bi = gx_B_hstep + k;
+            else
+                bi = k_B_hstep + gx;
+        }
+
+        sum += afp(buffer_ld1(A_blob_data, ai)) * afp(buffer_ld1(B_blob_data, bi));
+    }
+#endif
+
+    if (!valid)
+        return;
+
+    uint oi = 0;
+    if (p.out_layout == 1)
+    {
+        oi = gx;
+    }
+    else if (p.out_layout == 2)
+    {
+        oi = gy;
+    }
+    else if (p.out_layout == 3)
+    {
+        oi = out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_dstep) + gy * uint(p.out_hstep) + gx;
+    }
+    else if (p.out_layout == 4)
+    {
+        oi = out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_hstep) + gx;
+    }
+    else if (p.out_layout == 5)
+    {
+        oi = out_c_idx * uint(p.out_cstep) + out_d_idx * uint(p.out_hstep) + gy;
+    }
+    else
+    {
+        oi = gy * uint(p.out_hstep) + gx;
+    }
+
+    buffer_st1(top_blob_data, oi, sum);
+}
