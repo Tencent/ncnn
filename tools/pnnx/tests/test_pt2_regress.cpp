@@ -230,7 +230,7 @@ static void test_list_constant_arguments()
 static void test_unknown_argument_variant()
 {
     const JsonValue json = parse_json(
-        "{\"name\":\"unknown\",\"target\":\"aten::test.default\",\"inputs\":[{\"name\":\"x\",\"kind\":1,\"arg\":{\"as_future_scalar\":7}}],\"outputs\":[]}");
+                               "{\"name\":\"unknown\",\"target\":\"aten::test.default\",\"inputs\":[{\"name\":\"x\",\"kind\":1,\"arg\":{\"as_future_scalar\":7}}],\"outputs\":[]}");
     Pt2Node node;
     CHECK(!parse_node(json, node), "schema: unknown argument variant is rejected");
 }
@@ -428,7 +428,7 @@ static void test_storezip_short_read()
     const char payload[] = "short read";
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0 && writer.write_file("payload.txt", payload, sizeof(payload) - 1) == 0
-              && writer.close() == 0,
+          && writer.close() == 0,
           "storezip: writes short-read regression archive");
 
     const unsigned char extra_length[] = {0xff, 0xff};
