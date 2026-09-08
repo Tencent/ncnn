@@ -81,8 +81,11 @@ def test():
             pt2 = os.path.join(workdir, os.path.basename(pt2_src))
             shutil.copy2(pt2_src, pt2)
             base = os.path.join(workdir, "schema_8_%d" % minor)
+            # forward-slash form for the CLI: pnnx embeds these paths literally
+            # in the generated py (windows backslashes would be a \U escape)
+            base_arg = base.replace("\\", "/")
             r = subprocess.run(
-                [pnnx, pt2, "inputshape=[1,3,8,8]f32", "pnnxparam=%s.pnnx.param" % base, "pnnxbin=%s.pnnx.bin" % base],
+                [pnnx, pt2, "inputshape=[1,3,8,8]f32", "pnnxparam=%s.pnnx.param" % base_arg, "pnnxbin=%s.pnnx.bin" % base_arg],
                 cwd=workdir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

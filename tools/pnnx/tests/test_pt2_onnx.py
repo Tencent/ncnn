@@ -54,8 +54,11 @@ def _export_conv(pt2):
 
 
 def _convert(pnnx, pt2, workdir, base, inputshape="[1,3,8,8]f32"):
+    # forward-slash paths for the CLI: pnnx embeds these literally in the
+    # generated *_pnnx.py, and a windows backslash path would be a \U escape
+    base_arg = base.replace("\\", "/")
     r = subprocess.run(
-        [pnnx, pt2, "inputshape=%s" % inputshape, "pnnxparam=%s.pnnx.param" % base, "pnnxbin=%s.pnnx.bin" % base],
+        [pnnx, pt2, "inputshape=%s" % inputshape, "pnnxparam=%s.pnnx.param" % base_arg, "pnnxbin=%s.pnnx.bin" % base_arg],
         cwd=workdir,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
