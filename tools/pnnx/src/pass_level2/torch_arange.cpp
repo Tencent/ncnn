@@ -3,6 +3,7 @@
 
 #include "pass_level2.h"
 
+#include <cmath>
 #include <cstring>
 #include <set>
 
@@ -339,9 +340,16 @@ public:
         }
         if (!has_end)
             return false;
+
+        // a NaN/Inf bound would make dcount non-finite, slip past the >1e7
+        // check, and reach write() where (int64_t)ceil(non-finite) is
+        // undefined behavior - reject non-finite bounds up front instead
+        if (!std::isfinite(start) || !std::isfinite(end) || !std::isfinite(step))
+            return false;
+
         const double dcount = (end - start) / step;
         // count <= 0 folds to an empty tensor and needs no bound
-        if (dcount > 10000000)
+        if (!std::isfinite(dcount) || dcount > 10000000)
             return false;
         return true;
     }

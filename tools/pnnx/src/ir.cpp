@@ -676,13 +676,18 @@ static void load_attribute(Operator* op, const std::string& key, const std::stri
 
     if (filesize == 0)
     {
-        // no such file
+        // no such file (or a legitimately empty entry for a shape-{0} tensor)
         return;
     }
 
     if (filesize != bytesize)
     {
-        fprintf(stderr, "file size not match expect %lu but got %lu\n", bytesize, filesize);
+        // keep the attribute empty instead of copying `filesize` bytes into a
+        // `bytesize` buffer: a corrupt/tampered param+bin pair could otherwise
+        // overflow the heap before read_file's crc check
+        fprintf(stderr, "file size not match expect %lu but got %lu\n", (unsigned long)bytesize, (unsigned long)filesize);
+        a.data.clear();
+        return;
     }
 
     a.data.resize(bytesize);
@@ -1484,6 +1489,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     const std::string flops = format_model_stat_ops(model_stat.flops);
     const std::string memops = format_model_stat_ops(model_stat.memops);
 
+    // the archive path is embedded into the generated python as a string
+    // literal; on Windows it may contain backslashes, which would make the
+    // literal invalid (e.g. '\U' escape) and crash the generated code at
+    // import time - normalize to '/' which zipfile accepts on every platform
+    std::string binpath_literal = pnnxbinpath;
+    for (size_t i = 0; i < binpath_literal.size(); i++)
+    {
+        if (binpath_literal[i] == '\\')
+            binpath_literal[i] = '/';
+    }
+
     fprintf(pyfp, "# pnnx model stat\n");
     fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
     fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
@@ -1640,7 +1656,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // load weights
     {
-        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", pnnxbinpath.c_str());
+        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", binpath_literal.c_str());
 
         for (const Operator* op : ops)
         {
@@ -2352,7 +2368,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     // pnnx.yml (those only know the unbiased keyword)
                     if ((op->type == "torch.var" || op->type == "torch.std") && it.first == "unbiased" && it.second.type == 1)
                     {
-                        if (i != 0)
+                        // a positional input list was already printed above, so
+                        // the kwargs dict needs a leading separator unless it is
+                        // the only argument (an op with no tensor inputs)
+                        if (!(op->inputs.empty() && i == 0))
                             fprintf(pyfp, ", ");
                         fprintf(pyfp, "**({'correction': %s} if _torch_has_correction else {'unbiased': %s})",
                                 it.second.b ? "True" : "False", it.second.b ? "True" : "False");

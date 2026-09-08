@@ -9,6 +9,14 @@ SRC="$SCRIPT_DIR/../src"
 files=(
     "$SRC/load_exportedprogram.cpp"
     "$SRC/load_exportedprogram.h"
+    "$SRC/load_exportedprogram_legacy.cpp"
+    "$SRC/load_exportedprogram_legacy.h"
+    "$SRC/load_pt2_defaults.cpp"
+    "$SRC/load_pt2_defaults.h"
+    "$SRC/load_pt2_serde.cpp"
+    "$SRC/load_pt2_serde.h"
+    "$SRC/load_pt2_tensor.cpp"
+    "$SRC/load_pt2_tensor.h"
     "$SRC/pnnx_json.cpp"
     "$SRC/pnnx_json.h"
     "$SRC/pass_level2/eliminate_noop_copy.cpp"
@@ -16,10 +24,10 @@ files=(
 )
 
 # pnnx internal headers (quoted form)
-internal='load_exportedprogram\.h|pnnx_json\.h|storezip\.h|ir\.h|pass_level2\.h|eliminate_noop_copy\.h'
+internal='load_exportedprogram\.h|load_exportedprogram_legacy\.h|load_pt2_defaults\.h|load_pt2_serde\.h|load_pt2_tensor\.h|pnnx_json\.h|storezip\.h|ir\.h|pass_level2\.h|eliminate_noop_copy\.h'
 
 # C++ standard library headers (angle-bracket form)
-stdlib='cstdio|stdio\.h|string\.h|stdlib\.h|math\.h|stdint\.h|string|vector|map|algorithm|cmath|stddef|climits|limits|complex'
+stdlib='cstdio|stdio\.h|string\.h|stdlib\.h|math\.h|stdint\.h|stddef\.h|string|vector|map|algorithm|cmath|stddef|climits|limits|complex'
 
 violations=0
 for f in "${files[@]}"; do

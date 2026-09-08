@@ -127,11 +127,13 @@ static int inline_wrapper_subgraph(Graph& g, const JsonValue& nd,
                 }
             }
         }
-        else if (!captures.empty())
+        else
         {
             // this torch version may name the placeholders identically to the
-            // captured operands (binding above is then a no-op), but flag the
-            // mismatch so a future naming change does not fail silently
+            // captured operands (binding above is then a no-op), so a mismatch
+            // alone is not fatal; but flag it so a future naming change does
+            // not fail silently (any genuinely unbound placeholder is then
+            // reported by the node builder below)
             fprintf(stderr, "warning: higher_order subgraph has %zu inputs but %zu captured operands\n", sub_inputs.size(), captures.size());
         }
     }
@@ -270,12 +272,21 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
             }
             else if (arg.has("as_int"))
             {
+                // mirror the main loader loop: INT64_MAX/MIN are dynamo's
+                // "to the end" sentinels, and any other 64-bit scalar outside
+                // the int32 range would be silently truncated by the
+                // Parameter(int) narrowing - reject it explicitly instead
                 long long iv = arg["as_int"].as_int();
                 if (iv == std::numeric_limits<long long>::max())
                     iv = INT_MAX;
                 if (iv == std::numeric_limits<long long>::min())
                     iv = INT_MIN;
-                new_constant(g, op, (long long)iv, constant_index);
+                if (iv > INT_MAX || iv < INT_MIN)
+                {
+                    fprintf(stderr, "unsupported 64-bit integer argument %lld in subgraph node %s\n", iv, op_type.c_str());
+                    return -1;
+                }
+                new_constant(g, op, (int)iv, constant_index);
             }
             else if (arg.has("as_ints"))
             {
@@ -287,13 +298,30 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
                         v = INT_MAX;
                     if (v == std::numeric_limits<long long>::min())
                         v = INT_MIN;
+                    if (v > INT_MAX || v < INT_MIN)
+                    {
+                        // see the as_int branch above
+                        fprintf(stderr, "unsupported 64-bit integer argument %lld in subgraph node %s\n", v, op_type.c_str());
+                        return -1;
+                    }
                     ai.push_back((int)v);
                 }
                 new_constant(g, op, ai, constant_index);
             }
             else if (arg.has("as_float"))
             {
-                new_constant(g, op, (float)arg["as_float"].as_double(), constant_index);
+                // mirror the main loader loop: a plain narrowing is the correct
+                // f32 semantics for python literals, but a value whose
+                // magnitude exceeds the f32 range would silently fold to
+                // inf/0 and change the model - reject those instead
+                const double d = arg["as_float"].as_double();
+                const float f = (float)d;
+                if (std::isfinite(d) && !std::isfinite(f))
+                {
+                    fprintf(stderr, "unsupported scalar %g out of float32 range in subgraph node %s\n", d, op_type.c_str());
+                    return -1;
+                }
+                new_constant(g, op, f, constant_index);
             }
             else if (arg.has("as_bool"))
             {
@@ -365,7 +393,16 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
             {
                 std::vector<float> af;
                 for (size_t k = 0; k < arg["as_floats"].size(); k++)
-                    af.push_back((float)arg["as_floats"][k].as_double());
+                {
+                    const double d = arg["as_floats"][k].as_double();
+                    const float f = (float)d;
+                    if (std::isfinite(d) && !std::isfinite(f))
+                    {
+                        fprintf(stderr, "unsupported scalar %g out of float32 range in subgraph node %s\n", d, op_type.c_str());
+                        return -1;
+                    }
+                    af.push_back(f);
+                }
                 new_constant(g, op, af, constant_index);
             }
             else if (arg.has("as_layout"))
@@ -378,9 +415,17 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
             }
             else if (arg.has("as_complex"))
             {
-                // complex constant {"real": r, "imag": i}
-                float real = (float)arg["as_complex"]["real"].as_double();
-                float imag = (float)arg["as_complex"]["imag"].as_double();
+                // complex constant {"real": r, "imag": i}; reject components
+                // whose magnitude exceeds the f32 range (see as_float above)
+                const double rd = arg["as_complex"]["real"].as_double();
+                const double id = arg["as_complex"]["imag"].as_double();
+                const float real = (float)rd;
+                const float imag = (float)id;
+                if ((std::isfinite(rd) && !std::isfinite(real)) || (std::isfinite(id) && !std::isfinite(imag)))
+                {
+                    fprintf(stderr, "unsupported complex component %g/%g out of float32 range in subgraph node %s\n", rd, id, op_type.c_str());
+                    return -1;
+                }
                 new_constant(g, op, std::complex<float>(real, imag), constant_index);
             }
             else
@@ -763,6 +808,15 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 r->type = a.type;
                 r->shape = a.shape;
             }
+            else
+            {
+                // the graph declares this parameter/buffer but the archive has
+                // no weights/constants record for it; installing a data-less
+                // pnnx.Attribute would silently emit a truncated model, so
+                // reject the archive here instead
+                fprintf(stderr, "missing weights/constants record for %s '%s'\n", spec.has("parameter") ? "parameter" : "buffer", fqn.c_str());
+                return -1;
+            }
 
             operands_by_name[graph_name] = r;
         }
@@ -793,6 +847,13 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
 
                 r->type = a.type;
                 r->shape = a.shape;
+            }
+            else
+            {
+                // the graph references a tensor constant with no record in the
+                // constants payload - reject instead of emitting an empty attr
+                fprintf(stderr, "missing constants record for tensor constant '%s'\n", fqn.c_str());
+                return -1;
             }
 
             operands_by_name[graph_name] = r;
@@ -1033,6 +1094,20 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                     fprintf(stderr, "unsupported DeformConv2d without a 4-d weight attribute\n");
                     return -1;
                 }
+
+                // all geometry scalars are required schema args of the custom
+                // op; a missing one would silently default to zero below and
+                // produce a wrong layer - reject with a clear diagnostic
+                const char* deform_int_names[] = {"groups", "stride_h", "stride_w", "pad_h", "pad_w", "dilation_h", "dilation_w"};
+                for (size_t k = 0; k < sizeof(deform_int_names) / sizeof(deform_int_names[0]); k++)
+                {
+                    if (int_params.find(deform_int_names[k]) == int_params.end())
+                    {
+                        fprintf(stderr, "missing scalar argument '%s' for %s\n", deform_int_names[k], op_type.c_str());
+                        return -1;
+                    }
+                }
+
                 const Attribute& w = op->attrs["weight"];
                 int groups = int_params["groups"];
                 op->params["in_channels"] = w.shape[1] * groups;
@@ -1046,6 +1121,25 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
             }
             else
             {
+                const char* roi_int_names[] = {"pooled_height", "pooled_width", "sampling_ratio"};
+                for (size_t k = 0; k < sizeof(roi_int_names) / sizeof(roi_int_names[0]); k++)
+                {
+                    if (int_params.find(roi_int_names[k]) == int_params.end())
+                    {
+                        fprintf(stderr, "missing scalar argument '%s' for %s\n", roi_int_names[k], op_type.c_str());
+                        return -1;
+                    }
+                }
+                if (float_params.find("spatial_scale") == float_params.end())
+                {
+                    fprintf(stderr, "missing scalar argument 'spatial_scale' for %s\n", op_type.c_str());
+                    return -1;
+                }
+                if (bool_params.find("aligned") == bool_params.end())
+                {
+                    fprintf(stderr, "missing scalar argument 'aligned' for %s\n", op_type.c_str());
+                    return -1;
+                }
                 op->params["output_size"] = Parameter{int_params["pooled_height"], int_params["pooled_width"]};
                 op->params["spatial_scale"] = float_params["spatial_scale"];
                 op->params["sampling_ratio"] = int_params["sampling_ratio"];

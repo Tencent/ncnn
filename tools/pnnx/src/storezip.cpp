@@ -694,13 +694,30 @@ int StoreZipReader::open(const std::string& path)
         if (compressed_size == 0xffffffff || uncompressed_size == 0xffffffff || lfh_offset == 0xffffffff)
         {
             uint16_t extra_read = 0;
+            bool zip64_ok = false;
             while (extra_read < cdfh.extra_field_length)
             {
+                // a subfield header needs 4 bytes that are still inside the
+                // extra field
+                if (cdfh.extra_field_length - extra_read < 4)
+                {
+                    fprintf(stderr, "truncated extra field for %s\n", name.c_str());
+                    return -1;
+                }
+
                 uint16_t extra_id = 0;
                 uint16_t extra_size = 0;
                 fread((char*)&extra_id, sizeof(extra_id), 1, fp);
                 fread((char*)&extra_size, sizeof(extra_size), 1, fp);
                 extra_read += 4;
+
+                // an unknown subfield may be skipped, but never past the end
+                // of the extra field
+                if (extra_size > cdfh.extra_field_length - extra_read)
+                {
+                    fprintf(stderr, "invalid extra field length for %s\n", name.c_str());
+                    return -1;
+                }
 
                 if (extra_id != 0x0001)
                 {
@@ -709,26 +726,46 @@ int StoreZipReader::open(const std::string& path)
                     continue;
                 }
 
+                // the zip64 subfield must carry every value that was sentineled
+                // in the central directory header
+                uint16_t need = (uncompressed_size == 0xffffffff ? 8 : 0)
+                                + (compressed_size == 0xffffffff ? 8 : 0)
+                                + (lfh_offset == 0xffffffff ? 8 : 0);
+                if (extra_size < need)
+                {
+                    fprintf(stderr, "short zip64 extra field for %s\n", name.c_str());
+                    return -1;
+                }
+
                 if (uncompressed_size == 0xffffffff)
                 {
                     fread((char*)&uncompressed_size, sizeof(uncompressed_size), 1, fp);
-                    extra_read += 8;
                 }
                 if (compressed_size == 0xffffffff)
                 {
                     fread((char*)&compressed_size, sizeof(compressed_size), 1, fp);
-                    extra_read += 8;
                 }
                 if (lfh_offset == 0xffffffff)
                 {
                     fread((char*)&lfh_offset, sizeof(lfh_offset), 1, fp);
-                    extra_read += 8;
                 }
 
-                // skip remaining bytes of this extra field
-                PNNX_FSEEK(fp, cdfh.extra_field_length - extra_read, SEEK_CUR);
-                extra_read = cdfh.extra_field_length;
-                break;
+                zip64_ok = true;
+
+                // skip the remainder of this subfield and keep scanning
+                uint16_t rest = extra_size - need;
+                if (rest > 0)
+                {
+                    PNNX_FSEEK(fp, rest, SEEK_CUR);
+                    extra_read += rest;
+                }
+                extra_read += need;
+            }
+
+            if (!zip64_ok)
+            {
+                fprintf(stderr, "missing zip64 extra field for %s\n", name.c_str());
+                return -1;
             }
         }
         else
