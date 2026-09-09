@@ -388,6 +388,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;

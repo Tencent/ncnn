@@ -129,7 +129,7 @@ static int test_convolution_3()
 }
 
 #if NCNN_INT8
-static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false)
+static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false, bool test_winograd43 = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -233,14 +233,17 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_bf16_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = true;
-        opt.use_winograd23_convolution = true;
-        opt.use_winograd43_convolution = false;
-
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, use_requant ? 1.0f : 0.001f, flag);
-        if (ret != 0)
+        for (int i = 0; i < (test_winograd43 ? 2 : 1); i++)
         {
-            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, activation_type, activation_params[0], activation_params[1]);
-            return ret;
+            opt.use_winograd23_convolution = i == 0;
+            opt.use_winograd43_convolution = i == 1;
+
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, use_requant ? 1.0f : 0.001f, flag);
+            if (ret != 0)
+            {
+                fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, activation_type, activation_params[0], activation_params[1]);
+                return ret;
+            }
         }
     }
 
@@ -404,6 +407,10 @@ static int test_convolution_1()
            || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1)
            || test_convolution_int8(25, 33, 16, 15, 3, 1, 1, 1, 0)
            || test_convolution_int8(25, 33, 31, 31, 3, 1, 1, 1, 0)
+           || test_convolution_int8(9, 7, 32, 16, 3, 1, 1, 1, 1, false, 0, false, false, true)
+           || test_convolution_int8(17, 13, 64, 64, 3, 1, 1, 1, 1, false, 0, false, false, true)
+           || test_convolution_int8(13, 11, 65, 97, 3, 1, 1, 1, 1, false, 0, false, false, true)
+           || test_convolution_int8(13, 11, 65, 97, 3, 1, 1, 1, 1, true, 0, false, false, true)
            || test_convolution_int8(7, 7, 15, 12, 3, 1, 1, 1, 0)
            || test_convolution_int8(5, 6, 31, 9, 5, 1, 1, 0, 1)
            || test_convolution_int8(5, 7, 32, 8, 5, 1, 2, 0, 1)

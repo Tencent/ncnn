@@ -87,15 +87,64 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
-            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+            if (coopmat_M == 0)
+            {
+                use_cooperative_matrix = false;
+            }
+            else
+            {
+                UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+                UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+                UNROLL_SG_K = std::min((num_input * maxk + coopmat_K - 1) / coopmat_K, 2);
 
-            UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
-            UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            UNROLL_SG_K = std::min((num_input * maxk + coopmat_K - 1) / coopmat_K, 2);
+                if (vkdev->info.vendor_id() == 0x5143)
+                {
+                    // adreno driver fails with multiple M tiles per subgroup
+                    UNROLL_SG_M = 1;
+                    // adreno bias initialization also fails with N unrolling
+                    if (bias_term)
+                        UNROLL_SG_N = 1;
+                }
 
-            UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-            UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+                UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+                UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
+                const size_t shared_a = 2 * coopmat_M * coopmat_K;
+                const size_t shared_b = 2 * coopmat_K * coopmat_N;
+                const size_t shared_o = 2 * coopmat_M * coopmat_N;
+
+                for (;;)
+                {
+                    const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                                + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                                + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                    const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+                    if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                            && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                        break;
+
+                    // reduce K first to preserve output reuse
+                    if (UNROLL_SG_K > 1)
+                        UNROLL_SG_K = 1;
+                    else if (UNROLL_WG_N > 1)
+                        UNROLL_WG_N = 1;
+                    else if (UNROLL_WG_M > 1)
+                        UNROLL_WG_M = 1;
+                    else if (UNROLL_SG_N > 1)
+                        UNROLL_SG_N = 1;
+                    else if (UNROLL_SG_M > 1)
+                        UNROLL_SG_M = 1;
+                    else
+                    {
+                        use_cooperative_matrix = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (use_cooperative_matrix)
+        {
             Mat weight_data_r2;
 
             if (elempack == 4)
@@ -294,15 +343,64 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
-            // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+            if (coopmat_M == 0)
+            {
+                use_cooperative_matrix = false;
+            }
+            else
+            {
+                UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+                UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+                UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
 
-            UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
-            UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
-            UNROLL_SG_K = std::min((num_input + coopmat_K - 1) / coopmat_K, 2);
+                if (vkdev->info.vendor_id() == 0x5143)
+                {
+                    // adreno driver fails with multiple M tiles per subgroup
+                    UNROLL_SG_M = 1;
+                    // adreno bias initialization also fails with N unrolling
+                    if (bias_term)
+                        UNROLL_SG_N = 1;
+                }
 
-            UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-            UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+                UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+                UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
+                const size_t shared_a = 2 * coopmat_M * coopmat_K;
+                const size_t shared_b = 2 * coopmat_K * coopmat_N;
+                const size_t shared_o = 2 * coopmat_M * coopmat_N;
+
+                for (;;)
+                {
+                    const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                                + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                                + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                    const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+                    if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                            && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                        break;
+
+                    // reduce K first to preserve output reuse
+                    if (UNROLL_SG_K > 1)
+                        UNROLL_SG_K = 1;
+                    else if (UNROLL_WG_N > 1)
+                        UNROLL_WG_N = 1;
+                    else if (UNROLL_WG_M > 1)
+                        UNROLL_WG_M = 1;
+                    else if (UNROLL_SG_N > 1)
+                        UNROLL_SG_N = 1;
+                    else if (UNROLL_SG_M > 1)
+                        UNROLL_SG_M = 1;
+                    else
+                    {
+                        use_cooperative_matrix = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (use_cooperative_matrix)
+        {
             const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
             const int kk = (num_input + coopmat_K - 1) / coopmat_K;
 

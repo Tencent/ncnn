@@ -19,6 +19,12 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno needs stride * 2 for these packed fp16 buffers
+#define coopMatLoad(m, buf, element, stride, layout)  coopMatLoad(m, buf, element, (stride) * 2, layout)
+#define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
+#endif
+
 layout(constant_id = 0) const uint kernel_w = 1;
 layout(constant_id = 1) const uint dilation_w = 1;
 layout(constant_id = 2) const uint stride_w = 1;
@@ -96,7 +102,12 @@ void main()
     //
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(outw) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -117,7 +128,12 @@ void main()
         return;
 
     const uint li = gl_LocalInvocationID.x;
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint Md4 = M / 4;
     const uint Nd4 = N / 4;

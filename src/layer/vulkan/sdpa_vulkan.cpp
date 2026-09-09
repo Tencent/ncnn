@@ -67,6 +67,79 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    // adreno produces incorrect cooperative matrix attention scores with masks
+    if (vkdev->info.vendor_id() == 0x5143 && attn_mask)
+        use_cooperative_matrix = false;
+
+    if (use_cooperative_matrix)
+    {
+        int M = 1024;
+        int N = 1024;
+        int K = 1024;
+
+        if (use_bf16_cooperative_matrix)
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+        else
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+
+        if (coopmat_M == 0)
+        {
+            use_cooperative_matrix = false;
+        }
+        else
+        {
+            UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
+
+            if (vkdev->info.vendor_id() == 0x5143)
+            {
+                // adreno driver fails with multiple M tiles per subgroup
+                UNROLL_SG_M = 1;
+            }
+
+            UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+            // qk and qkv share the configuration, account for both B layouts
+            const size_t shared_a = 16 * coopmat_M * (coopmat_K / 8 + 1);
+            const size_t shared_b = 16 * std::max(coopmat_K * (coopmat_N / 8 + 1), coopmat_N * (coopmat_K / 8 + 1));
+            const size_t shared_o = 16 * coopmat_M * (coopmat_N / 8 + 1);
+
+            for (;;)
+            {
+                const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
+                                            + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
+                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+                if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                        && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                    break;
+
+                // reduce K first to preserve output reuse
+                if (UNROLL_SG_K > 1)
+                    UNROLL_SG_K = 1;
+                else if (UNROLL_WG_N > 1)
+                    UNROLL_WG_N = 1;
+                else if (UNROLL_WG_M > 1)
+                    UNROLL_WG_M = 1;
+                else if (UNROLL_SG_N > 1)
+                    UNROLL_SG_N = 1;
+                else if (UNROLL_SG_M > 1)
+                    UNROLL_SG_M = 1;
+                else
+                {
+                    use_cooperative_matrix = false;
+                    break;
+                }
+            }
+        }
+    }
+
     use_flash_attention = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
     if (use_flash_attention && use_cooperative_matrix)
     {
@@ -74,6 +147,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
         use_flash_attention = ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     }
+
+    // adreno flash attention cm shaders have not been validated; retain the cross-attention cm path
+    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix)
+        use_flash_attention = false;
 
     if (use_flash_attention)
     {
@@ -92,9 +169,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
-            // assert FA_coopmat_M != 0 && FA_coopmat_N != 0 && FA_coopmat_K != 0
-
-            if (FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
+            if (FA_coopmat_M == 0 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
             {
                 // not implemented yet
                 use_flash_attention = false;
@@ -106,6 +181,32 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
                 FA_UNROLL_WG_M = 2;
 
+                int UNROLL_P_N = std::min(4, FA_coopmat_subgroup_size / FA_coopmat_N);
+                const int pad = vkdev->info.support_VK_KHR_cooperative_matrix() ? 1 : 0;
+                for (;;)
+                {
+                    // K and V share storage in sdpa_fa_cm
+                    const size_t rows = FA_UNROLL_SG_M * FA_UNROLL_WG_M * FA_coopmat_M;
+                    const size_t shared_bytes = 16 * (rows + UNROLL_P_N * FA_coopmat_N) * (FA_coopmat_K / 8 + pad)
+                                                + 4 * rows * ((UNROLL_P_N + 1) * (FA_coopmat_N + pad) + 3);
+                    const uint32_t invocations = FA_coopmat_subgroup_size * FA_UNROLL_WG_M;
+                    if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                            && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)FA_UNROLL_WG_M <= vkdev->info.max_compute_workgroup_subgroups())
+                        break;
+
+                    if (UNROLL_P_N > 1)
+                        UNROLL_P_N /= 2;
+                    else if (FA_UNROLL_WG_M > 1)
+                        FA_UNROLL_WG_M = 1;
+                    else if (FA_UNROLL_SG_M > 1)
+                        FA_UNROLL_SG_M = 1;
+                    else
+                    {
+                        use_flash_attention = false;
+                        break;
+                    }
+                }
+
                 std::vector<vk_specialization_type> specializations(1 + 8);
                 specializations[0].i = attn_mask;
 
@@ -116,10 +217,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 specializations[1 + 4].u32 = FA_UNROLL_SG_M;
                 specializations[1 + 5].u32 = FA_UNROLL_WG_M;
 
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 8 && use_flash_attention; i++)
                 {
                     int MAX_OUT_CHUNKS = i + 1;
-                    int UNROLL_P_N = std::min(4, FA_coopmat_subgroup_size / FA_coopmat_N);
 
                     specializations[1 + 6].u32 = MAX_OUT_CHUNKS;
                     specializations[1 + 7].u32 = UNROLL_P_N;
@@ -168,28 +268,6 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
     if (use_cooperative_matrix)
     {
-        int M = 1024;
-        int N = 1024;
-        int K = 1024;
-
-        if (use_bf16_cooperative_matrix)
-        {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
-        }
-        else
-        {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
-        }
-
-        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
-
-        UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
-        UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
-        UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
-
-        UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
-        UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
-
         // qk cross
         {
             std::vector<vk_specialization_type> specializations(13 + 9);
