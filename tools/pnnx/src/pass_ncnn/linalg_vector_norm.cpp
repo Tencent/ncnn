@@ -128,6 +128,28 @@ void convert_aten_linalg_vector_norm(Graph& graph)
         // inputs: v, p, dim, keepdim, (dtype)
         Operand* v = op->inputs[0];
 
+        // an explicit dtype input (e.g. torch.linalg.vector_norm(x, dtype=torch.float64))
+        // changes the accumulation/output type. the torch.norm rewrite below has
+        // no dtype slot, so rewriting would silently run in the input dtype and
+        // change numerics; decline the conversion and leave the aten op visible
+        // (an unsupported-op error) instead of mis-scaling
+        if (op->inputs.size() >= 5)
+        {
+            Operand* dtype_in = op->inputs[4];
+            bool dtype_none = false;
+            if (dtype_in->producer)
+            {
+                const Operator* dp = dtype_in->producer;
+                if ((dp->type == "prim::Constant" || dp->type == "pnnx.Constant") && dp->params.find("value") != dp->params.end() && dp->params.at("value").type == 0)
+                    dtype_none = true;
+            }
+            if (!dtype_none)
+            {
+                fprintf(stderr, "unsupported aten::linalg_vector_norm with explicit dtype input\n");
+                continue;
+            }
+        }
+
         float p = 2.f;
         std::vector<int> dims;
         int keepdim = 0; // aten::linalg_vector_norm defaults to keepdim=False

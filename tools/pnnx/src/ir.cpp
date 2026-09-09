@@ -2042,17 +2042,22 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
 
+                // an explicit dtype (dtype=torch.float64 changes accumulation)
+                std::string dtype_suffix;
+                if (op->has_param("dtype") && op->params.at("dtype").type == 4)
+                    dtype_suffix = std::string(", dtype=") + op->params.at("dtype").s;
+
                 if (!op->has_param("dim") || op->params.at("dim").type == 0)
                 {
                     // full-reduction prod(input) (e.g. torch.prod(x) in pt2):
                     // no dim/keepdim parameters were folded in
-                    fprintf(pyfp, "torch.prod(input=v_%s)", sanitize_identifier(op->inputs[0]->name).c_str());
+                    fprintf(pyfp, "torch.prod(input=v_%s%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dtype_suffix.c_str());
                 }
                 else if (op->params.at("dim").type == 2)
                 {
                     const int dim = op->params.at("dim").i;
                     const bool keepdim = op->params.at("keepdim").b;
-                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False");
+                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False", dtype_suffix.c_str());
                 }
                 else
                 {
@@ -2073,7 +2078,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < dims.size(); i++)
                     {
                         int dim = dims[i];
-                        fprintf(pyfp, ", dim=%d, keepdim=%s)", dim, keepdim ? "True" : "False");
+                        // each nested reduction must carry the explicit dtype
+                        // (only decorating the outermost call would let the
+                        // inner float32 reductions lose precision/overflow)
+                        fprintf(pyfp, ", dim=%d, keepdim=%s%s)", dim, keepdim ? "True" : "False", dtype_suffix.c_str());
                     }
                 }
 

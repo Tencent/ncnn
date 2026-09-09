@@ -285,6 +285,12 @@ static void append_var_std_defaults(DefaultsCtx& c)
             c.add_const("correction", 1);
         if (!c.has_input_name("keepdim"))
             c.add_const("keepdim", false);
+        // the exporter may serialize [self keepdim] when correction was the
+        // only omitted middle default (torch.var(x, keepdim=True)); blindly
+        // appending correction would yield [self keepdim correction], but the
+        // reduce-all torch_var/torch_std patterns expect [self correction
+        // keepdim] - restore the canonical order
+        c.reorder_inputs({"self", "correction", "keepdim"});
     }
 }
 
