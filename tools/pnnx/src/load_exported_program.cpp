@@ -1442,6 +1442,58 @@ static bool set_operand_tensor_meta(const JsonValue& tensor_values, const std::s
     return true;
 }
 
+static bool cast_scalar_parameter(Parameter& value, int type)
+{
+    double number;
+    if (value.type == 1)
+        number = value.b ? 1.0 : 0.0;
+    else if (value.type == 2)
+        number = value.i;
+    else if (value.type == 3)
+        number = value.f;
+    else
+        return false;
+
+    if (type == 9)
+    {
+        value = Parameter(number != 0.0);
+        return true;
+    }
+
+    if (type >= 4 && type <= 8)
+    {
+        double min_value = INT_MIN;
+        double max_value = INT_MAX;
+        if (type == 6)
+        {
+            min_value = SHRT_MIN;
+            max_value = SHRT_MAX;
+        }
+        if (type == 7)
+        {
+            min_value = SCHAR_MIN;
+            max_value = SCHAR_MAX;
+        }
+        if (type == 8)
+        {
+            min_value = 0;
+            max_value = UCHAR_MAX;
+        }
+        if (number < min_value || number > max_value)
+            return false;
+        value = Parameter((int)number);
+        return true;
+    }
+
+    if (type == 1 || type == 2 || type == 3 || type == 13)
+    {
+        value = Parameter(number);
+        return true;
+    }
+
+    return false;
+}
+
 static bool parameter_from_ivalue(const torch::jit::IValue& value, Parameter& parameter)
 {
     if (value.isNone())
@@ -2126,6 +2178,11 @@ private:
 
         const std::string output_name = argument_name(outputs.array[0]);
         if (output_name.empty())
+            return false;
+
+        const JsonValue* output_meta_value = tensor_values->find(output_name);
+        TensorMeta output_meta;
+        if (!output_meta_value || !parse_tensor_meta(*output_meta_value, output_meta, true) || !cast_scalar_parameter(value, output_meta.pnnx_type))
             return false;
 
         Operator* op = graph.new_operator("prim::Constant", next_name("pnnx_scalar_full"));

@@ -1,6 +1,9 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import importlib.util
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -67,6 +70,19 @@ class CopyScatterCastBroadcast(nn.Module):
         return x
 
 
+class ScalarFullDtype(nn.Module):
+    def forward(self, x):
+        return x + torch.full((), 1.9, dtype=torch.int64)
+
+
+def load_generated_module(basename):
+    module_name = basename + "_pnnx"
+    spec = importlib.util.spec_from_file_location(module_name, module_name + ".py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def close(a, b):
     if isinstance(a, (tuple, list)):
         return isinstance(b, type(a)) and len(a) == len(b) and all(close(x, y) for x, y in zip(a, b))
@@ -96,6 +112,7 @@ def test():
         (PadResize(), torch.rand(1, 3, 4, 5), "test_exported_program_pad_resize"),
         (EmbeddingBatchNorm(), (torch.randint(0, 16, (2, 3)), torch.rand(1, 4, 5, 6)), "test_exported_program_embedding_batch_norm"),
         (CopyScatterCastBroadcast(), (torch.zeros(2, 4, dtype=torch.float32), torch.tensor([[1], [2]], dtype=torch.int64)), "test_exported_program_copy_scatter_cast_broadcast"),
+        (ScalarFullDtype(), torch.tensor([2, 4, 6], dtype=torch.int64), "test_exported_program_scalar_full_dtype"),
     )
 
     if not all(run_case(model, inputs, basename) for model, inputs, basename in cases):
@@ -110,6 +127,14 @@ def test():
         converted = exported_program_to_pnnx(model, x, "test_exported_program_dynamic_shape", ({0: batch, 2: height, 3: width},))
         if not close(model(x), converted(x)):
             return False
+        generated = load_generated_module("test_exported_program_dynamic_shape")
+        generated.export_torchscript()
+        if not os.path.exists("test_exported_program_dynamic_shape_pnnx.py.pt"):
+            return False
+        with open("test_exported_program_dynamic_shape_pnnx.py", "r", encoding="utf-8") as generated_file:
+            for line in generated_file:
+                if ("torch.rand(" in line or "torch.randint(" in line) and "-1" in line:
+                    return False
         x = torch.rand(3, 3, 5, 6)
         return close(model(x), converted(x))
 

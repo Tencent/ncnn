@@ -2612,7 +2612,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -2623,7 +2624,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
@@ -2776,7 +2778,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -2787,7 +2790,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
@@ -2906,7 +2910,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
@@ -2917,7 +2922,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    const int dimsize = r->shape[i] == -1 ? 1 : r->shape[i];
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
