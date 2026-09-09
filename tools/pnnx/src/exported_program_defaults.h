@@ -12,6 +12,9 @@ namespace pnnx {
 namespace pt2 {
 
 bool append_default_arguments(ExportedProgram& program, std::string& error);
+// Checks effects and common schema types, then orders arguments and fills
+// dispatcher defaults. Also used by the public in-memory node importer.
+bool normalize_exported_program_node(Node& node, std::string& error);
 
 } // namespace pt2
 } // namespace pnnx

@@ -6,7 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <cmath>
 #include <limits>
+#include <set>
+
+#include <c10/core/Layout.h>
+#include <c10/core/MemoryFormat.h>
+#include <c10/core/ScalarType.h>
 
 #include "exported_program_defaults.h"
 
@@ -46,8 +52,12 @@ static std::string symbolic_shape_key(const std::string& expression)
     return key;
 }
 
+static bool is_symbol_identifier(const std::string& text);
+
 static bool is_supported_symbolic_expression(const std::string& expression)
 {
+    if (is_symbol_identifier(expression))
+        return true;
     const char* supported_identifiers[] = {"Symbol", "Integer", "Add", "Mul", "Pow"};
     for (size_t offset = 0; offset < expression.size();)
     {
@@ -105,7 +115,14 @@ static bool to_pnnx_shape(const std::vector<pt2::SymInt>& dimensions, std::vecto
                 (*params)["__shape__" + suffix] = symbolic_shape_key(dimension.expression);
                 (*params)["__shape_expr__" + suffix] = dimension.expression;
                 if (dimension.has_hint)
+                {
+                    if (dimension.hint < 0 || dimension.hint > INT_MAX)
+                    {
+                        error = "symbolic shape hint is out of pnnx range";
+                        return false;
+                    }
                     (*params)["__shape_hint__" + suffix] = dimension.hint;
+                }
             }
             continue;
         }
@@ -132,6 +149,11 @@ static bool checked_multiply_size(size_t lhs, size_t rhs, size_t& result)
 
 static bool materialize_attribute(const pt2::PayloadMeta& payload, const std::vector<char>& storage, Attribute& attribute, std::string& error)
 {
+    // This entry is also reached without the archive reader. Never rely on a
+    // previous validation: the shared check bounds every address and allocation.
+    if (!pt2::validate_tensor_storage(payload, storage.size(), error))
+        return false;
+    attribute = Attribute();
     attribute.type = to_pnnx_type(payload.tensor_meta.scalar_type);
     if (attribute.type == 0)
     {
@@ -142,6 +164,8 @@ static bool materialize_attribute(const pt2::PayloadMeta& payload, const std::ve
         return false;
 
     size_t element_count = 1;
+    for (size_t i = 0; i < attribute.shape.size(); i++)
+        if (attribute.shape[i] == 0) element_count = 0;
     for (size_t i = 0; i < attribute.shape.size(); i++)
     {
         if (attribute.shape[i] < 0)
@@ -204,14 +228,76 @@ static const pt2::PayloadMeta* find_payload(const pt2::ExportedProgramArchive& a
     return constant == archive.constants.end() ? 0 : &constant->second;
 }
 
+static bool equal_float(double lhs, double rhs)
+{
+    // Preserve signed zero; serialized NaNs have no payload to compare.
+    return (std::isnan(lhs) && std::isnan(rhs)) || (lhs == rhs && (lhs != 0.0 || std::signbit(lhs) == std::signbit(rhs)));
+}
+
+static bool arguments_agree(const pt2::Argument& lhs, const pt2::Argument& rhs)
+{
+    if (lhs.type != rhs.type || lhs.name != rhs.name || lhs.values.size() != rhs.values.size())
+        return false;
+    if (!lhs.name.empty() && (lhs.type == pt2::Argument::Tensor || lhs.type == pt2::Argument::SymInteger || lhs.type == pt2::Argument::SymBoolean || lhs.type == pt2::Argument::SymFloat))
+        return true;
+    switch (lhs.type)
+    {
+    case pt2::Argument::Unknown:
+        return false;
+    case pt2::Argument::Integer:
+    case pt2::Argument::SymInteger:
+    case pt2::Argument::ScalarType:
+    case pt2::Argument::MemoryFormat:
+    case pt2::Argument::Layout:
+        return lhs.integer == rhs.integer;
+    case pt2::Argument::Boolean:
+    case pt2::Argument::SymBoolean:
+        return lhs.boolean == rhs.boolean;
+    case pt2::Argument::FloatingPoint:
+    case pt2::Argument::SymFloat:
+        return equal_float(lhs.floating_point, rhs.floating_point);
+    case pt2::Argument::Complex:
+        return equal_float(lhs.complex_real, rhs.complex_real) && equal_float(lhs.complex_imag, rhs.complex_imag);
+    case pt2::Argument::String:
+        return lhs.string == rhs.string;
+    case pt2::Argument::DeviceValue:
+        return lhs.device.type == rhs.device.type && lhs.device.has_index == rhs.device.has_index && (!lhs.device.has_index || lhs.device.index == rhs.device.index);
+    default:
+        break;
+    }
+    for (size_t i = 0; i < lhs.values.size(); i++)
+        if (!arguments_agree(lhs.values[i], rhs.values[i])) return false;
+    return true;
+}
+
 int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, Graph& graph, std::string& error)
 {
     error.clear();
+    if (!pt2::validate_exported_program_version(archive.program, error))
+        return -1;
     if (archive.program.graph.inputs.size() != archive.program.signature.inputs.size())
     {
         error = "graph input count does not match graph signature";
         return -1;
     }
+
+    std::set<std::string> input_names;
+    for (size_t i = 0; i < archive.program.signature.inputs.size(); i++)
+    {
+        const pt2::Argument& argument = archive.program.signature.inputs[i].argument;
+        if (!arguments_agree(archive.program.graph.inputs[i], argument))
+        {
+            error = "graph input " + std::to_string(i) + " does not match graph signature";
+            return -1;
+        }
+        if (argument.name.empty() || !input_names.insert(argument.name).second || graph.get_operand(argument.name))
+        {
+            error = "graph input " + std::to_string(i) + ": empty or duplicate input name " + argument.name;
+            return -1;
+        }
+    }
+    if (!validate_exported_program_input_shapes(archive.program, std::vector<std::vector<int64_t> >(), error))
+        return -1;
 
     int user_input_index = 0;
     for (size_t i = 0; i < archive.program.signature.inputs.size(); i++)
@@ -241,6 +327,11 @@ int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, G
 
         if (spec.type == pt2::InputSpec::Parameter || spec.type == pt2::InputSpec::Buffer || spec.type == pt2::InputSpec::TensorConstant)
         {
+            if (spec.argument.type != pt2::Argument::Tensor)
+            {
+                error = "graph input " + std::to_string(i) + ": lifted input must be a tensor";
+                return -1;
+            }
             const std::map<std::string, std::vector<char> >* storages = 0;
             const pt2::PayloadMeta* payload = find_payload(archive, spec, storages);
             if (!payload)
@@ -322,7 +413,7 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
         parameter = Parameter();
         return true;
     }
-    if (argument.type == pt2::Argument::Boolean)
+    if (argument.type == pt2::Argument::Boolean || (argument.type == pt2::Argument::SymBoolean && argument.name.empty()))
     {
         parameter = Parameter(argument.boolean);
         return true;
@@ -344,10 +435,16 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
     }
     if (argument.type == pt2::Argument::SymInteger && argument.name.empty())
     {
-        parameter = Parameter((long long)argument.integer);
+        // Unlike ATen slice sentinels, a concrete SymInt is an actual value.
+        if (argument.integer < INT_MIN || argument.integer > INT_MAX)
+        {
+            error = "symbolic integer argument is out of pnnx range";
+            return false;
+        }
+        parameter = Parameter((int)argument.integer);
         return true;
     }
-    if (argument.type == pt2::Argument::FloatingPoint)
+    if (argument.type == pt2::Argument::FloatingPoint || (argument.type == pt2::Argument::SymFloat && argument.name.empty()))
     {
         parameter = Parameter(argument.floating_point);
         return true;
@@ -395,22 +492,88 @@ static bool to_parameter(const pt2::Argument& argument, Parameter& parameter, st
     }
     if (argument.type == pt2::Argument::ScalarType)
     {
-        if (argument.integer <= 0 || argument.integer > INT_MAX)
+        // Serde is not the c10 enum: e.g. serde BFLOAT16=13, c10 BFloat16=15.
+        c10::ScalarType dtype;
+        switch (argument.integer)
         {
-            error = "scalar type is out of range";
+        case 1:
+            dtype = c10::ScalarType::Byte;
+            break;
+        case 2:
+            dtype = c10::ScalarType::Char;
+            break;
+        case 3:
+            dtype = c10::ScalarType::Short;
+            break;
+        case 4:
+            dtype = c10::ScalarType::Int;
+            break;
+        case 5:
+            dtype = c10::ScalarType::Long;
+            break;
+        case 6:
+            dtype = c10::ScalarType::Half;
+            break;
+        case 7:
+            dtype = c10::ScalarType::Float;
+            break;
+        case 8:
+            dtype = c10::ScalarType::Double;
+            break;
+        case 9:
+            dtype = c10::ScalarType::ComplexHalf;
+            break;
+        case 10:
+            dtype = c10::ScalarType::ComplexFloat;
+            break;
+        case 11:
+            dtype = c10::ScalarType::ComplexDouble;
+            break;
+        case 12:
+            dtype = c10::ScalarType::Bool;
+            break;
+        case 13:
+            dtype = c10::ScalarType::BFloat16;
+            break;
+        default:
+            error = "unsupported serde scalar type " + std::to_string(argument.integer);
             return false;
         }
-        parameter = Parameter((int)argument.integer - 1);
+        parameter = Parameter((int)dtype);
         return true;
     }
-    if (argument.type == pt2::Argument::MemoryFormat || argument.type == pt2::Argument::Layout)
+    if (argument.type == pt2::Argument::MemoryFormat)
     {
-        if (argument.integer < 0 || argument.integer > INT_MAX)
+        c10::MemoryFormat format;
+        switch (argument.integer)
         {
-            error = "enum argument is out of range";
+        case 1:
+            format = c10::MemoryFormat::Contiguous;
+            break;
+        case 2:
+            format = c10::MemoryFormat::ChannelsLast;
+            break;
+        case 3:
+            format = c10::MemoryFormat::ChannelsLast3d;
+            break;
+        case 4:
+            format = c10::MemoryFormat::Preserve;
+            break;
+        default:
+            error = "unsupported serde memory format " + std::to_string(argument.integer);
             return false;
         }
-        parameter = Parameter((int)argument.integer);
+        parameter = Parameter((int)format);
+        return true;
+    }
+    if (argument.type == pt2::Argument::Layout)
+    {
+        if (argument.integer != 7)
+        {
+            error = "unsupported serde layout " + std::to_string(argument.integer) + "; only Strided (7) is supported";
+            return false;
+        }
+        parameter = Parameter((int)c10::Layout::Strided);
         return true;
     }
     if (argument.type == pt2::Argument::DeviceValue)
@@ -454,7 +617,7 @@ static bool is_list_argument(const pt2::Argument& argument)
 static Operand* resolve_argument(const pt2::Argument& argument, const std::string& name, Graph& graph, std::string& error)
 {
     if (argument.type == pt2::Argument::Tensor
-        || ((argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean || argument.type == pt2::Argument::SymFloat) && !argument.name.empty()))
+            || ((argument.type == pt2::Argument::SymInteger || argument.type == pt2::Argument::SymBoolean || argument.type == pt2::Argument::SymFloat) && !argument.name.empty()))
     {
         Operand* input = graph.get_operand(argument.name);
         if (!input)
@@ -529,14 +692,17 @@ static bool collect_tensor_outputs(const pt2::Argument& argument, std::vector<st
 int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
 {
     error.clear();
+    if (!pt2::validate_exported_program_version(program, error))
+        return -1;
     int unnamed_node_index = 0;
     for (size_t i = 0; i < program.graph.nodes.size(); i++)
     {
-        const pt2::Node& node = program.graph.nodes[i];
-        bool none_only_outputs = !node.outputs.empty();
-        for (size_t j = 0; j < node.outputs.size(); j++)
-            none_only_outputs = none_only_outputs && node.outputs[j].type == pt2::Argument::None;
-        if (none_only_outputs)
+        pt2::Node node = program.graph.nodes[i];
+        // Public import must not bypass dispatcher ordering, types or effects.
+        if (!pt2::normalize_exported_program_node(node, error))
+            return -1;
+        // The normalizer only permits a statically proven true boolean guard.
+        if (node.target == "torch.ops.aten._assert_scalar.default")
             continue;
 
         const std::string name = node.name.empty() ? "pnnx_" + std::to_string(unnamed_node_index++) : node.name;
@@ -599,9 +765,9 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
         for (size_t j = 0; j < output_names.size(); j++)
         {
             const std::string& output_name = output_names[j];
-            if (graph.get_operand(output_name))
+            if (output_name.empty() || graph.get_operand(output_name))
             {
-                error = name + ": tensor output " + output_name + " is already defined";
+                error = name + ": tensor output " + output_name + " is empty or already defined";
                 return -1;
             }
 
@@ -634,6 +800,8 @@ int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& gr
 int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& graph, std::string& error)
 {
     error.clear();
+    if (!pt2::validate_exported_program_version(program, error))
+        return -1;
     if (program.graph.outputs.size() != program.signature.outputs.size())
     {
         error = "graph output count does not match graph signature";
@@ -645,9 +813,19 @@ int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& 
     {
         const pt2::Argument& output = program.graph.outputs[i];
         const pt2::OutputSpec& spec = program.signature.outputs[i];
-        if (spec.type != pt2::OutputSpec::UserOutput || output.type != spec.argument.type)
+        if (spec.type != pt2::OutputSpec::UserOutput)
         {
-            error = "unsupported graph output at index " + std::to_string(i);
+            error = "graph output " + std::to_string(i) + ": unsupported signature output kind " + std::to_string((int)spec.type) + " for " + spec.target + "; mutation, gradient and token outputs are not supported";
+            return -1;
+        }
+        if (output.type != spec.argument.type)
+        {
+            error = "graph output " + std::to_string(i) + " type does not match graph signature";
+            return -1;
+        }
+        if (!arguments_agree(output, spec.argument))
+        {
+            error = "graph output " + std::to_string(i) + " does not match graph signature (name or constant value)";
             return -1;
         }
 
@@ -688,23 +866,58 @@ int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& 
     return 0;
 }
 
-static std::string extract_symbol_name(const std::string& expression)
+static bool is_symbol_identifier(const std::string& text)
 {
+    if (text.empty()) return false;
+    for (size_t i = 0; i < text.size(); i++)
+    {
+        const char ch = text[i];
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || (i != 0 && ch >= '0' && ch <= '9')))
+            return false;
+    }
+    return true;
+}
+
+static std::string extract_symbol_name(const std::string& expression, bool& positive)
+{
+    positive = false;
+    if (is_symbol_identifier(expression))
+        return expression;
+    // Accept only an entire Symbol, not a prefix of Symbol(...) + ... . These
+    // are the srepr assumptions emitted for ordinary nonnegative input sizes.
+    std::string compact;
+    bool quoted = false;
+    for (size_t i = 0; i < expression.size(); i++)
+    {
+        if (expression[i] == '\'') quoted = !quoted;
+        if (quoted || (expression[i] != ' ' && expression[i] != '\t')) compact.push_back(expression[i]);
+    }
     const std::string prefix = "Symbol('";
-    if (expression.compare(0, prefix.size(), prefix) != 0)
+    if (compact.compare(0, prefix.size(), prefix) != 0)
         return std::string();
-    const size_t end = expression.find('\'', prefix.size());
-    if (end == std::string::npos)
+    const size_t end = compact.find('\'', prefix.size());
+    if (end == std::string::npos || !is_symbol_identifier(compact.substr(prefix.size(), end - prefix.size())))
         return std::string();
-    return expression.substr(prefix.size(), end - prefix.size());
+    size_t offset = end + 1;
+    while (offset < compact.size() && compact[offset] == ',')
+    {
+        const size_t next = compact.find_first_of(",)", offset + 1);
+        if (next == std::string::npos) return std::string();
+        const std::string assumption = compact.substr(offset + 1, next - offset - 1);
+        if (assumption == "positive=True")
+            positive = true;
+        else if (assumption != "integer=True" && assumption != "nonnegative=True")
+            return std::string();
+        offset = next;
+    }
+    if (offset + 1 != compact.size() || compact[offset] != ')')
+        return std::string();
+    return compact.substr(prefix.size(), end - prefix.size());
 }
 
 bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program, const std::vector<std::vector<int64_t> >& input_shapes, std::string& error)
 {
     error.clear();
-    if (input_shapes.empty())
-        return true;
-
     std::vector<std::pair<std::string, const pt2::TensorMeta*> > inputs;
     for (size_t i = 0; i < program.signature.inputs.size(); i++)
     {
@@ -717,8 +930,36 @@ bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program,
             error = spec.argument.name + ": tensor metadata is missing";
             return false;
         }
+        for (size_t dimension = 0; dimension < meta->second.sizes.size(); dimension++)
+        {
+            const pt2::SymInt& expected = meta->second.sizes[dimension];
+            bool positive = false;
+            if (expected.type == pt2::SymInt::Expression && extract_symbol_name(expected.expression, positive).empty())
+            {
+                error = "input " + spec.argument.name + " dimension " + std::to_string(dimension) + ": unvalidated derived input expression " + expected.expression + "; only bare symbols are supported, hints are not constraints";
+                return false;
+            }
+        }
         inputs.push_back(std::make_pair(spec.argument.name, &meta->second));
     }
+
+    for (std::map<std::string, pt2::RangeConstraint>::const_iterator it = program.range_constraints.begin(); it != program.range_constraints.end(); ++it)
+    {
+        if (!is_symbol_identifier(it->first))
+        {
+            error = "range_constraints." + it->first + ": unvalidated derived range constraint; only bare symbols are supported";
+            return false;
+        }
+        if (it->second.has_min && it->second.has_max && it->second.min > it->second.max)
+        {
+            error = "range_constraints." + it->first + ": minimum exceeds maximum";
+            return false;
+        }
+    }
+    // This function validates conversion-time samples only. Keeping a bare
+    // symbolic dimension in the IR does not install a runtime range guard.
+    if (input_shapes.empty())
+        return true;
 
     if (input_shapes.size() != inputs.size())
     {
@@ -762,15 +1003,20 @@ bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program,
                 continue;
             }
 
-            std::map<std::string, int64_t>::const_iterator bound = expression_values.find(expected.expression);
+            bool positive = false;
+            const std::string symbol = extract_symbol_name(expected.expression, positive);
+            if (positive && actual == 0)
+            {
+                error = location + " violates positive symbol assumption";
+                return false;
+            }
+            std::map<std::string, int64_t>::const_iterator bound = expression_values.find(symbol);
             if (bound != expression_values.end() && bound->second != actual)
             {
                 error = location + " is " + std::to_string(actual) + ", shared symbol requires " + std::to_string(bound->second);
                 return false;
             }
-            expression_values[expected.expression] = actual;
-
-            const std::string symbol = extract_symbol_name(expected.expression);
+            expression_values[symbol] = actual;
             std::map<std::string, pt2::RangeConstraint>::const_iterator range = program.range_constraints.find(symbol);
             if (range != program.range_constraints.end())
             {
