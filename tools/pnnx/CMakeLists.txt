@@ -59,10 +59,15 @@ if(Torch_VERSION VERSION_LESS "1.8")
     message(FATAL_ERROR "pnnx only supports PyTorch >= 1.8")
 endif()
 
-if(Torch_VERSION VERSION_GREATER_EQUAL "2.1")
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.14")
+    # c++20 is required for using torch 2.14+ headers
+    set(CMAKE_CXX_STANDARD 20)
+elseif(Torch_VERSION VERSION_GREATER_EQUAL "2.1")
     # c++17 is required for using torch 2.1+ headers
     set(CMAKE_CXX_STANDARD 17)
 endif()
+
+include(CheckCXXSourceCompiles)
 
 # find torchvision library
 find_library(TORCHVISION_LIBRARY torchvision PATHS "${TorchVision_INSTALL_DIR}/lib" "${TorchVision_INSTALL_DIR}/lib64")
@@ -87,7 +92,6 @@ include_directories(SYSTEM ${TORCH_INCLUDE_DIRS})
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     # test if libtorch and protobuf has the same cxxabi version
-    include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
     check_cxx_source_compiles("#include <cxxabi.h>\n#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" PNNX_TORCH_USE_CXX11_ABI)
     unset(CMAKE_REQUIRED_FLAGS)
@@ -109,6 +113,19 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
             set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
         endif()
     endif()
+endif()
+
+if(TORCH_LIBRARY)
+    set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
+    set(CMAKE_REQUIRED_INCLUDES ${TORCH_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LIBRARIES "${TORCH_LIBRARY}")
+    check_cxx_source_compiles("#include <torch/serialize.h>\n#include <vector>\nint main() { torch::pickle_load(std::vector<char>()); return 0; }" PNNX_TORCH_HAS_PICKLE_LOAD)
+    unset(CMAKE_REQUIRED_FLAGS)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    unset(CMAKE_REQUIRED_LIBRARIES)
+endif()
+if(PNNX_TORCH_HAS_PICKLE_LOAD)
+    add_definitions(-DPNNX_TORCH_HAS_PICKLE_LOAD)
 endif()
 
 # https://github.com/supertone-inc/onnxruntime-build

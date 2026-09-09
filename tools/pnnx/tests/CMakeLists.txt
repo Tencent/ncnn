@@ -1,6 +1,54 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+# Probe the Python producer, not the independently linked LibTorch version.
+# Use the same capability predicate as the test helper, without version guesses.
+execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c "from pnnx_test_utils import has_exported_program; import sys; sys.exit(0 if has_exported_program() else 1)"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE PNNX_PT2_PROBE_RESULT
+    ERROR_VARIABLE PNNX_PT2_PROBE_ERROR
+    TIMEOUT 60)
+set(PNNX_TEST_HAS_PT2 FALSE)
+if("${PNNX_PT2_PROBE_RESULT}" STREQUAL "0")
+    set(PNNX_TEST_HAS_PT2 TRUE)
+    message(STATUS "PT2 Python tests enabled for ${Python3_EXECUTABLE}")
+else()
+    message(STATUS "PT2 Python tests disabled: ${Python3_EXECUTABLE} lacks usable torch.export.save (${PNNX_PT2_PROBE_RESULT}) ${PNNX_PT2_PROBE_ERROR}")
+endif()
+
+set(PNNX_TEST_CASE_TIMEOUT 1800 CACHE STRING "Timeout in seconds for each Python test script")
+
+add_executable(test_pnnx_storezip test_storezip.cpp ../src/storezip.cpp)
+target_include_directories(test_pnnx_storezip PRIVATE ../src)
+add_test(NAME test_pnnx_storezip COMMAND test_pnnx_storezip)
+set_tests_properties(test_pnnx_storezip PROPERTIES LABELS "pt2;pt2_frontend;cpp;robustness" TIMEOUT 120)
+
+add_executable(test_pnnx_ir_tensor_contract test_ir_tensor_contract.cpp
+    ../src/ir.cpp ../src/model_stat.cpp ../src/storezip.cpp ../src/utils.cpp
+    ../src/pass_ncnn/convert_half_to_float.cpp)
+target_include_directories(test_pnnx_ir_tensor_contract PRIVATE ../src)
+add_test(NAME test_pnnx_ir_tensor_contract COMMAND test_pnnx_ir_tensor_contract)
+set_tests_properties(test_pnnx_ir_tensor_contract PROPERTIES LABELS "pt2;pt2_frontend;cpp;robustness" TIMEOUT 120)
+
+if(PNNX_TEST_HAS_PT2)
+    add_test(NAME test_pnnx_exported_program_archive
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_exported_program_archive.py"
+            --pnnx-executable "$<TARGET_FILE:pnnx>")
+    set_tests_properties(test_pnnx_exported_program_archive PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        LABELS "pt2;pt2_frontend;python;robustness" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+    add_test(NAME test_pnnx_exported_program_dtype
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_exported_program_dtype.py"
+            --ir-test-executable "$<TARGET_FILE:test_pnnx_ir_tensor_contract>"
+            --pnnx-executable "$<TARGET_FILE:pnnx>")
+    set_tests_properties(test_pnnx_exported_program_dtype PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        LABELS "pt2;pt2_frontend;python" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+endif()
+
+# These native parser/loader tests need linked LibTorch, not a Python exporter.
+# Keep them registered and built even when the producer predates torch.export.
 add_executable(test_pnnx_exported_program test_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_reader.cpp ../src/json.cpp ../src/model_format.cpp ../src/storezip.cpp)
 target_include_directories(test_pnnx_exported_program PRIVATE ../src)
 target_compile_options(test_pnnx_exported_program PRIVATE "${TORCH_CXX_FLAGS}")
@@ -21,9 +69,61 @@ target_compile_options(test_pnnx_load_exported_program PRIVATE "${TORCH_CXX_FLAG
 target_link_libraries(test_pnnx_load_exported_program PRIVATE ${TORCH_LIBRARIES})
 add_test(NAME test_pnnx_load_exported_program COMMAND test_pnnx_load_exported_program)
 
-macro(pnnx_add_test name)
-    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
-endmacro()
+set_tests_properties(test_pnnx_exported_program_schema test_pnnx_json
+    test_pnnx_model_format test_pnnx_load_exported_program
+    PROPERTIES LABELS "pt2;pt2_frontend;cpp;robustness" TIMEOUT 120)
+
+# This mocked harness suite also runs with old torch versions that have no
+# torch.export at all. It has one registration, not one per model format.
+add_test(NAME test_pnnx_test_utils COMMAND ${CMAKE_COMMAND}
+    "-DPYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+    "-DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_test_utils.py"
+    "-DPNNX_TEST_CASE_TIMEOUT=${PNNX_TEST_CASE_TIMEOUT}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake")
+set_tests_properties(test_pnnx_test_utils PROPERTIES
+    LABELS "pt2;pt2_frontend;robustness;harness;python" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+
+function(pnnx_add_test name)
+    cmake_parse_arguments(TEST "PT2_ONLY;FRONTEND;ROBUSTNESS" "" "" ${ARGN})
+    set(script "${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py")
+    set(formats)
+    if(NOT TEST_PT2_ONLY)
+        list(APPEND formats torchscript)
+    endif()
+    # Legacy scripts that do not use the format-aware helper stay TS-only.
+    # Reconfigure when a script is migrated, rather than duplicating TS work.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${script}")
+    file(READ "${script}" test_source)
+    if(PNNX_TEST_HAS_PT2 AND (TEST_PT2_ONLY OR test_source MATCHES "(test_model_formats|model_formats)[ \t\r\n]*\\("))
+        list(APPEND formats pt2)
+    endif()
+    foreach(format IN LISTS formats)
+        set(test_name "test_${name}")
+        set(labels "torchscript;python")
+        if(format STREQUAL "pt2")
+            set(test_name "test_${name}_pt2")
+            set(labels "pt2;python")
+            if(TEST_FRONTEND)
+                list(APPEND labels pt2_frontend)
+            else()
+                list(APPEND labels pt2_operator)
+            endif()
+            if(TEST_ROBUSTNESS)
+                list(APPEND labels robustness)
+            endif()
+        endif()
+        add_test(NAME ${test_name} COMMAND ${CMAKE_COMMAND}
+            "-DPYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+            "-DPYTHON_SCRIPT=${script}"
+            "-DPNNX_TEST_FORMAT=${format}"
+            "-DPNNX_TEST_CASE_TIMEOUT=${PNNX_TEST_CASE_TIMEOUT}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake")
+        # Format-suffixed converter outputs are independent, but some existing
+        # scripts share auxiliary .npy fixtures. Do not run a TS/PT2 pair at once.
+        set_tests_properties(${test_name} PROPERTIES LABELS "${labels}"
+            RESOURCE_LOCK "pnnx_${name}_artifacts" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+    endforeach()
+endfunction()
 
 pnnx_add_test(F_adaptive_avg_pool1d)
 pnnx_add_test(F_adaptive_avg_pool2d)
@@ -99,9 +199,13 @@ pnnx_add_test(F_unfold)
 pnnx_add_test(F_upsample_bilinear)
 pnnx_add_test(F_upsample_nearest)
 pnnx_add_test(F_upsample)
-pnnx_add_test(pnnx_exported_program_legacy)
-pnnx_add_test(pnnx_exported_program)
-pnnx_add_test(pnnx_exported_program_dynamic)
+# Frontend-only registrations: the parity test intentionally compares TS/PT2
+# internally; none of these scripts is an independent TorchScript suite entry.
+if(PNNX_TORCH_HAS_PICKLE_LOAD)
+    pnnx_add_test(pnnx_exported_program_legacy PT2_ONLY FRONTEND)
+endif()
+pnnx_add_test(pnnx_exported_program PT2_ONLY FRONTEND)
+pnnx_add_test(pnnx_exported_program_dynamic PT2_ONLY FRONTEND ROBUSTNESS)
 
 pnnx_add_test(nn_AdaptiveAvgPool1d)
 pnnx_add_test(nn_AdaptiveAvgPool2d)
@@ -446,3 +550,15 @@ add_subdirectory(ncnn)
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
+
+# CI may download only the converter. Build every native test in this directory
+# via an aggregate target instead of maintaining a second executable allowlist.
+# Keep this after all native test definitions, including future parser tests.
+add_custom_target(pnnx_test_binaries)
+get_property(pnnx_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(test_target IN LISTS pnnx_test_targets)
+    get_target_property(test_target_type ${test_target} TYPE)
+    if(test_target_type STREQUAL "EXECUTABLE")
+        add_dependencies(pnnx_test_binaries ${test_target})
+    endif()
+endforeach()

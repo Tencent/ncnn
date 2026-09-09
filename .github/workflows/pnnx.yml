@@ -49,41 +49,37 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
+
+    - name: setup-windows-torch-dll-path
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        $torchLib = python -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))"
+        $torchLib | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: build-pnnx
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE="$(python3 -c 'import sys; print(sys.executable)')" ..
         cmake --build . --config Release -j 4
 
     - name: quick-test-torchscript
-      if: matrix.os != 'windows-latest'
-      env:
-        PNNX_TEST_FORMAT: torchscript
       run: |
         cd tools/pnnx
-        cd build && ctest -C Release --output-on-failure -R '^test_nn_(ReLU|Linear|Conv2d)$'
+        cd build && ctest -C Release --output-on-failure --no-tests=error -L '^torchscript$' -R '^test_nn_(ReLU|Linear|Conv2d)$'
 
-    - name: quick-test-pt2
-      if: matrix.os != 'windows-latest'
-      env:
-        PNNX_TEST_FORMAT: pt2
+    - name: quick-test-pt2-frontend
       run: |
         cd tools/pnnx
-        cd build && ctest -C Release --output-on-failure -R '^test_(nn_(ReLU|Linear|Conv2d)|pnnx_exported_program(_dynamic)?)$'
+        cd build && ctest -C Release --output-on-failure --no-tests=error -L '^pt2_frontend$'
 
-    - name: quick-test-pt2-windows
-      if: matrix.os == 'windows-latest'
-      env:
-        PNNX_TEST_FORMAT: pt2
+    - name: quick-test-pt2-operators
       run: |
-        $torchLib = python -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))"
-        $env:PATH = "$torchLib;$env:PATH"
-        Set-Location tools/pnnx/build
-        ctest -C Release --output-on-failure -R '^test_(nn_(ReLU|Linear|Conv2d)|pnnx_exported_program(_dynamic)?)$'
+        cd tools/pnnx
+        cd build && ctest -C Release --output-on-failure --no-tests=error -L '^pt2_operator$' -R '^test_nn_(ReLU|Linear|Conv2d)_pt2$'
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -365,10 +361,14 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release \
+            -DPython3_EXECUTABLE="$(python3 -c 'import sys; print(sys.executable)')" \
             -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
+        # The downloaded artifact contains only pnnx, not native test binaries.
+        # This aggregate includes every C++ test target registered in tests/.
+        cmake --build . --config Release --target pnnx_test_binaries -j 8
 
     - name: download-pnnx
       uses: actions/download-artifact@v8
@@ -376,9 +376,12 @@ jobs:
         name: pnnx
         path: tools/pnnx/build/src
 
+    - name: test-harness
+      run: |
+        cd tools/pnnx/build
+        ctest --output-on-failure --no-tests=error -L '^harness$'
+
     - name: test-torchscript
-      env:
-        PNNX_TEST_FORMAT: torchscript
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
@@ -387,12 +390,11 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8 -E '^test_pnnx_exported_program(_legacy|_dynamic)?$'
+        # Keep the historical TS matrix, including ncnn/onnx, exactly once.
+        ctest --output-on-failure --no-tests=error -j 8 -LE '^pt2$'
 
     - name: test-pt2
       if: matrix.torch == '2.12.1'
-      env:
-        PNNX_TEST_FORMAT: pt2
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         chmod +x tools/pnnx/build/src/pnnx
@@ -401,7 +403,9 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        # Only PT2 registrations + native frontend/robustness + harness tests.
+        # This is not a transformers 5 or arbitrary producer-version matrix.
+        ctest --output-on-failure --no-tests=error -j 8 -L '^pt2$'
 
     - name: python-pnnx
       run: |

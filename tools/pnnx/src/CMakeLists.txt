@@ -632,7 +632,9 @@ set(pnnx_pass_ncnn_SRCS
 
 if(PROTOBUF_FOUND)
     if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
-        set(CMAKE_CXX_STANDARD 17)
+        if(CMAKE_CXX_STANDARD LESS 17)
+            set(CMAKE_CXX_STANDARD 17)
+        endif()
     endif()
 
     if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
