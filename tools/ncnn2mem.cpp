@@ -6,6 +6,8 @@
 
 #include <cstddef>
 #include <ctype.h>
+#include <float.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -50,104 +52,336 @@ static std::string path_to_varname(const char* path)
     return varname;
 }
 
-static bool vstr_is_float(const char vstr[16])
+// keep numeric parsing in sync with src/paramdict.cpp
+static bool vstr_is_float(const char* vstr)
 {
-    // look ahead for determine isfloat
-    for (int j = 0; j < 16; j++)
-    {
-        if (vstr[j] == '\0')
-            break;
+    return strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E');
+}
 
-        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
-            return true;
+static bool vstr_to_int(const char* p, int& v)
+{
+    const bool negative = *p == '-';
+    if (*p == '+' || *p == '-')
+        p++;
+
+    if (*p < '0' || *p > '9')
+        return false;
+
+    const unsigned int limit = negative ? (unsigned int)INT_MAX + 1u : (unsigned int)INT_MAX;
+    unsigned int magnitude = 0;
+    while (*p >= '0' && *p <= '9')
+    {
+        const unsigned int digit = *p++ - '0';
+        if (magnitude > (limit - digit) / 10)
+            return false;
+        magnitude = magnitude * 10 + digit;
+    }
+    if (*p != '\0')
+        return false;
+
+    v = negative ? (magnitude == (unsigned int)INT_MAX + 1u ? INT_MIN : -(int)magnitude) : (int)magnitude;
+    return true;
+}
+
+// the input is a validated unsigned decimal token of at most 127 characters
+static bool vstr_fits_float(const char* p)
+{
+    char digits[128];
+    int len = 0;
+    int point = -1;
+    while (*p && *p != 'e' && *p != 'E')
+    {
+        if (*p == '.')
+            point = len;
+        else
+            digits[len++] = *p;
+        p++;
+    }
+    if (point < 0)
+        point = len;
+
+    int exponent = 0;
+    if (*p)
+    {
+        p++;
+        const bool negative = *p == '-';
+        if (*p == '+' || *p == '-')
+            p++;
+        while (*p)
+        {
+            if (exponent < 1024)
+                exponent = exponent * 10 + (*p - '0');
+            p++;
+        }
+        if (negative)
+            exponent = -exponent;
     }
 
+    int first = 0;
+    while (first < len && digits[first] == '0')
+        first++;
+    if (first == len)
+        return true;
+
+    const int decimal_digits = point - first + exponent;
+    if (decimal_digits != 39)
+        return decimal_digits < 39;
+
+    // 2^128 - 2^103 is the exact midpoint between FLT_MAX and float overflow
+    const char midpoint[] = "340282356779733661637539395458142568448";
+    for (int i = 0; i < 39; i++)
+    {
+        const char digit = first + i < len ? digits[first + i] : '0';
+        if (digit != midpoint[i])
+            return digit < midpoint[i];
+    }
     return false;
 }
 
-static bool vstr_is_string(const char vstr[16])
+static bool vstr_to_float(const char* p, float& value)
 {
-    return isalpha(vstr[0]) || vstr[0] == '\"';
-}
-
-static float vstr_to_float(const char vstr[16])
-{
-    double v = 0.0;
-
-    const char* p = vstr;
-
-    // sign
-    bool sign = *p != '-';
+    const bool negative = *p == '-';
     if (*p == '+' || *p == '-')
-    {
         p++;
-    }
 
-    // digits before decimal point or exponent
-    unsigned int v1 = 0;
-    while (isdigit(*p))
+    const char* digits = p;
+    double v = 0.0;
+    bool has_digit = false;
+    while (*p >= '0' && *p <= '9')
     {
-        v1 = v1 * 10 + (*p - '0');
-        p++;
+        has_digit = true;
+        v = v * 10.0 + (*p++ - '0');
     }
-
-    v = (double)v1;
-
-    // digits after decimal point
     if (*p == '.')
     {
         p++;
-
-        unsigned int pow10 = 1;
-        unsigned int v2 = 0;
-
-        while (isdigit(*p))
+        double scale = 0.1;
+        while (*p >= '0' && *p <= '9')
         {
-            v2 = v2 * 10 + (*p - '0');
-            pow10 *= 10;
-            p++;
+            has_digit = true;
+            v += (*p++ - '0') * scale;
+            scale *= 0.1;
         }
-
-        v += v2 / (double)pow10;
     }
+    if (!has_digit)
+        return false;
 
-    // exponent
     if (*p == 'e' || *p == 'E')
     {
         p++;
-
-        // sign of exponent
-        bool fact = *p != '-';
+        const bool negative_exponent = *p == '-';
         if (*p == '+' || *p == '-')
+            p++;
+        if (*p < '0' || *p > '9')
+            return false;
+
+        // saturate the exponent instead of overflowing or looping over its value
+        unsigned int exponent = 0;
+        while (*p >= '0' && *p <= '9')
         {
+            if (exponent < 1024)
+            {
+                exponent = exponent * 10 + (*p - '0');
+                if (exponent > 1024)
+                    exponent = 1024;
+            }
             p++;
         }
-
-        // digits of exponent
-        unsigned int expon = 0;
-        while (isdigit(*p))
+        if (v != 0.0)
         {
-            expon = expon * 10 + (*p - '0');
-            p++;
+            // tokens are limited to 127 characters, so an infinite scale implies float overflow or underflow
+            double scale = 1.0;
+            double base = 10.0;
+            while (exponent)
+            {
+                if (exponent & 1)
+                    scale *= base;
+                exponent >>= 1;
+                if (exponent)
+                    base *= base;
+            }
+            v = negative_exponent ? v / scale : v * scale;
+        }
+    }
+    if (*p != '\0')
+        return false;
+
+    // compare the original decimal near overflow, where double rounding can cross the midpoint
+    if (v >= (double)FLT_MAX)
+    {
+        if (!vstr_fits_float(digits))
+            return false;
+        v = (double)FLT_MAX;
+    }
+    value = negative ? (float)-v : (float)v;
+    return true;
+}
+
+static int scan_numeric_value(FILE* fp, char vstr[128])
+{
+    if (fscanf(fp, "%127[^, \t\r\n\v\f]", vstr) != 1)
+        return 0;
+
+    char extra[2];
+    if (strlen(vstr) == 127 && fscanf(fp, "%1[^, \t\r\n\v\f]", extra) == 1)
+        return -1;
+
+    return 1;
+}
+
+static bool parse_numeric_value(const char* vstr, bool is_float, int& value)
+{
+    if (is_float)
+    {
+        float f;
+        if (!vstr_to_float(vstr, f))
+            return false;
+        memcpy(&value, &f, sizeof(float));
+        return true;
+    }
+    return vstr_to_int(vstr, value);
+}
+
+static int dump_param_values(FILE* fp, FILE* mp)
+{
+    char idstr[16];
+    while (fscanf(fp, " %15[+-0123456789]", idstr) == 1)
+    {
+        int id;
+        char delimiter[2];
+        if (!vstr_to_int(idstr, id) || fscanf(fp, "%1[=]", delimiter) != 1)
+        {
+            fprintf(stderr, "invalid parameter id or missing equals sign\n");
+            return -1;
         }
 
-        double scale = 1.0;
-        while (expon >= 8)
+        const bool old_array = id <= -23300;
+        const int param_id = old_array ? -(id + 23300) : id;
+        if (param_id < 0 || param_id >= NCNN_MAX_PARAM_COUNT)
         {
-            scale *= 1e8;
-            expon -= 8;
-        }
-        while (expon > 0)
-        {
-            scale *= 10.0;
-            expon -= 1;
+            fprintf(stderr, "invalid parameter id %d\n", id);
+            return -1;
         }
 
-        v = fact ? v * scale : v / scale;
+        if (old_array)
+        {
+            char vstr[128];
+            int len;
+            if (scan_numeric_value(fp, vstr) != 1 || !vstr_to_int(vstr, len) || len < 0)
+            {
+                fprintf(stderr, "invalid array length (id=%d)\n", id);
+                return -1;
+            }
+            fwrite(&id, sizeof(int), 1, mp);
+            fwrite(&len, sizeof(int), 1, mp);
+            for (int j = 0; j < len; j++)
+            {
+                int value;
+                if (fscanf(fp, "%1[,]", delimiter) != 1 || scan_numeric_value(fp, vstr) != 1
+                        || !parse_numeric_value(vstr, vstr_is_float(vstr), value))
+                {
+                    fprintf(stderr, "invalid array element (id=%d, index=%d)\n", id, j);
+                    return -1;
+                }
+                fwrite(&value, sizeof(int), 1, mp);
+            }
+            if (fscanf(fp, "%1[,]", delimiter) == 1)
+            {
+                fprintf(stderr, "array length mismatch (id=%d)\n", id);
+                return -1;
+            }
+            continue;
+        }
+
+        char first[2];
+        if (fscanf(fp, "%1[\"a-zA-Z]", first) == 1)
+        {
+            char text[256] = {0};
+            if (first[0] == '\"')
+            {
+                if (fscanf(fp, "%255[^\"\r\n]", text) != 1)
+                    text[0] = '\0';
+                if (fscanf(fp, "%1[\"]", delimiter) != 1)
+                {
+                    fprintf(stderr, "unterminated or too long string (id=%d)\n", id);
+                    return -1;
+                }
+            }
+            else
+            {
+                text[0] = first[0];
+                if (fscanf(fp, "%254[^ \t\r\n\v\f]", text + 1) != 1)
+                    text[1] = '\0';
+            }
+            if (fscanf(fp, "%1[^ \t\r\n\v\f]", delimiter) == 1)
+            {
+                fprintf(stderr, "invalid string suffix or string too long (id=%d)\n", id);
+                return -1;
+            }
+
+            id = -id - 23400;
+            int len = (int)strlen(text);
+            fwrite(&id, sizeof(int), 1, mp);
+            fwrite(&len, sizeof(int), 1, mp);
+            fwrite(text, 1, (len + 3) / 4 * 4, mp);
+            continue;
+        }
+
+        char vstr[128];
+        if (scan_numeric_value(fp, vstr) != 1)
+        {
+            fprintf(stderr, "read value failed (id=%d)\n", id);
+            return -1;
+        }
+        const bool is_float = vstr_is_float(vstr);
+        int value;
+        if (!parse_numeric_value(vstr, is_float, value))
+        {
+            fprintf(stderr, "invalid numeric value (id=%d)\n", id);
+            return -1;
+        }
+
+        if (fscanf(fp, "%1[,]", delimiter) == 1)
+        {
+            std::vector<int> values;
+            values.push_back(value);
+            while (1)
+            {
+                const int nscan = scan_numeric_value(fp, vstr);
+                if (nscan == 0)
+                {
+                    if (fscanf(fp, "%1[,]", delimiter) == 1)
+                    {
+                        fprintf(stderr, "missing array element (id=%d)\n", id);
+                        return -1;
+                    }
+                    break;
+                }
+                if (nscan < 0 || values.size() >= (size_t)INT_MAX || !parse_numeric_value(vstr, is_float, value))
+                {
+                    fprintf(stderr, "invalid array element (id=%d)\n", id);
+                    return -1;
+                }
+                values.push_back(value);
+                if (fscanf(fp, "%1[,]", delimiter) != 1)
+                    break;
+            }
+            id = -id - 23300;
+            int len = (int)values.size();
+            fwrite(&id, sizeof(int), 1, mp);
+            fwrite(&len, sizeof(int), 1, mp);
+            fwrite(values.data(), sizeof(int), len, mp);
+        }
+        else
+        {
+            fwrite(&id, sizeof(int), 1, mp);
+            fwrite(&value, sizeof(int), 1, mp);
+        }
     }
 
-    //     fprintf(stderr, "v = %f\n", v);
-    return sign ? (float)v : (float)-v;
+    int EOP = -233;
+    fwrite(&EOP, sizeof(int), 1, mp);
+    return 0;
 }
 
 static int dump_param(const char* parampath, const char* parambinpath, const char* idcpppath)
@@ -281,223 +515,13 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             blob_index++;
         }
 
-        // dump layer specific params
-        // parse each key=value pair
-        int id = 0;
-        while (fscanf(fp, "%d=", &id) == 1)
+        if (dump_param_values(fp, mp) != 0)
         {
-            bool is_array = id <= -23300;
-
-            if (is_array)
-            {
-                fwrite(&id, sizeof(int), 1, mp);
-
-                // old style array
-                int len = 0;
-                nscan = fscanf(fp, "%d", &len);
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "read array length failed %d\n", nscan);
-                    return -1;
-                }
-                fwrite(&len, sizeof(int), 1, mp);
-
-                for (int j = 0; j < len; j++)
-                {
-                    char vstr[16];
-                    nscan = fscanf(fp, ",%15[^,\n ]", vstr);
-                    if (nscan != 1)
-                    {
-                        fprintf(stderr, "read array element failed %d\n", nscan);
-                        return -1;
-                    }
-
-                    bool is_float = vstr_is_float(vstr);
-
-                    if (is_float)
-                    {
-                        float vf = vstr_to_float(vstr);
-                        fwrite(&vf, sizeof(float), 1, mp);
-                    }
-                    else
-                    {
-                        int v;
-                        sscanf(vstr, "%d", &v);
-                        fwrite(&v, sizeof(int), 1, mp);
-                    }
-                }
-
-                continue;
-            }
-
-            char vstr[16];
-            char comma[4];
-            nscan = fscanf(fp, "%15[^,\n ]", vstr);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "read value failed %d\n", nscan);
-                return -1;
-            }
-
-            bool is_string = vstr_is_string(vstr);
-            if (is_string)
-            {
-                id = -id - 23400;
-                fwrite(&id, sizeof(int), 1, mp);
-
-                // scan the remaining string
-                char vstr2[256];
-                vstr2[241] = '\0'; // max 255 = 15 + 240
-
-                if (vstr[0] == '\"')
-                {
-                    int len = 0;
-                    while (vstr[len] != '\0')
-                        len++;
-                    char end = vstr[len - 1];
-                    if (end != '\"')
-                    {
-                        nscan = fscanf(fp, "%255[^\"\n]\"", vstr2);
-                    }
-                    else
-                        nscan = 0; // already ended with a quote, no need to scan more
-                }
-                else
-                {
-                    nscan = fscanf(fp, "%255[^\n ]", vstr2);
-                }
-
-                std::string str;
-                if (nscan == 1)
-                {
-                    if (vstr2[241] != '\0')
-                    {
-                        fprintf(stderr, "string too long (id=%d)\n", id);
-                        return -1;
-                    }
-
-                    if (vstr[0] == '\"')
-                        str = std::string(&vstr[1]) + vstr2;
-                    else
-                        str = std::string(vstr) + vstr2;
-                }
-                else
-                {
-                    if (vstr[0] == '\"')
-                        str = std::string(&vstr[1]);
-                    else
-                        str = std::string(vstr);
-                }
-
-                if (str[str.size() - 1] == '\"')
-                    str.resize(str.size() - 1);
-
-                int len = (int)str.length();
-
-                // pad to 4 bytes
-                str.resize((str.size() + 3) / 4 * 4, 0);
-
-                fwrite(&len, sizeof(int), 1, mp);
-                fwrite(str.data(), sizeof(char), str.size(), mp);
-
-                continue;
-            }
-
-            bool is_float = vstr_is_float(vstr);
-
-            nscan = fscanf(fp, "%1[,]", comma);
-            is_array = nscan == 1;
-
-            if (is_array)
-            {
-                id = -id - 23300;
-                fwrite(&id, sizeof(int), 1, mp);
-
-                std::vector<float> af;
-                std::vector<int> ai;
-
-                if (is_float)
-                {
-                    af.push_back(vstr_to_float(vstr));
-                }
-                else
-                {
-                    int v = 0;
-                    nscan = sscanf(vstr, "%d", &v);
-                    if (nscan != 1)
-                    {
-                        fprintf(stderr, "parse value failed %d\n", nscan);
-                        return -1;
-                    }
-
-                    ai.push_back(v);
-                }
-
-                while (1)
-                {
-                    nscan = fscanf(fp, "%15[^,\n ]", vstr);
-                    if (nscan != 1)
-                    {
-                        break;
-                    }
-
-                    if (is_float)
-                    {
-                        af.push_back(vstr_to_float(vstr));
-                    }
-                    else
-                    {
-                        int v = 0;
-                        nscan = sscanf(vstr, "%d", &v);
-                        if (nscan != 1)
-                        {
-                            fprintf(stderr, "parse value failed %d\n", nscan);
-                            return -1;
-                        }
-
-                        ai.push_back(v);
-                    }
-
-                    nscan = fscanf(fp, "%1[,]", comma);
-                    if (nscan != 1)
-                    {
-                        break;
-                    }
-                }
-
-                if (is_float)
-                {
-                    int len = (int)af.size();
-                    fwrite(&len, sizeof(int), 1, mp);
-                    fwrite(af.data(), sizeof(float), len, mp);
-                }
-                else
-                {
-                    int len = (int)ai.size();
-                    fwrite(&len, sizeof(int), 1, mp);
-                    fwrite(ai.data(), sizeof(int), len, mp);
-                }
-            }
-            else
-            {
-                fwrite(&id, sizeof(int), 1, mp);
-
-                if (is_float)
-                {
-                    float vf = vstr_to_float(vstr);
-                    fwrite(&vf, sizeof(float), 1, mp);
-                }
-                else
-                {
-                    int v;
-                    sscanf(vstr, "%d", &v);
-                    fwrite(&v, sizeof(int), 1, mp);
-                }
-            }
+            fclose(fp);
+            fclose(mp);
+            fclose(ip);
+            return -1;
         }
-
-        int EOP = -233;
-        fwrite(&EOP, sizeof(int), 1, mp);
 
         layer_names[i] = std::string(layer_name);
     }
@@ -621,9 +645,8 @@ int main(int argc, char** argv)
 
     std::string parambinpath = std::string(parampath) + ".bin";
 
-    dump_param(parampath, parambinpath.c_str(), idcpppath);
+    if (dump_param(parampath, parambinpath.c_str(), idcpppath) != 0)
+        return -1;
 
-    write_memcpp(parambinpath.c_str(), modelpath, memcpppath);
-
-    return 0;
+    return write_memcpp(parambinpath.c_str(), modelpath, memcpppath);
 }

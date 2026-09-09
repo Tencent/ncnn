@@ -181,7 +181,7 @@ void ParamDict::clear()
 static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
-    const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
+    const size_t max_len = ((size_t) -1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
     return std::min((size_t)INT_MAX, max_len);
 }
 
@@ -191,6 +191,7 @@ static bool valid_array_length(size_t len)
 }
 
 #if NCNN_STRING
+// keep numeric parsing in sync with tools/ncnn2mem.cpp
 static bool vstr_is_float(const char* vstr)
 {
     return strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E');
@@ -221,12 +222,68 @@ static bool vstr_to_int(const char* p, int& v)
     return true;
 }
 
+// the input is a validated unsigned decimal token of at most 127 characters
+static bool vstr_fits_float(const char* p)
+{
+    char digits[128];
+    int len = 0;
+    int point = -1;
+    while (*p && *p != 'e' && *p != 'E')
+    {
+        if (*p == '.')
+            point = len;
+        else
+            digits[len++] = *p;
+        p++;
+    }
+    if (point < 0)
+        point = len;
+
+    int exponent = 0;
+    if (*p)
+    {
+        p++;
+        const bool negative = *p == '-';
+        if (*p == '+' || *p == '-')
+            p++;
+        while (*p)
+        {
+            if (exponent < 1024)
+                exponent = exponent * 10 + (*p - '0');
+            p++;
+        }
+        if (negative)
+            exponent = -exponent;
+    }
+
+    int first = 0;
+    while (first < len && digits[first] == '0')
+        first++;
+    if (first == len)
+        return true;
+
+    const int decimal_digits = point - first + exponent;
+    if (decimal_digits != 39)
+        return decimal_digits < 39;
+
+    // 2^128 - 2^103 is the exact midpoint between FLT_MAX and float overflow
+    const char midpoint[] = "340282356779733661637539395458142568448";
+    for (int i = 0; i < 39; i++)
+    {
+        const char digit = first + i < len ? digits[first + i] : '0';
+        if (digit != midpoint[i])
+            return digit < midpoint[i];
+    }
+    return false;
+}
+
 static bool vstr_to_float(const char* p, float& value)
 {
     const bool negative = *p == '-';
     if (*p == '+' || *p == '-')
         p++;
 
+    const char* digits = p;
     double v = 0.0;
     bool has_digit = false;
     while (*p >= '0' && *p <= '9')
@@ -262,7 +319,11 @@ static bool vstr_to_float(const char* p, float& value)
         while (*p >= '0' && *p <= '9')
         {
             if (exponent < 1024)
-                exponent = std::min(1024u, exponent * 10 + (*p - '0'));
+            {
+                exponent = exponent * 10 + (*p - '0');
+                if (exponent > 1024)
+                    exponent = 1024;
+            }
             p++;
         }
         if (v != 0.0)
@@ -281,13 +342,16 @@ static bool vstr_to_float(const char* p, float& value)
             v = negative_exponent ? v / scale : v * scale;
         }
     }
-    // allow rounding to FLT_MAX, but reject the midpoint that rounds to infinity
-    const double half_ulp = (double)FLT_MAX / ((1u << FLT_MANT_DIG) - 1) * 0.5;
-    if (*p != '\0' || v >= (double)FLT_MAX + half_ulp)
+    if (*p != '\0')
         return false;
 
-    // keep the conversion within the finite float range
-    v = std::min(v, (double)FLT_MAX);
+    // compare the original decimal near overflow, where double rounding can cross the midpoint
+    if (v >= (double)FLT_MAX)
+    {
+        if (!vstr_fits_float(digits))
+            return false;
+        v = (double)FLT_MAX;
+    }
     value = negative ? (float)-v : (float)v;
     return true;
 }
@@ -356,8 +420,7 @@ int ParamDict::load_param(const DataReader& dr)
                     NCNN_LOGE("ParamDict read array element failed");
                     return -1;
                 }
-                if (j == 0)
-                    is_float = vstr_is_float(vstr);
+                is_float = vstr_is_float(vstr);
 
                 const bool ok = is_float ? vstr_to_float(vstr, ((float*)v)[j]) : vstr_to_int(vstr, ((int*)v)[j]);
                 if (!ok)

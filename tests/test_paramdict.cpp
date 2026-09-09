@@ -768,6 +768,47 @@ static int test_paramdict_access()
     return 0;
 }
 
+static int test_paramdict_zero_type()
+{
+    const char* text = "0=0 1=0.0";
+    for (int mode = 0; mode < 3; mode++)
+    {
+        ParamDictTest pd;
+        if (mode == 0)
+        {
+            pd.set(0, 0);
+            pd.set(1, 0.f);
+        }
+        else if (mode == 1)
+        {
+            if (pd.load_param(text))
+                return -1;
+        }
+        else
+        {
+#if NCNN_STDIO
+            FILE* fp = make_param_file(text, strlen(text));
+            if (!fp)
+                return -1;
+            ncnn::DataReaderFromStdio dr(fp);
+            const int ret = pd.load_param(dr);
+            fclose(fp);
+            if (ret)
+                return -1;
+#else
+            continue;
+#endif
+        }
+        if (pd.type(0) != 2 || pd.get(0, 7) != 0 || pd.get(0, 7.f) != 7.f
+                || pd.type(1) != 3 || pd.get(1, 7.f) != 0.f || pd.get(1, 7) != 7)
+        {
+            fprintf(stderr, "ParamDict zero type access failed mode=%d\n", mode);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int check_text_result(const char* text, bool valid)
 {
     ParamDictTest memory;
@@ -812,7 +853,7 @@ static int test_paramdict_invalid_text()
         "0=.", "0=-", "0=--1", "0=1e", "0=1e+", "0=1.2.3", "0=1e4294967295", "0=1e39",
         "0=\"", "0=\"unterminated", "0=\"abc\n", "0=\"abc\"suffix", "0=\"abc\"1=2",
         "-23300=1", "-23300=2,1", "-23300=1,1,2", "-23300=0,1", "-23300=1x,2",
-        "0=1,,2", "0=1,2x", "0=1,2.5", "-23300=2,1,2.5", "0=1.0,2e", "-23300=1,1e+"
+        "0=1,,2", "0=1,2x", "0=1.0,2e", "-23300=1,1e+"
     };
     for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++)
         if (check_text_result(malformed[i], false))
@@ -836,7 +877,7 @@ static int test_paramdict_invalid_text()
 static int test_paramdict_text_boundaries()
 {
     ParamDictTest pd;
-    const char* text = "0=-2147483648\t1=2147483647\r\n2=\"\" 3=\" \" 4=1.0,2,-3 5=7, -23306=2,1.0,2 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
+    const char* text = "0=-2147483648\t1=2147483647\r\n2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
     if (check_text_result(text, true) || pd.load_param(text))
         return -1;
     if (pd.get(0, 0) != INT_MIN || pd.get(1, 0) != INT_MAX
@@ -964,9 +1005,16 @@ static int check_float_boundary(const char* text, float expected, int count, boo
 
 static int test_paramdict_float_boundaries()
 {
-    const char* numbers[] = {"3.40282347e+38", "3.4028235e38", "3.40282356e38", "3.402823e38", "3.40282357e38", "1e39"};
-    const float expected[] = {FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f};
-    const bool valid[] = {true, true, true, true, false, false};
+    const char* numbers[] = {
+        "3.40282347e+38", "3.4028235e38", "3.40282356e38", "3.402823e38", "3.40282357e38", "1e39",
+        "3.402823567797336e38", "3.402823567797337e38",
+        "340282356779733661637539395458142568447.0", "340282356779733661637539395458142568448.0",
+        "340282356779733661637539395458142568449.0",
+        "0.000340282356779733661637539395458142568447e42",
+        "000340282356779733661637539395458142568448e0"
+    };
+    const float expected[] = {FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f};
+    const bool valid[] = {true, true, true, true, false, false, true, false, true, false, false, true, false};
     for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
         for (int negative = 0; negative < 2; negative++)
         {
@@ -1271,6 +1319,7 @@ int main()
            || test_paramdict_5()
            || test_paramdict_6()
            || test_paramdict_access()
+           || test_paramdict_zero_type()
            || test_paramdict_invalid_text()
            || test_paramdict_text_boundaries()
            || test_paramdict_float_boundaries()

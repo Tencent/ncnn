@@ -43,6 +43,8 @@ the meaning of existing param key index can be looked up at [operation-param-wei
 * integer array value : [array size],int,int,...,int
 * float array value : [array size],float,float,...,float
 
+Use a decimal point or exponent for every element of a floating-point array, including integral values, for example `-23303=2,1.0,2.0`. Mixed integer and float element spellings within an array are not defined by the format.
+
 In modern ncnn param file
 
 * array could be represented as `3=2.0,3.0` that is much more human friendly
