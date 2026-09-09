@@ -3,11 +3,13 @@
 
 #include "paramdict.h"
 
+#include "allocator.h"
 #include "datareader.h"
 #include "mat.h"
 #include "platform.h"
 
-#include <ctype.h>
+#include <float.h>
+#include <limits.h>
 
 #if NCNN_STDIO
 #include <stdio.h>
@@ -100,50 +102,67 @@ ParamDict& ParamDict::operator=(const ParamDict& rhs)
 
 int ParamDict::type(int id) const
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+        return 0;
+
     return d->params[id].type;
 }
 
-// TODO strict type check
 int ParamDict::get(int id, int def) const
 {
-    return d->params[id].type ? d->params[id].i : def;
+    const int t = type(id);
+    return t == 1 || t == 2 ? d->params[id].i : def;
 }
 
 float ParamDict::get(int id, float def) const
 {
-    return d->params[id].type ? d->params[id].f : def;
+    const int t = type(id);
+    return t == 1 || t == 3 ? d->params[id].f : def;
 }
 
 Mat ParamDict::get(int id, const Mat& def) const
 {
-    return d->params[id].type ? d->params[id].v : def;
+    const int t = type(id);
+    return t == 4 || t == 5 || t == 6 ? d->params[id].v : def;
 }
 
 std::string ParamDict::get(int id, const std::string& def) const
 {
-    return d->params[id].type ? d->params[id].s : def;
+    return type(id) == 7 ? d->params[id].s : def;
 }
 
 void ParamDict::set(int id, int i)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+        return;
+
     d->params[id].type = 2;
     d->params[id].i = i;
 }
 
 void ParamDict::set(int id, float f)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+        return;
+
     d->params[id].type = 3;
     d->params[id].f = f;
 }
 
 void ParamDict::set(int id, const Mat& v)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+        return;
+
     d->params[id].type = 4;
     d->params[id].v = v;
 }
 
 void ParamDict::set(int id, const std::string& s)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+        return;
+
     d->params[id].type = 7;
     d->params[id].s = s;
 }
@@ -159,123 +178,142 @@ void ParamDict::clear()
     }
 }
 
+static bool valid_array_length(size_t len)
+{
+    // leave room for Mat alignment, the reference count and fastMalloc overhead
+    const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
+    return len <= INT_MAX && len <= max_len;
+}
+
 #if NCNN_STRING
-static bool vstr_is_float(const char vstr[16])
+static bool vstr_is_float(const char* vstr)
 {
-    // look ahead for determine isfloat
-    for (int j = 0; j < 16; j++)
-    {
-        if (vstr[j] == '\0')
-            break;
-
-        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
-            return true;
-    }
-
-    return false;
+    return strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E');
 }
 
-static bool vstr_is_string(const char vstr[16])
+static bool vstr_to_int(const char* p, int& v)
 {
-    return isalpha(vstr[0]) || vstr[0] == '\"';
-}
-
-static float vstr_to_float(const char vstr[16])
-{
-    double v = 0.0;
-
-    const char* p = vstr;
-
-    // sign
-    bool sign = *p != '-';
+    const bool negative = *p == '-';
     if (*p == '+' || *p == '-')
-    {
         p++;
-    }
 
-    // digits before decimal point or exponent
-    unsigned int v1 = 0;
-    while (isdigit(*p))
+    if (*p < '0' || *p > '9')
+        return false;
+
+    const unsigned int limit = negative ? (unsigned int)INT_MAX + 1u : (unsigned int)INT_MAX;
+    unsigned int magnitude = 0;
+    while (*p >= '0' && *p <= '9')
     {
-        v1 = v1 * 10 + (*p - '0');
-        p++;
+        const unsigned int digit = *p++ - '0';
+        if (magnitude > (limit - digit) / 10)
+            return false;
+        magnitude = magnitude * 10 + digit;
     }
+    if (*p != '\0')
+        return false;
 
-    v = (double)v1;
+    v = negative ? (magnitude == (unsigned int)INT_MAX + 1u ? INT_MIN : -(int)magnitude) : (int)magnitude;
+    return true;
+}
 
-    // digits after decimal point
+static bool vstr_to_float(const char* p, float& value)
+{
+    const bool negative = *p == '-';
+    if (*p == '+' || *p == '-')
+        p++;
+
+    double v = 0.0;
+    bool has_digit = false;
+    while (*p >= '0' && *p <= '9')
+    {
+        has_digit = true;
+        v = v * 10.0 + (*p++ - '0');
+    }
     if (*p == '.')
     {
         p++;
-
-        unsigned int pow10 = 1;
-        unsigned int v2 = 0;
-
-        while (isdigit(*p))
+        double scale = 0.1;
+        while (*p >= '0' && *p <= '9')
         {
-            v2 = v2 * 10 + (*p - '0');
-            pow10 *= 10;
-            p++;
+            has_digit = true;
+            v += (*p++ - '0') * scale;
+            scale *= 0.1;
         }
-
-        v += v2 / (double)pow10;
     }
+    if (!has_digit)
+        return false;
 
-    // exponent
     if (*p == 'e' || *p == 'E')
     {
         p++;
-
-        // sign of exponent
-        bool fact = *p != '-';
+        const bool negative_exponent = *p == '-';
         if (*p == '+' || *p == '-')
+            p++;
+        if (*p < '0' || *p > '9')
+            return false;
+
+        // saturate the exponent instead of overflowing or looping over its value
+        unsigned int exponent = 0;
+        while (*p >= '0' && *p <= '9')
         {
+            if (exponent < 1024)
+                exponent = std::min(1024u, exponent * 10 + (*p - '0'));
             p++;
         }
-
-        // digits of exponent
-        unsigned int expon = 0;
-        while (isdigit(*p))
+        if (v != 0.0)
         {
-            expon = expon * 10 + (*p - '0');
-            p++;
+            double scale = 1.0;
+            double base = 10.0;
+            while (exponent)
+            {
+                if (exponent & 1)
+                    scale *= base;
+                exponent >>= 1;
+                if (exponent)
+                    base *= base;
+            }
+            v = negative_exponent ? v / scale : v * scale;
         }
-
-        double scale = 1.0;
-        while (expon >= 8)
-        {
-            scale *= 1e8;
-            expon -= 8;
-        }
-        while (expon > 0)
-        {
-            scale *= 10.0;
-            expon -= 1;
-        }
-
-        v = fact ? v * scale : v / scale;
     }
+    if (*p != '\0' || v > FLT_MAX)
+        return false;
 
-    //     fprintf(stderr, "v = %f\n", v);
-    return sign ? (float)v : (float)-v;
+    value = negative ? (float)-v : (float)v;
+    return true;
+}
+
+static int scan_numeric_value(const DataReader& dr, char vstr[128])
+{
+    if (dr.scan("%127[^, \t\r\n\v\f]", vstr) != 1)
+        return 0;
+
+    // a field-width limit must not silently split a numeric token
+    char extra[2];
+    if (strlen(vstr) == 127 && dr.scan("%1[^, \t\r\n\v\f]", extra) == 1)
+        return -1;
+
+    return 1;
 }
 
 int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
-    // 0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
-    // 3=0.1,0.2,0.4,0.8,1.0
-
-    // parse each key=value pair
-    int id = 0;
-    while (dr.scan("%d=", &id) == 1)
+    // stop before the next layer name, leaving it for Net to parse
+    char idstr[16];
+    while (dr.scan(" %15[+-0123456789]", idstr) == 1)
     {
-        bool is_array = id <= -23300;
-        if (is_array)
+        int id;
+        char delimiter[2];
+        if (!vstr_to_int(idstr, id) || dr.scan("%1[=]", delimiter) != 1)
         {
-            id = -id - 23300;
+            NCNN_LOGE("ParamDict invalid parameter id or missing equals sign");
+            return -1;
         }
+
+        const bool old_array = id <= -23300;
+        if (old_array)
+            id = -(id + 23300);
 
         if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         {
@@ -283,203 +321,168 @@ int ParamDict::load_param(const DataReader& dr)
             return -1;
         }
 
-        if (is_array)
+        if (old_array)
         {
-            // old style array
-            int len = 0;
-            int nscan = dr.scan("%d", &len);
-            if (nscan != 1)
+            char vstr[128];
+            int len;
+            if (scan_numeric_value(dr, vstr) != 1 || !vstr_to_int(vstr, len) || !valid_array_length((size_t)len))
             {
-                NCNN_LOGE("ParamDict read array length failed");
+                NCNN_LOGE("ParamDict invalid array length (id=%d)", id);
                 return -1;
             }
 
-            d->params[id].v.create(len);
+            Mat v(len);
+            if (len > 0 && v.empty())
+            {
+                NCNN_LOGE("ParamDict array allocation failed (id=%d, len=%d)", id, len);
+                return -1;
+            }
 
+            bool is_float = false;
             for (int j = 0; j < len; j++)
             {
-                char vstr[16];
-                nscan = dr.scan(",%15[^,\n ]", vstr);
-                if (nscan != 1)
+                if (dr.scan("%1[,]", delimiter) != 1 || scan_numeric_value(dr, vstr) != 1)
                 {
                     NCNN_LOGE("ParamDict read array element failed");
                     return -1;
                 }
+                if (j == 0)
+                    is_float = vstr_is_float(vstr);
 
-                bool is_float = vstr_is_float(vstr);
-
-                if (is_float)
+                const bool ok = is_float ? vstr_to_float(vstr, ((float*)v)[j]) : vstr_to_int(vstr, ((int*)v)[j]);
+                if (!ok)
                 {
-                    float* ptr = d->params[id].v;
-                    ptr[j] = vstr_to_float(vstr);
+                    NCNN_LOGE("ParamDict invalid array element (id=%d, index=%d)", id, j);
+                    return -1;
                 }
-                else
-                {
-                    int* ptr = d->params[id].v;
-                    nscan = sscanf(vstr, "%d", &ptr[j]);
-                    if (nscan != 1)
-                    {
-                        NCNN_LOGE("ParamDict parse array element failed");
-                        return -1;
-                    }
-                }
-
-                d->params[id].type = is_float ? 6 : 5;
+            }
+            // extra elements are not a new parameter or the next layer
+            if (dr.scan("%1[,]", delimiter) == 1)
+            {
+                NCNN_LOGE("ParamDict array length mismatch (id=%d)", id);
+                return -1;
             }
 
+            d->params[id].v = v;
+            d->params[id].type = len == 0 ? 4 : is_float ? 6 : 5;
             continue;
         }
 
-        char vstr[16];
-        char comma[4];
-        int nscan = dr.scan("%15[^,\n ]", vstr);
-        if (nscan != 1)
+        char first[2];
+        if (dr.scan("%1[\"a-zA-Z]", first) == 1)
+        {
+            char text[256] = {0};
+            const bool quoted = first[0] == '\"';
+            if (quoted)
+            {
+                dr.scan("%255[^\"\r\n]", text);
+                if (dr.scan("%1[\"]", delimiter) != 1)
+                {
+                    NCNN_LOGE("ParamDict unterminated or too long string (id=%d)", id);
+                    return -1;
+                }
+            }
+            else
+            {
+                text[0] = first[0];
+                dr.scan("%254[^ \t\r\n\v\f]", text + 1);
+            }
+            if (dr.scan("%1[^ \t\r\n\v\f]", delimiter) == 1)
+            {
+                NCNN_LOGE("ParamDict invalid string suffix or string too long (id=%d)", id);
+                return -1;
+            }
+
+            d->params[id].s = text;
+            d->params[id].type = 7;
+            continue;
+        }
+
+        char vstr[128];
+        if (scan_numeric_value(dr, vstr) != 1)
         {
             NCNN_LOGE("ParamDict read value failed");
             return -1;
         }
 
-        bool is_string = vstr_is_string(vstr);
-        if (is_string)
+        const bool is_float = vstr_is_float(vstr);
+        float f = 0.f;
+        int i = 0;
+        if (!(is_float ? vstr_to_float(vstr, f) : vstr_to_int(vstr, i)))
         {
-            // scan the remaining string
-            char vstr2[256];
-            vstr2[241] = '\0'; // max 255 = 15 + 240
-
-            if (vstr[0] == '\"')
-            {
-                int len = 0;
-                while (vstr[len] != '\0')
-                    len++;
-                char end = vstr[len - 1];
-                if (end != '\"')
-                {
-                    nscan = dr.scan("%255[^\"\n]\"", vstr2);
-                }
-                else
-                    nscan = 0; // already ended with a quote, no need to scan more
-            }
-            else
-            {
-                nscan = dr.scan("%255[^\n ]", vstr2);
-            }
-            if (nscan == 1)
-            {
-                if (vstr2[241] != '\0')
-                {
-                    NCNN_LOGE("string too long (id=%d)", id);
-                    return -1;
-                }
-
-                if (vstr[0] == '\"')
-                    d->params[id].s = std::string(&vstr[1]) + vstr2;
-                else
-                    d->params[id].s = std::string(vstr) + vstr2;
-            }
-            else
-            {
-                if (vstr[0] == '\"')
-                    d->params[id].s = std::string(&vstr[1]);
-                else
-                    d->params[id].s = std::string(vstr);
-            }
-
-            if (d->params[id].s[d->params[id].s.size() - 1] == '\"')
-                d->params[id].s.resize(d->params[id].s.size() - 1);
-
-            d->params[id].type = 7;
-
-            continue;
+            NCNN_LOGE("ParamDict invalid numeric value (id=%d)", id);
+            return -1;
         }
 
-        bool is_float = vstr_is_float(vstr);
-
-        nscan = dr.scan("%1[,]", comma);
-        is_array = nscan == 1;
-
-        if (is_array)
+        if (dr.scan("%1[,]", delimiter) == 1)
         {
-            std::vector<float> af;
-            std::vector<int> ai;
-
+            Mat values(16);
+            if (values.empty())
+            {
+                NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
+                return -1;
+            }
+            int len = 1;
             if (is_float)
-            {
-                af.push_back(vstr_to_float(vstr));
-            }
+                ((float*)values)[0] = f;
             else
-            {
-                int v = 0;
-                nscan = sscanf(vstr, "%d", &v);
-                if (nscan != 1)
-                {
-                    NCNN_LOGE("ParamDict parse value failed");
-                    return -1;
-                }
-
-                ai.push_back(v);
-            }
+                ((int*)values)[0] = i;
 
             while (1)
             {
-                nscan = dr.scan("%15[^,\n ]", vstr);
-                if (nscan != 1)
+                const int nscan = scan_numeric_value(dr, vstr);
+                // a trailing comma is the established syntax for a one-element array
+                if (nscan == 0)
                 {
+                    if (dr.scan("%1[,]", delimiter) == 1)
+                        return -1;
                     break;
                 }
-
-                if (is_float)
+                if (nscan < 0 || !valid_array_length((size_t)len + 1) || !(is_float ? vstr_to_float(vstr, f) : vstr_to_int(vstr, i)))
                 {
-                    af.push_back(vstr_to_float(vstr));
+                    NCNN_LOGE("ParamDict invalid array element (id=%d)", id);
+                    return -1;
                 }
-                else
+                if (len == values.w)
                 {
-                    int v = 0;
-                    nscan = sscanf(vstr, "%d", &v);
-                    if (nscan != 1)
+                    size_t capacity = (size_t)values.w * 2;
+                    if (!valid_array_length(capacity))
+                        capacity = (size_t)len + 1;
+                    Mat grown((int)capacity);
+                    if (grown.empty())
                     {
-                        NCNN_LOGE("ParamDict parse value failed");
+                        NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
                         return -1;
                     }
-
-                    ai.push_back(v);
+                    memcpy(grown.data, values.data, (size_t)len * sizeof(float));
+                    values = grown;
                 }
+                if (is_float)
+                    ((float*)values)[len] = f;
+                else
+                    ((int*)values)[len] = i;
+                len++;
 
-                nscan = dr.scan("%1[,]", comma);
-                if (nscan != 1)
-                {
+                if (dr.scan("%1[,]", delimiter) != 1)
                     break;
-                }
             }
 
-            if (is_float)
+            Mat v(len);
+            if (v.empty())
             {
-                d->params[id].v.create((int)af.size());
-                memcpy(d->params[id].v.data, af.data(), af.size() * 4);
+                NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
+                return -1;
             }
-            else
-            {
-                d->params[id].v.create((int)ai.size());
-                memcpy(d->params[id].v.data, ai.data(), ai.size() * 4);
-            }
-
+            memcpy(v.data, values.data, (size_t)len * sizeof(float));
+            d->params[id].v = v;
             d->params[id].type = is_float ? 6 : 5;
         }
         else
         {
             if (is_float)
-            {
-                d->params[id].f = vstr_to_float(vstr);
-            }
+                d->params[id].f = f;
             else
-            {
-                nscan = sscanf(vstr, "%d", &d->params[id].i);
-                if (nscan != 1)
-                {
-                    NCNN_LOGE("ParamDict parse value failed");
-                    return -1;
-                }
-            }
-
+                d->params[id].i = i;
             d->params[id].type = is_float ? 3 : 2;
         }
     }
@@ -524,11 +527,11 @@ int ParamDict::load_param_bin(const DataReader& dr)
         bool is_string = id <= -23400;
         if (is_string)
         {
-            id = -id - 23400;
+            id = -(id + 23400);
         }
         else if (is_array)
         {
-            id = -id - 23300;
+            id = -(id + 23300);
         }
 
         if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
@@ -551,16 +554,15 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
-            if (len > 255)
+            if (len < 0 || len > 255)
             {
-                NCNN_LOGE("string too long (id=%d)", id);
+                NCNN_LOGE("invalid string length %d (id=%d)", len, id);
                 return -1;
             }
 
             size_t len_padded = (len + 3) / 4 * 4;
-            std::vector<char> tmpstr(len_padded + 1);
-
-            char* ptr = (char*)tmpstr.data();
+            char tmpstr[256];
+            char* ptr = tmpstr;
             nread = dr.read(ptr, len_padded);
             if (nread != len_padded)
             {
@@ -568,9 +570,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            tmpstr[len_padded] = '\0';
-
-            d->params[id].s = tmpstr.data();
+            d->params[id].s.resize(len);
+            if (len > 0)
+                memcpy(&d->params[id].s[0], tmpstr, len);
 
             d->params[id].type = 7;
         }
@@ -588,10 +590,21 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
-            d->params[id].v.create(len);
+            if (!valid_array_length((size_t)len))
+            {
+                NCNN_LOGE("ParamDict invalid array length %d (id=%d)", len, id);
+                return -1;
+            }
 
-            float* ptr = d->params[id].v;
-            nread = dr.read(ptr, sizeof(float) * len);
+            Mat v(len);
+            if (len > 0 && v.empty())
+            {
+                NCNN_LOGE("ParamDict array allocation failed (id=%d, len=%d)", id, len);
+                return -1;
+            }
+
+            float* ptr = v;
+            nread = len == 0 ? 0 : dr.read(ptr, sizeof(float) * len);
             if (nread != sizeof(float) * len)
             {
                 NCNN_LOGE("ParamDict read array element failed %zd", nread);
@@ -605,6 +618,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             }
 #endif
 
+            d->params[id].v = v;
             d->params[id].type = 4;
         }
         else

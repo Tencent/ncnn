@@ -28,9 +28,11 @@ public:
     // assign
     ParamDict& operator=(const ParamDict&);
 
-    // get type
+    // get type, or 0 for an invalid id
     int type(int id) const;
 
+    // getters return the default for an invalid id or mismatched type
+    // binary scalar and array types remain untyped int/float data
     // get int
     int get(int id, int def) const;
     // get float
@@ -40,6 +42,7 @@ public:
     // get string
     std::string get(int id, const std::string& def) const;
 
+    // setters ignore invalid ids
     // set int
     void set(int id, int i);
     // set float
