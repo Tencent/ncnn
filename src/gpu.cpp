@@ -291,6 +291,7 @@ public:
     void query_extension_features();
     void query_extension_properties();
     void evaluate_rough_score();
+    void resolve_fast_workgroup_memory();
 
 public:
     int device_index;
@@ -329,6 +330,7 @@ public:
     bool unified_compute_transfer_queue;
     bool resizable_bar_enabled;
     bool support_image_storage;
+    bool fast_workgroup_memory;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -1348,6 +1350,58 @@ void GpuInfoPrivate::evaluate_rough_score()
     }
 }
 
+void GpuInfoPrivate::resolve_fast_workgroup_memory()
+{
+    fast_workgroup_memory = false;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+        return;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        fast_workgroup_memory = true;
+        return;
+    }
+
+    switch (physicalDeviceProperties.vendorID)
+    {
+    case 0x1002:
+    case 0x10de:
+    case 0x106b:
+    {
+        // amd nvidia apple
+        fast_workgroup_memory = true;
+        break;
+    }
+    case 0x8086:
+    {
+        // intel
+        fast_workgroup_memory = true;
+        break;
+    }
+    case 0x5143:
+    {
+        // qcom adreno
+        fast_workgroup_memory = true;
+        break;
+    }
+    case 0x1010:
+    {
+        // imagination
+        fast_workgroup_memory = true;
+        break;
+    }
+    case 0x13b5:
+    {
+        // arm mali
+        fast_workgroup_memory = false;
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 static int get_vendor_default_subgroup_size(uint32_t vendorID)
 {
     int default_size = 64;  // default to 64
@@ -1986,6 +2040,11 @@ bool GpuInfo::resizable_bar_enabled() const
 bool GpuInfo::support_image_storage() const
 {
     return d->support_image_storage;
+}
+
+bool GpuInfo::fast_workgroup_memory() const
+{
+    return d->fast_workgroup_memory;
 }
 
 uint32_t GpuInfo::subgroup_size() const
@@ -3261,6 +3320,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_properties();
 
         gpu_info.d->evaluate_rough_score();
+        gpu_info.d->resolve_fast_workgroup_memory();
 
         NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
