@@ -178,11 +178,16 @@ void ParamDict::clear()
     }
 }
 
-static bool valid_array_length(size_t len)
+static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
     const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
-    return len <= INT_MAX && len <= max_len;
+    return std::min((size_t)INT_MAX, max_len);
+}
+
+static bool valid_array_length(size_t len)
+{
+    return len <= max_array_length();
 }
 
 #if NCNN_STRING
@@ -262,6 +267,7 @@ static bool vstr_to_float(const char* p, float& value)
         }
         if (v != 0.0)
         {
+            // tokens are limited to 127 characters, so an infinite scale implies float overflow or underflow
             double scale = 1.0;
             double base = 10.0;
             while (exponent)
@@ -439,19 +445,20 @@ int ParamDict::load_param(const DataReader& dr)
                 if (nscan == 0)
                 {
                     if (dr.scan("%1[,]", delimiter) == 1)
+                    {
+                        NCNN_LOGE("ParamDict missing array element (id=%d, index=%d)", id, len);
                         return -1;
+                    }
                     break;
                 }
                 if (nscan < 0 || !valid_array_length((size_t)len + 1) || !(is_float ? vstr_to_float(vstr, f) : vstr_to_int(vstr, i)))
                 {
-                    NCNN_LOGE("ParamDict invalid array element (id=%d)", id);
+                    NCNN_LOGE("ParamDict invalid array element (id=%d, index=%d)", id, len);
                     return -1;
                 }
                 if (len == values.w)
                 {
-                    size_t capacity = (size_t)values.w * 2;
-                    if (!valid_array_length(capacity))
-                        capacity = (size_t)len + 1;
+                    const size_t capacity = std::min((size_t)values.w * 2, max_array_length());
                     Mat grown((int)capacity);
                     if (grown.empty())
                     {
@@ -471,14 +478,21 @@ int ParamDict::load_param(const DataReader& dr)
                     break;
             }
 
-            Mat v(len);
-            if (v.empty())
+            if (len == values.w)
             {
-                NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
-                return -1;
+                d->params[id].v = values;
             }
-            memcpy(v.data, values.data, (size_t)len * sizeof(float));
-            d->params[id].v = v;
+            else
+            {
+                Mat v(len);
+                if (v.empty())
+                {
+                    NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
+                    return -1;
+                }
+                memcpy(v.data, values.data, (size_t)len * sizeof(float));
+                d->params[id].v = v;
+            }
             d->params[id].type = is_float ? 6 : 5;
         }
         else
@@ -517,7 +531,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
     nread = dr.read(&id, sizeof(int));
     if (nread != sizeof(int))
     {
-        NCNN_LOGE("ParamDict read id failed %zd", nread);
+        NCNN_LOGE("ParamDict read id failed %zu", nread);
         return -1;
     }
 
@@ -550,7 +564,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(&len, sizeof(int));
             if (nread != sizeof(int))
             {
-                NCNN_LOGE("ParamDict read array length failed %zd", nread);
+                NCNN_LOGE("ParamDict read string length failed %zu", nread);
                 return -1;
             }
 
@@ -570,13 +584,13 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(ptr, len_padded);
             if (nread != len_padded)
             {
-                NCNN_LOGE("ParamDict read string failed %zd", nread);
+                NCNN_LOGE("ParamDict read string failed %zu", nread);
                 return -1;
             }
 
-            d->params[id].s.resize(len);
-            if (len > 0)
-                memcpy(&d->params[id].s[0], tmpstr, len);
+            // preserve text string semantics without including alignment padding
+            tmpstr[len] = '\0';
+            d->params[id].s = tmpstr;
 
             d->params[id].type = 7;
         }
@@ -586,7 +600,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(&len, sizeof(int));
             if (nread != sizeof(int))
             {
-                NCNN_LOGE("ParamDict read array length failed %zd", nread);
+                NCNN_LOGE("ParamDict read array length failed %zu", nread);
                 return -1;
             }
 
@@ -611,7 +625,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = len == 0 ? 0 : dr.read(ptr, sizeof(float) * len);
             if (nread != sizeof(float) * len)
             {
-                NCNN_LOGE("ParamDict read array element failed %zd", nread);
+                NCNN_LOGE("ParamDict read array element failed %zu", nread);
                 return -1;
             }
 
@@ -630,7 +644,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(&d->params[id].f, sizeof(float));
             if (nread != sizeof(float))
             {
-                NCNN_LOGE("ParamDict read value failed %zd", nread);
+                NCNN_LOGE("ParamDict read value failed %zu", nread);
                 return -1;
             }
 
@@ -644,7 +658,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
         nread = dr.read(&id, sizeof(int));
         if (nread != sizeof(int))
         {
-            NCNN_LOGE("ParamDict read EOP failed %zd", nread);
+            NCNN_LOGE("ParamDict read EOP failed %zu", nread);
             return -1;
         }
 
