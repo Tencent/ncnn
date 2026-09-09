@@ -705,7 +705,7 @@ static int test_paramdict_access()
         pd.set(id, array);
         pd.set(id, text);
         if (pd.type(id) != 0 || pd.get(id, 7) != 7 || pd.get(id, 7.f) != 7.f
-            || pd.get(id, array).data != array.data || pd.get(id, text) != text)
+                || pd.get(id, array).data != array.data || pd.get(id, text) != text)
         {
             fprintf(stderr, "ParamDict invalid id access failed %d\n", id);
             return -1;
@@ -715,10 +715,10 @@ static int test_paramdict_access()
         return -1;
 
     if (pd.get(0, 7.f) != 7.f || pd.get(1, 7) != 7
-        || pd.get(2, 7) != 7 || pd.get(2, 7.f) != 7.f
-        || pd.get(3, 7) != 7 || pd.get(3, 7.f) != 7.f
-        || pd.get(0, array).data != array.data || pd.get(0, text) != text
-        || pd.get(3, array).data != array.data || pd.get(2, text) != text)
+            || pd.get(2, 7) != 7 || pd.get(2, 7.f) != 7.f
+            || pd.get(3, 7) != 7 || pd.get(3, 7.f) != 7.f
+            || pd.get(0, array).data != array.data || pd.get(0, text) != text
+            || pd.get(3, array).data != array.data || pd.get(2, text) != text)
     {
         fprintf(stderr, "ParamDict mismatched type access failed\n");
         return -1;
@@ -734,8 +734,8 @@ static int test_paramdict_access()
     assigned = pd;
     assigned = assigned;
     if (!copied.get(2, ncnn::Mat()).empty() || copied.get(3, std::string()) != ""
-        || !assigned.get(2, ncnn::Mat()).empty() || assigned.get(3, std::string()) != ""
-        || copied.get(2, 0) != 22 || assigned.get(3, 0) != 33)
+            || !assigned.get(2, ncnn::Mat()).empty() || assigned.get(3, std::string()) != ""
+            || copied.get(2, 0) != 22 || assigned.get(3, 0) != 33)
     {
         fprintf(stderr, "ParamDict retagged copy access failed\n");
         return -1;
@@ -812,16 +812,16 @@ static int test_paramdict_text_boundaries()
     if (check_text_result(text, true) || pd.load_param(text))
         return -1;
     if (pd.get(0, 0) != INT_MIN || pd.get(1, 0) != INT_MAX
-        || pd.type(2) != 7 || pd.get(2, std::string("default")) != "" || pd.get(3, std::string()) != " "
-        || pd.type(7) != 4 || !pd.get(7, ncnn::Mat()).empty()
-        || pd.get(8, 1.f) != 0.f || pd.get(9, 1.f) != 0.f || pd.get(10, 0.f) != 0.5f
-        || pd.get(11, 0.f) != 4294967296.f)
+            || pd.type(2) != 7 || pd.get(2, std::string("default")) != "" || pd.get(3, std::string()) != " "
+            || pd.type(7) != 4 || !pd.get(7, ncnn::Mat()).empty()
+            || pd.get(8, 1.f) != 0.f || pd.get(9, 1.f) != 0.f || pd.get(10, 0.f) != 0.5f
+            || pd.get(11, 0.f) != 4294967296.f)
         return -1;
     ncnn::Mat a = pd.get(4, ncnn::Mat());
     ncnn::Mat b = pd.get(5, ncnn::Mat());
     ncnn::Mat c = pd.get(6, ncnn::Mat());
     if (a.w != 3 || a[0] != 1.f || a[1] != 2.f || a[2] != -3.f
-        || b.w != 1 || ((const int*)b)[0] != 7 || c.w != 2 || c[0] != 1.f || c[1] != 2.f)
+            || b.w != 1 || ((const int*)b)[0] != 7 || c.w != 2 || c[0] != 1.f || c[1] != 2.f)
         return -1;
 
     const int lengths[] = {1, 14, 15, 16, 240, 241, 254, 255};
@@ -832,7 +832,7 @@ static int test_paramdict_text_boundaries()
         {
             const std::string input = quoted ? "0=\"" + value + "\" 1=19" : "0=" + value + " 1=19";
             if (check_text_result(input.c_str(), true) || pd.load_param(input.c_str())
-                || pd.get(0, std::string()) != value || pd.get(1, 0) != 19)
+                    || pd.get(0, std::string()) != value || pd.get(1, 0) != 19)
             {
                 fprintf(stderr, "ParamDict string boundary failed len=%d quoted=%d\n", lengths[i], quoted);
                 return -1;
@@ -890,6 +890,7 @@ public:
         }
         return n;
     }
+
 private:
     mutable const unsigned char* ptr;
     mutable size_t remaining;
@@ -982,12 +983,12 @@ static int test_paramdict_binary_bounds()
     ParamDictTest pd;
     BoundedParamReader reader(data.data(), data.size());
     if (pd.load_param_bin(reader) || pd.get(0, 0) != 0x3f800000 || pd.get(0, 0.f) != 1.f
-        || pd.get(1, ncnn::Mat()).w != 1 || pd.get(1, ncnn::Mat())[0] != 1.f
-        || pd.type(2) != 4 || !pd.get(2, ncnn::Mat()).empty()
-        || pd.type(3) != 7 || pd.get(3, std::string("default")) != ""
-        || pd.get(4, std::string()) != "a" || pd.get(5, std::string()).size() != 3
-        || pd.get(5, std::string())[0] != 'a' || pd.get(5, std::string())[1] != '\0' || pd.get(5, std::string())[2] != 'b'
-        || pd.get(6, std::string()) != make_param_string(255, 'q'))
+            || pd.get(1, ncnn::Mat()).w != 1 || pd.get(1, ncnn::Mat())[0] != 1.f
+            || pd.type(2) != 4 || !pd.get(2, ncnn::Mat()).empty()
+            || pd.type(3) != 7 || pd.get(3, std::string("default")) != ""
+            || pd.get(4, std::string()) != "a" || pd.get(5, std::string()).size() != 3
+            || pd.get(5, std::string())[0] != 'a' || pd.get(5, std::string())[1] != '\0' || pd.get(5, std::string())[2] != 'b'
+            || pd.get(6, std::string()) != make_param_string(255, 'q'))
         return -1;
 
     // every truncation, including missing EOP and short scalar/array/string data, fails
