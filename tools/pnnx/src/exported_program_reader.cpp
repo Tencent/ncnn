@@ -3,12 +3,18 @@
 
 #include "exported_program.h"
 
+#include <algorithm>
+#include <climits>
 #include <limits>
+#include <new>
+#include <stdexcept>
+#include <utility>
 
+#if PNNX_TORCH_HAS_PICKLE_LOAD
 #include <torch/serialize.h>
+#endif
 
 #include "json.h"
-#include "model_format.h"
 #include "storezip.h"
 
 namespace pnnx {
@@ -38,10 +44,7 @@ public:
         if (torch_version && !get_string(*torch_version, program.torch_version, "torch_version"))
             return false;
 
-        if (program.schema_version.major != 8)
-            return fail("schema_version", "unsupported exported program schema major");
-
-        return true;
+        return validate_exported_program_version(program, error);
     }
 
     bool decode_payload_config(const JsonValue& root, std::map<std::string, PayloadMeta>& payloads, const std::string& path)
@@ -66,8 +69,8 @@ public:
 
             PayloadMeta payload;
             if (!get_string(*path_name, payload.path, item_path + ".path_name")
-                || !get_bool(*is_parameter, payload.is_parameter, item_path + ".is_param")
-                || !get_bool(*use_pickle, payload.use_pickle, item_path + ".use_pickle"))
+                    || !get_bool(*is_parameter, payload.is_parameter, item_path + ".is_param")
+                    || !get_bool(*use_pickle, payload.use_pickle, item_path + ".use_pickle"))
                 return false;
 
             if (!tensor_meta->is_null())
@@ -132,7 +135,149 @@ private:
     {
         const JsonValue* graph = member(value, "graph", "graph_module");
         const JsonValue* signature = member(value, "signature", "graph_module");
-        return graph && signature && decode_graph(*graph, program.graph) && decode_signature(*signature, program.signature);
+        return graph && signature && decode_graph(*graph, program.graph) && decode_signature(*signature, program.signature)
+               && validate_call_graph(value, program.signature);
+    }
+
+    bool tree_leaf(const JsonValue& value) const
+    {
+        const JsonValue* type = value.get("type");
+        const JsonValue* context = value.get("context");
+        const JsonValue* children = value.get("children_spec");
+        return type && type->is_null() && context && context->is_null()
+               && children && children->get_array() && children->get_array()->empty();
+    }
+
+    const std::vector<JsonValue>* tree_children(const JsonValue& value, const char* expected_type, bool empty_dict = false) const
+    {
+        const JsonValue* type = value.get("type");
+        const JsonValue* context = value.get("context");
+        const JsonValue* children = value.get("children_spec");
+        if (!type || !type->get_string() || *type->get_string() != expected_type
+                || !context || !context->get_string() || !children || !children->get_array())
+            return 0;
+
+        // Protocol 1 encodes tuple/dict context as a JSON STRING, unlike a
+        // leaf's literal null context. Parse it rather than guessing spellings.
+        JsonValue decoded_context;
+        std::string context_error;
+        if (!parse_json(*context->get_string(), decoded_context, context_error))
+            return 0;
+        if (empty_dict ? (!decoded_context.get_array() || !decoded_context.get_array()->empty()) : !decoded_context.is_null())
+            return 0;
+        return children->get_array();
+    }
+
+    bool parse_tree_spec(const JsonValue& signature, const char* name, JsonValue& document, const std::string& path)
+    {
+        const JsonValue* value = member(signature, name, path);
+        if (!value)
+            return false;
+        if (!value->get_string())
+            return fail(path + "." + name, "expected serialized PyTree TreeSpec string");
+        std::string parse_error;
+        if (!parse_json(*value->get_string(), document, parse_error))
+            return fail(path + "." + name, "invalid PyTree TreeSpec JSON: " + parse_error);
+        const std::vector<JsonValue>* spec = document.get_array();
+        int64_t protocol = 0;
+        if (!spec || spec->size() != 2 || !(*spec)[0].get_int(protocol) || protocol != 1)
+            return fail(path + "." + name, "unsupported PyTree TreeSpec protocol; expected protocol 1");
+        return true;
+    }
+
+    bool validate_call_signature(const JsonValue& value, const GraphSignature& signature, const std::string& path)
+    {
+        JsonValue input_document;
+        JsonValue output_document;
+        if (!parse_tree_spec(value, "in_spec", input_document, path) || !parse_tree_spec(value, "out_spec", output_document, path))
+            return false;
+
+        const JsonValue& input_tree = (*input_document.get_array())[1];
+        const std::vector<JsonValue>* call = tree_children(input_tree, "builtins.tuple");
+        if (!call || call->size() != 2)
+            return fail(path + ".in_spec", "unsupported PyTree input; expected (positional args, empty kwargs)");
+        const std::vector<JsonValue>* args = tree_children((*call)[0], "builtins.tuple");
+        const std::vector<JsonValue>* kwargs = tree_children((*call)[1], "builtins.dict", true);
+        if (!kwargs || !kwargs->empty())
+            return fail(path + ".in_spec", "unsupported PyTree kwargs; only flat positional tensor inputs are supported");
+        if (!args)
+            return fail(path + ".in_spec", "unsupported PyTree input; expected flat positional tensor inputs");
+        for (size_t i = 0; i < args->size(); i++)
+            if (!tree_leaf((*args)[i]))
+                return fail(path + ".in_spec", "unsupported PyTree nested input; dict/list/namedtuple inputs are not supported");
+
+        size_t input_count = 0;
+        for (size_t i = 0; i < signature.inputs.size(); i++)
+        {
+            const InputSpec& input = signature.inputs[i];
+            if (input.type == InputSpec::ConstantInput || (input.type == InputSpec::UserInput && input.argument.type != Argument::Tensor))
+                return fail(path + ".in_spec", "unsupported PyTree input leaf; only positional tensors are supported");
+            if (input.type == InputSpec::UserInput)
+                input_count++;
+        }
+        if (input_count != args->size())
+            return fail(path + ".in_spec", "PyTree input leaf count does not match graph signature");
+
+        const JsonValue& output_tree = (*output_document.get_array())[1];
+        size_t output_count = 1;
+        if (!tree_leaf(output_tree))
+        {
+            const std::vector<JsonValue>* outputs = tree_children(output_tree, "builtins.tuple");
+            if (!outputs || outputs->empty())
+                return fail(path + ".out_spec", "unsupported PyTree output; expected a tensor/scalar or a nonempty flat tensor/scalar tuple");
+            for (size_t i = 0; i < outputs->size(); i++)
+                if (!tree_leaf((*outputs)[i]))
+                    return fail(path + ".out_spec", "unsupported PyTree nested output; dict/list/namedtuple outputs are not supported");
+            output_count = outputs->size();
+        }
+        size_t user_outputs = 0;
+        for (size_t i = 0; i < signature.outputs.size(); i++)
+        {
+            if (signature.outputs[i].type != OutputSpec::UserOutput)
+                continue; // Mutations/tokens are rejected by the importer.
+            const Argument::Type type = signature.outputs[i].argument.type;
+            if (type != Argument::Tensor && type != Argument::Integer && type != Argument::FloatingPoint
+                    && type != Argument::Boolean && type != Argument::Complex && type != Argument::SymInteger
+                    && type != Argument::SymFloat && type != Argument::SymBoolean)
+                return fail(path + ".out_spec", "unsupported PyTree output leaf; expected tensor or numeric scalar");
+            user_outputs++;
+        }
+        if (output_count != user_outputs)
+            return fail(path + ".out_spec", "PyTree output leaf count does not match graph signature");
+        return true;
+    }
+
+    bool validate_call_graph(const JsonValue& module, const GraphSignature& signature)
+    {
+        const JsonValue* value = module.get("module_call_graph");
+        // Schema-only fixtures and older metadata callers may omit this field.
+        // If present and nonempty, the root calling convention must be known.
+        if (!value)
+            return true;
+        const std::vector<JsonValue>* calls = value->get_array();
+        if (!calls)
+            return fail("graph_module.module_call_graph", "expected array");
+        if (calls->empty())
+            return true;
+        bool found_root = false;
+        for (size_t i = 0; i < calls->size(); i++)
+        {
+            const std::string path = "graph_module.module_call_graph[" + std::to_string(i) + "]";
+            const JsonValue* fqn = member((*calls)[i], "fqn", path);
+            if (!fqn || !fqn->get_string())
+                return fail(path + ".fqn", "expected string");
+            if (!fqn->get_string()->empty())
+                continue; // Submodule trees are not the public flattened boundary.
+            if (found_root)
+                return fail(path, "duplicate root PyTree call signature");
+            found_root = true;
+            const JsonValue* call_signature = member((*calls)[i], "signature", path);
+            if (!call_signature || !call_signature->get_object())
+                return fail(path + ".signature", "missing root PyTree call signature");
+            if (!validate_call_signature(*call_signature, signature, path + ".signature"))
+                return false;
+        }
+        return found_root || fail("graph_module.module_call_graph", "missing root PyTree call signature");
     }
 
     bool decode_graph(const JsonValue& value, Graph& graph)
@@ -286,10 +431,14 @@ private:
             if (get_number(data, argument.floating_point, path + ".as_float", false))
                 return true;
             const std::string* value = data.get_string();
-            if (value && *value == "Infinity") argument.floating_point = std::numeric_limits<double>::infinity();
-            else if (value && *value == "-Infinity") argument.floating_point = -std::numeric_limits<double>::infinity();
-            else if (value && *value == "NaN") argument.floating_point = std::numeric_limits<double>::quiet_NaN();
-            else return fail(path + ".as_float", "expected number or non-finite float string");
+            if (value && *value == "Infinity")
+                argument.floating_point = std::numeric_limits<double>::infinity();
+            else if (value && *value == "-Infinity")
+                argument.floating_point = -std::numeric_limits<double>::infinity();
+            else if (value && *value == "NaN")
+                argument.floating_point = std::numeric_limits<double>::quiet_NaN();
+            else
+                return fail(path + ".as_float", "expected number or non-finite float string");
             return true;
         }
         if (type == "as_bool")
@@ -346,8 +495,7 @@ private:
         }
         if (type == "as_scalar_type" || type == "as_memory_format" || type == "as_layout")
         {
-            argument.type = type == "as_scalar_type" ? Argument::ScalarType : type == "as_memory_format" ? Argument::MemoryFormat
-                                                                                                         : Argument::Layout;
+            argument.type = type == "as_scalar_type" ? Argument::ScalarType : type == "as_memory_format" ? Argument::MemoryFormat : Argument::Layout;
             return get_int(data, argument.integer, path + "." + type);
         }
         if (type == "as_device")
@@ -376,9 +524,7 @@ private:
         if (!array)
             return fail(path, "expected array");
 
-        argument.type = type == "as_ints" ? Argument::Integers : type == "as_floats" ? Argument::FloatingPoints
-                                                             : type == "as_bools"    ? Argument::Booleans
-                                                                                     : Argument::Strings;
+        argument.type = type == "as_ints" ? Argument::Integers : type == "as_floats" ? Argument::FloatingPoints : type == "as_bools" ? Argument::Booleans : Argument::Strings;
         for (size_t i = 0; i < array->size(); i++)
         {
             Argument item;
@@ -464,10 +610,14 @@ private:
             if (get_number(object->begin()->second, argument.floating_point, path + ".as_float", false))
                 return true;
             const std::string* concrete = object->begin()->second.get_string();
-            if (concrete && *concrete == "Infinity") argument.floating_point = std::numeric_limits<double>::infinity();
-            else if (concrete && *concrete == "-Infinity") argument.floating_point = -std::numeric_limits<double>::infinity();
-            else if (concrete && *concrete == "NaN") argument.floating_point = std::numeric_limits<double>::quiet_NaN();
-            else return fail(path + ".as_float", "expected number or non-finite float string");
+            if (concrete && *concrete == "Infinity")
+                argument.floating_point = std::numeric_limits<double>::infinity();
+            else if (concrete && *concrete == "-Infinity")
+                argument.floating_point = -std::numeric_limits<double>::infinity();
+            else if (concrete && *concrete == "NaN")
+                argument.floating_point = std::numeric_limits<double>::quiet_NaN();
+            else
+                return fail(path + ".as_float", "expected number or non-finite float string");
             return true;
         }
         return fail(path, "unsupported symbolic argument variant");
@@ -603,6 +753,17 @@ private:
             InputSpec spec;
             const std::string& type = variant->begin()->first;
             const JsonValue& data = variant->begin()->second;
+            if (type == "constant_input")
+            {
+                spec.type = InputSpec::ConstantInput;
+                const JsonValue* name = member(data, "name", path + ".constant_input");
+                const JsonValue* value = member(data, "value", path + ".constant_input");
+                if (!name || !value || !get_string(*name, spec.target, path + ".constant_input.name") || !decode_argument(*value, spec.argument, path + ".constant_input.value"))
+                    return false;
+                result.push_back(spec);
+                continue;
+            }
+
             const JsonValue* arg = member(data, "arg", path + "." + type);
             if (!arg)
                 return false;
@@ -614,12 +775,10 @@ private:
             }
             else if (type == "parameter" || type == "buffer" || type == "tensor_constant")
             {
-                spec.type = type == "parameter" ? InputSpec::Parameter : type == "buffer" ? InputSpec::Buffer
-                                                                                          : InputSpec::TensorConstant;
+                spec.type = type == "parameter" ? InputSpec::Parameter : type == "buffer" ? InputSpec::Buffer : InputSpec::TensorConstant;
                 spec.argument.type = Argument::Tensor;
                 if (!decode_named_reference(*arg, spec.argument.name, path + "." + type + ".arg")) return false;
-                const char* target_name = type == "parameter" ? "parameter_name" : type == "buffer" ? "buffer_name"
-                                                                                                    : "tensor_constant_name";
+                const char* target_name = type == "parameter" ? "parameter_name" : type == "buffer" ? "buffer_name" : "tensor_constant_name";
                 const JsonValue* target = member(data, target_name, path + "." + type);
                 if (!target || !get_string(*target, spec.target, path + "." + type + "." + target_name)) return false;
                 if (type == "buffer")
@@ -745,20 +904,112 @@ static std::string common_archive_root(const std::vector<std::string>& names)
     return root;
 }
 
-static bool read_record(StoreZipReader& reader, const std::string& name, std::string& data, std::string& error)
+static const uint64_t PAYLOAD_MEMORY_BUDGET = 512ull * 1024 * 1024;
+
+// Consult the validated index only for records we consume. Unused attachments
+// may be compressed; no record-sized allocation or decompression happens here.
+static bool check_record_readable(const StoreZipReader& reader, const std::string& name, std::string& error)
 {
-    const uint64_t size = reader.get_file_size(name);
-    if (size > std::numeric_limits<size_t>::max() || size > 512ull * 1024 * 1024)
-    {
-        error = name + ": archive record exceeds size limit";
-        return false;
-    }
-    data.resize((size_t)size);
-    if (size && reader.read_file(name, &data[0]) != 0)
+    const int compression = reader.get_file_compression(name);
+    if (compression < 0)
     {
         error = name + ": failed to read archive record";
         return false;
     }
+    if (compression != 0)
+    {
+        error = "pt2 archive: unsupported ZIP compression; only STORE records are supported (checked before payload allocation)";
+        return false;
+    }
+    // Descriptor-mode and UTF-8 names are used by real torch exporters.
+    const int flags = reader.get_file_flags(name);
+    if (flags < 0 || (flags & ~(0x0008 | 0x0800)))
+    {
+        error = "pt2 archive: unsupported ZIP record flags";
+        return false;
+    }
+    return true;
+}
+
+static bool supported_host_byteorder(std::string& error)
+{
+    const uint32_t value = 0x01020304;
+    const unsigned char* bytes = (const unsigned char*)&value;
+    if (bytes[0] == 4 && bytes[1] == 3 && bytes[2] == 2 && bytes[3] == 1)
+        return true;
+    error = "pt2 byteorder: big-endian or unknown host byte order is not supported";
+    return false;
+}
+
+static bool read_record(StoreZipReader& reader, const std::string& name, std::string& data, uint64_t physical_size, std::string& error)
+{
+    if (!check_record_readable(reader, name, error))
+        return false;
+    const uint64_t size = reader.get_file_size(name);
+    if (size > std::numeric_limits<size_t>::max() || size > PAYLOAD_MEMORY_BUDGET || size > physical_size)
+    {
+        error = name + ": archive record exceeds size limit or physical archive size";
+        return false;
+    }
+    data.resize((size_t)size);
+    if (reader.read_file(name, size ? &data[0] : 0) != 0)
+    {
+        error = name + ": failed to read archive record";
+        return false;
+    }
+    return true;
+}
+
+static bool read_archive_marker(StoreZipReader& reader, const std::string& name, const char* label, std::string& value, uint64_t physical_size, std::string& error)
+{
+    if (!check_record_readable(reader, name, error))
+        return false;
+    const uint64_t size = reader.get_file_size(name);
+    if (size == 0 || size > 64 || !read_record(reader, name, value, physical_size, error))
+    {
+        error = std::string("failed to read pt2 archive ") + label;
+        return false;
+    }
+    return true;
+}
+
+static bool read_byteorder(StoreZipReader& reader, const std::vector<std::string>& names, const std::string& root, ExportedProgramArchive& archive, uint64_t physical_size, std::string& error)
+{
+    // PyTorchStreamWriter writes "byteorder", NOT ".data/byteorder". The
+    // inspected raw serde stores native CPU storage bytes, not a config field.
+    // Keep unmarked little-endian fixtures/checkpoints compatible; never guess
+    // native byte order on a big-endian host (rejected before opening the ZIP).
+    archive.byteorder = "little";
+    const std::string name = root + "byteorder";
+    if (std::find(names.begin(), names.end(), name) != names.end())
+    {
+        if (!check_record_readable(reader, name, error))
+            return false;
+        if (reader.get_file_size(name) > 16)
+        {
+            error = "byteorder: unknown raw tensor byte order";
+            return false;
+        }
+        if (!read_record(reader, name, archive.byteorder, physical_size, error))
+            return false;
+    }
+    if (archive.byteorder != "little")
+    {
+        error = archive.byteorder == "big" ? "byteorder: big-endian raw tensor payload is not supported"
+                : "byteorder: unknown raw tensor byte order";
+        return false;
+    }
+    return true;
+}
+
+static bool reserve_payload_memory(uint64_t size, uint64_t& used, std::string& error)
+{
+    if (size > PAYLOAD_MEMORY_BUDGET - used)
+    {
+        error = "tensor payloads exceed aggregate 512 MiB storage/materialization memory budget";
+        return false;
+    }
+    used += size;
     return true;
 }
 
@@ -771,6 +1022,7 @@ static bool parse_payload_config(const std::string& text, std::map<std::string, 
     return decoder.decode_payload_config(root, payloads, path);
 }
 
+#if PNNX_TORCH_HAS_PICKLE_LOAD
 static int serialized_scalar_type(c10::ScalarType scalar_type)
 {
     if (scalar_type == c10::ScalarType::Byte) return 1;
@@ -796,7 +1048,7 @@ static SymInt concrete_sym_int(int64_t value)
     return result;
 }
 
-static bool load_legacy_tensor_dict(const std::string& data, const std::string& directory, bool is_parameter, std::map<std::string, PayloadMeta>& payloads, std::map<std::string, std::vector<char> >& storages, std::string& error)
+static bool load_legacy_tensor_dict(const std::string& data, const std::string& directory, bool is_parameter, std::map<std::string, PayloadMeta>& payloads, std::map<std::string, std::vector<char> >& storages, uint64_t& memory_used, std::string& error)
 {
     torch::IValue value;
     try
@@ -846,6 +1098,21 @@ static bool load_legacy_tensor_dict(const std::string& data, const std::string& 
             return false;
         }
 
+        if (tensor.numel() < 0 || (uint64_t)tensor.numel() > PAYLOAD_MEMORY_BUDGET / tensor.element_size())
+        {
+            error = "legacy tensor exceeds 512 MiB materialization budget";
+            return false;
+        }
+        const uint64_t byte_count = (uint64_t)tensor.numel() * tensor.element_size();
+        // Reserve both the retained copy and dense materialization. Pickle's
+        // own allocations precede this check; this is not a pickle sandbox.
+        if (byte_count > std::numeric_limits<size_t>::max()
+                || !reserve_payload_memory(byte_count, memory_used, error)
+                || !reserve_payload_memory(byte_count, memory_used, error))
+        {
+            if (error.empty()) error = "legacy tensor payload is too large";
+            return false;
+        }
         const bool requires_grad = tensor.requires_grad();
         tensor = tensor.detach().to(c10::kCPU).contiguous();
 
@@ -864,12 +1131,6 @@ static bool load_legacy_tensor_dict(const std::string& data, const std::string& 
             payload.tensor_meta.strides.push_back(concrete_sym_int(tensor.stride(i)));
         }
 
-        const uint64_t byte_count = (uint64_t)tensor.numel() * tensor.element_size();
-        if (byte_count > std::numeric_limits<size_t>::max())
-        {
-            error = key.toStringRef() + ": legacy tensor payload is too large";
-            return false;
-        }
         std::vector<char>& storage = storages[directory + payload.path];
         storage.resize((size_t)byte_count);
         if (byte_count)
@@ -879,119 +1140,9 @@ static bool load_legacy_tensor_dict(const std::string& data, const std::string& 
 
     return true;
 }
+#endif
 
-static size_t scalar_type_size(int scalar_type)
-{
-    if (scalar_type == 1 || scalar_type == 2 || scalar_type == 12 || (scalar_type >= 29 && scalar_type <= 33)) return 1;
-    if (scalar_type == 3 || scalar_type == 6 || scalar_type == 13 || scalar_type == 28) return 2;
-    if (scalar_type == 4 || scalar_type == 7 || scalar_type == 9 || scalar_type == 34) return 4;
-    if (scalar_type == 5 || scalar_type == 8 || scalar_type == 10 || scalar_type == 35) return 8;
-    if (scalar_type == 11) return 16;
-    return 0;
-}
-
-static bool concrete_nonnegative(const SymInt& value, uint64_t& result)
-{
-    if (value.type != SymInt::Integer || value.integer < 0)
-        return false;
-    result = (uint64_t)value.integer;
-    return true;
-}
-
-static bool checked_add(uint64_t lhs, uint64_t rhs, uint64_t& result)
-{
-    if (rhs > std::numeric_limits<uint64_t>::max() - lhs)
-        return false;
-    result = lhs + rhs;
-    return true;
-}
-
-static bool checked_multiply(uint64_t lhs, uint64_t rhs, uint64_t& result)
-{
-    if (lhs != 0 && rhs > std::numeric_limits<uint64_t>::max() / lhs)
-        return false;
-    result = lhs * rhs;
-    return true;
-}
-
-static bool validate_tensor_storage(const PayloadMeta& payload, uint64_t storage_size, const std::string& name, std::string& error)
-{
-    if (payload.use_pickle)
-    {
-        error = name + ": pickled tensor payload is not supported";
-        return false;
-    }
-    if (!payload.has_tensor_meta)
-    {
-        error = name + ": tensor metadata is missing";
-        return false;
-    }
-
-    const TensorMeta& meta = payload.tensor_meta;
-    if (meta.sizes.size() != meta.strides.size())
-    {
-        error = name + ": tensor size and stride rank mismatch";
-        return false;
-    }
-
-    const size_t element_size = scalar_type_size(meta.scalar_type);
-    if (element_size == 0)
-    {
-        error = name + ": unsupported tensor scalar type " + std::to_string(meta.scalar_type);
-        return false;
-    }
-
-    uint64_t storage_offset = 0;
-    if (!concrete_nonnegative(meta.storage_offset, storage_offset))
-    {
-        error = name + ": storage offset must be a nonnegative integer";
-        return false;
-    }
-
-    bool empty = false;
-    uint64_t maximum_element = storage_offset;
-    for (size_t i = 0; i < meta.sizes.size(); i++)
-    {
-        uint64_t size = 0;
-        uint64_t stride = 0;
-        if (!concrete_nonnegative(meta.sizes[i], size) || !concrete_nonnegative(meta.strides[i], stride))
-        {
-            error = name + ": tensor sizes and strides must be nonnegative integers";
-            return false;
-        }
-        if (size == 0)
-        {
-            empty = true;
-            continue;
-        }
-
-        uint64_t extent = 0;
-        if (!checked_multiply(size - 1, stride, extent) || !checked_add(maximum_element, extent, maximum_element))
-        {
-            error = name + ": tensor storage range overflows uint64";
-            return false;
-        }
-    }
-
-    if (empty)
-        return true;
-
-    uint64_t required_elements = 0;
-    uint64_t required_bytes = 0;
-    if (!checked_add(maximum_element, 1, required_elements) || !checked_multiply(required_elements, element_size, required_bytes))
-    {
-        error = name + ": tensor storage size overflows uint64";
-        return false;
-    }
-    if (required_bytes > storage_size)
-    {
-        error = name + ": tensor view exceeds storage payload";
-        return false;
-    }
-    return true;
-}
-
-static bool load_payloads(StoreZipReader& reader, const std::string& root, const std::string& directory, const std::string& model_name, const std::string& config_suffix, std::map<std::string, PayloadMeta>& payloads, std::map<std::string, std::vector<char> >& storages, std::string& error)
+static bool load_payload_config(StoreZipReader& reader, const std::string& root, const std::string& directory, const std::string& model_name, const std::string& config_suffix, std::map<std::string, PayloadMeta>& payloads, uint64_t physical_size, std::string& error)
 {
     const std::string logical_config = directory + model_name + config_suffix;
     const std::string config_name = root + logical_config;
@@ -1003,9 +1154,12 @@ static bool load_payloads(StoreZipReader& reader, const std::string& root, const
     }
 
     std::string config;
-    if (!read_record(reader, config_name, config, error) || !parse_payload_config(config, payloads, logical_config, error))
-        return false;
+    return read_record(reader, config_name, config, physical_size, error) && parse_payload_config(config, payloads, logical_config, error);
+}
 
+static bool plan_payloads(StoreZipReader& reader, const std::string& root, const std::string& directory, const std::map<std::string, PayloadMeta>& payloads, std::map<std::string, uint64_t>& storage_sizes, uint64_t physical_size, uint64_t& memory_used, std::string& error)
+{
+    const std::vector<std::string> names = reader.get_names();
     for (std::map<std::string, PayloadMeta>::const_iterator it = payloads.begin(); it != payloads.end(); ++it)
     {
         const PayloadMeta& payload = it->second;
@@ -1017,36 +1171,68 @@ static bool load_payloads(StoreZipReader& reader, const std::string& root, const
 
         const std::string logical_storage = directory + payload.path;
         const std::string storage_name = root + logical_storage;
-        if (storages.find(logical_storage) == storages.end())
+        if (std::find(names.begin(), names.end(), storage_name) == names.end())
         {
-            if (std::find(names.begin(), names.end(), storage_name) == names.end())
-            {
-                error = logical_storage + ": missing tensor payload";
-                return false;
-            }
-
-            const uint64_t size = reader.get_file_size(storage_name);
-            if (size > std::numeric_limits<size_t>::max())
-            {
-                error = logical_storage + ": tensor payload is too large";
-                return false;
-            }
-            std::vector<char>& storage = storages[logical_storage];
-            storage.resize((size_t)size);
-            if (size && reader.read_file(storage_name, storage.data()) != 0)
-            {
-                error = logical_storage + ": failed to read tensor payload";
-                return false;
-            }
+            error = logical_storage + ": missing tensor payload";
+            return false;
         }
-
-        if (!validate_tensor_storage(payload, storages[logical_storage].size(), it->first, error))
+        if (!check_record_readable(reader, storage_name, error))
+            return false;
+        // Validate every view, including aliases of an already loaded storage,
+        // before allocating or reading raw tensor data.
+        const uint64_t size = reader.get_file_size(storage_name);
+        if (!validate_tensor_storage(payload, size, error))
+        {
+            error = it->first + ": " + error;
+            return false;
+        }
+        if (size > std::numeric_limits<size_t>::max() || size > physical_size)
+        {
+            error = logical_storage + ": tensor payload exceeds physical archive size or container size limit";
+            return false;
+        }
+        if (storage_sizes.insert(std::make_pair(logical_storage, size)).second)
+        {
+            if (!reserve_payload_memory(size, memory_used, error))
+                return false;
+        }
+        // validate_tensor_storage already checked dtype, concrete dimensions,
+        // overflow and the per-view dense bound. Count each view, even aliases:
+        // the importer materializes each attribute independently.
+        const unsigned int element_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 4, 8, 16, 1, 2};
+        uint64_t elements = 1;
+        const TensorMeta& meta = payload.tensor_meta;
+        for (size_t i = 0; i < meta.sizes.size(); i++)
+            if (meta.sizes[i].integer == 0) elements = 0;
+        for (size_t i = 0; i < meta.sizes.size(); i++)
+            elements *= (uint64_t)meta.sizes[i].integer;
+        if (!reserve_payload_memory(elements * element_sizes[meta.scalar_type], memory_used, error))
             return false;
     }
     return true;
 }
 
-bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error)
+static bool read_payloads(StoreZipReader& reader, const std::string& root, const std::map<std::string, uint64_t>& storage_sizes, ExportedProgramArchive& archive, std::string& error)
+{
+    for (std::map<std::string, uint64_t>::const_iterator it = storage_sizes.begin(); it != storage_sizes.end(); ++it)
+    {
+        std::map<std::string, std::vector<char> >& storages = it->first.compare(0, 13, "data/weights/") == 0
+                ? archive.state_dict_storages
+                : archive.constant_storages;
+        std::vector<char>& storage = storages[it->first];
+        storage.resize((size_t)it->second);
+        // Compression/flags were checked during planning; even empty records
+        // still require read_file's CRC validation.
+        if (reader.read_file(root + it->first, storage.empty() ? 0 : storage.data()) != 0)
+        {
+            error = it->first + ": failed to read tensor payload";
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool parse_exported_program_impl(const std::string& text, ExportedProgram& program, std::string& error)
 {
     error.clear();
     program = ExportedProgram();
@@ -1057,33 +1243,43 @@ bool parse_exported_program(const std::string& text, ExportedProgram& program, s
     return decoder.decode(root, program);
 }
 
-bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error)
+static bool load_exported_program_archive_metadata_impl(StoreZipReader& reader, ExportedProgramArchive& archive, std::string& error)
 {
     error.clear();
     archive = ExportedProgramArchive();
-    const ModelFormat format = detect_model_format(path, error);
-    if (format != ModelFormatExportedProgram && format != ModelFormatExportedProgramLegacy)
-        return false;
-
-    StoreZipReader reader;
-    if (reader.open(path) != 0)
-    {
-        error = "failed to read pt2 archive";
-        return false;
-    }
-
+    const uint64_t physical_size = reader.get_archive_size();
     const std::vector<std::string> names = reader.get_names();
     const std::string root = common_archive_root(names);
-    if (format == ModelFormatExportedProgramLegacy)
+    // Apply the same PT2 format/version contract as detect_model_format, using
+    // the open reader instead of opening and indexing the directory again.
+    if (reader.get_file_compression(root + "archive_format") < 0)
     {
+        if (reader.get_file_compression(root + "serialized_exported_program.json") < 0
+                || reader.get_file_compression(root + "serialized_state_dict.pt") < 0
+                || reader.get_file_compression(root + "serialized_constants.pt") < 0
+                || reader.get_file_compression(root + "serialized_example_inputs.pt") < 0
+                || reader.get_file_compression(root + "version") < 0)
+        {
+            if (reader.get_file_compression(root + "data.pkl") < 0 || reader.get_file_compression(root + "constants.pkl") < 0)
+                error = "unsupported model zip archive";
+            return false;
+        }
         archive.archive_version = -1;
         archive.model_name = "model";
         std::string document;
-        if (!read_record(reader, root + "serialized_exported_program.json", document, error))
+        if (!read_record(reader, root + "serialized_exported_program.json", document, physical_size, error))
             return false;
-        return parse_exported_program(document, archive.program, error);
+        return parse_exported_program_impl(document, archive.program, error);
     }
 
+    std::string format;
+    if (!read_archive_marker(reader, root + "archive_format", "format", format, physical_size, error))
+        return false;
+    if (format != "pt2")
+    {
+        error = "unsupported model archive format " + format;
+        return false;
+    }
     std::vector<std::string> models;
     for (size_t i = 0; i < names.size(); i++)
     {
@@ -1092,6 +1288,21 @@ bool load_exported_program_archive_metadata(const std::string& path, ExportedPro
             models.push_back(names[i]);
     }
 
+    if (reader.get_file_compression(root + "archive_version") < 0 || models.empty())
+    {
+        error = "incomplete pt2 model archive";
+        return false;
+    }
+    std::string version;
+    if (!read_archive_marker(reader, root + "archive_version", "version", version, physical_size, error))
+        return false;
+    if (version != "0")
+    {
+        error = "unsupported pt2 archive version " + version;
+        return false;
+    }
+    if (!read_byteorder(reader, names, root, archive, physical_size, error))
+        return false;
     if (models.size() != 1)
     {
         error = "pt2 archive must contain exactly one exported program";
@@ -1103,41 +1314,125 @@ bool load_exported_program_archive_metadata(const std::string& path, ExportedPro
     archive.archive_version = 0;
 
     std::string document;
-    if (!read_record(reader, models[0], document, error))
+    if (!read_record(reader, models[0], document, physical_size, error))
         return false;
-    return parse_exported_program(document, archive.program, error);
+    return parse_exported_program_impl(document, archive.program, error);
+}
+
+static bool load_exported_program_archive_impl(StoreZipReader& reader, ExportedProgramArchive& archive, std::string& error)
+{
+    if (!load_exported_program_archive_metadata_impl(reader, archive, error))
+        return false;
+
+    const uint64_t physical_size = reader.get_archive_size();
+    const std::vector<std::string> names = reader.get_names();
+    const std::string root = common_archive_root(names);
+    uint64_t memory_used = 0;
+    if (archive.archive_version == -1)
+    {
+#if PNNX_TORCH_HAS_PICKLE_LOAD
+        std::string state_dict;
+        std::string constants;
+        if (!check_record_readable(reader, root + "serialized_state_dict.pt", error)
+                || !check_record_readable(reader, root + "serialized_constants.pt", error)
+                || !reserve_payload_memory(reader.get_file_size(root + "serialized_state_dict.pt"), memory_used, error)
+                || !reserve_payload_memory(reader.get_file_size(root + "serialized_constants.pt"), memory_used, error)
+                || !read_record(reader, root + "serialized_state_dict.pt", state_dict, physical_size, error)
+                || !read_record(reader, root + "serialized_constants.pt", constants, physical_size, error))
+            return false;
+        if (!load_legacy_tensor_dict(state_dict, "data/weights/", true, archive.state_dict, archive.state_dict_storages, memory_used, error))
+            return false;
+        return load_legacy_tensor_dict(constants, "data/constants/", false, archive.constants, archive.constant_storages, memory_used, error);
+#else
+        error = "legacy exported program payloads require LibTorch pickle support";
+        return false;
+#endif
+    }
+
+    if (!load_payload_config(reader, root, "data/weights/", archive.model_name, "_weights_config.json", archive.state_dict, physical_size, error)
+            || !load_payload_config(reader, root, "data/constants/", archive.model_name, "_constants_config.json", archive.constants, physical_size, error))
+        return false;
+    // Plan BOTH dictionaries before reading ANY storage. This also catches
+    // many tiny, zero-stride views whose combined materialization is enormous.
+    std::map<std::string, uint64_t> storage_sizes;
+    if (!plan_payloads(reader, root, "data/weights/", archive.state_dict, storage_sizes, physical_size, memory_used, error)
+            || !plan_payloads(reader, root, "data/constants/", archive.constants, storage_sizes, physical_size, memory_used, error))
+        return false;
+    return read_payloads(reader, root, storage_sizes, archive, error);
+}
+
+bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error)
+{
+    program = ExportedProgram();
+    error.clear();
+    try
+    {
+        ExportedProgram result;
+        if (!parse_exported_program_impl(text, result, error))
+            return false;
+        program = std::move(result);
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        program = ExportedProgram();
+        error = "pt2 metadata allocation failed";
+    }
+    catch (const std::length_error&)
+    {
+        program = ExportedProgram();
+        error = "pt2 metadata length exceeds container limits";
+    }
+    return false;
+}
+
+static bool load_archive_boundary(const std::string& path, ExportedProgramArchive& archive, std::string& error, bool metadata_only)
+{
+    // Free a previous result first, so it cannot double the loading budget.
+    archive = ExportedProgramArchive();
+    error.clear();
+    try
+    {
+        if (!supported_host_byteorder(error))
+            return false;
+        // Keep one validated directory and file handle through metadata and
+        // payload planning/reads, including the physical file size bound.
+        StoreZipReader reader;
+        if (reader.open(path) != 0)
+        {
+            error = "failed to read pt2 archive";
+            return false;
+        }
+        ExportedProgramArchive result;
+        const bool loaded = metadata_only ? load_exported_program_archive_metadata_impl(reader, result, error)
+                            : load_exported_program_archive_impl(reader, result, error);
+        if (!loaded)
+            return false;
+        archive = std::move(result);
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        archive = ExportedProgramArchive();
+        error = "pt2 archive allocation failed";
+    }
+    catch (const std::length_error&)
+    {
+        archive = ExportedProgramArchive();
+        error = "pt2 archive length exceeds container limits";
+    }
+    // Do not turn unrelated runtime/programming exceptions into diagnostics.
+    return false;
+}
+
+bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error)
+{
+    return load_archive_boundary(path, archive, error, true);
 }
 
 bool load_exported_program_archive(const std::string& path, ExportedProgramArchive& archive, std::string& error)
 {
-    if (!load_exported_program_archive_metadata(path, archive, error))
-        return false;
-
-    StoreZipReader reader;
-    if (reader.open(path) != 0)
-    {
-        error = "failed to read pt2 archive payloads";
-        return false;
-    }
-
-    const std::string root = common_archive_root(reader.get_names());
-    if (archive.archive_version == -1)
-    {
-        std::string state_dict;
-        std::string constants;
-        if (!read_record(reader, root + "serialized_state_dict.pt", state_dict, error)
-            || !read_record(reader, root + "serialized_constants.pt", constants, error))
-            return false;
-        if (!load_legacy_tensor_dict(state_dict, "data/weights/", true, archive.state_dict, archive.state_dict_storages, error))
-            return false;
-        return load_legacy_tensor_dict(constants, "data/constants/", false, archive.constants, archive.constant_storages, error);
-    }
-
-    if (!load_payloads(reader, root, "data/weights/", archive.model_name, "_weights_config.json", archive.state_dict, archive.state_dict_storages, error))
-        return false;
-    if (!load_payloads(reader, root, "data/constants/", archive.model_name, "_constants_config.json", archive.constants, archive.constant_storages, error))
-        return false;
-    return true;
+    return load_archive_boundary(path, archive, error, false);
 }
 
 } // namespace pt2

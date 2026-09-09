@@ -149,7 +149,9 @@ int main()
     expect_unknown(incomplete_pt2_path, "reject incomplete pt2 archive");
     expect_unknown(truncated_path, "reject truncated archive");
     expect_unknown(missing_eocd_path, "reject archive without end of central directory");
-    expect_format(data_descriptor_path, pnnx::ModelFormatExportedProgram, "accept data descriptor");
+    // This fixture changes only the local flags; real descriptors are covered
+    // by test_storezip, where local and central metadata agree.
+    expect_unknown(data_descriptor_path, "reject inconsistent data descriptor flags");
     expect_unknown(compressed_path, "reject compressed archive");
     expect_unknown(unknown_path, "reject unknown archive");
 

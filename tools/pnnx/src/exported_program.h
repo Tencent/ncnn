@@ -202,6 +202,12 @@ struct SchemaVersion
 
 struct ExportedProgram
 {
+    // Archive parsing validates protocol-1 root TreeSpecs when supplied:
+    // flat positional tensor inputs (no kwargs), and a tensor/numeric scalar
+    // or nonempty flat tuple of such outputs. Nested/list/dict/namedtuple call
+    // structures are rejected, not silently flattened. Singleton output tuples
+    // retain the existing flattened PNNX convention, not Python tuple identity.
+    // Missing/empty module_call_graph is allowed for schema-only fixtures.
     Graph graph;
     GraphSignature signature;
     std::map<std::string, int> opset_version;
@@ -227,6 +233,9 @@ struct ExportedProgramArchive
 
     int archive_version;
     std::string model_name;
+    // Current raw archives: root "byteorder" record, default little if absent.
+    // Only little-endian payloads on little-endian hosts are supported.
+    std::string byteorder = "little";
     ExportedProgram program;
     std::map<std::string, PayloadMeta> state_dict;
     std::map<std::string, PayloadMeta> constants;
@@ -235,8 +244,18 @@ struct ExportedProgramArchive
 };
 
 bool parse_exported_program(const std::string& text, ExportedProgram& program, std::string& error);
+// On failure these public loaders clear the result, including partial payloads.
+// Both loaders preflight STORE-only records, byteorder and the root call spec.
+// The full loader also preflights a combined 512 MiB raw payload budget
+// (unique storage bytes + every dense view, across weights/constants).
+// This is not a bound on LibTorch's legacy pickle deserializer allocations.
 bool load_exported_program_archive_metadata(const std::string& path, ExportedProgramArchive& archive, std::string& error);
 bool load_exported_program_archive(const std::string& path, ExportedProgramArchive& archive, std::string& error);
+
+bool validate_exported_program_version(const ExportedProgram& program, std::string& error);
+// Shared by the archive reader and the public in-memory importer. Validates
+// metadata, source bounds and the dense materialization budget before allocation.
+bool validate_tensor_storage(const PayloadMeta& payload, uint64_t storage_size, std::string& error);
 
 } // namespace pt2
 } // namespace pnnx

@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
+#include <string.h>
 
 #include <limits>
 #include <string>
+
+#include <torch/csrc/jit/operator_upgraders/utils.h>
 
 #include "exported_program.h"
 #include "storezip.h"
@@ -18,6 +21,11 @@ static void expect_true(bool value, const char* message)
 
     fprintf(stderr, "FAILED: %s\n", message);
     test_failures++;
+}
+
+static void expect_success(bool value, const std::string& error)
+{
+    expect_true(value, error.c_str());
 }
 
 static void test_defaults()
@@ -88,6 +96,7 @@ static void test_minimal_archive()
     expect_true(archive.state_dict["linear.weight"].is_parameter, "parameter payload");
 }
 
+// clang-format off
 static const char* exported_program_json = R"json({
     "graph_module": {
         "graph": {
@@ -130,12 +139,13 @@ static const char* exported_program_json = R"json({
     "torch_version": "2.12.0",
     "future_exported_program_field": {"ignored":true}
 })json";
+// clang-format on
 
 static void test_parse_exported_program()
 {
     pnnx::pt2::ExportedProgram program;
     std::string error;
-    expect_true(pnnx::pt2::parse_exported_program(exported_program_json, program, error), error.c_str());
+    expect_success(pnnx::pt2::parse_exported_program(exported_program_json, program, error), error);
     expect_true(program.schema_version.major == 8 && program.schema_version.minor == 20, "schema version");
     expect_true(program.graph.nodes.size() == 1 && program.graph.nodes[0].name == "linear", "graph node");
     expect_true(program.graph.nodes[0].inputs.size() == 2 && program.graph.nodes[0].inputs[0].kind == pnnx::pt2::NamedArgument::Positional, "named positional arguments");
@@ -146,11 +156,13 @@ static void test_parse_exported_program()
 
 static void test_concrete_symbolic_arguments()
 {
-    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"name":"symbols","target":"torch.ops.aten.symbols.default","inputs":[{"name":"predicate","arg":{"as_sym_bool":{"as_bool":true}},"kind":1},{"name":"scale","arg":{"as_sym_float":{"as_float":1.5}},"kind":1},{"name":"limit","arg":{"as_sym_float":{"as_float":"-Infinity"}},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}} ,"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":1},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+    // clang-format off
+    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"name":"symbols","target":"torch.ops.aten.symbols.default","inputs":[{"name":"predicate","arg":{"as_sym_bool":{"as_bool":true}},"kind":1},{"name":"scale","arg":{"as_sym_float":{"as_float":1.5}},"kind":1},{"name":"limit","arg":{"as_sym_float":{"as_float":"-Infinity"}},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}} ,"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":10},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+    // clang-format on
 
     pnnx::pt2::ExportedProgram program;
     std::string error;
-    expect_true(pnnx::pt2::parse_exported_program(document, program, error), error.c_str());
+    expect_success(pnnx::pt2::parse_exported_program(document, program, error), error);
     expect_true(program.graph.nodes.size() == 1 && program.graph.nodes[0].inputs.size() == 3, "concrete symbolic arguments");
     if (program.graph.nodes.size() == 1 && program.graph.nodes[0].inputs.size() == 3)
     {
@@ -173,20 +185,20 @@ static void test_load_archive_metadata()
 
     pnnx::pt2::ExportedProgramArchive archive;
     std::string error;
-    expect_true(pnnx::pt2::load_exported_program_archive_metadata(path, archive, error), error.c_str());
+    expect_success(pnnx::pt2::load_exported_program_archive_metadata(path, archive, error), error);
     expect_true(archive.model_name == "model", "archive model name");
     expect_true(archive.program.graph.nodes[0].target == "torch.ops.aten.linear.default", "archive graph target");
     remove(path);
 }
 
-static void write_payload_config(pnnx::StoreZipWriter& writer, const char* name, const char* path, bool is_parameter, const char* sizes, const char* strides, int storage_offset = 0, bool use_pickle = false)
+static void write_payload_config(pnnx::StoreZipWriter& writer, const char* name, const char* path, bool is_parameter, const char* sizes, const char* strides, int storage_offset = 0, bool use_pickle = false, int dtype = 7, const char* device = "cpu", int layout = 7)
 {
     const std::string config = std::string("{\"config\":{\"tensor\":{\"path_name\":\"") + path
                                + "\",\"is_param\":" + (is_parameter ? "true" : "false")
                                + ",\"use_pickle\":" + (use_pickle ? "true" : "false")
-                               + ",\"tensor_meta\":{\"dtype\":7,\"sizes\":" + sizes
-                               + ",\"requires_grad\":false,\"device\":{\"type\":\"cpu\"},\"strides\":" + strides
-                               + ",\"storage_offset\":{\"as_int\":" + std::to_string(storage_offset) + "},\"layout\":7}}}}";
+                               + ",\"tensor_meta\":{\"dtype\":" + std::to_string(dtype) + ",\"sizes\":" + sizes
+                               + ",\"requires_grad\":false,\"device\":{\"type\":\"" + device + "\"},\"strides\":" + strides
+                               + ",\"storage_offset\":{\"as_int\":" + std::to_string(storage_offset) + "},\"layout\":" + std::to_string(layout) + "}}}}";
     writer.write_file(name, config.data(), config.size());
 }
 
@@ -196,14 +208,16 @@ static void write_empty_payload_config(pnnx::StoreZipWriter& writer, const char*
     writer.write_file(name, config, std::string(config).size());
 }
 
-static void write_payload_archive(const char* path, const char* payload_path, const char* sizes, const char* strides, int storage_offset, const std::vector<char>& storage, bool use_pickle = false)
+static void write_payload_archive(const char* path, const char* payload_path, const char* sizes, const char* strides, int storage_offset, const std::vector<char>& storage, bool use_pickle = false, int dtype = 7, const char* device = "cpu", int layout = 7, const char* byteorder = 0)
 {
     pnnx::StoreZipWriter writer;
     writer.open(path);
     writer.write_file("package/archive_format", "pt2", 3);
     writer.write_file("package/archive_version", "0", 1);
+    if (byteorder)
+        writer.write_file("package/byteorder", byteorder, strlen(byteorder));
     writer.write_file("package/models/model.json", exported_program_json, std::string(exported_program_json).size());
-    write_payload_config(writer, "package/data/weights/model_weights_config.json", payload_path, true, sizes, strides, storage_offset, use_pickle);
+    write_payload_config(writer, "package/data/weights/model_weights_config.json", payload_path, true, sizes, strides, storage_offset, use_pickle, dtype, device, layout);
     write_empty_payload_config(writer, "package/data/constants/model_constants_config.json");
     writer.write_file(std::string("package/data/weights/") + payload_path, storage.data(), storage.size());
     writer.close();
@@ -217,7 +231,7 @@ static void test_load_tensor_payloads()
 
     pnnx::pt2::ExportedProgramArchive archive;
     std::string error;
-    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_success(pnnx::pt2::load_exported_program_archive(path, archive, error), error);
     expect_true(archive.state_dict["tensor"].is_parameter, "parameter payload metadata");
     expect_true(archive.state_dict["tensor"].tensor_meta.storage_offset.integer == 1, "payload storage offset");
     expect_true(archive.state_dict_storages["data/weights/weight_0"].size() == storage.size(), "raw payload bytes");
@@ -244,7 +258,7 @@ static void test_shared_storage_payloads()
 
     pnnx::pt2::ExportedProgramArchive archive;
     std::string error;
-    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_success(pnnx::pt2::load_exported_program_archive(path, archive, error), error);
     expect_true(archive.state_dict_storages.size() == 1, "shared storage is loaded once");
     expect_true(archive.state_dict["first"].path == archive.state_dict["second"].path, "shared storage path is preserved");
     remove(path);
@@ -285,7 +299,7 @@ static void test_constant_and_empty_payloads()
 
     pnnx::pt2::ExportedProgramArchive archive;
     std::string error;
-    expect_true(pnnx::pt2::load_exported_program_archive(path, archive, error), error.c_str());
+    expect_success(pnnx::pt2::load_exported_program_archive(path, archive, error), error);
     expect_true(archive.constants.size() == 1 && !archive.constants["tensor"].is_parameter, "constant payload metadata");
     expect_true(archive.constant_storages["data/constants/tensor_0"].empty(), "empty tensor storage");
     remove(path);
@@ -351,10 +365,12 @@ static void test_invalid_schema()
 
 static void test_argument_variants()
 {
-    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"target":"torch.ops.aten.index.Tensor","inputs":[{"name":"indices","arg":{"as_optional_tensors":[{"as_none":true},{"as_tensor":{"name":"index"}}]},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}},"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":1},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+    // clang-format off
+    const char* document = R"json({"graph_module":{"graph":{"inputs":[],"outputs":[],"nodes":[{"target":"torch.ops.aten.index.Tensor","inputs":[{"name":"indices","arg":{"as_optional_tensors":[{"as_none":true},{"as_tensor":{"name":"index"}}]},"kind":1}],"outputs":[],"metadata":{}}],"tensor_values":{},"sym_int_values":{}} ,"signature":{"input_specs":[],"output_specs":[]}},"opset_version":{"aten":10},"range_constraints":{},"schema_version":{"major":8,"minor":20}})json";
+    // clang-format on
     pnnx::pt2::ExportedProgram program;
     std::string error;
-    expect_true(pnnx::pt2::parse_exported_program(document, program, error), error.c_str());
+    expect_success(pnnx::pt2::parse_exported_program(document, program, error), error);
     expect_true(program.graph.nodes[0].inputs[0].argument.type == pnnx::pt2::Argument::OptionalTensors, "optional tensor list variant");
     expect_true(program.graph.nodes[0].inputs[0].argument.values[0].type == pnnx::pt2::Argument::None, "optional none variant");
     expect_true(program.graph.nodes[0].inputs[0].argument.values[1].name == "index", "optional tensor reference");
@@ -378,8 +394,290 @@ static void test_multiple_models_are_rejected()
     remove(path);
 }
 
+static void test_raw_metadata_contract()
+{
+    const char* path = "test_exported_program_raw_contract.pt2";
+    struct Case
+    {
+        int dtype;
+        const char* device;
+        int layout;
+        const char* diagnostic;
+    };
+    const Case cases[] = {
+        {0, "cpu", 7, "scalar type 0"},
+        {14, "cpu", 7, "scalar type 14"},
+        {28, "cpu", 7, "scalar type 28"},
+        {29, "cpu", 7, "scalar type 29"},
+        {35, "cpu", 7, "scalar type 35"},
+        {999, "cpu", 7, "scalar type 999"},
+        {7, "cuda", 7, "CPU device"},
+        {7, "meta", 7, "CPU device"},
+        {7, "cpu", 0, "Strided layout"},
+        {7, "cpu", 1, "Strided layout"},
+        {7, "cpu", 999, "Strided layout"}
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        write_payload_archive(path, "weight_0", "[{\"as_int\":1}]", "[{\"as_int\":1}]", 0, std::vector<char>(16), false, cases[i].dtype, cases[i].device, cases[i].layout);
+        pnnx::pt2::ExportedProgramArchive archive;
+        std::string error;
+        expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "invalid raw tensor metadata rejected");
+        expect_true(error.find(cases[i].diagnostic) != std::string::npos, error.c_str());
+        expect_true(archive.state_dict_storages.empty(), "metadata rejected before allocating raw storage");
+        remove(path);
+    }
+    write_payload_archive(path, "weight_0", "[{\"as_int\":2}]", "[{\"as_int\":1}]", 0, std::vector<char>(4), false, 13);
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_success(pnnx::pt2::load_exported_program_archive(path, archive, error), error);
+    expect_true(archive.state_dict["tensor"].tensor_meta.scalar_type == 13 && archive.state_dict_storages["data/weights/weight_0"].size() == 4, "reader supports raw bf16 with two-byte elements");
+    remove(path);
+
+    write_payload_archive(path, "weight_0", "[{\"as_int\":2147483647}]", "[{\"as_int\":0}]", 0, std::vector<char>(4));
+    expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "reader rejects enormous broadcast expansion");
+    expect_true(error.find("materialization budget") != std::string::npos && archive.state_dict_storages.empty(), "broadcast budget checked before storage allocation");
+    remove(path);
+}
+
+static void test_version_contract()
+{
+    pnnx::pt2::ExportedProgram program;
+    std::string error;
+    const std::string fixture(exported_program_json);
+    const int unsupported_minor[] = {0, 14, 19, 21, 999};
+    for (size_t i = 0; i < sizeof(unsupported_minor) / sizeof(unsupported_minor[0]); i++)
+    {
+        std::string document = fixture;
+        const std::string old = "\"minor\":20";
+        document.replace(document.find(old), old.size(), "\"minor\":" + std::to_string(unsupported_minor[i]));
+        expect_true(!pnnx::pt2::parse_exported_program(document, program, error), "unverified schema minor is not claimed compatible");
+        expect_true(error.find("supported schema is 8.20") != std::string::npos, "precise schema minor diagnostic");
+    }
+    const int current = (int)torch::jit::getMaxOperatorVersion();
+    const int unsupported_opset[] = {0, current - 1, current + 1};
+    for (size_t i = 0; i < 3; i++)
+    {
+        std::string document = fixture;
+        const std::string old = "\"aten\": 10";
+        document.replace(document.find(old), old.size(), "\"aten\": " + std::to_string(unsupported_opset[i]));
+        expect_true(!pnnx::pt2::parse_exported_program(document, program, error), "opset without exact linked operator semantics rejected");
+        expect_true(error.find("opset_version.aten") != std::string::npos, "opset diagnostic identifies namespace");
+    }
+    std::string document = fixture;
+    const std::string old = "\"aten\": 10";
+    document.replace(document.find(old), old.size(), "");
+    expect_true(!pnnx::pt2::parse_exported_program(document, program, error) && error.find("got missing") != std::string::npos, "missing ATen contract rejected");
+    document = fixture;
+    document.replace(document.find(old), old.size(), "\"aten\": " + std::to_string(current) + ", \"custom\": 1");
+    expect_true(!pnnx::pt2::parse_exported_program(document, program, error) && error.find("opset_version.custom") != std::string::npos, "unknown namespace version contract rejected");
+}
+
+static std::string json_string(const std::string& value)
+{
+    std::string result = "\"";
+    for (size_t i = 0; i < value.size(); i++)
+    {
+        if (value[i] == '\\' || value[i] == '"') result += '\\';
+        result += value[i];
+    }
+    return result + "\"";
+}
+
+static std::string tree_node(const char* type, const char* context, const std::string& children)
+{
+    return "{\"type\":" + json_string(type) + ",\"context\":" + json_string(context) + ",\"children_spec\":[" + children + "]}";
+}
+
+static std::string with_call_graph(const std::string& calls)
+{
+    std::string document = exported_program_json;
+    const std::string marker = "\"module_call_graph\": []";
+    document.replace(document.find(marker), marker.size(), "\"module_call_graph\": " + calls);
+    return document;
+}
+
+static std::string root_call(const std::string& inputs, const std::string& outputs, int protocol = 1)
+{
+    return "{\"fqn\":\"\",\"signature\":{\"inputs\":[],\"outputs\":[],\"in_spec\":"
+           + json_string("[" + std::to_string(protocol) + "," + inputs + "]")
+           + ",\"out_spec\":" + json_string("[1," + outputs + "]") + "}}";
+}
+
+static void test_call_spec_contract()
+{
+    const std::string leaf = "{\"type\":null,\"context\":null,\"children_spec\":[]}";
+    const std::string positional = tree_node("builtins.tuple", "null", leaf);
+    const std::string kwargs = tree_node("builtins.dict", "[]", "");
+    const std::string inputs = tree_node("builtins.tuple", "null", positional + "," + kwargs);
+    const std::string singleton = tree_node("builtins.tuple", "null", leaf);
+    pnnx::pt2::ExportedProgram program;
+    std::string error;
+    expect_success(pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(inputs, leaf) + "]"), program, error), error);
+    expect_success(pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(inputs, singleton) + "]"), program, error), error);
+    // Whitespace in the JSON-encoded tuple/dict context is semantically valid.
+    const std::string spaced = tree_node("builtins.tuple", " null ", positional + "," + tree_node("builtins.dict", "[ ]", ""));
+    expect_success(pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(spaced, leaf) + "]"), program, error), error);
+
+    const std::string bad_inputs[] = {
+        tree_node("builtins.tuple", "null", tree_node("builtins.tuple", "null", "") + "," + tree_node("builtins.dict", "[\"x\"]", leaf)),
+        tree_node("builtins.tuple", "null", tree_node("builtins.tuple", "null", singleton) + "," + kwargs),
+        tree_node("builtins.tuple", "null", tree_node("builtins.tuple", "null", tree_node("builtins.dict", "[\"x\"]", leaf)) + "," + kwargs),
+        tree_node("builtins.tuple", "null", positional + "," + tree_node("builtins.dict", "[\"x\"]", "")),
+        tree_node("builtins.tuple", "null", tree_node("builtins.tuple", "null", leaf + "," + leaf) + "," + kwargs),
+        leaf
+    };
+    for (size_t i = 0; i < sizeof(bad_inputs) / sizeof(bad_inputs[0]); i++)
+    {
+        expect_true(!pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(bad_inputs[i], leaf) + "]"), program, error), "unsupported input tree rejected");
+        expect_true(error.find("in_spec") != std::string::npos && error.find("PyTree") != std::string::npos, error.c_str());
+        expect_true(program.graph.inputs.empty(), "failed parse clears previous program");
+    }
+    const std::string bad_outputs[] = {
+        tree_node("builtins.dict", "[\"x\"]", leaf),
+        tree_node("builtins.list", "null", leaf),
+        tree_node("collections.namedtuple", "Point", leaf),
+        tree_node("builtins.tuple", "null", singleton),
+        tree_node("builtins.tuple", "null", ""),
+        tree_node("builtins.tuple", "null", leaf + "," + leaf),
+        "{\"type\":null,\"context\":\"null\",\"children_spec\":[]}",
+        "{\"type\":null,\"context\":null}",
+        "{\"type\":\"builtins.tuple\",\"context\":null,\"children_spec\":[]}"
+    };
+    for (size_t i = 0; i < sizeof(bad_outputs) / sizeof(bad_outputs[0]); i++)
+    {
+        expect_true(!pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(inputs, bad_outputs[i]) + "]"), program, error), "unsupported output tree rejected");
+        expect_true(error.find("out_spec") != std::string::npos && error.find("PyTree") != std::string::npos, error.c_str());
+    }
+    expect_true(!pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call(inputs, leaf, 2) + "]"), program, error)
+                && error.find("protocol") != std::string::npos, "unknown TreeSpec protocol rejected");
+    expect_true(!pnnx::pt2::parse_exported_program(with_call_graph("[" + root_call("not JSON", leaf) + "]"), program, error)
+                && error.find("TreeSpec JSON") != std::string::npos, "malformed inner JSON rejected");
+    const std::string bad_calls[] = {"null", "[{\"fqn\":\"child\",\"signature\":null}]", "[{\"fqn\":\"\",\"signature\":null}]",
+                                     "[" + root_call(inputs, leaf) + "," + root_call(inputs, leaf) + "]"};
+    for (size_t i = 0; i < sizeof(bad_calls) / sizeof(bad_calls[0]); i++)
+        expect_true(!pnnx::pt2::parse_exported_program(with_call_graph(bad_calls[i]), program, error)
+                    && error.find("module_call_graph") != std::string::npos, "malformed root call graph rejected");
+
+    // A flat tuple may contain tensors and numeric scalar leaves. Preserve the
+    // graph/signature output order; this is not support for general PyTrees.
+    std::string document = with_call_graph("[" + root_call(inputs, tree_node("builtins.tuple", "null", leaf + "," + leaf + "," + leaf + "," + leaf)) + "]");
+    const std::string old_outputs = "\"outputs\": [{\"as_tensor\":{\"name\":\"linear\"}}]";
+    document.replace(document.find(old_outputs), old_outputs.size(), "\"outputs\":[{\"as_tensor\":{\"name\":\"linear\"}},{\"as_int\":3},{\"as_float\":1.5},{\"as_bool\":true}]");
+    const std::string old_specs = "\"output_specs\": [{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"linear\"}}}}]";
+    const std::string new_specs = "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"linear\"}}}},{\"user_output\":{\"arg\":{\"as_int\":3}}},{\"user_output\":{\"arg\":{\"as_float\":1.5}}},{\"user_output\":{\"arg\":{\"as_bool\":true}}}]";
+    document.replace(document.find(old_specs), old_specs.size(), new_specs);
+    expect_success(pnnx::pt2::parse_exported_program(document, program, error), error);
+}
+
+static void test_byteorder_contract()
+{
+    const char* path = "test_exported_program_byteorder.pt2";
+    const char* byteorders[] = {0, "little", "big", "unknown", "", "little\n"};
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    for (size_t i = 0; i < sizeof(byteorders) / sizeof(byteorders[0]); i++)
+    {
+        write_payload_archive(path, "weight_0", "[{\"as_int\":1}]", "[{\"as_int\":1}]", 0, std::vector<char>(4), false, 7, "cpu", 7, byteorders[i]);
+        const bool loaded = pnnx::pt2::load_exported_program_archive(path, archive, error);
+        expect_true(loaded == (i < 2), "little/default accepted, big/unknown byteorder rejected");
+        if (loaded)
+            expect_true(archive.byteorder == "little", "resolved archive byteorder");
+        else
+        {
+            expect_true(error.find("byteorder") != std::string::npos, error.c_str());
+            expect_true(archive.state_dict_storages.empty() && archive.program.graph.nodes.empty(), "byteorder failure clears prior result");
+            expect_true(!pnnx::pt2::load_exported_program_archive_metadata(path, archive, error), "metadata boundary checks byteorder too");
+        }
+        remove(path);
+    }
+}
+
+static void test_aggregate_payload_budget()
+{
+    const char* path = "test_exported_program_aggregate_budget.pt2";
+    pnnx::StoreZipWriter writer;
+    writer.open(path);
+    writer.write_file("package/archive_format", "pt2", 3);
+    writer.write_file("package/archive_version", "0", 1);
+    writer.write_file("package/models/model.json", exported_program_json, strlen(exported_program_json));
+    // Each view is within the existing per-tensor 512 MiB bound and has a
+    // four-byte source. Their combined dense size exceeds the model budget.
+    write_payload_config(writer, "package/data/weights/model_weights_config.json", "weight_0", true, "[{\"as_int\":67108864}]", "[{\"as_int\":0}]");
+    write_payload_config(writer, "package/data/constants/model_constants_config.json", "tensor_0", false, "[{\"as_int\":67108864}]", "[{\"as_int\":0}]");
+    writer.write_file("package/data/weights/weight_0", "abcd", 4);
+    writer.write_file("package/data/constants/tensor_0", "abcd", 4);
+    writer.close();
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "cross-dictionary aggregate budget enforced");
+    expect_true(error.find("aggregate 512 MiB") != std::string::npos, error.c_str());
+    expect_true(archive.state_dict_storages.empty() && archive.constant_storages.empty(), "budget failure retains no partial payloads");
+    remove(path);
+}
+
+// Patch only our tiny ZIP64 fixtures, matching a full record name in a fixed
+// local/central header. No large/sparse archive is needed for rejection tests.
+static void patch_payload_headers(const char* path, const char* name, bool compression, bool empty_crc)
+{
+    FILE* fp = fopen(path, "r+b");
+    expect_true(fp != 0, "open fixture for header mutation");
+    if (!fp) return;
+    fseek(fp, 0, SEEK_END);
+    const long length = ftell(fp);
+    expect_true(length > 0 && length < 65536, "small ZIP mutation fixture");
+    if (length <= 0 || length >= 65536) { fclose(fp); return; }
+    std::vector<unsigned char> bytes((size_t)length);
+    rewind(fp);
+    expect_true(fread(bytes.data(), 1, bytes.size(), fp) == bytes.size(), "read ZIP mutation fixture");
+    size_t patched = 0;
+    for (size_t i = 0; i + 46 + strlen(name) <= bytes.size(); i++)
+    {
+        const bool local = memcmp(bytes.data() + i, "PK\003\004", 4) == 0;
+        const bool central = memcmp(bytes.data() + i, "PK\001\002", 4) == 0;
+        if (!local && !central) continue;
+        const size_t header_size = local ? 30 : 46;
+        if (memcmp(bytes.data() + i + header_size, name, strlen(name)) != 0) continue;
+        if (compression) bytes[i + (local ? 8 : 10)] = 8;
+        if (empty_crc) bytes[i + (local ? 14 : 16)] ^= 1;
+        patched++;
+    }
+    expect_true(patched == 2, "patched matching local and central record fields");
+    rewind(fp);
+    expect_true(fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size(), "write ZIP mutation fixture");
+    fclose(fp);
+}
+
+static void test_record_preflight_and_empty_crc()
+{
+    const char* path = "test_exported_program_record_features.pt2";
+    pnnx::pt2::ExportedProgramArchive archive;
+    std::string error;
+    for (int empty = 0; empty < 2; empty++)
+    {
+        write_payload_archive(path, "weight_0", empty ? "[{\"as_int\":0}]" : "[{\"as_int\":1}]", "[{\"as_int\":1}]", 0, std::vector<char>(empty ? 0 : 4));
+        patch_payload_headers(path, "package/data/weights/weight_0", true, false);
+        expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "compressed payload rejected even if empty");
+        expect_true(error.find("unsupported ZIP compression") != std::string::npos, error.c_str());
+        expect_true(archive.state_dict_storages.empty(), "compressed payload has no retained allocation");
+        remove(path);
+    }
+    write_payload_archive(path, "weight_0", "[{\"as_int\":0}]", "[{\"as_int\":1}]", 0, std::vector<char>());
+    patch_payload_headers(path, "package/data/weights/weight_0", false, true);
+    expect_true(!pnnx::pt2::load_exported_program_archive(path, archive, error), "empty record CRC is checked");
+    expect_true(error.find("failed to read tensor payload") != std::string::npos, error.c_str());
+    expect_true(archive.state_dict.empty() && archive.state_dict_storages.empty(), "late CRC failure clears metadata and payloads");
+    remove(path);
+}
+
 int main()
 {
+    test_call_spec_contract();
+    test_byteorder_contract();
+    test_aggregate_payload_budget();
+    test_record_preflight_and_empty_crc();
+    test_raw_metadata_contract();
+    test_version_contract();
     test_defaults();
     test_minimal_archive();
     test_parse_exported_program();
