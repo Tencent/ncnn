@@ -581,6 +581,85 @@ static void test_bfloat16_attribute_conversion()
           "weight: converts bf16 storage to fp32 for ncnn");
 }
 
+static void test_scalar_half_attribute_conversion()
+{
+    const unsigned char f16_data[] = {0x00, 0x3c};
+    const unsigned char bf16_data[] = {0x80, 0x3f};
+    const struct
+    {
+        int type;
+        const unsigned char* data;
+        const char* name;
+    } cases[] = {
+        {3, f16_data, "f16"},
+        {13, bf16_data, "bf16"},
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        Graph graph;
+        Operator* op = graph.new_operator("pnnx.Attribute", "attr");
+        Attribute& attr = op->attrs["data"];
+        attr.type = cases[i].type;
+        attr.data = std::vector<char>((const char*)cases[i].data, (const char*)cases[i].data + 2);
+
+        ncnn::convert_half_to_float(graph);
+
+        float value = 0.f;
+        if (attr.data.size() == sizeof(value))
+            memcpy(&value, attr.data.data(), sizeof(value));
+        CHECK(attr.type == 1 && attr.shape.empty() && attr.data.size() == sizeof(float)
+                  && value == 1.f,
+              cases[i].name);
+    }
+}
+
+static void test_argreduce_default_arguments()
+{
+    const struct
+    {
+        const char* target;
+        const char* type;
+        const char* name;
+    } cases[] = {
+        {"torch.ops.aten.argmax.default", "aten::argmax", "argmax"},
+        {"torch.ops.aten.argmin.default", "aten::argmin", "argmin"},
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const char* path = "test_pt2_argreduce_defaults.zip";
+        const std::string model_json = std::string(
+            "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
+            "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"reduce\",\"target\":\"")
+            + cases[i].target
+            + "\",\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
+              "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
+              "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":2},{\"as_int\":3}]},\"y\":{\"dtype\":5,\"sizes\":[]}}},"
+              "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
+              "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
+
+        StoreZipWriter writer;
+        CHECK(writer.open(path) == 0
+                  && writer.write_file("models/model.json", model_json.data(), model_json.size()) == 0
+                  && writer.close() == 0,
+              cases[i].name);
+
+        Graph graph;
+        CHECK(load_pt2(path, graph, std::vector<std::vector<int64_t> >(), std::vector<std::string>()) == 0,
+              cases[i].name);
+
+        Operator* reduce = find_op(graph, cases[i].type);
+        CHECK(reduce != 0 && reduce->inputs.size() == 3
+                  && reduce->inputs[1]->producer->params.at("value").type == 0
+                  && reduce->inputs[2]->producer->params.at("value").type == 1
+                  && !reduce->inputs[2]->producer->params.at("value").b,
+              cases[i].name);
+
+        remove(path);
+    }
+}
+
 static void test_missing_required_default_rejected()
 {
     const char* path = "test_pt2_missing_required_default.zip";
@@ -962,6 +1041,8 @@ int main()
     test_weight_attribute_reader_reuse();
     test_weight_attribute_dtype_and_bounds();
     test_bfloat16_attribute_conversion();
+    test_scalar_half_attribute_conversion();
+    test_argreduce_default_arguments();
     test_missing_required_default_rejected();
     test_weight_norm_zero_dim();
     test_storezip_short_read();

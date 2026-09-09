@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_half_to_float.h"
+#include "utils.h"
 
 #include <string.h>
 
@@ -36,13 +37,17 @@ void convert_half_to_float(Graph& graph)
                 Attribute attr_new;
                 attr_new.type = 1;
                 attr_new.shape = attr.shape;
-                const size_t elemcount = attr.elemcount();
+                const size_t elemcount = attr.shape.empty() ? 1 : attr.elemcount();
                 attr_new.data.resize(elemcount * 4);
 
                 if (attr.type == 3)
                 {
-                    auto p = attr.get_float32_data();
-                    memcpy((void*)attr_new.data.data(), (const void*)p.data(), attr_new.data.size());
+                    const unsigned short* p = (const unsigned short*)attr.data.data();
+                    float* p_new = (float*)attr_new.data.data();
+                    for (size_t i = 0; i < elemcount; i++)
+                    {
+                        p_new[i] = float16_to_float32(p[i]);
+                    }
                 }
                 else
                 {
