@@ -584,14 +584,13 @@ static void test_bfloat16_attribute_conversion()
 static void test_missing_required_default_rejected()
 {
     const char* path = "test_pt2_missing_required_default.zip";
-    const char model_json[] =
-        "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
-        "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"add\",\"target\":\"torch.ops.aten.add.Tensor\","
-        "\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
-        "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
-        "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]},\"y\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]}}},"
-        "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
-        "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
+    const char model_json[] = "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
+                              "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"add\",\"target\":\"torch.ops.aten.add.Tensor\","
+                              "\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
+                              "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
+                              "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]},\"y\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]}}},"
+                              "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
+                              "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
 
     StoreZipWriter writer;
     CHECK(writer.open(path) == 0

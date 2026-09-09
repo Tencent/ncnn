@@ -396,7 +396,7 @@ static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program,
     }
 
     const std::string entry_path = is_constant ? program.constant_entry_path(entry.path_name)
-                                    : program.weight_entry_path(entry.path_name);
+                                   : program.weight_entry_path(entry.path_name);
 
     const uint64_t raw_size = zip.get_file_size(entry_path);
     if (raw_size > (uint64_t)std::numeric_limits<size_t>::max())
