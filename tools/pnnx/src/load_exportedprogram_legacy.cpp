@@ -694,8 +694,17 @@ static int memzip_find_data_pkl_prefix(const std::vector<char>& bytes, std::stri
         fprintf(stderr, "legacy weights: zip64 nested container is not supported\n");
         return -1;
     }
+    // the central directory must fit between the local headers and the EOCD;
+    // a truncated payload may still carry a syntactically valid EOCD whose
+    // cd_offset/cd_size point past the buffer, so reject any range that does
+    // not end before the EOCD (or wraps the offset arithmetic)
+    const size_t cd_end = (size_t)cd_offset + cd_size;
+    if (cd_end < cd_offset || cd_end > eocd_pos)
+    {
+        fprintf(stderr, "legacy weights: invalid central directory\n");
+        return -1;
+    }
     size_t pos = cd_offset;
-    const size_t cd_end = cd_offset + cd_size;
     while (pos + 46 <= cd_end)
     {
         if (read_le32(p + pos) != 0x02014b50)

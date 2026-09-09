@@ -31,24 +31,47 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators,
+               const std::map<std::string, Parameter>& captured_params,
+               const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         // the BinaryOp lowering produces storage in the input's arithmetic
         // type; only apply it when the output dtype matches (no explicit
         // dtype override, or torch.float), otherwise keep torch.ones_like
         const std::map<std::string, Parameter>::const_iterator it = captured_params.find("dtype");
+        bool dtype_ok = false;
         if (it == captured_params.end())
-            return true;
+            dtype_ok = true;
+        else
+        {
+            const Parameter& dt = it->second;
+            if (dt.type == 0)
+                dtype_ok = true; // dtype=None: inherits the input dtype
+            if (dt.type == 2 && dt.i == 6)
+                dtype_ok = true; // torch.float
+            if (dt.type == 4 && dt.s == "torch.float")
+                dtype_ok = true; // normalized string form (level2 writes "torch.float" for dtype=float32)
+        }
+        if (!dtype_ok)
+            return false;
 
-        const Parameter& dt = it->second;
-        if (dt.type == 0)
-            return true; // dtype=None: inherits the input dtype
-        if (dt.type == 2 && dt.i == 6)
-            return true; // torch.float
-        if (dt.type == 4 && dt.s == "torch.float")
-            return true; // normalized string form (level2 writes "torch.float" for dtype=float32)
+        // ncnn scalar BinaryOp reads and writes the blob through a float*;
+        // it can only run over f32 storage. an integral input would be
+        // reinterpreted as float bit patterns (int32), and one-byte bool/uint8
+        // storage would be read/written four bytes at a time past its extent.
+        // an explicit float output over an integral input would need a real
+        // cast first, which this lowering does not provide, so decline those
+        // too unless the input already has compatible floating-point storage.
+        const std::map<std::string, const Operator*>::const_iterator opit = matched_operators.find("op_0");
+        if (opit == matched_operators.end())
+            return false;
+        const Operator* op0 = opit->second;
+        if (op0->inputs.empty())
+            return false;
+        if (op0->inputs[0]->type != 1) // only f32 input storage is safe here
+            return false;
 
-        return false;
+        return true;
     }
 };
 
