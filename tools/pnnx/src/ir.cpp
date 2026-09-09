@@ -108,6 +108,36 @@ static size_t type_to_elemsize(int type)
     return 0; // null
 }
 
+static std::string escape_python_single_quoted_string(const std::string& value)
+{
+    std::string escaped;
+    for (size_t i = 0; i < value.size(); i++)
+    {
+        const unsigned char ch = (unsigned char)value[i];
+        if (ch == '\\')
+            escaped += "\\\\";
+        else if (ch == '\'')
+            escaped += "\\\'";
+        else if (ch == '\n')
+            escaped += "\\n";
+        else if (ch == '\r')
+            escaped += "\\r";
+        else if (ch == '\t')
+            escaped += "\\t";
+        else if (ch < 0x20 || ch == 0x7f)
+        {
+            char hex[5];
+            snprintf(hex, sizeof(hex), "\\x%02x", ch);
+            escaped += hex;
+        }
+        else
+        {
+            escaped += (char)ch;
+        }
+    }
+    return escaped;
+}
+
 static int string_to_type(const char* s)
 {
     if (strcmp(s, "f32") == 0) return 1;
@@ -168,12 +198,7 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
 {
     type = 1;
     shape = _shape;
-
-    if (shape.size() > 0)
-    {
-        data.resize(elemcount() * type_to_elemsize(type));
-        memcpy((void*)data.data(), (const void*)t.data(), data.size());
-    }
+    set_float32_data(t);
 }
 
 size_t Attribute::elemsize() const
@@ -181,83 +206,169 @@ size_t Attribute::elemsize() const
     return type_to_elemsize(type);
 }
 
+// Preserve the public int count contract without wrapping on large shapes.
+static bool attribute_size(const Attribute& attr, size_t& count, size_t& bytes)
+{
+    count = 0;
+    bytes = 0;
+    const size_t elemsize = attr.elemsize();
+    if (elemsize == 0)
+        return false;
+
+    bool empty = false;
+    for (int dim : attr.shape)
+    {
+        if (dim < 0)
+            return false;
+        if (dim == 0)
+            empty = true;
+    }
+    // A zero dimension wins even if other dimensions have a huge product.
+    if (empty)
+        return true;
+
+    size_t size = 1; // a typed rank-zero attribute is a scalar, not null
+    for (int dim : attr.shape)
+    {
+        if (size > (size_t)INT_MAX / (size_t)dim)
+            return false;
+        size *= (size_t)dim;
+    }
+    if (size > std::numeric_limits<size_t>::max() / elemsize)
+        return false;
+
+    count = size;
+    bytes = size * elemsize;
+    return true;
+}
+
 int Attribute::elemcount() const
 {
-    if (shape.empty())
+    if (type == 0)
         return 0;
 
-    int size = shape[0];
-    for (size_t i = 1; i < shape.size(); i++)
+    size_t count;
+    size_t bytes;
+    if (!attribute_size(*this, count, bytes))
     {
-        size *= shape[i];
+        fprintf(stderr, "invalid or overflowing attribute shape/type %d\n", type);
+        return 0;
     }
-
-    return size;
+    return (int)count;
 }
 
 std::vector<float> Attribute::get_float32_data() const
 {
-    std::vector<float> v(elemcount());
+    size_t count;
+    size_t bytes;
+    if (!attribute_size(*this, count, bytes) || data.size() != bytes || count > std::vector<float>().max_size())
+    {
+        fprintf(stderr, "invalid attribute shape or payload for type %d\n", type);
+        return std::vector<float>();
+    }
+    if (type != 1 && type != 2 && type != 3 && type != 13)
+    {
+        fprintf(stderr, "cannot convert type %d to float32 data\n", type);
+        return std::vector<float>();
+    }
+
+    std::vector<float> v(count);
+    if (count == 0)
+        return v;
 
     if (type == 1)
     {
-        memcpy((void*)v.data(), (const void*)data.data(), data.size());
+        memcpy(v.data(), data.data(), bytes);
     }
     else if (type == 2)
     {
-        // f64
-        const double* p = (const double*)data.data();
+        // Do not assume vector<char> is aligned for double.
         for (size_t i = 0; i < v.size(); i++)
         {
-            v[i] = float(p[i]);
-        }
-    }
-    else if (type == 3)
-    {
-        // f16
-        const unsigned short* p = (const unsigned short*)data.data();
-        for (size_t i = 0; i < v.size(); i++)
-        {
-            v[i] = float16_to_float32(p[i]);
+            double value;
+            memcpy(&value, data.data() + i * sizeof(value), sizeof(value));
+            v[i] = float(value);
         }
     }
     else
     {
-        fprintf(stderr, "cannot convert type %d to float32 data\n", type);
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            uint16_t value;
+            memcpy(&value, data.data() + i * sizeof(value), sizeof(value));
+            if (type == 3)
+            {
+                v[i] = float16_to_float32(value);
+            }
+            else
+            {
+                // bf16 is the high 16 bits of IEEE float32, not IEEE fp16.
+                uint32_t bits = (uint32_t)value << 16;
+                memcpy(&v[i], &bits, sizeof(bits));
+            }
+        }
     }
-
     return v;
 }
 
 void Attribute::set_float32_data(const std::vector<float>& newdata)
 {
-    data.resize(newdata.size() * elemsize());
+    size_t count;
+    size_t bytes;
+    if (!attribute_size(*this, count, bytes) || newdata.size() != count || bytes > data.max_size())
+    {
+        fprintf(stderr, "invalid attribute shape or float32 payload for type %d\n", type);
+        return;
+    }
+    if (type != 1 && type != 2 && type != 3 && type != 13)
+    {
+        fprintf(stderr, "cannot convert float32 data to type %d\n", type);
+        return;
+    }
+
+    // A rejected write must leave the old payload untouched.
+    data.resize(bytes);
+    if (count == 0)
+        return;
 
     if (type == 1)
     {
-        memcpy((void*)data.data(), (const void*)newdata.data(), data.size());
+        memcpy(data.data(), newdata.data(), bytes);
     }
     else if (type == 2)
     {
-        // f64
-        double* p = (double*)data.data();
         for (size_t i = 0; i < newdata.size(); i++)
         {
-            p[i] = newdata[i];
-        }
-    }
-    else if (type == 3)
-    {
-        // f16
-        unsigned short* p = (unsigned short*)data.data();
-        for (size_t i = 0; i < newdata.size(); i++)
-        {
-            p[i] = float32_to_float16(newdata[i]);
+            double value = newdata[i];
+            memcpy(data.data() + i * sizeof(value), &value, sizeof(value));
         }
     }
     else
     {
-        fprintf(stderr, "cannot convert float32 data to type %d\n", type);
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            uint16_t value;
+            if (type == 3)
+            {
+                value = float32_to_float16(newdata[i]);
+            }
+            else
+            {
+                uint32_t bits;
+                memcpy(&bits, &newdata[i], sizeof(bits));
+                if ((bits & 0x7fffffff) > 0x7f800000)
+                {
+                    // Keep NaN even if its payload is only in the low bits.
+                    value = (uint16_t)((bits >> 16) | 0x40);
+                }
+                else
+                {
+                    // Round to nearest, ties to even, as in torch.bfloat16.
+                    value = (uint16_t)((bits + 0x7fff + ((bits >> 16) & 1)) >> 16);
+                }
+            }
+            memcpy(data.data() + i * sizeof(value), &value, sizeof(value));
+        }
     }
 }
 
@@ -291,6 +402,12 @@ Attribute operator+(const Attribute& a, const Attribute& b)
     if (a.shape.size() != b.shape.size())
     {
         fprintf(stderr, "concat attribute shape rank mismatch\n");
+        return c;
+    }
+
+    if (a.shape.empty())
+    {
+        fprintf(stderr, "cannot concatenate scalar attributes along an axis\n");
         return c;
     }
 
@@ -602,11 +719,9 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
     std::istringstream lcss(lc);
 
     operand->shape.clear();
-    while (!lcss.eof())
+    std::string elem;
+    while (std::getline(lcss, elem, ','))
     {
-        std::string elem;
-        std::getline(lcss, elem, ',');
-
         if (elem == "?")
         {
             operand->shape.push_back(-1);
@@ -627,7 +742,7 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
     }
 }
 
-static void load_attribute(Operator* op, const std::string& key, const std::string& value, StoreZipReader& szr)
+static int load_attribute(Operator* op, const std::string& key, const std::string& value, StoreZipReader& szr)
 {
     Attribute& a = op->attrs[key];
 
@@ -636,51 +751,42 @@ static void load_attribute(Operator* op, const std::string& key, const std::stri
     a.type = string_to_type(typestr.c_str());
 
     if (a.type == 0)
-        return;
+        return 0;
 
     // shape
     std::string lc = value.substr(1, value.find_last_of(')') - 1);
     std::istringstream lcss(lc);
 
     a.shape.clear();
-    while (!lcss.eof())
+    std::string elem;
+    while (std::getline(lcss, elem, ','))
     {
-        std::string elem;
-        std::getline(lcss, elem, ',');
-
         int i = std::stoi(elem);
         a.shape.push_back(i);
     }
 
-    if (a.shape.empty())
-        return;
-
     // data
-    size_t size = 1;
-    for (int i : a.shape)
+    size_t count;
+    size_t bytesize;
+    if (!attribute_size(a, count, bytesize) || bytesize > a.data.max_size())
     {
-        size *= i;
+        fprintf(stderr, "invalid or overflowing attribute %s.%s\n", op->name.c_str(), key.c_str());
+        return -1;
     }
-
-    size_t bytesize = size * type_to_elemsize(a.type);
 
     std::string filename = op->name + "." + key;
 
-    size_t filesize = szr.get_file_size(filename);
-
-    if (filesize == 0)
-    {
-        // no such file
-        return;
-    }
-
+    uint64_t filesize = szr.get_file_size(filename);
     if (filesize != bytesize)
     {
-        fprintf(stderr, "file size not match expect %lu but got %lu\n", bytesize, filesize);
+        fprintf(stderr, "attribute %s size mismatch expect %llu but got %llu\n", filename.c_str(), (unsigned long long)bytesize, (unsigned long long)filesize);
+        return -1;
     }
 
     a.data.resize(bytesize);
-    szr.read_file(filename, (char*)a.data.data());
+    if (bytesize == 0)
+        return 0;
+    return szr.read_file(filename, a.data.data());
 }
 
 int Graph::load(const std::string& parampath, const std::string& binpath)
@@ -768,7 +874,8 @@ int Graph::load(const std::string& parampath, const std::string& binpath)
             if (key[0] == '@')
             {
                 // attribute
-                load_attribute(op, key.substr(1), value, szr);
+                if (load_attribute(op, key.substr(1), value, szr) != 0)
+                    return -1;
             }
             else if (key[0] == '$')
             {
@@ -870,7 +977,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
 
         for (const Operand* oprand : op->inputs)
         {
-            if (oprand->shape.empty())
+            if (oprand->shape.empty() && oprand->type == 0)
                 continue;
 
             fprintf(paramfp, " #%s=", oprand->name.c_str());
@@ -901,7 +1008,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
 
         for (const Operand* oprand : op->outputs)
         {
-            if (oprand->shape.empty())
+            if (oprand->shape.empty() && oprand->type == 0)
                 continue;
 
             fprintf(paramfp, " #%s=", oprand->name.c_str());
@@ -1488,9 +1595,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     fprintf(pyfp, "# memory OPS = %s\n", memops.c_str());
     fprintf(pyfp, "\n");
 
-    fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");
-    fprintf(pyfp, "import tempfile, zipfile\n");
+    fprintf(pyfp, "import zipfile\n");
     fprintf(pyfp, "import operator\n");
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
@@ -1573,10 +1679,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                             || op->type == "nn.AdaptiveAvgPool3d"
-                             || op->type == "nn.AdaptiveMaxPool2d"
-                             || op->type == "nn.AdaptiveMaxPool3d")
-                            && it.first == "output_size" && param.ai[i] == 0)
+                                || op->type == "nn.AdaptiveAvgPool3d"
+                                || op->type == "nn.AdaptiveMaxPool2d"
+                                || op->type == "nn.AdaptiveMaxPool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -1675,24 +1781,31 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             for (const auto& it : op->attrs)
             {
-                if (it.first == "running_mean" || it.first == "running_var")
+                const Attribute& attr = it.second;
+                const bool is_buffer = type_is_integer(attr.type) || it.first == "running_mean" || it.first == "running_var";
+                if (is_buffer)
                 {
-                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                    // Attribute names may address a nested module (out_proj.*).
+                    const size_t dot = it.first.find_last_of('.');
+                    const std::string module = sanitize_identifier(op->name) + (dot == std::string::npos ? "" : "." + it.first.substr(0, dot));
+                    const std::string name = dot == std::string::npos ? it.first : it.first.substr(dot + 1);
+                    fprintf(pyfp, "        self.%s.register_buffer('%s', self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", module.c_str(), name.c_str(), op->name.c_str(), it.first.c_str());
                 }
                 else
                 {
                     fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
                 }
 
-                const Attribute& attr = it.second;
                 for (size_t i = 0; i < attr.shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", attr.shape[i]);
-                    if (i + 1 != attr.shape.size())
-                        fprintf(pyfp, ",");
+                    fprintf(pyfp, "%d,", attr.shape[i]);
                 }
 
-                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                if (is_buffer)
+                {
+                    fprintf(pyfp, "), '%s'))\n", type_to_numpy_string(attr.type));
+                }
+                else if (attr.type == 1 || attr.type == 2 || attr.type == 3 || attr.type == 13)
                 {
                     fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
                 }
@@ -1732,48 +1845,32 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
             }
 
-            bool is_empty = false;
-            for (size_t i = 0; i < attr.shape.size(); i++)
+            const bool is_buffer = is_running_mean_var || type_is_integer(attr.type);
+            if (is_buffer)
             {
-                if (attr.shape[i] == 0)
-                    is_empty = true;
-            }
-
-            if (is_empty)
-            {
-                fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
-
-                for (size_t i = 0; i < attr.shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d,", attr.shape[i]);
-                }
-
-                fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
+                fprintf(pyfp, "        self.register_buffer('%s_%s', self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
             else
             {
-                if (is_running_mean_var)
-                {
-                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-                }
-                else
-                {
-                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-                }
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+            }
 
-                for (size_t i = 0; i < attr.shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d,", attr.shape[i]);
-                }
+            for (size_t i = 0; i < attr.shape.size(); i++)
+            {
+                fprintf(pyfp, "%d,", attr.shape[i]);
+            }
 
-                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
-                {
-                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
-                }
-                else
-                {
-                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
-                }
+            if (is_buffer)
+            {
+                fprintf(pyfp, "), '%s'))\n", type_to_numpy_string(attr.type));
+            }
+            else if (attr.type == 1 || attr.type == 2 || attr.type == 3 || attr.type == 13)
+            {
+                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            }
+            else
+            {
+                fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
             }
         }
 
@@ -1788,12 +1885,27 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
-        fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
-        fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
-        fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
-        fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
-        fprintf(pyfp, "        os.remove(tmppath)\n");
-        fprintf(pyfp, "        return torch.from_numpy(m)\n");
+        fprintf(pyfp, "        shape = (shape,) if isinstance(shape, int) else tuple(shape)\n");
+        fprintf(pyfp, "        count = 1\n");
+        fprintf(pyfp, "        for dim in shape:\n");
+        fprintf(pyfp, "            if dim < 0:\n");
+        fprintf(pyfp, "                raise ValueError('negative attribute dimension: ' + key)\n");
+        fprintf(pyfp, "            count *= dim\n");
+        fprintf(pyfp, "        # NumPy has no built-in bfloat16 or complex-half dtype.\n");
+        fprintf(pyfp, "        storage_dtype = np.dtype('uint16' if dtype == 'bfloat16' else 'float16' if dtype == 'chalf' else dtype)\n");
+        fprintf(pyfp, "        raw = archive.read(key)\n");
+        fprintf(pyfp, "        expected = count * storage_dtype.itemsize * (2 if dtype == 'chalf' else 1)\n");
+        fprintf(pyfp, "        if len(raw) != expected:\n");
+        fprintf(pyfp, "            raise ValueError('invalid attribute payload size: ' + key)\n");
+        fprintf(pyfp, "        # Copy to writable, owned storage; this also works for empty tensors.\n");
+        fprintf(pyfp, "        array = np.frombuffer(raw, dtype=storage_dtype).copy()\n");
+        fprintf(pyfp, "        # Older torch versions cannot wrap NumPy uint16; reinterpret, do not cast.\n");
+        fprintf(pyfp, "        tensor = torch.from_numpy(array.view(np.int16) if dtype == 'bfloat16' else array)\n");
+        fprintf(pyfp, "        if dtype == 'bfloat16':\n");
+        fprintf(pyfp, "            tensor = tensor.view(torch.bfloat16)\n");
+        fprintf(pyfp, "        elif dtype == 'chalf':\n");
+        fprintf(pyfp, "            tensor = torch.empty(count, dtype=torch.complex32) if count == 0 else tensor.view(torch.complex32)\n");
+        fprintf(pyfp, "        return tensor.reshape(shape)\n");
     }
 
     fprintf(pyfp, "\n");
@@ -1841,6 +1953,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 const std::string& key = op->attrs.begin()->first;
                 fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+            }
+            else if (op->type == "prim::Constant")
+            {
+                const Parameter& value = op->params.at("value");
+                const std::string encoded = Parameter::encode_to_string(value);
+                if (value.type == 4 && value.s.compare(0, 6, "torch.") != 0 && value.s != "inf" && value.s != "-inf")
+                    fprintf(pyfp, "v_%s = '%s'\n", sanitize_identifier(op->outputs[0]->name).c_str(), escape_python_single_quoted_string(encoded).c_str());
+                else if (value.type == 4 && (value.s == "inf" || value.s == "-inf"))
+                    fprintf(pyfp, "v_%s = float('%s')\n", sanitize_identifier(op->outputs[0]->name).c_str(), encoded.c_str());
+                else
+                    fprintf(pyfp, "v_%s = %s\n", sanitize_identifier(op->outputs[0]->name).c_str(), encoded.c_str());
             }
             else if (op->type == "Tensor.slice")
             {
@@ -2282,7 +2405,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    fprintf(pyfp, "%s%s(", op->outputs.empty() ? "" : " = ", op->type.c_str());
+                    if (op->type.compare(0, 6, "aten::") == 0)
+                    {
+                        fprintf(pyfp, "%storch.ops.aten.%s(", op->outputs.empty() ? "" : " = ", op->type.substr(6).c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "%s%s(", op->outputs.empty() ? "" : " = ", op->type.c_str());
+                    }
 
                     if (op->type.compare(0, 9, "operator.") == 0)
                     {
@@ -2359,8 +2489,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                     bool scalar_as_tensor = false;
                     if ((op->type == "Tensor.index_put" && it.first == "values")
-                        || (op->type == "torch.where" && it.first == "input")
-                        || (op->type == "torch.where" && it.first == "other"))
+                            || (op->type == "torch.where" && it.first == "input")
+                            || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
                     }
@@ -2447,10 +2577,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                 || op->type == "F.adaptive_avg_pool3d"
-                                 || op->type == "F.adaptive_max_pool2d"
-                                 || op->type == "F.adaptive_max_pool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                                    || op->type == "F.adaptive_avg_pool3d"
+                                    || op->type == "F.adaptive_max_pool2d"
+                                    || op->type == "F.adaptive_max_pool3d")
+                                    && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }
@@ -2550,7 +2680,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_torchscript():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2565,7 +2694,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2577,6 +2706,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2616,7 +2747,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_onnx():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2631,7 +2761,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2643,6 +2773,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2738,7 +2870,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_pnnx():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2753,7 +2884,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2765,6 +2896,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2812,7 +2945,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "@torch.no_grad()\n");
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2844,7 +2976,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
@@ -2859,6 +2991,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (input_shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
@@ -3012,11 +3146,9 @@ int Graph::parse(const std::string& param)
                     std::istringstream lcss(lc);
 
                     attr.shape.clear();
-                    while (!lcss.eof())
+                    std::string elem;
+                    while (std::getline(lcss, elem, ','))
                     {
-                        std::string elem;
-                        std::getline(lcss, elem, ',');
-
                         if (elem == "?")
                         {
                             attr.shape.push_back(-1);
