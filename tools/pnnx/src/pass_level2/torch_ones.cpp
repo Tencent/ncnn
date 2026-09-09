@@ -234,7 +234,9 @@ pnnx.Output             output      1 0 out
             }
             count *= (size_t)s;
         }
-        if (!valid || count > (size_t)-1 / es)
+        // reject invalid/overflowing shapes and cap the serialized constant at
+        // 1 GiB (a valid but huge shape must not OOM the converter)
+        if (!valid || count > (size_t)-1 / es || count * es > (size_t)0x40000000)
             count = 0;
 
         a.data.resize(count * es, 0);

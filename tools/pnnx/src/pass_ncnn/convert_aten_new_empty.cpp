@@ -90,6 +90,16 @@ void convert_aten_new_empty(Graph& graph)
         if (elem_count > (size_t)-1 / es)
             continue; // cannot allocate
 
+        // an absolute byte cap: this rewrite turns the runtime allocation into
+        // a serialized constant (zeros data). the original op would allocate at
+        // runtime, but here the allocation happens inside the converter, so a
+        // huge static buffer (e.g. a preallocated (100000, 100000) concat/KV
+        // buffer) would terminate pnnx with std::bad_alloc / an OOM kill.
+        // decline (leave the aten::new_empty op, which then surfaces as an
+        // unsupported-op conversion error) instead of allocating gigabytes
+        if (elem_count * es > (size_t)0x40000000) // 1 GiB
+            continue;
+
         // build a zeros Attribute with the recorded dtype
         Operator* attr = graph.new_operator_before("pnnx.Attribute", op->name + "_zeros", op);
         Operand* attr_out = graph.new_operand(op->name + "_zeros_out");

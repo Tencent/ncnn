@@ -118,7 +118,10 @@ pnnx.Output             output      1 0 out
         if (a.type == 10) es = 8;                               // complex64 (2 x f32)
         if (a.type == 11) es = 16;                              // complex128 (2 x f64)
 
-        // reject dynamic / invalid (non-positive) dimensions before allocating
+        // reject dynamic / invalid (non-positive) dimensions before allocating,
+        // and cap the serialized constant at 1 GiB: a valid but huge shape
+        // (e.g. a zeros(size) with a 1e10-element constant) would otherwise
+        // drive a tens-of-gigabytes allocation here and OOM the converter
         size_t count = 1;
         bool valid = true;
         for (int s : shape)
@@ -130,7 +133,7 @@ pnnx.Output             output      1 0 out
             }
             count *= (size_t)s;
         }
-        if (!valid || count > (size_t)-1 / es)
+        if (!valid || count > (size_t)-1 / es || count * es > (size_t)0x40000000)
             count = 0;
 
         a.data.resize(count * es, 0);
