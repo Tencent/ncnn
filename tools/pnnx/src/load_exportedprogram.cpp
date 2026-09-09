@@ -478,6 +478,42 @@ static int build_subgraph_nodes(Graph& g, const JsonValue& subgraph,
 
                 operands_by_name[name] = r;
             }
+            else if (outputs[j].has("as_tensors"))
+            {
+                // Tensor[] output (split / unbind / tensor_split ...): mirror
+                // the main loader - one list output plus a prim::ListUnpack so
+                // the individual elements enter operands_by_name for their
+                // consumers (and for the wrapper output mapping). names are
+                // derived from op_name, which is unique per subgraph node.
+                std::string list_name = std::string(op_name) + "_list";
+                Operand* list_op = g.new_operand(list_name.c_str());
+                list_op->producer = op;
+                op->outputs.push_back(list_op);
+
+                std::string lu_name = std::string(op_name) + "_unpack";
+                Operator* lu = g.new_operator("prim::ListUnpack", lu_name.c_str());
+
+                list_op->consumers.push_back(lu);
+                lu->inputs.push_back(list_op);
+
+                for (size_t k = 0; k < outputs[j]["as_tensors"].size(); k++)
+                {
+                    std::string name = outputs[j]["as_tensors"][k]["name"].as_string();
+
+                    Operand* r = g.new_operand(name.c_str());
+                    r->producer = lu;
+                    lu->outputs.push_back(r);
+
+                    if (tensor_values.has(name))
+                    {
+                        const JsonValue& meta = tensor_values[name];
+                        r->type = read_dtype(meta);
+                        read_sizes(meta, r->shape);
+                    }
+
+                    operands_by_name[name] = r;
+                }
+            }
         }
 
         if (!inputnames.empty())

@@ -42,6 +42,21 @@ pnnx.Output             output      1 0 out
         if (op0->inputs.size() < 2)
             return false;
 
+        // torchvision evaluates the single ROI (batch index 0) once and emits
+        // one output; ncnn's generic batch loop invokes the layer once per
+        // feature-map batch slice with the same four coordinates, so a feature
+        // input with batch extent > 1 would produce one extra result per slice
+        // (all identical to batch 0's). only lower when the feature batch is
+        // one (or the extent is unknown and no batch loop applies).
+        {
+            const Operand* feat = op0->inputs[0];
+            int batch_axis = 0;
+            if (feat->params.find("__ncnn_batch_axis") != feat->params.end())
+                batch_axis = feat->params.at("__ncnn_batch_axis").i;
+            if (batch_axis != 233 && (int)feat->shape.size() > batch_axis && feat->shape[batch_axis] > 1)
+                return false;
+        }
+
         Operator* rois_op = op0->inputs[1]->producer;
         if (!rois_op || rois_op->type != "pnnx.Attribute" || rois_op->attrs.empty())
             return false; // dynamic rois: keep the torchvision op untouched
