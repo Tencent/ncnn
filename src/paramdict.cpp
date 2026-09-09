@@ -181,7 +181,7 @@ void ParamDict::clear()
 static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
-    const size_t max_len = ((size_t) -1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
+    const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
     return std::min((size_t)INT_MAX, max_len);
 }
 
