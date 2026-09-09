@@ -333,7 +333,17 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_complex, 20)
+// NOTE: torch_stft_pt2_complex is intentionally NOT registered (same reason as
+// the istft pt2 variants below): it matches a wildcard Reshape between the
+// stft output and view_as_real and folds the whole chain into Spectrogram,
+// dropping that reshape. a real export does not produce such a reshape - the
+// complex stft output is consumed directly by view_as_real (see
+// torch_stft_pt2_pad_complex, which only validates the leading pad) - so the
+// only graphs that can reach this pattern are user reshapes that regroup the
+// batch/frame/frequency axes, and folding them into Spectrogram's native
+// layout would silently return the wrong shape. decline until a fixture-backed
+// standard layout exists.
+// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_complex, 20)
 
 // pt2: torch.stft + Reshape + UnaryOp abs + UnaryOp square (power=2 spectrum)
 class torch_stft_pt2_power : public GraphRewriterPass
@@ -377,7 +387,11 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_power, 20)
+// NOTE: torch_stft_pt2_power is intentionally NOT registered (same reason as
+// torch_stft_pt2_complex above: the wildcard Reshape before the magnitude
+// ops is not produced by torch.export and can only be a user reshape that a
+// Spectrogram replacement would silently drop).
+// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_power, 20)
 
 // pt2: torch.stft + Reshape + UnaryOp abs(div(@0,sqrt(@1))) (window-normalized magnitude spectrum)
 class torch_stft_pt2_norm : public GraphRewriterPass
@@ -422,7 +436,15 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_norm, 20)
+// NOTE: torch_stft_pt2_norm is intentionally NOT registered. besides the
+// wildcard Reshape issue shared with the complex/power variants above, its
+// `norm` operand is a graph-boundary pnnx.Input: the single-op rewriter would
+// wire it as a second input of the resulting Spectrogram, but the ncnn layer
+// accepts only the signal input, and the pattern never verifies that norm is
+// actually the window-energy factor (an arbitrary abs(stft / sqrt(norm)) graph
+// would be mis-scaled). decline the rewrite; the export-time normalization
+// stays as plain torch operators until a verified standard expansion exists.
+// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_norm, 20)
 
 } // namespace ncnn
 

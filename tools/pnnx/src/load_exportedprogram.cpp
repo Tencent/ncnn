@@ -966,6 +966,17 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
                 return -1;
             }
 
+            // a user tensor input whose serde dtype has no pnnx representation
+            // (uint16, float8, ...) leaves type 0 here; with no inputshape=
+            // override the generated python would later emit dtype=null and
+            // every backend would receive an unknown input type - reject it up
+            // front exactly like unsupported weights/constants dtypes
+            if (r->type == 0)
+            {
+                fprintf(stderr, "input '%s' has unsupported dtype, please specify inputshape= with a type suffix (f32/f64/f16/i32/i64/i16/i8/u8/bf16/c32/c64/c128/bool)\n", graph_name.c_str());
+                return -1;
+            }
+
             // record symbolic dim names for dynamic re-export: a size entry
             // that is an expression like "Symbol('s77', ...)" names the sym
             // governing that dimension (works both with and without an
