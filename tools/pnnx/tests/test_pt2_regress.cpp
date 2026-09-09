@@ -609,7 +609,7 @@ static void test_scalar_half_attribute_conversion()
         if (attr.data.size() == sizeof(value))
             memcpy(&value, attr.data.data(), sizeof(value));
         CHECK(attr.type == 1 && attr.shape.empty() && attr.data.size() == sizeof(float)
-                  && value == 1.f,
+              && value == 1.f,
               cases[i].name);
     }
 }
@@ -630,19 +630,19 @@ static void test_argreduce_default_arguments()
     {
         const char* path = "test_pt2_argreduce_defaults.zip";
         const std::string model_json = std::string(
-            "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
-            "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"reduce\",\"target\":\"")
-            + cases[i].target
-            + "\",\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
-              "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
-              "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":2},{\"as_int\":3}]},\"y\":{\"dtype\":5,\"sizes\":[]}}},"
-              "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
-              "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
+                                           "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
+                                           "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"reduce\",\"target\":\"")
+                                       + cases[i].target
+                                       + "\",\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
+                                       "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
+                                       "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":2},{\"as_int\":3}]},\"y\":{\"dtype\":5,\"sizes\":[]}}},"
+                                       "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
+                                       "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
 
         StoreZipWriter writer;
         CHECK(writer.open(path) == 0
-                  && writer.write_file("models/model.json", model_json.data(), model_json.size()) == 0
-                  && writer.close() == 0,
+              && writer.write_file("models/model.json", model_json.data(), model_json.size()) == 0
+              && writer.close() == 0,
               cases[i].name);
 
         Graph graph;
@@ -651,9 +651,9 @@ static void test_argreduce_default_arguments()
 
         Operator* reduce = find_op(graph, cases[i].type);
         CHECK(reduce != 0 && reduce->inputs.size() == 3
-                  && reduce->inputs[1]->producer->params.at("value").type == 0
-                  && reduce->inputs[2]->producer->params.at("value").type == 1
-                  && !reduce->inputs[2]->producer->params.at("value").b,
+              && reduce->inputs[1]->producer->params.at("value").type == 0
+              && reduce->inputs[2]->producer->params.at("value").type == 1
+              && !reduce->inputs[2]->producer->params.at("value").b,
               cases[i].name);
 
         remove(path);
