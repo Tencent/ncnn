@@ -188,12 +188,12 @@ static void test_whitespace_and_errors()
     CHECK_PARSE_ERROR("tru");
     CHECK_PARSE_ERROR("nul");
     CHECK_PARSE_ERROR("hello");
-    CHECK_PARSE_ERROR("\"abc");       // 未闭合字符串
-    CHECK_PARSE_ERROR("\"ab\\xc\"");  // 非法转义
-    CHECK_PARSE_ERROR("\"\\u12g4\""); // 非法 hex
-    CHECK_PARSE_ERROR("[1-2]");       // 数字内垃圾字节必须终止解析
-    CHECK_PARSE_ERROR("[1 2] 3");     // 顶层多个值
-    CHECK_PARSE_ERROR("01");          // 前导零非 JSON（宽容/严格均可，此处按严格）
+    CHECK_PARSE_ERROR("\"abc");
+    CHECK_PARSE_ERROR("\"ab\\xc\"");
+    CHECK_PARSE_ERROR("\"\\u12g4\"");
+    CHECK_PARSE_ERROR("[1-2]");
+    CHECK_PARSE_ERROR("[1 2] 3");
+    CHECK_PARSE_ERROR("01");
     CHECK_PARSE_ERROR("1.");
     CHECK_PARSE_ERROR(".5");
     CHECK_PARSE_ERROR("1e");

@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <limits>
 
 namespace pnnx {
 
@@ -120,6 +121,24 @@ static int pnnx_type_from_string(const std::string& t)
     if (t == "c32") return 12;
     if (t == "bf16") return 13;
     return 0;
+}
+
+static bool checked_size_add(size_t a, size_t b, size_t& c)
+{
+    if (b > std::numeric_limits<size_t>::max() - a)
+        return false;
+
+    c = a + b;
+    return true;
+}
+
+static bool checked_size_mul(size_t a, size_t b, size_t& c)
+{
+    if (a != 0 && b > std::numeric_limits<size_t>::max() / a)
+        return false;
+
+    c = a * b;
+    return true;
 }
 
 static void apply_input_shape(Operand* r, const std::vector<int64_t>& input_shape)
@@ -377,22 +396,17 @@ static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program,
     }
 
     const std::string entry_path = is_constant ? program.constant_entry_path(entry.path_name)
-                                   : program.weight_entry_path(entry.path_name);
+                                    : program.weight_entry_path(entry.path_name);
 
     const uint64_t raw_size = zip.get_file_size(entry_path);
-    std::vector<char> raw((size_t)raw_size);
-    int ret = zip.read_file(entry_path, raw.data());
-    if (ret != 0)
-    {
-        fprintf(stderr, "load_pt2: read weight failed %s\n", entry_path.c_str());
+    if (raw_size > (uint64_t)std::numeric_limits<size_t>::max())
         return -1;
-    }
 
     attr.type = pt2_dtype_to_pnnx_type(entry.dtype);
     if (attr.type == 0)
         return -1;
 
-    const int elemsize = (attr.type == 1) ? 4 : ((attr.type == 5) ? 8 : 0);
+    const size_t elemsize = attr.elemsize();
     if (elemsize == 0)
     {
         fprintf(stderr, "load_pt2: unsupported attribute type %d\n", attr.type);
@@ -411,12 +425,23 @@ static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program,
             fprintf(stderr, "load_pt2: invalid weight shape %s\n", entry_path.c_str());
             return -1;
         }
+        if ((unsigned long long)entry.sizes[i] > (unsigned long long)std::numeric_limits<int>::max())
+        {
+            fprintf(stderr, "load_pt2: weight dimension out of range %s\n", entry_path.c_str());
+            return -1;
+        }
         attr.shape.push_back((int)entry.sizes[i]);
     }
 
     size_t elem_count = 1;
     for (size_t i = 0; i < attr.shape.size(); i++)
-        elem_count *= (size_t)attr.shape[i];
+    {
+        if (!checked_size_mul(elem_count, (size_t)attr.shape[i], elem_count))
+        {
+            fprintf(stderr, "load_pt2: weight element count overflow %s\n", entry_path.c_str());
+            return -1;
+        }
+    }
 
     if (entry.strides.size() != entry.sizes.size() && !entry.strides.empty())
     {
@@ -424,51 +449,109 @@ static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program,
         return -1;
     }
 
-    size_t storage_count = elem_count;
-    if (entry.strides.size() == entry.sizes.size())
+    if ((unsigned long long)entry.storage_offset > (unsigned long long)std::numeric_limits<size_t>::max())
     {
-        size_t max_offset = (size_t)entry.storage_offset;
-        for (size_t i = 0; i < entry.sizes.size(); i++)
+        fprintf(stderr, "load_pt2: invalid weight storage offset %s\n", entry_path.c_str());
+        return -1;
+    }
+
+    std::vector<size_t> strides(entry.sizes.size());
+    if (entry.strides.empty())
+    {
+        size_t stride = 1;
+        for (size_t i = entry.sizes.size(); i-- > 0;)
         {
-            if (entry.strides[i] < 0)
+            strides[i] = stride;
+            if (!checked_size_mul(stride, (size_t)attr.shape[i], stride))
+            {
+                fprintf(stderr, "load_pt2: weight stride overflow %s\n", entry_path.c_str());
+                return -1;
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < entry.strides.size(); i++)
+        {
+            if (entry.strides[i] < 0 || (unsigned long long)entry.strides[i] > (unsigned long long)std::numeric_limits<size_t>::max())
             {
                 fprintf(stderr, "load_pt2: invalid weight shape/strides %s\n", entry_path.c_str());
                 return -1;
             }
-            if (entry.sizes[i] > 0)
-                max_offset += (size_t)(entry.sizes[i] - 1) * (size_t)entry.strides[i];
+            strides[i] = (size_t)entry.strides[i];
         }
-        storage_count = elem_count == 0 ? 0 : max_offset + 1;
     }
 
-    if (raw.size() < storage_count * elemsize)
+    size_t storage_count = elem_count;
+    {
+        size_t max_offset = (size_t)entry.storage_offset;
+        for (size_t i = 0; i < entry.sizes.size(); i++)
+        {
+            if (entry.sizes[i] > 0)
+            {
+                size_t extent = 0;
+                if (!checked_size_mul((size_t)(entry.sizes[i] - 1), strides[i], extent)
+                        || !checked_size_add(max_offset, extent, max_offset))
+                {
+                    fprintf(stderr, "load_pt2: weight storage offset overflow %s\n", entry_path.c_str());
+                    return -1;
+                }
+            }
+        }
+        if (elem_count != 0 && !checked_size_add(max_offset, 1, storage_count))
+        {
+            fprintf(stderr, "load_pt2: weight storage size overflow %s\n", entry_path.c_str());
+            return -1;
+        }
+    }
+
+    size_t storage_bytes = 0;
+    if (!checked_size_mul(storage_count, elemsize, storage_bytes))
+    {
+        fprintf(stderr, "load_pt2: weight storage byte size overflow %s\n", entry_path.c_str());
+        return -1;
+    }
+    if (raw_size < storage_bytes)
     {
         fprintf(stderr, "load_pt2: weight storage too small %s: need %zu got %llu\n", entry_path.c_str(),
-                storage_count * elemsize, (unsigned long long)raw.size());
+                storage_bytes, (unsigned long long)raw_size);
         return -1;
     }
 
-    bool contiguous = entry.strides.empty();
-    if (entry.strides.size() == entry.sizes.size())
+    std::vector<char> raw((size_t)raw_size);
+    if (zip.read_file(entry_path, raw.data()) != 0)
     {
-        long long expected_stride = 1;
-        contiguous = true;
-        for (size_t i = entry.sizes.size(); i-- > 0;)
+        fprintf(stderr, "load_pt2: read weight failed %s\n", entry_path.c_str());
+        return -1;
+    }
+
+    bool contiguous = true;
+    size_t expected_stride = 1;
+    for (size_t i = entry.sizes.size(); i-- > 0;)
+    {
+        if (strides[i] != expected_stride)
+            contiguous = false;
+        if (!checked_size_mul(expected_stride, (size_t)attr.shape[i], expected_stride))
         {
-            if (entry.strides[i] != expected_stride)
-                contiguous = false;
-            expected_stride *= entry.sizes[i];
+            fprintf(stderr, "load_pt2: weight stride overflow %s\n", entry_path.c_str());
+            return -1;
         }
     }
 
     if (storage_count == elem_count && entry.storage_offset == 0 && contiguous
-            && raw.size() == elem_count * elemsize)
+            && raw.size() == storage_bytes)
     {
         attr.data = raw;
         return 0;
     }
 
-    attr.data.resize(elem_count * elemsize);
+    size_t data_bytes = 0;
+    if (!checked_size_mul(elem_count, elemsize, data_bytes))
+    {
+        fprintf(stderr, "load_pt2: weight byte size overflow %s\n", entry_path.c_str());
+        return -1;
+    }
+    attr.data.resize(data_bytes);
     for (size_t linear = 0; linear < elem_count; linear++)
     {
         size_t remaining = linear;
@@ -477,7 +560,7 @@ static int load_weight_attribute(StoreZipReader& zip, const Pt2Program& program,
         {
             const size_t coordinate = remaining % (size_t)entry.sizes[d];
             remaining /= (size_t)entry.sizes[d];
-            storage_index += coordinate * (size_t)entry.strides[d];
+            storage_index += coordinate * strides[d];
         }
         memcpy(attr.data.data() + linear * elemsize, raw.data() + storage_index * elemsize, elemsize);
     }
@@ -813,9 +896,9 @@ int load_pt2(const std::string& ptpath, Graph& pg,
                     if (d.type == PT2_D_NO_DEFAULT || d.type == PT2_D_UNSUPPORTED
                             || !default_value_to_parameter(d.type, d.value, value))
                     {
-                        fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default, skipped\n",
+                        fprintf(stderr, "load_pt2: %s node %s: missing arg %s has no usable default\n",
                                 full_target.c_str(), node.name.c_str(), d.name);
-                        continue;
+                        return -1;
                     }
 
                     fprintf(stderr, "load_pt2: %s node %s: fill default %s=%s (from defaults table)\n",

@@ -1,12 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# M4b 数值对拍：权重字节链路（state_dict -> zip data/N -> Pt2Value.data -> pnnx.Attribute -> .bin）
-# 的首次端到端验证。结构对拍（.param diff）验不出权重字节错误，只有 pyncnn 推理
-# allclose(<1e-3) 能证明 state_dict 字节原样到达 ncnn。
-# 覆盖：linear / conv2d / grouped conv2d / batchnorm(running stats) / layernorm /
-#       conv+bn+relu fusion / Conv2d with alternate spatial dimensions / unweighted smoke baseline.
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,7 +29,6 @@ class MConv2d(nn.Module):
 
 
 class MConv2dGroups(nn.Module):
-    # groups=2：weight (8,2,3,3)，对权重布局语义要求最高
     def __init__(self):
         super().__init__()
         self.conv = nn.Conv2d(4, 8, 3, padding=1, groups=2, bias=False)
@@ -62,8 +55,25 @@ class MLayerNorm(nn.Module):
         return self.ln(x)
 
 
+class MLinearFloat16(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(8, 5).to(torch.float16)
+
+    def forward(self, x):
+        return self.fc(x)
+
+
+class MLinearBFloat16(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(8, 5).to(torch.bfloat16)
+
+    def forward(self, x):
+        return self.fc(x)
+
+
 class MConvBnRelu(nn.Module):
-    # 融合链：conv(4D 权重+bias) + bn(4 组 buffer) + relu
     def __init__(self):
         super().__init__()
         self.conv = nn.Conv2d(3, 4, 3, padding=1)
@@ -74,28 +84,30 @@ class MConvBnRelu(nn.Module):
 
 
 CASES = [
-    ("test_pt2_w_linear", MLinear, "[1,4,8]", (torch.rand(1, 4, 8),)),
-    ("test_pt2_w_conv2d", MConv2d, "[1,3,8,8]", (torch.rand(1, 3, 8, 8),)),
-    ("test_pt2_w_conv2d_shape2", MConv2d, "[1,3,5,7]", (torch.rand(1, 3, 5, 7),)),
-    ("test_pt2_w_conv2d_groups", MConv2dGroups, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),)),
-    ("test_pt2_w_batchnorm", MBatchNorm2d, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),)),
-    ("test_pt2_w_layernorm", MLayerNorm, "[1,4,8]", (torch.rand(1, 4, 8),)),
-    ("test_pt2_w_conv_bn_relu", MConvBnRelu, "[1,3,8,8]", (torch.rand(1, 3, 8, 8),)),
-    ("test_pt2_w_smoke", None, "[1,3,4,4],[1,3,4,4]", None),  # 对照组见 test()
+    ("test_pt2_w_linear", MLinear, "[1,4,8]", (torch.rand(1, 4, 8),), ATOL),
+    ("test_pt2_w_conv2d", MConv2d, "[1,3,8,8]", (torch.rand(1, 3, 8, 8),), ATOL),
+    ("test_pt2_w_conv2d_shape2", MConv2d, "[1,3,5,7]", (torch.rand(1, 3, 5, 7),), ATOL),
+    ("test_pt2_w_conv2d_groups", MConv2dGroups, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),), ATOL),
+    ("test_pt2_w_batchnorm", MBatchNorm2d, "[1,4,8,8]", (torch.rand(1, 4, 8, 8),), ATOL),
+    ("test_pt2_w_layernorm", MLayerNorm, "[1,4,8]", (torch.rand(1, 4, 8),), ATOL),
+    ("test_pt2_w_linear_f16", MLinearFloat16, "[1,4,8]", (torch.rand(1, 4, 8, dtype=torch.float16),), 5e-4),
+    ("test_pt2_w_linear_bf16", MLinearBFloat16, "[1,4,8]", (torch.rand(1, 4, 8, dtype=torch.bfloat16),), 4e-3),
+    ("test_pt2_w_conv_bn_relu", MConvBnRelu, "[1,3,8,8]", (torch.rand(1, 3, 8, 8),), ATOL),
+    ("test_pt2_w_smoke", None, "[1,3,4,4],[1,3,4,4]", None, ATOL),
 ]
 
 
 def test():
     torch.manual_seed(0)
     failures = []
-    for name, cls, shape_str, inputs in CASES:
-        if cls is None:  # smoke 对照组（无权重）
+    for name, cls, shape_str, inputs, atol in CASES:
+        if cls is None:
             from test_pt2_smoke import Model as SmokeModel
             x = torch.rand(1, 3, 4, 4)
             y = torch.rand(1, 3, 4, 4)
-            ok = run_pt2_test(SmokeModel().eval(), (x, y), shape_str, name, ATOL)
+            ok = run_pt2_test(SmokeModel().eval(), (x, y), shape_str, name, atol)
         else:
-            ok = run_pt2_test(cls().eval(), inputs, shape_str, name, ATOL)
+            ok = run_pt2_test(cls().eval(), inputs, shape_str, name, atol)
         print(f"[pt2-w] {name}: {'PASS' if ok else 'FAIL'}")
         if not ok:
             failures.append(name)

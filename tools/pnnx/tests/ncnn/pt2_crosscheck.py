@@ -1,14 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# M4 批量算子交叉对拍工具（无需 ncnn python 绑定，只需 pnnx + torch）。
-#
-# 对每个算子模型，分别走 .pt2(torch.export) 与 .pt(torchscript) 两条路径经 pnnx 转 ncnn，
-# 对比 ncnn .param 结构（归一化 op 名后缀后逐行 diff）。一致即证明 .pt2 路径与
-# torchscript 管线等价产出——无 ncnn 绑定下的最强正确性证据。
-#
-# 用法：python pt2_crosscheck.py [name1 name2 ...]   (不带参数跑全部)
-
 import os
 import re
 import sys
@@ -16,11 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# 让 pnnx 内部 popen 调的 python 就是当前 venv（装了 torch 的）解释器
 os.environ["PNNX_PYTHON"] = sys.executable
 
-# ---------- 算子电池 ----------
-# 每项: (name, Model 工厂(返回 eval 的 net), inputs, inputshape_str)
 BATTERY = []
 
 def case(name, inputs, inputshape_str):
@@ -99,7 +88,6 @@ class M_transpose(nn.Module):
     def forward(self, x):
         return x.transpose(1, 2)
 
-# ---- 带权重算子：探测 state_dict->权重加载路径 ----
 @case("conv2d", (torch.randn(1, 3, 8, 8),), "[1,3,8,8]")
 class M_conv2d(nn.Module):
     def __init__(self):
@@ -133,7 +121,6 @@ class M_layernorm(nn.Module):
         return self.ln(x)
 
 
-# ---------- pnnx 二进制探测 ----------
 def find_pnnx():
     env_bin = os.environ.get("PNNX_BIN", "")
     if env_bin and os.path.exists(env_bin):
@@ -152,18 +139,16 @@ PNNX = find_pnnx()
 
 def run_pnnx(ptx, inputshape_str):
     cmd = f"{PNNX} {ptx} inputshape={inputshape_str}"
-    return os.system(f"{cmd} > /dev/null 2>&1")  # 静默
+    return os.system(f"{cmd} > /dev/null 2>&1")
 
 
 def normalize_param(path):
-    """读 ncnn .param，归一化：去掉 op 名后缀 _<digits>，便于两路径比对。"""
     with open(path) as f:
         lines = [ln.rstrip("\n") for ln in f]
     out = []
     for ln in lines:
         parts = ln.split()
         if len(parts) >= 2 and parts[0] not in ("Input", "Output") and re.match(r"^[A-Za-z].*", parts[0]):
-            # 第2 token 是 op 名，去掉 trailing _digits 与 pt2_ 前缀（两路径命名约定不同）
             parts[1] = re.sub(r"_\d+$", "", parts[1])
             parts[1] = re.sub(r"^pt2_", "", parts[1])
         out.append(" ".join(parts))
@@ -199,7 +184,6 @@ def crosscheck(name, Model, inputs, inputshape_str):
     b = normalize_param(p_pt)
     if a == b:
         return ("PASS", f"{len(a)} lines identical")
-    # 找第一处差异
     diff = []
     for i, (la, lb) in enumerate(zip(a, b)):
         if la != lb:

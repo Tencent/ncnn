@@ -12,8 +12,6 @@
 #include <string>
 #include <vector>
 
-// Minimal JSON parser for PT2 archives without third-party dependencies.
-
 namespace pnnx {
 
 class JsonValue
@@ -193,7 +191,7 @@ private:
     {
         JsonValue v;
         v.type = JsonValue::JSON_OBJECT;
-        ++pos; // consume '{'
+        ++pos;
         skip_whitespace();
         if (peek() == '}')
         {
@@ -233,7 +231,7 @@ private:
     {
         JsonValue v;
         v.type = JsonValue::JSON_ARRAY;
-        ++pos; // consume '['
+        ++pos;
         skip_whitespace();
         if (peek() == ']')
         {
@@ -265,7 +263,7 @@ private:
     {
         JsonValue v;
         v.type = JsonValue::JSON_STRING;
-        ++pos; // consume opening quote
+        ++pos;
         std::string out;
         bool closed = false;
         while (pos < s.size())

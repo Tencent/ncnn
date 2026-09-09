@@ -1,37 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""离线生成 aten 参数默认值静态表(dump_aten_defaults.py)
-
-遍历 torch._C._jit_get_all_schemas(),把 aten 算子形参的默认值 dump 成
-C++ 静态表(pnnx/src/aten_defaults_table.h)。pnnx 的 pt2 loader 据此补全
-torch.export 省略的实参(等于默认值的参数会被 torch.export 从图里抹掉,
-如 cat 的 dim=0、flatten 的 end_dim=-1)。
-
-这是 pnnx pt2 前端的差异化设计:默认值知识在离线阶段固化、进仓库可审计、
-可随时重跑再生成,loader 侧零 torch 运行时依赖。
-
-用法(conda NCNN 环境,需 torch,但不需要 gpu/libtorch):
-    # 只收录真实 .pt2 图里出现过的算子(推荐,按需重跑扩充)
-    python scripts/dump_aten_defaults.py --scan ../tests/ncnn --out src/aten_defaults_table.h
-    # 显式追加算子(全名,overload 可省略,缺省取 .default)
-    python scripts/dump_aten_defaults.py --ops aten::cat aten::flatten.using_ints ...
-    # 全量 aten(表很大,仅兜底用)
-    python scripts/dump_aten_defaults.py --all
-
-值编码(与 src/aten_defaults_table.h 头注释一致):
-    NO_DEFAULT=-1  无默认值(占位行,保证形参顺序可用)
-    NONE=0         ""
-    INT=1          十进制整数(Scalar 默认值按 IValue 实际类型归 int/float)
-    FLOAT=2        strtod 可解析(repr 输出,含 inf/-inf/nan)
-    BOOL=3         "0"/"1"
-    STRING=4       原文(C 字符串转义后)
-    INTS=5         逗号分隔
-    FLOATS=6       逗号分隔
-    STRINGS=7      逗号分隔(元素含逗号的 op 拒绝,防歧义)
-    DEVICE=8       ""=None,否则 "cpu"/"cuda:0" 形态
-    UNSUPPORTED=9  bool 列表/嵌套列表/Tensor 等 builder 无法表达的默认值,
-                   该参数不参与补全(告警留痕,不影响同 op 其他参数)
-"""
+"""Generate the offline ATen argument default table."""
 
 import argparse
 import datetime
@@ -42,7 +11,7 @@ from pathlib import Path
 
 import torch
 
-# type 标签常量(必须与 C++ 枚举 Pt2DefaultType 一致)
+# Keep these values synchronized with Pt2DefaultType.
 T_NO_DEFAULT = -1
 T_NONE = 0
 T_INT = 1
@@ -71,19 +40,16 @@ TYPE_NAMES = {
 
 
 class UnsupportedDefault(Exception):
-    """单个默认值无法用静态表编码(不致命,该参数降级为 UNSUPPORTED)"""
+    pass
 
 
 def _float_repr(v):
-    # repr 保真且 strtod 可解析:1.0 / 0.5 / 1e-07 / inf / nan
     return repr(float(v))
 
 
 def encode_default(dv):
-    """IValue 默认值 → (type 标签, 字符串值)。不支持时抛 UnsupportedDefault。"""
     if dv is None:
         return T_NONE, ""
-    # bool 必须先于 int 判(python bool 是 int 子类)
     if isinstance(dv, bool):
         return T_BOOL, "1" if dv else "0"
     if isinstance(dv, int):
@@ -93,12 +59,9 @@ def encode_default(dv):
     if isinstance(dv, str):
         return T_STRING, dv
     if isinstance(dv, torch.device):
-        # "" 表示 None;device(type=cpu)按 str 输出
         return T_DEVICE, str(dv) if dv.type else ""
     if isinstance(dv, list):
         if not dv:
-            # 空列表元素类型未知,统一编成 INTS 空串;builder 侧转 type 0(None)
-            # 对齐 ts 形态(空列表实参在 trace 图里物化为 value=None 常量)
             return T_INTS, ""
         if all(isinstance(x, bool) for x in dv):
             raise UnsupportedDefault("bool list(pnnx Parameter 无 bool 列表表达)")
@@ -115,10 +78,6 @@ def encode_default(dv):
 
 
 def collect_ops_from_pt2(path):
-    """从单个 .pt2 的 models/model.json 提取 torch.ops.* target 全名。
-
-    纯 zipfile + json,不需要反序列化 torch 对象。
-    """
     ops = set()
     with zipfile.ZipFile(path) as zf:
         entries = [n for n in zf.namelist() if n.endswith("models/model.json")]
@@ -130,7 +89,6 @@ def collect_ops_from_pt2(path):
         target = node.get("target", "")
         if not target.startswith("torch.ops."):
             continue
-        # "torch.ops.aten.conv2d.default" → "aten::conv2d.default"
         rest = target[len("torch.ops."):]
         ns, sep, tail = rest.partition(".")
         if not sep:
@@ -147,17 +105,12 @@ def scan_dirs(dirs):
         for p in pt2s:
             try:
                 ops |= collect_ops_from_pt2(p)
-            except Exception as e:  # noqa: BLE001 单文件损坏不拖垮全量
+            except Exception as e:  # noqa: BLE001
                 print(f"  WARN 读取失败 {p}: {e}", file=sys.stderr)
     return ops
 
 
 def build_schema_index():
-    """registry 全量 schema 按 pt2 全名(aten::op.overload)建索引。
-
-    注意:default overload 的 schema.overload_name 是空串,而 pt2 target
-    用 ".default" —— 这里统一映射成 pt2 全名,builder 侧免转换。
-    """
     index = {}
     for s in torch._C._jit_get_all_schemas():
         overload = s.overload_name or "default"
@@ -166,7 +119,6 @@ def build_schema_index():
 
 
 def resolve_op_names(requested, schema_index):
-    """补全省略的 overload(aten::cat → aten::cat.default),返回 (全名, 报错) 列表。"""
     resolved = []
     for name in requested:
         name = name.strip()
@@ -175,7 +127,6 @@ def resolve_op_names(requested, schema_index):
         if name in schema_index:
             resolved.append(name)
             continue
-        # overload 省略:收集所有同名候选
         cands = [k for k in schema_index if k.startswith(name + ".")]
         if not cands:
             print(f"WARN schema 未收录: {name}", file=sys.stderr)
@@ -189,7 +140,6 @@ def resolve_op_names(requested, schema_index):
 
 
 def escape_cpp_string(s):
-    """C 字符串字面量转义(aten 字符串默认值均为 ASCII,防患于未然)。"""
     out = []
     for ch in s:
         if ch in ('\\', '"'):
@@ -197,7 +147,7 @@ def escape_cpp_string(s):
         elif 32 <= ord(ch) < 127:
             out.append(ch)
         else:
-            out.append("\\%03o" % ord(ch))  # 3 位八进制自终止,不会被后续数字吞并
+            out.append("\\%03o" % ord(ch))
     return "".join(out)
 
 
@@ -206,7 +156,6 @@ def mangle_op_name(full_name):
 
 
 def dump_op(full_name, schema):
-    """schema → (行列表 [(形参名, type, 编码值)], 跳过原因/None)"""
     rows = []
     for arg in schema.arguments:
         if arg.has_default_value():
@@ -226,34 +175,33 @@ HEADER_TEMPLATE = """\
 // Copyright {year} Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// aten 参数默认值静态表(离线生成,勿手改)。
+// Static ATen argument default table. Generated offline; do not edit manually.
 //
-// torch.export 会把等于默认值的实参从图里省略(cat 的 dim=0、flatten 的
-// end_dim=-1、conv2d 的 dilation/groups 等);pt2 builder 据本表把省略的
-// 实参补全为完整 schema 形态,使 pt2 图与 torchscript 图同构、下游
-// pass_level2 形态分支(torch_cat / torch_flatten / F_conv2d_1 ...)零改动复用。
+// torch.export omits graph inputs that equal operator defaults (such as cat
+// dim=0, flatten end_dim=-1, and conv2d dilation/groups). The PT2 builder
+// restores omitted inputs to the complete schema form so PT2 graphs match
+// TorchScript graphs and existing pass_level2 patterns can be reused.
 //
-// 再生成:{cmd}
-// 来源:torch {torch_version} 的 torch._C._jit_get_all_schemas()({count_schemas} 个 schema)
-// 生成时间:{date}
-// 收录算子:{count_ops} 个
+// Regenerate: {cmd}
+// Source: torch._C._jit_get_all_schemas() from torch {torch_version} ({count_schemas} schemas)
+// Generated: {date}
+// Operators: {count_ops}
 //
-// 值编码(type 标签 + 字符串值):
-//   NO_DEFAULT=-1  无默认值的必填参数(占位,保证形参顺序)
+// Value encoding (type tag and string value):
+//   NO_DEFAULT=-1  Required argument without a default; preserves argument order.
 //   NONE=0         ""
-//   INT=1          十进制整数
-//   FLOAT=2        strtod 可解析(含 inf/-inf/nan)
+//   INT=1          Decimal integer.
+//   FLOAT=2        Value accepted by strtod, including inf, -inf, and nan.
 //   BOOL=3         "0"/"1"
-//   STRING=4       原文
-//   INTS/FLOATS/STRINGS=5/6/7  逗号分隔平铺;值为 "" 表示空列表,builder 转
-//                  type 0(None)—— ts 侧空列表实参物化为 None 常量(如
-//                  max_pool2d 的 stride=()),下游转换器按 type 0 解释
-//   DEVICE=8       ""=None,否则 "cpu"/"cuda:0" 形态(builder 转 STRING)
-//   UNSUPPORTED=9  bool 列表/嵌套列表/Tensor 等 builder 无法表达的默认值,
-//                  不参与补全(生成时告警留痕)
+//   STRING=4       Verbatim text.
+//   INTS/FLOATS/STRINGS=5/6/7  Comma-separated flat values. An empty value is
+//                  an empty list, represented as type 0 (None) by the builder.
+//   DEVICE=8       "" is None; otherwise "cpu" or "cuda:0", stored as STRING.
+//   UNSUPPORTED=9  Defaults not expressible by the builder, such as bool lists,
+//                  nested lists, and Tensor values; never materialized.
 //
-// 限制:覆盖随测试语料增长按需重跑扩充;表未收录的算子 builder 保持
-// torch.export 原样转写(缺参不补,stderr 告警)。
+// Coverage grows with the test corpus. For unlisted operators, the builder
+// preserves the torch.export form and emits a missing-default warning.
 
 #ifndef PNNX_ATEN_DEFAULTS_TABLE_H
 #define PNNX_ATEN_DEFAULTS_TABLE_H
@@ -287,13 +235,13 @@ struct Pt2ArgDefault
 
 struct Pt2DefaultsEntry
 {{
-    const char* op; // 全名含 overload,如 "aten::conv2d.default"
+    const char* op; // Full name with overload, such as "aten::conv2d.default".
     const Pt2ArgDefault* args;
     size_t arg_count;
 }};
 
-// 按 pt2 target 全名(如 "aten::flatten.using_ints")查参数默认值表。
-// 未收录返回 0。
+// Finds argument defaults by complete PT2 target name, such as
+// "aten::flatten.using_ints". Returns 0 when the target is not listed.
 inline const Pt2DefaultsEntry* find_pt2_aten_defaults(const char* op)
 {{
 {entries}
@@ -361,7 +309,6 @@ def main():
 
     op_names = resolve_op_names(sorted(requested), schema_index)
 
-    # 排序保证生成结果可复现(不随 registry 顺序漂移)
     op_names = sorted(set(op_names))
 
     op_rows = []

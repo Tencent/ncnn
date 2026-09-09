@@ -6,7 +6,9 @@
 #include "load_pt2.cpp"
 #include "pt2_schema.cpp"
 #include "pass_level2/F_pt2.cpp"
+#include "pass_ncnn/convert_half_to_float.cpp"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -508,6 +510,101 @@ static void test_weight_attribute_reader_reuse()
     remove(path);
 }
 
+static void test_weight_attribute_dtype_and_bounds()
+{
+    const char* path = "test_pt2_weight_dtype_regress.zip";
+    const unsigned char f16_data[] = {0x00, 0x3c, 0x00, 0x40};
+    const unsigned char bf16_data[] = {0x80, 0x3f, 0x00, 0x40};
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0
+          && writer.write_file("data/weights/f16", (const char*)f16_data, sizeof(f16_data)) == 0
+          && writer.write_file("data/weights/bf16", (const char*)bf16_data, sizeof(bf16_data)) == 0
+          && writer.close() == 0,
+          "weight: writes dtype regression archive");
+
+    StoreZipReader reader;
+    CHECK(reader.open(path) == 0, "weight: opens dtype regression archive");
+
+    Pt2Program program;
+    Pt2WeightEntry entry;
+    entry.sizes.push_back(2);
+    entry.strides.push_back(1);
+
+    Attribute attr;
+    entry.path_name = "f16";
+    entry.dtype = 6;
+    CHECK(load_weight_attribute(reader, program, entry, false, attr) == 0
+          && attr.type == 3 && attr.data == std::vector<char>((const char*)f16_data, (const char*)f16_data + sizeof(f16_data)),
+          "weight: loads f16 storage without conversion");
+
+    attr = Attribute();
+    entry.path_name = "bf16";
+    entry.dtype = 13;
+    CHECK(load_weight_attribute(reader, program, entry, false, attr) == 0
+          && attr.type == 13 && attr.data == std::vector<char>((const char*)bf16_data, (const char*)bf16_data + sizeof(bf16_data)),
+          "weight: loads bf16 storage without conversion");
+
+    attr = Attribute();
+    entry.path_name = "f16";
+    entry.dtype = 7;
+    entry.sizes = std::vector<long long> {(long long)INT_MAX + 1, 0};
+    entry.strides = std::vector<long long> {0, 1};
+    CHECK(load_weight_attribute(reader, program, entry, false, attr) != 0,
+          "weight: rejects dimensions that do not fit pnnx shape");
+
+    entry.sizes = std::vector<long long> {INT_MAX, INT_MAX, INT_MAX};
+    entry.strides.clear();
+    CHECK(load_weight_attribute(reader, program, entry, false, attr) != 0,
+          "weight: rejects element counts that overflow size_t");
+
+    entry.sizes = std::vector<long long> {0};
+    entry.storage_offset = -1;
+    CHECK(load_weight_attribute(reader, program, entry, false, attr) != 0,
+          "weight: rejects negative storage offsets");
+
+    reader.close();
+    remove(path);
+}
+
+static void test_bfloat16_attribute_conversion()
+{
+    Graph graph;
+    Operator* op = graph.new_operator("pnnx.Attribute", "attr");
+    Attribute& attr = op->attrs["data"];
+    attr.type = 13;
+    attr.shape = std::vector<int> {2};
+    attr.data = std::vector<char> {(char)0x80, (char)0x3f, 0, (char)0x40};
+
+    ncnn::convert_half_to_float(graph);
+
+    CHECK(attr.type == 1 && attr.get_float32_data() == std::vector<float>({1.f, 2.f}),
+          "weight: converts bf16 storage to fp32 for ncnn");
+}
+
+static void test_missing_required_default_rejected()
+{
+    const char* path = "test_pt2_missing_required_default.zip";
+    const char model_json[] =
+        "{\"schema_version\":{\"major\":1,\"minor\":0},\"torch_version\":\"test\","
+        "\"graph_module\":{\"graph\":{\"nodes\":[{\"name\":\"add\",\"target\":\"torch.ops.aten.add.Tensor\","
+        "\"inputs\":[{\"name\":\"self\",\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}],"
+        "\"outputs\":[{\"as_tensor\":{\"name\":\"y\"}}]}],\"tensor_values\":{"
+        "\"x\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]},\"y\":{\"dtype\":7,\"sizes\":[{\"as_int\":1}]}}},"
+        "\"signature\":{\"input_specs\":[{\"user_input\":{\"arg\":{\"as_tensor\":{\"name\":\"x\"}}}}],"
+        "\"output_specs\":[{\"user_output\":{\"arg\":{\"as_tensor\":{\"name\":\"y\"}}}}]}}}";
+
+    StoreZipWriter writer;
+    CHECK(writer.open(path) == 0
+          && writer.write_file("models/model.json", model_json, sizeof(model_json) - 1) == 0
+          && writer.close() == 0,
+          "defaults: writes missing-required-argument fixture");
+
+    Graph graph;
+    CHECK(load_pt2(path, graph, std::vector<std::vector<int64_t> >(), std::vector<std::string>()) != 0,
+          "defaults: rejects a required default-table argument omitted by PT2");
+    remove(path);
+}
+
 static void test_weight_norm_zero_dim()
 {
     Graph graph;
@@ -727,14 +824,13 @@ static void test_module_form_rmsnorm_default_eps()
     struct TestCase
     {
         int input_type;
-        float eps;
         const char* name;
     };
     const TestCase cases[] = {
-        {1, 1.1920928955078125e-7f, "f32"},
-        {2, 2.2204460492503131e-16f, "f64"},
-        {3, 9.765625e-4f, "f16"},
-        {13, 7.8125e-3f, "bf16"},
+        {1, "f32"},
+        {2, "f64"},
+        {3, "f16"},
+        {13, "bf16"},
     };
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
@@ -760,7 +856,7 @@ static void test_module_form_rmsnorm_default_eps()
         op->params["__pt2_module_input_names"] = std::vector<std::string> {"input", "normalized_shape", "weight", "eps"};
         normalize_pt2_module_forms(graph);
 
-        CHECK(op->type == "nn.RMSNorm" && op->params.at("eps").type == 3 && op->params.at("eps").f == cases[i].eps,
+        CHECK(op->type == "nn.RMSNorm" && op->params.at("eps").type == 0,
               cases[i].name);
     }
 }
@@ -865,6 +961,9 @@ int main()
     test_storezip_zip64_roundtrip();
     test_storezip_invalid_record_count();
     test_weight_attribute_reader_reuse();
+    test_weight_attribute_dtype_and_bounds();
+    test_bfloat16_attribute_conversion();
+    test_missing_required_default_rejected();
     test_weight_norm_zero_dim();
     test_storezip_short_read();
     test_storezip_eocd_validation();

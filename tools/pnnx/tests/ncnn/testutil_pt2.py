@@ -1,9 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# pt2 对拍公共 helper：把同一模型走 torch.export(.pt2)->pnnx->ncnn，与 torch 参考输出对拍。
-# 用法见 test_pt2_*.py。base 名须带后缀（如 test_pt2_smoke），避免与 torchscript 路径产物冲突。
-
 import os
 import re
 import subprocess
@@ -12,20 +9,16 @@ import torch
 
 
 def _as_output_tuple(value):
-    """把模型输出统一成 tuple，同时保留 tuple/list 的输出数量。"""
     if isinstance(value, (tuple, list)):
         return tuple(value)
     return (value,)
 
 
 def _prepare_ncnn_input(tensor, batch_index):
-    """按生成的 ncnn wrapper 语义准备输入，拒绝隐式的任意 reshape。
-
-    batch_index=233 表示 ncnn 不承载 batch 维；仅当 torch 输入首维确实为
-    size-1 时才剥离，剩余形状必须与 ncnn 的 (c,h,w)/(c,h) 解释一致。
-    """
     import numpy as np
 
+    if tensor.dtype == torch.bfloat16:
+        tensor = tensor.float()
     value = np.ascontiguousarray(tensor.numpy(), dtype=np.float32)
     if batch_index == 233 and value.ndim >= 3 and value.shape[0] == 1:
         return value.reshape(value.shape[1:])
@@ -33,13 +26,6 @@ def _prepare_ncnn_input(tensor, batch_index):
 
 
 def _restore_ncnn_output(value, reference, batch_index):
-    """将 ncnn 输出恢复为 torch shape，只允许已知的 batch 轴剥离关系。
-
-    batch_index=0（ncnn 承载 batch 维）与 batch_index=233（ncnn 不承载
-    batch 维）都只可能出现一种额外形态：torch 参考输出首维为 size-1 且
-    ncnn 输出恰好等于去掉该维的形状（batch 轴被折叠/剥除）。仅允许这一
-    种还原；错序或结构不同但 numel 相同的形状一律拒绝。
-    """
     if value.shape == reference.shape:
         return value
     if (reference.ndim >= 1 and reference.shape[0] == 1
@@ -52,25 +38,16 @@ def _restore_ncnn_output(value, reference, batch_index):
 
 
 def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"):
-    """返回 True 表示 ncnn 输出与 torch 参考一致。
-
-    net          : eval 好的 nn.Module
-    inputs       : tuple of torch.Tensor（导出与参考推理用）
-    inputshape_str : 传给 pnnx 的 inputshape 字符串，如 "[1,3,4,4],[1,3,4,4]"
-    base_name    : 产物基名（不含扩展名），如 "test_pt2_smoke"
-    """
     net = net.eval()
     if device != "cpu":
         raise ValueError(f"unsupported test device: {device}")
     net = net.cpu()
     inputs = tuple(t.cpu() for t in inputs)
 
-    # 1) torch 参考输出
     with torch.no_grad():
         a = net(*inputs)
     a = _as_output_tuple(a)
 
-    # 2) 导出 .pt2
     pt2_path = base_name + ".pt2"
     try:
         ep = torch.export.export(net, inputs)
@@ -79,23 +56,20 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         print(f"[pt2] export failed for {base_name}: {e}")
         return False
 
-    # 3) pnnx 转换（PNNX_PYTHON 指向当前解释器，确保 popen 调的 python 装了 torch）
     os.environ["PNNX_PYTHON"] = sys.executable
 
-    # 探测 pnnx 二进制：PNNX_BIN > ctest 约定(../../src/pnnx) > 源码 build
     pnnx_bin = os.environ.get("PNNX_BIN", "")
     if not pnnx_bin or not os.path.exists(pnnx_bin):
-        cand = os.path.join("../../src/pnnx")  # ctest 工作目录约定
+        cand = os.path.join("../../src/pnnx")
         if os.path.exists(cand):
             pnnx_bin = cand
         else:
-            # 从脚本位置推 build/src/pnnx（手动从源码目录跑）
             script_dir = os.path.dirname(os.path.abspath(__file__))
             pnnx_build = os.path.normpath(os.path.join(script_dir, "..", "..", "build", "src", "pnnx"))
             if os.path.exists(pnnx_build):
                 pnnx_bin = pnnx_build
             else:
-                pnnx_bin = "pnnx"  # 退回 PATH
+                pnnx_bin = "pnnx"
 
     cmd = [pnnx_bin, pt2_path, f"inputshape={inputshape_str}"]
     print(f"[pt2] run: {' '.join(cmd)}")
@@ -108,10 +82,7 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         print(f"[pt2] pnnx failed (ret={result.returncode}) for {base_name}")
         return False
 
-    # 4) ncnn 推理：直接驱动 pyncnn 喂同一份 inputs。
-    #    不走产物 _ncnn.py 的 test_inference()——它内部 manual_seed(0) 重放输入，
-    #    若调用方在构造输入前消耗过 RNG（如模型权重初始化），两边输入会悄然不同。
-    #    输入/输出 blob 名经 pass_ncnn 的 convert_input/convert_output 统一为 in0..N / out0..N。
+    # Drive pyncnn directly because generated inference reseeds inputs.
     try:
         import numpy as np
         import ncnn
@@ -120,7 +91,6 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         out_names = re.findall(r'ex\.extract\("([^"]+)"\)', src)
         if not out_names:
             out_names = ["out0"]
-        # batch_index 由每个 Input/Output operand 独立决定，直接读取生成 wrapper。
         in_batch_indices = [int(v) for v in re.findall(r'ncnn\.Mat\(.*batch_index=(\d+)\)', src)]
         out_batch_indices = [int(v) for v in re.findall(r'numpy\(batch_index=(\d+)\)', src)]
         if len(in_batch_indices) < len(inputs) or len(out_batch_indices) < len(out_names):
@@ -150,7 +120,6 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
               f"torch={len(a)} ncnn={len(b)}")
         return False
 
-    # 5) 对拍
     import os as _os
     if _os.environ.get("PNNX_TESTUTIL_DBG"):
         w_dbg = None
@@ -160,12 +129,12 @@ def run_pt2_test(net, inputs, inputshape_str, base_name, atol=1e-4, device="cpu"
         print(f"[dbg] a[:3]={a[0].flatten()[:3].tolist()} b[:3]={b[0].flatten()[:3].tolist()} net_w[:3]={w_dbg}")
     ok = True
     for i, (a0, b0) in enumerate(zip(a, b)):
-        # 只允许 ncnn wrapper 明确声明的 batch_index=0 维度剥离关系。
-        b0 = torch.from_numpy(_restore_ncnn_output(b0.numpy(), a0.numpy(), out_batch_indices[i]))
-        if torch.allclose(a0, b0, atol, atol):
+        reference = a0.float() if a0.dtype == torch.bfloat16 else a0
+        b0 = torch.from_numpy(_restore_ncnn_output(b0.numpy(), reference.numpy(), out_batch_indices[i]))
+        if torch.allclose(reference.float(), b0.float(), atol, atol):
             print(f"[pt2] out[{i}]  shape a={tuple(a0.shape)} b={tuple(b0.shape)}  MATCH")
         else:
             ok = False
             print(f"[pt2] out[{i}]  shape a={tuple(a0.shape)} b={tuple(b0.shape)}  MISMATCH  "
-                  f"max|d|={ (a0 - b0).abs().max().item() if a0.shape == b0.shape else 'shape-diff' }")
+                  f"max|d|={ (reference.float() - b0.float()).abs().max().item() if a0.shape == b0.shape else 'shape-diff' }")
     return ok

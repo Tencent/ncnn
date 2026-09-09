@@ -1,8 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# PR review 回归：non-persistent buffer 的 constants 路径，以及 mutation
-# signature 不得被误暴露成 public output。
 
 import os
 import subprocess

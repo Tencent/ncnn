@@ -115,27 +115,6 @@ static const char* pt2_module_upsample_mode(const std::string& aten)
     return 0;
 }
 
-static bool pt2_rms_norm_default_eps(int input_type, float& eps)
-{
-    switch (input_type)
-    {
-    case 1:
-        eps = 1.1920928955078125e-7f;
-        return true;
-    case 2:
-        eps = 2.2204460492503131e-16f;
-        return true;
-    case 3:
-        eps = 9.765625e-4f;
-        return true;
-    case 13:
-        eps = 7.8125e-3f;
-        return true;
-    default:
-        return false;
-    }
-}
-
 void normalize_pt2_module_forms(Graph& g)
 {
     for (size_t i = 0; i < g.ops.size(); i++)
@@ -235,14 +214,6 @@ void normalize_pt2_module_forms(Graph& g)
         }
         if (cls == "Upsample")
             op->params["mode"] = std::string(pt2_module_upsample_mode(op->type));
-        if (cls == "RMSNorm" && !op->inputs.empty())
-        {
-            std::map<std::string, Parameter>::iterator eps = op->params.find("eps");
-            float default_eps;
-            if (eps != op->params.end() && eps->second.type == 0
-                    && pt2_rms_norm_default_eps(op->inputs[0]->type, default_eps))
-                eps->second = Parameter(default_eps);
-        }
         if (cls == "LayerNorm" || cls == "RMSNorm")
             op->params["elementwise_affine"] = has_weight;
 

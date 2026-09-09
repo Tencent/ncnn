@@ -1,15 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-# M0 夹具:固定 12 个 DIFF 场景的双路径基线产物,作为 M1-M5 改造期间的回归参照(docs/15)。
-#
-# 用法(在 tools/pnnx/tests/ncnn/ 下运行,需 PNNX_BIN 指向 pnnx 二进制):
-#   python pt2_diff_fixture.py                # 采集全部 12 DIFF 场景基线
-#   python pt2_diff_fixture.py name1 name2    # 子串选择场景
-#   python pt2_diff_fixture.py --verify       # 当前结果 vs 基线,报告回归
-#
-# 产物目录 pt2_diff_baseline/ 为本地生成物(.git/info/exclude),不进 commit。
-
 import os
 import sys
 import importlib
@@ -26,32 +17,29 @@ from pt2_crosscheck import normalize_param  # noqa: E402
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 BASELINE_DIR = os.path.join(TEST_DIR, "pt2_diff_baseline")
 
-# N4 收口 12 DIFF 场景(docs/08 2026-09-01 清单;docs/15 M1-M5 对应)
 DIFF_SCENARIOS = (
-    "test_F_interpolate",        # M1 语义等价编码差
-    "test_nn_Upsample",          # M1 语义等价编码差
-    "test_nn_Conv3d",            # M1 reflect+groups depthwise 判定
-    "test_nn_Linear",            # M1 weight_norm 参数化
-    "test_F_local_response_norm",  # M2 LRN 分解链
-    "test_nn_LocalResponseNorm",   # M2 LRN 分解链
-    "test_torch_stft",           # M3 stft 窗口常量+分解链
-    "test_torch_istft",          # M3 istft 分解链
-    "test_nn_GRU",               # M4 循环网络分解
-    "test_nn_LSTM",              # M4 循环网络分解
-    "test_nn_RNN",               # M4 循环网络分解
-    "test_Tensor_slice_copy",    # M5 copy_ in-place 链
+    "test_F_interpolate",
+    "test_nn_Upsample",
+    "test_nn_Conv3d",
+    "test_nn_Linear",
+    "test_F_local_response_norm",
+    "test_nn_LocalResponseNorm",
+    "test_torch_stft",
+    "test_torch_istft",
+    "test_nn_GRU",
+    "test_nn_LSTM",
+    "test_nn_RNN",
+    "test_Tensor_slice_copy",
 )
 
 
 def param_diffs(a, b):
-    """比较规范化参数，不能隐藏尾部新增或删除。"""
     return [
         f"line{i}: pt2={la!r} pt={lb!r}"
         for i, (la, lb) in enumerate(zip_longest(a, b))
         if la != lb
     ]
 
-# 每场景收集的产物:pnnx 中间 IR(+权重) + ncnn param/bin + 源模型
 ARTIFACTS = (
     "{m}.pnnx.param", "{m}.pnnx.bin",
     "{m}_ts.pnnx.param", "{m}_ts.pnnx.bin",
@@ -62,7 +50,6 @@ ARTIFACTS = (
 
 
 def run_scenario(modname):
-    """导出双路径模型并跑 pnnx,产物落在 CWD。返回 (inputshape, error)。"""
     src = open(os.path.join(TEST_DIR, modname + ".py")).read()
     try:
         mod = importlib.import_module(modname)
@@ -93,12 +80,10 @@ def run_scenario(modname):
 
 
 def dispose(modname, keep):
-    """CWD 场景产物 → keep 时移入基线目录,否则删除。返回 param 结构差异行列表。"""
     m = "sw_" + modname
     d = os.path.join(BASELINE_DIR, modname)
     if keep:
         os.makedirs(d, exist_ok=True)
-    # 对比必须在删除/移动之前(keep=False 时文件读后即焚)
     diffs = None
     if os.path.exists(m + ".ncnn.param") and os.path.exists(m + "_ts.ncnn.param"):
         a = normalize_param(m + ".ncnn.param")

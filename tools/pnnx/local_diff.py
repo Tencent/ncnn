@@ -1,5 +1,3 @@
-"""本地诊断 sweep 的 DIFF：直接比对已落盘的 sw_*.ncnn.param 与 sw_*_ts.ncnn.param。
-复用 pt2_crosscheck.py 的 normalize_param，保证与 sweep 判定一致。无需跑 pnnx。"""
 import os
 import re
 import sys
@@ -9,7 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "tests", "ncnn"))
 from pt2_crosscheck import normalize_param  # noqa: E402
 
-D = HERE  # 与 sweep 的 CWD 一致（tools/pnnx/）
+D = HERE
 
 pairs = []
 for f in sorted(os.listdir(D)):
@@ -37,7 +35,6 @@ for name, p2, pts in pairs:
     diffs.append((name, first, len(a), len(b)))
 
 print(f"# DIFF count = {len(diffs)}\n")
-# 按首处差异的 op 类型归类
 kind = Counter()
 for name, (i, la, lb), _, _ in diffs:
     toks = (la or "").split()
