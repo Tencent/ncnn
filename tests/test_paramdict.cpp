@@ -818,11 +818,16 @@ static int test_paramdict_invalid_text()
         if (check_text_result(malformed[i], false))
             return -1;
 
-    const std::string long_number = "0=0." + make_param_string(128, '0') + "1";
+    std::string long_number = "0=0.";
+    long_number += make_param_string(128, '0');
+    long_number += "1";
     if (check_text_result(long_number.c_str(), false))
         return -1;
-    const std::string long_string = "0=" + make_param_string(256, 'a');
-    const std::string long_quoted = "0=\"" + make_param_string(256, 'a') + "\"";
+    std::string long_string = "0=";
+    long_string += make_param_string(256, 'a');
+    std::string long_quoted = "0=\"";
+    long_quoted += make_param_string(256, 'a');
+    long_quoted += "\"";
     if (check_text_result(long_string.c_str(), false) || check_text_result(long_quoted.c_str(), false))
         return -1;
     return 0;
@@ -859,7 +864,9 @@ static int test_paramdict_text_boundaries()
         const std::string value = make_param_string(lengths[i], 'x');
         for (int quoted = 0; quoted < 2; quoted++)
         {
-            const std::string input = quoted ? "0=\"" + value + "\" 1=19" : "0=" + value + " 1=19";
+            std::string input = quoted ? "0=\"" : "0=";
+            input += value;
+            input += quoted ? "\" 1=19" : " 1=19";
             if (check_text_result(input.c_str(), true) || pd.load_param(input.c_str())
                     || pd.get(0, std::string()) != value || pd.get(1, 0) != 19)
             {
