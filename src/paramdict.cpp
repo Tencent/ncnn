@@ -275,9 +275,13 @@ static bool vstr_to_float(const char* p, float& value)
             v = negative_exponent ? v / scale : v * scale;
         }
     }
-    if (*p != '\0' || v > FLT_MAX)
+    // allow rounding to FLT_MAX, but reject the midpoint that rounds to infinity
+    const double half_ulp = (double)FLT_MAX / ((1u << FLT_MANT_DIG) - 1) * 0.5;
+    if (*p != '\0' || v >= (double)FLT_MAX + half_ulp)
         return false;
 
+    // keep the conversion within the finite float range
+    v = std::min(v, (double)FLT_MAX);
     value = negative ? (float)-v : (float)v;
     return true;
 }

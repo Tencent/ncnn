@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <float.h>
 #include <string.h>
 
 #include "datareader.h"
@@ -872,6 +873,95 @@ static int test_paramdict_text_boundaries()
     return 0;
 }
 
+static int check_float_boundary(const char* text, float expected, int count, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ParamDictTest pd;
+        int ret;
+        if (backend == 0)
+        {
+            ret = pd.load_param(text);
+        }
+        else
+        {
+#if NCNN_STDIO
+            FILE* fp = tmpfile();
+            if (!fp)
+                return -1;
+            fwrite(text, 1, strlen(text), fp);
+            rewind(fp);
+            ncnn::DataReaderFromStdio dr(fp);
+            ret = pd.load_param(dr);
+            fclose(fp);
+#else
+            continue;
+#endif
+        }
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "ParamDict float boundary parse failed backend=%d: %s\n", backend, text);
+            return -1;
+        }
+        if (!valid)
+            continue;
+
+        bool matches;
+        if (count == 0)
+        {
+            matches = pd.type(0) == 3 && pd.get(0, 0.f) == expected;
+        }
+        else
+        {
+            const ncnn::Mat values = pd.get(0, ncnn::Mat());
+            matches = pd.type(0) == 6 && values.w == count && values[0] == expected;
+            if (matches && count == 2)
+                matches = values[1] == 1.f;
+        }
+        if (!matches)
+        {
+            fprintf(stderr, "ParamDict float boundary value failed backend=%d: %s\n", backend, text);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int test_paramdict_float_boundaries()
+{
+    const char* numbers[] = {"3.40282347e+38", "3.4028235e38", "3.40282356e38", "3.402823e38", "3.40282357e38", "1e39"};
+    const float expected[] = {FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f};
+    const bool valid[] = {true, true, true, true, false, false};
+    for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
+        for (int negative = 0; negative < 2; negative++)
+        {
+            char text[128];
+            const char* sign = negative ? "-" : "";
+            const float value = negative ? -expected[i] : expected[i];
+            snprintf(text, sizeof(text), "0=%s%s", sign, numbers[i]);
+            if (check_float_boundary(text, value, 0, valid[i]))
+                return -1;
+            snprintf(text, sizeof(text), "0=%s%s,1.0", sign, numbers[i]);
+            if (check_float_boundary(text, value, 2, valid[i]))
+                return -1;
+            snprintf(text, sizeof(text), "-23300=1,%s%s", sign, numbers[i]);
+            if (check_float_boundary(text, value, 1, valid[i]))
+                return -1;
+        }
+
+    // nine significant digits must round trip the largest finite float
+    const float values[] = {FLT_MAX, -FLT_MAX};
+    for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++)
+    {
+        char text[64];
+        snprintf(text, sizeof(text), "0=%.9g", values[i]);
+        if (check_float_boundary(text, values[i], 0, true))
+            return -1;
+    }
+    return 0;
+}
+
+// short-read coverage requires a reader that knows the input size
 class BoundedParamReader : public ncnn::DataReader
 {
 public:
@@ -1018,5 +1108,6 @@ int main()
            || test_paramdict_access()
            || test_paramdict_invalid_text()
            || test_paramdict_text_boundaries()
+           || test_paramdict_float_boundaries()
            || test_paramdict_binary_bounds();
 }
