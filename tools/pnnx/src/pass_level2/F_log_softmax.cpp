@@ -26,20 +26,47 @@ static void set_log_softmax_dtype_param(Operator* op, const std::map<std::string
     const char* dtype_str = 0;
     switch (dtype.i)
     {
-    case 0: dtype_str = "torch.uint8"; break;
-    case 1: dtype_str = "torch.int8"; break;
-    case 2: dtype_str = "torch.short"; break;
-    case 3: dtype_str = "torch.int"; break;
-    case 4: dtype_str = "torch.long"; break;
-    case 5: dtype_str = "torch.half"; break;
-    case 6: dtype_str = "torch.float"; break;
-    case 7: dtype_str = "torch.double"; break;
-    case 8: dtype_str = "torch.complex32"; break;
-    case 9: dtype_str = "torch.complex64"; break;
-    case 10: dtype_str = "torch.complex128"; break;
-    case 11: dtype_str = "torch.bool"; break;
-    case 15: dtype_str = "torch.bfloat16"; break;
-    default: break;
+    case 0:
+        dtype_str = "torch.uint8";
+        break;
+    case 1:
+        dtype_str = "torch.int8";
+        break;
+    case 2:
+        dtype_str = "torch.short";
+        break;
+    case 3:
+        dtype_str = "torch.int";
+        break;
+    case 4:
+        dtype_str = "torch.long";
+        break;
+    case 5:
+        dtype_str = "torch.half";
+        break;
+    case 6:
+        dtype_str = "torch.float";
+        break;
+    case 7:
+        dtype_str = "torch.double";
+        break;
+    case 8:
+        dtype_str = "torch.complex32";
+        break;
+    case 9:
+        dtype_str = "torch.complex64";
+        break;
+    case 10:
+        dtype_str = "torch.complex128";
+        break;
+    case 11:
+        dtype_str = "torch.bool";
+        break;
+    case 15:
+        dtype_str = "torch.bfloat16";
+        break;
+    default:
+        break;
     }
     if (dtype_str)
         op->params["dtype"] = dtype_str;
