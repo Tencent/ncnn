@@ -601,7 +601,10 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
     }
 
     // dynamic re-export: keep the sym ranges from the archive so the generated
-    // *_pnnx.py can rebuild the dynamic shape constraints (torch.export.Dim)
+    // *_pnnx.py can rebuild the dynamic shape constraints (torch.export.Dim).
+    // torch serializes an unbounded side as JSON null, not as a number, so a
+    // null max must stay INT64_MAX instead of being read as 0 (which would
+    // later emit a `max=0` Dim and a bogus `size() > 0` validation check)
     if (root.has("range_constraints"))
     {
         const std::map<std::string, JsonValue>& rc = root["range_constraints"].as_object();
@@ -609,9 +612,9 @@ int load_exportedprogram(const std::string& pt2path, Graph& g,
         {
             int64_t min_val = 2;
             int64_t max_val = INT64_MAX;
-            if (it->second.has("min_val"))
+            if (it->second.has("min_val") && !it->second["min_val"].is_null())
                 min_val = it->second["min_val"].as_int();
-            if (it->second.has("max_val"))
+            if (it->second.has("max_val") && !it->second["max_val"].is_null())
                 max_val = it->second["max_val"].as_int();
             g.pt2_sym_ranges[it->first] = std::make_pair(min_val, max_val);
         }

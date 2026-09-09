@@ -158,33 +158,50 @@ int load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute
         }
         if (has_zero_stride)
         {
-            // a genuine expanded view (torch.tensor([1.]).expand(n), a
-            // broadcast buffer) has exactly one source element per output run;
-            // verify count == the zero-stride expansion product so an
-            // inconsistent meta cannot pass. a hostile meta may still ask for a
-            // huge count, but that is bounded by the absolute byte cap below
-            // (shared with the materialization path).
+            // an expanded view repeats elements through stride 0, so its
+            // logical count legitimately exceeds the number of distinct source
+            // elements. the source may also be a slice of a larger shared
+            // storage (e.g. base[2:3].expand(100)), so raw_elems_total is not
+            // the source footprint - only storage_offset and the non-zero
+            // strides select which storage slots are actually read. validate
+            // the reachable address range (in O(dims), before any allocation)
+            // and leave the absolute count to the byte cap below: every
+            // repeated read goes to the same in-range source, so no huge
+            // allocation can be driven unless the element count itself is
+            // huge, which the materialization guard rejects.
             if (raw_elems_total == 0)
             {
                 a.data.clear();
                 return -1;
             }
-            size_t expanded = raw_elems_total;
-            for (int i = 0; i < dims; i++)
+            int64_t min_addr = storage_offset;
+            int64_t max_addr = storage_offset;
+            for (int i = 0; i < dims && min_addr >= 0 && max_addr < (int64_t)raw_elems_total; i++)
             {
-                if (strides[i] == 0 && sizes[i] > 1)
+                const int64_t extent = (int64_t)sizes[i] - 1;
+                const int64_t st = (int64_t)strides[i];
+                if (extent <= 0 || st == 0)
+                    continue;
+                // safe absolute value (st == INT64_MIN would overflow -st)
+                const uint64_t as = st < 0 ? (uint64_t)(-(st + 1)) + 1 : (uint64_t)st;
+                // if this dimension alone reaches >= storage the view is OOB;
+                // compare via ceil(raw/as) so extent*as cannot overflow
+                const uint64_t need = ((uint64_t)raw_elems_total + as - 1) / as;
+                if ((uint64_t)extent >= need)
                 {
-                    if (expanded > (size_t)-1 / (size_t)sizes[i])
-                    {
-                        a.data.clear();
-                        return -1;
-                    }
-                    expanded *= (size_t)sizes[i];
+                    a.data.clear();
+                    return -1;
                 }
+                const int64_t span = extent * st;
+                if (st >= 0)
+                    max_addr += span;
+                else
+                    min_addr += span;
             }
-            if (count != expanded)
+            if (min_addr < 0 || (uint64_t)max_addr >= (uint64_t)raw_elems_total)
             {
-                // inconsistent with any zero-stride expansion
+                // some repeated read would fall outside the storage: the
+                // shape/strides/storage_offset are inconsistent with it
                 a.data.clear();
                 return -1;
             }

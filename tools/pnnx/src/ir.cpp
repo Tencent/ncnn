@@ -2610,7 +2610,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2676,7 +2677,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2798,7 +2800,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2900,7 +2903,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
@@ -3003,7 +3007,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             }
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "        %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "        %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t j = 0; j < input_shape.size(); j++)
                 {
                     fprintf(pyfp, "%d", input_shape[j]);
@@ -3083,6 +3088,47 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             fprintf(pyfp, "    _validate_inputs(example_inputs)\n");
             fprintf(pyfp, "\n");
 
+            // create one Dim object per distinct dynamic-axis name and reuse it
+            // everywhere that axis appears. torch.export infers equality of two
+            // axes only from the *same* Dim instance (a shared batch dimension
+            // across two inputs, a square-matrix dim, ...); emitting a fresh
+            // Dim with an equal name per occurrence would silently drop that
+            // identity constraint and let the re-export accept inconsistent
+            // shapes (or fail the original guard that required the equality).
+            std::map<std::string, std::string> py_dim_names;
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+                if (it == py_spec_by_name.end())
+                    continue;
+
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
+
+                    if (py_dim_names.find(ds[j]) == py_dim_names.end())
+                    {
+                        std::string varname = std::string("dim_") + sanitize_identifier(ds[j]);
+                        py_dim_names[ds[j]] = varname;
+                        fprintf(pyfp, "    %s = torch.export.Dim('%s'", varname.c_str(), ds[j].c_str());
+                        if (rit != pt2_sym_ranges.end())
+                        {
+                            if (rit->second.first > 2)
+                                fprintf(pyfp, ", min=%lld", (long long)rit->second.first);
+                            if (rit->second.second != INT64_MAX)
+                                fprintf(pyfp, ", max=%lld", (long long)rit->second.second);
+                        }
+                        fprintf(pyfp, ")\n");
+                    }
+                }
+            }
+            fprintf(pyfp, "\n");
+
             fprintf(pyfp, "    dynamic_shapes = (\n");
             for (size_t i = 0; i < py_input_operands.size(); i++)
             {
@@ -3112,16 +3158,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     if (ds[j].empty())
                         continue;
 
-                    fprintf(pyfp, "            %zu: torch.export.Dim('%s'", j, ds[j].c_str());
-                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
-                    if (rit != pt2_sym_ranges.end())
-                    {
-                        if (rit->second.first > 2)
-                            fprintf(pyfp, ", min=%lld", (long long)rit->second.first);
-                        if (rit->second.second != INT64_MAX)
-                            fprintf(pyfp, ", max=%lld", (long long)rit->second.second);
-                    }
-                    fprintf(pyfp, "),\n");
+                    fprintf(pyfp, "            %zu: %s,\n", j, py_dim_names[ds[j]].c_str());
                 }
                 fprintf(pyfp, "        },\n");
             }
