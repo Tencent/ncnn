@@ -38,7 +38,7 @@ int ConvolutionDepthWise3D::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
-    if (group == 0 || num_output % group != 0)
+    if (group <= 0 || num_output % group != 0)
     {
         // reject invalid group
         return -100;
