@@ -180,7 +180,8 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip,
+                            bool checksubgraph = true)
 {
     Operator* op = operand->producer;
 
@@ -237,6 +238,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 6)
         {
             // floats
+            if (param.af.empty())
+            {
+                expr += Parameter::encode_to_string(param);
+                return;
+            }
+
             expr += "[";
             for (int i = 0; i < (int)param.af.size(); i++)
             {

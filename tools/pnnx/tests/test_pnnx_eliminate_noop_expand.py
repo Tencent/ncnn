@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -155,17 +157,13 @@ def test():
 
     a = net(x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15))
-    mod.save("test_pnnx_eliminate_noop_expand.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_eliminate_noop_expand.pt inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1]")
-
-    # pnnx inference
-    import test_pnnx_eliminate_noop_expand_pnnx
-    b = test_pnnx_eliminate_noop_expand_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15),
+        "test_pnnx_eliminate_noop_expand",
+        pnnx_args=("inputshape=[5],[1],[7,5],[1,5],[7,1],[1,1],[4,7,5],[1,7,5],[4,1,5],[4,7,1],[1,1,5],[1,7,1],[4,1,1],[1,1,1],[6,4,7,5],[1,4,7,5],[6,1,7,5],[6,4,1,5],[6,4,7,1],[1,1,7,5],[1,4,1,5],[1,4,7,1],[6,1,1,5],[6,1,7,1],[6,4,1,1],[1,1,1,5],[1,1,7,1],[1,4,1,1],[6,1,1,1],[1,1,1,1]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         # allclose may auto broadcast compare

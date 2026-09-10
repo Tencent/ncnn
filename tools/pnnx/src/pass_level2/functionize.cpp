@@ -216,20 +216,14 @@ void functionize(Graph& graph)
                 if (!affacted)
                     continue;
 
-                // 6. collect ops on the chain back to alias
+                // 6. collect every affected input chain back to alias
+                // Producer indexes deduplicate shared chains and preserve dependency order.
                 std::set<size_t> chainsx_op_indexes;
+                for (Operand* input : op1->inputs)
                 {
-                    size_t op1_index = std::find(graph.ops.begin(), graph.ops.end(), op1) - graph.ops.begin();
-
-                    if (op1_index < i - i_advanced)
+                    Operand* x = input;
+                    while (x != alias_in0)
                     {
-                        chainsx_op_indexes.insert(op1_index);
-                        // fprintf(stderr, "affacted op %s for %s\n", op1->name.c_str(), graph.operands[alias_index]->name.c_str());
-                    }
-
-                    while (1)
-                    {
-                        Operand* x = op1->inputs[0];
                         if (x->params.find("__alias__") == x->params.end())
                             break;
 
@@ -237,14 +231,18 @@ void functionize(Graph& graph)
                         if (alias_index_1 != alias_index)
                             break;
 
-                        op1 = x->producer;
-                        size_t op1_index = std::find(graph.ops.begin(), graph.ops.end(), op1) - graph.ops.begin();
+                        Operator* producer = x->producer;
+                        if (!is_alias_op(producer))
+                            break;
 
-                        if (op1_index < i - i_advanced)
+                        size_t producer_index = std::find(graph.ops.begin(), graph.ops.end(), producer) - graph.ops.begin();
+
+                        if (producer_index < i - i_advanced)
                         {
-                            chainsx_op_indexes.insert(op1_index);
-                            // fprintf(stderr, "affacted op %s for %s   chained\n", op1->name.c_str(), graph.operands[alias_index]->name.c_str());
+                            chainsx_op_indexes.insert(producer_index);
                         }
+
+                        x = producer->inputs[0];
                     }
                 }
 

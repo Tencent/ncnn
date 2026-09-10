@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -26,17 +28,14 @@ def test():
 
     a0,a1,a2,a3 = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_F_pairwise_distance.pt")
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_F_pairwise_distance",
+        pnnx_args=("inputshape=[12,128,128],[12,128,128]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_pairwise_distance.pt inputshape=[12,128,128],[12,128,128]")
-
-    # pnnx inference
-    import test_F_pairwise_distance_pnnx
-    b0,b1,b2,b3 = test_F_pairwise_distance_pnnx.test_inference()
+    b0,b1,b2,b3 = mod.test_inference()
 
     return torch.equal(a0,b0) and torch.equal(a1,b1) and torch.equal(a2,b2) and torch.equal(a3,b3)
 

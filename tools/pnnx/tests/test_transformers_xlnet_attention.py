@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import XLNetConfig
 from transformers.models.xlnet.modeling_xlnet import XLNetRelativeAttention
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -49,17 +51,13 @@ def test():
 
     a = net(x, r, mask0)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, r, mask0))
-    mod.save("test_transformers_xlnet_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_xlnet_attention.pt inputshape=[16,3,192],[32,3,192],[16,16,3,12]")
-
-    # pnnx inference
-    import test_transformers_xlnet_attention_pnnx
-    b = test_transformers_xlnet_attention_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, r, mask0),
+        "test_transformers_xlnet_attention",
+        pnnx_args=("inputshape=[16,3,192],[32,3,192],[16,16,3,12]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

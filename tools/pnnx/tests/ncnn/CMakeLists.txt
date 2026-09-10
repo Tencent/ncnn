@@ -244,6 +244,16 @@ pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)
 pnnx_ncnn_add_test(ncnn_fuse_pad_conv)
 pnnx_ncnn_add_test(ncnn_batch_layout)
 pnnx_ncnn_add_test(ncnn_binaryop_broadcast_cleanup)
+add_test(
+    NAME test_pt2_ncnn_attribute
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../run_pt2_test.py --pnnx $<TARGET_FILE:pnnx> --build-dir ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test_attribute.py
+)
+set_tests_properties(test_pt2_ncnn_attribute PROPERTIES SKIP_RETURN_CODE 77 LABELS "pt2;pt2_operator")
+add_test(
+    NAME test_pt2_ncnn_output
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../run_pt2_test.py --pnnx $<TARGET_FILE:pnnx> --build-dir ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test_output.py
+)
+set_tests_properties(test_pt2_ncnn_output PROPERTIES SKIP_RETURN_CODE 77 LABELS "pt2;pt2_operator")
 pnnx_ncnn_add_test(ncnn_global_pooling_layout)
 pnnx_ncnn_add_test(ncnn_interp_expr)
 pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)

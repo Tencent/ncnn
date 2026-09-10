@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import SqueezeBertConfig
 from transformers.models.squeezebert.modeling_squeezebert import SqueezeBertSelfAttention
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -39,17 +41,13 @@ def test():
 
     a = net(x, y, mask0, mask1)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, mask0, mask1))
-    mod.save("test_transformers_squeezebert_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_squeezebert_attention.pt inputshape=[3,192,16],[2,66,5],[12,16,16],[6,5,5]")
-
-    # pnnx inference
-    import test_transformers_squeezebert_attention_pnnx
-    b = test_transformers_squeezebert_attention_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, y, mask0, mask1),
+        "test_transformers_squeezebert_attention",
+        pnnx_args=("inputshape=[3,192,16],[2,66,5],[12,16,16],[6,5,5]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

@@ -31,12 +31,96 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
 
 # Usage
+
+## ExportedProgram
+
+1. Export your model with `torch.export` and save the ExportedProgram as PT2
+
+```python
+import torch
+
+model = Model().eval()
+example_inputs = (torch.rand(1, 3, 224, 224),)
+
+exported_program = torch.export.export(model, example_inputs)
+torch.export.save(exported_program, "model.pt2")
+```
+
+2. Convert ExportedProgram to PNNX
+
+```shell
+pnnx model.pt2
+```
+
+The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs. An optional `inputshape` or `input` override must match the input count, ranks, static dimensions and data types, and satisfy the dynamic dimension constraints. It does not specialize dynamic dimensions. Alternative `inputshape2` and `input2` inputs are unsupported for ExportedProgram.
+
+3. Export the generated PNNX python model as another ExportedProgram
+
+```shell
+python -c 'import model_pnnx; model_pnnx.export_exported_program()'
+```
+
+This exports the inference graph of the generated PNNX Python `Model`, creates `model_pnnx.pt2`, and returns that `torch.export.ExportedProgram` object. It is not a serialization round trip of the original Python module. Pass a tuple to `export_exported_program(example_inputs)` to override the generated example inputs.
+
+Named dynamic input dimensions retain their ranges and shared identities through PNNX parameter save/load and re-export. For example, export a model with `dynamic_shapes=({0: torch.export.Dim("batch", min=3, max=8)},)` to keep its batch dimension dynamic. The generated Python model checks input ranks, static dimensions, ranges and shared dimensions. As in PyTorch's ExportedProgram runtime, a lower bound at most 2 allows dimensions 0 and 1; re-export still retains the declared bounds. Native ncnn execution remains subject to the supported operator and batch-layout rules, and does not enforce the PT2 range guards.
+
+### Current ExportedProgram support
+
+- PT2 archive version `0` with one ExportedProgram; consumed ZIP entries must be uncompressed, while unconsumed compressed attachments are ignored and encryption is unsupported for every entry
+- PyTorch 2.13 ExportedProgram schema 8.20 with raw tensor payloads; compatibility paths for the older raw-payload schema minors 8.14, 8.15 and 8.17 are retained but are not part of the continuously tested compatibility contract
+- Inference graphs with protocol-1 positional tensor input PyTrees composed only of tuple/list containers; their leaves are flattened in treespec order at the PNNX model boundary, while tensor output leaves may be reconstructed into protocol-1 tuple/list trees
+- Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments; basic named dynamic input dimensions with finite integer bounds or an unbounded maximum, including shared symbols across inputs
+- Runtime `aten.sym_size.int` queries and mixed constant/symbolic integer lists used by supported shape operators; dynamic inference and re-export are verified with multiple input sizes, shared/independent dimensions and reshape
+- Inference-state values, shapes and data types from parameters, persistent and non-persistent buffers, and tensor constants, with raw strided tensor payloads including stride and storage offset; payload layout is used for state materialization, not as a runtime input-stride contract, and the original state category and training identity are not preserved
+- Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
+- Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
+- Native ncnn lowering converts Half, Double, BFloat16, Byte, Char and Short state to Float before operator conversion and weight serialization; PNNX attributes and generated PNNX Python retain the imported state dtype. BFloat16 and narrow integer values are exactly representable in Float, but native inference does not preserve float64 precision, BFloat16 arithmetic or typed integer arithmetic
+- Finite non-tensor Float, Float-list and Complex arguments continue to use PNNX float parameters. When such a value is narrowed in a node with an f64 or c128 tensor input or output, pnnx reports the operator target, argument and before/after values once per distinct warning. This diagnostic makes detected loss visible; it does not guarantee end-to-end double-precision scalar or Expression arithmetic
+- ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
+- `torch.ops.aten.einsum.default` equation syntax and input/output ranks are validated without executing the operator, then whitespace is removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
+- Disabled `wrap_with_set_grad_enabled` and `wrap_with_autocast` higher-order wrappers with tensor-only captured graphs
+- Operator overloads and defaults are resolved against the linked libtorch dispatcher, and the archive ATen opset must match the linked libtorch opset; the producer version is not independently gated when these serialized contracts are supported
+- The declared operator and model support matrix is tracked by the `test_pt2_*` expectation suite; TorchVision cases are registered when TorchVision is available
+
+### Unsupported ExportedProgram features
+
+- PyTorch 2.8 legacy pickled-payload PT2, incompatible schema majors and schema minors other than 14, 15, 17 and 20
+- AOTInductor-only packages or multiple ExportedPrograms in one PT2 package
+- Derived symbolic sizes or strides (for example `2*s0` or `s0*s1`), symbolic scalar arithmetic, data-dependent dimensions, dynamic `SymFloat`/`SymBool` values, symbolic scalar dataflow inside higher-order wrappers, and dynamic model state
+- Keyword inputs, positional input PyTrees containing dict, namedtuple or custom containers, and output PyTrees containing dict, namedtuple or custom containers
+- Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs. Retained nodes that write directly or through aliases to external state, or whose possible external writes cannot be ruled out, are also rejected even without mutation outputs. Supported local temporary updates remain allowed within the existing slice/select/view functionalization coverage; this is not general view functionalization.
+- Lossless restoration of original module state identity or training semantics. An imported state tensor may be emitted as a generated Python `Parameter` regardless of whether it originated as a parameter, persistent buffer, non-persistent buffer or tensor constant; original `requires_grad`, buffer persistence, `state_dict` keys and parameter/buffer registration are not a round-trip contract
+- End-to-end f64/c128 fidelity for non-tensor scalar parameters and Expressions; high-precision tensor payload and dtype restoration does not widen PNNX scalar parameter storage beyond float
+- Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
+- Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
+- Generated native ncnn python inference with Double, Byte, Char, Short, Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
+- Compressed PT2 entries consumed by the frontend, any encrypted PT2 entry, and PT2 archive versions other than `0`
+
+Unsupported graph and schema features detected during import fail with a feature-specific `load exported program failed:` diagnostic. Unlowered operator targets left after the PNNX passes fail with `lower exported program failed:` before model artifacts are written. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
+
+### ExportedProgram contributor tests
+
+The frontend suite requires Python PyTorch 2.9 or newer. `test_real_producer_omits_default_arguments` checks the current producer layout, while `test_legacy_pickled_payload_layout_is_rejected` checks rejection of a synthetic legacy payload. Producer-dependent tests skip on older producers; the helper self-tests control their producer/exporter environment and remain runnable there. Expected failures require a normal converter exit and a matching category and diagnostic; an unexpected success requires updating the expectation. The unsupported-input helper tests do not require the Python ncnn binding; native ncnn runtime tests still require it.
+
+```shell
+ctest --test-dir build --output-on-failure -L '^pt2_frontend$'
+```
+
+Run the complete PT2 operator and model expectation suite, including the focused Bool/Double/BFloat16/narrow-integer attribute ncnn smoke test, with:
+
+```shell
+ctest --test-dir build --output-on-failure -j 8 -L '^pt2_operator$'
+```
+
+CTest assigns these labels when registering tests. Use `-L '^pt2$'` for both groups or `-LE '^pt2$'` for the remaining tests; CI uses the same labels rather than duplicating test-name lists. TorchScript and PT2 cases reuse model definitions and numerical checks but run in separate processes with separate generated-model names. The two input-npy cases retain a shared resource lock for their common input files.
+
+## TorchScript
 
 1. Export your model to TorchScript
 

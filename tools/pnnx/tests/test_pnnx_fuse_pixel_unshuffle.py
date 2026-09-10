@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class pixel_unshuffle(nn.Module):
     def __init__(self, scale=2):
         super(pixel_unshuffle, self).__init__()
@@ -39,17 +41,13 @@ def test():
 
     a0 = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_pixel_unshuffle.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_pixel_unshuffle.pt inputshape=[1,3,128,128]")
-
-    # pnnx inference
-    import test_pnnx_fuse_pixel_unshuffle_pnnx
-    b0 = test_pnnx_fuse_pixel_unshuffle_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_fuse_pixel_unshuffle",
+        pnnx_args=("inputshape=[1,3,128,128]",),
+    )
+    b0 = mod.test_inference()
 
     return torch.equal(a0, b0)
 

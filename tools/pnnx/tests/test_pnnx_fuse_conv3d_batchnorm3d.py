@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -66,17 +68,13 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_conv3d_batchnorm3d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_conv3d_batchnorm3d.pt inputshape=[1,12,64,64,64]")
-
-    # pnnx inference
-    import test_pnnx_fuse_conv3d_batchnorm3d_pnnx
-    b = test_pnnx_fuse_conv3d_batchnorm3d_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_fuse_conv3d_batchnorm3d",
+        pnnx_args=("inputshape=[1,12,64,64,64]",),
+    )
+    b = mod.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
