@@ -27,6 +27,12 @@ int LSTM::load_param(const ParamDict& pd)
 #endif
     }
 
+    if (num_output <= 0 || hidden_size <= 0)
+    {
+        // reject invalid sizes (load_model divides by hidden_size)
+        return -100;
+    }
+
     return 0;
 }
 
