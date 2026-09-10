@@ -80,7 +80,7 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - Inference-state values, shapes and data types from parameters, persistent and non-persistent buffers, and tensor constants, with raw strided tensor payloads including stride and storage offset; payload layout is used for state materialization, not as a runtime input-stride contract, and the original state category and training identity are not preserved
 - Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
 - Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
-- Native ncnn lowering converts Half, Double and BFloat16 state to Float before operator conversion and weight serialization; PNNX attributes and generated PNNX Python retain the imported state dtype. BFloat16 values are exactly representable in Float, but native inference does not preserve float64 precision or BFloat16 arithmetic
+- Native ncnn lowering converts Half, Double, BFloat16, Byte, Char and Short state to Float before operator conversion and weight serialization; PNNX attributes and generated PNNX Python retain the imported state dtype. BFloat16 and narrow integer values are exactly representable in Float, but native inference does not preserve float64 precision, BFloat16 arithmetic or typed integer arithmetic
 - Finite non-tensor Float, Float-list and Complex arguments continue to use PNNX float parameters. When such a value is narrowed in a node with an f64 or c128 tensor input or output, pnnx reports the operator target, argument and before/after values once per distinct warning. This diagnostic makes detected loss visible; it does not guarantee end-to-end double-precision scalar or Expression arithmetic
 - ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
 - `torch.ops.aten.einsum.default` equation syntax and input/output ranks are validated without executing the operator, then whitespace is removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
@@ -99,7 +99,7 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - End-to-end f64/c128 fidelity for non-tensor scalar parameters and Expressions; high-precision tensor payload and dtype restoration does not widen PNNX scalar parameter storage beyond float
 - Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
 - Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
-- Generated native ncnn python inference with Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
+- Generated native ncnn python inference with Double, Byte, Char, Short, Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
 - Compressed PT2 entries consumed by the frontend, any encrypted PT2 entry, and PT2 archive versions other than `0`
 
 Unsupported graph and schema features detected during import fail with a feature-specific `load exported program failed:` diagnostic. Unlowered operator targets left after the PNNX passes fail with `lower exported program failed:` before model artifacts are written. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
@@ -112,7 +112,7 @@ The frontend suite requires Python PyTorch 2.9 or newer. `test_real_producer_omi
 ctest --test-dir build --output-on-failure -L '^pt2_frontend$'
 ```
 
-Run the complete PT2 operator and model expectation suite, including the focused Bool/Double/BFloat16-attribute ncnn smoke test, with:
+Run the complete PT2 operator and model expectation suite, including the focused Bool/Double/BFloat16/narrow-integer attribute ncnn smoke test, with:
 
 ```shell
 ctest --test-dir build --output-on-failure -j 8 -L '^pt2_operator$'

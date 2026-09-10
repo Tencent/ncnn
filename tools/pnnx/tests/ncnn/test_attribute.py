@@ -31,7 +31,19 @@ class Model(nn.Module):
         self.conv0 = nn.Conv2d(3, channels, 3, padding=1)
         self.conv1 = nn.Conv2d(channels, 8, 3, padding=1)
         keep = (torch.arange(channels) % 3 != 1).reshape(1, channels, 1, 1)
-        if dtype != torch.bool:
+        if dtype in (torch.uint8, torch.int8, torch.int16):
+            info = torch.iinfo(dtype)
+            keep = torch.tensor([info.min, 0, 1, info.max], dtype=dtype).repeat(channels // 4).reshape(1, channels, 1, 1)
+            # Isolate integer limits from amplified convolution rounding error.
+            with torch.no_grad():
+                self.conv0.weight.zero_()
+                self.conv0.bias.zero_()
+                self.conv0.weight[:, 0, 1, 1] = 0.25
+                self.conv1.weight.zero_()
+                self.conv1.bias.zero_()
+                for channel in range(self.conv1.out_channels):
+                    self.conv1.weight[channel, channel, 1, 1] = 0.125
+        elif dtype != torch.bool:
             keep = torch.linspace(-1.25, 1.75, channels, dtype=dtype).reshape(1, channels, 1, 1)
         if dtype == torch.float64:
             self.conv0.double()
@@ -115,7 +127,10 @@ def test_attribute(dtype, fp16):
 def test():
     return all(test_attribute(dtype, fp16) for dtype, fp16 in
                ((torch.bool, 0), (torch.float64, 0), (torch.float64, 1),
-                (torch.bfloat16, 0), (torch.bfloat16, 1)))
+                (torch.bfloat16, 0), (torch.bfloat16, 1),
+                (torch.uint8, 0), (torch.uint8, 1),
+                (torch.int8, 0), (torch.int8, 1),
+                (torch.int16, 0), (torch.int16, 1)))
 
 
 if __name__ == "__main__":

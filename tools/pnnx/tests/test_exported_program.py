@@ -1144,6 +1144,10 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
 
     def test_generated_ncnn_helper_rejects_unsupported_inputs(self):
         cases = (
+            ("double", torch.float64, (2, 3), ScalarInputModel()),
+            ("int16", torch.int16, (2, 3), ScalarInputModel()),
+            ("int8", torch.int8, (2, 3), ScalarInputModel()),
+            ("uint8", torch.uint8, (2, 3), ScalarInputModel()),
             ("bool", torch.bool, (2, 3), BoolInputModel()),
             ("bfloat16", torch.bfloat16, (2, 3), ScalarInputModel()),
             ("scalar", torch.float32, (), ScalarInputModel()),
@@ -1161,8 +1165,9 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_succeeds(work_dir, archive_path)
                     torch.manual_seed(0)
                     example = (
-                        torch.randint(0, 2, shape, dtype=dtype)
-                        if dtype == torch.bool else torch.rand(shape, dtype=dtype)
+                        torch.rand(shape, dtype=dtype)
+                        if dtype.is_floating_point or dtype.is_complex else
+                        torch.randint(2 if dtype == torch.bool else 10, shape, dtype=dtype)
                     )
                     self.assert_nested_close(
                         model(example), load_generated_output(work_dir, archive_path.stem)

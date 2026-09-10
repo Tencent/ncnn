@@ -390,21 +390,17 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 }
             }
 
-            if (r->type == 9)
+            const char* unsupported_type = 0;
+            if (r->type == 2) unsupported_type = "double";
+            if (r->type == 6) unsupported_type = "int16";
+            if (r->type == 7) unsupported_type = "int8";
+            if (r->type == 8) unsupported_type = "uint8";
+            if (r->type == 9) unsupported_type = "bool";
+            if (r->type == 13) unsupported_type = "bfloat16";
+            if (r->type == 10 || r->type == 11 || r->type == 12) unsupported_type = "complex";
+            if (unsupported_type)
             {
-                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bool input %s\")\n", input_name.c_str());
-                continue;
-            }
-
-            if (r->type == 13)
-            {
-                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support bfloat16 input %s\")\n", input_name.c_str());
-                continue;
-            }
-
-            if (r->type == 10 || r->type == 11 || r->type == 12)
-            {
-                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support complex input %s\")\n", input_name.c_str());
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support %s input %s\")\n", unsupported_type, input_name.c_str());
                 continue;
             }
 
