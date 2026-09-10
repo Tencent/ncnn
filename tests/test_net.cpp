@@ -167,7 +167,7 @@ static int check_text(const char* text, int expected_ret)
 
     net.clear();
     if (!empty_net(net) || state.created != state.destroyed || state.invalid_pipeline_destroyed != 0
-        || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
+            || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
     {
         fprintf(stderr, "test_net text cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n%s\n", state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed, text);
         return -1;
@@ -192,7 +192,7 @@ static int check_binary(const char* name, const std::vector<unsigned char>& data
 
     net.clear();
     if (!empty_net(net) || state.created != state.destroyed || state.invalid_pipeline_destroyed != 0
-        || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
+            || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
     {
         fprintf(stderr, "test_net binary %s cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n", name, state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
         return -1;
@@ -223,7 +223,8 @@ static int test_text_errors()
         "7767517\n1 1\nTest t 0 1 out 31=1.0\n",
         "7767517\n1 1\nTest t 0 1 out 31=1,2\n",
         "7767517\n1 1\nInput t 1 0",
-        "7767517\n1 1\nInput t 0 1 out 0=1,,2\n"};
+        "7767517\n1 1\nInput t 0 1 out 0=1,,2\n"
+    };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         if (check_text(cases[i], -1))
@@ -379,7 +380,8 @@ static int test_shape_hints()
         {"4,-1,7,6,5", 4, {-1, 7, 6, 5}, 1, -1},
         {"4,3,-1,6,5", 4, {3, -1, 6, 5}, 1, -1},
         {"5,4,2147483647,2147483647,2147483647,1", 5, {4, INT_MAX, INT_MAX, INT_MAX, 1}, 1, -1},
-        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1, -1}};
+        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1, -1}
+    };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         const Case& c = cases[i];
@@ -398,8 +400,8 @@ static int test_shape_hints()
             return -1;
     }
     if (check_text("7767517\n1 1\nTest t 0 1 out 30=4\n", -1)
-        || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1)
-        || check_text("7767517\n1 1\nTest t 0 1 out 30=3,7,6,5\n", 0))
+            || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1)
+            || check_text("7767517\n1 1\nTest t 0 1 out 30=3,7,6,5\n", 0))
         return -1;
 
     return 0;
@@ -477,8 +479,8 @@ static int test_repeated_blob_references()
     if (check_text("7767517\n1 1\nTest t 2 0 in in\n", 0))
         return -1;
     if (check_text("7767517\n1 2\nTest t 3 0 a a b\n", 0)
-        || check_text("7767517\n1 2\nTest t 3 0 a b a\n", 0)
-        || check_text("7767517\n1 1\nTest t 3 0 a a b\n", -1))
+            || check_text("7767517\n1 2\nTest t 3 0 a b a\n", 0)
+            || check_text("7767517\n1 1\nTest t 3 0 a a b\n", -1))
         return -1;
 
     std::vector<unsigned char> data = binary_header(1, 1, ncnn::LayerType::CustomBit, 2, 0);
@@ -565,7 +567,7 @@ static int test_shape_layout()
         const ncnn::Mat& in = net.layers()[1]->bottom_shapes[0];
         const ncnn::Mat& out = net.layers()[1]->top_shapes[0];
         if (in.dims != 4 || in.w != 7 || in.h != 6 || in.d != 5 || in.c != 4
-            || out.dims != 3 || out.w != 3 || out.h != 2 || out.d != 1 || out.c != 1)
+                || out.dims != 3 || out.w != 3 || out.h != 2 || out.d != 1 || out.c != 1)
         {
             fprintf(stderr, "test_net shape layout binary=%d failed\n", binary);
             return -1;
