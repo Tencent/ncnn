@@ -298,6 +298,70 @@ static int test_binary_errors()
     return 0;
 }
 
+static int test_binary_dependencies()
+{
+    const int custom = ncnn::LayerType::CustomBit;
+    struct Case
+    {
+        const char* name;
+        int layers;
+        int blobs;
+        int values[24];
+        int count;
+        int expected_ret;
+    };
+    const Case cases[] = {
+        {"self cycle", 1, 1, {custom, 1, 1, 0, 0, -233}, 6, -1},
+        {"two layer cycle", 2, 2, {custom, 1, 1, 1, 0, -233, custom, 1, 1, 0, 1, -233}, 12, -1},
+        {"disconnected cycle", 3, 3, {custom, 0, 1, 0, -233, custom, 1, 1, 2, 1, -233, custom, 1, 1, 1, 2, -233}, 17, -1},
+        {"reassigned producer cycle", 3, 2, {custom, 0, 1, 0, -233, custom, 1, 1, 0, 1, -233, custom, 1, 1, 1, 0, -233}, 17, -1},
+        {"forward reference", 2, 2, {custom, 1, 1, 1, 0, -233, custom, 0, 1, 1, -233}, 11, 0},
+        {"shared dependency", 4, 4, {custom, 2, 1, 1, 2, 0, -233, custom, 1, 1, 3, 1, -233, custom, 1, 1, 3, 2, -233, custom, 0, 1, 3, -233}, 24, 0},
+        {"repeated dependency", 2, 2, {custom, 2, 1, 1, 1, 0, -233, custom, 0, 1, 1, -233}, 12, 0},
+        {"external input", 1, 2, {custom, 1, 1, 0, 1, -233}, 6, 0}
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const Case& c = cases[i];
+        std::vector<unsigned char> data;
+        append_int(data, 7767517);
+        append_int(data, c.layers);
+        append_int(data, c.blobs);
+        for (int j = 0; j < c.count; j++)
+            append_int(data, c.values[j]);
+
+        if (check_binary(c.name, data, data.size(), c.expected_ret))
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_binary_deep_dependencies()
+{
+    const int layer_count = 16384;
+    for (int cyclic = 0; cyclic < 2; cyclic++)
+    {
+        std::vector<unsigned char> data;
+        append_int(data, 7767517);
+        append_int(data, layer_count);
+        append_int(data, layer_count + 1);
+        for (int i = 0; i < layer_count; i++)
+        {
+            append_int(data, ncnn::LayerType::CustomBit);
+            append_int(data, 1);
+            append_int(data, 1);
+            append_int(data, cyclic && i == layer_count - 1 ? 0 : i + 1);
+            append_int(data, i);
+            append_int(data, -233);
+        }
+        if (check_binary(cyclic ? "deep cycle" : "deep chain", data, data.size(), cyclic ? -1 : 0))
+            return -1;
+    }
+
+    return 0;
+}
+
 static int test_layer_load_param_error()
 {
     const char* layer_types[] = {"Test", "Input"};
@@ -831,6 +895,8 @@ int main()
     return 0
            || test_text_errors()
            || test_binary_errors()
+           || test_binary_dependencies()
+           || test_binary_deep_dependencies()
            || test_shape_hints()
            || test_layer_load_param_error()
            || test_one_blob_only()

@@ -56,6 +56,7 @@ public:
     void clear_layers();
     void destroy_layer(Layer* layer);
     int load_shape_hints(Layer* layer, const ParamDict& pd);
+    int check_graph_cycles() const;
 
     void update_input_output_indexes();
 #if NCNN_STRING
@@ -1164,6 +1165,53 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 }
 #endif // NCNN_VULKAN
 
+int NetPrivate::check_graph_cycles() const
+{
+    // 0 = unvisited, 1 = visiting, 2 = finished
+    std::vector<unsigned char> state(layers.size(), 0);
+    std::vector<size_t> next_bottom(layers.size(), 0);
+    std::vector<int> stack;
+
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (state[i] != 0)
+            continue;
+
+        state[i] = 1;
+        stack.push_back((int)i);
+        while (!stack.empty())
+        {
+            const int layer_index = stack.back();
+            const Layer* layer = layers[layer_index];
+            size_t& j = next_bottom[layer_index];
+            if (j == layer->bottoms.size())
+            {
+                state[layer_index] = 2;
+                stack.pop_back();
+                continue;
+            }
+
+            const int bottom_blob_index = layer->bottoms[j++];
+            const int producer = blobs[bottom_blob_index].producer;
+            if (producer == -1)
+                continue;
+
+            if (state[producer] == 1)
+            {
+                NCNN_LOGE("cyclic dependency at layer %d bottom blob %d producer %d", layer_index, bottom_blob_index, producer);
+                return -1;
+            }
+            if (state[producer] == 0)
+            {
+                state[producer] = 1;
+                stack.push_back(producer);
+            }
+        }
+    }
+
+    return 0;
+}
+
 void NetPrivate::update_input_output_indexes()
 {
     input_blob_indexes.clear();
@@ -2185,6 +2233,12 @@ int Net::load_param_bin(const DataReader& dr)
                 layer->top_shapes[j] = shape;
             }
         }
+    }
+
+    if (d->check_graph_cycles() != 0)
+    {
+        d->clear_layers();
+        return -1;
     }
 
     d->update_input_output_indexes();
