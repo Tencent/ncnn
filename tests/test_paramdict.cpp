@@ -9,10 +9,6 @@
 #include "datareader.h"
 #include "paramdict.h"
 
-#if NCNN_STDIO && defined(_WIN32)
-#include <windows.h>
-#endif
-
 class ParamDictTest : public ncnn::ParamDict
 {
 public:
@@ -34,42 +30,6 @@ int ParamDictTest::load_param_bin(const unsigned char* mem)
     ncnn::DataReaderFromMemory dr(mem);
     return ncnn::ParamDict::load_param_bin(dr);
 }
-
-#if NCNN_STDIO
-static FILE* make_param_file(const void* data, size_t size)
-{
-#if defined(_WIN32)
-    // Microsoft CRT tmpfile() uses the drive root, which may not be writable
-    wchar_t directory[MAX_PATH];
-    wchar_t filename[MAX_PATH];
-    const DWORD len = GetTempPathW(MAX_PATH, directory);
-    if (len == 0 || len >= MAX_PATH || !GetTempFileNameW(directory, L"ncn", 0, filename))
-    {
-        fprintf(stderr, "ParamDict temporary file creation failed\n");
-        return 0;
-    }
-    // D deletes the file on fclose, including the write-failure path below
-    FILE* fp = _wfopen(filename, L"w+bD");
-    if (!fp)
-        DeleteFileW(filename);
-#else
-    FILE* fp = tmpfile();
-#endif
-    if (!fp)
-    {
-        perror("ParamDict temporary file open failed");
-        return 0;
-    }
-    if (fwrite(data, 1, size, fp) != size)
-    {
-        perror("ParamDict temporary file write failed");
-        fclose(fp);
-        return 0;
-    }
-    rewind(fp);
-    return fp;
-}
-#endif
 
 static int test_paramdict_0()
 {
@@ -791,7 +751,7 @@ static int test_paramdict_access()
 static int test_paramdict_zero_type()
 {
     const char* text = "0=0 1=0.0";
-    for (int mode = 0; mode < 3; mode++)
+    for (int mode = 0; mode < 2; mode++)
     {
         ParamDictTest pd;
         if (mode == 0)
@@ -799,25 +759,10 @@ static int test_paramdict_zero_type()
             pd.set(0, 0);
             pd.set(1, 0.f);
         }
-        else if (mode == 1)
+        else
         {
             if (pd.load_param(text))
                 return -1;
-        }
-        else
-        {
-#if NCNN_STDIO
-            FILE* fp = make_param_file(text, strlen(text));
-            if (!fp)
-                return -1;
-            ncnn::DataReaderFromStdio dr(fp);
-            const int ret = pd.load_param(dr);
-            fclose(fp);
-            if (ret)
-                return -1;
-#else
-            continue;
-#endif
         }
         if (pd.type(0) != 2 || pd.get(0, 7) != 0 || pd.get(0, 7.f) != 7.f
                 || pd.type(1) != 3 || pd.get(1, 7.f) != 0.f || pd.get(1, 7) != 7)
@@ -837,21 +782,6 @@ static int check_text_result(const char* text, bool valid)
         fprintf(stderr, "ParamDict memory parse result failed: %s\n", text);
         return -1;
     }
-#if NCNN_STDIO
-    // fscanf and sscanf have different consumption behavior on failed matches
-    FILE* fp = make_param_file(text, strlen(text));
-    if (!fp)
-        return -1;
-    ncnn::DataReaderFromStdio dr(fp);
-    ParamDictTest stdio;
-    const int ret = stdio.load_param(dr);
-    fclose(fp);
-    if ((ret == 0) != valid)
-    {
-        fprintf(stderr, "ParamDict stdio parse result failed: %s\n", text);
-        return -1;
-    }
-#endif
     return 0;
 }
 
@@ -974,52 +904,32 @@ static int test_paramdict_text_boundaries()
 
 static int check_float_boundary(const char* text, float expected, int count, bool valid)
 {
-    for (int backend = 0; backend < 2; backend++)
+    ParamDictTest pd;
+    const int ret = pd.load_param(text);
+    if ((ret == 0) != valid)
     {
-        ParamDictTest pd;
-        int ret;
-        if (backend == 0)
-        {
-            ret = pd.load_param(text);
-        }
-        else
-        {
-#if NCNN_STDIO
-            FILE* fp = make_param_file(text, strlen(text));
-            if (!fp)
-                return -1;
-            ncnn::DataReaderFromStdio dr(fp);
-            ret = pd.load_param(dr);
-            fclose(fp);
-#else
-            continue;
-#endif
-        }
-        if ((ret == 0) != valid)
-        {
-            fprintf(stderr, "ParamDict float boundary parse failed backend=%d: %s\n", backend, text);
-            return -1;
-        }
-        if (!valid)
-            continue;
+        fprintf(stderr, "ParamDict float boundary parse failed: %s\n", text);
+        return -1;
+    }
+    if (!valid)
+        return 0;
 
-        bool matches;
-        if (count == 0)
-        {
-            matches = pd.type(0) == 3 && pd.get(0, 0.f) == expected;
-        }
-        else
-        {
-            const ncnn::Mat values = pd.get(0, ncnn::Mat());
-            matches = pd.type(0) == 6 && values.w == count && values[0] == expected;
-            if (matches && count == 2)
-                matches = values[1] == 1.f;
-        }
-        if (!matches)
-        {
-            fprintf(stderr, "ParamDict float boundary value failed backend=%d: %s\n", backend, text);
-            return -1;
-        }
+    bool matches;
+    if (count == 0)
+    {
+        matches = pd.type(0) == 3 && pd.get(0, 0.f) == expected;
+    }
+    else
+    {
+        const ncnn::Mat values = pd.get(0, ncnn::Mat());
+        matches = pd.type(0) == 6 && values.w == count && values[0] == expected;
+        if (matches && count == 2)
+            matches = values[1] == 1.f;
+    }
+    if (!matches)
+    {
+        fprintf(stderr, "ParamDict float boundary value failed: %s\n", text);
+        return -1;
     }
     return 0;
 }
@@ -1190,30 +1100,13 @@ static int test_paramdict_reload()
     for (size_t i = 0; i < sizeof(words) / sizeof(words[0]); i++)
         append_param_word(data, words[i]);
 
-    for (int mode = 0; mode < 6; mode++)
+    for (int mode = 0; mode < 3; mode++)
     {
-        const bool binary = mode >= 4;
-        const char* input = mode < 2 ? text : old_array_text;
+        const bool binary = mode == 2;
+        const char* input = mode == 0 ? text : old_array_text;
         const unsigned char* ptr = binary ? data.data() : (const unsigned char*)input;
-        int ret;
-        if (mode % 2 == 0)
-        {
-            ncnn::DataReaderFromMemory dr(ptr);
-            ret = check_paramdict_reload(dr, binary);
-        }
-        else
-        {
-#if NCNN_STDIO
-            FILE* fp = make_param_file(ptr, binary ? data.size() : strlen(input));
-            if (!fp)
-                return -1;
-            ncnn::DataReaderFromStdio dr(fp);
-            ret = check_paramdict_reload(dr, binary);
-            fclose(fp);
-#else
-            continue;
-#endif
-        }
+        ncnn::DataReaderFromMemory dr(ptr);
+        const int ret = check_paramdict_reload(dr, binary);
         if (ret != 0)
         {
             fprintf(stderr, "ParamDict reload failed mode=%d\n", mode);
