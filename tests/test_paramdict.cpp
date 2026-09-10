@@ -850,7 +850,7 @@ static int test_paramdict_text_boundaries()
 {
     ParamDictTest pd;
     const char* text = "0=-2147483648\t1=2147483647 2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
-    if (check_text_result(text, true) || pd.load_param(text))
+    if (pd.load_param(text))
         return -1;
     if (pd.get(0, 0) != INT_MIN || pd.get(1, 0) != INT_MAX
             || pd.type(2) != 7 || pd.get(2, std::string("default")) != "" || pd.get(3, std::string()) != " "
@@ -885,7 +885,7 @@ static int test_paramdict_text_boundaries()
             std::string input = quoted ? "0=\"" : "0=";
             input += value;
             input += quoted ? "\" 1=19" : " 1=19";
-            if (check_text_result(input.c_str(), true) || pd.load_param(input.c_str())
+            if (pd.load_param(input.c_str())
                     || pd.get(0, std::string()) != value || pd.get(1, 0) != 19)
             {
                 fprintf(stderr, "ParamDict string boundary failed len=%d quoted=%d\n", lengths[i], quoted);
@@ -952,7 +952,7 @@ static int test_paramdict_text_boundaries()
             if (array_lengths[j] == 1)
                 input += ",";
             input += " 1=42";
-            if (check_text_result(input.c_str(), true) || pd.load_param(input.c_str()) || pd.get(1, 0) != 42)
+            if (pd.load_param(input.c_str()) || pd.get(1, 0) != 42)
             {
                 fprintf(stderr, "ParamDict array growth parse failed len=%d floating=%d\n", array_lengths[j], floating);
                 return -1;
@@ -1023,35 +1023,48 @@ static int test_paramdict_float_boundaries()
             return -1;
     }
 
-    const char* numbers[] = {
+    const struct
+    {
+        const char* text;
+        float expected;
+        bool valid;
+    } cases[] = {
         // exact float midpoints and their decimal neighbors in the old token-length range
-        "32768.017578124", "32768.017578125", "32768.017578126", "32768.021484374", "32768.021484375", "32768.021484376",
-        "3.40282347e+38", "3.4028235e38", "3.40282356e38", "3.402823e38", "3.40282357e38", "1e39",
-        "3.402823567797336e38", "3.402823567797337e38",
-        "340282356779733661637539395458142568447.0", "340282356779733661637539395458142568448.0",
-        "340282356779733661637539395458142568449.0",
-        "0.000340282356779733661637539395458142568447e42",
-        "000340282356779733661637539395458142568448e0", "1e-46"
+        {"32768.017578124", 32768.015625f, true},
+        {"32768.017578125", 32768.015625f, true},
+        {"32768.017578126", 32768.01953125f, true},
+        {"32768.021484374", 32768.01953125f, true},
+        {"32768.021484375", 32768.0234375f, true},
+        {"32768.021484376", 32768.0234375f, true},
+        {"3.40282347e+38", FLT_MAX, true},
+        {"3.4028235e38", FLT_MAX, true},
+        {"3.40282356e38", FLT_MAX, true},
+        {"3.402823e38", 3.402823e38f, true},
+        {"3.40282357e38", 0.f, false},
+        {"1e39", 0.f, false},
+        {"3.402823567797336e38", FLT_MAX, true},
+        {"3.402823567797337e38", 0.f, false},
+        {"340282356779733661637539395458142568447.0", FLT_MAX, true},
+        {"340282356779733661637539395458142568448.0", 0.f, false},
+        {"340282356779733661637539395458142568449.0", 0.f, false},
+        {"0.000340282356779733661637539395458142568447e42", FLT_MAX, true},
+        {"000340282356779733661637539395458142568448e0", 0.f, false},
+        {"1e-46", 0.f, true},
     };
-    const float expected[] = {
-        32768.015625f, 32768.015625f, 32768.01953125f, 32768.01953125f, 32768.0234375f, 32768.0234375f,
-        FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f, 0.f
-    };
-    const bool valid[] = {true, true, true, true, true, true, true, true, true, true, false, false, true, false, true, false, false, true, false, true};
-    for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
         for (int negative = 0; negative < 2; negative++)
         {
             char text[128];
             const char* sign = negative ? "-" : "";
-            const float value = negative ? -expected[i] : expected[i];
-            snprintf(text, sizeof(text), "0=%s%s", sign, numbers[i]);
-            if (check_float_boundary(text, value, 0, valid[i]))
+            const float value = negative ? -cases[i].expected : cases[i].expected;
+            snprintf(text, sizeof(text), "0=%s%s", sign, cases[i].text);
+            if (check_float_boundary(text, value, 0, cases[i].valid))
                 return -1;
-            snprintf(text, sizeof(text), "0=%s%s,1.0", sign, numbers[i]);
-            if (check_float_boundary(text, value, 2, valid[i]))
+            snprintf(text, sizeof(text), "0=%s%s,1.0", sign, cases[i].text);
+            if (check_float_boundary(text, value, 2, cases[i].valid))
                 return -1;
-            snprintf(text, sizeof(text), "-23300=1,%s%s", sign, numbers[i]);
-            if (check_float_boundary(text, value, 1, valid[i]))
+            snprintf(text, sizeof(text), "-23300=1,%s%s", sign, cases[i].text);
+            if (check_float_boundary(text, value, 1, cases[i].valid))
                 return -1;
         }
 

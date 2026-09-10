@@ -690,8 +690,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
 
             size_t len_padded = (len + 3) / 4 * 4;
             char tmpstr[256];
-            char* ptr = tmpstr;
-            nread = dr.read(ptr, len_padded);
+            nread = dr.read(tmpstr, len_padded);
             if (nread != len_padded)
             {
                 NCNN_LOGE("ParamDict read string failed %zu", nread);
