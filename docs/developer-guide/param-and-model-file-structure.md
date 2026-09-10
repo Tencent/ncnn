@@ -21,6 +21,8 @@ Softmax       softmax  1 1 fc prob 0=0
 
 each layer must occupy exactly one physical line, including all blob names and parameters; do not split a layer across lines or put multiple layers on the same line
 
+Custom `DataReader::scan()` implementations and C API `ncnn_datareader_t::scan` callbacks must follow scanf conversion and input consumption rules, including field widths and scansets. Parameter parsing uses `%1023[^\r\n]` to read up to 1023 characters without skipping leading whitespace or consuming CR/LF, repeating the scan for longer lines. A successful scanset conversion must append a null terminator and return 1. Returning 0 for an unsupported format can be interpreted as an empty parameter list and silently select default parameter values.
+
 ```
 [layer type] [layer name] [input count] [output count] [input blobs] [output blobs] [layer specific params]
 ```

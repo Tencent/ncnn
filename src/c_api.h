@@ -224,6 +224,9 @@ struct NCNN_EXPORT __ncnn_datareader_t
     void* pthis;
 
 #if NCNN_STRING
+    /* follow scanf conversion and input consumption rules, including field widths and scansets */
+    /* %1023[^\r\n] must preserve leading whitespace and leave CR/LF unread */
+    /* append a null terminator on a successful scanset conversion and return 1 */
     int (*scan)(ncnn_datareader_t dr, const char* format, void* p);
 #endif /* NCNN_STRING */
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);

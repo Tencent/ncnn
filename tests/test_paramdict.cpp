@@ -782,7 +782,9 @@ static int test_paramdict_numeric_conversion()
                 if (pd.load_param(text))
                     return -1;
             }
-            if (pd.get(0, 7.f) != expected[j] || pd.type(0) != 2 || pd.get(0, 7) != integers[j]
+            // round to float storage precision before comparing an x87 return value
+            volatile float value = pd.get(0, 7.f);
+            if (value != expected[j] || pd.type(0) != 2 || pd.get(0, 7) != integers[j]
                     || pd.type(1) != 3 || pd.get(1, 7.f) != 0.f || pd.get(1, 7) != 7
                     || pd.get(2, 7.f) != 7.f)
             {

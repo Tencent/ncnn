@@ -191,13 +191,13 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
         if (remain_length > 1 && ((const char*)d->mem)[0] == '\n')
         {
             // skip the leading newline
-            // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
+            // keep the leading newline for sscanf, which skips it only if the format allows whitespace
             newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
         }
         else if (remain_length > 2 && ((const char*)d->mem)[0] == '\r' && ((const char*)d->mem)[1] == '\n')
         {
             // skip the leading newline
-            // however, it is fine to create "\r\nXYZ 123 abc" as sscanf will skip the leading newline silently
+            // keep the leading newline for sscanf, which skips it only if the format allows whitespace
             newline_pos = (const char*)memchr((const char*)d->mem + 2, '\n', remain_length - 2);
         }
         else

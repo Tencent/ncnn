@@ -369,6 +369,7 @@ static bool param_space(char c)
 
 static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false)
 {
+    vstr[0] = '\0';
     if (comma)
     {
         if (*p != ',')
@@ -380,7 +381,10 @@ static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false
     while (*p && *p != ',' && !param_space(*p))
     {
         if (len == 127)
+        {
+            vstr[len] = '\0';
             return -1;
+        }
         vstr[len++] = *p++;
     }
     vstr[len] = '\0';

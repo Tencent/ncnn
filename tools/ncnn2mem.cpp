@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 
-static std::vector<std::string> layer_names;
 static std::vector<std::string> blob_names;
 
 static int find_blob_index_by_name(const char* name)
@@ -33,11 +32,11 @@ static int find_blob_index_by_name(const char* name)
 
 static void sanitize_name(char* name)
 {
-    for (std::size_t i = 0; i < strlen(name); i++)
+    for (char* p = name; *p; p++)
     {
-        if (!isalnum(name[i]))
+        if (!isalnum((unsigned char)*p))
         {
-            name[i] = '_';
+            *p = '_';
         }
     }
 }
@@ -48,7 +47,13 @@ static std::string path_to_varname(const char* path)
     const char* name = lastslash == NULL ? path : lastslash + 1;
 
     std::string varname = name;
-    sanitize_name((char*)varname.c_str());
+    for (std::size_t i = 0; i < varname.size(); i++)
+    {
+        if (!isalnum((unsigned char)varname[i]))
+        {
+            varname[i] = '_';
+        }
+    }
 
     return varname;
 }
@@ -241,6 +246,7 @@ static bool param_space(char c)
 
 static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false)
 {
+    vstr[0] = '\0';
     if (comma)
     {
         if (*p != ',')
@@ -252,7 +258,10 @@ static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false
     while (*p && *p != ',' && !param_space(*p))
     {
         if (len == 127)
+        {
+            vstr[len] = '\0';
             return -1;
+        }
         vstr[len++] = *p++;
     }
     vstr[len] = '\0';
@@ -501,7 +510,6 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
     if (!write_param(mp, &layer_count, sizeof(int)) || !write_param(mp, &blob_count, sizeof(int)))
         return -1;
 
-    layer_names.resize(layer_count);
     blob_names.resize(blob_count);
 
     std::vector<std::string> custom_layer_index;
@@ -598,8 +606,6 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
             fprintf(stderr, "write %s failed\n", idcpppath);
             return -1;
         }
-
-        layer_names[i] = std::string(layer_name);
     }
 
     // dump custom layer index
