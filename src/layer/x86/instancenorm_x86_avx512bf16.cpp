@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "instancenorm_bf16s.h"
 
 void instancenorm_bf16s_avx512bf16(unsigned short* ptr, int size, float a, float b)
@@ -18,5 +20,7 @@ void instancenorm_bf16s_compute_mean_var_avx512bf16(const unsigned short* ptr, i
 {
     instancenorm_bf16s_compute_mean_var(ptr, size, mean, var);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

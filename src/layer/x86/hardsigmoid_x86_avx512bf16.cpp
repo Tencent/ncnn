@@ -7,11 +7,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "hardsigmoid_bf16s.h"
 
 void hardsigmoid_bf16s_avx512bf16(Mat& a, float alpha, float beta, const Option& opt)
 {
     hardsigmoid_bf16s(a, alpha, beta, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

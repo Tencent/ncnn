@@ -878,6 +878,19 @@ typedef void(VKAPI_PTR* PFN_vkGetDescriptorSetLayoutSupport)(VkDevice device, co
 typedef PFN_vkGetDescriptorSetLayoutSupport PFN_vkGetDescriptorSetLayoutSupportKHR;
 #endif // VK_KHR_maintenance3
 
+#ifndef VK_KHR_maintenance4
+#define VK_KHR_maintenance4                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES     (VkStructureType)1000413000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES
+typedef struct VkPhysicalDeviceMaintenance4Features
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 maintenance4;
+} VkPhysicalDeviceMaintenance4Features;
+typedef VkPhysicalDeviceMaintenance4Features VkPhysicalDeviceMaintenance4FeaturesKHR;
+#endif // VK_KHR_maintenance4
+
 #ifndef VK_KHR_8bit_storage
 #define VK_KHR_8bit_storage                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES     (VkStructureType)1000177000

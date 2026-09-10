@@ -206,12 +206,12 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 }
 
 #if NCNN_VULKAN
-static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_elempack)
+static int test_packing_gpu(const ncnn::Mat& a, int in_elempack, int out_elempack, int cast_type)
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1); // cast_type_from
-    pd.set(3, 1); // cast_type_to
+    pd.set(2, cast_type); // cast_type_from
+    pd.set(3, cast_type); // cast_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -222,6 +222,8 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = cast_type == 5; // bfloat16
+    opt.use_bf16_storage = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
@@ -250,8 +252,12 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
 
     op->create_pipeline(opt);
 
+    ncnn::Mat a_cast = a;
+    if (cast_type == 5)
+        ncnn::cast_float32_to_bfloat16(a, a_cast, opt);
+
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack, opt);
+    ncnn::convert_packing(a_cast, ap, in_elempack, opt);
 
     ncnn::Mat b;
     packing_cpu_naive(ap, b, out_elempack);
@@ -280,9 +286,19 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
+    if (cast_type == 5)
     {
-        fprintf(stderr, "test_packing_gpu failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
+        ncnn::Mat b32;
+        ncnn::Mat d32;
+        ncnn::cast_bfloat16_to_float32(b, b32, opt);
+        ncnn::cast_bfloat16_to_float32(d, d32, opt);
+        b = b32;
+        d = d32;
+    }
+
+    if (CompareMat(b, d, cast_type == 5 ? 0.f : 0.001f) != 0)
+    {
+        fprintf(stderr, "test_packing_gpu failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d cast_type=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack, cast_type);
         return -1;
     }
 
@@ -384,7 +400,8 @@ static int test_packing_gpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
 static int test_packing_gpu(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
     return 0
-           || test_packing_gpu_fp32(a, in_elempack, out_elempack)
+           || test_packing_gpu(a, in_elempack, out_elempack, 1)
+           || test_packing_gpu(a, in_elempack, out_elempack, 5)
            || test_packing_gpu_int8(a, in_elempack, out_elempack);
 }
 #endif

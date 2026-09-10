@@ -1364,8 +1364,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
-        // enable local memory optimization on discrete gpu only
-        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
+        // shader local memory optimization
+        if (!d->vkdev->info.prefer_shader_local_memory()) opt.use_shader_local_memory = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1738,8 +1738,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
-        // enable local memory optimization on discrete gpu only
-        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
+        // shader local memory optimization
+        if (!d->vkdev->info.prefer_shader_local_memory()) opt.use_shader_local_memory = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;

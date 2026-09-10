@@ -10,6 +10,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "convolution1d_packed_bf16s.h"
 
 void convolution1d_packed_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int kernel_w, int dilation_w, int stride_w, int activation_type, const Mat& activation_params, const Option& opt)
@@ -21,5 +23,7 @@ void convolution1d_transform_kernel_packed_bf16s_avx2(const Mat& kernel, Mat& ke
 {
     convolution1d_transform_kernel_packed_bf16s(kernel, kernel_tm, inh, outh, kernel_w);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

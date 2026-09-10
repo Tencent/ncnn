@@ -17,6 +17,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "convolution_packed_bf16s.h"
 #include "convolution_im2col_gemm_bf16s.h"
 // convolution_3x3_winograd.h provides gemm_transB_packed_tile() used by convolution_3x3_winograd_bf16s.h
@@ -87,5 +89,7 @@ int conv3x3s1_winograd63_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob,
 {
     return conv3x3s1_winograd63_bf16s(bottom_blob, top_blob, AT, bias_data, nT, activation_type, activation_params, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

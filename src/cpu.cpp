@@ -111,6 +111,18 @@
 #ifndef CPUFAMILY_ARM_TAHITI
 #define CPUFAMILY_ARM_TAHITI 0x75d4acb9
 #endif
+// A19
+#ifndef CPUFAMILY_ARM_TILOS
+#define CPUFAMILY_ARM_TILOS 0x01d7a72b
+#endif
+// A19 Pro
+#ifndef CPUFAMILY_ARM_THERA
+#define CPUFAMILY_ARM_THERA 0xab345f09
+#endif
+// A20 Pro
+#ifndef CPUFAMILY_ARM_BORNEO
+#define CPUFAMILY_ARM_BORNEO 0x7db56df1
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -130,6 +142,18 @@
 // M4 Pro / M4 Max
 #ifndef CPUFAMILY_ARM_BRAVA
 #define CPUFAMILY_ARM_BRAVA 0x17d5b93a
+#endif
+// M5
+#ifndef CPUFAMILY_ARM_HIDRA
+#define CPUFAMILY_ARM_HIDRA 0x1d5a87e8
+#endif
+// M5 Pro / M5 Max
+#ifndef CPUFAMILY_ARM_SOTRA
+#define CPUFAMILY_ARM_SOTRA 0xf76c5b1a
+#endif
+// M6
+#ifndef CPUFAMILY_ARM_KOMODO
+#define CPUFAMILY_ARM_KOMODO 0x6d0ccb0c
 #endif
 #endif // __APPLE__
 
@@ -1066,11 +1090,6 @@ static int get_physical_cpucount()
             count++;
         }
     }
-    if (count == 0)
-    {
-        // cannot resolve siblings, fallback to all cpu count
-        count = g_cpucount;
-    }
 #elif __APPLE__
     size_t len = sizeof(count);
     sysctlbyname("hw.physicalcpu_max", &count, &len, NULL, 0);
@@ -1078,7 +1097,8 @@ static int get_physical_cpucount()
     count = g_cpucount;
 #endif
 
-    if (count > g_cpucount)
+    // fallback when the physical cpu count cannot be determined
+    if (count < 1 || count > g_cpucount)
         count = g_cpucount;
 
     return count;
@@ -1222,6 +1242,10 @@ static int get_data_cache_size(int cpuid, int level)
             }
         }
     }
+
+    // no usable cpu in the shared cache map
+    if (shared_physical_cpu_count == 0)
+        return 0;
 
     // return per-physical-core cache size with 4K aligned
     cache_size_K = (cache_size_K / shared_physical_cpu_count + 3) / 4 * 4;
@@ -2215,6 +2239,12 @@ static void initialize_global_cpu_info()
 
     switch (g_hw_cpufamily)
     {
+    case CPUFAMILY_ARM_BORNEO:
+    case CPUFAMILY_ARM_KOMODO:
+    case CPUFAMILY_ARM_TILOS:
+    case CPUFAMILY_ARM_THERA:
+    case CPUFAMILY_ARM_HIDRA:
+    case CPUFAMILY_ARM_SOTRA:
     case CPUFAMILY_ARM_TUPAI:
     case CPUFAMILY_ARM_TAHITI:
     case CPUFAMILY_ARM_DONAN:

@@ -5,6 +5,10 @@
 void hardswish_bf16s_avx512bf16(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void hardswish_bf16s_avxneconvert(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void hardswish_bf16s_avx2(Mat& a, float alpha, float beta, float lower, float upper, const Option& opt);
 #endif
@@ -22,6 +26,14 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         hardswish_bf16s_avx512bf16(a, alpha, beta, lower, upper, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        hardswish_bf16s_avxneconvert(a, alpha, beta, lower, upper, opt);
         return;
     }
 #endif
@@ -116,7 +128,7 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
             _ans = _mm_max_ps(_ans, _zero);
             _ans = _mm_min_ps(_ans, _one);
             _ans = _mm_mul_ps(_ans, _p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans, _ans));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans));
             ptr += 4;
         }
 #endif // __AVX512F__
@@ -132,7 +144,7 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
             _ans = _mm_max_ps(_ans, _zero);
             _ans = _mm_min_ps(_ans, _one);
             _ans = _mm_mul_ps(_ans, _p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans, _ans));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_ans));
             ptr += 4;
         }
 #endif // __AVX__

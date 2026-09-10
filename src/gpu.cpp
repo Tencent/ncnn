@@ -291,6 +291,7 @@ public:
     void query_extension_features();
     void query_extension_properties();
     void evaluate_rough_score();
+    void resolve_prefer_shader_local_memory();
 
 public:
     int device_index;
@@ -329,6 +330,7 @@ public:
     bool unified_compute_transfer_queue;
     bool resizable_bar_enabled;
     bool support_image_storage;
+    bool prefer_shader_local_memory;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -415,6 +417,7 @@ public:
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
     VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceMaintenance4FeaturesKHR queryMaintenance4Features;
     VkPhysicalDeviceRobustness2FeaturesKHR queryRobustness2Features;
     VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
     VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
@@ -1093,6 +1096,18 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
     }
 
+    // query maintenance4
+    memset(&queryMaintenance4Features, 0, sizeof(queryMaintenance4Features));
+    queryMaintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
+    queryMaintenance4Features.pNext = 0;
+    // expose core maintenance4 only when both the application and device support vulkan-1.3
+    // this shared feature gate controls device enablement, shader targets and subgroup workarounds
+    if (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 3, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
+    {
+        queryMaintenance4Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryMaintenance4Features;
+    }
+
     // query robustness2
     memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
     queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR;
@@ -1284,14 +1299,6 @@ void GpuInfoPrivate::query_extension_features()
             break;
         }
     }
-
-    if (physicalDeviceProperties.vendorID == 0x5143)
-    {
-        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
-        // TODO special unroll strategy needs to be designed for adreno
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
-    }
 }
 
 void GpuInfoPrivate::evaluate_rough_score()
@@ -1340,6 +1347,27 @@ void GpuInfoPrivate::evaluate_rough_score()
         }
         uint32_t mem_gb = max_device_local / (1024 * 1024 * 1024);
         rough_score += mem_gb;
+    }
+}
+
+void GpuInfoPrivate::resolve_prefer_shader_local_memory()
+{
+    prefer_shader_local_memory = false;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+        return;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        prefer_shader_local_memory = true;
+        return;
+    }
+
+    if (physicalDeviceProperties.vendorID == 0x106b)
+    {
+        // apple
+        prefer_shader_local_memory = true;
+        return;
     }
 }
 
@@ -1983,6 +2011,11 @@ bool GpuInfo::support_image_storage() const
     return d->support_image_storage;
 }
 
+bool GpuInfo::prefer_shader_local_memory() const
+{
+    return d->prefer_shader_local_memory;
+}
+
 uint32_t GpuInfo::subgroup_size() const
 {
     return d->querySubgroupProperties.subgroupSize;
@@ -2460,6 +2493,11 @@ const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVect
     return d->queryCooperativeVectorFeaturesNV;
 }
 
+const VkPhysicalDeviceMaintenance4FeaturesKHR& GpuInfo::queryMaintenance4Features() const
+{
+    return d->queryMaintenance4Features;
+}
+
 const VkPhysicalDeviceRobustness2FeaturesKHR& GpuInfo::queryRobustness2Features() const
 {
     return d->queryRobustness2Features;
@@ -2683,7 +2721,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
         const int N_pad = (N + cmp.NSize - 1) / cmp.NSize * cmp.NSize;
         const int K_pad = (K + cmp.KSize - 1) / cmp.KSize * cmp.KSize;
 
-        double cost = M_pad * N_pad * K_pad - M * N * K;
+        double cost = (double)M_pad * N_pad * K_pad - (double)M * N * K;
         if (cost < min_cost)
         {
             min_cost = cost;
@@ -3251,10 +3289,12 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_properties();
 
         gpu_info.d->evaluate_rough_score();
+        gpu_info.d->resolve_prefer_shader_local_memory();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  prefer-slm=%d  rebar=%d  r-score=%u", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(),
+                  gpu_info.prefer_shader_local_memory(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
 
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
@@ -4310,6 +4350,12 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     uint32_t local_size_y_id = -1;
     uint32_t local_size_z_id = -1;
     uint32_t gl_WorkGroupSize_id = -1;
+    std::vector<std::pair<uint32_t, uint32_t> > local_size_ids;
+    const uint32_t local_size_xyz[3] = {local_size_x, local_size_y, local_size_z};
+    const bool use_local_size_id = code[1] >= 0x00010600;
+    uint32_t uint_type_id = -1;
+    bool inject_local_size_constants = false;
+    bool inject_local_size_decorations = false;
 
     const uint32_t* p = code;
     uint32_t* dp = dstcode;
@@ -4327,27 +4373,78 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         uint16_t wordcount = opcode >> 16;
         uint16_t op = opcode & 0xffff;
 
-        if (op == 16) // OpExecutionMode
+        // insert the local size SpecId decorations before the types
+        if (op >= 19 && op <= 39 && inject_local_size_decorations)
         {
-            uint32_t mode = p[2];
-            if (mode == 17) // LocalSize
+            for (int i = 0; i < 3; i++)
             {
-                memcpy(dp, p, wordcount * sizeof(uint32_t));
+                dp[0] = (4 << 16) | 71; // OpDecorate
+                dp[1] = code[3] + i;
+                dp[2] = 1; // SpecId
+                dp[3] = 233 + i;
+                dp += 4;
+            }
+            inject_local_size_decorations = false;
+        }
 
-                // set local_size_xyz
+        // OpExecutionMode LocalSize or OpExecutionModeId LocalSizeId
+        if ((op == 16 && p[2] == 17) || (op == 331 && p[2] == 38 && use_local_size_id))
+        {
+            memcpy(dp, p, wordcount * sizeof(uint32_t));
+
+            if (use_local_size_id)
+            {
+                dp[0] = (wordcount << 16) | 331; // OpExecutionModeId
+                dp[2] = 38;                      // LocalSizeId
+                dp[3] = code[3];
+                dp[4] = code[3] + 1;
+                dp[5] = code[3] + 2;
+                dstcode[3] = code[3] + 3;
+                inject_local_size_constants = true;
+                inject_local_size_decorations = true;
+            }
+            else
+            {
                 dp[3] = local_size_x;
                 dp[4] = local_size_y;
                 dp[5] = local_size_z;
-
-                p += wordcount;
-                dp += wordcount;
-                continue;
             }
+
+            p += wordcount;
+            dp += wordcount;
+            continue;
+        }
+        else if (op == 21) // OpTypeInt
+        {
+            if (p[2] == 32 && p[3] == 0)
+                uint_type_id = p[1];
         }
         else if (op == 50) // OpSpecConstant
         {
             uint32_t id = p[2];
-            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
+            if (use_local_size_id)
+            {
+                // replace reserved local size constants also used by gl_WorkGroupSize
+                bool local_size_constant = false;
+                for (size_t i = 0; i < local_size_ids.size(); i++)
+                {
+                    if (id != local_size_ids[i].first)
+                        continue;
+
+                    memcpy(dp, p, wordcount * sizeof(uint32_t));
+                    dp[0] = (wordcount << 16) | 43; // OpConstant
+                    dp[3] = local_size_ids[i].second;
+                    local_size_constant = true;
+                    break;
+                }
+                if (local_size_constant)
+                {
+                    p += wordcount;
+                    dp += wordcount;
+                    continue;
+                }
+            }
+            else if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
             {
                 p += wordcount;
                 continue;
@@ -4365,6 +4462,29 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 }
             }
         }
+        else if (op == 54 && inject_local_size_constants) // OpFunction
+        {
+            // adreno needs LocalSizeId to reference specialization constants
+            if (uint_type_id == (uint32_t)-1)
+            {
+                uint_type_id = dstcode[3]++;
+                dp[0] = (4 << 16) | 21; // OpTypeInt
+                dp[1] = uint_type_id;
+                dp[2] = 32;
+                dp[3] = 0;
+                dp += 4;
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                dp[0] = (4 << 16) | 50; // OpSpecConstant
+                dp[1] = uint_type_id;
+                dp[2] = code[3] + i;
+                dp[3] = local_size_xyz[i];
+                dp += 4;
+            }
+            inject_local_size_constants = false;
+        }
         else if (op == 71) // OpDecorate
         {
             uint32_t id = p[1];
@@ -4377,6 +4497,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 if (specid == 235) local_size_z_id = id;
                 if (specid == 233 || specid == 234 || specid == 235)
                 {
+                    if (use_local_size_id)
+                        local_size_ids.push_back(std::make_pair(id, local_size_xyz[specid - 233]));
                     p += wordcount;
                     continue;
                 }
@@ -4403,7 +4525,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
+    // reserve space for a uint type, three local size spec constants and their decorations
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 28 * sizeof(uint32_t));
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
@@ -5552,6 +5675,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(storagePushConstant16)
             DD_APPEND_FEATURE(storageInputOutput16)
         }
+        {
+            const VkPhysicalDeviceMaintenance4FeaturesKHR& features = info.queryMaintenance4Features();
+            DD_APPEND_FEATURE(maintenance4)
+        }
         if (info.support_VK_KHR_robustness2() || info.support_VK_EXT_robustness2())
         {
             const VkPhysicalDeviceRobustness2FeaturesKHR& features = info.queryRobustness2Features();
@@ -6044,7 +6171,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
-    if (support_shader_int16 || (opt.use_bf16_packed && support_fp16_storage))
+    if (support_shader_int16)
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
@@ -6126,7 +6253,13 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         s.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientVulkan, 1);
 
-        if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
+        if (info.queryMaintenance4Features().maintenance4)
+        {
+            // enabled core maintenance4 permits spirv-1.6 and LocalSizeId for all shaders
+            s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+            s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_6);
+        }
+        else if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
         {
             // subgroup / cooperative_matrix need vulkan-1.1 and spirv-1.3
             s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);

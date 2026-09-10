@@ -3,6 +3,81 @@
 
 #include "testutil.h"
 
+static int test_float32_to_float16(float value, unsigned short expected)
+{
+    unsigned short actual = ncnn::float32_to_float16(value);
+    if (actual != expected)
+    {
+        fprintf(stderr, "test_float32_to_float16 failed value=%f expected=%04x actual=%04x\n", value, expected, actual);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_float16_to_float8(unsigned short value, unsigned char expected)
+{
+    unsigned char actual = ncnn::float16_to_float8(value);
+    if (actual != expected)
+    {
+        fprintf(stderr, "test_float16_to_float8 failed value=%04x expected=%02x actual=%02x\n", value, expected, actual);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_float32_to_bfloat16(float value, unsigned short expected)
+{
+    unsigned short actual = ncnn::float32_to_bfloat16(value);
+    if (actual != expected)
+    {
+        fprintf(stderr, "test_float32_to_bfloat16 failed value=%f expected=%04x actual=%04x\n", value, expected, actual);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_float16_to_bfloat8(unsigned short value, unsigned char expected)
+{
+    unsigned char actual = ncnn::float16_to_bfloat8(value);
+    if (actual != expected)
+    {
+        fprintf(stderr, "test_float16_to_bfloat8 failed value=%04x expected=%02x actual=%02x\n", value, expected, actual);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_cast_rounding()
+{
+    return 0
+           || test_float32_to_float16(0.7f, 0x399a)
+           || test_float32_to_float16(-0.7f, 0xb99a)
+           || test_float32_to_float16(1.00048828125f, 0x3c01)
+           || test_float32_to_float16(1.99951171875f, 0x4000)
+           || test_float32_to_float16(65504.f, 0x7bff)
+           || test_float32_to_float16(65520.f, 0x7c00)
+           || test_float32_to_float16(0.00006103515625f, 0x0400)
+           || test_float32_to_float16(0.000030517578125f, 0x0000)
+           || test_float16_to_float8(0x3c40, 0x39)
+           || test_float16_to_float8(0x3fc0, 0x40)
+           || test_float16_to_float8(0x5b80, 0x77)
+           || test_float16_to_float8(0x5bc0, 0x78)
+           || test_float16_to_float8(0x2400, 0x08)
+           || test_float16_to_float8(0x2000, 0x00)
+           || test_float32_to_bfloat16(0.7f, 0x3f33)
+           || test_float32_to_bfloat16(-0.7f, 0xbf33)
+           || test_float32_to_bfloat16(1.00390625f, 0x3f81)
+           || test_float32_to_bfloat16(1.99609375f, 0x4000)
+           || test_float16_to_bfloat8(0x399a, 0x3a)
+           || test_float16_to_bfloat8(0xb99a, 0xba)
+           || test_float16_to_bfloat8(0x3c80, 0x3d)
+           || test_float16_to_bfloat8(0x3f80, 0x40);
+}
+
 static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int type_to)
 {
     ncnn::ParamDict pd;
@@ -316,6 +391,7 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_cast_rounding()
            || test_cast_0()
            || test_cast_1()
            || test_cast_2()

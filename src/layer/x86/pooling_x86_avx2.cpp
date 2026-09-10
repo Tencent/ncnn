@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "pooling_bf16s.h"
 
 void pooling_global_max_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
@@ -28,5 +30,7 @@ void pooling_avg_bf16s_avx2(const Mat& bottom_blob_bordered, const Mat& bottom_b
 {
     pooling_avg_bf16s(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

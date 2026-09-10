@@ -19,6 +19,12 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno needs stride * 2 for these packed fp16 buffers
+#define coopMatLoad(m, buf, element, stride, layout)  coopMatLoad(m, buf, element, (stride) * 2, layout)
+#define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
+#endif
+
 layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
@@ -91,7 +97,12 @@ void main()
     //
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(size) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -110,7 +121,12 @@ void main()
         return;
 
     const uint li = gl_LocalInvocationID.x;
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint Md4 = M / 4;
     const uint Nd4 = N / 4;
@@ -176,6 +192,8 @@ void main()
 
     uint k = 0;
 
+    // adreno drops K tiles in the prefetch loop
+#if ncnn_vendorID != 0x5143
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -693,11 +711,15 @@ void main()
             }
         }
     }
-    else if (kk >= UNROLL_SG_K)
+#endif
+
+    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
     {
         // no ping-pong version
 
-        const uint ki = 0;
+        const uint ki = k * K;
+
+        barrier();
 
         // load bottom_blob
         {
@@ -792,7 +814,12 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + zk * Kd4 + j;
 
+#if ncnn_vendorID == 0x5143
+                        // adreno miscompiles the pack4 input bound check when cstep is specialized or cached
+                        uvec2 v = gk < inchd4 && gm < p.cstep ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
+#else
                         uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
+#endif
 
                         tmp_v[sgmi][siq] = v;
                     }
@@ -893,8 +920,6 @@ void main()
                 }
             }
         }
-
-        k += UNROLL_SG_K;
     }
 
     for (; k < kk; k++)
@@ -976,7 +1001,12 @@ void main()
                         const uint gm = mi * M + zmi;
                         const uint gk = ki / 4 + j;
 
+#if ncnn_vendorID == 0x5143
+                        // adreno miscompiles the pack4 input bound check when cstep is specialized or cached
+                        uvec2 v = gk < inchd4 && gm < p.cstep ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
+#else
                         uvec2 v = gk < inchd4 && gm < psc(cstep) ? bottom_blob_data[gk * psc(cstep) + gm] : uvec2(0);
+#endif
 
                         tmp_v[sgmi][siq] = v;
                     }
