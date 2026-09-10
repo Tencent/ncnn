@@ -119,6 +119,10 @@
 #ifndef CPUFAMILY_ARM_THERA
 #define CPUFAMILY_ARM_THERA 0xab345f09
 #endif
+// A20 Pro
+#ifndef CPUFAMILY_ARM_BORNEO
+#define CPUFAMILY_ARM_BORNEO 0x7db56df1
+#endif
 // M3
 #ifndef CPUFAMILY_ARM_IBIZA
 #define CPUFAMILY_ARM_IBIZA 0xfa33415e
@@ -146,6 +150,10 @@
 // M5 Pro / M5 Max
 #ifndef CPUFAMILY_ARM_SOTRA
 #define CPUFAMILY_ARM_SOTRA 0xf76c5b1a
+#endif
+// M6
+#ifndef CPUFAMILY_ARM_KOMODO
+#define CPUFAMILY_ARM_KOMODO 0x6d0ccb0c
 #endif
 #endif // __APPLE__
 
@@ -2231,6 +2239,8 @@ static void initialize_global_cpu_info()
 
     switch (g_hw_cpufamily)
     {
+    case CPUFAMILY_ARM_BORNEO:
+    case CPUFAMILY_ARM_KOMODO:
     case CPUFAMILY_ARM_TILOS:
     case CPUFAMILY_ARM_THERA:
     case CPUFAMILY_ARM_HIDRA:
