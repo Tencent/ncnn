@@ -248,7 +248,7 @@ static bool parse_numeric_value(const char* vstr, bool is_float, int& value)
 static int dump_param_values(FILE* fp, FILE* mp)
 {
     char idstr[16];
-    while (fscanf(fp, " %15[+-0123456789]", idstr) == 1)
+    while (fscanf(fp, " %15[-+0123456789]", idstr) == 1)
     {
         int id;
         char delimiter[2];

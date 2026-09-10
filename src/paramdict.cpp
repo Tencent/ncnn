@@ -378,7 +378,7 @@ int ParamDict::load_param(const DataReader& dr)
 
     // stop before the next layer name, leaving it for Net to parse
     char idstr[16];
-    while (dr.scan(" %15[+-0123456789]", idstr) == 1)
+    while (dr.scan(" %15[-+0123456789]", idstr) == 1)
     {
         int id;
         char delimiter[2];

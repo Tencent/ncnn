@@ -745,6 +745,14 @@ static int test_paramdict_access()
         fprintf(stderr, "ParamDict retagged copy access failed\n");
         return -1;
     }
+
+    pd.set(4, ncnn::Mat());
+    if (pd.type(4) != 4 || !pd.get(4, array).empty()
+            || pd.type(5) != 0 || pd.get(5, array).data != array.data)
+    {
+        fprintf(stderr, "ParamDict empty array setter default failed\n");
+        return -1;
+    }
     return 0;
 }
 
@@ -847,6 +855,11 @@ static int test_paramdict_text_boundaries()
             || b.w != 1 || ((const int*)b)[0] != 7 || c.w != 2 || c[0] != 1.f || c[1] != 2.f)
     {
         fprintf(stderr, "ParamDict text array values failed\n");
+        return -1;
+    }
+    if (!pd.get(7, a).empty() || pd.type(31) != 0 || pd.get(31, a).data != a.data)
+    {
+        fprintf(stderr, "ParamDict empty text array default failed\n");
         return -1;
     }
 
@@ -1091,6 +1104,35 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
 
 static int test_paramdict_reload()
 {
+    // a literal '-' in the id scanset must not consume punctuation in layer types
+    const char* headers[] = {".Custom next 1 1 in out", "/Custom next 1 1 in out", ",Custom next 1 1 in out"};
+    for (size_t i = 0; i < sizeof(headers) / sizeof(headers[0]); i++)
+        for (int empty = 0; empty < 2; empty++)
+        {
+            char input[128];
+            snprintf(input, sizeof(input), "%s\n%s\n", empty ? "" : "+0=42 -23301=2,3,4", headers[i]);
+            const unsigned char* ptr = (const unsigned char*)input;
+            ncnn::DataReaderFromMemory dr(ptr);
+            ParamDictTest pd;
+            if (pd.load_param(dr))
+                return -1;
+            if (!empty)
+            {
+                const ncnn::Mat values = pd.get(1, ncnn::Mat());
+                if (pd.get(0, 0) != 42 || values.w != 2 || ((const int*)values)[0] != 3 || ((const int*)values)[1] != 4)
+                {
+                    fprintf(stderr, "ParamDict signed parameter id failed\n");
+                    return -1;
+                }
+            }
+            char header[64];
+            if (dr.scan(" %63[^\r\n]", header) != 1 || strcmp(header, headers[i]))
+            {
+                fprintf(stderr, "ParamDict custom layer header changed: %s\n", headers[i]);
+                return -1;
+            }
+        }
+
     const char* text = "0=42 1=1.5 2=3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
     const char* old_array_text = "0=42 1=1.5 -23302=2,3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
 
@@ -1222,6 +1264,12 @@ static int test_paramdict_binary_bounds()
             || pd.get(8, std::string()) != "1" || pd.get(9, 0) != 99)
     {
         fprintf(stderr, "ParamDict binary boundary values failed\n");
+        return -1;
+    }
+    const ncnn::Mat fallback = pd.get(1, ncnn::Mat());
+    if (!pd.get(2, fallback).empty() || pd.type(31) != 0 || pd.get(31, fallback).data != fallback.data)
+    {
+        fprintf(stderr, "ParamDict empty binary array default failed\n");
         return -1;
     }
 
