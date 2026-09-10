@@ -246,7 +246,9 @@ static int validate_shape_symbols(const ExportedProgram& program, const Exported
     }
     for (const auto& tensor : graph.tensor_values)
     {
-        for (const auto* dimensions : {&tensor.second.size_symbols, &tensor.second.stride_symbols})
+        for (const auto* dimensions : {
+                    &tensor.second.size_symbols, &tensor.second.stride_symbols
+                })
         {
             for (const std::string& symbol : *dimensions)
             {
@@ -438,9 +440,9 @@ static void report_exported_float_narrowing(const ExportedNode& node, const std:
 }
 
 static void report_exported_scalar_narrowing(const ExportedNode& node,
-                                             const std::vector<CanonicalExportedArgument>& arguments,
-                                             const ExportedGraph& graph,
-                                             std::set<std::string>& warnings)
+        const std::vector<CanonicalExportedArgument>& arguments,
+        const ExportedGraph& graph,
+        std::set<std::string>& warnings)
 {
     bool has_high_precision_tensor = false;
     for (size_t i = 0; i < arguments.size() && !has_high_precision_tensor; i++)
@@ -721,10 +723,10 @@ static const ExportedArgument* find_canonical_argument(const std::vector<Canonic
 }
 
 static int validate_tensor_metadata_assertion(const ExportedNode& node,
-                                              const std::vector<CanonicalExportedArgument>& arguments,
-                                              const ExportedGraph& graph,
-                                              const std::map<std::string, Operand*>& values,
-                                              std::string& error)
+        const std::vector<CanonicalExportedArgument>& arguments,
+        const ExportedGraph& graph,
+        const std::map<std::string, Operand*>& values,
+        std::string& error)
 {
     if (!node.outputs.empty())
     {
@@ -778,10 +780,10 @@ static int validate_tensor_metadata_assertion(const ExportedNode& node,
         return -1;
     }
     if (device->type != EXPORTED_ARGUMENT_NONE
-        && (device->type != EXPORTED_ARGUMENT_DEVICE
-            || device->device_value.type != meta.device_type
-            || device->device_value.has_index != meta.has_device_index
-            || (device->device_value.has_index && device->device_value.index != meta.device_index)))
+            && (device->type != EXPORTED_ARGUMENT_DEVICE
+                || device->device_value.type != meta.device_type
+                || device->device_value.has_index != meta.has_device_index
+                || (device->device_value.has_index && device->device_value.index != meta.device_index)))
     {
         error = "tensor metadata assertion device does not match " + tensor->name;
         return -1;
@@ -1088,7 +1090,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
             const ExportedArgument* self = find_canonical_argument(arguments, "self");
             const ExportedArgument* dim = find_canonical_argument(arguments, "dim");
             if (!self || self->type != EXPORTED_ARGUMENT_TENSOR || !dim || dim->type != EXPORTED_ARGUMENT_INT
-                || node.outputs.size() != 1 || node.outputs[0].type != EXPORTED_ARGUMENT_SYM_INT)
+                    || node.outputs.size() != 1 || node.outputs[0].type != EXPORTED_ARGUMENT_SYM_INT)
             {
                 error = "unsupported symbolic size query for " + node.target;
                 return -1;
@@ -1097,7 +1099,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
             const int64_t axis = dim->int_value < 0 ? dim->int_value + (int64_t)meta.sizes.size() : dim->int_value;
             const auto symbol = normalized_graph.sym_int_values.find(node.outputs[0].name);
             if (axis < 0 || axis >= (int64_t)meta.size_symbols.size() || symbol == normalized_graph.sym_int_values.end()
-                || meta.size_symbols[axis] != symbol->second)
+                    || meta.size_symbols[axis] != symbol->second)
             {
                 error = "symbolic size metadata does not match queried dimension";
                 return -1;

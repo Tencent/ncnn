@@ -91,11 +91,11 @@ static int bind_tensor_name(const std::string& source_name,
 }
 
 static int validate_bound_tensor_metadata(const ExportedGraph& subgraph,
-                                          const std::string& source_name,
-                                          const std::string& target_name,
-                                          const ExportedNode& node,
-                                          const ExportedGraphNormalizationContext& context,
-                                          std::string& error)
+        const std::string& source_name,
+        const std::string& target_name,
+        const ExportedNode& node,
+        const ExportedGraphNormalizationContext& context,
+        std::string& error)
 {
     const std::map<std::string, ExportedTensorMeta>::const_iterator source_meta = subgraph.tensor_values.find(source_name);
     if (source_meta == subgraph.tensor_values.end())
@@ -478,7 +478,7 @@ static bool parse_exported_einsum_subscript(const std::string& value, ExportedEi
 }
 
 static bool validate_and_normalize_exported_einsum_equation(const std::string& value, const std::vector<std::vector<int64_t> >& operand_shapes, const std::vector<int64_t>& output_shape,
-                                                            std::string& normalized, std::string& detail)
+        std::string& normalized, std::string& detail)
 {
     normalized.clear();
     normalized.reserve(value.size());
@@ -542,7 +542,7 @@ static bool validate_and_normalize_exported_einsum_equation(const std::string& v
             return false;
 
         if ((!subscript.has_ellipsis && subscript.labels.size() != operand_shapes[i].size())
-            || (subscript.has_ellipsis && subscript.labels.size() > operand_shapes[i].size()))
+                || (subscript.has_ellipsis && subscript.labels.size() > operand_shapes[i].size()))
         {
             detail = "einsum subscript rank does not match operand rank";
             return false;
@@ -609,10 +609,10 @@ static bool validate_and_normalize_exported_einsum_equation(const std::string& v
 }
 
 int normalize_exported_operator_arguments(const ExportedNode& node,
-                                          const ExportedOperatorTarget& target,
-                                          const ExportedGraph& graph,
-                                          std::vector<CanonicalExportedArgument>& arguments,
-                                          std::string& error)
+        const ExportedOperatorTarget& target,
+        const ExportedGraph& graph,
+        std::vector<CanonicalExportedArgument>& arguments,
+        std::string& error)
 {
     if (target.operator_name != "aten::einsum" || !target.overload_name.empty())
         return 0;

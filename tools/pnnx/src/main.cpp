@@ -655,6 +655,21 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    if (model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2)
+    {
+        for (const pnnx::Operator* op : pnnx_graph.ops)
+        {
+            if (op->type.find("::") == std::string::npos)
+                continue;
+
+            if (op->type == "prim::TupleUnpack" || op->type == "prim::TupleConstruct" || op->type == "prim::ListUnpack" || op->type == "prim::ListConstruct")
+                continue;
+
+            fprintf(stderr, "lower exported program failed: unsupported operator %s (%s)\n", op->type.c_str(), op->name.c_str());
+            return -1;
+        }
+    }
+
     pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);

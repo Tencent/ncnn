@@ -101,7 +101,7 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - Generated native ncnn python inference with Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
 - Compressed PT2 entries consumed by the frontend, any encrypted PT2 entry, and PT2 archive versions other than `0`
 
-Unsupported graph and schema features fail with a feature-specific `load exported program failed:` diagnostic. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
+Unsupported graph and schema features detected during import fail with a feature-specific `load exported program failed:` diagnostic. Unlowered operator targets left after the PNNX passes fail with `lower exported program failed:` before model artifacts are written. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
 
 ### ExportedProgram contributor tests
 

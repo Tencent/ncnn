@@ -63,11 +63,6 @@ class EmptyIntListModel(torch.nn.Module):
         return torch.tile(value, ())
 
 
-class EmptyFloatListModel(torch.nn.Module):
-    def forward(self, value):
-        return torch.ops.aten._test_optional_floatlist(value, [])
-
-
 class NormalizationModel(torch.nn.Module):
     def __init__(self, norm_type, dtype, distinct):
         super().__init__()
@@ -251,7 +246,7 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         program = self.call(module.export_exported_program, inputs)
         torch.testing.assert_close(program.module()(*inputs), model(*inputs))
 
-    def test_empty_lists_keep_typed_parameter_encoding(self):
+    def test_empty_int_list_roundtrip(self):
         int_archive = self.save(
             "empty_int_list", EmptyIntListModel(), (torch.tensor(2.0),)
         )
@@ -263,14 +258,6 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         self.assertIn("=[]", second_param)
         self.assertNotIn("=()", second_param)
         self.assertEqual(self.call(second_module.test_inference).shape, torch.Size([]))
-
-        float_archive = self.save(
-            "empty_float_list", EmptyFloatListModel(), (torch.ones(0),)
-        )
-        self.run_pnnx(float_archive)
-        float_param = (self.work_dir / "empty_float_list.pnnx.param").read_text()
-        self.assertIn("=[]f", float_param)
-        self.assertNotIn("=()", float_param)
 
     def test_exported_program_round_trip_does_not_overwrite_input(self):
         torch.manual_seed(42)

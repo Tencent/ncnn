@@ -1494,7 +1494,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 continue;
             const std::vector<int>& value = dim->second.ai;
             if (dim->second.type != 5 || value.size() != 3 || value[0] < 0 || value[1] < 0
-                || (value[2] != -1 && (value[2] <= value[1] || value[2] < 2)) || op->outputs[0]->shape[i] != -1)
+                    || (value[2] != -1 && (value[2] <= value[1] || value[2] < 2)) || op->outputs[0]->shape[i] != -1)
             {
                 fprintf(stderr, "invalid PT2 input dimension contract\n");
                 return -1;
@@ -1611,10 +1611,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                             || op->type == "nn.AdaptiveAvgPool3d"
-                             || op->type == "nn.AdaptiveMaxPool2d"
-                             || op->type == "nn.AdaptiveMaxPool3d")
-                            && it.first == "output_size" && param.ai[i] == 0)
+                                || op->type == "nn.AdaptiveAvgPool3d"
+                                || op->type == "nn.AdaptiveMaxPool2d"
+                                || op->type == "nn.AdaptiveMaxPool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -1778,55 +1778,27 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     is_empty = true;
             }
 
-            if (is_empty)
+            if (is_empty || is_running_mean_var)
             {
-                if (attr.type == 12 || attr.type == 13)
-                {
-                    fprintf(pyfp, "        self.%s_%s = torch.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
-                }
-                else
-                {
-                    fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
-                }
-
-                for (size_t i = 0; i < attr.shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d,", attr.shape[i]);
-                }
-
-                if (attr.type == 12 || attr.type == 13)
-                {
-                    fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(attr.type));
-                }
-                else
-                {
-                    fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
-                }
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
             else
             {
-                if (is_running_mean_var)
-                {
-                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-                }
-                else
-                {
-                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-                }
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+            }
 
-                for (size_t i = 0; i < attr.shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d,", attr.shape[i]);
-                }
+            for (size_t i = 0; i < attr.shape.size(); i++)
+            {
+                fprintf(pyfp, "%d,", attr.shape[i]);
+            }
 
-                if (is_running_mean_var || attr.type == 1 || attr.type == 2 || attr.type == 3)
-                {
-                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
-                }
-                else
-                {
-                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
-                }
+            if (is_empty || is_running_mean_var || attr.type == 1 || attr.type == 2 || attr.type == 3)
+            {
+                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            }
+            else
+            {
+                fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
             }
         }
 
@@ -1841,6 +1813,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
+        fprintf(pyfp, "        if isinstance(shape, int):\n");
+        fprintf(pyfp, "            shape = (shape,)\n");
+        fprintf(pyfp, "        if 0 in shape:\n");
+        fprintf(pyfp, "            if dtype == 'chalf':\n");
+        fprintf(pyfp, "                return torch.empty(shape, dtype=torch.complex32)\n");
+        fprintf(pyfp, "            if dtype == 'bfloat16':\n");
+        fprintf(pyfp, "                return torch.empty(shape, dtype=torch.bfloat16)\n");
+        fprintf(pyfp, "            return torch.from_numpy(np.empty(shape, dtype=dtype))\n");
         fprintf(pyfp, "        if dtype == 'chalf':\n");
         fprintf(pyfp, "            return torch.frombuffer(bytearray(archive.read(key)), dtype=torch.complex32).reshape(shape).clone()\n");
         fprintf(pyfp, "        if dtype == 'bfloat16':\n");
@@ -2076,8 +2056,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     // multiple dims, sort to -1,-2,-3,...,0,1,2,3.... and unroll
                     std::vector<int> dims = op->params.at("dim").ai;
-                    std::sort(dims.begin(), dims.end(), [](int a, int b)
-                    {
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
                         if (a < 0 && b >= 0) return true;
                         if (a >= 0 && b < 0) return false;
                         if (a < 0 && b < 0) return a > b;
@@ -2107,8 +2086,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     // multiple dims, sort to ...,-3,-2,-1,...,3,2,1,0 and unroll
                     std::vector<int> dims = op->params.at("dim").ai;
                     const bool keepdim = op->params.at("keepdim").b;
-                    std::sort(dims.begin(), dims.end(), [](int a, int b)
-                    {
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
                         if (a < 0 && b >= 0) return true;
                         if (a >= 0 && b < 0) return false;
                         if (a < 0 && b < 0) return a < b;
@@ -2434,8 +2412,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                     bool scalar_as_tensor = false;
                     if ((op->type == "Tensor.index_put" && it.first == "values")
-                        || (op->type == "torch.where" && it.first == "input")
-                        || (op->type == "torch.where" && it.first == "other"))
+                            || (op->type == "torch.where" && it.first == "input")
+                            || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
                     }
@@ -2522,10 +2500,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                 || op->type == "F.adaptive_avg_pool3d"
-                                 || op->type == "F.adaptive_max_pool2d"
-                                 || op->type == "F.adaptive_max_pool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                                    || op->type == "F.adaptive_avg_pool3d"
+                                    || op->type == "F.adaptive_max_pool2d"
+                                    || op->type == "F.adaptive_max_pool3d")
+                                    && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }

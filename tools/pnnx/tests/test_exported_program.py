@@ -761,6 +761,41 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             expected = model(torch.rand(1, 1, 5, 5))
             self.assert_conversion_matches(work_dir, archive_path, expected)
 
+    def test_empty_module_weights_load_and_run(self):
+        for dtype in (torch.float32, torch.float64, torch.bfloat16):
+            with self.subTest(dtype=dtype), temporary_work_dir() as work_dir, warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="Initializing zero-element tensors")
+                model = torch.nn.Linear(4, 0, dtype=dtype).eval()
+                inputs = (torch.ones(2, 4, dtype=dtype),)
+                archive_path = work_dir / "empty_linear.pt2"
+                save_exported_program(model, archive_path, inputs)
+                expected = torch.export.load(archive_path).module()(*inputs)
+                self.assert_conversion_succeeds(work_dir, archive_path)
+                with working_directory(work_dir):
+                    generated = load_generated_module(work_dir, archive_path.stem).Model().eval()
+                self.assert_nested_close(expected, generated(*inputs))
+
+    def test_unlowered_operator_is_rejected_before_saving(self):
+        class UnloweredView(torch.nn.Module):
+            def forward(self, x):
+                return torch.ops.aten._unsafe_view.default(x, [3, 4])
+
+        class UnloweredFloatList(torch.nn.Module):
+            def forward(self, x):
+                return torch.ops.aten._test_optional_floatlist(x, [])
+
+        cases = (
+            (UnloweredView(), torch.ones(3, 4), "aten::_unsafe_view"),
+            (UnloweredFloatList(), torch.ones(0), "aten::_test_optional_floatlist"),
+        )
+        for model, value, target in cases:
+            with self.subTest(target=target), temporary_work_dir() as work_dir:
+                archive_path = work_dir / "unlowered.pt2"
+                save_exported_program(model, archive_path, (value,))
+                self.assert_conversion_fails(
+                    work_dir, archive_path, "lower exported program failed", target
+                )
+
     def test_static_weight_norm_broadcast_and_finite_values(self):
         v = torch.arange(1, 19, dtype=torch.float32).reshape(2, 3, 3)
         g = torch.tensor([1., 2., 3.])

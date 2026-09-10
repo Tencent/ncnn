@@ -223,7 +223,7 @@ int materialize_exported_tensor(const ExportedTensorMeta& meta,
     {
         uint64_t dimension_offset = 0;
         if (!checked_multiply((uint64_t)(meta.sizes[i] - 1), (uint64_t)meta.strides[i], dimension_offset)
-            || !checked_add(maximum_source_offset, dimension_offset, maximum_source_offset))
+                || !checked_add(maximum_source_offset, dimension_offset, maximum_source_offset))
         {
             error = "tensor view offset overflow";
             return -1;
@@ -238,8 +238,8 @@ int materialize_exported_tensor(const ExportedTensorMeta& meta,
 
     uint64_t output_size = 0;
     if (!checked_multiply(element_count, (uint64_t)dtype_info.element_size, output_size)
-        || output_size > (uint64_t)std::numeric_limits<size_t>::max()
-        || output_size > (uint64_t)parsed_tensor.data.max_size())
+            || output_size > (uint64_t)std::numeric_limits<size_t>::max()
+            || output_size > (uint64_t)parsed_tensor.data.max_size())
     {
         error = "tensor output size overflow";
         return -1;

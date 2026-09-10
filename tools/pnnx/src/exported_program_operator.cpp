@@ -290,8 +290,7 @@ static bool operator_allows_numbers_as_tensors(const std::string& operator_name)
 {
     // Mirrors torch::should_allow_numbers_as_tensors in libtorch_python, which
     // pnnx does not link.  The decision is per operator base, not per overload.
-    static const char* const allowed_operators[] =
-    {
+    static const char* const allowed_operators[] = {
         "aten::_conj",
         "aten::_to_copy",
         "aten::add",
@@ -666,8 +665,7 @@ static const c10::FunctionSchema& torchvision_deform_conv2d_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::deform_conv2d", "",
-    {
-        c10::Argument("input", c10::TensorType::get()),
+    {   c10::Argument("input", c10::TensorType::get()),
         c10::Argument("weight", c10::TensorType::get()),
         c10::Argument("offset", c10::TensorType::get()),
         c10::Argument("mask", c10::TensorType::get()),
@@ -690,8 +688,7 @@ static const c10::FunctionSchema& torchvision_roi_align_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::roi_align", "",
-    {
-        c10::Argument("input", c10::TensorType::get()),
+    {   c10::Argument("input", c10::TensorType::get()),
         c10::Argument("rois", c10::TensorType::get()),
         c10::Argument("spatial_scale", c10::FloatType::get()),
         c10::Argument("pooled_height", c10::SymIntType::get()),
