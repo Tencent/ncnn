@@ -36,7 +36,7 @@ public:
     // get int
     int get(int id, int def) const;
     // get float
-    // integer 0 is a type mismatch; use set(id, 0.f) or text id=0.0 for floating-point zero
+    // integer parameters are converted to float
     float get(int id, float def) const;
     // get array
     Mat get(int id, const Mat& def) const;

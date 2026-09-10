@@ -715,13 +715,13 @@ static int test_paramdict_access()
             return -1;
         }
     }
-    if (pd.get(0, 0) != 10 || pd.get(31, 0) != 31)
+    if (pd.get(0, 0) != 10 || pd.get(0, 7.f) != 10.f || pd.get(31, 0) != 31)
     {
         fprintf(stderr, "ParamDict valid id access failed\n");
         return -1;
     }
 
-    if (pd.get(0, 7.f) != 7.f || pd.get(1, 7) != 7
+    if (pd.get(1, 7) != 7
             || pd.get(2, 7) != 7 || pd.get(2, 7.f) != 7.f
             || pd.get(3, 7) != 7 || pd.get(3, 7.f) != 7.f
             || pd.get(0, array).data != array.data || pd.get(0, text) != text
@@ -741,8 +741,11 @@ static int test_paramdict_access()
     assigned = pd;
     const ncnn::ParamDict& alias = assigned;
     assigned = alias;
-    if (!copied.get(2, ncnn::Mat()).empty() || copied.get(3, std::string()) != ""
-            || !assigned.get(2, ncnn::Mat()).empty() || assigned.get(3, std::string()) != ""
+    ncnn::Mat fallback_array(1);
+    ((int*)fallback_array)[0] = 99;
+    const std::string fallback_text = "fallback";
+    if (copied.get(2, fallback_array).data != fallback_array.data || copied.get(3, fallback_text) != fallback_text
+            || assigned.get(2, fallback_array).data != fallback_array.data || assigned.get(3, fallback_text) != fallback_text
             || copied.get(2, 0) != 22 || assigned.get(3, 0) != 33)
     {
         fprintf(stderr, "ParamDict retagged copy access failed\n");
@@ -759,29 +762,34 @@ static int test_paramdict_access()
     return 0;
 }
 
-static int test_paramdict_zero_type()
+static int test_paramdict_numeric_conversion()
 {
-    const char* text = "0=0 1=0.0";
-    for (int mode = 0; mode < 2; mode++)
-    {
-        ParamDictTest pd;
-        if (mode == 0)
+    const int integers[] = {0, 6, -6, 16777217, INT_MIN, INT_MAX};
+    const float expected[] = {0.f, 6.f, -6.f, 16777216.f, -2147483648.f, 2147483648.f};
+    for (size_t j = 0; j < sizeof(integers) / sizeof(integers[0]); j++)
+        for (int mode = 0; mode < 2; mode++)
         {
-            pd.set(0, 0);
-            pd.set(1, 0.f);
-        }
-        else
-        {
-            if (pd.load_param(text))
+            ParamDictTest pd;
+            if (mode == 0)
+            {
+                pd.set(0, integers[j]);
+                pd.set(1, 0.f);
+            }
+            else
+            {
+                char text[64];
+                snprintf(text, sizeof(text), "0=%d 1=0.0", integers[j]);
+                if (pd.load_param(text))
+                    return -1;
+            }
+            if (pd.get(0, 7.f) != expected[j] || pd.type(0) != 2 || pd.get(0, 7) != integers[j]
+                    || pd.type(1) != 3 || pd.get(1, 7.f) != 0.f || pd.get(1, 7) != 7
+                    || pd.get(2, 7.f) != 7.f)
+            {
+                fprintf(stderr, "ParamDict numeric conversion failed value=%d mode=%d\n", integers[j], mode);
                 return -1;
+            }
         }
-        if (pd.type(0) != 2 || pd.get(0, 7) != 0 || pd.get(0, 7.f) != 7.f
-                || pd.type(1) != 3 || pd.get(1, 7.f) != 0.f || pd.get(1, 7) != 7)
-        {
-            fprintf(stderr, "ParamDict zero type access failed mode=%d\n", mode);
-            return -1;
-        }
-    }
     return 0;
 }
 
@@ -884,6 +892,22 @@ static int test_paramdict_text_boundaries()
         }
     }
 
+    // accept signs, leading zeroes and trailing commas without changing element types
+    if (pd.load_param("0=+7 1=0007 -23302=1,+2 3=1,2, 4=+1.5 5=1.0,2.0,"))
+        return -1;
+    a = pd.get(2, ncnn::Mat());
+    b = pd.get(3, ncnn::Mat());
+    c = pd.get(5, ncnn::Mat());
+    if (pd.type(0) != 2 || pd.get(0, 0) != 7 || pd.type(1) != 2 || pd.get(1, 0) != 7
+            || pd.type(2) != 5 || a.w != 1 || ((const int*)a)[0] != 2
+            || pd.type(3) != 5 || b.w != 2 || ((const int*)b)[0] != 1 || ((const int*)b)[1] != 2
+            || pd.type(4) != 3 || pd.get(4, 0.f) != 1.5f
+            || pd.type(5) != 6 || c.w != 2 || c[0] != 1.f || c[1] != 2.f)
+    {
+        fprintf(stderr, "ParamDict numeric spelling failed\n");
+        return -1;
+    }
+
     // lines may end at a read-buffer boundary or split a quoted/numeric token across it
     const int line_lengths[] = {1022, 1023, 1024, 1035, 1048, 2046, 2047};
     for (size_t j = 0; j < sizeof(line_lengths) / sizeof(line_lengths[0]); j++)
@@ -981,13 +1005,19 @@ static int check_float_boundary(const char* text, float expected, int count, boo
 
 static int test_paramdict_float_boundaries()
 {
-    // old array elements retain the full numeric token limit
+    // old and modern array elements retain the full numeric token limit
     for (int len = 127; len <= 128; len++)
     {
         std::string text = "-23300=1,0.";
         text += make_param_string(len - 2, '0');
         text += " 1=42\nReLU next 1 1 in out\n";
         if (check_float_boundary(text.c_str(), 0.f, 1, len == 127))
+            return -1;
+
+        text = "0=0.0,1.";
+        text += make_param_string(len - 2, '0');
+        text += " 1=42\nReLU next 1 1 in out\n";
+        if (check_float_boundary(text.c_str(), 0.f, 2, len == 127))
             return -1;
     }
 
@@ -999,13 +1029,13 @@ static int test_paramdict_float_boundaries()
         "340282356779733661637539395458142568447.0", "340282356779733661637539395458142568448.0",
         "340282356779733661637539395458142568449.0",
         "0.000340282356779733661637539395458142568447e42",
-        "000340282356779733661637539395458142568448e0"
+        "000340282356779733661637539395458142568448e0", "1e-46"
     };
     const float expected[] = {
         32768.015625f, 32768.015625f, 32768.01953125f, 32768.01953125f, 32768.0234375f, 32768.0234375f,
-        FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f
+        FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f, 0.f
     };
-    const bool valid[] = {true, true, true, true, true, true, true, true, true, true, false, false, true, false, true, false, false, true, false};
+    const bool valid[] = {true, true, true, true, true, true, true, true, true, true, false, false, true, false, true, false, false, true, false, true};
     for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
         for (int negative = 0; negative < 2; negative++)
         {
@@ -1178,7 +1208,7 @@ static int test_paramdict_reload()
     {
         const bool binary = mode == 2;
         const char* input = mode == 0 ? text : old_array_text;
-        const unsigned char* ptr = binary ? data.data() : (const unsigned char*)input;
+        const unsigned char* ptr = binary ? &data[0] : (const unsigned char*)input;
         ncnn::DataReaderFromMemory dr(ptr);
         const int ret = check_paramdict_reload(dr, binary);
         if (ret != 0)
@@ -1201,7 +1231,7 @@ static int test_paramdict_binary_bounds()
             append_param_word(data, ids[i]);
             append_param_word(data, lengths[j]);
             append_param_word(data, -233);
-            BoundedParamReader reader(data.data(), data.size());
+            BoundedParamReader reader(&data[0], data.size());
             ParamDictTest pd;
             if (pd.load_param_bin(reader) == 0)
             {
@@ -1216,7 +1246,7 @@ static int test_paramdict_binary_bounds()
         std::vector<unsigned char> data;
         append_param_word(data, invalid_ids[i]);
         append_param_word(data, -233);
-        BoundedParamReader reader(data.data(), data.size());
+        BoundedParamReader reader(&data[0], data.size());
         ParamDictTest pd;
         if (pd.load_param_bin(reader) == 0)
         {
@@ -1231,7 +1261,7 @@ static int test_paramdict_binary_bounds()
         std::vector<unsigned char> data;
         append_param_word(data, -23400);
         append_param_word(data, invalid_string_lengths[i]);
-        BoundedParamReader reader(data.data(), data.size());
+        BoundedParamReader reader(&data[0], data.size());
         ParamDictTest pd;
         if (pd.load_param_bin(reader) == 0)
         {
@@ -1245,7 +1275,7 @@ static int test_paramdict_binary_bounds()
         std::vector<unsigned char> data;
         append_param_word(data, -23300);
         append_param_word(data, 0x40000000); // byte count wraps on 32-bit targets
-        BoundedParamReader reader(data.data(), data.size());
+        BoundedParamReader reader(&data[0], data.size());
         ParamDictTest pd;
         if (pd.load_param_bin(reader) == 0 || check_text_result("-23300=1073741824", false))
         {
@@ -1285,7 +1315,7 @@ static int test_paramdict_binary_bounds()
     append_param_word(data, 99);
     append_param_word(data, -233);
     ParamDictTest pd;
-    BoundedParamReader reader(data.data(), data.size());
+    BoundedParamReader reader(&data[0], data.size());
     if (pd.load_param_bin(reader) || pd.get(0, 0) != 0x3f800000 || pd.get(0, 0.f) != 1.f
             || pd.get(1, ncnn::Mat()).w != 1 || pd.get(1, ncnn::Mat())[0] != 1.f
             || pd.type(2) != 4 || !pd.get(2, ncnn::Mat()).empty()
@@ -1308,7 +1338,7 @@ static int test_paramdict_binary_bounds()
     // every truncation, including missing EOP and short scalar/array/string data, fails
     for (size_t size = 0; size < data.size(); size++)
     {
-        BoundedParamReader truncated(data.data(), size);
+        BoundedParamReader truncated(&data[0], size);
         ParamDictTest partial;
         if (partial.load_param_bin(truncated) == 0)
         {
@@ -1330,7 +1360,7 @@ int main()
            || test_paramdict_5()
            || test_paramdict_6()
            || test_paramdict_access()
-           || test_paramdict_zero_type()
+           || test_paramdict_numeric_conversion()
            || test_paramdict_invalid_text()
            || test_paramdict_text_boundaries()
            || test_paramdict_float_boundaries()

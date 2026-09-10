@@ -117,6 +117,8 @@ int ParamDict::get(int id, int def) const
 float ParamDict::get(int id, float def) const
 {
     const int t = type(id);
+    if (t == 2)
+        return (float)d->params[id].i;
     return t == 1 || t == 3 ? d->params[id].f : def;
 }
 
@@ -178,6 +180,7 @@ void ParamDict::clear()
     }
 }
 
+// keep array length checks in sync with tools/ncnn2mem.cpp
 static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
@@ -403,7 +406,7 @@ int ParamDict::load_param(const DataReader& dr)
     }
     if (!long_line.empty())
         long_line.push_back('\0');
-    const char* p = long_line.empty() ? line : long_line.data();
+    const char* p = long_line.empty() ? line : &long_line[0];
 
     while (1)
     {

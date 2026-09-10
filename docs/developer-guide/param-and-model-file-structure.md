@@ -46,7 +46,9 @@ the meaning of existing param key index can be looked up at [operation-param-wei
 * integer array value : [array size],int,int,...,int
 * float array value : [array size],float,float,...,float
 
-Use a decimal point or exponent for floating-point scalar values, including integral values, for example `1=6.0`, `1=6e0`, or `1=0.0`. Integer spellings such as `1=6` denote integer parameters and must not be used for floating-point attributes.
+Use a decimal point or exponent when generating floating-point scalar values, including integral values, for example `1=6.0`, `1=6e0`, or `1=0.0`. When loading text parameters, the float getter also converts integer spellings such as `1=6` and `1=0` to `6.0f` and `0.0f`. The int getter does not convert floating-point parameters to integers.
+
+Keep floating-point spellings when converting models with `ncnn2mem`: binary scalar parameters do not retain integer/float type tags, and the converter writes integer spellings as integer bit patterns without this numeric conversion.
 
 Use a decimal point or exponent for every element of a floating-point array, including integral values, for example `-23303=2,1.0,2.0`. Mixed integer and float element spellings within an array are not defined by the format.
 
