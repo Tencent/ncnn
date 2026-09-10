@@ -1,14 +1,13 @@
 // Copyright 2017 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "allocator.h"
+#include "datareader.h"
 #include "layer.h"
 #include "layer_type.h"
+#include "paramdict.h"
 
 #include <cstddef>
 #include <ctype.h>
-#include <float.h>
-#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -58,229 +57,6 @@ static std::string path_to_varname(const char* path)
     return varname;
 }
 
-// keep array length checks in sync with src/paramdict.cpp
-static size_t max_array_length()
-{
-    // leave room for Mat alignment, the reference count and fastMalloc overhead
-    const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
-    return std::min((size_t)INT_MAX, max_len);
-}
-
-static bool valid_array_length(size_t len)
-{
-    return len <= max_array_length();
-}
-
-// keep numeric parsing in sync with src/paramdict.cpp
-static bool vstr_is_float(const char* vstr)
-{
-    return strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E');
-}
-
-static bool vstr_to_int(const char* p, int& v)
-{
-    const bool negative = *p == '-';
-    if (*p == '+' || *p == '-')
-        p++;
-
-    if (*p < '0' || *p > '9')
-        return false;
-
-    const unsigned int limit = negative ? (unsigned int)INT_MAX + 1u : (unsigned int)INT_MAX;
-    unsigned int magnitude = 0;
-    while (*p >= '0' && *p <= '9')
-    {
-        const unsigned int digit = *p++ - '0';
-        if (magnitude > (limit - digit) / 10)
-            return false;
-        magnitude = magnitude * 10 + digit;
-    }
-    if (*p != '\0')
-        return false;
-
-    v = negative ? (magnitude == (unsigned int)INT_MAX + 1u ? INT_MIN : -(int)magnitude) : (int)magnitude;
-    return true;
-}
-
-// the input is a validated unsigned decimal token of at most 127 characters
-static bool vstr_fits_float(const char* p)
-{
-    char digits[128];
-    int len = 0;
-    int point = -1;
-    while (*p && *p != 'e' && *p != 'E')
-    {
-        if (*p == '.')
-            point = len;
-        else
-            digits[len++] = *p;
-        p++;
-    }
-    if (point < 0)
-        point = len;
-
-    int exponent = 0;
-    if (*p)
-    {
-        p++;
-        const bool negative = *p == '-';
-        if (*p == '+' || *p == '-')
-            p++;
-        while (*p)
-        {
-            if (exponent < 1024)
-                exponent = exponent * 10 + (*p - '0');
-            p++;
-        }
-        if (negative)
-            exponent = -exponent;
-    }
-
-    int first = 0;
-    while (first < len && digits[first] == '0')
-        first++;
-    if (first == len)
-        return true;
-
-    const int decimal_digits = point - first + exponent;
-    if (decimal_digits != 39)
-        return decimal_digits < 39;
-
-    // 2^128 - 2^103 is the exact midpoint between FLT_MAX and float overflow
-    const char midpoint[] = "340282356779733661637539395458142568448";
-    for (int i = 0; i < 39; i++)
-    {
-        const char digit = first + i < len ? digits[first + i] : '0';
-        if (digit != midpoint[i])
-            return digit < midpoint[i];
-    }
-    return false;
-}
-
-static bool vstr_to_float(const char* p, float& value)
-{
-    const bool negative = *p == '-';
-    if (*p == '+' || *p == '-')
-        p++;
-
-    const char* digits = p;
-    double v = 0.0;
-    bool has_digit = false;
-    while (*p >= '0' && *p <= '9')
-    {
-        has_digit = true;
-        v = v * 10.0 + (*p++ - '0');
-    }
-    if (*p == '.')
-    {
-        p++;
-        // accumulate the fraction before adding it to the integer part
-        double fraction = 0.0;
-        double scale = 1.0;
-        while (*p >= '0' && *p <= '9')
-        {
-            has_digit = true;
-            fraction = fraction * 10.0 + (*p++ - '0');
-            scale *= 10.0;
-        }
-        v += fraction / scale;
-    }
-    if (!has_digit)
-        return false;
-
-    if (*p == 'e' || *p == 'E')
-    {
-        p++;
-        const bool negative_exponent = *p == '-';
-        if (*p == '+' || *p == '-')
-            p++;
-        if (*p < '0' || *p > '9')
-            return false;
-
-        // saturate the exponent instead of overflowing or looping over its value
-        unsigned int exponent = 0;
-        while (*p >= '0' && *p <= '9')
-        {
-            if (exponent < 1024)
-            {
-                exponent = exponent * 10 + (*p - '0');
-                if (exponent > 1024)
-                    exponent = 1024;
-            }
-            p++;
-        }
-        if (v != 0.0)
-        {
-            // tokens are limited to 127 characters, so an infinite scale implies float overflow or underflow
-            double scale = 1.0;
-            double base = 10.0;
-            while (exponent)
-            {
-                if (exponent & 1)
-                    scale *= base;
-                exponent >>= 1;
-                if (exponent)
-                    base *= base;
-            }
-            v = negative_exponent ? v / scale : v * scale;
-        }
-    }
-    if (*p != '\0')
-        return false;
-
-    // compare the original decimal near overflow, where double rounding can cross the midpoint
-    if (v >= (double)FLT_MAX)
-    {
-        if (!vstr_fits_float(digits))
-            return false;
-        v = (double)FLT_MAX;
-    }
-    value = negative ? (float)-v : (float)v;
-    return true;
-}
-
-static bool param_space(char c)
-{
-    return c == ' ' || c == '\t' || c == '\v' || c == '\f';
-}
-
-static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false)
-{
-    vstr[0] = '\0';
-    if (comma)
-    {
-        if (*p != ',')
-            return 0;
-        p++;
-    }
-
-    int len = 0;
-    while (*p && *p != ',' && !param_space(*p))
-    {
-        if (len == 127)
-        {
-            vstr[len] = '\0';
-            return -1;
-        }
-        vstr[len++] = *p++;
-    }
-    vstr[len] = '\0';
-    return len > 0 ? 1 : 0;
-}
-
-static bool parse_numeric_value(const char* vstr, bool is_float, int& value)
-{
-    if (is_float)
-    {
-        float f;
-        if (!vstr_to_float(vstr, f))
-            return false;
-        memcpy(&value, &f, sizeof(float));
-        return true;
-    }
-    return vstr_to_int(vstr, value);
-}
-
 static bool write_param(FILE* fp, const void* data, size_t size)
 {
     if (fwrite(data, 1, size, fp) != size)
@@ -304,178 +80,71 @@ static int close_file(FILE* fp, const char* path)
     return 0;
 }
 
+class ParamDictText : public ncnn::ParamDict
+{
+public:
+    using ncnn::ParamDict::load_param;
+};
+
 static int dump_param_values(FILE* fp, FILE* mp)
 {
-    // each layer occupies one line
-    // leave the newline for the next layer header scan
-    char line[1024] = {0};
-    std::vector<char> long_line;
-    while (fscanf(fp, "%1023[^\r\n]", line) == 1)
-    {
-        const size_t len = strlen(line);
-        if (long_line.empty() && len < sizeof(line) - 1)
-            break;
-        long_line.insert(long_line.end(), line, line + len);
-        if (len < sizeof(line) - 1)
-            break;
-    }
+    ncnn::DataReaderFromStdio dr(fp);
+    ParamDictText pd;
+    if (pd.load_param(dr) != 0)
+        return -1;
     if (ferror(fp))
     {
         fprintf(stderr, "read param failed\n");
         return -1;
     }
-    if (!long_line.empty())
-        long_line.push_back('\0');
-    const char* p = long_line.empty() ? line : &long_line[0];
 
-    while (1)
+    for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
     {
-        while (param_space(*p))
-            p++;
-        if (!*p)
-            break;
-
-        char idstr[16];
-        int idlen = 0;
-        while ((*p == '-' || *p == '+' || (*p >= '0' && *p <= '9')) && idlen < 15)
-            idstr[idlen++] = *p++;
-        idstr[idlen] = '\0';
-        int id;
-        if (!vstr_to_int(idstr, id) || *p != '=')
-        {
-            fprintf(stderr, "invalid parameter id or missing equals sign\n");
-            return -1;
-        }
-        p++;
-
-        const bool old_array = id <= -23300;
-        const int param_id = old_array ? -(id + 23300) : id;
-        if (param_id < 0 || param_id >= NCNN_MAX_PARAM_COUNT)
-        {
-            fprintf(stderr, "invalid parameter id %d\n", id);
-            return -1;
-        }
-
-        if (old_array)
-        {
-            char vstr[128];
-            int len;
-            if (scan_numeric_value(p, vstr) != 1 || !vstr_to_int(vstr, len) || !valid_array_length((size_t)len))
-            {
-                fprintf(stderr, "invalid array length (id=%d)\n", id);
-                return -1;
-            }
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &len, sizeof(int)))
-                return -1;
-            for (int j = 0; j < len; j++)
-            {
-                int value;
-                if (scan_numeric_value(p, vstr, true) != 1
-                        || !parse_numeric_value(vstr, vstr_is_float(vstr), value))
-                {
-                    fprintf(stderr, "invalid array element (id=%d, index=%d)\n", id, j);
-                    return -1;
-                }
-                if (!write_param(mp, &value, sizeof(int)))
-                    return -1;
-            }
-            if (*p == ',')
-            {
-                fprintf(stderr, "array length mismatch (id=%d)\n", id);
-                return -1;
-            }
+        const int type = pd.type(id);
+        if (type == 0)
             continue;
-        }
-
-        if (*p == '\"' || (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z'))
+        if (type == 2)
         {
-            char text[256] = {0};
-            const bool quoted = *p == '\"';
-            if (quoted)
-                p++;
-            int len = 0;
-            while (*p && (quoted ? *p != '\"' : !param_space(*p)) && len < 255)
-                text[len++] = *p++;
-            if (quoted)
-            {
-                if (*p != '\"')
-                {
-                    fprintf(stderr, "unterminated or too long string (id=%d)\n", id);
-                    return -1;
-                }
-                p++;
-            }
-            if (*p && !param_space(*p))
-            {
-                fprintf(stderr, "invalid string suffix or string too long (id=%d)\n", id);
+            const int value = pd.get(id, 0);
+            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &value, sizeof(int)))
                 return -1;
-            }
-
-            id = -id - 23400;
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &len, sizeof(int)))
-                return -1;
-            if (!write_param(mp, text, (len + 3) / 4 * 4))
-                return -1;
-            continue;
         }
-
-        char vstr[128];
-        if (scan_numeric_value(p, vstr) != 1)
+        else if (type == 3)
         {
-            fprintf(stderr, "read value failed (id=%d)\n", id);
-            return -1;
-        }
-        const bool is_float = vstr_is_float(vstr);
-        int value;
-        if (!parse_numeric_value(vstr, is_float, value))
-        {
-            fprintf(stderr, "invalid numeric value (id=%d)\n", id);
-            return -1;
-        }
-
-        if (*p == ',')
-        {
-            p++;
-            std::vector<int> values;
-            values.push_back(value);
-            while (1)
-            {
-                const int nscan = scan_numeric_value(p, vstr);
-                if (nscan == 0)
-                {
-                    if (*p == ',')
-                    {
-                        fprintf(stderr, "missing array element (id=%d)\n", id);
-                        return -1;
-                    }
-                    break;
-                }
-                if (nscan < 0 || !valid_array_length(values.size() + 1) || !parse_numeric_value(vstr, is_float, value))
-                {
-                    fprintf(stderr, "invalid array element (id=%d)\n", id);
-                    return -1;
-                }
-                values.push_back(value);
-                if (*p != ',')
-                    break;
-                p++;
-            }
-            id = -id - 23300;
-            int len = (int)values.size();
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &len, sizeof(int)))
+            const float value = pd.get(id, 0.f);
+            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &value, sizeof(float)))
                 return -1;
-            if (!write_param(mp, &values[0], (size_t)len * sizeof(int)))
+        }
+        else if (type == 4 || type == 5 || type == 6)
+        {
+            const ncnn::Mat value = pd.get(id, ncnn::Mat());
+            const int encoded_id = -id - 23300;
+            const int len = value.w;
+            if (!write_param(mp, &encoded_id, sizeof(int)) || !write_param(mp, &len, sizeof(int)))
+                return -1;
+            if (len > 0 && !write_param(mp, value.data, (size_t)len * sizeof(float)))
+                return -1;
+        }
+        else if (type == 7)
+        {
+            const std::string value = pd.get(id, std::string());
+            const int encoded_id = -id - 23400;
+            const int len = (int)value.size();
+            const char padding[3] = {0};
+            const int padding_size = (4 - len % 4) % 4;
+            if (!write_param(mp, &encoded_id, sizeof(int)) || !write_param(mp, &len, sizeof(int))
+                    || !write_param(mp, value.data(), len) || !write_param(mp, padding, padding_size))
                 return -1;
         }
         else
         {
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &value, sizeof(int)))
-                return -1;
+            fprintf(stderr, "unsupported parameter type %d (id=%d)\n", type, id);
+            return -1;
         }
     }
 
-    int EOP = -233;
-    return write_param(mp, &EOP, sizeof(int)) ? 0 : -1;
+    const int eop = -233;
+    return write_param(mp, &eop, sizeof(int)) ? 0 : -1;
 }
 
 static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, const char* idcpppath)
@@ -496,6 +165,11 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
         fprintf(stderr, "read magic failed %d\n", nscan);
         return -1;
     }
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return -1;
+    }
     if (!write_param(mp, &magic, sizeof(int)))
         return -1;
 
@@ -505,6 +179,11 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
     if (nscan != 2)
     {
         fprintf(stderr, "read layer_count and blob_count failed %d\n", nscan);
+        return -1;
+    }
+    if (layer_count <= 0 || blob_count <= 0)
+    {
+        fprintf(stderr, "invalid layer_count or blob_count\n");
         return -1;
     }
     if (!write_param(mp, &layer_count, sizeof(int)) || !write_param(mp, &blob_count, sizeof(int)))
@@ -525,6 +204,11 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
         if (nscan != 4)
         {
             fprintf(stderr, "read layer params failed %d\n", nscan);
+            return -1;
+        }
+        if (bottom_count < 0 || top_count < 0 || top_count > blob_count - blob_index)
+        {
+            fprintf(stderr, "invalid bottom_count or top_count (layer=%d)\n", i);
             return -1;
         }
 
@@ -571,6 +255,8 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
             sanitize_name(bottom_name);
 
             int bottom_blob_index = find_blob_index_by_name(bottom_name);
+            if (bottom_blob_index < 0)
+                return -1;
 
             if (!write_param(mp, &bottom_blob_index, sizeof(int)))
                 return -1;

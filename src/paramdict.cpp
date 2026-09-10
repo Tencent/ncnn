@@ -180,7 +180,6 @@ void ParamDict::clear()
     }
 }
 
-// keep array length checks in sync with tools/ncnn2mem.cpp
 static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
@@ -194,7 +193,6 @@ static bool valid_array_length(size_t len)
 }
 
 #if NCNN_STRING
-// keep numeric parsing in sync with tools/ncnn2mem.cpp
 static bool vstr_is_float(const char* vstr)
 {
     return strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E');
