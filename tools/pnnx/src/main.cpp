@@ -199,6 +199,7 @@ static bool check_exported_program_input_shape(const pnnx::Graph& graph, const s
         return false;
     }
 
+    std::map<int, int64_t> symbol_sizes;
     for (size_t i = 0; i < graph_inputs.size(); i++)
     {
         const pnnx::Operand* input = graph_inputs[i];
@@ -207,6 +208,19 @@ static bool check_exported_program_input_shape(const pnnx::Graph& graph, const s
         {
             for (size_t j = 0; j < input->shape.size(); j++)
             {
+                const auto dim = input->producer->params.find("__pt2_dim_" + std::to_string(j));
+                if (dim != input->producer->params.end())
+                {
+                    const std::vector<int>& value = dim->second.ai;
+                    const int64_t size = input_shapes[i][j];
+                    if (size < 0 || (value[1] > 2 && size < value[1]) || (value[2] != -1 && size > value[2]))
+                        matched = false;
+                    const auto previous = symbol_sizes.find(value[0]);
+                    if (previous != symbol_sizes.end() && previous->second != size)
+                        matched = false;
+                    symbol_sizes[value[0]] = size;
+                    continue;
+                }
                 if (input_shapes[i][j] != input->shape[j])
                     matched = false;
             }
@@ -241,7 +255,8 @@ static bool check_exported_program_input_shape(const pnnx::Graph& graph, const s
 }
 #endif
 
-static bool parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents, std::vector<std::string>& paths, bool load_data)
+static bool parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents, std::vector<std::string>& paths,
+                                  bool load_data)
 {
     std::vector<std::string> list;
     parse_string_list(s, list);
@@ -267,7 +282,8 @@ static bool parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& s
     return true;
 }
 
-static bool load_numpy_file_contents(const std::vector<std::string>& paths, const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
+static bool load_numpy_file_contents(const std::vector<std::string>& paths, const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types,
+                                     std::vector<std::vector<char> >& contents)
 {
     contents.clear();
 
@@ -646,7 +662,8 @@ int main(int argc, char** argv)
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
     const bool preserve_module_dtype = model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2;
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat, preserve_module_dtype);
+    if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat, preserve_module_dtype) != 0)
+        return -1;
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);

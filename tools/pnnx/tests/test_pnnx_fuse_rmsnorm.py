@@ -3,7 +3,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from packaging import version
 
 from pnnx_test_utils import convert_and_import
@@ -43,9 +42,6 @@ def test():
     y = torch.rand(3, 15, 15, 21)
 
     a0, a1 = net(x, y)
-
-    # export onnx
-    torch.onnx.export(net, (x,y), "test.onnx")
 
     mod = convert_and_import(
         net,

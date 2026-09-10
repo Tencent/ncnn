@@ -26,7 +26,8 @@ namespace pnnx {
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
 #endif
 
-PACK(struct local_file_header {
+PACK(struct local_file_header
+{
     uint16_t version;
     uint16_t flag;
     uint16_t compression;
@@ -39,14 +40,16 @@ PACK(struct local_file_header {
     uint16_t extra_field_length;
 });
 
-PACK(struct zip64_extended_extra_field {
+PACK(struct zip64_extended_extra_field
+{
     uint64_t uncompressed_size;
     uint64_t compressed_size;
     uint64_t lfh_offset;
     uint32_t disk_number;
 });
 
-PACK(struct central_directory_file_header {
+PACK(struct central_directory_file_header
+{
     uint16_t version_made;
     uint16_t version;
     uint16_t flag;
@@ -65,7 +68,8 @@ PACK(struct central_directory_file_header {
     uint32_t lfh_offset;
 });
 
-PACK(struct zip64_end_of_central_directory_record {
+PACK(struct zip64_end_of_central_directory_record
+{
     uint64_t size_of_eocd64_m12;
     uint16_t version_made_by;
     uint16_t version_min_required;
@@ -77,13 +81,15 @@ PACK(struct zip64_end_of_central_directory_record {
     uint64_t cd_offset;
 });
 
-PACK(struct zip64_end_of_central_directory_locator {
+PACK(struct zip64_end_of_central_directory_locator
+{
     uint32_t eocdr64_disk_number;
     uint64_t eocdr64_offset;
     uint32_t disk_count;
 });
 
-PACK(struct end_of_central_directory_record {
+PACK(struct end_of_central_directory_record
+{
     uint16_t disk_number;
     uint16_t start_disk;
     uint16_t cd_records;
@@ -95,7 +101,8 @@ PACK(struct end_of_central_directory_record {
 
 static const std::array<uint32_t, 256>& CRC32_TABLE()
 {
-    static const std::array<uint32_t, 256> table = []() {
+    static const std::array<uint32_t, 256> table = []()
+    {
         std::array<uint32_t, 256> values = {};
         for (int i = 0; i < 256; i++)
         {
@@ -110,8 +117,7 @@ static const std::array<uint32_t, 256>& CRC32_TABLE()
             values[i] = c;
         }
         return values;
-    }
-    ();
+    }();
 
     return table;
 }
@@ -996,7 +1002,7 @@ int main()
     using namespace pnnx;
 
     {
-        uint64_t len = 1*1024*1024*1024;
+        uint64_t len = 1 * 1024 * 1024 * 1024;
         // uint64_t len = 1*1024*1024;
         char* data1g = new char[len];
 

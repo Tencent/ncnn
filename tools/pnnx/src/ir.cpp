@@ -1482,6 +1482,34 @@ static std::string make_index_expression(const Operator* op)
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat, bool preserve_module_dtype)
 {
+    std::map<int, std::pair<int, int> > dynamic_dims;
+    for (const Operator* op : ops)
+    {
+        if (op->type != "pnnx.Input")
+            continue;
+        for (size_t i = 0; i < op->outputs[0]->shape.size(); i++)
+        {
+            const auto dim = op->params.find("__pt2_dim_" + std::to_string(i));
+            if (dim == op->params.end())
+                continue;
+            const std::vector<int>& value = dim->second.ai;
+            if (dim->second.type != 5 || value.size() != 3 || value[0] < 0 || value[1] < 0
+                || (value[2] != -1 && (value[2] <= value[1] || value[2] < 2)) || op->outputs[0]->shape[i] != -1)
+            {
+                fprintf(stderr, "invalid PT2 input dimension contract\n");
+                return -1;
+            }
+            const std::pair<int, int> bounds(value[1], value[2]);
+            const auto previous = dynamic_dims.find(value[0]);
+            if (previous != dynamic_dims.end() && previous->second != bounds)
+            {
+                fprintf(stderr, "conflicting PT2 input dimension ranges\n");
+                return -1;
+            }
+            dynamic_dims[value[0]] = bounds;
+        }
+    }
+
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
     {
@@ -1583,10 +1611,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < param.ai.size(); i++)
                     {
                         if ((op->type == "nn.AdaptiveAvgPool2d"
-                                || op->type == "nn.AdaptiveAvgPool3d"
-                                || op->type == "nn.AdaptiveMaxPool2d"
-                                || op->type == "nn.AdaptiveMaxPool3d")
-                                && it.first == "output_size" && param.ai[i] == 0)
+                             || op->type == "nn.AdaptiveAvgPool3d"
+                             || op->type == "nn.AdaptiveMaxPool2d"
+                             || op->type == "nn.AdaptiveMaxPool3d")
+                            && it.first == "output_size" && param.ai[i] == 0)
                         {
                             fprintf(pyfp, "None");
                         }
@@ -1844,6 +1872,40 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // forward body
     {
+        std::map<int, std::string> dimension_inputs;
+        if (!dynamic_dims.empty())
+        {
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+                const Operand* input = op->outputs[0];
+                const std::string name = "v_" + sanitize_identifier(input->name);
+                fprintf(pyfp, "        torch._assert(%s.dim() == %d, 'PT2 input rank mismatch')\n", name.c_str(), (int)input->shape.size());
+                for (size_t i = 0; i < input->shape.size(); i++)
+                {
+                    const std::string size = name + ".size(" + std::to_string(i) + ")";
+                    const auto dim = op->params.find("__pt2_dim_" + std::to_string(i));
+                    if (dim == op->params.end())
+                    {
+                        fprintf(pyfp, "        torch._assert(%s == %d, 'PT2 static dimension mismatch')\n", size.c_str(), input->shape[i]);
+                        continue;
+                    }
+                    const std::vector<int>& value = dim->second.ai;
+                    // ExportedProgram permits runtime dimensions 0 and 1 when the lower bound is at most 2.
+                    if (value[1] > 2)
+                        fprintf(pyfp, "        torch._assert(%s >= %d, 'PT2 dimension below minimum')\n", size.c_str(), value[1]);
+                    if (value[2] != -1)
+                        fprintf(pyfp, "        torch._assert(%s <= %d, 'PT2 dimension above maximum')\n", size.c_str(), value[2]);
+                    const auto previous = dimension_inputs.find(value[0]);
+                    if (previous != dimension_inputs.end())
+                        fprintf(pyfp, "        torch._assert(%s == %s, 'PT2 shared dimension mismatch')\n", size.c_str(), previous->second.c_str());
+                    else
+                        dimension_inputs[value[0]] = size;
+                }
+            }
+        }
+
         for (const Operator* op : ops)
         {
             if (op->type == "pnnx.Input" || op->type == "pnnx.Output")
@@ -2014,7 +2076,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     // multiple dims, sort to -1,-2,-3,...,0,1,2,3.... and unroll
                     std::vector<int> dims = op->params.at("dim").ai;
-                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                    std::sort(dims.begin(), dims.end(), [](int a, int b)
+                    {
                         if (a < 0 && b >= 0) return true;
                         if (a >= 0 && b < 0) return false;
                         if (a < 0 && b < 0) return a > b;
@@ -2044,7 +2107,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     // multiple dims, sort to ...,-3,-2,-1,...,3,2,1,0 and unroll
                     std::vector<int> dims = op->params.at("dim").ai;
                     const bool keepdim = op->params.at("keepdim").b;
-                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                    std::sort(dims.begin(), dims.end(), [](int a, int b)
+                    {
                         if (a < 0 && b >= 0) return true;
                         if (a >= 0 && b < 0) return false;
                         if (a < 0 && b < 0) return a < b;
@@ -2370,8 +2434,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                     bool scalar_as_tensor = false;
                     if ((op->type == "Tensor.index_put" && it.first == "values")
-                            || (op->type == "torch.where" && it.first == "input")
-                            || (op->type == "torch.where" && it.first == "other"))
+                        || (op->type == "torch.where" && it.first == "input")
+                        || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
                     }
@@ -2458,10 +2522,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         for (size_t i = 0; i < param.ai.size(); i++)
                         {
                             if ((op->type == "F.adaptive_avg_pool2d"
-                                    || op->type == "F.adaptive_avg_pool3d"
-                                    || op->type == "F.adaptive_max_pool2d"
-                                    || op->type == "F.adaptive_max_pool3d")
-                                    && it.first == "output_size" && param.ai[i] == 0)
+                                 || op->type == "F.adaptive_avg_pool3d"
+                                 || op->type == "F.adaptive_max_pool2d"
+                                 || op->type == "F.adaptive_max_pool3d")
+                                && it.first == "output_size" && param.ai[i] == 0)
                             {
                                 fprintf(pyfp, "None");
                             }
@@ -2578,7 +2642,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     int dimsize = r->shape[i];
                     if (dimsize == -1)
-                        dimsize = 128; // try with a good default
+                    {
+                        const auto dim = op->params.find("__pt2_dim_" + std::to_string(i));
+                        dimsize = dim == op->params.end() ? 128 : std::max(2, dim->second.ai[1]);
+                    }
                     fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != r->shape.size() || r->shape.size() == 1)
                         fprintf(pyfp, ", ");
@@ -2594,7 +2661,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     int dimsize = r->shape[i];
                     if (dimsize == -1)
-                        dimsize = 128; // try with a good default
+                    {
+                        const auto dim = op->params.find("__pt2_dim_" + std::to_string(i));
+                        dimsize = dim == op->params.end() ? 128 : std::max(2, dim->second.ai[1]);
+                    }
                     fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
@@ -2657,7 +2727,34 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        example_inputs = _create_example_inputs()\n");
         fprintf(pyfp, "    elif not isinstance(example_inputs, tuple):\n");
         fprintf(pyfp, "        raise TypeError(\"example_inputs must be a tuple\")\n");
-        fprintf(pyfp, "    ep = torch.export.export(net, example_inputs)\n");
+        if (!dynamic_dims.empty())
+        {
+            for (const auto& dim : dynamic_dims)
+            {
+                const std::string maximum = dim.second.second == -1 ? "None" : std::to_string(dim.second.second);
+                fprintf(pyfp, "    dim_%d = torch.export.Dim('dim_%d', min=%d, max=%s)\n", dim.first, dim.first, dim.second.first, maximum.c_str());
+            }
+            fprintf(pyfp, "    dynamic_shapes = (\n");
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+                fprintf(pyfp, "        {");
+                for (size_t i = 0; i < op->outputs[0]->shape.size(); i++)
+                {
+                    const auto dim = op->params.find("__pt2_dim_" + std::to_string(i));
+                    if (dim != op->params.end())
+                        fprintf(pyfp, "%d: dim_%d, ", (int)i, dim->second.ai[0]);
+                }
+                fprintf(pyfp, "},\n");
+            }
+            fprintf(pyfp, "    )\n");
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs, dynamic_shapes=dynamic_shapes)\n");
+        }
+        else
+        {
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs)\n");
+        }
         fprintf(pyfp, "    torch.export.save(ep, \"%s\")\n", exported_program_path.c_str());
         fprintf(pyfp, "    return ep\n");
     }

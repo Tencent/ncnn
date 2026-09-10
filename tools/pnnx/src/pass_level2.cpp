@@ -50,7 +50,8 @@ bool GraphRewriterPass::match(const std::map<std::string, Parameter>& captured_p
     return match(captured_params);
 }
 
-bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params,
+                              const std::map<std::string, Attribute>& captured_attrs) const
 {
     return match(captured_params, captured_attrs);
 }
@@ -743,7 +744,8 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
     return true;
 }
 
-static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, const Operand*>& matched_outputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
+static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs,
+                  std::map<std::string, const Operand*>& matched_outputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
 {
     if (!match_operator(anchor, pattern, captured_params, captured_attrs))
         return false;

@@ -860,6 +860,49 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 result.returncode, 0, result.stderr.decode(errors="replace")
             )
 
+    def test_dynamic_input_contract_and_ir_reload(self):
+        with temporary_work_dir() as work_dir:
+            path = work_dir / "dynamic.pt2"
+            batch = torch.export.Dim("batch", min=3, max=8)
+            model = TwoInputModel().eval()
+            save_exported_program(model, path, (torch.ones(3, 4), torch.ones(3, 4)),
+                                  dynamic_shapes=({0: batch}, {0: batch}))
+            for shapes in ("[2,4],[2,4]", "[9,4],[9,4]", "[3,4],[5,4]", "[3,5],[3,5]"):
+                with self.subTest(shapes=shapes):
+                    result = run_pnnx(work_dir, path, "inputshape=" + shapes)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertGreater(result.returncode, 0, result.stderr.decode(errors="replace"))
+                    self.assertIn("input_shapes[", result.stderr.decode(errors="replace"))
+                    self.assertIn("expect [", result.stderr.decode(errors="replace"))
+            self.assert_conversion_succeeds(work_dir, path, "inputshape=[5,4],[5,4]")
+            with working_directory(work_dir):
+                net = load_generated_module(work_dir, path.stem).Model().eval()
+            for size in (3, 8):
+                args = (torch.randn(size, 4), torch.randn(size, 4))
+                torch.testing.assert_close(net(*args), model(*args))
+
+            if IR_ROUNDTRIP_EXECUTABLE is None:
+                self.skipTest("--ir-roundtrip-executable is required for the cross-C++ IR check")
+            result = subprocess.run(
+                [str(IR_ROUNDTRIP_EXECUTABLE.resolve()), str(path.with_suffix(".pnnx.param")),
+                 str(path.with_suffix(".pnnx.bin")), str(work_dir / "reloaded_pnnx.py")],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            module = load_generated_module(work_dir, "reloaded")
+            with working_directory(work_dir):
+                net = module.Model().eval()
+                program = module.export_exported_program()
+            self.assertEqual([(int(r.lower), int(r.upper)) for r in program.range_constraints.values()], [(3, 8)])
+            for size in (3, 8):
+                args = (torch.randn(size, 4), torch.randn(size, 4))
+                for converted in (net, program.module()):
+                    torch.testing.assert_close(converted(*args), model(*args))
+            for a, b in ((2, 2), (9, 9), (3, 5)):
+                for converted in (net, program.module()):
+                    with self.assertRaises((AssertionError, RuntimeError)):
+                        converted(torch.ones(a, 4), torch.ones(b, 4))
+
     def test_operator_returns_are_validated(self):
         with temporary_work_dir() as work_dir:
             model = OperatorReturnsModel().eval()
@@ -1590,25 +1633,19 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 work_dir, archive_path, model(torch.rand(1, 1, 4, 4))
             )
 
-    def test_dynamic_shapes_are_rejected(self):
+    def test_unsupported_symbolic_metadata_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
             source_path = work_dir / "dynamic_source.pt2"
             save_exported_program(self.model, source_path)
 
             def first_tensor_meta(document):
-                return next(
-                    iter(
-                        document["graph_module"]["graph"][
-                            "tensor_values"
-                        ].values()
-                    )
-                )
+                return document["graph_module"]["graph"]["tensor_values"]["x"]
 
-            def use_symbolic_size(document):
+            def use_symbolic_size(document, expression="s0"):
                 first_tensor_meta(document)["sizes"][0] = {
                     "as_expr": {
-                        "expr_str": "s0",
+                        "expr_str": expression,
                         "hint": {"as_int": 2},
                     }
                 }
@@ -1643,12 +1680,17 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 (
                     "size_expression_with_hint",
                     use_symbolic_size,
-                    (".sizes[0].as_expr", "dynamic tensor shapes are unsupported"),
+                    ("missing range constraint for input dimension s0",),
+                ),
+                (
+                    "derived_dimension",
+                    lambda document: use_symbolic_size(document, "2*s0"),
+                    ("derived symbolic dimensions are unsupported",),
                 ),
                 (
                     "stride_expression",
                     use_symbolic_stride,
-                    (".strides[0].as_expr", "dynamic tensor shapes are unsupported"),
+                    ("unbound symbolic dimension s0",),
                 ),
                 (
                     "storage_offset_expression",
@@ -1661,20 +1703,19 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 (
                     "symbol_value",
                     add_symbol_value,
-                    (".sym_int_values", "dynamic symbolic values are unsupported"),
+                    (".sym_int_values", "expected named symbolic value"),
                 ),
                 (
                     "range_constraint",
                     add_range_constraint,
                     (
-                        "$.range_constraints",
-                        "dynamic range constraints are unsupported",
+                        "range constraint is not bound to an input dimension: s0",
                     ),
                 ),
                 (
                     "named_operator_symint",
                     use_named_operator_symint,
-                    ("unsupported serialized argument as_sym_int",),
+                    ("serialized type symbolic int incompatible with dispatcher schema Tensor",),
                 ),
             )
             for label, mutate, messages in cases:

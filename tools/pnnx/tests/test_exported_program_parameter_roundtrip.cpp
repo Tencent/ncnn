@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
+#include "model_stat.h"
 #include "storezip.h"
 #include "utils.h"
 
@@ -368,12 +369,19 @@ static int test_real_scalar_state_roundtrip(const char* param_path, const char* 
 
 int main(int argc, char** argv)
 {
+    if (argc == 4)
+    {
+        pnnx::Graph graph;
+        if (graph.load(argv[1], argv[2]) != 0)
+            return 1;
+        return graph.python(argv[3], argv[2], {}, pnnx::get_model_stat(graph), true);
+    }
     if (argc == 3)
         return test_real_scalar_state_roundtrip(argv[1], argv[2]);
 
     if (argc != 1)
     {
-        fprintf(stderr, "usage: %s [model.pnnx.param model.pnnx.bin]\n", argv[0]);
+        fprintf(stderr, "usage: %s [model.pnnx.param model.pnnx.bin [model_pnnx.py]]\n", argv[0]);
         return 1;
     }
 

@@ -58,7 +58,7 @@ torch.export.save(exported_program, "model.pt2")
 pnnx model.pt2
 ```
 
-The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs. An optional `inputshape` or `input` override must exactly match the static tensor count, shapes and data types stored in the PT2 package. Alternative `inputshape2` and `input2` inputs are unsupported for ExportedProgram.
+The input shapes and model state are read from the PT2 package. Parameters, persistent and non-persistent buffers, and tensor constants become PNNX model attributes instead of runtime inputs. An optional `inputshape` or `input` override must match the input count, ranks, static dimensions and data types, and satisfy the dynamic dimension constraints. It does not specialize dynamic dimensions. Alternative `inputshape2` and `input2` inputs are unsupported for ExportedProgram.
 
 3. Export the generated PNNX python model as another ExportedProgram
 
@@ -68,12 +68,15 @@ python -c 'import model_pnnx; model_pnnx.export_exported_program()'
 
 This exports the inference graph of the generated PNNX Python `Model`, creates `model_pnnx.pt2`, and returns that `torch.export.ExportedProgram` object. It is not a serialization round trip of the original Python module. Pass a tuple to `export_exported_program(example_inputs)` to override the generated example inputs.
 
+Named dynamic input dimensions retain their ranges and shared identities through PNNX parameter save/load and re-export. For example, export a model with `dynamic_shapes=({0: torch.export.Dim("batch", min=3, max=8)},)` to keep its batch dimension dynamic. The generated Python model checks input ranks, static dimensions, ranges and shared dimensions. As in PyTorch's ExportedProgram runtime, a lower bound at most 2 allows dimensions 0 and 1; re-export still retains the declared bounds. Native ncnn execution remains subject to the supported operator and batch-layout rules, and does not enforce the PT2 range guards.
+
 ### Current ExportedProgram support
 
 - PT2 archive version `0` with one ExportedProgram; consumed ZIP entries must be uncompressed, while unconsumed compressed attachments are ignored and encryption is unsupported for every entry
 - PyTorch 2.13 ExportedProgram schema 8.20 with raw tensor payloads; compatibility paths for the older raw-payload schema minors 8.14, 8.15 and 8.17 are retained but are not part of the continuously tested compatibility contract
 - Inference graphs with protocol-1 positional tensor input PyTrees composed only of tuple/list containers; their leaves are flattened in treespec order at the PNNX model boundary, while tensor output leaves may be reconstructed into protocol-1 tuple/list trees
-- Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments
+- Static tensor shapes, including statically resolved `SymInt`, `SymFloat` and `SymBool` operator arguments; basic named dynamic input dimensions with finite integer bounds or an unbounded maximum, including shared symbols across inputs
+- Runtime `aten.sym_size.int` queries and mixed constant/symbolic integer lists used by supported shape operators; dynamic inference and re-export are verified with multiple input sizes, shared/independent dimensions and reshape
 - Inference-state values, shapes and data types from parameters, persistent and non-persistent buffers, and tensor constants, with raw strided tensor payloads including stride and storage offset; payload layout is used for state materialization, not as a runtime input-stride contract, and the original state category and training identity are not preserved
 - Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
 - Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
@@ -88,7 +91,7 @@ This exports the inference graph of the generated PNNX Python `Model`, creates `
 
 - PyTorch 2.8 legacy pickled-payload PT2, incompatible schema majors and schema minors other than 14, 15, 17 and 20
 - AOTInductor-only packages or multiple ExportedPrograms in one PT2 package
-- Dynamic tensor dimensions, range constraints, symbolic expressions or symbolic scalar dataflow, and dynamic model state
+- Derived symbolic sizes or strides (for example `2*s0` or `s0*s1`), symbolic scalar arithmetic, data-dependent dimensions, dynamic `SymFloat`/`SymBool` values, symbolic scalar dataflow inside higher-order wrappers, and dynamic model state
 - Keyword inputs, positional input PyTrees containing dict, namedtuple or custom containers, and output PyTrees containing dict, namedtuple or custom containers
 - Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs. Retained nodes that write directly or through aliases to external state, or whose possible external writes cannot be ruled out, are also rejected even without mutation outputs. Supported local temporary updates remain allowed within the existing slice/select/view functionalization coverage; this is not general view functionalization.
 - Lossless restoration of original module state identity or training semantics. An imported state tensor may be emitted as a generated Python `Parameter` regardless of whether it originated as a parameter, persistent buffer, non-persistent buffer or tensor constant; original `requires_grad`, buffer persistence, `state_dict` keys and parameter/buffer registration are not a round-trip contract

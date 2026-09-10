@@ -230,6 +230,10 @@ static const char* exported_argument_type_name(ExportedArgumentType type)
         return "int";
     if (type == EXPORTED_ARGUMENT_INT_LIST)
         return "int list";
+    if (type == EXPORTED_ARGUMENT_SYM_INT)
+        return "symbolic int";
+    if (type == EXPORTED_ARGUMENT_SYM_INT_LIST)
+        return "symbolic int list";
     if (type == EXPORTED_ARGUMENT_FLOAT)
         return "float";
     if (type == EXPORTED_ARGUMENT_FLOAT_LIST)
@@ -263,6 +267,8 @@ static bool exported_list_element_type(ExportedArgumentType list_type, ExportedA
         element_type = EXPORTED_ARGUMENT_TENSOR;
     else if (list_type == EXPORTED_ARGUMENT_INT_LIST)
         element_type = EXPORTED_ARGUMENT_INT;
+    else if (list_type == EXPORTED_ARGUMENT_SYM_INT_LIST)
+        element_type = EXPORTED_ARGUMENT_SYM_INT;
     else if (list_type == EXPORTED_ARGUMENT_FLOAT_LIST)
         element_type = EXPORTED_ARGUMENT_FLOAT;
     else if (list_type == EXPORTED_ARGUMENT_BOOL_LIST)
@@ -284,7 +290,8 @@ static bool operator_allows_numbers_as_tensors(const std::string& operator_name)
 {
     // Mirrors torch::should_allow_numbers_as_tensors in libtorch_python, which
     // pnnx does not link.  The decision is per operator base, not per overload.
-    static const char* const allowed_operators[] = {
+    static const char* const allowed_operators[] =
+    {
         "aten::_conj",
         "aten::_to_copy",
         "aten::add",
@@ -359,7 +366,7 @@ static bool exported_argument_type_matches_schema(ExportedArgumentType argument_
     if (schema_type->kind() == c10::TypeKind::NumberType)
         return exported_argument_type_is_number(argument_type);
     if (schema_type->kind() == c10::TypeKind::IntType || schema_type->kind() == c10::TypeKind::SymIntType)
-        return argument_type == EXPORTED_ARGUMENT_INT;
+        return argument_type == EXPORTED_ARGUMENT_INT || argument_type == EXPORTED_ARGUMENT_SYM_INT;
     if (schema_type->kind() == c10::TypeKind::FloatType || schema_type->kind() == c10::TypeKind::SymFloatType)
         return argument_type == EXPORTED_ARGUMENT_FLOAT;
     if (schema_type->kind() == c10::TypeKind::ComplexType)
@@ -380,75 +387,42 @@ static bool exported_argument_type_matches_schema(ExportedArgumentType argument_
     return false;
 }
 
-static int serialize_scalar_type(at::ScalarType value, int64_t& serialized)
+static int serialize_scalar_type(at::ScalarType value)
 {
-    if (value == at::ScalarType::Byte)
-        serialized = 1;
-    else if (value == at::ScalarType::Char)
-        serialized = 2;
-    else if (value == at::ScalarType::Short)
-        serialized = 3;
-    else if (value == at::ScalarType::Int)
-        serialized = 4;
-    else if (value == at::ScalarType::Long)
-        serialized = 5;
-    else if (value == at::ScalarType::Half)
-        serialized = 6;
-    else if (value == at::ScalarType::Float)
-        serialized = 7;
-    else if (value == at::ScalarType::Double)
-        serialized = 8;
-    else if (value == at::ScalarType::ComplexHalf)
-        serialized = 9;
-    else if (value == at::ScalarType::ComplexFloat)
-        serialized = 10;
-    else if (value == at::ScalarType::ComplexDouble)
-        serialized = 11;
-    else if (value == at::ScalarType::Bool)
-        serialized = 12;
-    else if (value == at::ScalarType::BFloat16)
-        serialized = 13;
-    else
-        return -1;
-
+    if (value == at::ScalarType::Byte) return 1;
+    if (value == at::ScalarType::Char) return 2;
+    if (value == at::ScalarType::Short) return 3;
+    if (value == at::ScalarType::Int) return 4;
+    if (value == at::ScalarType::Long) return 5;
+    if (value == at::ScalarType::Half) return 6;
+    if (value == at::ScalarType::Float) return 7;
+    if (value == at::ScalarType::Double) return 8;
+    if (value == at::ScalarType::ComplexHalf) return 9;
+    if (value == at::ScalarType::ComplexFloat) return 10;
+    if (value == at::ScalarType::ComplexDouble) return 11;
+    if (value == at::ScalarType::Bool) return 12;
+    if (value == at::ScalarType::BFloat16) return 13;
     return 0;
 }
 
-static int serialize_layout(at::Layout value, int64_t& serialized)
+static int serialize_layout(at::Layout value)
 {
-    if (value == at::kSparse)
-        serialized = 1;
-    else if (value == at::kSparseCsr)
-        serialized = 2;
-    else if (value == at::kSparseCsc)
-        serialized = 3;
-    else if (value == at::kSparseBsr)
-        serialized = 4;
-    else if (value == at::kSparseBsc)
-        serialized = 5;
-    else if (value == at::kMkldnn)
-        serialized = 6;
-    else if (value == at::kStrided)
-        serialized = 7;
-    else
-        return -1;
-
+    if (value == at::kSparse) return 1;
+    if (value == at::kSparseCsr) return 2;
+    if (value == at::kSparseCsc) return 3;
+    if (value == at::kSparseBsr) return 4;
+    if (value == at::kSparseBsc) return 5;
+    if (value == at::kMkldnn) return 6;
+    if (value == at::kStrided) return 7;
     return 0;
 }
 
-static int serialize_memory_format(at::MemoryFormat value, int64_t& serialized)
+static int serialize_memory_format(at::MemoryFormat value)
 {
-    if (value == at::MemoryFormat::Contiguous)
-        serialized = 1;
-    else if (value == at::MemoryFormat::ChannelsLast)
-        serialized = 2;
-    else if (value == at::MemoryFormat::ChannelsLast3d)
-        serialized = 3;
-    else if (value == at::MemoryFormat::Preserve)
-        serialized = 4;
-    else
-        return -1;
-
+    if (value == at::MemoryFormat::Contiguous) return 1;
+    if (value == at::MemoryFormat::ChannelsLast) return 2;
+    if (value == at::MemoryFormat::ChannelsLast3d) return 3;
+    if (value == at::MemoryFormat::Preserve) return 4;
     return 0;
 }
 
@@ -482,7 +456,8 @@ static int convert_default_value(const c10::Argument& schema_argument, ExportedA
         if (argument_type->kind() == c10::TypeKind::ScalarTypeType)
         {
             argument.type = EXPORTED_ARGUMENT_SCALAR_TYPE;
-            if (serialize_scalar_type(value.toScalarType(), argument.enum_value) != 0)
+            argument.enum_value = serialize_scalar_type(value.toScalarType());
+            if (argument.enum_value == 0)
             {
                 error = "unsupported ScalarType default";
                 return -1;
@@ -492,7 +467,8 @@ static int convert_default_value(const c10::Argument& schema_argument, ExportedA
         if (argument_type->kind() == c10::TypeKind::LayoutType)
         {
             argument.type = EXPORTED_ARGUMENT_LAYOUT;
-            if (serialize_layout(value.toLayout(), argument.enum_value) != 0)
+            argument.enum_value = serialize_layout(value.toLayout());
+            if (argument.enum_value == 0)
             {
                 error = "unsupported Layout default";
                 return -1;
@@ -502,7 +478,8 @@ static int convert_default_value(const c10::Argument& schema_argument, ExportedA
         if (argument_type->kind() == c10::TypeKind::MemoryFormatType)
         {
             argument.type = EXPORTED_ARGUMENT_MEMORY_FORMAT;
-            if (serialize_memory_format(value.toMemoryFormat(), argument.enum_value) != 0)
+            argument.enum_value = serialize_memory_format(value.toMemoryFormat());
+            if (argument.enum_value == 0)
             {
                 error = "unsupported MemoryFormat default";
                 return -1;
@@ -689,7 +666,8 @@ static const c10::FunctionSchema& torchvision_deform_conv2d_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::deform_conv2d", "",
-    {   c10::Argument("input", c10::TensorType::get()),
+    {
+        c10::Argument("input", c10::TensorType::get()),
         c10::Argument("weight", c10::TensorType::get()),
         c10::Argument("offset", c10::TensorType::get()),
         c10::Argument("mask", c10::TensorType::get()),
@@ -712,7 +690,8 @@ static const c10::FunctionSchema& torchvision_roi_align_schema()
 {
     static const c10::FunctionSchema schema(
         "torchvision::roi_align", "",
-    {   c10::Argument("input", c10::TensorType::get()),
+    {
+        c10::Argument("input", c10::TensorType::get()),
         c10::Argument("rois", c10::TensorType::get()),
         c10::Argument("spatial_scale", c10::FloatType::get()),
         c10::Argument("pooled_height", c10::SymIntType::get()),

@@ -13,7 +13,7 @@ PNNX_LOWERING_UNSUPPORTED = "PNNX_LOWERING_UNSUPPORTED"
 PT2_EXPECTED_FAILURES = {
     "test_pnnx_input_npy": (
         PT2_FRONTEND_UNSUPPORTED,
-        "dynamic tensor shapes are unsupported",
+        "derived symbolic dimensions are unsupported",
     ),
     "test_Tensor_index": (
         EXPORT_UNSUPPORTED,
@@ -21,7 +21,7 @@ PT2_EXPECTED_FAILURES = {
     ),
     "test_torch_masked_select": (
         PT2_FRONTEND_UNSUPPORTED,
-        "dynamic tensor shapes are unsupported",
+        ".sym_bool_values: dynamic symbolic values are unsupported",
     ),
     "test_torch_arange": (
         EXPORT_UNSUPPORTED,
@@ -29,7 +29,7 @@ PT2_EXPECTED_FAILURES = {
     ),
     "test_transformers_funnel_attention": (
         PT2_FRONTEND_UNSUPPORTED,
-        "dynamic tensor shapes are unsupported",
+        "derived symbolic dimensions are unsupported",
     ),
     "test_quantization_shufflenet_v2_x1_0": (EXPORT_UNSUPPORTED, "Conv2dPackedParamsBase"),
 }

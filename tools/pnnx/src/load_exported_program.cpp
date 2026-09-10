@@ -36,7 +36,7 @@ static int set_exported_tensor_shape(const ExportedTensorMeta& meta, const std::
     shape.reserve(meta.sizes.size());
     for (size_t i = 0; i < meta.sizes.size(); i++)
     {
-        if (meta.sizes[i] < 0)
+        if (meta.sizes[i] < 0 && (i >= meta.size_symbols.size() || meta.size_symbols[i].empty()))
         {
             std::ostringstream message;
             message << "tensor " << name << " has a negative or symbolic size at dimension " << i;
@@ -213,6 +213,62 @@ static int validate_signature_arguments(const ExportedProgram& source_program, c
     return 0;
 }
 
+static int validate_shape_symbols(const ExportedProgram& program, const ExportedGraph& graph, std::map<std::string, int>& symbols, std::string& error)
+{
+    for (const ExportedInputSpec& spec : program.input_specs)
+    {
+        const ExportedTensorMeta& meta = graph.tensor_values.at(spec.arg.name);
+        for (const std::string& symbol : meta.size_symbols)
+        {
+            if (symbol.empty())
+                continue;
+            if (spec.kind != EXPORTED_USER_INPUT)
+            {
+                error = "state tensor dimensions must be static: " + spec.arg.name;
+                return -1;
+            }
+            if (program.range_constraints.find(symbol) == program.range_constraints.end())
+            {
+                error = "missing range constraint for input dimension " + symbol;
+                return -1;
+            }
+            if (symbols.find(symbol) == symbols.end())
+                symbols[symbol] = (int)symbols.size();
+        }
+    }
+    for (const auto& range : program.range_constraints)
+    {
+        if (symbols.find(range.first) == symbols.end())
+        {
+            error = "range constraint is not bound to an input dimension: " + range.first;
+            return -1;
+        }
+    }
+    for (const auto& tensor : graph.tensor_values)
+    {
+        for (const auto* dimensions : {&tensor.second.size_symbols, &tensor.second.stride_symbols})
+        {
+            for (const std::string& symbol : *dimensions)
+            {
+                if (!symbol.empty() && symbols.find(symbol) == symbols.end())
+                {
+                    error = "unbound symbolic dimension " + symbol + " for tensor " + tensor.first;
+                    return -1;
+                }
+            }
+        }
+    }
+    for (const auto& value : graph.sym_int_values)
+    {
+        if (symbols.find(value.second) == symbols.end())
+        {
+            error = "unbound symbolic value " + value.first;
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static std::string unique_name(const std::string& requested, std::set<std::string>& names)
 {
     std::string sanitized;
@@ -382,9 +438,9 @@ static void report_exported_float_narrowing(const ExportedNode& node, const std:
 }
 
 static void report_exported_scalar_narrowing(const ExportedNode& node,
-        const std::vector<CanonicalExportedArgument>& arguments,
-        const ExportedGraph& graph,
-        std::set<std::string>& warnings)
+                                             const std::vector<CanonicalExportedArgument>& arguments,
+                                             const ExportedGraph& graph,
+                                             std::set<std::string>& warnings)
 {
     bool has_high_precision_tensor = false;
     for (size_t i = 0; i < arguments.size() && !has_high_precision_tensor; i++)
@@ -665,10 +721,10 @@ static const ExportedArgument* find_canonical_argument(const std::vector<Canonic
 }
 
 static int validate_tensor_metadata_assertion(const ExportedNode& node,
-        const std::vector<CanonicalExportedArgument>& arguments,
-        const ExportedGraph& graph,
-        const std::map<std::string, Operand*>& values,
-        std::string& error)
+                                              const std::vector<CanonicalExportedArgument>& arguments,
+                                              const ExportedGraph& graph,
+                                              const std::map<std::string, Operand*>& values,
+                                              std::string& error)
 {
     if (!node.outputs.empty())
     {
@@ -722,10 +778,10 @@ static int validate_tensor_metadata_assertion(const ExportedNode& node,
         return -1;
     }
     if (device->type != EXPORTED_ARGUMENT_NONE
-            && (device->type != EXPORTED_ARGUMENT_DEVICE
-                || device->device_value.type != meta.device_type
-                || device->device_value.has_index != meta.has_device_index
-                || (device->device_value.has_index && device->device_value.index != meta.device_index)))
+        && (device->type != EXPORTED_ARGUMENT_DEVICE
+            || device->device_value.type != meta.device_type
+            || device->device_value.has_index != meta.has_device_index
+            || (device->device_value.has_index && device->device_value.index != meta.device_index)))
     {
         error = "tensor metadata assertion device does not match " + tensor->name;
         return -1;
@@ -901,6 +957,9 @@ static int lower_exported_program(const ExportedProgram& source_program,
         return -1;
     if (validate_exported_program_opset(source_program.header, error) != 0)
         return -1;
+    std::map<std::string, int> shape_symbols;
+    if (validate_shape_symbols(source_program, normalized_graph, shape_symbols, error) != 0)
+        return -1;
     Graph candidate;
     std::map<std::string, Operand*> values;
     std::map<std::string, ExportedTensorSources> sources;
@@ -984,6 +1043,15 @@ static int lower_exported_program(const ExportedProgram& source_program,
         op->outputs.push_back(operand);
         if (set_tensor_metadata(normalized_graph, name, operand, error) != 0)
             return -1;
+        const ExportedTensorMeta& meta = normalized_graph.tensor_values.at(name);
+        for (size_t j = 0; j < meta.size_symbols.size(); j++)
+        {
+            const std::string& symbol = meta.size_symbols[j];
+            if (symbol.empty())
+                continue;
+            const std::pair<int, int>& bounds = source_program.range_constraints.at(symbol);
+            op->params["__pt2_dim_" + std::to_string(j)] = std::vector<int> {shape_symbols.at(symbol), bounds.first, bounds.second};
+        }
         values[name] = operand;
     }
 
@@ -1015,11 +1083,38 @@ static int lower_exported_program(const ExportedProgram& source_program,
         const std::string requested_name = node.has_name ? node.name : generated_name.str();
         Operator* op = candidate.new_operator(target.operator_name, unique_name(requested_name, operator_names));
 
+        if (target.operator_name == "aten::sym_size" && target.overload_name == "int")
+        {
+            const ExportedArgument* self = find_canonical_argument(arguments, "self");
+            const ExportedArgument* dim = find_canonical_argument(arguments, "dim");
+            if (!self || self->type != EXPORTED_ARGUMENT_TENSOR || !dim || dim->type != EXPORTED_ARGUMENT_INT
+                || node.outputs.size() != 1 || node.outputs[0].type != EXPORTED_ARGUMENT_SYM_INT)
+            {
+                error = "unsupported symbolic size query for " + node.target;
+                return -1;
+            }
+            const ExportedTensorMeta& meta = normalized_graph.tensor_values.at(self->name);
+            const int64_t axis = dim->int_value < 0 ? dim->int_value + (int64_t)meta.sizes.size() : dim->int_value;
+            const auto symbol = normalized_graph.sym_int_values.find(node.outputs[0].name);
+            if (axis < 0 || axis >= (int64_t)meta.size_symbols.size() || symbol == normalized_graph.sym_int_values.end()
+                || meta.size_symbols[axis] != symbol->second)
+            {
+                error = "symbolic size metadata does not match queried dimension";
+                return -1;
+            }
+            op->type = "aten::size";
+        }
+
         for (size_t j = 0; j < arguments.size(); j++)
         {
             Operand* operand = 0;
-            if (arguments[j].value.type == EXPORTED_ARGUMENT_TENSOR)
+            if (arguments[j].value.type == EXPORTED_ARGUMENT_TENSOR || arguments[j].value.type == EXPORTED_ARGUMENT_SYM_INT)
             {
+                if (arguments[j].value.type == EXPORTED_ARGUMENT_SYM_INT && normalized_graph.sym_int_values.find(arguments[j].value.name) == normalized_graph.sym_int_values.end())
+                {
+                    error = "unknown symbolic value " + arguments[j].value.name;
+                    return -1;
+                }
                 const std::map<std::string, Operand*>::const_iterator value_it = values.find(arguments[j].value.name);
                 if (value_it == values.end())
                 {
@@ -1029,7 +1124,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
 
                 operand = value_it->second;
             }
-            else if (arguments[j].value.type == EXPORTED_ARGUMENT_TENSOR_LIST)
+            else if (arguments[j].value.type == EXPORTED_ARGUMENT_TENSOR_LIST || arguments[j].value.type == EXPORTED_ARGUMENT_SYM_INT_LIST)
             {
                 std::ostringstream list_name;
                 list_name << "pnnx_" << unknown_index++;
@@ -1038,9 +1133,35 @@ static int lower_exported_program(const ExportedProgram& source_program,
                 operand->producer = list;
                 list->outputs.push_back(operand);
 
-                for (size_t k = 0; k < arguments[j].value.tensor_names.size(); k++)
+                const ExportedArgument& argument = arguments[j].value;
+                const bool symbolic = argument.type == EXPORTED_ARGUMENT_SYM_INT_LIST;
+                const std::vector<std::string>& names = symbolic ? argument.int_names : argument.tensor_names;
+                for (size_t k = 0; k < names.size(); k++)
                 {
-                    const std::string& tensor_name = arguments[j].value.tensor_names[k];
+                    const std::string& tensor_name = names[k];
+                    if (symbolic && tensor_name.empty())
+                    {
+                        int value = 0;
+                        if (exported_int_to_pnnx(argument.int_values[k], value) != 0)
+                        {
+                            error = "symbolic shape list constant does not fit pnnx int parameter";
+                            return -1;
+                        }
+                        const std::string name = "pnnx_" + std::to_string(unknown_index++);
+                        Operator* constant = candidate.new_operator_before("prim::Constant", unique_name(name, operator_names), list);
+                        Operand* item = candidate.new_operand(unique_name(name, operand_names));
+                        constant->params["value"] = value;
+                        constant->outputs.push_back(item);
+                        item->producer = constant;
+                        item->consumers.push_back(list);
+                        list->inputs.push_back(item);
+                        continue;
+                    }
+                    if (symbolic && normalized_graph.sym_int_values.find(tensor_name) == normalized_graph.sym_int_values.end())
+                    {
+                        error = "unknown symbolic value " + tensor_name;
+                        return -1;
+                    }
                     const std::map<std::string, Operand*>::const_iterator value_it = values.find(tensor_name);
                     if (value_it == values.end())
                     {
@@ -1077,7 +1198,12 @@ static int lower_exported_program(const ExportedProgram& source_program,
 
         for (size_t j = 0; j < node.outputs.size(); j++)
         {
-            if (node.outputs[j].type == EXPORTED_ARGUMENT_TENSOR)
+            if (node.outputs[j].type == EXPORTED_ARGUMENT_SYM_INT && op->type != "aten::size")
+            {
+                error = "unsupported symbolic computation for " + node.target;
+                return -1;
+            }
+            if (node.outputs[j].type == EXPORTED_ARGUMENT_TENSOR || node.outputs[j].type == EXPORTED_ARGUMENT_SYM_INT)
             {
                 const std::string& name = node.outputs[j].name;
                 if (values.find(name) != values.end())
@@ -1088,7 +1214,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
                 Operand* operand = candidate.new_operand(unique_name(name, operand_names));
                 operand->producer = op;
                 op->outputs.push_back(operand);
-                if (set_tensor_metadata(normalized_graph, name, operand, error) != 0)
+                if (node.outputs[j].type == EXPORTED_ARGUMENT_TENSOR && set_tensor_metadata(normalized_graph, name, operand, error) != 0)
                     return -1;
                 values[name] = operand;
                 continue;

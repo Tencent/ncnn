@@ -30,6 +30,20 @@ class DtypeIdentityModel(torch.nn.Module):
         return token_ids, values, mask
 
 
+class SharedBatchModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(4, 6)
+
+    def forward(self, x, y):
+        return torch.relu(self.linear(x + y)).reshape(x.shape[0], 2, -1)
+
+
+class IndependentDimensionsModel(torch.nn.Module):
+    def forward(self, x, y):
+        return torch.relu(x), -y
+
+
 class StateDtypeModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -105,6 +119,50 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         self.run_pnnx(archive_path)
 
         return load_generated_module(self.work_dir, archive_path.stem)
+
+    def test_dynamic_dimensions_and_reexport(self):
+        batch = torch.export.Dim("batch", min=3, max=8)
+        width = torch.export.Dim("width", min=3, max=9)
+        unbounded = torch.export.Dim("width", min=0)
+        cases = (
+            ("shared", SharedBatchModel(), ({0: batch}, {0: batch}),
+             ((3, 3), (5, 5), (8, 8)), ((2, 2), (9, 9), (3, 5))),
+            ("independent", IndependentDimensionsModel(), ({0: batch}, {1: width}),
+             ((3, 3), (5, 7), (8, 9)), ((2, 3), (9, 3), (3, 2), (3, 10))),
+            ("unbounded", IndependentDimensionsModel(),
+             ({0: torch.export.Dim("batch", min=2, max=8)}, {1: unbounded}),
+             ((0, 0), (1, 1), (8, 9)), ((9, 3),)),
+        )
+        for name, model, dynamic_shapes, sizes, invalid in cases:
+            with self.subTest(case=name):
+                def inputs(a, b):
+                    return torch.randn(a, 4), torch.randn(b, 4) if name == "shared" else torch.randn(2, b)
+
+                model.eval()
+                path = self.work_dir / (name + ".pt2")
+                examples = inputs(3, 3 if name == "shared" else 5)
+                save_exported_program(model, path, examples, dynamic_shapes=dynamic_shapes)
+                original = torch.export.load(path)
+                expected_ranges = sorted((str(r.lower), str(r.upper)) for r in original.range_constraints.values())
+                for hop in range(2):
+                    module = self.convert(path)
+                    net = self.call(module.Model).eval()
+                    program = self.call(module.export_exported_program, examples) if hop == 0 else self.call(module.export_exported_program)
+                    path = path.with_name(path.stem + "_pnnx.pt2")
+                    loaded = torch.export.load(path)
+                    self.assertEqual(sorted((str(r.lower), str(r.upper)) for r in loaded.range_constraints.values()), expected_ranges)
+                    for a, b in sizes:
+                        args = inputs(a, b)
+                        expected = model(*args)
+                        for converted in (original.module(), net, program.module(), loaded.module()):
+                            torch.testing.assert_close(converted(*args), expected)
+                    for a, b in invalid:
+                        for converted in (original.module(), net, program.module(), loaded.module()):
+                            with self.assertRaises((AssertionError, RuntimeError)):
+                                converted(*inputs(a, b))
+                    for args in ((torch.ones(3, 4, 1), examples[1]), (torch.ones(3, 5), examples[1])):
+                        with self.assertRaisesRegex(AssertionError, "PT2 (input rank|static dimension) mismatch"):
+                            net(*args)
 
     def test_generated_source_preserves_typed_inputs(self):
         example_inputs = (

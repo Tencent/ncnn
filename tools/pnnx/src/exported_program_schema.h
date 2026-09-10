@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace pnnx {
@@ -32,6 +33,8 @@ struct ExportedTensorMeta
     int64_t dtype;
     std::vector<int64_t> sizes;
     std::vector<int64_t> strides;
+    std::vector<std::string> size_symbols;
+    std::vector<std::string> stride_symbols;
     int64_t storage_offset;
     int64_t layout;
     bool requires_grad;
@@ -65,6 +68,8 @@ enum ExportedArgumentType
     EXPORTED_ARGUMENT_TENSOR_LIST,
     EXPORTED_ARGUMENT_INT,
     EXPORTED_ARGUMENT_INT_LIST,
+    EXPORTED_ARGUMENT_SYM_INT,
+    EXPORTED_ARGUMENT_SYM_INT_LIST,
     EXPORTED_ARGUMENT_FLOAT,
     EXPORTED_ARGUMENT_FLOAT_LIST,
     EXPORTED_ARGUMENT_COMPLEX,
@@ -103,6 +108,7 @@ struct ExportedArgument
     std::string string_value;
     std::vector<std::string> tensor_names;
     std::vector<int64_t> int_values;
+    std::vector<std::string> int_names;
     std::vector<double> float_values;
     std::vector<bool> bool_values;
     std::vector<std::string> string_values;
@@ -207,6 +213,7 @@ struct ExportedGraph
     std::vector<ExportedNode> nodes;
     std::vector<ExportedArgument> outputs;
     std::map<std::string, ExportedTensorMeta> tensor_values;
+    std::map<std::string, std::string> sym_int_values;
     std::map<std::string, ExportedArgument> custom_obj_values;
     bool is_single_tensor_return;
 };
@@ -218,6 +225,8 @@ struct ExportedProgram
     std::vector<ExportedInputSpec> input_specs;
     std::vector<ExportedOutputSpec> output_specs;
     ExportedTreeSpec output_tree_spec;
+    // Inclusive bounds; -1 denotes an unbounded upper limit.
+    std::map<std::string, std::pair<int, int> > range_constraints;
 };
 
 struct ExportedSchemaError

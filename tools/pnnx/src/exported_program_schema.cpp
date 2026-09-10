@@ -3,6 +3,8 @@
 
 #include "exported_program_schema.h"
 
+#include <limits.h>
+
 #include <limits>
 #include <map>
 #include <sstream>
@@ -308,7 +310,39 @@ static int parse_static_symint(const JsonValue& value, int64_t& result, const st
     return read_integer(*as_int, result, path + ".as_int", error);
 }
 
-static int parse_static_symint_array(const JsonValue& value, std::vector<int64_t>& result, const std::string& path, bool is_size, ExportedSchemaError& error)
+static int parse_symbolic_dim(const JsonValue& value, int64_t& result, std::string& symbol, const std::string& path, ExportedSchemaError& error)
+{
+    const JsonValue* expr = value.find("as_expr");
+    if (!expr)
+        return parse_static_symint(value, result, path, error);
+    if (value.type() != JSON_OBJECT || value.as_object().size() != 1 || expr->type() != JSON_OBJECT)
+        return schema_error(error, path, "expected symbolic expression object");
+
+    const JsonValue* expr_str = required_field(*expr, "expr_str", path + ".as_expr", error);
+    if (!expr_str || read_string(*expr_str, symbol, path + ".as_expr.expr_str", error) != 0)
+        return -1;
+
+    // Serde uses either a symbol name or SymPy's srepr. Never evaluate it.
+    if (symbol.compare(0, 8, "Symbol('") == 0)
+    {
+        const size_t end = symbol.find('\'', 8);
+        const std::string suffix = end == std::string::npos ? "" : symbol.substr(end);
+        if (suffix != "')" && suffix != "', integer=True)" && suffix != "', positive=True, integer=True)")
+            return schema_error(error, path, "derived symbolic dimensions are unsupported");
+        symbol = symbol.substr(8, end - 8);
+    }
+    if (!is_path_identifier(symbol))
+        return schema_error(error, path, "derived symbolic dimensions are unsupported");
+
+    const JsonValue* hint = expr->find("hint");
+    int64_t example = 0;
+    if (hint && hint->type() != JSON_NULL && parse_static_symint(*hint, example, path + ".as_expr.hint", error) != 0)
+        return -1;
+    result = -1;
+    return 0;
+}
+
+static int parse_symint_array(const JsonValue& value, std::vector<int64_t>& result, const std::string& path, bool is_size, ExportedSchemaError& error, std::vector<std::string>* symbols = 0)
 {
     if (value.type() != JSON_ARRAY)
         return schema_error(error, path, "expected array");
@@ -321,12 +355,16 @@ static int parse_static_symint_array(const JsonValue& value, std::vector<int64_t
         item_path << path << '[' << i << ']';
 
         int64_t item = 0;
-        if (parse_static_symint(values[i], item, item_path.str(), error) != 0)
+        std::string symbol;
+        const int ret = symbols ? parse_symbolic_dim(values[i], item, symbol, item_path.str(), error) : parse_static_symint(values[i], item, item_path.str(), error);
+        if (ret != 0)
             return -1;
-        if (item < 0)
+        if (item < 0 && symbol.empty())
             return schema_error(error, item_path.str() + ".as_int", is_size ? "tensor size must be non-negative" : "tensor stride must be non-negative");
 
         result.push_back(item);
+        if (symbols)
+            symbols->push_back(symbol);
     }
 
     return 0;
@@ -334,7 +372,7 @@ static int parse_static_symint_array(const JsonValue& value, std::vector<int64_t
 
 static int read_device(const JsonValue& value, ExportedDevice& device, const std::string& path, ExportedSchemaError& error);
 
-int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tensor_meta, ExportedSchemaError& error, const std::string& path)
+static int parse_tensor_meta(const JsonValue& value, ExportedTensorMeta& tensor_meta, ExportedSchemaError& error, const std::string& path, bool symbolic)
 {
     tensor_meta = ExportedTensorMeta();
     clear_schema_error(error);
@@ -354,7 +392,7 @@ int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tenso
     const JsonValue* sizes = required_field(value, "sizes", tensor_path, error);
     if (!sizes)
         return -1;
-    if (parse_static_symint_array(*sizes, parsed_meta.sizes, tensor_path + ".sizes", true, error) != 0)
+    if (parse_symint_array(*sizes, parsed_meta.sizes, tensor_path + ".sizes", true, error, symbolic ? &parsed_meta.size_symbols : 0) != 0)
         return -1;
 
     const JsonValue* requires_grad = required_field(value, "requires_grad", tensor_path, error);
@@ -376,7 +414,7 @@ int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tenso
     const JsonValue* strides = required_field(value, "strides", tensor_path, error);
     if (!strides)
         return -1;
-    if (parse_static_symint_array(*strides, parsed_meta.strides, tensor_path + ".strides", false, error) != 0)
+    if (parse_symint_array(*strides, parsed_meta.strides, tensor_path + ".strides", false, error, symbolic ? &parsed_meta.stride_symbols : 0) != 0)
         return -1;
     if (parsed_meta.strides.size() != parsed_meta.sizes.size())
         return schema_error(error, tensor_path + ".strides", "tensor stride rank does not match sizes");
@@ -397,6 +435,11 @@ int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tenso
 
     tensor_meta = std::move(parsed_meta);
     return 0;
+}
+
+int parse_exported_tensor_meta(const JsonValue& value, ExportedTensorMeta& tensor_meta, ExportedSchemaError& error, const std::string& path)
+{
+    return parse_tensor_meta(value, tensor_meta, error, path, false);
 }
 
 static bool is_single_archive_path_component(const std::string& path_name)
@@ -591,7 +634,8 @@ static int read_custom_object_argument(const JsonValue& value, ExportedArgument&
 }
 
 template<typename T>
-static int parse_array(const JsonValue& value, std::vector<T>& result, const std::string& path, int (*parse_value)(const JsonValue&, T&, const std::string&, ExportedSchemaError&), ExportedSchemaError& error)
+static int parse_array(const JsonValue& value, std::vector<T>& result, const std::string& path, int (*parse_value)(const JsonValue&, T&, const std::string&, ExportedSchemaError&),
+                       ExportedSchemaError& error)
 {
     if (value.type() != JSON_ARRAY)
         return schema_error(error, path, "expected array");
@@ -634,7 +678,8 @@ static int read_tensor_argument_array(const JsonValue& value, std::vector<std::s
     return parse_array(value, result, path, read_tensor_argument, error);
 }
 
-static int read_static_sym_argument(const JsonValue& value, const std::string& static_tag, const std::string& dynamic_tag, JsonType static_type, ExportedArgument& argument, const std::string& path, ExportedSchemaError& error)
+static int read_static_sym_argument(const JsonValue& value, const std::string& static_tag, const std::string& dynamic_tag, JsonType static_type, ExportedArgument& argument, const std::string& path,
+                                    ExportedSchemaError& error)
 {
     if (value.type() != JSON_OBJECT || value.as_object().size() != 1)
         return schema_error(error, path, "symbolic argument union must contain exactly one tag");
@@ -803,6 +848,8 @@ static int parse_exported_argument_value(const JsonValue& value, ExportedArgumen
             return -1;
         if (argument.type == EXPORTED_ARGUMENT_UNSUPPORTED)
         {
+            if (tag == "as_sym_int")
+                argument.type = EXPORTED_ARGUMENT_SYM_INT;
             argument.unsupported_tag = tag;
             return 0;
         }
@@ -845,6 +892,11 @@ static int parse_exported_argument_value(const JsonValue& value, ExportedArgumen
             if (item.type == EXPORTED_ARGUMENT_UNSUPPORTED)
             {
                 dynamic = true;
+                if (tag == "as_sym_ints")
+                {
+                    argument.int_values.push_back(0);
+                    argument.int_names.push_back(item.name);
+                }
                 if (argument.name.empty())
                     argument.name = item.name;
                 continue;
@@ -852,7 +904,10 @@ static int parse_exported_argument_value(const JsonValue& value, ExportedArgumen
 
             const JsonValue& static_value = values[i].as_object().begin()->second;
             if (tag == "as_sym_ints")
+            {
                 argument.int_values.push_back(static_value.as_int64());
+                argument.int_names.push_back("");
+            }
             else if (tag == "as_sym_floats")
             {
                 double static_float = 0.0;
@@ -866,7 +921,7 @@ static int parse_exported_argument_value(const JsonValue& value, ExportedArgumen
 
         if (dynamic)
         {
-            argument.type = EXPORTED_ARGUMENT_UNSUPPORTED;
+            argument.type = tag == "as_sym_ints" ? EXPORTED_ARGUMENT_SYM_INT_LIST : EXPORTED_ARGUMENT_UNSUPPORTED;
             argument.unsupported_tag = tag;
         }
         else
@@ -1067,12 +1122,29 @@ static int reject_nonempty_symbol_map(const JsonValue& graph, const std::string&
     return 0;
 }
 
-static int validate_static_range_constraints(const JsonValue& value, const std::string& path, ExportedSchemaError& error)
+static int parse_range_constraints(const JsonValue& value, ExportedProgram& program, const std::string& path, ExportedSchemaError& error)
 {
     if (value.type() != JSON_OBJECT)
         return schema_error(error, path, "expected object");
-    if (!value.as_object().empty())
-        return schema_error(error, path, "dynamic range constraints are unsupported");
+    for (const auto& it : value.as_object())
+    {
+        const std::string item_path = schema_map_key_path(path, it.first);
+        if (!is_path_identifier(it.first))
+            return schema_error(error, item_path, "derived symbolic dimensions are unsupported");
+        const JsonValue* lower = required_field(it.second, "min_val", item_path, error);
+        const JsonValue* upper = required_field(it.second, "max_val", item_path, error);
+        if (!lower || !upper)
+            return -1;
+        int64_t min = 0;
+        int64_t max = -1;
+        if (read_nonnegative_integer(*lower, min, item_path + ".min_val", "dimension minimum must be non-negative", error) != 0)
+            return -1;
+        if (upper->type() != JSON_NULL && read_integer(*upper, max, item_path + ".max_val", error) != 0)
+            return -1;
+        if (min > INT_MAX || (upper->type() != JSON_NULL && (max <= min || max < 2 || max > INT_MAX)))
+            return schema_error(error, item_path, "unsupported dimension range");
+        program.range_constraints[it.first] = std::make_pair((int)min, (int)max);
+    }
 
     return 0;
 }
@@ -1114,13 +1186,29 @@ static int parse_exported_graph(const JsonValue& value, ExportedGraph& graph, co
             return schema_error(error, tensor_path, "tensor value name must not be empty");
 
         ExportedTensorMeta meta;
-        if (parse_exported_tensor_meta(it->second, meta, error, tensor_path) != 0)
+        if (parse_tensor_meta(it->second, meta, error, tensor_path, true) != 0)
             return -1;
         graph.tensor_values[it->first] = meta;
     }
 
-    if (reject_nonempty_symbol_map(value, "sym_int_values", path, error, true) != 0)
+    const JsonValue* sym_int_values = required_field(value, "sym_int_values", path, error);
+    if (!sym_int_values)
         return -1;
+    if (sym_int_values->type() != JSON_OBJECT)
+        return schema_error(error, path + ".sym_int_values", "expected object");
+    for (const auto& it : sym_int_values->as_object())
+    {
+        const std::string item_path = schema_map_key_path(path + ".sym_int_values", it.first);
+        if (it.first.empty() || graph.tensor_values.find(it.first) != graph.tensor_values.end())
+            return schema_error(error, item_path, "invalid or conflicting symbolic value name");
+        int64_t size = 0;
+        std::string symbol;
+        if (parse_symbolic_dim(it.second, size, symbol, item_path, error) != 0)
+            return -1;
+        if (symbol.empty())
+            return schema_error(error, item_path, "expected named symbolic value");
+        graph.sym_int_values[it.first] = symbol;
+    }
     if (reject_nonempty_symbol_map(value, "sym_bool_values", path, error, true) != 0)
         return -1;
     if (reject_nonempty_symbol_map(value, "sym_float_values", path, error, false) != 0)
@@ -1178,7 +1266,7 @@ static int parse_constant_value(const JsonValue& value, ExportedArgument& argume
 
     const std::string& tag = value.as_object().begin()->first;
     if (tag != "as_none" && tag != "as_int" && tag != "as_float"
-            && tag != "as_string" && tag != "as_bool")
+        && tag != "as_string" && tag != "as_bool")
         return schema_error(error, path, "unknown constant value tag " + tag);
 
     return parse_exported_argument_value(value, argument, path, error);
@@ -1369,7 +1457,8 @@ static int parse_output_specs(const JsonValue& value, std::vector<ExportedOutput
     return parse_array(value, specs, path, parse_output_spec, error);
 }
 
-static int parse_graph_signature(const JsonValue& value, std::vector<ExportedInputSpec>& input_specs, std::vector<ExportedOutputSpec>& output_specs, const std::string& path, ExportedSchemaError& error)
+static int parse_graph_signature(const JsonValue& value, std::vector<ExportedInputSpec>& input_specs, std::vector<ExportedOutputSpec>& output_specs, const std::string& path,
+                                 ExportedSchemaError& error)
 {
     if (value.type() != JSON_OBJECT)
         return schema_error(error, path, "expected object");
@@ -1598,7 +1687,8 @@ static int parse_serialized_input_tree(const std::string& serialized, size_t& in
     return 0;
 }
 
-static int parse_module_call_graph(const JsonValue& value, size_t& input_leaf_count, std::string& input_tree_path, ExportedTreeSpec& output_tree_spec, std::string& output_tree_path, const std::string& path, ExportedSchemaError& error)
+static int parse_module_call_graph(const JsonValue& value, size_t& input_leaf_count, std::string& input_tree_path, ExportedTreeSpec& output_tree_spec, std::string& output_tree_path,
+                                   const std::string& path, ExportedSchemaError& error)
 {
     if (value.type() != JSON_ARRAY)
         return schema_error(error, path, "expected array");
@@ -1745,7 +1835,7 @@ int parse_exported_program(const JsonValue& value, ExportedProgram& program, Exp
     const JsonValue* range_constraints = required_field(value, "range_constraints", "$", error);
     if (!range_constraints)
         return -1;
-    if (validate_static_range_constraints(*range_constraints, "$.range_constraints", error) != 0)
+    if (parse_range_constraints(*range_constraints, parsed_program, "$.range_constraints", error) != 0)
         return -1;
 
     if (parsed_program.input_specs.size() != parsed_program.graph.inputs.size())

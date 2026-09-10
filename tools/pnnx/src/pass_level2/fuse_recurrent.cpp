@@ -127,11 +127,11 @@ static bool fuse_recurrent(Operator* op)
     int num_layers = 0;
     float dropout = 0.f;
     if (!get_bool_argument(op, "has_biases", bias)
-            || !get_int_argument(op, "num_layers", num_layers)
-            || !get_float_argument(op, "dropout", dropout)
-            || !get_bool_argument(op, "train", train)
-            || !get_bool_argument(op, "bidirectional", bidirectional)
-            || !get_bool_argument(op, "batch_first", batch_first))
+        || !get_int_argument(op, "num_layers", num_layers)
+        || !get_float_argument(op, "dropout", dropout)
+        || !get_bool_argument(op, "train", train)
+        || !get_bool_argument(op, "bidirectional", bidirectional)
+        || !get_bool_argument(op, "batch_first", batch_first))
         return false;
 
     if (num_layers <= 0 || dropout < 0.f || dropout > 1.f || train)
@@ -152,8 +152,8 @@ static bool fuse_recurrent(Operator* op)
         return false;
 
     if (first_weight_ih.shape.size() != 2 || first_weight_hh.shape.size() != 2
-            || first_weight_ih.shape[0] <= 0 || first_weight_ih.shape[0] % gate_count != 0
-            || first_weight_ih.shape[1] <= 0)
+        || first_weight_ih.shape[0] <= 0 || first_weight_ih.shape[0] % gate_count != 0
+        || first_weight_ih.shape[1] <= 0)
         return false;
 
     const int input_size = first_weight_ih.shape[1];
@@ -189,7 +189,7 @@ static bool fuse_recurrent(Operator* op)
                 return false;
 
             if (weight_ih.shape != std::vector<int>({gate_count * hidden_size, layer_input_size})
-                    || weight_hh.shape != std::vector<int>({gate_count * hidden_size, recurrent_size}))
+                || weight_hh.shape != std::vector<int>({gate_count * hidden_size, recurrent_size}))
                 return false;
 
             attrs[recurrent_attribute_name("weight_ih", layer, direction)] = weight_ih;
@@ -203,7 +203,7 @@ static bool fuse_recurrent(Operator* op)
                     return false;
 
                 if (bias_ih.shape != std::vector<int>({gate_count * hidden_size})
-                        || bias_hh.shape != std::vector<int>({gate_count * hidden_size}))
+                    || bias_hh.shape != std::vector<int>({gate_count * hidden_size}))
                     return false;
 
                 attrs[recurrent_attribute_name("bias_ih", layer, direction)] = bias_ih;
