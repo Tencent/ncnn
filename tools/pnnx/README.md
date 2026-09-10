@@ -60,21 +60,25 @@ mod = torch.jit.trace(net, x)
 mod.save("resnet18.pt")
 ```
 
-Export to PT2 with PyTorch 2.1 or later:
+Export to PT2 with a producer whose archive, schema and ATen opset match the
+reader and linked converter libraries. A PyTorch release number alone does not
+establish compatibility. See [PT2 compatibility](#pt2-compatibility).
 
 ```python
 import torch
 import torchvision.models as models
 
 net = models.resnet18(weights="DEFAULT").eval()
-x = torch.rand(1, 3, 224, 224)
+x = torch.rand(2, 3, 224, 224)
 
 exported_program = torch.export.export(net, (x,))
 torch.export.save(exported_program, "resnet18.pt2")
 ```
 
-For dynamic shapes, declare each dynamic dimension while exporting. PNNX preserves
-the symbolic dimension, its range constraint, and shared symbols between inputs.
+To export a symbolic batch dimension, use a sample batch of 2 rather than 1
+(which PyTorch may specialize). PNNX retains bare-symbol input contracts and
+emits limited runtime checks in generated PNNX Python. These are not native ncnn
+guards or general dynamic-shape support.
 
 ```python
 batch = torch.export.Dim("batch", min=1, max=8)
@@ -129,6 +133,8 @@ Usage: pnnx [model.pt/model.pt2] [(key=value)...]
   device=cpu/gpu
   inputshape=[1,3,224,224],...
   inputshape2=[1,3,320,320],...
+    input=in0.npy,...
+    input2=in0.npy,...
   customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...
   moduleop=models.common.Focus,models.yolo.Detect,...
 Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
@@ -165,7 +171,9 @@ Parameters:
 
 `inputshape` (Optional): shapes of model inputs. It is used to resolve tensor shapes in model graph. for example, `[1,3,224,224]` for the model with only 1 input, `[1,3,224,224],[1,3,224,224]` for the model that have 2 inputs.
 
-`inputshape2` (Optional): shapes of alternative model inputs, the format is identical to `inputshape`. Usually, it is used with `inputshape` to resolve dynamic shape (-1) in model graph.
+`inputshape2` (Optional): shapes of alternative model inputs, in the same format as `inputshape`. For TorchScript, it is used with `inputshape` to resolve dynamic shapes (-1). For PT2, it only validates a second sample; it does not enable dynamic execution.
+
+`input` / `input2` (Optional): comma-separated NumPy sample paths, mutually exclusive with `inputshape` / `inputshape2`, respectively. For PT2, sample metadata and payloads are validated, not executed or used for value specialization. See [CLI sample details](docs/pt2-validation.md#cli-sample-contract).
 
 `customop` (Optional): list of Torch extensions (dynamic library) for custom operators, separated by ",". For example, `/home/nihui/.cache/torch_extensions/fused/fused.so,...`
 
@@ -173,44 +181,127 @@ Parameters:
 
 ## PT2 compatibility
 
-PNNX reads the current PyTorch ExportedProgram PT2 archive directly without a
-third-party JSON or ZIP dependency. The supported current archive has
-`archive_format="pt2"`, `archive_version="0"`, and ExportedProgram schema major
-version 8. The archive must contain one `models/*.json` graph and its raw tensor
-payload configuration.
+PT2 support is a partial **P0+** implementation: it includes the in-tree JSON/ZIP
+reader, fail-closed schema/effect checks, limited generated-Python runtime guards
+for bare-symbol input contracts, CLI validation and a focused native ncnn smoke
+test. It does not complete consumed-entry DEFLATE, restricted pickle decoding,
+full PyTree reconstruction, a Transformers 5 model matrix, the full P2 operator
+validation suite or a PT2 re-export round trip. Neither full prior operator
+support nor release-wide validation is claimed. The current contract is:
 
-Dense CPU tensor payloads are supported, including empty tensors, shared storage,
-non-zero storage offsets, and strided views. Supported scalar types include bool,
-signed and unsigned integer types, float16, float32, float64, and complex
-types that PNNX can represent. Pickled tensor subclasses and custom objects are not
-loaded.
+* **Version:** `archive_format="pt2"`, `archive_version="0"`, exactly one
+    `models/*.json` graph with weight/constant configurations, and ExportedProgram
+    schema **8.20 exactly**. `opset_version.aten` must equal the linked LibTorch's
+    `torch::jit::getMaxOperatorVersion()` exactly; no operator upgrading or
+    downgrading is performed. Other opset namespaces are rejected.
+* **ZIP:** consumed entries must use STORE (no compression). CRC32 is checked
+    when reading, including empty entries; ZIP/ZIP64 bounds and local/central
+    header consistency are checked. Encryption and duplicate names are rejected.
+    Unused compressed attachments are allowed: compression/flag queries on the
+    validated index reject unsupported consumed records before payload allocation.
+    This is not DEFLATE support or CRC validation of unread attachments.
+* **Tensors:** raw payloads must be CPU, strided, and little-endian; a missing
+    `byteorder` marker defaults to little-endian. Big-endian hosts/payloads are
+    unsupported. Scalars, empty tensors, nonnegative strides (including zero),
+    shared storage and non-zero storage offsets are handled; imported views are
+    materialized densely, not preserved as runtime aliases. Dtypes are bool,
+    uint8, int8/16/32/64, float16/32/64, bfloat16, and complex32/64/128. The generated
+    Python loader preserves bfloat16 and complex32 via bit reinterpretation, not
+    numeric conversion. Generated PNNX weights are not automatically downcast by
+    `net.float()`; `fp16` remains a separate ncnn/ONNX output option. Dtype storage
+    support does not guarantee that every operator/backend supports that dtype.
+* **Limits:** a hard 512 MiB aggregate budget counts unique raw storages plus
+    every dense view across weights and constants, before reading raw storage.
+    Individual consumed records and dense attributes are also limited to 512 MiB.
+    ZIP metadata limits are 256 MiB of central directory, 1,048,576 entries, and
+    64 MiB of cumulative names. These are implementation limitations, **not a
+    whole-process memory cap**; see [validation details](docs/pt2-validation.md).
+* **Calling convention:** flat positional tensor inputs only, with no keyword
+    arguments or scalar input leaves. Outputs may be a single tensor/numeric
+    scalar or a nonempty flat tuple of tensor/scalar leaves. A singleton tensor
+    tuple may become a tensor. Nested trees, lists, dictionaries, and namedtuples
+    are not a supported public boundary; full PyTree reconstruction is absent.
+* **Input contracts:** the importer preserves dtype, rank, static dimensions,
+    bare symbols, ranges and shared-symbol equality on `pnnx.Input`, independently
+    of conversion-time shape specialization. Generated PNNX Python checks these,
+    tensor type, CPU device and strided layout before computation, using explicit
+    `ValueError` checks that remain active under Python `-O`/`-OO`. **Raw ncnn
+    models do not enforce these contracts.** Derived input expressions/range
+    constraints are rejected even with hints; general dynamic scalar-expression
+    evaluation and unrestricted dynamic execution are not supported.
+* **Guards:** a proven-true concrete boolean `aten._assert_scalar` is removed.
+    `aten._assert_tensor_metadata` is statically verified against known dtype,
+    CPU/strided metadata and static sizes/strides, then removed after checking the
+    imported operand. Guarded graph inputs must be static float32. An explicit
+    stride predicate on a direct user input becomes a generated-Python stride
+    check; omitted/`None` predicates add no check. False, unresolved or other
+    guard operators are rejected, not evaluated by a general runtime guard engine.
+* **Local mutation:** whole-program default/schema normalization rewrites only
+    whitelisted pointwise/fill mutations and `add_`/`sub_`/`mul_`/`div_` to exact
+    functional counterparts on single-use, unaliased local targets from known
+    allocators, including `clone`, selected factories and functional pointwise
+    results. Arithmetic additionally requires static CPU/strided metadata, a
+    real floating target with unchanged dtype, and concrete real scalars or
+    same-dtype tensors that broadcast without changing the target shape. Only
+    the mutation result may escape: no external writes, views, existing aliases,
+    reused targets or escaping original targets are allowed. This is not general
+    mutation/alias support; see [normalization details](docs/pt2-validation.md#local-effect-normalization).
+* **Constant detach:** the authorized no-grad `TensorConstant` ->
+    `aten.lift_fresh_copy.default` -> `aten.detach_.default` sequence is supported.
+    Whole-program constant provenance and metadata checks allow `detach_` to
+    become `detach` only on proven non-view, no-grad constant-derived tensors.
+    User inputs, parameters, buffers and their copies do not qualify, and this
+    exception does not authorize value writes to constants.
+* **Factory dtype:** `aten.full.default` and `aten.full_like.default` restore an
+    omitted/`None` dtype from output tensor metadata, without coercing the fill
+    scalar or guessing from another tensor. Explicit dtypes remain unchanged;
+    absent output metadata leaves the original default in place.
+* **CLI samples:** `inputshape`/`inputshape2` and NumPy `input`/`input2` validate
+    input counts, dtypes, ranks, static dimensions, ranges and shared symbols.
+    Omitted shape dtype suffixes retain the exported dtype. NumPy descriptors
+    support bool, uint8, signed int8/16/32/64, float16/32/64 and complex32/64/128,
+    but not bfloat16, object/structured or wider unsigned dtypes. NumPy values are
+    not executed or used for value specialization; second samples do not enable
+    dynamic execution. PT2 explicitly rejects non-CPU `device` and nonempty
+    `customop`/`moduleop` options before import/output creation; empty
+    `customop=`/`moduleop=` remain allowed.
 
-`inputshape` and `inputshape2` may be used with PT2. Every supplied shape is checked
-against static dimensions, symbolic ranges, and shared-symbol constraints from the
-ExportedProgram. A mismatch is reported before graph conversion.
+**Intentional fail-closed limitations:** compared with the original test
+expectations, four cases now explicitly expect PT2 converter rejection, not
+successful operator conversion: `Tensor_fill` (writes to external inputs),
+`Tensor_slice_copy` (live slice aliases), `Tensor_index_put` (accumulating
+`index_put_` and old-root uses), and `torch_masked_select` (data-dependent guards).
+These are additional expected-unsupported cases, **not restoration of full prior
+operator support**. See [the exact cases and diagnostics](docs/pt2-validation.md#intentional-expected-unsupported-cases).
 
-Legacy archives containing `serialized_exported_program.json`,
-`serialized_state_dict.pt`, `serialized_constants.pt`, and
-`serialized_example_inputs.pt` are also supported. Legacy tensor dictionaries
-are decoded with LibTorch and then passed through the same PNNX import pipeline.
+Legacy serialized ExportedProgram containers are a separate, conditional path:
+their tensor dictionaries require the compile-time feature
+`PNNX_TORCH_HAS_PICKLE_LOAD`. The same schema/opset checks still apply. This path
+uses LibTorch `torch::pickle_load` and is for **trusted inputs only**, not a
+restricted pickle decoder or safe pickle sandbox. The current raw path rejects
+pickled payloads, tensor subclasses and custom objects; that restriction does
+not make legacy deserialization safe.
 
-Current limitations:
+Higher-order `as_graph` subgraphs, mutation/token signatures and AOTInductor
+packages are unsupported. Native ncnn guards, general symbolic-expression
+evaluation, restricted legacy pickle decoding, DEFLATE for consumed records,
+full PyTree support and a full Transformers 5/PyTorch producer matrix remain
+follow-up work, not completed by this P0+ subset.
 
-* Higher-order operators that embed an `as_graph` subgraph are reported as unsupported.
-* Pickled custom objects and tensor subclasses are not executed or deserialized.
-* AOTInductor packages are not ExportedProgram archives and cannot be passed to PNNX.
-* Symbolic output expressions without a usable hint may require a more concrete export.
-
-Troubleshooting:
-
-* `unsupported pt2 archive version` or `unsupported exported program schema major`
-    means the model was written by an incompatible PyTorch serialization version.
-* A shape constraint error can be fixed by using an input shape inside the exported
-    range, or by re-exporting with the intended `torch.export.Dim` constraints.
-* `unsupported argument variant as_graph` indicates a higher-order captured subgraph.
-    Export with a decomposed/eager implementation when one is available.
-* If an operator schema cannot be found, build PNNX against the same PyTorch operator
-    set used by the exporter and load any required custom operator library with `customop`.
+For schema/opset errors, check both the producer and the linked converter library
+rather than assuming a PyTorch release range. For shape/guard errors, use a
+compatible concrete export instead of dropping constraints. On Windows, use the
+linked LibTorch's DLL directory in `PATH`, not an unrelated producer environment;
+stale CMake library caches can also mix installations. See the
+[PT2 validation guide](docs/pt2-validation.md) for configuration, exact CTest
+labels, failure classification, a separate evidence-record template and
+[provenance](docs/pt2-validation.md#provenance). The
+[PT2 contract workflow](../../.github/workflows/pnnx-pt2.yml) configures Linux,
+Windows and macOS with producer 2.12.1/2.13.0 and linked LibTorch 2.12.1, plus
+Linux native ncnn coverage gated by capability probes. This is a configured
+frontend/smoke matrix, not full operator coverage or evidence that its jobs have
+passed. Test registration does not establish current pass totals or release-wide
+validation.
 
 # The pnnx.param format
 

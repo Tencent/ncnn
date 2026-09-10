@@ -32,6 +32,8 @@ def test():
         (x, y, z),
         a,
         "test_torch_masked_select",
+        # Output sizes depend on tensor values, not bare input-shape symbols.
+        unsupported_by_pnnx_pt2="unsupported guard; only a concrete boolean can be evaluated",
     )
 
 if __name__ == "__main__":

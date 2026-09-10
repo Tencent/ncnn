@@ -27,7 +27,12 @@ def test():
 
     a = net(x, y, z)
 
-    return test_model_formats(net, (x, y, z), a, "test_Tensor_fill")
+    # This model mutates views of caller-owned x/y, not local temporaries.
+    # PT2 inference import must not silently erase those external writes.
+    return test_model_formats(
+        net, (x, y, z), a, "test_Tensor_fill",
+        unsupported_by_pnnx_pt2="unsupported alias write/mutation of argument self",
+    )
 
 if __name__ == "__main__":
     if test():

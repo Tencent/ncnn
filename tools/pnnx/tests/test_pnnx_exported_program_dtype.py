@@ -9,8 +9,10 @@ at every optimization level; native ncnn inference is deliberately not run.
 """
 
 import argparse
+import ast
 import importlib.util
 import io
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -113,6 +115,87 @@ def test_ir_fixture(directory, executable):
     check_tensor(model.state_dict()["scalar_c32_data"], expected[6])
     check_tensor(model.state_dict()["empty_bf16_data"], expected[7])
     test_generated_loader(model)
+
+
+def test_ir_string_fixture(directory, executable):
+    # Apostrophes and spaces work on Windows too. POSIX additionally permits
+    # literal backslashes in directory names; Windows exercises native path
+    # separators in a second fixture, after the portable as_posix() case.
+    folder = directory / ("quoted ' path" if os.name == "nt" else "quoted ' path\\backslash")
+    folder.mkdir()
+    prefixes = [(folder / "string_fixture").as_posix()]
+    if os.name == "nt":
+        prefixes.append(str(folder / "string_fixture_native"))
+
+    text = "don't\\stop\n\r\t\x00\x01\x7f\""
+    torch_call = "torch.manual_seed(987654321)"
+    enums = {"float32": torch.float32, "preserve_format": torch.preserve_format,
+             "strided": torch.strided, "qint8": torch.qint8}
+    strings = ("", text, torch.float32, torch.preserve_format, torch.strided, torch.qint8,
+               "torch.not_a_real_enum", torch_call, "torch.bad(); unexpected = True #")
+
+    def read_data_expression(node):
+        # Inspect constructor arguments without evaluating generated code or
+        # arbitrary torch attributes. Only fixture enums may be expressions.
+        if isinstance(node, ast.Tuple):
+            return tuple(read_data_expression(item) for item in node.elts)
+        if isinstance(node, ast.Attribute):
+            assert isinstance(node.value, ast.Name) and node.value.id == "torch", ast.dump(node)
+            assert node.attr in enums, ast.dump(node)
+            return enums[node.attr]
+        assert isinstance(node, ast.Constant) and isinstance(node.value, str), ast.dump(node)
+        return node.value
+
+    for prefix in prefixes:
+        subprocess.run([executable, "--python-string-fixture", prefix], check=True)
+        path = Path(prefix + ".py")
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+
+        def named_calls(owner, method):
+            return [node for node in calls if isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == owner and node.func.attr == method]
+
+        constructors = named_calls("nn", "Identity")
+        assert len(constructors) == 1
+        assert {kw.arg: read_data_expression(kw.value) for kw in constructors[0].keywords} == {
+            "text": text, "texts": strings, "torch_call": torch_call,
+        }
+        archives = named_calls("zipfile", "ZipFile")
+        assert len(archives) == 1 and ast.literal_eval(archives[0].args[0]) == prefix + ".bin"
+        # Check all export paths as literals, without running exporters.
+        saves = named_calls("mod", "save")
+        assert len(saves) == 1 and ast.literal_eval(saves[0].args[0]) == prefix + ".py.pt"
+        exports = named_calls("pnnx", "export")
+        assert len(exports) == 1 and ast.literal_eval(exports[0].args[1]) == prefix + ".py.pt"
+        onnx_exports = [node for node in calls if isinstance(node.func, ast.Attribute)
+                        and node.func.attr == "export" and isinstance(node.func.value, ast.Attribute)
+                        and node.func.value.attr == "onnx" and isinstance(node.func.value.value, ast.Name)
+                        and node.func.value.value.id == "torch"]
+        assert len(onnx_exports) == 1 and ast.literal_eval(onnx_exports[0].args[2]) == prefix + ".py.onnx"
+
+        module = import_generated(path)
+        rng_state = torch.get_rng_state().clone()
+        model = module.Model().eval()
+        with torch.no_grad():
+            outputs = model()
+        # A torch.* string must not become a call during construction/forward.
+        assert torch.equal(torch.get_rng_state(), rng_state)
+        assert len(outputs) == 13, len(outputs)
+        check_outputs(outputs[:3], (torch.tensor(True), torch.tensor(1.25), torch.tensor(True)))
+        assert outputs[3:11] == (text, torch_call, torch.float64, strings, (), (text,),
+                                 text + torch_call, strings + (text,))
+        check_outputs(outputs[11:], (torch.tensor(True), torch.tensor(1., dtype=torch.float32)))
+        identity = next(child for child in model.children() if isinstance(child, nn.Identity))
+        check_tensor(getattr(identity, "counter'\n\""), torch.tensor(7, dtype=torch.int64))
+        check_tensor(getattr(identity, "weight'\n\""), torch.tensor(1.25))
+        assert "counter'\n\"" in dict(identity.named_buffers())
+        assert "weight'\n\"" in dict(identity.named_parameters())
+        with zipfile.ZipFile(prefix + ".bin") as archive:
+            names = archive.namelist()
+            assert "bool'\n -:/.data'\n\"" in names
+            assert "float'\n -:/.data'\n\"" in names
 
 
 def test_generated_loader(model):
@@ -256,6 +339,7 @@ def test(ir_test_executable=None, pnnx_executable=None):
     with tempfile.TemporaryDirectory(prefix="pnnx_dtype_") as temporary:
         directory = Path(temporary)
         test_ir_fixture(directory, executable)
+        test_ir_string_fixture(directory, executable)
         if not has_exported_program():
             print("SKIP real PT2 archives: torch.export.save is unavailable in " + torch.__version__)
             return True

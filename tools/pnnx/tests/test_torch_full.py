@@ -12,10 +12,11 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
+        w = torch.full(x.size(), 3.0, dtype=torch.float64)
         x = torch.full(x.size(), 1.5)
         y = torch.full(y.size(), 3)
         z = torch.full(z.size(), -2.2)
-        return x, y, z
+        return x, y, z, w
 
 class InputAnchoredModel(nn.Module):
     def __init__(self, model):
@@ -27,7 +28,13 @@ class InputAnchoredModel(nn.Module):
         zx = x.sum() * 0
         zy = y.sum() * 0
         zz = z.sum() * 0
-        return out[0] + zx, out[1] + zy, out[2] + zz
+        # Keep the anchors from promoting the int64 factory result to float32.
+        return (
+            out[0] + zx.to(out[0].dtype),
+            out[1] + zy.to(out[1].dtype),
+            out[2] + zz.to(out[2].dtype),
+            out[3] + zx.to(out[3].dtype),
+        )
 
 def test():
     net = Model()
@@ -41,6 +48,12 @@ def test():
     a = net(x, y, z)
     wrapped = InputAnchoredModel(net)
     wrapped.eval()
+
+    assert tuple(t.dtype for t in a) == (torch.get_default_dtype(), torch.int64,
+                                       torch.get_default_dtype(), torch.float64)
+    anchored = wrapped(x, y, z)
+    assert all(expected.dtype == actual.dtype and torch.equal(expected, actual)
+               for expected, actual in zip(a, anchored))
 
     return test_model_formats(
         wrapped,

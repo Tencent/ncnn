@@ -33,7 +33,12 @@ def test():
 
     a = net(x, y, z, w)
 
-    return test_model_formats(net, (x, y, z, w), a, "test_Tensor_index_put")
+    # Accumulating index_put_ and old-target uses need general functionalization,
+    # beyond the PT2 importer's proven single-use pointwise mutation subset.
+    return test_model_formats(
+        net, (x, y, z, w), a, "test_Tensor_index_put",
+        unsupported_by_pnnx_pt2="index_put_ (torch.ops.aten.index_put_.default): unsupported alias write/mutation of argument self",
+    )
 
 if __name__ == "__main__":
     if test():

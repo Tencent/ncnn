@@ -36,10 +36,10 @@ static pnnx::Attribute raw_attribute(int type, const std::vector<int>& shape, co
     return attr;
 }
 
-static pnnx::Operand* add_attribute(pnnx::Graph& graph, const std::string& name, const pnnx::Attribute& attr)
+static pnnx::Operand* add_attribute(pnnx::Graph& graph, const std::string& name, const pnnx::Attribute& attr, const std::string& key = "data")
 {
     pnnx::Operator* op = graph.new_operator("pnnx.Attribute", name);
-    op->attrs["data"] = attr;
+    op->attrs[key] = attr;
     pnnx::Operand* value = graph.new_operand(name + "_value");
     value->producer = op;
     value->type = attr.type;
@@ -81,6 +81,62 @@ static void make_fixture(pnnx::Graph& graph)
     pnnx::Operator* output = graph.new_operator("pnnx.Output", "identity_output");
     output->inputs.push_back(last);
     last->consumers.push_back(output);
+}
+
+static pnnx::Operator* add_value_operator(pnnx::Graph& graph, const std::string& type, const std::string& name, const std::vector<pnnx::Operand*>& inputs = {})
+{
+    pnnx::Operator* op = graph.new_operator(type, name);
+    op->inputs = inputs;
+    for (pnnx::Operand* input : inputs)
+        input->consumers.push_back(op);
+    pnnx::Operand* value = graph.new_operand(name + "_value");
+    value->producer = op;
+    op->outputs.push_back(value);
+    pnnx::Operator* output = graph.new_operator("pnnx.Output", name + "_output");
+    output->inputs.push_back(value);
+    value->consumers.push_back(output);
+    return op;
+}
+
+static void make_string_fixture(pnnx::Graph& graph)
+{
+    const std::string text = std::string("don't\\stop\n\r\t") + std::string("\0\x01\x7f", 3) + "\"";
+    const std::string torch_call = "torch.manual_seed(987654321)";
+    const std::vector<std::string> strings = {
+        "", text, "torch.float32", "torch.preserve_format", "torch.strided", "torch.qint8",
+        "torch.not_a_real_enum", torch_call, "torch.bad(); unexpected = True #"
+    };
+    // ZIP keys use quotes/newlines; Python zipfile normalizes backslashes in
+    // ZIP names on Windows. Backslashes are covered in paths and parameters.
+    pnnx::Operand* first = add_attribute(graph, "bool'\n -:/", raw_attribute<uint8_t>(9, {}, {1}), "data'\n\"");
+    add_attribute(graph, "float'\n -:/", raw_attribute<uint32_t>(1, {}, {0x3fa00000}), "data'\n\"");
+
+    // Identity accepts arbitrary kwargs without interpreting them. Its extra
+    // buffers/parameters exercise attribute names independently of ZIP keys.
+    pnnx::Operator* identity = add_value_operator(graph, "nn.Identity", "identity'\n", {first});
+    identity->params["text"] = text;
+    identity->params["texts"] = strings;
+    identity->params["torch_call"] = torch_call;
+    identity->attrs["counter'\n\""] = raw_attribute<int64_t>(5, {}, {7});
+    identity->attrs["weight'\n\""] = raw_attribute<uint32_t>(1, {}, {0x3fa00000});
+
+    add_value_operator(graph, "prim::Constant", "text'\\\n")->params["value"] = text;
+    add_value_operator(graph, "prim::Constant", "torch_call")->params["value"] = torch_call;
+    add_value_operator(graph, "prim::Constant", "dtype")->params["value"] = "torch.float64";
+    add_value_operator(graph, "prim::Constant", "strings")->params["value"] = strings;
+    add_value_operator(graph, "prim::Constant", "empty_strings")->params["value"] = std::vector<std::string>();
+    add_value_operator(graph, "prim::Constant", "one_string")->params["value"] = std::vector<std::string> {text};
+
+    pnnx::Operator* add = add_value_operator(graph, "operator.add", "string_add");
+    add->params["a"] = text;
+    add->params["b"] = torch_call;
+    pnnx::Operator* tuple_add = add_value_operator(graph, "operator.add", "tuple_add");
+    tuple_add->params["a"] = strings;
+    tuple_add->params["b"] = std::vector<std::string> {text};
+    pnnx::Operator* clone = add_value_operator(graph, "torch.clone", "clone", {first});
+    clone->params["memory_format"] = "torch.preserve_format";
+    pnnx::Operator* cast = add_value_operator(graph, "Tensor.to", "cast", {clone->outputs[0]});
+    cast->params["dtype"] = "torch.float32";
 }
 
 static std::string read_text(const std::string& path)
@@ -285,13 +341,88 @@ static void test_bad_archive_lengths()
     remove((prefix + ".bin").c_str());
 }
 
+static void test_save_failures()
+{
+    const std::string prefix = "test_ir_tensor_contract_save_failure";
+    pnnx::Graph graph;
+    add_attribute(graph, "value", raw_attribute<uint8_t>(9, {}, {1}));
+
+    // A regular file used as a directory is deterministically invalid on both
+    // Windows and POSIX, unlike an assumed globally absent /nonexistent path.
+    const std::string blocker = prefix + ".blocker";
+    FILE* fp = fopen(blocker.c_str(), "wb");
+    expect(fp != 0, "create private invalid-parent fixture");
+    if (fp)
+    {
+        expect(fclose(fp) == 0, "close invalid-parent fixture");
+        expect(graph.save(blocker + "/missing.param", prefix + ".bin") == -1, "save rejects invalid parameter parent");
+        expect(graph.save(prefix + ".param", blocker + "/missing.bin") == -1, "save rejects invalid archive parent");
+        // On Windows this also detects a leaked paramfp after ZIP open fails.
+        expect(remove((prefix + ".param").c_str()) == 0, "failed archive open closes parameter file");
+        expect(graph.python(blocker + "/missing.py", prefix + ".bin", {}, pnnx::ModelStat()) == -1, "Python rejects invalid output parent");
+        remove(blocker.c_str());
+    }
+
+    for (const std::string& key : std::vector<std::string> {std::string("bad\0key", 7), std::string(65536, 'x')})
+    {
+        pnnx::Graph invalid;
+        add_attribute(invalid, "invalid", raw_attribute<uint8_t>(9, {}, {1}), key);
+        expect(invalid.save(prefix + ".param", prefix + ".bin") == -1, "save propagates ZIP name rejection");
+        expect(remove((prefix + ".param").c_str()) == 0, "failed attribute write closes parameter file");
+        expect(remove((prefix + ".bin").c_str()) == 0, "failed attribute write closes archive");
+    }
+    pnnx::Graph duplicate;
+    add_attribute(duplicate, "same", raw_attribute<uint8_t>(9, {}, {1}));
+    add_attribute(duplicate, "same", raw_attribute<uint8_t>(9, {}, {0}));
+    expect(duplicate.save(prefix + ".param", prefix + ".bin") == -1, "save propagates duplicate ZIP entry rejection");
+
+#if defined(__linux__)
+    // Buffered writes may fail only on fclose. An empty ZIP still writes its
+    // central directory at close, so exercise that path without any attrs.
+    pnnx::Graph empty;
+    expect(empty.save(prefix + ".param", "/dev/full") == -1, "save propagates ZIP finalization failure");
+    expect(graph.save("/dev/full", prefix + ".bin") == -1, "save propagates parameter write/flush failure");
+    expect(empty.python("/dev/full", prefix + ".bin", {}, pnnx::ModelStat()) == -1, "Python propagates write/flush failure");
+#endif
+    expect(graph.save(prefix + ".param", prefix + ".bin") == 0, "valid save still succeeds after failure cases");
+    pnnx::Graph restored;
+    expect(restored.load(prefix + ".param", prefix + ".bin") == 0, "successful return includes finalized readable ZIP");
+    remove((prefix + ".param").c_str());
+    remove((prefix + ".bin").c_str());
+}
+
+static void test_python_string_literals()
+{
+    pnnx::Graph graph;
+    make_string_fixture(graph);
+    const std::string path = "test_ir_python ' strings.py";
+    const std::string binpath = "C:\\pnnx path\\it's\\weights.bin";
+    expect(graph.python(path, binpath, {}, pnnx::ModelStat()) == 0, "generate Python with quoted paths and strings");
+    const std::string python = read_text(path);
+    expect(python.find("zipfile.ZipFile('C:\\\\pnnx path\\\\it\\'s\\\\weights.bin', 'r')") != std::string::npos, "escape Windows path backslashes and apostrophe");
+    expect(python.find("text='don\\'t\\\\stop\\n\\r\\t\\x00\\x01\\x7f\"'") != std::string::npos, "module string escapes quotes, slashes and control bytes");
+    expect(python.find("v_torch_call_value = 'torch.manual_seed(987654321)'") != std::string::npos, "torch call prefix remains constant data");
+    expect(python.find("'torch.bad(); unexpected = True #'") != std::string::npos, "torch statement prefix remains string data");
+    expect(python.find("'torch.not_a_real_enum'") != std::string::npos, "unknown dotted torch names are not enum expressions");
+    expect(python.find("v_dtype_value = torch.float64") != std::string::npos, "known dtype remains an expression");
+    expect(python.find("memory_format=torch.preserve_format") != std::string::npos, "known memory format remains an expression");
+    expect(python.find("v_empty_strings_value = ()") != std::string::npos, "empty string tuple remains a tuple");
+    expect(python.find("mod.save('test_ir_python \\' strings.py.pt')") != std::string::npos, "escape TorchScript export path");
+    expect(python.find("'test_ir_python \\' strings.py.onnx'") != std::string::npos, "escape ONNX export path");
+    expect(python.find("pnnx.export(net, 'test_ir_python \\' strings.py.pt'") != std::string::npos, "escape PNNX export path");
+    remove(path.c_str());
+}
+
 int main(int argc, char** argv)
 {
-    if (argc == 3 && std::string(argv[1]) == "--python-fixture")
+    if (argc == 3 && (std::string(argv[1]) == "--python-fixture" || std::string(argv[1]) == "--python-string-fixture"))
     {
         const std::string prefix = argv[2];
         pnnx::Graph graph;
-        make_fixture(graph);
+        if (std::string(argv[1]) == "--python-string-fixture")
+            make_string_fixture(graph);
+        else
+            make_fixture(graph);
         if (graph.save(prefix + ".param", prefix + ".bin") != 0)
             return 1;
         return graph.python(prefix + ".py", prefix + ".bin", {}, pnnx::ModelStat()) == 0 ? 0 : 1;
@@ -302,5 +433,7 @@ int main(int argc, char** argv)
     test_bf16_bits();
     test_roundtrip_and_lowering();
     test_bad_archive_lengths();
+    test_save_failures();
+    test_python_string_literals();
     return failures == 0 ? 0 : 1;
 }

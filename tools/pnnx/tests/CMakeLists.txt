@@ -32,6 +32,26 @@ add_test(NAME test_pnnx_ir_tensor_contract COMMAND test_pnnx_ir_tensor_contract)
 set_tests_properties(test_pnnx_ir_tensor_contract PROPERTIES LABELS "pt2;pt2_frontend;cpp;robustness" TIMEOUT 120)
 
 if(PNNX_TEST_HAS_PT2)
+    foreach(contract guards cli)
+        add_test(NAME test_pnnx_exported_program_${contract}
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_exported_program_${contract}.py"
+                --pnnx-executable "$<TARGET_FILE:pnnx>")
+        set_tests_properties(test_pnnx_exported_program_${contract} PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+            LABELS "pt2;pt2_frontend;python;robustness" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+    endforeach()
+    execute_process(COMMAND "${Python3_EXECUTABLE}" -c "import ncnn"
+        RESULT_VARIABLE PNNX_TEST_NCNN_RESULT OUTPUT_QUIET ERROR_QUIET TIMEOUT 60)
+    if("${PNNX_TEST_NCNN_RESULT}" STREQUAL "0")
+        add_test(NAME test_pnnx_exported_program_ncnn
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_exported_program_ncnn.py"
+                --pnnx-executable "$<TARGET_FILE:pnnx>")
+        set_tests_properties(test_pnnx_exported_program_ncnn PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+            LABELS "pt2;pt2_backend;python" TIMEOUT ${PNNX_TEST_CASE_TIMEOUT})
+    else()
+        message(STATUS "PT2 native backend test disabled: Python ncnn is unavailable")
+    endif()
     add_test(NAME test_pnnx_exported_program_archive
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pnnx_exported_program_archive.py"
             --pnnx-executable "$<TARGET_FILE:pnnx>")
@@ -68,6 +88,16 @@ target_include_directories(test_pnnx_load_exported_program PRIVATE ../src)
 target_compile_options(test_pnnx_load_exported_program PRIVATE "${TORCH_CXX_FLAGS}")
 target_link_libraries(test_pnnx_load_exported_program PRIVATE ${TORCH_LIBRARIES})
 add_test(NAME test_pnnx_load_exported_program COMMAND test_pnnx_load_exported_program)
+
+add_executable(test_pnnx_exported_program_effects test_exported_program_effects.cpp
+    ../src/load_exported_program.cpp ../src/exported_program.cpp ../src/exported_program_defaults.cpp
+    ../src/exported_program_reader.cpp ../src/ir.cpp ../src/json.cpp ../src/model_format.cpp
+    ../src/model_stat.cpp ../src/storezip.cpp ../src/utils.cpp)
+target_include_directories(test_pnnx_exported_program_effects PRIVATE ../src)
+target_compile_options(test_pnnx_exported_program_effects PRIVATE "${TORCH_CXX_FLAGS}")
+target_link_libraries(test_pnnx_exported_program_effects PRIVATE ${TORCH_LIBRARIES})
+add_test(NAME test_pnnx_exported_program_effects COMMAND test_pnnx_exported_program_effects)
+set_tests_properties(test_pnnx_exported_program_effects PROPERTIES LABELS "pt2;pt2_frontend;cpp;robustness" TIMEOUT 120)
 
 set_tests_properties(test_pnnx_exported_program_schema test_pnnx_json
     test_pnnx_model_format test_pnnx_load_exported_program

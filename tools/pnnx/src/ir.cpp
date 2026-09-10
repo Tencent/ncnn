@@ -138,6 +138,43 @@ static std::string escape_python_single_quoted_string(const std::string& value)
     return escaped;
 }
 
+static std::string python_string_expression(const std::string& value)
+{
+    // Only known enum values are Python expressions, never arbitrary torch.*
+    // strings (which may contain calls, statements or attribute traversal).
+    static const char* const torch_enums[] = {
+        "torch.float", "torch.float32", "torch.double", "torch.float64",
+        "torch.half", "torch.float16", "torch.bfloat16",
+        "torch.int", "torch.int32", "torch.long", "torch.int64",
+        "torch.short", "torch.int16", "torch.int8", "torch.uint8", "torch.bool",
+        "torch.complex32", "torch.chalf", "torch.complex64", "torch.cfloat",
+        "torch.complex128", "torch.cdouble",
+        "torch.qint8", "torch.quint8", "torch.qint32", "torch.quint4x2", "torch.quint2x4",
+        "torch.uint16", "torch.uint32", "torch.uint64",
+        "torch.float8_e4m3fn", "torch.float8_e4m3fnuz", "torch.float8_e5m2", "torch.float8_e5m2fnuz",
+        "torch.contiguous_format", "torch.preserve_format", "torch.channels_last", "torch.channels_last_3d",
+        "torch.strided", "torch.sparse_coo", "torch.sparse_csr", "torch.sparse_csc", "torch.sparse_bsr", "torch.sparse_bsc",
+        "torch.per_tensor_affine", "torch.per_channel_affine", "torch.per_tensor_symmetric",
+        "torch.per_channel_symmetric", "torch.per_channel_affine_float_qparams"
+    };
+    for (const char* name : torch_enums)
+    {
+        if (value == name)
+            return value;
+    }
+    return "'" + escape_python_single_quoted_string(value) + "'";
+}
+
+static int close_output_file(FILE* fp)
+{
+    // The error indicator retains failures from all preceding fprintf calls.
+    // Always close, even after a write error; fclose may itself fail on flush.
+    int result = ferror(fp) ? -1 : 0;
+    if (fclose(fp) != 0)
+        result = -1;
+    return result;
+}
+
 static int string_to_type(const char* s)
 {
     if (strcmp(s, "f32") == 0) return 1;
@@ -662,6 +699,27 @@ Graph& Graph::operator=(const Graph& /*rhs*/)
 
 static void load_parameter(Operator* op, const std::string& key, const std::string& value)
 {
+    // Reserved PT2 vectors need their types even at rank zero. Symbol vectors
+    // use '-' on disk for a static axis (empty in memory), avoiding the generic
+    // parameter parser's empty/mixed-list ambiguity. Leave legacy IR unchanged.
+    if (op->type == "pnnx.Input")
+    {
+        if (key == "__pt2_input_symbols" && value.size() >= 2 && value.front() == '(' && value.back() == ')')
+        {
+            std::vector<std::string> symbols;
+            std::istringstream stream(value.substr(1, value.size() - 2));
+            std::string symbol;
+            while (std::getline(stream, symbol, ','))
+                symbols.push_back(symbol == "-" ? std::string() : symbol);
+            op->params[key] = symbols;
+            return;
+        }
+        if ((key == "__pt2_input_shape" || key == "__pt2_input_min" || key == "__pt2_input_max" || key == "__pt2_input_stride") && value == "()")
+        {
+            op->params[key] = std::vector<int>();
+            return;
+        }
+    }
     op->params[key] = Parameter::parse_from_string(value);
 }
 
@@ -911,6 +969,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
     if (szw.open(binpath) != 0)
     {
         fprintf(stderr, "open failed\n");
+        close_output_file(paramfp);
         return -1;
     }
 
@@ -940,6 +999,13 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
 
             const Parameter& param = it.second;
             std::string s = Parameter::encode_to_string(param);
+            if (op->type == "pnnx.Input" && it.first == "__pt2_input_symbols" && param.type == 7)
+            {
+                Parameter encoded = param;
+                for (size_t i = 0; i < encoded.as.size(); i++)
+                    if (encoded.as[i].empty()) encoded.as[i] = "-";
+                s = Parameter::encode_to_string(encoded);
+            }
             fprintf(paramfp, "%s", s.c_str());
         }
 
@@ -960,7 +1026,13 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, type_to_string(attr.type));
 
             std::string filename = op->name + "." + it.first;
-            szw.write_file(filename, attr.data.data(), attr.data.size());
+            if (szw.write_file(filename, attr.data.data(), attr.data.size()) != 0)
+            {
+                fprintf(stderr, "write attribute %s failed\n", filename.c_str());
+                szw.close();
+                close_output_file(paramfp);
+                return -1;
+            }
         }
 
         if (op->inputnames.size() == op->inputs.size())
@@ -1040,17 +1112,22 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
         fprintf(paramfp, "\n");
     }
 
-    fclose(paramfp);
-
-    return 0;
+    // Explicitly finalize the archive: destructor errors cannot be returned.
+    const int zip_result = szw.close();
+    const int param_result = close_output_file(paramfp);
+    return zip_result == 0 && param_result == 0 ? 0 : -1;
 }
 
 static std::string sanitize_identifier(const std::string& s)
 {
+    // Sanitize name fragments without renumbering legacy v_0-style operands.
+    // Frontends remain responsible for rejecting unsafe/ambiguous names and
+    // collisions; do not silently introduce global graph renaming here.
     std::string ss = s;
     for (size_t i = 0; i < ss.size(); i++)
     {
-        if (ss[i] == '.' || ss[i] == ':' || ss[i] == '/')
+        const char ch = ss[i];
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'))
             ss[i] = '_';
     }
 
@@ -1576,6 +1653,132 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
+static bool valid_pt2_input_contract(const Operator* op)
+{
+    const char* keys[] = {"__pt2_input_type", "__pt2_input_shape", "__pt2_input_symbols", "__pt2_input_min", "__pt2_input_max"};
+    const int types[] = {2, 5, 7, 5, 5};
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++)
+    {
+        std::map<std::string, Parameter>::const_iterator it = op->params.find(keys[i]);
+        if (it == op->params.end() || it->second.type != types[i])
+            return false;
+    }
+    const int type = op->params.at("__pt2_input_type").i;
+    if (type < 1 || type > 13)
+        return false;
+    const std::vector<int>& shape = op->params.at("__pt2_input_shape").ai;
+    const std::vector<std::string>& symbols = op->params.at("__pt2_input_symbols").as;
+    const std::vector<int>& minimum = op->params.at("__pt2_input_min").ai;
+    const std::vector<int>& maximum = op->params.at("__pt2_input_max").ai;
+    if (symbols.size() != shape.size() || minimum.size() != shape.size() || maximum.size() != shape.size())
+        return false;
+    for (size_t axis = 0; axis < shape.size(); axis++)
+    {
+        if (minimum[axis] < 0 || minimum[axis] > maximum[axis])
+            return false;
+        if (shape[axis] != -233)
+        {
+            if (shape[axis] < 0 || !symbols[axis].empty() || minimum[axis] != shape[axis] || maximum[axis] != shape[axis])
+                return false;
+            continue;
+        }
+        const std::string& symbol = symbols[axis];
+        if (symbol.empty())
+            return false;
+        for (size_t i = 0; i < symbol.size(); i++)
+        {
+            const char ch = symbol[i];
+            if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || (i != 0 && ch >= '0' && ch <= '9')))
+                return false;
+        }
+    }
+    std::map<std::string, Parameter>::const_iterator stride = op->params.find("__pt2_input_stride");
+    if (stride != op->params.end())
+    {
+        if (stride->second.type != 5 || stride->second.ai.size() != shape.size())
+            return false;
+        for (size_t axis = 0; axis < shape.size(); axis++)
+            if (stride->second.ai[axis] < 0) return false;
+    }
+    return true;
+}
+
+static void write_pt2_input_checks(FILE* pyfp, const std::vector<Operator*>& ops)
+{
+    std::map<std::string, int> symbol_ids;
+    int input_index = 0;
+    for (const Operator* op : ops)
+    {
+        if (op->type != "pnnx.Input")
+            continue;
+        const int index = input_index++;
+        bool has_contract = false;
+        for (const auto& it : op->params)
+            has_contract = has_contract || it.first.compare(0, 12, "__pt2_input_") == 0;
+        if (!has_contract)
+            continue; // TorchScript inputs keep their existing behavior.
+        if (!valid_pt2_input_contract(op))
+        {
+            // Fail closed for malformed/reloaded reserved metadata. Never
+            // turn an unknown expression into generated Python or eval().
+            fprintf(pyfp, "        raise ValueError('invalid PT2 input contract for input %d')\n", index);
+            continue;
+        }
+        const std::string variable = "v_" + sanitize_identifier(op->outputs[0]->name);
+        const char* v = variable.c_str();
+        const int type = op->params.at("__pt2_input_type").i;
+        const std::vector<int>& shape = op->params.at("__pt2_input_shape").ai;
+        const std::vector<std::string>& symbols = op->params.at("__pt2_input_symbols").as;
+        const std::vector<int>& minimum = op->params.at("__pt2_input_min").ai;
+        const std::vector<int>& maximum = op->params.at("__pt2_input_max").ai;
+        fprintf(pyfp, "        # PT2 serialized input contract (not enforced by native ncnn .param).\n");
+        fprintf(pyfp, "        if not isinstance(%s, torch.Tensor):\n", v);
+        fprintf(pyfp, "            raise ValueError('PT2 input %d must be a tensor')\n", index);
+        fprintf(pyfp, "        if %s.device.type != 'cpu':\n", v);
+        fprintf(pyfp, "            raise ValueError('PT2 input %d must use CPU device')\n", index);
+        fprintf(pyfp, "        if %s.layout != torch.strided:\n", v);
+        fprintf(pyfp, "            raise ValueError('PT2 input %d must use strided layout')\n", index);
+        fprintf(pyfp, "        if %s.dtype != %s:\n", v, type_to_dtype_string(type));
+        fprintf(pyfp, "            raise ValueError('PT2 input %d dtype must be %s')\n", index, type_to_dtype_string(type));
+        fprintf(pyfp, "        if %s.dim() != %d:\n", v, (int)shape.size());
+        fprintf(pyfp, "            raise ValueError('PT2 input %d rank must be %d')\n", index, (int)shape.size());
+        for (size_t axis = 0; axis < shape.size(); axis++)
+        {
+            if (shape[axis] != -233)
+            {
+                fprintf(pyfp, "        if %s.shape[%d] != %d:\n", v, (int)axis, shape[axis]);
+                fprintf(pyfp, "            raise ValueError('PT2 input %d dimension %d must be %d')\n", index, (int)axis, shape[axis]);
+                continue;
+            }
+            fprintf(pyfp, "        if %s.shape[%d] < %d or %s.shape[%d] > %d:\n", v, (int)axis, minimum[axis], v, (int)axis, maximum[axis]);
+            fprintf(pyfp, "            raise ValueError('PT2 input %d dimension %d allowed range is [%d, %d]')\n", index, (int)axis, minimum[axis], maximum[axis]);
+            const std::string& symbol = symbols[axis];
+            std::map<std::string, int>::const_iterator shared = symbol_ids.find(symbol);
+            if (shared == symbol_ids.end())
+            {
+                const int id = (int)symbol_ids.size();
+                symbol_ids[symbol] = id;
+                fprintf(pyfp, "        _pt2_symbol_%d = %s.shape[%d]\n", id, v, (int)axis);
+            }
+            else
+            {
+                // Numeric local IDs only: archive symbol text is never code.
+                fprintf(pyfp, "        if %s.shape[%d] != _pt2_symbol_%d:\n", v, (int)axis, shared->second);
+                fprintf(pyfp, "            raise ValueError('PT2 input %d dimension %d shared symbol mismatch')\n", index, (int)axis);
+            }
+        }
+        std::map<std::string, Parameter>::const_iterator stride = op->params.find("__pt2_input_stride");
+        if (stride != op->params.end())
+        {
+            fprintf(pyfp, "        if %s.stride() != (", v);
+            for (size_t axis = 0; axis < stride->second.ai.size(); axis++)
+                fprintf(pyfp, "%d,", stride->second.ai[axis]);
+            fprintf(pyfp, "):\n");
+            fprintf(pyfp, "            raise ValueError('PT2 input %d stride does not match metadata guard')\n", index);
+        }
+    }
+}
+
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
@@ -1664,14 +1867,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 if (param.type == 4)
                 {
-                    if (param.s.substr(0, 6) == "torch.")
-                    {
-                        fprintf(pyfp, "%s", param.s.c_str());
-                    }
-                    else
-                    {
-                        fprintf(pyfp, "\'%s\'", param.s.c_str());
-                    }
+                    fprintf(pyfp, "%s", python_string_expression(param.s).c_str());
                 }
                 if (param.type == 5)
                 {
@@ -1712,14 +1908,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, "(");
                     for (size_t i = 0; i < param.as.size(); i++)
                     {
-                        if (param.as[i].substr(0, 6) == "torch.")
-                        {
-                            fprintf(pyfp, "%s", param.as[i].c_str());
-                        }
-                        else
-                        {
-                            fprintf(pyfp, "\'%s\'", param.as[i].c_str());
-                        }
+                        fprintf(pyfp, "%s", python_string_expression(param.as[i]).c_str());
                         if (i + 1 != param.as.size() || param.as.size() == 1)
                             fprintf(pyfp, ",");
                     }
@@ -1739,7 +1928,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // load weights
     {
-        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", pnnxbinpath.c_str());
+        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", escape_python_single_quoted_string(pnnxbinpath).c_str());
 
         for (const Operator* op : ops)
         {
@@ -1752,7 +1941,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     if (it.first == "weight" || it.first == "bias")
                     {
-                        fprintf(pyfp, "        self_%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                        fprintf(pyfp, "        self_%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), escape_python_single_quoted_string(op->name + "." + it.first).c_str());
                     }
                     else
                     {
@@ -1783,17 +1972,25 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 const Attribute& attr = it.second;
                 const bool is_buffer = type_is_integer(attr.type) || it.first == "running_mean" || it.first == "running_var";
+                // Preserve nested module paths (out_proj.*), but treat each
+                // component as data rather than splicing it into Python code.
+                std::string module = "self." + sanitize_identifier(op->name);
+                size_t begin = 0;
+                size_t dot;
+                while ((dot = it.first.find('.', begin)) != std::string::npos)
+                {
+                    module = "getattr(" + module + ", '" + escape_python_single_quoted_string(it.first.substr(begin, dot - begin)) + "')";
+                    begin = dot + 1;
+                }
+                const std::string name = escape_python_single_quoted_string(it.first.substr(begin));
+                const std::string zip_key = escape_python_single_quoted_string(op->name + "." + it.first);
                 if (is_buffer)
                 {
-                    // Attribute names may address a nested module (out_proj.*).
-                    const size_t dot = it.first.find_last_of('.');
-                    const std::string module = sanitize_identifier(op->name) + (dot == std::string::npos ? "" : "." + it.first.substr(0, dot));
-                    const std::string name = dot == std::string::npos ? it.first : it.first.substr(dot + 1);
-                    fprintf(pyfp, "        self.%s.register_buffer('%s', self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", module.c_str(), name.c_str(), op->name.c_str(), it.first.c_str());
+                    fprintf(pyfp, "        %s.register_buffer('%s', self.load_pnnx_bin_as_tensor(archive, '%s', (", module.c_str(), name.c_str(), zip_key.c_str());
                 }
                 else
                 {
-                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                    fprintf(pyfp, "        setattr(%s, '%s', self.load_pnnx_bin_as_parameter(archive, '%s', (", module.c_str(), name.c_str(), zip_key.c_str());
                 }
 
                 for (size_t i = 0; i < attr.shape.size(); i++)
@@ -1807,11 +2004,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else if (attr.type == 1 || attr.type == 2 || attr.type == 3 || attr.type == 13)
                 {
-                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                    fprintf(pyfp, "), '%s'))\n", type_to_numpy_string(attr.type));
                 }
                 else
                 {
-                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                    fprintf(pyfp, "), '%s', requires_grad=False))\n", type_to_numpy_string(attr.type));
                 }
             }
         }
@@ -1848,11 +2045,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             const bool is_buffer = is_running_mean_var || type_is_integer(attr.type);
             if (is_buffer)
             {
-                fprintf(pyfp, "        self.register_buffer('%s_%s', self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+                fprintf(pyfp, "        self.register_buffer('%s_%s', self.load_pnnx_bin_as_tensor(archive, '%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), escape_python_single_quoted_string(op->name + "." + key).c_str());
             }
             else
             {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), escape_python_single_quoted_string(op->name + "." + key).c_str());
             }
 
             for (size_t i = 0; i < attr.shape.size(); i++)
@@ -1925,6 +2122,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "):\n");
     }
 
+    // Validate every PT2 input before any computation (including in-place ops).
+    // Use explicit exceptions: Python -O/-OO must not remove the contract.
+    write_pt2_input_checks(pyfp, ops);
+
     // forward body
     {
         for (const Operator* op : ops)
@@ -1957,13 +2158,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else if (op->type == "prim::Constant")
             {
                 const Parameter& value = op->params.at("value");
-                const std::string encoded = Parameter::encode_to_string(value);
-                if (value.type == 4 && value.s.compare(0, 6, "torch.") != 0 && value.s != "inf" && value.s != "-inf")
-                    fprintf(pyfp, "v_%s = '%s'\n", sanitize_identifier(op->outputs[0]->name).c_str(), escape_python_single_quoted_string(encoded).c_str());
-                else if (value.type == 4 && (value.s == "inf" || value.s == "-inf"))
-                    fprintf(pyfp, "v_%s = float('%s')\n", sanitize_identifier(op->outputs[0]->name).c_str(), encoded.c_str());
-                else
-                    fprintf(pyfp, "v_%s = %s\n", sanitize_identifier(op->outputs[0]->name).c_str(), encoded.c_str());
+                std::string encoded = Parameter::encode_to_string(value);
+                if (value.type == 4)
+                {
+                    encoded = python_string_expression(value.s);
+                    if (value.s == "inf" || value.s == "-inf")
+                        encoded = "float(" + encoded + ")";
+                }
+                else if (value.type == 7)
+                {
+                    encoded = "(";
+                    for (const std::string& s : value.as)
+                        encoded += python_string_expression(s) + ",";
+                    encoded += ")";
+                }
+                fprintf(pyfp, "v_%s = %s\n", sanitize_identifier(op->outputs[0]->name).c_str(), encoded.c_str());
             }
             else if (op->type == "Tensor.slice")
             {
@@ -2091,7 +2300,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 // einsum
                 fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
 
-                fprintf(pyfp, "\'%s\'", op->params.at("equation").s.c_str());
+                fprintf(pyfp, "'%s'", escape_python_single_quoted_string(op->params.at("equation").s).c_str());
 
                 for (size_t i = 0; i < op->inputs.size(); i++)
                 {
@@ -2544,32 +2753,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                     if (param.type == 4)
                     {
-                        if (param.s.substr(0, 6) == "torch.")
-                        {
-                            fprintf(pyfp, "%s", param.s.c_str());
-                        }
-                        else if (scalar_as_tensor)
-                        {
-                            if (param.s == "inf" || param.s == "-inf")
-                            {
-                                fprintf(pyfp, "torch.tensor(float(\'%s\'))", param.s.c_str());
-                            }
-                            else
-                            {
-                                fprintf(pyfp, "torch.tensor(\'%s\')", param.s.c_str());
-                            }
-                        }
-                        else
-                        {
-                            if (param.s == "inf" || param.s == "-inf")
-                            {
-                                fprintf(pyfp, "float(\'%s\')", param.s.c_str());
-                            }
-                            else
-                            {
-                                fprintf(pyfp, "\'%s\'", param.s.c_str());
-                            }
-                        }
+                        std::string expression = python_string_expression(param.s);
+                        const bool is_enum = expression == param.s;
+                        if (param.s == "inf" || param.s == "-inf")
+                            expression = "float(" + expression + ")";
+                        if (scalar_as_tensor && !is_enum)
+                            expression = "torch.tensor(" + expression + ")";
+                        fprintf(pyfp, "%s", expression.c_str());
                     }
                     if (param.type == 5)
                     {
@@ -2610,14 +2800,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.as.size(); i++)
                         {
-                            if (param.as[i].substr(0, 6) == "torch.")
-                            {
-                                fprintf(pyfp, "%s", param.as[i].c_str());
-                            }
-                            else
-                            {
-                                fprintf(pyfp, "\'%s\'", param.as[i].c_str());
-                            }
+                            fprintf(pyfp, "%s", python_string_expression(param.as[i]).c_str());
                             if (i + 1 != param.as.size() || param.as.size() == 1)
                                 fprintf(pyfp, ",");
                         }
@@ -2738,7 +2921,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             fprintf(pyfp, "))\n");
         }
 
-        fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+        fprintf(pyfp, "    mod.save('%s.pt')\n", escape_python_single_quoted_string(pypath).c_str());
     }
 
     fprintf(pyfp, "\n");
@@ -2807,7 +2990,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             fprintf(pyfp, ")");
         }
 
-        fprintf(pyfp, ", \"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
+        fprintf(pyfp, ", '%s.onnx', export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", escape_python_single_quoted_string(pypath).c_str());
 
         fprintf(pyfp, ", input_names=[");
         {
@@ -2913,11 +3096,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    import pnnx\n");
         if (input_names.size() == 1)
         {
-            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", %s)\n", pypath.c_str(), input_names[0].c_str());
+            fprintf(pyfp, "    pnnx.export(net, '%s.pt', %s)\n", escape_python_single_quoted_string(pypath).c_str(), input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", (", pypath.c_str());
+            fprintf(pyfp, "    pnnx.export(net, '%s.pt', (", escape_python_single_quoted_string(pypath).c_str());
 
             for (size_t i = 0; i < input_names.size(); i++)
             {
@@ -3035,9 +3218,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    print(test_inference())\n");
     }
 
-    fclose(pyfp);
-
-    return 0;
+    return close_output_file(pyfp);
 }
 
 int Graph::parse(const std::string& param)
