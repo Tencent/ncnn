@@ -155,13 +155,16 @@ static bool vstr_to_float(const char* p, float& value)
     if (*p == '.')
     {
         p++;
-        double scale = 0.1;
+        // accumulate the fraction before adding it to the integer part
+        double fraction = 0.0;
+        double scale = 1.0;
         while (*p >= '0' && *p <= '9')
         {
             has_digit = true;
-            v += (*p++ - '0') * scale;
-            scale *= 0.1;
+            fraction = fraction * 10.0 + (*p++ - '0');
+            scale *= 10.0;
         }
+        v += fraction / scale;
     }
     if (!has_digit)
         return false;
@@ -217,9 +220,9 @@ static bool vstr_to_float(const char* p, float& value)
     return true;
 }
 
-static int scan_numeric_value(FILE* fp, char vstr[128])
+static int scan_numeric_value(FILE* fp, char vstr[128], bool comma = false)
 {
-    if (fscanf(fp, "%127[^, \t\r\n\v\f]", vstr) != 1)
+    if (fscanf(fp, comma ? ",%127[^, \t\r\n\v\f]" : "%127[^, \t\r\n\v\f]", vstr) != 1)
         return 0;
 
     char extra[2];
@@ -277,7 +280,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
             for (int j = 0; j < len; j++)
             {
                 int value;
-                if (fscanf(fp, "%1[,]", delimiter) != 1 || scan_numeric_value(fp, vstr) != 1
+                if (scan_numeric_value(fp, vstr, true) != 1
                         || !parse_numeric_value(vstr, vstr_is_float(vstr), value))
                 {
                     fprintf(stderr, "invalid array element (id=%d, index=%d)\n", id, j);

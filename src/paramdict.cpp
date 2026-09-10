@@ -294,13 +294,16 @@ static bool vstr_to_float(const char* p, float& value)
     if (*p == '.')
     {
         p++;
-        double scale = 0.1;
+        // accumulate the fraction before adding it to the integer part
+        double fraction = 0.0;
+        double scale = 1.0;
         while (*p >= '0' && *p <= '9')
         {
             has_digit = true;
-            v += (*p++ - '0') * scale;
-            scale *= 0.1;
+            fraction = fraction * 10.0 + (*p++ - '0');
+            scale *= 10.0;
         }
+        v += fraction / scale;
     }
     if (!has_digit)
         return false;
@@ -356,9 +359,9 @@ static bool vstr_to_float(const char* p, float& value)
     return true;
 }
 
-static int scan_numeric_value(const DataReader& dr, char vstr[128])
+static int scan_numeric_value(const DataReader& dr, char vstr[128], bool comma = false)
 {
-    if (dr.scan("%127[^, \t\r\n\v\f]", vstr) != 1)
+    if (dr.scan(comma ? ",%127[^, \t\r\n\v\f]" : "%127[^, \t\r\n\v\f]", vstr) != 1)
         return 0;
 
     // a field-width limit must not silently split a numeric token
@@ -415,7 +418,7 @@ int ParamDict::load_param(const DataReader& dr)
             bool is_float = false;
             for (int j = 0; j < len; j++)
             {
-                if (dr.scan("%1[,]", delimiter) != 1 || scan_numeric_value(dr, vstr) != 1)
+                if (scan_numeric_value(dr, vstr, true) != 1)
                 {
                     NCNN_LOGE("ParamDict read array element failed");
                     return -1;

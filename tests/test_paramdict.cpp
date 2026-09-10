@@ -9,6 +9,10 @@
 #include "datareader.h"
 #include "paramdict.h"
 
+#if NCNN_STDIO && defined(_WIN32)
+#include <windows.h>
+#endif
+
 class ParamDictTest : public ncnn::ParamDict
 {
 public:
@@ -34,10 +38,26 @@ int ParamDictTest::load_param_bin(const unsigned char* mem)
 #if NCNN_STDIO
 static FILE* make_param_file(const void* data, size_t size)
 {
+#if defined(_WIN32)
+    // Microsoft CRT tmpfile() uses the drive root, which may not be writable
+    wchar_t directory[MAX_PATH];
+    wchar_t filename[MAX_PATH];
+    const DWORD len = GetTempPathW(MAX_PATH, directory);
+    if (len == 0 || len >= MAX_PATH || !GetTempFileNameW(directory, L"ncn", 0, filename))
+    {
+        fprintf(stderr, "ParamDict temporary file creation failed\n");
+        return 0;
+    }
+    // D deletes the file on fclose, including the write-failure path below
+    FILE* fp = _wfopen(filename, L"w+bD");
+    if (!fp)
+        DeleteFileW(filename);
+#else
     FILE* fp = tmpfile();
+#endif
     if (!fp)
     {
-        perror("ParamDict tmpfile failed");
+        perror("ParamDict temporary file open failed");
         return 0;
     }
     if (fwrite(data, 1, size, fp) != size)
@@ -853,6 +873,7 @@ static int test_paramdict_invalid_text()
         "0=.", "0=-", "0=--1", "0=1e", "0=1e+", "0=1.2.3", "0=1e4294967295", "0=1e39",
         "0=\"", "0=\"unterminated", "0=\"abc\n", "0=\"abc\"suffix", "0=\"abc\"1=2",
         "-23300=1", "-23300=2,1", "-23300=1,1,2", "-23300=0,1", "-23300=1x,2",
+        "-23300=1 1", "-23300=1,,1", "-23300=1, 1",
         "0=1,,2", "0=1,2x", "0=1.0,2e", "-23300=1,1e+"
     };
     for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++)
@@ -1005,7 +1026,19 @@ static int check_float_boundary(const char* text, float expected, int count, boo
 
 static int test_paramdict_float_boundaries()
 {
+    // combining the comma scan must retain the full numeric token limit
+    for (int len = 127; len <= 128; len++)
+    {
+        std::string text = "-23300=1,0.";
+        text += make_param_string(len - 2, '0');
+        text += " 1=42\nReLU next 1 1 in out\n";
+        if (check_float_boundary(text.c_str(), 0.f, 1, len == 127))
+            return -1;
+    }
+
     const char* numbers[] = {
+        // exact float midpoints and their decimal neighbors in the old token-length range
+        "32768.017578124", "32768.017578125", "32768.017578126", "32768.021484374", "32768.021484375", "32768.021484376",
         "3.40282347e+38", "3.4028235e38", "3.40282356e38", "3.402823e38", "3.40282357e38", "1e39",
         "3.402823567797336e38", "3.402823567797337e38",
         "340282356779733661637539395458142568447.0", "340282356779733661637539395458142568448.0",
@@ -1013,8 +1046,11 @@ static int test_paramdict_float_boundaries()
         "0.000340282356779733661637539395458142568447e42",
         "000340282356779733661637539395458142568448e0"
     };
-    const float expected[] = {FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f};
-    const bool valid[] = {true, true, true, true, false, false, true, false, true, false, false, true, false};
+    const float expected[] = {
+        32768.015625f, 32768.015625f, 32768.01953125f, 32768.01953125f, 32768.0234375f, 32768.0234375f,
+        FLT_MAX, FLT_MAX, FLT_MAX, 3.402823e38f, 0.f, 0.f, FLT_MAX, 0.f, FLT_MAX, 0.f, 0.f, FLT_MAX, 0.f
+    };
+    const bool valid[] = {true, true, true, true, true, true, true, true, true, true, false, false, true, false, true, false, false, true, false};
     for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
         for (int negative = 0; negative < 2; negative++)
         {
@@ -1146,6 +1182,7 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
 static int test_paramdict_reload()
 {
     const char* text = "0=42 1=1.5 2=3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
+    const char* old_array_text = "0=42 1=1.5 -23302=2,3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
 
     // three consecutive parameter blocks, with no parameters in the last block
     const int words[] = {0, 42, 1, 0x3fc00000, -23302, 2, 3, 4, -23403, 5, 0x6c6c6568, 0x6f, 31, 31, -233, 4, 7, -233, -233};
@@ -1153,10 +1190,11 @@ static int test_paramdict_reload()
     for (size_t i = 0; i < sizeof(words) / sizeof(words[0]); i++)
         append_param_word(data, words[i]);
 
-    for (int mode = 0; mode < 4; mode++)
+    for (int mode = 0; mode < 6; mode++)
     {
-        const bool binary = mode >= 2;
-        const unsigned char* ptr = binary ? data.data() : (const unsigned char*)text;
+        const bool binary = mode >= 4;
+        const char* input = mode < 2 ? text : old_array_text;
+        const unsigned char* ptr = binary ? data.data() : (const unsigned char*)input;
         int ret;
         if (mode % 2 == 0)
         {
@@ -1166,7 +1204,7 @@ static int test_paramdict_reload()
         else
         {
 #if NCNN_STDIO
-            FILE* fp = make_param_file(ptr, binary ? data.size() : strlen(text));
+            FILE* fp = make_param_file(ptr, binary ? data.size() : strlen(input));
             if (!fp)
                 return -1;
             ncnn::DataReaderFromStdio dr(fp);
