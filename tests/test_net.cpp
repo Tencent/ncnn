@@ -173,8 +173,7 @@ static int check_binary(const char* name, const std::vector<unsigned char>& data
 
 static int test_text_errors()
 {
-    const char* cases[] =
-    {
+    const char* cases[] = {
         "", "7767517", "7767517\n0 1\n", "7767517\n1 -1\n",
         "7767517\n2147483647 1\n", "7767517\n1 2147483647\n",
         "7767517\n4294967297 1\nTest t 0 1 out\n",
@@ -331,8 +330,7 @@ static int test_shape_hints()
         int tops;
         int expected_ret;
     };
-    const Case cases[] =
-    {
+    const Case cases[] = {
         {"4,1,7,0,0", 4, {1, 7, 0, 0}, 1, 0},
         {"4,2,7,6,0", 4, {2, 7, 6, 0}, 1, 0},
         {"4,3,7,6,5", 4, {3, 7, 6, 5}, 1, 0},
@@ -370,8 +368,8 @@ static int test_shape_hints()
             return -1;
     }
     if (check_text("7767517\n1 1\nTest t 0 1 out 30=4\n", -1)
-        || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1)
-        || check_text("7767517\n1 1\nTest t 0 1 out 30=3,7,6,5\n", 0))
+            || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1)
+            || check_text("7767517\n1 1\nTest t 0 1 out 30=3,7,6,5\n", 0))
         return -1;
 
     return 0;
@@ -508,7 +506,7 @@ static int test_shape_layout()
         const ncnn::Mat& in = net.layers()[1]->bottom_shapes[0];
         const ncnn::Mat& out = net.layers()[1]->top_shapes[0];
         if (in.dims != 4 || in.w != 7 || in.h != 6 || in.d != 5 || in.c != 4
-            || out.dims != 3 || out.w != 3 || out.h != 2 || out.d != 1 || out.c != 1)
+                || out.dims != 3 || out.w != 3 || out.h != 2 || out.d != 1 || out.c != 1)
         {
             fprintf(stderr, "test_net shape layout binary=%d failed\n", binary);
             return -1;

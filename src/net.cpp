@@ -1407,7 +1407,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
 
         // check the byte size and channel alignment before constructing the shape
         size_t size = (size_t)w;
-        const size_t limit = ((size_t) -1 - 15) / 4;
+        const size_t limit = ((size_t)-1 - 15) / 4;
         if (size > limit || (h != 0 && size > limit / h))
             return -1;
         size *= h;
@@ -1415,7 +1415,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
             return -1;
         size *= d;
         size = alignSize(size * 4, 16) / 4;
-        if (c != 0 && size > ((size_t) -1 / 4) / c)
+        if (c != 0 && size > ((size_t)-1 / 4) / c)
             return -1;
 
         Blob& blob = blobs[layer->tops[j]];
