@@ -302,8 +302,8 @@ static int dump_param_values(FILE* fp, FILE* mp)
             char text[256] = {0};
             if (first[0] == '\"')
             {
-                if (fscanf(fp, "%255[^\"\r\n]", text) != 1)
-                    text[0] = '\0';
+                const int nscan = fscanf(fp, "%255[^\"\r\n]", text);
+                (void)nscan;
                 if (fscanf(fp, "%1[\"]", delimiter) != 1)
                 {
                     fprintf(stderr, "unterminated or too long string (id=%d)\n", id);
@@ -313,8 +313,8 @@ static int dump_param_values(FILE* fp, FILE* mp)
             else
             {
                 text[0] = first[0];
-                if (fscanf(fp, "%254[^ \t\r\n\v\f]", text + 1) != 1)
-                    text[1] = '\0';
+                const int nscan = fscanf(fp, "%254[^ \t\r\n\v\f]", text + 1);
+                (void)nscan;
             }
             if (fscanf(fp, "%1[^ \t\r\n\v\f]", delimiter) == 1)
             {

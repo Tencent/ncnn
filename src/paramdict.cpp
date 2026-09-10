@@ -376,7 +376,7 @@ int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
-    // stop before the next layer name, leaving it for Net to parse
+    // require '=' separately: a successful numeric conversion alone does not validate "id="
     char idstr[16];
     while (dr.scan(" %15[-+0123456789]", idstr) == 1)
     {

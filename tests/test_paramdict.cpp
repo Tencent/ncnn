@@ -544,10 +544,13 @@ static int compare_paramdict(const ncnn::ParamDict& pd, const ncnn::ParamDict& p
     for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
     {
         const int type0 = pd0.type(id);
+        if (pd.type(id) != type0)
+        {
+            fprintf(stderr, "compare_paramdict type failed id=%d: %d != %d\n", id, pd.type(id), type0);
+            return -1;
+        }
         if (type0 == 0)
         {
-            if (pd.type(id) != 0)
-                return -1;
             continue;
         }
         else if (type0 == 2)
