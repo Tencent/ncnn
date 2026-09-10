@@ -3,9 +3,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-import importlib.util
-import os
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -14,21 +11,18 @@ from pathlib import Path
 
 import torch
 
+from exported_program_test_utils import (
+    TinyModel,
+    load_generated_module,
+    run_pnnx,
+    save_exported_program,
+    working_directory,
+)
 
-PNNX = Path(sys.argv[1]).resolve()
 sys.argv = [sys.argv[0]] + sys.argv[2:]
 TORCH_VERSION = tuple(
     int(component) for component in torch.__version__.split("+", 1)[0].split(".")[:2]
 )
-
-
-class TinyModel(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.linear = torch.nn.Linear(4, 3)
-
-    def forward(self, x):
-        return torch.relu(self.linear(x))
 
 
 class DtypeIdentityModel(torch.nn.Module):
@@ -84,13 +78,6 @@ class StaticInstanceNormModel(torch.nn.Module):
         return x + torch.nn.functional.instance_norm(self.values), x + self.values
 
 
-def save_exported_program(model, example_inputs, archive_path):
-    program = torch.export.export(model.eval(), example_inputs)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        torch.export.save(program, archive_path)
-
-
 @unittest.skipIf(
     TORCH_VERSION < (2, 9),
     "modern exported program packages require PyTorch 2.9 or newer",
@@ -103,39 +90,21 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
 
     def save(self, name, model, example_inputs):
         archive_path = self.work_dir / (name + ".pt2")
-        save_exported_program(model, example_inputs, archive_path)
+        save_exported_program(model, archive_path, example_inputs)
         return archive_path
 
     def call(self, function, *args):
-        previous_work_dir = Path.cwd()
-        try:
-            os.chdir(self.work_dir)
+        with working_directory(self.work_dir):
             return function(*args)
-        finally:
-            os.chdir(previous_work_dir)
 
     def run_pnnx(self, archive_path):
-        result = subprocess.run(
-            [str(PNNX), archive_path.name],
-            cwd=self.work_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        result = run_pnnx(self.work_dir, archive_path)
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
 
     def convert(self, archive_path):
         self.run_pnnx(archive_path)
 
-        module_path = self.work_dir / (archive_path.stem + "_pnnx.py")
-        spec = importlib.util.spec_from_file_location(
-            "test_exported_program_roundtrip_" + archive_path.stem, module_path
-        )
-        self.assertIsNotNone(spec)
-        self.assertIsNotNone(spec.loader)
-        module = importlib.util.module_from_spec(spec)
-        self.call(spec.loader.exec_module, module)
-        return module
+        return load_generated_module(self.work_dir, archive_path.stem)
 
     def test_generated_source_preserves_typed_inputs(self):
         example_inputs = (

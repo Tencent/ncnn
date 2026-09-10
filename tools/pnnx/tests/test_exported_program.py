@@ -4,10 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
-import importlib.util
 import io
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -22,8 +20,15 @@ from unittest import mock
 import numpy as np
 import torch
 
+from exported_program_test_utils import (
+    TinyModel,
+    load_generated_module,
+    run_pnnx,
+    save_exported_program,
+    temporary_work_dir,
+    working_directory,
+)
 
-PNNX = Path(sys.argv[1]).resolve()
 argument_parser = argparse.ArgumentParser(add_help=False)
 argument_parser.add_argument("--ir-roundtrip-executable", type=Path)
 test_arguments, unittest_arguments = argument_parser.parse_known_args(sys.argv[2:])
@@ -32,15 +37,6 @@ sys.argv = [sys.argv[0]] + unittest_arguments
 TORCH_VERSION = tuple(
     int(component) for component in torch.__version__.split("+", 1)[0].split(".")[:2]
 )
-
-
-class TinyModel(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.linear = torch.nn.Linear(4, 3)
-
-    def forward(self, x):
-        return torch.relu(self.linear(x))
 
 
 class CompatibilityModel(torch.nn.Module):
@@ -280,25 +276,6 @@ class OpenEndedSliceModel(torch.nn.Module):
         return x[:, 1:]
 
 
-def run_pnnx(work_dir, model_path, *arguments):
-    return subprocess.run(
-        [str(PNNX), model_path.name, *arguments],
-        cwd=work_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-
-
-def save_exported_program(model, archive_path, example_inputs=None):
-    if example_inputs is None:
-        example_inputs = (torch.ones(2, 4),)
-    exported_program = torch.export.export(model.eval(), example_inputs)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        torch.export.save(exported_program, archive_path)
-
-
 def archive_entry(entries, marker, suffix=""):
     matches = [
         name for name in entries if marker in name and name.endswith(suffix)
@@ -333,6 +310,12 @@ def rewrite_model_json(source_path, destination_path, mutate):
         ).encode()
 
     rewrite_archive(source_path, destination_path, mutate_entries)
+
+
+def find_node_argument(document, target, name):
+    nodes = document["graph_module"]["graph"]["nodes"]
+    node = next(node for node in nodes if node["target"] == target)
+    return next(argument for argument in node["inputs"] if argument["name"] == name)
 
 
 def rename_exported_tensor_values(document, replacements):
@@ -392,36 +375,15 @@ def rewrite_payload_configs(source_path, destination_path, mutate):
 
 
 def load_generated_output(work_dir, basename):
-    module_path = work_dir / f"{basename}_pnnx.py"
-    spec = importlib.util.spec_from_file_location(
-        f"test_exported_program_{basename}_pnnx", module_path
-    )
-    if spec is None or spec.loader is None:
-        raise AssertionError(f"cannot load generated module {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    previous_work_dir = Path.cwd()
-    try:
-        os.chdir(work_dir)
-        spec.loader.exec_module(module)
+    module = load_generated_module(work_dir, basename)
+    with working_directory(work_dir):
         return module.test_inference()
-    finally:
-        os.chdir(previous_work_dir)
 
 
 def load_generated_ncnn_module(work_dir, basename):
-    module_path = work_dir / f"{basename}_ncnn.py"
-    spec = importlib.util.spec_from_file_location(
-        f"test_exported_program_{basename}_ncnn", module_path
-    )
-    if spec is None or spec.loader is None:
-        raise AssertionError(f"cannot load generated module {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
     # These tests must reject unsupported inputs before using the native binding.
     with mock.patch.dict(sys.modules, {"ncnn": types.ModuleType("ncnn")}):
-        spec.loader.exec_module(module)
-    return module
+        return load_generated_module(work_dir, basename, "_ncnn")
 
 
 class NonSeekableBuffer(io.BytesIO):
@@ -453,11 +415,13 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         for expected_item, actual_item in zip(expected, actual):
             self.assert_nested_close(expected_item, actual_item)
 
+    def assert_conversion_succeeds(self, work_dir, model_path, *arguments):
+        result = run_pnnx(work_dir, model_path, *arguments)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        return result
+
     def assert_conversion_matches(self, work_dir, model_path, expected=None):
-        result = run_pnnx(work_dir, model_path)
-        self.assertEqual(
-            result.returncode, 0, result.stderr.decode(errors="replace")
-        )
+        self.assert_conversion_succeeds(work_dir, model_path)
 
         if expected is None:
             torch.manual_seed(0)
@@ -506,8 +470,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         initial = torch.arange(12).float().reshape(3, 4)
         for buffer in (False, True):
             for view in (False, True):
-                with self.subTest(buffer=buffer, view=view), tempfile.TemporaryDirectory() as temp_dir:
-                    work_dir = Path(temp_dir)
+                with self.subTest(buffer=buffer, view=view), temporary_work_dir() as work_dir:
                     archive_path = work_dir / "external.pt2"
                     model = ExternalMutation(buffer, view).eval()
                     saved_state = model.state.clone()
@@ -582,8 +545,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             "to_same", "contiguous_copy", "contiguous_same", "cat",
         )]
         for label, model in models:
-            with self.subTest(model=label), tempfile.TemporaryDirectory() as temp_dir:
-                work_dir = Path(temp_dir)
+            with self.subTest(model=label), temporary_work_dir() as work_dir:
                 archive_path = work_dir / f"{label}.pt2"
                 expected = model(original.clone())
                 if label == "alias":
@@ -591,21 +553,14 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assertEqual(expected[1][0].tolist(), [0, 22, 24, 6])
                     self.assertTrue(torch.equal(expected[0], original))
                 save_exported_program(model, archive_path, (original.clone(),))
-                result = run_pnnx(work_dir, archive_path)
-                self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
-                spec = importlib.util.spec_from_file_location(label, work_dir / f"{label}_pnnx.py")
-                module = importlib.util.module_from_spec(spec)
-                previous_work_dir = Path.cwd()
-                try:
-                    os.chdir(work_dir)
-                    spec.loader.exec_module(module)
+                self.assert_conversion_succeeds(work_dir, archive_path)
+                module = load_generated_module(work_dir, label)
+                with working_directory(work_dir):
                     generated = module.Model().eval()
                     input_value = original.clone()
                     for _ in range(2):
                         self.assert_nested_close(expected, generated(input_value))
                         self.assertTrue(torch.equal(input_value, original))
-                finally:
-                    os.chdir(previous_work_dir)
 
     def test_local_view_updates_rebuild_all_affected_inputs(self):
         class LocalViews(torch.nn.Module):
@@ -630,8 +585,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         updated = original + torch.tensor([0., 10., 10., 0.])
         for order in ("root_view", "view_root", "two_views"):
             for model_format in ("pt2", "torchscript"):
-                with self.subTest(order=order, format=model_format), tempfile.TemporaryDirectory() as temp_dir:
-                    work_dir = Path(temp_dir)
+                with self.subTest(order=order, format=model_format), temporary_work_dir() as work_dir:
                     model_path = work_dir / f"local_views.{model_format}"
                     model = LocalViews(order).eval()
                     expected = (original, updated * 2, updated, updated)
@@ -643,21 +597,16 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assert_nested_close(expected, torch.export.load(model_path).module()(original.clone()))
                     else:
                         torch.jit.trace(model, (original.clone(),)).save(str(model_path))
-                    result = run_pnnx(work_dir, model_path, "inputshape=[3,4]")
-                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
-                    spec = importlib.util.spec_from_file_location("local_views", work_dir / "local_views_pnnx.py")
-                    module = importlib.util.module_from_spec(spec)
-                    previous_work_dir = Path.cwd()
-                    try:
-                        os.chdir(work_dir)
-                        spec.loader.exec_module(module)
+                    self.assert_conversion_succeeds(
+                        work_dir, model_path, "inputshape=[3,4]"
+                    )
+                    module = load_generated_module(work_dir, "local_views")
+                    with working_directory(work_dir):
                         generated = module.Model().eval()
                         input_value = original.clone()
                         for _ in range(2):
                             self.assert_nested_close(expected, generated(input_value))
                             self.assertTrue(torch.equal(input_value, original))
-                    finally:
-                        os.chdir(previous_work_dir)
 
     def test_external_fill_mutations_are_rejected(self):
         class ExternalFill(torch.nn.Module):
@@ -674,8 +623,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         original = torch.arange(12).float().reshape(3, 4)
         for view in (False, True):
             for tensor_value in (False, True):
-                with self.subTest(view=view, tensor_value=tensor_value), tempfile.TemporaryDirectory() as temp_dir:
-                    work_dir = Path(temp_dir)
+                with self.subTest(view=view, tensor_value=tensor_value), temporary_work_dir() as work_dir:
                     archive_path = work_dir / "external_fill.pt2"
                     model = ExternalFill(view, tensor_value).eval()
                     value = torch.tensor(7.)
@@ -702,8 +650,8 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 return y
 
         original = torch.arange(6).float().reshape(2, 3)
-        with tempfile.TemporaryDirectory() as temp_dir:
-            archive_path = Path(temp_dir) / "reshape.pt2"
+        with temporary_work_dir() as work_dir:
+            archive_path = work_dir / "reshape.pt2"
             save_exported_program(ReshapeMutation(), archive_path, (original.clone(),))
             loaded = torch.export.load(archive_path).module()
             contiguous = original.clone()
@@ -716,7 +664,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assertTrue(torch.equal(contiguous, original))
             self.assertTrue(torch.equal(strided, original + 1))
             self.assert_conversion_fails(
-                Path(temp_dir), archive_path, "cannot prove mutation is local",
+                work_dir, archive_path, "cannot prove mutation is local",
                 "argument self", "torch.ops.aten.add_.Tensor", "reshape", "x",
             )
 
@@ -747,8 +695,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 return y
 
         for kind in ("out", "foreach", "reshape", "flatten", "contiguous_copy", "contiguous_same", "to_same", "split"):
-            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temp_dir:
-                work_dir = Path(temp_dir)
+            with self.subTest(kind=kind), temporary_work_dir() as work_dir:
                 archive_path = work_dir / f"{kind}.pt2"
                 save_exported_program(Mutation(kind), archive_path, (torch.arange(12).float().reshape(3, 4),))
                 torch.export.load(archive_path)
@@ -758,8 +705,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_fails(work_dir, archive_path, "cannot prove mutation is local", "argument self", "x")
 
     def test_tiny_program_and_content_based_routing(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "tiny.pt2"
             renamed_path = work_dir / "tiny_renamed.bin"
             torchscript_path = work_dir / "legacy.pt2"
@@ -781,8 +727,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
     def test_real_producer_omits_default_arguments(self):
         model = CompatibilityModel().eval()
         example_inputs = (torch.ones(1, 1, 5, 5),)
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "producer_defaults.pt2"
             save_exported_program(model, archive_path, example_inputs)
 
@@ -827,8 +772,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             (torch.cat((torch.tensor([256.]), torch.full((32767,), 0.0625))).reshape(1, -1),
              torch.ones(1, 1), 0),
         )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for index, (weight, scale, dim) in enumerate(cases):
                 with self.subTest(case=index):
                     model = StaticWeightNormModel(weight, scale, dim).eval()
@@ -846,8 +790,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             (1e-30, 1e-30),   # The squared values underflow to zero.
             (1e-20, 1e30),    # The scale / norm ratio overflows.
         )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for dim in (0, 1, 2, -1):
                 shape = [1, 1, 1]
                 if dim != -1:
@@ -867,8 +810,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assertNotIn("torch._weight_norm ", graph)
 
     def test_empty_state_view_beyond_storage(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "empty_state_view.pt2"
             model = EmptyViewStateModel().eval()
             save_exported_program(model, archive_path, (torch.ones(8),))
@@ -876,14 +818,14 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assert_conversion_matches(work_dir, archive_path, model(torch.rand(8)))
 
     def test_scalar_numpy_input_override(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "scalar_numpy.pt2"
             model = ScalarInputModel().eval()
             save_exported_program(model, archive_path, (torch.tensor(2.0),))
             np.save(work_dir / "scalar.npy", np.array(2.0, dtype=np.float32))
-            result = run_pnnx(work_dir, archive_path, "input=scalar.npy")
-            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            self.assert_conversion_succeeds(
+                work_dir, archive_path, "input=scalar.npy"
+            )
             torch.manual_seed(0)
             self.assert_nested_close(
                 model(torch.rand(())), load_generated_output(work_dir, archive_path.stem)
@@ -895,8 +837,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 "--ir-roundtrip-executable is required for the cross-C++ IR check"
             )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "scalar_state.pt2"
             model = ScalarStateModel().eval()
             input_value = torch.tensor([1.0, -2.0])
@@ -920,8 +861,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_operator_returns_are_validated(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             model = OperatorReturnsModel().eval()
             valid_path = work_dir / "valid_returns.pt2"
             save_exported_program(model, valid_path)
@@ -959,8 +899,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assert_conversion_fails(work_dir, archive_path, "aten.alias.default", message)
 
     def test_unused_operator_return_slots(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for model in (StaticScalarShapeModel(), MaxIndicesModel()):
                 with self.subTest(model=type(model).__name__):
                     source_path = work_dir / (type(model).__name__ + ".pt2")
@@ -982,8 +921,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_matches(work_dir, archive_path, expected)
 
     def test_torchvision_operator_schema_contracts(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "torchvision_contract_source.pt2"
             save_exported_program(ScalarInputModel().eval(), source_path)
 
@@ -1003,46 +941,28 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 ]
 
             cases = (
-                (
-                    "return_count",
-                    lambda node: node.update(outputs=[]),
-                    ("torch.ops.torchvision.roi_align.default", "return count"),
-                ),
+                ("return_count", lambda node: node.update(outputs=[]),
+                 ("torch.ops.torchvision.roi_align.default", "return count")),
                 (
                     "return_type",
                     lambda node: node.update(outputs=[{"as_int": 1}]),
                     ("torch.ops.torchvision.roi_align.default", "return 0", "Tensor"),
                 ),
-                (
-                    "argument_type",
-                    lambda node: node["inputs"][2].update(arg={"as_int": 1}),
-                    ("argument spatial_scale", "float"),
-                ),
-                (
-                    "missing_argument",
-                    lambda node: node["inputs"].pop(),
-                    ("missing required argument aligned",),
-                ),
-                (
-                    "duplicate_argument",
-                    lambda node: node["inputs"].append(dict(node["inputs"][-1])),
-                    ("duplicate argument aligned",),
-                ),
-                (
-                    "argument_kind",
-                    lambda node: node["inputs"][0].update(kind=0),
-                    ("unknown argument kind for input",),
-                ),
-                (
-                    "unknown_operator",
-                    lambda node: node.update(target="torch.ops.torchvision.unknown.default"),
-                    ("unsupported exported operator",),
-                ),
-                (
-                    "non_default_overload",
-                    lambda node: node.update(target="torch.ops.torchvision.roi_align.special"),
-                    ("unsupported exported operator",),
-                ),
+                ("argument_type", lambda node: node["inputs"][2].update(arg={"as_int": 1}),
+                 ("argument spatial_scale", "float")),
+                ("missing_argument", lambda node: node["inputs"].pop(),
+                 ("missing required argument aligned",)),
+                ("duplicate_argument",
+                 lambda node: node["inputs"].append(dict(node["inputs"][-1])),
+                 ("duplicate argument aligned",)),
+                ("argument_kind", lambda node: node["inputs"][0].update(kind=0),
+                 ("unknown argument kind for input",)),
+                ("unknown_operator",
+                 lambda node: node.update(target="torch.ops.torchvision.unknown.default"),
+                 ("unsupported exported operator",)),
+                ("non_default_overload",
+                 lambda node: node.update(target="torch.ops.torchvision.roi_align.special"),
+                 ("unsupported exported operator",)),
             )
             for name, mutate, messages in cases:
                 with self.subTest(contract=name):
@@ -1056,8 +976,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_fails(work_dir, archive_path, *messages)
 
     def test_input_shape_overrides_are_validated(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "two_inputs.pt2"
             save_exported_program(
                 TwoInputModel().eval(),
@@ -1109,11 +1028,8 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
 
             valid_path = work_dir / "valid_input_shape.pt2"
             shutil.copyfile(source_path, valid_path)
-            result = run_pnnx(
+            self.assert_conversion_succeeds(
                 work_dir, valid_path, "inputshape=[2,4],[2,4]"
-            )
-            self.assertEqual(
-                result.returncode, 0, result.stderr.decode(errors="replace")
             )
 
     def test_generated_ncnn_helper_rejects_unsupported_inputs(self):
@@ -1125,18 +1041,14 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             ("complex", torch.complex64, (2, 3), ScalarInputModel()),
             ("complex", torch.complex128, (2, 3), ScalarInputModel()),
         )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for index, (kind, dtype, shape, model) in enumerate(cases):
                 with self.subTest(kind=kind, dtype=dtype):
                     archive_path = work_dir / f"unsupported_input_{index}.pt2"
                     save_exported_program(
                         model, archive_path, (torch.ones(shape, dtype=dtype),)
                     )
-                    result = run_pnnx(work_dir, archive_path)
-                    self.assertEqual(
-                        result.returncode, 0, result.stderr.decode(errors="replace")
-                    )
+                    self.assert_conversion_succeeds(work_dir, archive_path)
                     torch.manual_seed(0)
                     example = (
                         torch.randint(0, 2, shape, dtype=dtype)
@@ -1162,8 +1074,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 self.assert_nested_close(expected, actual)
 
     def test_torchscript_extra_archive_format_is_not_pt2_marker(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             torchscript_path = work_dir / "legacy_extra.pt"
             example_inputs = (torch.ones(2, 4),)
             traced = torch.jit.trace(self.model, example_inputs)
@@ -1187,8 +1098,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_unrepresentable_integer_parameter_is_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
 
             int64_path = work_dir / "int64_max.pt2"
             save_exported_program(Int64MaxFillModel().eval(), int64_path)
@@ -1199,8 +1109,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_unrepresentable_float_parameter_is_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             float64_path = work_dir / "float64_overflow.pt2"
             save_exported_program(
                 Float64OverflowModel().eval(),
@@ -1282,15 +1191,13 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             ),
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for label, model, example_input, messages in cases:
                 with self.subTest(case=label):
                     archive_path = work_dir / f"narrowing_{label}.pt2"
                     save_exported_program(model, archive_path, (example_input,))
-                    result = run_pnnx(work_dir, archive_path)
+                    result = self.assert_conversion_succeeds(work_dir, archive_path)
                     stderr = result.stderr.decode(errors="replace")
-                    self.assertEqual(result.returncode, 0, stderr)
                     if messages:
                         for message in messages:
                             self.assertIn(f"{warning} for {message} in f64/c128 tensor context", stderr)
@@ -1299,8 +1206,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assertNotIn(warning, stderr)
 
     def test_infinite_float_parameter_uses_pnnx_sentinel(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             model = NegativeInfinityFillModel().eval()
             archive_path = work_dir / "negative_infinity_fill.pt2"
             example_inputs = (torch.ones(2, 3),)
@@ -1315,8 +1221,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             def forward(self, x):
                 return x / -0.0, x / torch.tensor(-0.0, dtype=torch.float64)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "negative_zero.pt2"
             model = Model().eval()
             save_exported_program(model, archive_path)
@@ -1330,8 +1235,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             def forward(self, x):
                 return x + torch.zeros_like(x, device="cpu")
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "device_source.pt2"
             save_exported_program(Model(), source_path)
 
@@ -1367,8 +1271,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         )
 
     def test_open_ended_slice_converts_with_pnnx_sentinel(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             model = OpenEndedSliceModel().eval()
             archive_path = work_dir / "open_ended_slice.pt2"
             save_exported_program(model, archive_path, (torch.ones(2, 3),))
@@ -1378,8 +1281,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_input_and_output_trees(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
 
             nested_model = NestedInputModel().eval()
             nested_path = work_dir / "nested_inputs.pt2"
@@ -1428,15 +1330,11 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                                                  "invalid exported program", message)
 
     def test_keyword_inputs_are_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             archive_path = work_dir / "keyword_input.pt2"
-            exported_program = torch.export.export(
-                self.model, (), {"x": torch.ones(2, 4)}
+            save_exported_program(
+                self.model, archive_path, (), kwargs={"x": torch.ones(2, 4)}
             )
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                torch.export.save(exported_program, archive_path)
             self.assert_conversion_fails(
                 work_dir,
                 archive_path,
@@ -1450,8 +1348,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             ("non_persistent_buffer", NonPersistentBufferLinearModel().eval()),
             ("constant", TensorConstantLinearModel().eval()),
         )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             for name, model in cases:
                 with self.subTest(kind=name):
                     archive_path = work_dir / f"state_{name}.pt2"
@@ -1463,8 +1360,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     )
 
     def test_state_names_remain_distinct_after_python_sanitization(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             model = StateNameCollisionModel().eval()
             archive_path = work_dir / "state_name_collision.pt2"
             save_exported_program(model, archive_path)
@@ -1496,8 +1392,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             ),
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "ValueNameModel.pt2"
             save_exported_program(value_model, source_path, (input_value,))
 
@@ -1517,13 +1412,8 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         expected, loaded.module()(input_value)
                     )
 
-                    result = run_pnnx(
+                    self.assert_conversion_succeeds(
                         work_dir, archive_path, "optlevel=1", "fp16=0"
-                    )
-                    self.assertEqual(
-                        result.returncode,
-                        0,
-                        result.stderr.decode(errors="replace"),
                     )
 
                     param_lines = archive_path.with_suffix(
@@ -1554,24 +1444,13 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     generated_path = work_dir / f"{archive_path.stem}_pnnx.py"
                     generated_source = generated_path.read_text()
                     compile(generated_source, str(generated_path), "exec")
-                    spec = importlib.util.spec_from_file_location(
-                        f"test_value_name_{label}", generated_path
-                    )
-                    self.assertIsNotNone(spec)
-                    self.assertIsNotNone(spec.loader)
-                    module = importlib.util.module_from_spec(spec)
-                    previous_work_dir = Path.cwd()
-                    try:
-                        os.chdir(work_dir)
-                        spec.loader.exec_module(module)
+                    module = load_generated_module(work_dir, archive_path.stem)
+                    with working_directory(work_dir):
                         actual = module.Model().eval()(input_value)
-                    finally:
-                        os.chdir(previous_work_dir)
                     self.assert_nested_close(expected, actual)
 
     def test_dtype_stride_and_shared_storage(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
 
             int64_model = Int64BufferAddModel().eval()
             int64_path = work_dir / "int64_buffer.pt2"
@@ -1619,8 +1498,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_einsum_normalization_and_scalar_rejection(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             model = SpacedEinsumModel().eval()
             archive_path = work_dir / "spaced_einsum.pt2"
             example_inputs = (torch.ones(2, 3, 4), torch.ones(2, 5, 4))
@@ -1648,32 +1526,23 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_unsafe_scalar_strings_are_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "string_source.pt2"
             save_exported_program(StringArgumentModel().eval(), source_path)
 
-            for index, unsafe_value in enumerate(
-                ("two words", "a'b", "torch.float32")
-            ):
+            cases = (
+                ("whitespace", "two words"),
+                ("quote", "a'b"),
+                ("qualified_name", "torch.float32"),
+            )
+            for label, unsafe_value in cases:
                 with self.subTest(value=unsafe_value):
-                    archive_path = work_dir / f"string_unsafe_{index}.pt2"
+                    archive_path = work_dir / f"string_unsafe_{label}.pt2"
 
                     def replace_approximate(document):
-                        node = next(
-                            node
-                            for node in document["graph_module"]["graph"][
-                                "nodes"
-                            ]
-                            if node["target"]
-                            == "torch.ops.aten.gelu.default"
-                        )
-                        approximate = next(
-                            value
-                            for value in node["inputs"]
-                            if value["name"] == "approximate"
-                        )
-                        approximate["arg"] = {"as_string": unsafe_value}
+                        find_node_argument(
+                            document, "torch.ops.aten.gelu.default", "approximate"
+                        )["arg"] = {"as_string": unsafe_value}
 
                     rewrite_model_json(
                         source_path, archive_path, replace_approximate
@@ -1688,8 +1557,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
     def test_static_symbol_arguments_convert(self):
         model = StaticSymbolArgumentModel().eval()
         example_inputs = (torch.ones(1, 1, 4, 4),)
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "static_symbols_source.pt2"
             archive_path = work_dir / "static_symbols.pt2"
             save_exported_program(model, source_path, example_inputs)
@@ -1818,8 +1686,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     )
 
     def test_float_arguments_accept_integer_json_numbers(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "float_argument.pt2"
             save_exported_program(FloatArgumentModel(), source_path)
             for tag in ("as_float", "as_sym_float"):
@@ -1828,14 +1695,11 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         archive_path = work_dir / f"{tag}_{index}.pt2"
 
                         def replace_slope(document):
-                            node = next(
-                                node for node in document["graph_module"]["graph"]["nodes"]
-                                if node["target"] == "torch.ops.aten.leaky_relu.default"
-                            )
-                            argument = next(
-                                arg for arg in node["inputs"] if arg["name"] == "negative_slope"
-                            )
-                            argument["arg"] = {
+                            find_node_argument(
+                                document,
+                                "torch.ops.aten.leaky_relu.default",
+                                "negative_slope",
+                            )["arg"] = {
                                 tag: value if tag == "as_float" else {"as_float": value}
                             }
 
@@ -1845,8 +1709,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assert_conversion_matches(work_dir, archive_path, expected)
 
     def test_schema_and_opset_contracts(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "contract_source.pt2"
             save_exported_program(self.model, source_path)
 
@@ -1870,6 +1733,9 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 for node in document["graph_module"]["graph"]["nodes"]:
                     node["metadata"] = ["ignored", {"future": True}]
 
+            def pop_node_field(document, field):
+                document["graph_module"]["graph"]["nodes"][0].pop(field)
+
             with zipfile.ZipFile(source_path, "r") as archive:
                 model_path = archive_entry(
                     archive.namelist(), "/models/", ".json"
@@ -1892,42 +1758,18 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     self.assert_conversion_matches(work_dir, candidate)
 
             cases = (
-                (
-                    "torch_version_type",
-                    lambda value: value.update(torch_version=42),
-                    "$.torch_version: expected string",
-                ),
-                (
-                    "device_index_type",
-                    lambda value: replace_device_indices(value, "0"),
-                    ".device.index: expected integer",
-                ),
-                (
-                    "device_index_negative",
-                    lambda value: replace_device_indices(value, -1),
-                    ".device.index: device index must be non-negative",
-                ),
-                (
-                    "node_target_required",
-                    lambda value: value["graph_module"]["graph"]["nodes"][
-                        0
-                    ].pop("target"),
-                    ".nodes[0].target: missing required field",
-                ),
-                (
-                    "node_inputs_required",
-                    lambda value: value["graph_module"]["graph"]["nodes"][
-                        0
-                    ].pop("inputs"),
-                    ".nodes[0].inputs: missing required field",
-                ),
-                (
-                    "node_outputs_required",
-                    lambda value: value["graph_module"]["graph"]["nodes"][
-                        0
-                    ].pop("outputs"),
-                    ".nodes[0].outputs: missing required field",
-                ),
+                ("torch_version_type", lambda value: value.update(torch_version=42),
+                 "$.torch_version: expected string"),
+                ("device_index_type", lambda value: replace_device_indices(value, "0"),
+                 ".device.index: expected integer"),
+                ("device_index_negative", lambda value: replace_device_indices(value, -1),
+                 ".device.index: device index must be non-negative"),
+                ("node_target_required", lambda value: pop_node_field(value, "target"),
+                 ".nodes[0].target: missing required field"),
+                ("node_inputs_required", lambda value: pop_node_field(value, "inputs"),
+                 ".nodes[0].inputs: missing required field"),
+                ("node_outputs_required", lambda value: pop_node_field(value, "outputs"),
+                 ".nodes[0].outputs: missing required field"),
                 (
                     "tensor_values_required",
                     lambda value: value["graph_module"]["graph"].pop(
@@ -1935,11 +1777,8 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     ),
                     ".graph.tensor_values: missing required field",
                 ),
-                (
-                    "schema",
-                    lambda value: value["schema_version"].update(minor=999),
-                    "unsupported schema minor",
-                ),
+                ("schema", lambda value: value["schema_version"].update(minor=999),
+                 "unsupported schema minor"),
                 (
                     "opset",
                     lambda value: value["opset_version"].update(
@@ -1957,19 +1796,15 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     )
 
     def test_dispatcher_argument_type_is_validated(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "type_source.pt2"
             archive_path = work_dir / "type_invalid.pt2"
             save_exported_program(self.model, source_path)
 
             def replace_relu_input(document):
-                node = next(
-                    node
-                    for node in document["graph_module"]["graph"]["nodes"]
-                    if node["target"] == "torch.ops.aten.relu.default"
-                )
-                node["inputs"][0]["arg"] = {"as_int": 1}
+                find_node_argument(
+                    document, "torch.ops.aten.relu.default", "self"
+                )["arg"] = {"as_int": 1}
 
             rewrite_model_json(source_path, archive_path, replace_relu_input)
             self.assert_conversion_fails(
@@ -2070,8 +1905,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             ]
 
         model = SingleTupleModel().eval()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "higher_order_source.pt2"
             save_exported_program(model, source_path)
             torch.manual_seed(0)
@@ -2128,8 +1962,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 "depth limit",
             ),
         )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "json_source.pt2"
             save_exported_program(self.model, source_path)
             for index, (prefix, detail) in enumerate(cases):
@@ -2154,8 +1987,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     )
 
     def test_data_descriptors_and_central_directory(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "descriptor_source.pt2"
             descriptor_path = work_dir / "descriptor.pt2"
             crc_path = work_dir / "crc_invalid.pt2"
@@ -2226,8 +2058,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_zip64_local_headers_convert(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "zip64_source.pt2"
             archive_path = work_dir / "zip64.pt2"
             save_exported_program(self.model, source_path)
@@ -2248,8 +2079,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             self.assert_conversion_matches(work_dir, archive_path)
 
     def test_zip_entry_count_boundary(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "entry_count_source.pt2"
             save_exported_program(self.model, source_path)
             with zipfile.ZipFile(source_path) as source:
@@ -2276,8 +2106,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         self.assert_conversion_fails(work_dir, corrupt_path, "detect model format failed")
 
     def test_compressed_payload_is_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "compressed_source.pt2"
             save_exported_program(self.model, source_path)
             with zipfile.ZipFile(source_path, "r") as source:
@@ -2343,8 +2172,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                         )
 
     def test_legacy_pickled_payload_layout_is_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "legacy_layout_source.pt2"
             archive_path = work_dir / "legacy_layout.pt2"
             save_exported_program(self.model, source_path)
@@ -2377,8 +2205,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             )
 
     def test_missing_and_truncated_payloads_are_rejected(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "payload_source.pt2"
             save_exported_program(self.model, source_path)
 
@@ -2416,8 +2243,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                     )
 
     def test_payload_kind_and_shape_are_validated(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            work_dir = Path(temp_dir)
+        with temporary_work_dir() as work_dir:
             source_path = work_dir / "payload_contract_source.pt2"
             save_exported_program(self.model, source_path)
 
