@@ -80,6 +80,7 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - Inference-state values, shapes and data types from parameters, persistent and non-persistent buffers, and tensor constants, with raw strided tensor payloads including stride and storage offset; payload layout is used for state materialization, not as a runtime input-stride contract, and the original state category and training identity are not preserved
 - Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
 - Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
+- Native ncnn lowering converts Double state to Float before operator conversion and weight serialization; PNNX attributes and generated PNNX Python retain Double state. Native inference does not preserve float64 precision
 - Finite non-tensor Float, Float-list and Complex arguments continue to use PNNX float parameters. When such a value is narrowed in a node with an f64 or c128 tensor input or output, pnnx reports the operator target, argument and before/after values once per distinct warning. This diagnostic makes detected loss visible; it does not guarantee end-to-end double-precision scalar or Expression arithmetic
 - ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
 - `torch.ops.aten.einsum.default` equation syntax and input/output ranks are validated without executing the operator, then whitespace is removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
@@ -111,7 +112,7 @@ The frontend suite requires Python PyTorch 2.9 or newer. `test_real_producer_omi
 ctest --test-dir build --output-on-failure -L '^pt2_frontend$'
 ```
 
-Run the complete PT2 operator and model expectation suite, including the focused bool-attribute ncnn smoke test, with:
+Run the complete PT2 operator and model expectation suite, including the focused Bool/Double-attribute ncnn smoke test, with:
 
 ```shell
 ctest --test-dir build --output-on-failure -j 8 -L '^pt2_operator$'

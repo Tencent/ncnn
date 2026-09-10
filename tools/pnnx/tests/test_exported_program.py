@@ -895,6 +895,38 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 result.returncode, 0, result.stderr.decode(errors="replace")
             )
 
+    def test_single_element_unpack_ir(self):
+        if IR_ROUNDTRIP_EXECUTABLE is None:
+            self.skipTest("--ir-roundtrip-executable is required for the cross-C++ IR check")
+        cases = (
+            ("prim::ListConstruct", "", "prim::ListUnpack"),
+            ("prim::TupleConstruct", "", "prim::TupleUnpack"),
+            ("torch.split", "split_size_or_sections=8 dim=1", "prim::ListUnpack"),
+        )
+        for construct, params, unpack in cases:
+            with self.subTest(construct=construct), temporary_work_dir() as work_dir:
+                param_path = work_dir / "unpack.pnnx.param"
+                bin_path = work_dir / "unpack.pnnx.bin"
+                param_path.write_text(
+                    "7767517\n5 4\n"
+                    "pnnx.Input input 0 1 in0 #in0=(1,3)f32\n"
+                    f"{construct} construct 1 1 in0 values {params}\n"
+                    f"{unpack} unpack 1 1 values item #item=(1,3)f32\n"
+                    "F.relu relu 1 1 item out inplace=False #out=(1,3)f32\n"
+                    "pnnx.Output output 1 0 out\n"
+                )
+                with zipfile.ZipFile(bin_path, "w"):
+                    pass
+                result = subprocess.run(
+                    [str(IR_ROUNDTRIP_EXECUTABLE.resolve()), str(param_path), str(bin_path),
+                     str(work_dir / "unpack_pnnx.py")], capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                with working_directory(work_dir):
+                    net = load_generated_module(work_dir, "unpack").Model().eval()
+                value = torch.tensor([[-1.0, 2.0, 3.0]])
+                torch.testing.assert_close(net(value), torch.relu(value))
+
     def test_dynamic_input_contract_and_ir_reload(self):
         with temporary_work_dir() as work_dir:
             path = work_dir / "dynamic.pt2"

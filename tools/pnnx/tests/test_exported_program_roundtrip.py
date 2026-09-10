@@ -63,6 +63,25 @@ class EmptyIntListModel(torch.nn.Module):
         return torch.tile(value, ())
 
 
+class SingleTensorListModel(torch.nn.Module):
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, value):
+        if self.operation == "split":
+            result = torch.split(value, 8, dim=1)
+        elif self.operation == "split_sizes":
+            result = torch.split(value, [3], dim=1)
+        elif self.operation == "chunk":
+            result = torch.chunk(value, 1, dim=1)
+        elif self.operation in ("unbind", "unbind_scalar"):
+            result = torch.unbind(value, dim=0)
+        else:
+            result = torch.tensor_split(value, 1, dim=1)
+        return torch.relu(result[0])
+
+
 class NormalizationModel(torch.nn.Module):
     def __init__(self, norm_type, dtype, distinct):
         super().__init__()
@@ -258,6 +277,24 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         self.assertIn("=[]", second_param)
         self.assertNotIn("=()", second_param)
         self.assertEqual(self.call(second_module.test_inference).shape, torch.Size([]))
+
+    def test_single_tensor_list_output(self):
+        for operation in ("split", "split_sizes", "chunk", "unbind", "unbind_scalar", "tensor_split"):
+            inputs = (torch.tensor([2.0]),) if operation == "unbind_scalar" else (torch.tensor([[-1.0, 2.0, 3.0]]),)
+            model = SingleTensorListModel(operation).eval()
+            for format in ("pt2", "pt"):
+                path = self.work_dir / (operation + "_" + format + "." + format)
+                if format == "pt2":
+                    save_exported_program(model, path, inputs)
+                else:
+                    torch.jit.trace(model, inputs).save(str(path))
+                with self.subTest(operation=operation, format=format):
+                    result = run_pnnx(self.work_dir, path)
+                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                    module = load_generated_module(self.work_dir, path.stem)
+                    torch.testing.assert_close(self.call(module.Model).eval()(*inputs), model(*inputs))
+                    program = self.call(module.export_exported_program, inputs)
+                    torch.testing.assert_close(program.module()(*inputs), model(*inputs))
 
     def test_exported_program_round_trip_does_not_overwrite_input(self):
         torch.manual_seed(42)

@@ -2114,6 +2114,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     if (i + 1 != op->outputs.size())
                         fprintf(pyfp, ", ");
                 }
+                if (op->outputs.size() == 1)
+                    fprintf(pyfp, ",");
                 fprintf(pyfp, " = v_%s\n", sanitize_identifier(op->inputs[0]->name).c_str());
             }
             else if (op->type == "prim::TupleConstruct")
@@ -2134,6 +2136,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     if (i + 1 != op->outputs.size())
                         fprintf(pyfp, ", ");
                 }
+                if (op->outputs.size() == 1)
+                    fprintf(pyfp, ",");
                 fprintf(pyfp, " = v_%s\n", sanitize_identifier(op->inputs[0]->name).c_str());
             }
             else if (op->type == "prim::ListConstruct")

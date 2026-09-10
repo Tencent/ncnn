@@ -1,7 +1,7 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "convert_half_to_float.h"
+#include "convert_to_float.h"
 
 #include <string.h>
 
@@ -9,7 +9,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void convert_half_to_float(Graph& graph)
+void convert_to_float(Graph& graph)
 {
     for (Operator* op : graph.ops)
     {
@@ -20,12 +20,12 @@ void convert_half_to_float(Graph& graph)
             for (auto x : op->attrs)
             {
                 const Attribute& attr = x.second;
-                if (attr.type != 3)
+                if (attr.type != 2 && attr.type != 3)
                     continue;
 
                 matched = true;
 
-                // fp16 -> fp32
+                // fp16/fp64 -> fp32
                 Attribute attr_new;
                 attr_new.type = 1;
                 attr_new.shape = attr.shape;
