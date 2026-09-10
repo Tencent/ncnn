@@ -272,6 +272,20 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
+            if (attr.type == 9) // bool --> fp32
+            {
+                const unsigned char* p = (const unsigned char*)attr.data.data();
+                int len = (int)attr.data.size();
+
+                std::vector<float> data_fp32(len);
+                for (int i = 0; i < len; i++)
+                {
+                    data_fp32[i] = p[i] ? 1.f : 0.f;
+                }
+
+                fwrite(data_fp32.data(), data_fp32.size() * sizeof(float), 1, binfp);
+                continue;
+            }
             if (attr.type == 5) // i64 --> i32
             {
                 const int64_t* p = (const int64_t*)attr.data.data();
