@@ -85,6 +85,15 @@ static ncnn::Layer* create_null_layer(void*)
     return 0;
 }
 
+static ncnn::Layer* create_layer_once(void* userdata)
+{
+    LayerState* state = (LayerState*)userdata;
+    if (state->created != 0)
+        return 0;
+
+    return create_test_layer(userdata);
+}
+
 static bool empty_net(const ncnn::Net& net)
 {
     return net.layers().empty() && net.blobs().empty() && net.input_indexes().empty() && net.output_indexes().empty()
@@ -492,20 +501,44 @@ static int test_null_creators()
         return -1;
     }
 
-    net.register_custom_layer("Test", create_null_layer);
-    net.register_custom_layer("Input", create_null_layer);
-    ret = net.load_param_mem("7767517\n1 1\nTest t 0 1 out\n");
-    if (ret != -1 || !empty_net(net))
+    for (int binary = 0; binary < 2; binary++)
     {
-        fprintf(stderr, "test_net null custom creator failed ret=%d\n", ret);
-        return -1;
-    }
+        std::vector<unsigned char> data = binary_header(1, 1, ncnn::LayerType::Input, 0, 1);
+        append_int(data, 0);
+        append_int(data, -233);
+        ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem("7767517\n1 1\nInput t 0 1 out\n");
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_net builtin without override failed binary=%d ret=%d\n", binary, ret);
+            return -1;
+        }
+        net.clear();
 
-    ret = net.load_param_mem("7767517\n1 1\nInput t 0 1 out\n");
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_net null overwritten creator fallback failed ret=%d\n", ret);
-        return -1;
+        for (int builtin = 0; builtin < 2; builtin++)
+        {
+            for (int null_function = 0; null_function < 2; null_function++)
+            {
+                LayerState state;
+                ncnn::Net net;
+                const int typeindex = builtin ? ncnn::LayerType::Input : ncnn::LayerType::CustomBit;
+                ncnn::layer_creator_func creator = null_function ? 0 : create_null_layer;
+                if (binary)
+                    net.register_custom_layer(typeindex, creator, destroy_test_layer, &state);
+                else
+                    net.register_custom_layer(builtin ? "Input" : "Test", creator, destroy_test_layer, &state);
+
+                std::vector<unsigned char> data = binary_header(1, 1, typeindex, 0, 1);
+                append_int(data, 0);
+                append_int(data, -233);
+                const char* text = builtin ? "7767517\n1 1\nInput t 0 1 out\n" : "7767517\n1 1\nTest t 0 1 out\n";
+                ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
+                if (ret != -1 || !empty_net(net) || state.created != 0 || state.destroyed != 0)
+                {
+                    fprintf(stderr, "test_net null creator failed binary=%d builtin=%d null_function=%d ret=%d created=%d destroyed=%d\n", binary, builtin, null_function, ret, state.created, state.destroyed);
+                    return -1;
+                }
+            }
+        }
     }
 
     return 0;
@@ -573,6 +606,37 @@ static int test_recreate_layer()
             }
         }
     }
+    return 0;
+}
+
+static int test_recreate_layer_null_creator()
+{
+    for (int binary = 0; binary < 2; binary++)
+    {
+        for (int builtin = 0; builtin < 2; builtin++)
+        {
+            LayerState state;
+            state.support_vulkan = true;
+            ncnn::Net net;
+            const int typeindex = builtin ? ncnn::LayerType::Input : ncnn::LayerType::CustomBit;
+            if (binary)
+                net.register_custom_layer(typeindex, create_layer_once, destroy_test_layer, &state);
+            else
+                net.register_custom_layer(builtin ? "Input" : "Test", create_layer_once, destroy_test_layer, &state);
+
+            std::vector<unsigned char> data = binary_header(1, 1, typeindex, 0, 1);
+            append_int(data, 0);
+            append_int(data, -233);
+            const char* text = builtin ? "7767517\n1 1\nInput t 0 1 out\n" : "7767517\n1 1\nTest t 0 1 out\n";
+            int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
+            if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
+            {
+                fprintf(stderr, "test_net null cpu creator failed binary=%d builtin=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, builtin, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                return -1;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -774,6 +838,7 @@ int main()
            || test_null_creators()
            || test_shape_layout()
            || test_recreate_layer()
+           || test_recreate_layer_null_creator()
            || test_external_input()
            || test_binary_layer_types()
            || test_binary_param_types()

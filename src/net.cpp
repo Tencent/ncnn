@@ -52,6 +52,7 @@ public:
     int do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
+    int find_overwrite_builtin_layer_index(int typeindex) const;
     void clear_layers();
     void destroy_layer(Layer* layer);
     int load_shape_hints(Layer* layer, const ParamDict& pd);
@@ -1535,6 +1536,12 @@ int Net::load_param(const DataReader& dr)
         }
 
         Layer* layer = create_overwrite_builtin_layer(layer_type);
+        if (!layer && d->find_overwrite_builtin_layer_index(layer_to_index(layer_type)) != -1)
+        {
+            NCNN_LOGE("create overwritten layer %s failed", layer_type);
+            d->clear_layers();
+            return -1;
+        }
 #if NCNN_VULKAN
         if (!layer && opt.use_vulkan_compute && d->vkdev)
         {
@@ -1667,6 +1674,12 @@ int Net::load_param(const DataReader& dr)
         {
             // vulkan layer cannot handle these param, recreate cpu layer
             Layer* layer_cpu = create_overwrite_builtin_layer(layer_type);
+            if (!layer_cpu && d->find_overwrite_builtin_layer_index(layer_to_index(layer_type)) != -1)
+            {
+                NCNN_LOGE("create overwritten layer %s failed", layer_type);
+                d->clear_layers();
+                return -1;
+            }
             if (!layer_cpu)
             {
                 layer_cpu = create_layer_cpu(layer_type);
@@ -1921,6 +1934,12 @@ int Net::load_param_bin(const DataReader& dr)
         }
 
         Layer* layer = create_overwrite_builtin_layer(typeindex);
+        if (!layer && d->find_overwrite_builtin_layer_index(typeindex) != -1)
+        {
+            NCNN_LOGE("create overwritten layer %d failed", typeindex);
+            d->clear_layers();
+            return -1;
+        }
 #if NCNN_VULKAN
         if (!layer && opt.use_vulkan_compute && d->vkdev)
         {
@@ -2039,6 +2058,12 @@ int Net::load_param_bin(const DataReader& dr)
         {
             // vulkan layer cannot handle these param, recreate cpu layer
             Layer* layer_cpu = create_overwrite_builtin_layer(typeindex);
+            if (!layer_cpu && d->find_overwrite_builtin_layer_index(typeindex) != -1)
+            {
+                NCNN_LOGE("create overwritten layer %d failed", typeindex);
+                d->clear_layers();
+                return -1;
+            }
             if (!layer_cpu)
             {
                 layer_cpu = create_layer_cpu(typeindex);
@@ -2566,6 +2591,17 @@ int Net::load_model(AAssetManager* mgr, const char* assetpath)
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PLATFORM_API
 
+int NetPrivate::find_overwrite_builtin_layer_index(int typeindex) const
+{
+    for (size_t i = 0; i < overwrite_builtin_layer_registry.size(); i++)
+    {
+        if (overwrite_builtin_layer_registry[i].typeindex == typeindex)
+            return static_cast<int>(i);
+    }
+
+    return -1;
+}
+
 void NetPrivate::destroy_layer(Layer* layer)
 {
     if (layer->typeindex & ncnn::LayerType::CustomBit)
@@ -2583,16 +2619,7 @@ void NetPrivate::destroy_layer(Layer* layer)
     else
     {
         // check overwrite builtin layer destroyer
-        int index = -1;
-        const size_t overwrite_builtin_layer_registry_entry_count = overwrite_builtin_layer_registry.size();
-        for (size_t i = 0; i < overwrite_builtin_layer_registry_entry_count; i++)
-        {
-            if (overwrite_builtin_layer_registry[i].typeindex == layer->typeindex)
-            {
-                index = i;
-                break;
-            }
-        }
+        int index = find_overwrite_builtin_layer_index(layer->typeindex);
 
         if (index != -1 && overwrite_builtin_layer_registry[index].destroyer)
         {
@@ -2825,16 +2852,7 @@ Layer* Net::create_custom_layer(int index)
 
 Layer* Net::create_overwrite_builtin_layer(int typeindex)
 {
-    int index = -1;
-    const size_t overwrite_builtin_layer_registry_entry_count = d->overwrite_builtin_layer_registry.size();
-    for (size_t i = 0; i < overwrite_builtin_layer_registry_entry_count; i++)
-    {
-        if (d->overwrite_builtin_layer_registry[i].typeindex == typeindex)
-        {
-            index = i;
-            break;
-        }
-    }
+    int index = d->find_overwrite_builtin_layer_index(typeindex);
 
     if (index == -1)
         return 0;
