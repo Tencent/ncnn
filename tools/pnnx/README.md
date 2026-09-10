@@ -31,14 +31,14 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PyTorch model to PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
 
 # Usage
 
-1. Export your model to TorchScript
+1. Export your model to TorchScript or ExportedProgram
 
 ```python
 import torch
@@ -56,10 +56,37 @@ mod = torch.jit.trace(net, x)
 mod.save("resnet18.pt")
 ```
 
-2. Convert TorchScript to PNNX
+ExportedProgram requires PyTorch 2.6 or newer.
+
+```python
+ep = torch.export.export(net, (x,))
+torch.export.save(ep, "resnet18.pt2")
+```
+
+2. Convert the model to PNNX
 
 ```shell
 pnnx resnet18.pt inputshape=[1,3,224,224]
+```
+
+ExportedProgram already contains input metadata, so no extra arguments are needed for a static model.
+
+```shell
+pnnx resnet18.pt2
+```
+
+## ExportedProgram support
+
+`pnnx` accepts the legacy ExportedProgram ZIP container produced by PyTorch 2.6 and 2.7, and the PT2 Archive v0 container produced by PyTorch 2.8 through 2.12.1. The supported program schema is major 8 with tested minors 2, 7, 8, 14, 15, 17, and 20, using ATen opset 10. The converter supports tensor user inputs and outputs, dense strided CPU tensor weights, and static or profile-bound symbolic input shapes. Input and output PyTrees are flattened in their exported leaf order; container types and dictionary keys are not preserved in the generated pnnx or ncnn interface.
+
+The libtorch version used to build `pnnx` supplies the dispatcher schemas and determines which PT2 operators can be lowered. PT2 conversion only supports `device=cpu`. Runtime assertions that cannot be resolved statically remain as `pnnx.Assert` in the pnnx graph and are removed before saving the ncnn graph.
+
+An unknown container, schema, opset, operator, tensor layout/device, mutation output, or symbolic expression fails conversion with a nonzero exit status. PNNX does not silently fall back to TorchScript parsing or guess a newer PT2 format.
+
+The PT2 release acceptance suite covers every enabled PT2 test, runtime-generated archive, program, weight and graph cases, malformed inputs, dynamic shapes, generated pnnx inference, and generated ncnn inference. Archive, program, weight, malformed-input, and dynamic-shape tests run with PyTorch 2.12.1; the PyTorch 2.6 through 2.12.1 CI matrix runs the PT2 operator suite against every supported producer version. It requires a supported PyTorch version and the complete ncnn Python binding:
+
+```shell
+ctest --output-on-failure -L pt2
 ```
 
 Normally, you will get seven files
@@ -85,7 +112,7 @@ Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
 4. PNNX command line options
 
 ```
-Usage: pnnx [model.pt] [(key=value)...]
+Usage: pnnx [model.pt|model.pt2|model.onnx] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
@@ -101,6 +128,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...
   moduleop=models.common.Focus,models.yolo.Detect,...
 Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
+              pnnx resnet18.pt2
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 

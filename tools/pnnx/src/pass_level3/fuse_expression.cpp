@@ -105,6 +105,9 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]);
     }
 
+    if (op->type == "Tensor.item")
+        return false;
+
     if (op->type == "Tensor.to" || op->type == "aten::detach")
     {
         return operand_maybe_tensor(op->inputs[0]);
@@ -936,6 +939,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                 }
 
                 op->inputs = inputs;
+                op->inputnames.clear();
 
                 for (Operand* operand : op->inputs)
                 {

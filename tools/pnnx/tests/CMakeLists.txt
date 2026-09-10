@@ -1,5 +1,6 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import torch; print(torch.__version__.split('+')[0])" OUTPUT_VARIABLE PYTHON_TORCH_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 
 macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
@@ -417,6 +418,10 @@ pnnx_add_test(transformers_t5_attention)
 pnnx_add_test(transformers_xlm_attention)
 pnnx_add_test(transformers_xlm_roberta_attention)
 pnnx_add_test(transformers_xlnet_attention)
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.6" AND PYTHON_TORCH_VERSION VERSION_GREATER_EQUAL "2.6")
+    add_subdirectory(pt2)
+endif()
 
 add_subdirectory(ncnn)
 

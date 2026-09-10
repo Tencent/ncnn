@@ -11,6 +11,16 @@
 
 namespace pnnx {
 
+uint16_t read_le16(const unsigned char* p);
+uint32_t read_le32(const unsigned char* p);
+
+bool is_little_endian();
+
+std::string trim_ascii_whitespace(const std::string& value);
+std::string trim_ascii_whitespace(const std::vector<unsigned char>& value);
+
+int scalar_type_to_pnnx(int type);
+
 unsigned short float32_to_float16(float value);
 
 float float16_to_float32(unsigned short value);

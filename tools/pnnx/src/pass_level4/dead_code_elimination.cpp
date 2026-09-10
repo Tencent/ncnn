@@ -16,7 +16,7 @@ void dead_code_elimination(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type == "pnnx.Output")
+            if (op->type == "pnnx.Output" || op->type == "pnnx.Assert")
                 continue;
 
             int consumers = 0;

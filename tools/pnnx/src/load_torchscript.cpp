@@ -3,12 +3,6 @@
 
 #include "load_torchscript.h"
 
-#if _WIN32
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
-
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/version.h>
 #include <torch/csrc/jit/serialization/import_read.h>
@@ -627,7 +621,6 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::vector<std::vector<int64_t> >& input_shapes2,
                      const std::vector<std::string>& input_types2,
                      const std::vector<std::vector<char> >& input_contents2,
-                     const std::vector<std::string>& customop_modules,
                      const std::vector<std::string>& module_operators,
                      const std::string& foldable_constants_zippath,
                      std::set<std::string>& foldable_constants)
@@ -668,24 +661,6 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     // call some vision api to register vision ops  :P
     (void)vision::cuda_version();
 #endif
-
-    for (auto m : customop_modules)
-    {
-        fprintf(stderr, "load custom module %s\n", m.c_str());
-#if _WIN32
-        HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-        if (!handle)
-        {
-            fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
-        }
-#else
-        void* handle = dlopen(m.c_str(), RTLD_LAZY);
-        if (!handle)
-        {
-            fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
-        }
-#endif
-    }
 
     std::vector<at::Tensor> input_tensors;
     if (!input_contents.empty())
