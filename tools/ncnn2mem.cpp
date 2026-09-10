@@ -67,6 +67,29 @@ static bool write_param(FILE* fp, const void* data, size_t size)
     return true;
 }
 
+// numeric fields in binary params use little-endian 32-bit words
+static bool write_param_32(FILE* fp, const void* data, size_t size)
+{
+#if __BIG_ENDIAN__
+    const unsigned char* ptr = (const unsigned char*)data;
+    while (size > 0)
+    {
+        unsigned char buffer[1024];
+        const size_t n = size < sizeof(buffer) ? size : sizeof(buffer);
+        memcpy(buffer, ptr, n);
+        for (size_t i = 0; i < n; i += 4)
+            ncnn::swap_endianness_32(buffer + i);
+        if (!write_param(fp, buffer, n))
+            return false;
+        ptr += n;
+        size -= n;
+    }
+    return true;
+#else
+    return write_param(fp, data, size);
+#endif
+}
+
 static int close_file(FILE* fp, const char* path)
 {
     // fclose may report a buffered write failure even when earlier writes succeeded
@@ -106,13 +129,13 @@ static int dump_param_values(FILE* fp, FILE* mp)
         if (type == 2)
         {
             const int value = pd.get(id, 0);
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &value, sizeof(int)))
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(int)))
                 return -1;
         }
         else if (type == 3)
         {
             const float value = pd.get(id, 0.f);
-            if (!write_param(mp, &id, sizeof(int)) || !write_param(mp, &value, sizeof(float)))
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(float)))
                 return -1;
         }
         else if (type == 4 || type == 5 || type == 6)
@@ -120,9 +143,9 @@ static int dump_param_values(FILE* fp, FILE* mp)
             const ncnn::Mat value = pd.get(id, ncnn::Mat());
             const int encoded_id = -id - 23300;
             const int len = value.w;
-            if (!write_param(mp, &encoded_id, sizeof(int)) || !write_param(mp, &len, sizeof(int)))
+            if (!write_param_32(mp, &encoded_id, sizeof(int)) || !write_param_32(mp, &len, sizeof(int)))
                 return -1;
-            if (len > 0 && !write_param(mp, value.data, (size_t)len * sizeof(float)))
+            if (len > 0 && !write_param_32(mp, value.data, (size_t)len * sizeof(float)))
                 return -1;
         }
         else if (type == 7)
@@ -132,7 +155,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
             const int len = (int)value.size();
             const char padding[3] = {0};
             const int padding_size = (4 - len % 4) % 4;
-            if (!write_param(mp, &encoded_id, sizeof(int)) || !write_param(mp, &len, sizeof(int))
+            if (!write_param_32(mp, &encoded_id, sizeof(int)) || !write_param_32(mp, &len, sizeof(int))
                     || !write_param(mp, value.data(), len) || !write_param(mp, padding, padding_size))
                 return -1;
         }
@@ -144,7 +167,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
     }
 
     const int eop = -233;
-    return write_param(mp, &eop, sizeof(int)) ? 0 : -1;
+    return write_param_32(mp, &eop, sizeof(int)) ? 0 : -1;
 }
 
 static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, const char* idcpppath)
@@ -170,7 +193,7 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
         fprintf(stderr, "param is too old, please regenerate\n");
         return -1;
     }
-    if (!write_param(mp, &magic, sizeof(int)))
+    if (!write_param_32(mp, &magic, sizeof(int)))
         return -1;
 
     int layer_count = 0;
@@ -186,7 +209,7 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
         fprintf(stderr, "invalid layer_count or blob_count\n");
         return -1;
     }
-    if (!write_param(mp, &layer_count, sizeof(int)) || !write_param(mp, &blob_count, sizeof(int)))
+    if (!write_param_32(mp, &layer_count, sizeof(int)) || !write_param_32(mp, &blob_count, sizeof(int)))
         return -1;
 
     blob_names.resize(blob_count);
@@ -235,8 +258,8 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
                 typeindex = ncnn::LayerType::CustomBit | j;
             }
         }
-        if (!write_param(mp, &typeindex, sizeof(int))
-                || !write_param(mp, &bottom_count, sizeof(int)) || !write_param(mp, &top_count, sizeof(int)))
+        if (!write_param_32(mp, &typeindex, sizeof(int))
+                || !write_param_32(mp, &bottom_count, sizeof(int)) || !write_param_32(mp, &top_count, sizeof(int)))
             return -1;
 
         fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
@@ -258,7 +281,7 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
             if (bottom_blob_index < 0)
                 return -1;
 
-            if (!write_param(mp, &bottom_blob_index, sizeof(int)))
+            if (!write_param_32(mp, &bottom_blob_index, sizeof(int)))
                 return -1;
         }
 
@@ -279,7 +302,7 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
 
             fprintf(ip, "const int BLOB_%s = %d;\n", blob_name, blob_index);
 
-            if (!write_param(mp, &blob_index, sizeof(int)))
+            if (!write_param_32(mp, &blob_index, sizeof(int)))
                 return -1;
 
             blob_index++;

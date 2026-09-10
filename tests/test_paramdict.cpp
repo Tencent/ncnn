@@ -1166,6 +1166,42 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
     return 0;
 }
 
+static int test_paramdict_reload_after_failure()
+{
+    for (int binary = 0; binary < 2; binary++)
+    {
+        ParamDictTest pd;
+        pd.set(9, 99);
+
+        // the first scalar is valid, but the second value is invalid or missing
+        std::vector<unsigned char> data;
+        append_param_word(data, 0);
+        append_param_word(data, 1);
+        append_param_word(data, 1);
+        BoundedParamReader truncated(&data[0], data.size());
+        const int ret = binary ? pd.load_param_bin(truncated) : pd.load_param("0=1 1=1e+");
+        if (ret == 0 || pd.get(0, 0) != 1 || pd.type(1) != 0 || pd.type(9) != 0)
+        {
+            fprintf(stderr, "ParamDict failed load state failed binary=%d\n", binary);
+            return -1;
+        }
+
+        // reloading must discard the partial result of the failed load
+        data.clear();
+        append_param_word(data, 4);
+        append_param_word(data, 7);
+        append_param_word(data, -233);
+        BoundedParamReader valid(&data[0], data.size());
+        const int reload_ret = binary ? pd.load_param_bin(valid) : pd.load_param("4=7");
+        if (reload_ret != 0 || check_reloaded_params(pd, 4, 7))
+        {
+            fprintf(stderr, "ParamDict reload after failure failed binary=%d\n", binary);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int test_paramdict_reload()
 {
     // the next layer name is independent of parameter syntax, even with no parameters
@@ -1367,5 +1403,6 @@ int main()
            || test_paramdict_text_boundaries()
            || test_paramdict_float_boundaries()
            || test_paramdict_reload()
+           || test_paramdict_reload_after_failure()
            || test_paramdict_binary_bounds();
 }

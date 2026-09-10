@@ -41,10 +41,10 @@ key index should be unique in each layer line, pair can be omitted if the defaul
 
 the meaning of existing param key index can be looked up at [operation-param-weight-table](operation-param-weight-table)
 
-* integer or float key : index 0 ~ 19
+* integer or float key : index 0 ~ 31
 * integer value : int
 * float value : float
-* integer array or float array key : -23300 minus index 0 ~ 19
+* integer array or float array key : -23300 minus index 0 ~ 31
 * integer array value : [array size],int,int,...,int
 * float array value : [array size],float,float,...,float
 

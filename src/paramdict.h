@@ -58,6 +58,7 @@ protected:
 
     void clear();
 
+    // failed loads may leave partially parsed parameters; discard them or load again
     int load_param(const DataReader& dr);
     int load_param_bin(const DataReader& dr);
 
