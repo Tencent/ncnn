@@ -18,6 +18,11 @@ Softmax       softmax  1 1 fc prob 0=0
 * layer count : count of the layer line follows, should be exactly the count of all layer names
 * blob count : count of all blobs, usually greater than or equals to the layer count
 ### layer line
+
+each layer must occupy exactly one physical line, including all blob names and parameters; do not split a layer across lines or put multiple layers on the same line
+
+Custom `DataReader::scan()` implementations and C API `ncnn_datareader_t::scan` callbacks must follow scanf conversion and input consumption rules, including field widths and scansets. Parameter parsing uses `%1023[^\r\n]` to read up to 1023 characters without skipping leading whitespace or consuming CR/LF, repeating the scan for longer lines. A successful scanset conversion must append a null terminator and return 1. Returning 0 for an unsupported format can be interpreted as an empty parameter list and silently select default parameter values.
+
 ```
 [layer type] [layer name] [input count] [output count] [input blobs] [output blobs] [layer specific params]
 ```
@@ -36,12 +41,20 @@ key index should be unique in each layer line, pair can be omitted if the defaul
 
 the meaning of existing param key index can be looked up at [operation-param-weight-table](operation-param-weight-table)
 
-* integer or float key : index 0 ~ 19
+* integer or float key : index 0 ~ 31
 * integer value : int
 * float value : float
-* integer array or float array key : -23300 minus index 0 ~ 19
+* integer array or float array key : -23300 minus index 0 ~ 31
 * integer array value : [array size],int,int,...,int
 * float array value : [array size],float,float,...,float
+
+Use a decimal point or exponent when generating floating-point scalar values, including integral values, for example `1=6.0`, `1=6e0`, or `1=0.0`. When loading text parameters, the float getter also converts integer spellings such as `1=6` and `1=0` to `6.0f` and `0.0f`. The int getter does not convert floating-point parameters to integers.
+
+Keep floating-point spellings when converting models with `ncnn2mem`: binary scalar parameters do not retain integer/float type tags, and the converter writes integer spellings as integer bit patterns without this numeric conversion.
+
+Use a decimal point or exponent for every element of a floating-point array, including integral values, for example `-23303=2,1.0,2.0`. Mixed integer and float element spellings within an array are not defined by the format.
+
+A zero-length array such as `-23300=0` explicitly supplies an empty array. Array getters return that empty array even when a nonempty default is supplied; omitting the parameter returns the default.
 
 In modern ncnn param file
 
