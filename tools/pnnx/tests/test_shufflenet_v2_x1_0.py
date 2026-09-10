@@ -3,7 +3,7 @@
 
 import torch
 import torchvision.models as models
-from packaging import version
+from pnnx_test_utils import test_model_formats
 
 def test():
     net = models.shufflenet_v2_x1_0()
@@ -14,22 +14,13 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_shufflenet_v2_x1_0.pt")
-
-    # torchscript to pnnx
-    import os
-    if version.parse(torch.__version__) >= version.parse('2.0'):
-        os.system("../src/pnnx test_shufflenet_v2_x1_0.pt")
-    else:
-        os.system("../src/pnnx test_shufflenet_v2_x1_0.pt inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_shufflenet_v2_x1_0_pnnx
-    b = test_shufflenet_v2_x1_0_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_shufflenet_v2_x1_0",
+        lambda expected, actual: torch.allclose(expected, actual, 1e-4, 1e-4),
+    )
 
 if __name__ == "__main__":
     if test():

@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -23,23 +25,13 @@ def test():
     x = torch.randint(10, (16,), dtype=torch.int)
 
     a = net(x)
-
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_torch_arange.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_arange.pt inputshape=[16]i32")
-
-    # pnnx inference
-    import test_torch_arange_pnnx
-    b = test_torch_arange_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_torch_arange",
+        unsupported_by_torch_export="Could not guard on data-dependent expression",
+    )
 
 if __name__ == "__main__":
     if test():

@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -28,19 +30,7 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_ConstantPad1d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_ConstantPad1d.pt inputshape=[1,12,13]")
-
-    # pnnx inference
-    import test_nn_ConstantPad1d_pnnx
-    b = test_nn_ConstantPad1d_pnnx.test_inference()
-
-    return torch.equal(a, b)
+    return test_model_formats(net, (x,), a, "test_nn_ConstantPad1d")
 
 if __name__ == "__main__":
     if test():

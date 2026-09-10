@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 from packaging import version
 
 class Model(nn.Module):
@@ -26,20 +28,12 @@ def test():
     y = torch.randint(10, (3, 16), dtype=torch.int)
 
     a = net(x, y)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_torch_bitwise_right_shift.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_bitwise_right_shift.pt inputshape=[3,16]i32,[3,16]i32")
-
-    # pnnx inference
-    import test_torch_bitwise_right_shift_pnnx
-    b = test_torch_bitwise_right_shift_pnnx.test_inference()
-
-    return torch.equal(a, b)
+    return test_model_formats(
+        net,
+        (x, y),
+        a,
+        "test_torch_bitwise_right_shift",
+    )
 
 if __name__ == "__main__":
     if test():

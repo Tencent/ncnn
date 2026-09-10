@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 from packaging import version
 
 class Model(nn.Module):
@@ -38,19 +40,7 @@ def test():
 
     a0, a1 = net(x, w0, w1, b1, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, w0, w1, b1, y))
-    mod.save("test_F_conv1d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_conv1d.pt inputshape=[1,12,52],[16,12,3],[16,8,5],[16],[1,6,25]")
-
-    # pnnx inference
-    import test_F_conv1d_pnnx
-    b0, b1 = test_F_conv1d_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    return test_model_formats(net, (x, w0, w1, b1, y), (a0, a1), "test_F_conv1d")
 
 if __name__ == "__main__":
     if test():

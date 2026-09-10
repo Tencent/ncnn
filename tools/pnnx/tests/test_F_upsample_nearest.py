@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -30,22 +32,7 @@ def test():
 
     a = net(x, y, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, w))
-    mod.save("test_F_upsample_nearest.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_upsample_nearest.pt inputshape=[1,12,24,64],[1,4,10,24,32],[1,8,86,86]")
-
-    # pnnx inference
-    import test_F_upsample_nearest_pnnx
-    b = test_F_upsample_nearest_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, w), a, "test_F_upsample_nearest")
 
 if __name__ == "__main__":
     if test():

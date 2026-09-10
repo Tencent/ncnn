@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -147,22 +149,7 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_nn_Upsample.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,12,12]")
-
-    # pnnx inference
-    import test_nn_Upsample_pnnx
-    b = test_nn_Upsample_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, z, w), a, "test_nn_Upsample")
 
 if __name__ == "__main__":
     if test():

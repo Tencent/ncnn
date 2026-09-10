@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import CLIPTextConfig, CLIPVisionConfig
 from transformers.models.clip.modeling_clip import CLIPAttention
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -80,22 +82,16 @@ def test():
 
     a = net(x, y, mask0, casual_mask0, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, mask0, casual_mask0, z))
-    mod.save("test_transformers_clip_attention.pt")
+    def compare(output, expected):
+        return torch.allclose(output, expected, 1e-4, 1e-4)
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_transformers_clip_attention.pt inputshape=[3,16,192],[2,5,66],[2,1,5,5],[2,1,5,5],[2,10,14]")
-
-    # pnnx inference
-    import test_transformers_clip_attention_pnnx
-    b = test_transformers_clip_attention_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y, mask0, casual_mask0, z),
+        a,
+        "test_transformers_clip_attention",
+        compare,
+    )
 
 if __name__ == "__main__":
     if test():

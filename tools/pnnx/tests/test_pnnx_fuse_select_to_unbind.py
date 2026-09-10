@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -37,22 +39,7 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_select_to_unbind.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_select_to_unbind.pt inputshape=[3,4,5]")
-
-    # pnnx inference
-    import test_pnnx_fuse_select_to_unbind_pnnx
-    b = test_pnnx_fuse_select_to_unbind_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x,), a, "test_pnnx_fuse_select_to_unbind")
 
 if __name__ == "__main__":
     if test():

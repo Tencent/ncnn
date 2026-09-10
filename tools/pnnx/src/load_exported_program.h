@@ -1,0 +1,24 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#ifndef PNNX_LOAD_EXPORTED_PROGRAM_H
+#define PNNX_LOAD_EXPORTED_PROGRAM_H
+
+#include <string>
+
+#include "exported_program.h"
+#include "ir.h"
+
+namespace pnnx {
+
+int load_exported_program(const std::string& path, Graph& graph,
+                          const std::vector<std::vector<int64_t> >& input_shapes,
+                          const std::vector<std::vector<int64_t> >& input_shapes2);
+int import_exported_program_inputs(const pt2::ExportedProgramArchive& archive, Graph& graph, std::string& error);
+int import_exported_program_nodes(const pt2::ExportedProgram& program, Graph& graph, std::string& error);
+int import_exported_program_outputs(const pt2::ExportedProgram& program, Graph& graph, std::string& error);
+bool validate_exported_program_input_shapes(const pt2::ExportedProgram& program, const std::vector<std::vector<int64_t> >& input_shapes, std::string& error);
+
+} // namespace pnnx
+
+#endif // PNNX_LOAD_EXPORTED_PROGRAM_H
