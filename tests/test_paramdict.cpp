@@ -839,7 +839,7 @@ static int test_paramdict_invalid_text()
 static int test_paramdict_text_boundaries()
 {
     ParamDictTest pd;
-    const char* text = "0=-2147483648\t1=2147483647\r\n2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
+    const char* text = "0=-2147483648\t1=2147483647 2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
     if (check_text_result(text, true) || pd.load_param(text))
         return -1;
     if (pd.get(0, 0) != INT_MIN || pd.get(1, 0) != INT_MAX
@@ -884,8 +884,35 @@ static int test_paramdict_text_boundaries()
         }
     }
 
-    // exercise array growth and the final copy for both element types
-    const int array_lengths[] = {16, 17, 32, 33, 257};
+    // lines may end at a read-buffer boundary or split a quoted/numeric token across it
+    const int line_lengths[] = {1022, 1023, 1024, 1035, 1048, 2046, 2047};
+    for (size_t j = 0; j < sizeof(line_lengths) / sizeof(line_lengths[0]); j++)
+        for (int leading = 0; leading < 2; leading++)
+        {
+            const char* params = "0=\"hello world\" 1=1.25,2.5 2=42";
+            const std::string padding = make_param_string(line_lengths[j] - strlen(params), ' ');
+            std::string input = leading ? padding : std::string(params);
+            input += leading ? std::string(params) : padding;
+            input += "\r\n+Probe next 1 1 in out\n";
+            const unsigned char* ptr = (const unsigned char*)input.c_str();
+            ncnn::DataReaderFromMemory dr(ptr);
+            if (pd.load_param(dr) || pd.get(0, std::string()) != "hello world" || pd.get(2, 0) != 42)
+            {
+                fprintf(stderr, "ParamDict long line failed len=%d leading=%d\n", line_lengths[j], leading);
+                return -1;
+            }
+            const ncnn::Mat values = pd.get(1, ncnn::Mat());
+            char header[64];
+            if (values.w != 2 || values[0] != 1.25f || values[1] != 2.5f
+                    || dr.scan(" %63[^\r\n]", header) != 1 || strcmp(header, "+Probe next 1 1 in out"))
+            {
+                fprintf(stderr, "ParamDict long line array or next header failed\n");
+                return -1;
+            }
+        }
+
+    // exercise stack storage, array growth and the final copy for both element types
+    const int array_lengths[] = {1, 15, 16, 17, 31, 32, 33, 257, 1024};
     for (size_t j = 0; j < sizeof(array_lengths) / sizeof(array_lengths[0]); j++)
         for (int floating = 0; floating < 2; floating++)
         {
@@ -896,6 +923,8 @@ static int test_paramdict_text_boundaries()
                 snprintf(value, sizeof(value), "%s%d%s", i ? "," : "", i, floating ? ".0" : "");
                 input += value;
             }
+            if (array_lengths[j] == 1)
+                input += ",";
             input += " 1=42";
             if (check_text_result(input.c_str(), true) || pd.load_param(input.c_str()) || pd.get(1, 0) != 42)
             {
@@ -952,7 +981,7 @@ static int check_float_boundary(const char* text, float expected, int count, boo
 
 static int test_paramdict_float_boundaries()
 {
-    // combining the comma scan must retain the full numeric token limit
+    // old array elements retain the full numeric token limit
     for (int len = 127; len <= 128; len++)
     {
         std::string text = "-23300=1,0.";
@@ -1072,9 +1101,9 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
         return -1;
     }
 
-    // leave each following layer header for the caller, including after a failed scan
-    char header[64];
-    if (!binary && (dr.scan(" %63[^\r\n]", header) != 1 || strcmp(header, "ReLU next 1 1 in out")))
+    // read each following header without consuming its parameters on the same line
+    char header[64] = {0};
+    if (!binary && (dr.scan(" %20c", header) != 1 || strcmp(header, "ReLU next 1 1 in out")))
     {
         fprintf(stderr, "ParamDict next layer header failed\n");
         return -1;
@@ -1086,7 +1115,7 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
         return -1;
     }
 
-    if (!binary && (dr.scan(" %63[^\r\n]", header) != 1 || strcmp(header, "Clip last 1 1 out final")))
+    if (!binary && (dr.scan(" %23c", header) != 1 || strcmp(header, "Clip last 1 1 out final")))
     {
         fprintf(stderr, "ParamDict last layer header failed\n");
         return -1;
@@ -1107,8 +1136,8 @@ static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
 
 static int test_paramdict_reload()
 {
-    // a literal '-' in the id scanset must not consume punctuation in layer types
-    const char* headers[] = {".Custom next 1 1 in out", "/Custom next 1 1 in out", ",Custom next 1 1 in out"};
+    // the next layer name is independent of parameter syntax, even with no parameters
+    const char* headers[] = {".Custom next 1 1 in out", "/Custom next 1 1 in out", ",Custom next 1 1 in out", "+Probe next 1 1 in out", "-Probe next 1 1 in out", "123Probe next 1 1 in out"};
     for (size_t i = 0; i < sizeof(headers) / sizeof(headers[0]); i++)
         for (int empty = 0; empty < 2; empty++)
         {
@@ -1136,8 +1165,8 @@ static int test_paramdict_reload()
             }
         }
 
-    const char* text = "0=42 1=1.5 2=3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
-    const char* old_array_text = "0=42 1=1.5 -23302=2,3,4 3=hello 31=31\r\nReLU next 1 1 in out\r\n4=7\r\nClip last 1 1 out final\r\n";
+    const char* text = "0=42 1=1.5 2=3,4 3=hello 31=31\r\nReLU next 1 1 in out 4=7\r\nClip last 1 1 out final\r\n";
+    const char* old_array_text = "0=42 1=1.5 -23302=2,3,4 3=hello 31=31\r\nReLU next 1 1 in out 4=7\r\nClip last 1 1 out final\r\n";
 
     // three consecutive parameter blocks, with no parameters in the last block
     const int words[] = {0, 42, 1, 0x3fc00000, -23302, 2, 3, 4, -23403, 5, 0x6c6c6568, 0x6f, 31, 31, -233, 4, 7, -233, -233};

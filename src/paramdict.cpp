@@ -359,34 +359,71 @@ static bool vstr_to_float(const char* p, float& value)
     return true;
 }
 
-static int scan_numeric_value(const DataReader& dr, char vstr[128], bool comma = false)
+static bool param_space(char c)
 {
-    if (dr.scan(comma ? ",%127[^, \t\r\n\v\f]" : "%127[^, \t\r\n\v\f]", vstr) != 1)
-        return 0;
+    return c == ' ' || c == '\t' || c == '\v' || c == '\f';
+}
 
-    // a field-width limit must not silently split a numeric token
-    char extra[2];
-    if (strlen(vstr) == 127 && dr.scan("%1[^, \t\r\n\v\f]", extra) == 1)
-        return -1;
+static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false)
+{
+    if (comma)
+    {
+        if (*p != ',')
+            return 0;
+        p++;
+    }
 
-    return 1;
+    int len = 0;
+    while (*p && *p != ',' && !param_space(*p))
+    {
+        if (len == 127)
+            return -1;
+        vstr[len++] = *p++;
+    }
+    vstr[len] = '\0';
+    return len > 0 ? 1 : 0;
 }
 
 int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
-    // require '=' separately: a successful numeric conversion alone does not validate "id="
-    char idstr[16];
-    while (dr.scan(" %15[-+0123456789]", idstr) == 1)
+    // each layer occupies one line
+    // leave the newline for the next layer header scan
+    char line[1024] = {0};
+    std::vector<char> long_line;
+    while (dr.scan("%1023[^\r\n]", line) == 1)
     {
+        const size_t len = strlen(line);
+        if (long_line.empty() && len < sizeof(line) - 1)
+            break;
+        long_line.insert(long_line.end(), line, line + len);
+        if (len < sizeof(line) - 1)
+            break;
+    }
+    if (!long_line.empty())
+        long_line.push_back('\0');
+    const char* p = long_line.empty() ? line : long_line.data();
+
+    while (1)
+    {
+        while (param_space(*p))
+            p++;
+        if (!*p)
+            break;
+
+        char idstr[16];
+        int idlen = 0;
+        while ((*p == '-' || *p == '+' || (*p >= '0' && *p <= '9')) && idlen < 15)
+            idstr[idlen++] = *p++;
+        idstr[idlen] = '\0';
         int id;
-        char delimiter[2];
-        if (!vstr_to_int(idstr, id) || dr.scan("%1[=]", delimiter) != 1)
+        if (!vstr_to_int(idstr, id) || *p != '=')
         {
             NCNN_LOGE("ParamDict invalid parameter id or missing equals sign");
             return -1;
         }
+        p++;
 
         const bool old_array = id <= -23300;
         if (old_array)
@@ -402,7 +439,7 @@ int ParamDict::load_param(const DataReader& dr)
         {
             char vstr[128];
             int len;
-            if (scan_numeric_value(dr, vstr) != 1 || !vstr_to_int(vstr, len) || !valid_array_length((size_t)len))
+            if (scan_numeric_value(p, vstr) != 1 || !vstr_to_int(vstr, len) || !valid_array_length((size_t)len))
             {
                 NCNN_LOGE("ParamDict invalid array length (id=%d)", id);
                 return -1;
@@ -418,7 +455,7 @@ int ParamDict::load_param(const DataReader& dr)
             bool is_float = false;
             for (int j = 0; j < len; j++)
             {
-                if (scan_numeric_value(dr, vstr, true) != 1)
+                if (scan_numeric_value(p, vstr, true) != 1)
                 {
                     NCNN_LOGE("ParamDict read array element failed");
                     return -1;
@@ -433,7 +470,7 @@ int ParamDict::load_param(const DataReader& dr)
                 }
             }
             // extra elements are not a new parameter or the next layer
-            if (dr.scan("%1[,]", delimiter) == 1)
+            if (*p == ',')
             {
                 NCNN_LOGE("ParamDict array length mismatch (id=%d)", id);
                 return -1;
@@ -444,26 +481,25 @@ int ParamDict::load_param(const DataReader& dr)
             continue;
         }
 
-        char first[2];
-        if (dr.scan("%1[\"a-zA-Z]", first) == 1)
+        if (*p == '\"' || (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z'))
         {
             char text[256] = {0};
-            const bool quoted = first[0] == '\"';
+            const bool quoted = *p == '\"';
+            if (quoted)
+                p++;
+            int len = 0;
+            while (*p && (quoted ? *p != '\"' : !param_space(*p)) && len < 255)
+                text[len++] = *p++;
             if (quoted)
             {
-                dr.scan("%255[^\"\r\n]", text);
-                if (dr.scan("%1[\"]", delimiter) != 1)
+                if (*p != '\"')
                 {
                     NCNN_LOGE("ParamDict unterminated or too long string (id=%d)", id);
                     return -1;
                 }
+                p++;
             }
-            else
-            {
-                text[0] = first[0];
-                dr.scan("%254[^ \t\r\n\v\f]", text + 1);
-            }
-            if (dr.scan("%1[^ \t\r\n\v\f]", delimiter) == 1)
+            if (*p && !param_space(*p))
             {
                 NCNN_LOGE("ParamDict invalid string suffix or string too long (id=%d)", id);
                 return -1;
@@ -475,7 +511,7 @@ int ParamDict::load_param(const DataReader& dr)
         }
 
         char vstr[128];
-        if (scan_numeric_value(dr, vstr) != 1)
+        if (scan_numeric_value(p, vstr) != 1)
         {
             NCNN_LOGE("ParamDict read value failed");
             return -1;
@@ -490,27 +526,27 @@ int ParamDict::load_param(const DataReader& dr)
             return -1;
         }
 
-        if (dr.scan("%1[,]", delimiter) == 1)
+        if (*p == ',')
         {
-            Mat values(16);
-            if (values.empty())
-            {
-                NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
-                return -1;
-            }
+            p++;
+            // keep short arrays on the stack until their final Mat allocation
+            unsigned char local_values[16 * sizeof(float)];
+            Mat values;
+            unsigned char* data = local_values;
+            int capacity = 16;
             int len = 1;
             if (is_float)
-                ((float*)values)[0] = f;
+                memcpy(data, &f, sizeof(float));
             else
-                ((int*)values)[0] = i;
+                memcpy(data, &i, sizeof(int));
 
             while (1)
             {
-                const int nscan = scan_numeric_value(dr, vstr);
+                const int nscan = scan_numeric_value(p, vstr);
                 // a trailing comma is the established syntax for a one-element array
                 if (nscan == 0)
                 {
-                    if (dr.scan("%1[,]", delimiter) == 1)
+                    if (*p == ',')
                     {
                         NCNN_LOGE("ParamDict missing array element (id=%d, index=%d)", id, len);
                         return -1;
@@ -522,26 +558,29 @@ int ParamDict::load_param(const DataReader& dr)
                     NCNN_LOGE("ParamDict invalid array element (id=%d, index=%d)", id, len);
                     return -1;
                 }
-                if (len == values.w)
+                if (len == capacity)
                 {
-                    const size_t capacity = std::min((size_t)values.w * 2, max_array_length());
-                    Mat grown((int)capacity);
+                    const size_t next_capacity = std::min((size_t)capacity * 2, max_array_length());
+                    Mat grown((int)next_capacity);
                     if (grown.empty())
                     {
                         NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
                         return -1;
                     }
-                    memcpy(grown.data, values.data, (size_t)len * sizeof(float));
+                    memcpy(grown.data, data, (size_t)len * sizeof(float));
                     values = grown;
+                    data = (unsigned char*)values.data;
+                    capacity = (int)next_capacity;
                 }
                 if (is_float)
-                    ((float*)values)[len] = f;
+                    memcpy(data + (size_t)len * sizeof(float), &f, sizeof(float));
                 else
-                    ((int*)values)[len] = i;
+                    memcpy(data + (size_t)len * sizeof(int), &i, sizeof(int));
                 len++;
 
-                if (dr.scan("%1[,]", delimiter) != 1)
+                if (*p != ',')
                     break;
+                p++;
             }
 
             if (len == values.w)
@@ -556,7 +595,7 @@ int ParamDict::load_param(const DataReader& dr)
                     NCNN_LOGE("ParamDict array allocation failed (id=%d)", id);
                     return -1;
                 }
-                memcpy(v.data, values.data, (size_t)len * sizeof(float));
+                memcpy(v.data, data, (size_t)len * sizeof(float));
                 d->params[id].v = v;
             }
             d->params[id].type = is_float ? 6 : 5;

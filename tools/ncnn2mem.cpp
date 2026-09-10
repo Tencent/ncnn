@@ -220,16 +220,29 @@ static bool vstr_to_float(const char* p, float& value)
     return true;
 }
 
-static int scan_numeric_value(FILE* fp, char vstr[128], bool comma = false)
+static bool param_space(char c)
 {
-    if (fscanf(fp, comma ? ",%127[^, \t\r\n\v\f]" : "%127[^, \t\r\n\v\f]", vstr) != 1)
-        return 0;
+    return c == ' ' || c == '\t' || c == '\v' || c == '\f';
+}
 
-    char extra[2];
-    if (strlen(vstr) == 127 && fscanf(fp, "%1[^, \t\r\n\v\f]", extra) == 1)
-        return -1;
+static int scan_numeric_value(const char*& p, char vstr[128], bool comma = false)
+{
+    if (comma)
+    {
+        if (*p != ',')
+            return 0;
+        p++;
+    }
 
-    return 1;
+    int len = 0;
+    while (*p && *p != ',' && !param_space(*p))
+    {
+        if (len == 127)
+            return -1;
+        vstr[len++] = *p++;
+    }
+    vstr[len] = '\0';
+    return len > 0 ? 1 : 0;
 }
 
 static bool parse_numeric_value(const char* vstr, bool is_float, int& value)
@@ -247,16 +260,42 @@ static bool parse_numeric_value(const char* vstr, bool is_float, int& value)
 
 static int dump_param_values(FILE* fp, FILE* mp)
 {
-    char idstr[16];
-    while (fscanf(fp, " %15[-+0123456789]", idstr) == 1)
+    // each layer occupies one line
+    // leave the newline for the next layer header scan
+    char line[1024] = {0};
+    std::vector<char> long_line;
+    while (fscanf(fp, "%1023[^\r\n]", line) == 1)
     {
+        const size_t len = strlen(line);
+        if (long_line.empty() && len < sizeof(line) - 1)
+            break;
+        long_line.insert(long_line.end(), line, line + len);
+        if (len < sizeof(line) - 1)
+            break;
+    }
+    if (!long_line.empty())
+        long_line.push_back('\0');
+    const char* p = long_line.empty() ? line : long_line.data();
+
+    while (1)
+    {
+        while (param_space(*p))
+            p++;
+        if (!*p)
+            break;
+
+        char idstr[16];
+        int idlen = 0;
+        while ((*p == '-' || *p == '+' || (*p >= '0' && *p <= '9')) && idlen < 15)
+            idstr[idlen++] = *p++;
+        idstr[idlen] = '\0';
         int id;
-        char delimiter[2];
-        if (!vstr_to_int(idstr, id) || fscanf(fp, "%1[=]", delimiter) != 1)
+        if (!vstr_to_int(idstr, id) || *p != '=')
         {
             fprintf(stderr, "invalid parameter id or missing equals sign\n");
             return -1;
         }
+        p++;
 
         const bool old_array = id <= -23300;
         const int param_id = old_array ? -(id + 23300) : id;
@@ -270,7 +309,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
         {
             char vstr[128];
             int len;
-            if (scan_numeric_value(fp, vstr) != 1 || !vstr_to_int(vstr, len) || len < 0)
+            if (scan_numeric_value(p, vstr) != 1 || !vstr_to_int(vstr, len) || len < 0)
             {
                 fprintf(stderr, "invalid array length (id=%d)\n", id);
                 return -1;
@@ -280,7 +319,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
             for (int j = 0; j < len; j++)
             {
                 int value;
-                if (scan_numeric_value(fp, vstr, true) != 1
+                if (scan_numeric_value(p, vstr, true) != 1
                         || !parse_numeric_value(vstr, vstr_is_float(vstr), value))
                 {
                     fprintf(stderr, "invalid array element (id=%d, index=%d)\n", id, j);
@@ -288,7 +327,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
                 }
                 fwrite(&value, sizeof(int), 1, mp);
             }
-            if (fscanf(fp, "%1[,]", delimiter) == 1)
+            if (*p == ',')
             {
                 fprintf(stderr, "array length mismatch (id=%d)\n", id);
                 return -1;
@@ -296,34 +335,31 @@ static int dump_param_values(FILE* fp, FILE* mp)
             continue;
         }
 
-        char first[2];
-        if (fscanf(fp, "%1[\"a-zA-Z]", first) == 1)
+        if (*p == '\"' || (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z'))
         {
             char text[256] = {0};
-            if (first[0] == '\"')
+            const bool quoted = *p == '\"';
+            if (quoted)
+                p++;
+            int len = 0;
+            while (*p && (quoted ? *p != '\"' : !param_space(*p)) && len < 255)
+                text[len++] = *p++;
+            if (quoted)
             {
-                const int nscan = fscanf(fp, "%255[^\"\r\n]", text);
-                (void)nscan;
-                if (fscanf(fp, "%1[\"]", delimiter) != 1)
+                if (*p != '\"')
                 {
                     fprintf(stderr, "unterminated or too long string (id=%d)\n", id);
                     return -1;
                 }
+                p++;
             }
-            else
-            {
-                text[0] = first[0];
-                const int nscan = fscanf(fp, "%254[^ \t\r\n\v\f]", text + 1);
-                (void)nscan;
-            }
-            if (fscanf(fp, "%1[^ \t\r\n\v\f]", delimiter) == 1)
+            if (*p && !param_space(*p))
             {
                 fprintf(stderr, "invalid string suffix or string too long (id=%d)\n", id);
                 return -1;
             }
 
             id = -id - 23400;
-            int len = (int)strlen(text);
             fwrite(&id, sizeof(int), 1, mp);
             fwrite(&len, sizeof(int), 1, mp);
             fwrite(text, 1, (len + 3) / 4 * 4, mp);
@@ -331,7 +367,7 @@ static int dump_param_values(FILE* fp, FILE* mp)
         }
 
         char vstr[128];
-        if (scan_numeric_value(fp, vstr) != 1)
+        if (scan_numeric_value(p, vstr) != 1)
         {
             fprintf(stderr, "read value failed (id=%d)\n", id);
             return -1;
@@ -344,16 +380,17 @@ static int dump_param_values(FILE* fp, FILE* mp)
             return -1;
         }
 
-        if (fscanf(fp, "%1[,]", delimiter) == 1)
+        if (*p == ',')
         {
+            p++;
             std::vector<int> values;
             values.push_back(value);
             while (1)
             {
-                const int nscan = scan_numeric_value(fp, vstr);
+                const int nscan = scan_numeric_value(p, vstr);
                 if (nscan == 0)
                 {
-                    if (fscanf(fp, "%1[,]", delimiter) == 1)
+                    if (*p == ',')
                     {
                         fprintf(stderr, "missing array element (id=%d)\n", id);
                         return -1;
@@ -366,8 +403,9 @@ static int dump_param_values(FILE* fp, FILE* mp)
                     return -1;
                 }
                 values.push_back(value);
-                if (fscanf(fp, "%1[,]", delimiter) != 1)
+                if (*p != ',')
                     break;
+                p++;
             }
             id = -id - 23300;
             int len = (int)values.size();

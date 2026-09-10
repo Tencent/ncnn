@@ -18,6 +18,9 @@ Softmax       softmax  1 1 fc prob 0=0
 * layer count : count of the layer line follows, should be exactly the count of all layer names
 * blob count : count of all blobs, usually greater than or equals to the layer count
 ### layer line
+
+each layer must occupy exactly one physical line, including all blob names and parameters; do not split a layer across lines or put multiple layers on the same line
+
 ```
 [layer type] [layer name] [input count] [output count] [input blobs] [output blobs] [layer specific params]
 ```
