@@ -52,8 +52,7 @@ public:
     int do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
-    // unfinished parameter loads own layer objects but no pipelines
-    void clear(bool destroy_pipeline);
+    void clear_layers();
     void destroy_layer(Layer* layer);
     int load_shape_hints(Layer* layer, const ParamDict& pd);
 
@@ -1439,7 +1438,7 @@ int Net::load_param(const DataReader& dr)
     if (scan_net_value(dr, v) != 1)       \
     {                                     \
         NCNN_LOGE("parse " #v " failed"); \
-        d->clear(false);                  \
+        d->clear_layers();                \
         return -1;                        \
     }
 
@@ -1531,7 +1530,7 @@ int Net::load_param(const DataReader& dr)
         if (bottom_count < 0 || top_count < 0 || bottom_count > max_net_count || top_count > max_net_count)
         {
             NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1553,7 +1552,7 @@ int Net::load_param(const DataReader& dr)
         if (!layer)
         {
             NCNN_LOGE("layer %s not exists or registered", layer_type);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1580,7 +1579,7 @@ int Net::load_param(const DataReader& dr)
                 if (blob_index >= blob_count)
                 {
                     NCNN_LOGE("too many blobs at layer %d bottom %d", i, j);
-                    d->clear(false);
+                    d->clear_layers();
                     return -1;
                 }
 
@@ -1607,7 +1606,7 @@ int Net::load_param(const DataReader& dr)
             if (blob_index >= blob_count)
             {
                 NCNN_LOGE("too many blobs at layer %d top %d", i, j);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -1633,7 +1632,7 @@ int Net::load_param(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param %d %s failed", i, layer_name);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1641,7 +1640,7 @@ int Net::load_param(const DataReader& dr)
         if (d->load_shape_hints(layer, pd) != 0)
         {
             NCNN_LOGE("invalid shape hints at layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1649,7 +1648,7 @@ int Net::load_param(const DataReader& dr)
         if (pd.type(31) != 0 && pd.type(31) != 1 && pd.type(31) != 2)
         {
             NCNN_LOGE("invalid feature mask at layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
         layer->featmask = pd.get(31, 0);
@@ -1658,7 +1657,7 @@ int Net::load_param(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1679,7 +1678,7 @@ int Net::load_param(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %s not exists or registered", layer_type);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -1696,7 +1695,7 @@ int Net::load_param(const DataReader& dr)
             {
                 NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
                 d->destroy_layer(layer_cpu);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -1708,7 +1707,7 @@ int Net::load_param(const DataReader& dr)
         if (layer->typeindex != LayerType::Input && layer->one_blob_only && (bottom_count != 1 || top_count != 1))
         {
             NCNN_LOGE("invalid bottom_count or top_count for one_blob_only layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1809,7 +1808,7 @@ int Net::load_param_bin(const DataReader& dr)
     if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
     {                                              \
         NCNN_LOGE("read " #buf " failed");         \
-        d->clear(false);                           \
+        d->clear_layers();                         \
         return -1;                                 \
     }                                              \
     if (sizeof(buf) == 2)                          \
@@ -1821,7 +1820,7 @@ int Net::load_param_bin(const DataReader& dr)
     if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
     {                                              \
         NCNN_LOGE("read " #buf " failed");         \
-        d->clear(false);                           \
+        d->clear_layers();                         \
         return -1;                                 \
     }
 #endif
@@ -1910,14 +1909,14 @@ int Net::load_param_bin(const DataReader& dr)
         if (typeindex < 0)
         {
             NCNN_LOGE("invalid layer type %d", typeindex);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
         if (bottom_count < 0 || top_count < 0 || bottom_count > max_net_count || top_count > max_net_count)
         {
             NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1940,7 +1939,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (!layer)
         {
             NCNN_LOGE("layer %d not exists or registered", typeindex);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -1964,7 +1963,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (bottom_blob_index < 0 || bottom_blob_index >= blob_count)
             {
                 NCNN_LOGE("layer %d invalid bottom_blob_index %d", i, bottom_blob_index);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -1984,7 +1983,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (top_blob_index < 0 || top_blob_index >= blob_count)
             {
                 NCNN_LOGE("layer %d invalid top_blob_index %d", i, top_blob_index);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -2005,7 +2004,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param_bin %d failed", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -2013,7 +2012,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (d->load_shape_hints(layer, pd) != 0)
         {
             NCNN_LOGE("invalid shape hints at layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -2021,7 +2020,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (pd.type(31) != 0 && pd.type(31) != 1 && pd.type(31) != 2)
         {
             NCNN_LOGE("invalid feature mask at layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
         layer->featmask = pd.get(31, 0);
@@ -2030,7 +2029,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d failed", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -2052,7 +2051,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %d not exists or registered", typeindex);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -2067,7 +2066,7 @@ int Net::load_param_bin(const DataReader& dr)
             {
                 NCNN_LOGE("layer load_param %d failed", i);
                 d->destroy_layer(layer_cpu);
-                d->clear(false);
+                d->clear_layers();
                 return -1;
             }
 
@@ -2079,7 +2078,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (layer->typeindex != LayerType::Input && layer->one_blob_only && (bottom_count != 1 || top_count != 1))
         {
             NCNN_LOGE("invalid bottom_count or top_count for one_blob_only layer %d", i);
-            d->clear(false);
+            d->clear_layers();
             return -1;
         }
 
@@ -2606,7 +2605,7 @@ void NetPrivate::destroy_layer(Layer* layer)
     }
 }
 
-void NetPrivate::clear(bool destroy_pipeline)
+void NetPrivate::clear_layers()
 {
     blobs.clear();
     for (size_t i = 0; i < layers.size(); i++)
@@ -2615,17 +2614,6 @@ void NetPrivate::clear(bool destroy_pipeline)
 
         if (!layer)
             continue;
-
-        if (destroy_pipeline)
-        {
-            Option opt1 = get_masked_option(opt, layer->featmask);
-            int dret = layer->destroy_pipeline(opt1);
-            if (dret != 0)
-            {
-                NCNN_LOGE("layer destroy_pipeline failed");
-                // ignore anyway
-            }
-        }
 
         destroy_layer(layer);
     }
@@ -2636,41 +2624,57 @@ void NetPrivate::clear(bool destroy_pipeline)
     input_blob_names.clear();
     output_blob_names.clear();
 #endif // NCNN_STRING
-
-    if (local_blob_allocator)
-    {
-        delete local_blob_allocator;
-        local_blob_allocator = 0;
-    }
-    if (local_workspace_allocator)
-    {
-        delete local_workspace_allocator;
-        local_workspace_allocator = 0;
-    }
-
-#if NCNN_VULKAN
-    if (weight_vkallocator)
-    {
-        delete weight_vkallocator;
-        weight_vkallocator = 0;
-    }
-    if (weight_staging_vkallocator)
-    {
-        delete weight_staging_vkallocator;
-        weight_staging_vkallocator = 0;
-    }
-    if (pipeline_cache)
-    {
-        delete pipeline_cache;
-        pipeline_cache = 0;
-        opt.pipeline_cache = 0;
-    }
-#endif // NCNN_VULKAN
 }
 
 void Net::clear()
 {
-    d->clear(true);
+    for (size_t i = 0; i < d->layers.size(); i++)
+    {
+        Layer* layer = d->layers[i];
+
+        if (!layer)
+            continue;
+
+        Option opt1 = get_masked_option(opt, layer->featmask);
+        int dret = layer->destroy_pipeline(opt1);
+        if (dret != 0)
+        {
+            NCNN_LOGE("layer destroy_pipeline failed");
+            // ignore anyway
+        }
+    }
+
+    d->clear_layers();
+
+    if (d->local_blob_allocator)
+    {
+        delete d->local_blob_allocator;
+        d->local_blob_allocator = 0;
+    }
+    if (d->local_workspace_allocator)
+    {
+        delete d->local_workspace_allocator;
+        d->local_workspace_allocator = 0;
+    }
+
+#if NCNN_VULKAN
+    if (d->weight_vkallocator)
+    {
+        delete d->weight_vkallocator;
+        d->weight_vkallocator = 0;
+    }
+    if (d->weight_staging_vkallocator)
+    {
+        delete d->weight_staging_vkallocator;
+        d->weight_staging_vkallocator = 0;
+    }
+    if (d->pipeline_cache)
+    {
+        delete d->pipeline_cache;
+        d->pipeline_cache = 0;
+        opt.pipeline_cache = 0;
+    }
+#endif // NCNN_VULKAN
 }
 
 Extractor Net::create_extractor() const
