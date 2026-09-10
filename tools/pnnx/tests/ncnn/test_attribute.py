@@ -31,8 +31,9 @@ class Model(nn.Module):
         self.conv0 = nn.Conv2d(3, channels, 3, padding=1)
         self.conv1 = nn.Conv2d(channels, 8, 3, padding=1)
         keep = (torch.arange(channels) % 3 != 1).reshape(1, channels, 1, 1)
-        if dtype == torch.float64:
+        if dtype != torch.bool:
             keep = torch.linspace(-1.25, 1.75, channels, dtype=dtype).reshape(1, channels, 1, 1)
+        if dtype == torch.float64:
             self.conv0.double()
             self.conv1.double()
         self.register_buffer("keep", keep)
@@ -49,7 +50,7 @@ def test_attribute(dtype, fp16):
 
     torch.manual_seed(0)
     net = Model(dtype).eval()
-    x = torch.randn(1, 3, 8, 8).to(next(net.parameters()).dtype)
+    x = torch.randn(1, 3, 8, 8).to(net.conv0.weight.dtype)
     expected = net(x)[0]
 
     pnnx = Path(os.environ.get("PNNX_TEST_PNNX", "../../src/pnnx")).resolve()
@@ -81,7 +82,10 @@ def test_attribute(dtype, fp16):
             os.chdir(work_dir)
             module = _import_generated_module(work_dir / "attribute_pnnx.py", "attribute")
             with torch.no_grad():
-                converted = module.Model().eval()(x)[0]
+                converted_net = module.Model().eval()
+                keep = next(p for p in converted_net.parameters() if p.shape == net.keep.shape)
+                torch.testing.assert_close(keep, net.keep)
+                converted = converted_net(x)[0]
             torch.testing.assert_close(converted, expected)
         finally:
             os.chdir(previous_dir)
@@ -110,7 +114,8 @@ def test_attribute(dtype, fp16):
 
 def test():
     return all(test_attribute(dtype, fp16) for dtype, fp16 in
-               ((torch.bool, 0), (torch.float64, 0), (torch.float64, 1)))
+               ((torch.bool, 0), (torch.float64, 0), (torch.float64, 1),
+                (torch.bfloat16, 0), (torch.bfloat16, 1)))
 
 
 if __name__ == "__main__":
