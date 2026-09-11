@@ -151,7 +151,10 @@ static void test_containers()
             deep += "]";
         v = pnnx::parse_json(deep);
         for (int i = 0; i < 500; i++)
-            v = v[0];
+        {
+            pnnx::JsonValue child = v[0];
+            v = child;
+        }
         CHECK(v.isInt() && v.asInt() == 1);
     }
 }
