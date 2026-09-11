@@ -420,6 +420,37 @@ pnnx_add_test(transformers_xlnet_attention)
 
 add_subdirectory(ncnn)
 
+# PT2 schema and pass regression harnesses do not require libtorch.
+add_executable(test_json test_json.cpp)
+target_include_directories(test_json PRIVATE ../src)
+add_test(NAME test_json COMMAND test_json)
+
+configure_file(fixtures/pt2_tensor_list.json pt2_tensor_list.json COPYONLY)
+configure_file(fixtures/pt2_output_specs_with_mutation.json pt2_output_specs_with_mutation.json COPYONLY)
+configure_file(fixtures/pt2_schema_selftest.json pt2_schema_selftest.json COPYONLY)
+
+add_executable(test_pt2_schema test_pt2_schema.cpp ../src/pt2_schema.cpp ../src/storezip.cpp)
+target_include_directories(test_pt2_schema PRIVATE ../src)
+add_test(NAME test_pt2_schema COMMAND test_pt2_schema --self-test)
+
+add_executable(test_pt2_regress
+    ../src/pass_level2.cpp
+    ../src/ir.cpp
+    ../src/utils.cpp
+    ../src/storezip.cpp
+    ../src/model_stat.cpp
+    ../src/pass_level2/functionize.cpp
+    ../src/pass_level2/eliminate_contiguous.cpp
+    ../src/pass_level2/eliminate_size_numtotensor_int.cpp
+    ../src/pass_level2/fuse_constantlist.cpp
+    test_pt2_regress.cpp)
+target_include_directories(test_pt2_regress PRIVATE ../src)
+add_test(NAME test_pt2_regress COMMAND test_pt2_regress)
+
+add_executable(test_storezip_zip64 test_storezip_zip64.cpp ../src/storezip.cpp)
+target_include_directories(test_storezip_zip64 PRIVATE ../src)
+add_test(NAME test_storezip_zip64 COMMAND test_storezip_zip64)
+
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()

@@ -37,6 +37,10 @@ private:
     };
 
     std::map<std::string, StoreZipMeta> filemetas;
+
+    int find_central_directory(uint64_t& cd_offset, uint64_t& cd_size, uint64_t& cd_records);
+
+    bool cd_offset_valid(uint64_t off);
 };
 
 class StoreZipWriter
