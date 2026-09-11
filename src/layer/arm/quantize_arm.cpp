@@ -14,6 +14,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "quantize_fp16s.h"
+#endif
+
 Quantize_arm::Quantize_arm()
 {
 #if __ARM_NEON
@@ -22,6 +26,11 @@ Quantize_arm::Quantize_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -208,8 +217,11 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
 }
 #endif // __ARM_NEON
 
-int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
@@ -400,6 +412,312 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+
+    if (dims == 1)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = w * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outw = w * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int wp = std::max(1, w / opt.num_threads);
+        const int nn_w = (w + wp - 1) / wp;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_w; ii++)
+        {
+            const int i = ii * wp;
+
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + i * elempack;
+            signed char* s8ptr = (signed char*)top_blob + i * elempack;
+
+            // assert scale_data_size == 1
+
+            const int size = std::min(w - i, wp) * elempack;
+
+            quantize_fp16s(ptr, s8ptr, scale_data, size, 1);
+        }
+    }
+
+    if (dims == 2)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outh = h * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 4 && out_elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < outh; i++)
+            {
+                const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i * 2);
+                const unsigned short* ptr1 = bottom_blob.row<const unsigned short>(i * 2 + 1);
+                signed char* s8ptr = top_blob.row<signed char>(i);
+
+                const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * out_elempack, out_elempack) : scale_data;
+
+                quantize_pack4to8_fp16s(ptr0, ptr1, s8ptr, scale_data_i, w);
+            }
+        }
+        if (elempack == 4 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                signed char* s8ptr0 = top_blob.row<signed char>(i * 4);
+                signed char* s8ptr1 = top_blob.row<signed char>(i * 4 + 1);
+                signed char* s8ptr2 = top_blob.row<signed char>(i * 4 + 2);
+                signed char* s8ptr3 = top_blob.row<signed char>(i * 4 + 3);
+
+                const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
+
+                quantize_pack4to1_fp16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
+            }
+        }
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                signed char* s8ptr = top_blob.row<signed char>(i);
+
+                const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
+
+                quantize_fp16s(ptr, s8ptr, scale_data_i, w, elempack);
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = channels * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outc = channels * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 4 && out_elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                const unsigned short* ptr0 = bottom_blob.channel(q * 2);
+                const unsigned short* ptr1 = bottom_blob.channel(q * 2 + 1);
+                signed char* s8ptr = top_blob.channel(q);
+
+                const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
+
+                quantize_pack4to8_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
+            }
+        }
+        if (elempack == 4 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                signed char* s8ptr0 = top_blob.channel(q * 4);
+                signed char* s8ptr1 = top_blob.channel(q * 4 + 1);
+                signed char* s8ptr2 = top_blob.channel(q * 4 + 2);
+                signed char* s8ptr3 = top_blob.channel(q * 4 + 3);
+
+                const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
+
+                quantize_pack4to1_fp16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
+            }
+        }
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                signed char* s8ptr = top_blob.channel(q);
+
+                const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
+
+                quantize_fp16s(ptr, s8ptr, scale_data_q, w * h * d, elempack);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int dims = bottom_blob.dims;
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+
+    if (dims == 1)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = w * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outw = w * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int wp = std::max(1, w / opt.num_threads);
+        const int nn_w = (w + wp - 1) / wp;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_w; ii++)
+        {
+            const int i = ii * wp;
+
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + i * elempack;
+            signed char* s8ptr = (signed char*)top_blob + i * elempack;
+
+            // assert scale_data_size == 1
+
+            const int size = std::min(w - i, wp) * elempack;
+
+            quantize_fp16sa(ptr, s8ptr, scale_data, size, 1);
+        }
+    }
+
+    if (dims == 2)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outh = h * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 4 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                signed char* s8ptr0 = top_blob.row<signed char>(i * 4);
+                signed char* s8ptr1 = top_blob.row<signed char>(i * 4 + 1);
+                signed char* s8ptr2 = top_blob.row<signed char>(i * 4 + 2);
+                signed char* s8ptr3 = top_blob.row<signed char>(i * 4 + 3);
+
+                const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
+
+                quantize_pack4to1_fp16sa(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
+            }
+        }
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                signed char* s8ptr = top_blob.row<signed char>(i);
+
+                const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
+
+                quantize_fp16sa(ptr, s8ptr, scale_data_i, w, elempack);
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        int out_elempack = 1;
+        if (opt.use_packing_layout)
+        {
+            out_elempack = channels * elempack % 8 == 0 ? 8 : 1;
+        }
+        const int outc = channels * elempack / out_elempack;
+        const size_t out_elemsize = out_elempack * 1u;
+
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 4 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                signed char* s8ptr0 = top_blob.channel(q * 4);
+                signed char* s8ptr1 = top_blob.channel(q * 4 + 1);
+                signed char* s8ptr2 = top_blob.channel(q * 4 + 2);
+                signed char* s8ptr3 = top_blob.channel(q * 4 + 3);
+
+                const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
+
+                quantize_pack4to1_fp16sa(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
+            }
+        }
+        if (elempack == out_elempack)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                signed char* s8ptr = top_blob.channel(q);
+
+                const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
+
+                quantize_fp16sa(ptr, s8ptr, scale_data_q, w * h * d, elempack);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void quantize_bf16s(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)

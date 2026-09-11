@@ -7,13 +7,254 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif // __ARM_FEATURE_SVE
+
+#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
 
+#if __ARM_FEATURE_SVE
+static NCNN_FORCEINLINE void packing_pack1ton_float32_sve(const float* ptr, float* outptr, int size, int stride)
+{
+    const int packn = svcntw();
+
+    int i = 0;
+    for (; i + 3 < size; i += 4)
+    {
+        for (int p = 0; p < packn; p += 4)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr + (p + 0) * stride + i);
+            float32x4_t _p1 = vld1q_f32(ptr + (p + 1) * stride + i);
+            float32x4_t _p2 = vld1q_f32(ptr + (p + 2) * stride + i);
+            float32x4_t _p3 = vld1q_f32(ptr + (p + 3) * stride + i);
+
+            transpose4x4_ps(_p0, _p1, _p2, _p3);
+
+            float* outptr0 = outptr + i * packn + p;
+            vst1q_f32(outptr0, _p0);
+            vst1q_f32(outptr0 + packn, _p1);
+            vst1q_f32(outptr0 + packn * 2, _p2);
+            vst1q_f32(outptr0 + packn * 3, _p3);
+        }
+    }
+    for (; i < size; i++)
+    {
+        float* outptr0 = outptr + i * packn;
+        const float* ptr0 = ptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p] = ptr0[p * stride];
+    }
+}
+
+static NCNN_FORCEINLINE void packing_packnto1_float32_sve(const float* ptr, float* outptr, int size, int stride)
+{
+    const int packn = svcntw();
+
+    int i = 0;
+    for (; i + 3 < size; i += 4)
+    {
+        for (int p = 0; p < packn; p += 4)
+        {
+            const float* ptr0 = ptr + i * packn + p;
+            float32x4_t _p0 = vld1q_f32(ptr0);
+            float32x4_t _p1 = vld1q_f32(ptr0 + packn);
+            float32x4_t _p2 = vld1q_f32(ptr0 + packn * 2);
+            float32x4_t _p3 = vld1q_f32(ptr0 + packn * 3);
+
+            transpose4x4_ps(_p0, _p1, _p2, _p3);
+
+            vst1q_f32(outptr + (p + 0) * stride + i, _p0);
+            vst1q_f32(outptr + (p + 1) * stride + i, _p1);
+            vst1q_f32(outptr + (p + 2) * stride + i, _p2);
+            vst1q_f32(outptr + (p + 3) * stride + i, _p3);
+        }
+    }
+    for (; i < size; i++)
+    {
+        const float* ptr0 = ptr + i * packn;
+        float* outptr0 = outptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p * stride] = ptr0[p];
+    }
+}
+
+static NCNN_FORCEINLINE void packing_pack1ton_int16_sve(const unsigned short* ptr, unsigned short* outptr, int size, int stride)
+{
+    const int packn = svcnth();
+
+    int i = 0;
+    for (; i + 7 < size; i += 8)
+    {
+        for (int p = 0; p < packn; p += 8)
+        {
+            uint16x8_t _p0 = vld1q_u16(ptr + (p + 0) * stride + i);
+            uint16x8_t _p1 = vld1q_u16(ptr + (p + 1) * stride + i);
+            uint16x8_t _p2 = vld1q_u16(ptr + (p + 2) * stride + i);
+            uint16x8_t _p3 = vld1q_u16(ptr + (p + 3) * stride + i);
+            uint16x8_t _p4 = vld1q_u16(ptr + (p + 4) * stride + i);
+            uint16x8_t _p5 = vld1q_u16(ptr + (p + 5) * stride + i);
+            uint16x8_t _p6 = vld1q_u16(ptr + (p + 6) * stride + i);
+            uint16x8_t _p7 = vld1q_u16(ptr + (p + 7) * stride + i);
+
+            transpose8x8_u16(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7);
+
+            unsigned short* outptr0 = outptr + i * packn + p;
+            vst1q_u16(outptr0, _p0);
+            vst1q_u16(outptr0 + packn, _p1);
+            vst1q_u16(outptr0 + packn * 2, _p2);
+            vst1q_u16(outptr0 + packn * 3, _p3);
+            vst1q_u16(outptr0 + packn * 4, _p4);
+            vst1q_u16(outptr0 + packn * 5, _p5);
+            vst1q_u16(outptr0 + packn * 6, _p6);
+            vst1q_u16(outptr0 + packn * 7, _p7);
+        }
+    }
+    for (; i < size; i++)
+    {
+        unsigned short* outptr0 = outptr + i * packn;
+        const unsigned short* ptr0 = ptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p] = ptr0[p * stride];
+    }
+}
+
+static NCNN_FORCEINLINE void packing_packnto1_int16_sve(const unsigned short* ptr, unsigned short* outptr, int size, int stride)
+{
+    const int packn = svcnth();
+
+    int i = 0;
+    for (; i + 7 < size; i += 8)
+    {
+        for (int p = 0; p < packn; p += 8)
+        {
+            const unsigned short* ptr0 = ptr + i * packn + p;
+            uint16x8_t _p0 = vld1q_u16(ptr0);
+            uint16x8_t _p1 = vld1q_u16(ptr0 + packn);
+            uint16x8_t _p2 = vld1q_u16(ptr0 + packn * 2);
+            uint16x8_t _p3 = vld1q_u16(ptr0 + packn * 3);
+            uint16x8_t _p4 = vld1q_u16(ptr0 + packn * 4);
+            uint16x8_t _p5 = vld1q_u16(ptr0 + packn * 5);
+            uint16x8_t _p6 = vld1q_u16(ptr0 + packn * 6);
+            uint16x8_t _p7 = vld1q_u16(ptr0 + packn * 7);
+
+            transpose8x8_u16(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7);
+
+            vst1q_u16(outptr + (p + 0) * stride + i, _p0);
+            vst1q_u16(outptr + (p + 1) * stride + i, _p1);
+            vst1q_u16(outptr + (p + 2) * stride + i, _p2);
+            vst1q_u16(outptr + (p + 3) * stride + i, _p3);
+            vst1q_u16(outptr + (p + 4) * stride + i, _p4);
+            vst1q_u16(outptr + (p + 5) * stride + i, _p5);
+            vst1q_u16(outptr + (p + 6) * stride + i, _p6);
+            vst1q_u16(outptr + (p + 7) * stride + i, _p7);
+        }
+    }
+    for (; i < size; i++)
+    {
+        const unsigned short* ptr0 = ptr + i * packn;
+        unsigned short* outptr0 = outptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p * stride] = ptr0[p];
+    }
+}
+
+static NCNN_FORCEINLINE void packing_pack1ton_int8_sve(const signed char* ptr, signed char* outptr, int size, int stride)
+{
+    const int packn = svcntb();
+
+    int i = 0;
+    for (; i + 7 < size; i += 8)
+    {
+        for (int p = 0; p < packn; p += 8)
+        {
+            int8x8_t _p0 = vld1_s8(ptr + (p + 0) * stride + i);
+            int8x8_t _p1 = vld1_s8(ptr + (p + 1) * stride + i);
+            int8x8_t _p2 = vld1_s8(ptr + (p + 2) * stride + i);
+            int8x8_t _p3 = vld1_s8(ptr + (p + 3) * stride + i);
+            int8x8_t _p4 = vld1_s8(ptr + (p + 4) * stride + i);
+            int8x8_t _p5 = vld1_s8(ptr + (p + 5) * stride + i);
+            int8x8_t _p6 = vld1_s8(ptr + (p + 6) * stride + i);
+            int8x8_t _p7 = vld1_s8(ptr + (p + 7) * stride + i);
+
+            transpose8x8_s8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7);
+
+            signed char* outptr0 = outptr + i * packn + p;
+            vst1_s8(outptr0, _p0);
+            vst1_s8(outptr0 + packn, _p1);
+            vst1_s8(outptr0 + packn * 2, _p2);
+            vst1_s8(outptr0 + packn * 3, _p3);
+            vst1_s8(outptr0 + packn * 4, _p4);
+            vst1_s8(outptr0 + packn * 5, _p5);
+            vst1_s8(outptr0 + packn * 6, _p6);
+            vst1_s8(outptr0 + packn * 7, _p7);
+        }
+    }
+    for (; i < size; i++)
+    {
+        signed char* outptr0 = outptr + i * packn;
+        const signed char* ptr0 = ptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p] = ptr0[p * stride];
+    }
+}
+
+static NCNN_FORCEINLINE void packing_packnto1_int8_sve(const signed char* ptr, signed char* outptr, int size, int stride)
+{
+    const int packn = svcntb();
+
+    int i = 0;
+    for (; i + 7 < size; i += 8)
+    {
+        for (int p = 0; p < packn; p += 8)
+        {
+            const signed char* ptr0 = ptr + i * packn + p;
+            int8x8_t _p0 = vld1_s8(ptr0);
+            int8x8_t _p1 = vld1_s8(ptr0 + packn);
+            int8x8_t _p2 = vld1_s8(ptr0 + packn * 2);
+            int8x8_t _p3 = vld1_s8(ptr0 + packn * 3);
+            int8x8_t _p4 = vld1_s8(ptr0 + packn * 4);
+            int8x8_t _p5 = vld1_s8(ptr0 + packn * 5);
+            int8x8_t _p6 = vld1_s8(ptr0 + packn * 6);
+            int8x8_t _p7 = vld1_s8(ptr0 + packn * 7);
+
+            transpose8x8_s8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7);
+
+            vst1_s8(outptr + (p + 0) * stride + i, _p0);
+            vst1_s8(outptr + (p + 1) * stride + i, _p1);
+            vst1_s8(outptr + (p + 2) * stride + i, _p2);
+            vst1_s8(outptr + (p + 3) * stride + i, _p3);
+            vst1_s8(outptr + (p + 4) * stride + i, _p4);
+            vst1_s8(outptr + (p + 5) * stride + i, _p5);
+            vst1_s8(outptr + (p + 6) * stride + i, _p6);
+            vst1_s8(outptr + (p + 7) * stride + i, _p7);
+        }
+    }
+    for (; i < size; i++)
+    {
+        const signed char* ptr0 = ptr + i * packn;
+        signed char* outptr0 = outptr + i;
+
+        for (int p = 0; p < packn; p++)
+            outptr0[p * stride] = ptr0[p];
+    }
+}
+
+#endif // __ARM_FEATURE_SVE
+
 Packing_arm::Packing_arm()
 {
     support_packing = true;
+#if __ARM_FEATURE_SVE
+    support_any_packing = true;
+#endif // __ARM_FEATURE_SVE
 #if NCNN_ARM82
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
@@ -58,8 +299,16 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
+#if __ARM_FEATURE_SVE
+    const int packn = svcntw();
+    bool pack1ton = elempack == 1 && out_elempack == packn;
+    bool packnto1 = elempack == packn && out_elempack == 1;
+#else
+    bool pack1ton = false;
+    bool packnto1 = false;
+#endif // __ARM_FEATURE_SVE
 
-    if (!pack1to4 && !pack4to1)
+    if (!pack1to4 && !pack4to1 && !pack1ton && !packnto1)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -113,7 +362,37 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (top_blob.empty())
             return -100;
 
-        if (pack1to4)
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bi = batch * outh;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / outh;
+                int i = bi % outh;
+                const float* ptr = bottom_blob.batch(b).row(i * packn);
+                float* outptr = top_blob.batch(b).row(i);
+
+                packing_pack1ton_float32_sve(ptr, outptr, w, w);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bi = batch * h;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / h;
+                int i = bi % h;
+                const float* ptr = bottom_blob.batch(b).row(i);
+                float* outptr = top_blob.batch(b).row(i * packn);
+
+                packing_packnto1_float32_sve(ptr, outptr, w, w);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
+        if (pack1to4 && !pack1ton)
         {
             const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -157,7 +436,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
         }
-        if (pack4to1)
+        if (pack4to1 && !packnto1)
         {
             const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -217,7 +496,37 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (top_blob.empty())
             return -100;
 
-        if (pack1to4)
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bq = batch * outc;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / outc;
+                int q = bq % outc;
+                const float* ptr = bottom_blob.batch(b).channel(q * packn);
+                float* outptr = top_blob.batch(b).channel(q);
+
+                packing_pack1ton_float32_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bq = batch * channels;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / channels;
+                int q = bq % channels;
+                const float* ptr = bottom_blob.batch(b).channel(q);
+                float* outptr = top_blob.batch(b).channel(q * packn);
+
+                packing_packnto1_float32_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
+        if (pack1to4 && !pack1ton)
         {
             const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -261,7 +570,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
         }
-        if (pack4to1)
+        if (pack4to1 && !packnto1)
         {
             const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -333,8 +642,16 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     bool pack8to1 = elempack == 8 && out_elempack == 1;
     bool pack4to8 = elempack == 4 && out_elempack == 8;
     bool pack8to4 = elempack == 8 && out_elempack == 4;
+#if __ARM_FEATURE_SVE
+    const int packn = svcnth();
+    bool pack1ton = elempack == 1 && out_elempack == packn;
+    bool packnto1 = elempack == packn && out_elempack == 1;
+#else
+    bool pack1ton = false;
+    bool packnto1 = false;
+#endif // __ARM_FEATURE_SVE
 
-    if (!pack1to4 && !pack4to1 && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4)
+    if (!pack1to4 && !pack4to1 && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4 && !pack1ton && !packnto1)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -388,6 +705,36 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         if (top_blob.empty())
             return -100;
 
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bi = batch * outh;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* ptr = bottom_blob.batch(b).row<const unsigned short>(i * packn);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
+
+                packing_pack1ton_int16_sve(ptr, outptr, w, w);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bi = batch * h;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* ptr = bottom_blob.batch(b).row<const unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i * packn);
+
+                packing_packnto1_int16_sve(ptr, outptr, w, w);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
         if (pack1to4)
         {
             const int total_bi = batch * outh;
@@ -475,7 +822,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-        if (pack1to8)
+        if (pack1to8 && !pack1ton)
         {
             const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -642,7 +989,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-        if (pack8to1)
+        if (pack8to1 && !packnto1)
         {
             const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -956,6 +1303,36 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         if (top_blob.empty())
             return -100;
 
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bq = batch * outc;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* ptr = bottom_blob.batch(b).channel(q * packn);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
+
+                packing_pack1ton_int16_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bq = batch * channels;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* ptr = bottom_blob.batch(b).channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q * packn);
+
+                packing_packnto1_int16_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
         if (pack1to4)
         {
             const int total_bq = batch * outc;
@@ -1043,7 +1420,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-        if (pack1to8)
+        if (pack1to8 && !pack1ton)
         {
             const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1210,7 +1587,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-        if (pack8to1)
+        if (pack8to1 && !packnto1)
         {
             const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1532,8 +1909,16 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
+#if __ARM_FEATURE_SVE
+    const int packn = svcntb();
+    bool pack1ton = elempack == 1 && out_elempack == packn;
+    bool packnto1 = elempack == packn && out_elempack == 1;
+#else
+    bool pack1ton = false;
+    bool packnto1 = false;
+#endif // __ARM_FEATURE_SVE
 
-    if (!pack1to8 && !pack8to1)
+    if (!pack1to8 && !pack8to1 && !pack1ton && !packnto1)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -1587,6 +1972,36 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (top_blob.empty())
             return -100;
 
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bi = batch * outh;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / outh;
+                int i = bi % outh;
+                const signed char* ptr = bottom_blob.batch(b).row<const signed char>(i * packn);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i);
+
+                packing_pack1ton_int8_sve(ptr, outptr, w, w);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bi = batch * h;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / h;
+                int i = bi % h;
+                const signed char* ptr = bottom_blob.batch(b).row<const signed char>(i);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i * packn);
+
+                packing_packnto1_int8_sve(ptr, outptr, w, w);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
         if (pack1to8)
         {
             const int total_bi = batch * outh;
@@ -1674,6 +2089,36 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (top_blob.empty())
             return -100;
 
+#if __ARM_FEATURE_SVE
+        if (pack1ton)
+        {
+            const int total_bq = batch * outc;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / outc;
+                int q = bq % outc;
+                const signed char* ptr = bottom_blob.batch(b).channel(q * packn);
+                signed char* outptr = top_blob.batch(b).channel(q);
+
+                packing_pack1ton_int8_sve(ptr, outptr, size, (int)bottom_blob.cstep);
+            }
+        }
+        if (packnto1)
+        {
+            const int total_bq = batch * channels;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / channels;
+                int q = bq % channels;
+                const signed char* ptr = bottom_blob.batch(b).channel(q);
+                signed char* outptr = top_blob.batch(b).channel(q * packn);
+
+                packing_packnto1_int8_sve(ptr, outptr, size, (int)top_blob.cstep);
+            }
+        }
+#endif // __ARM_FEATURE_SVE
         if (pack1to8)
         {
             const int total_bq = batch * outc;

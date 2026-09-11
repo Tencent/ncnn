@@ -380,6 +380,30 @@ static inline int8x8_t float2int8(float16x8_t _v)
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+static inline void transpose8x8_s8(int8x8_t& _r0, int8x8_t& _r1, int8x8_t& _r2, int8x8_t& _r3, int8x8_t& _r4, int8x8_t& _r5, int8x8_t& _r6, int8x8_t& _r7)
+{
+    int8x8x2_t _r01t = vtrn_s8(_r0, _r1);
+    int8x8x2_t _r23t = vtrn_s8(_r2, _r3);
+    int8x8x2_t _r45t = vtrn_s8(_r4, _r5);
+    int8x8x2_t _r67t = vtrn_s8(_r6, _r7);
+    int16x4x2_t _r02tt = vtrn_s16(vreinterpret_s16_s8(_r01t.val[0]), vreinterpret_s16_s8(_r23t.val[0]));
+    int16x4x2_t _r13tt = vtrn_s16(vreinterpret_s16_s8(_r01t.val[1]), vreinterpret_s16_s8(_r23t.val[1]));
+    int16x4x2_t _r46tt = vtrn_s16(vreinterpret_s16_s8(_r45t.val[0]), vreinterpret_s16_s8(_r67t.val[0]));
+    int16x4x2_t _r57tt = vtrn_s16(vreinterpret_s16_s8(_r45t.val[1]), vreinterpret_s16_s8(_r67t.val[1]));
+    int32x2x2_t _r04ttt = vtrn_s32(vreinterpret_s32_s16(_r02tt.val[0]), vreinterpret_s32_s16(_r46tt.val[0]));
+    int32x2x2_t _r15ttt = vtrn_s32(vreinterpret_s32_s16(_r13tt.val[0]), vreinterpret_s32_s16(_r57tt.val[0]));
+    int32x2x2_t _r26ttt = vtrn_s32(vreinterpret_s32_s16(_r02tt.val[1]), vreinterpret_s32_s16(_r46tt.val[1]));
+    int32x2x2_t _r37ttt = vtrn_s32(vreinterpret_s32_s16(_r13tt.val[1]), vreinterpret_s32_s16(_r57tt.val[1]));
+    _r0 = vreinterpret_s8_s32(_r04ttt.val[0]);
+    _r1 = vreinterpret_s8_s32(_r15ttt.val[0]);
+    _r2 = vreinterpret_s8_s32(_r26ttt.val[0]);
+    _r3 = vreinterpret_s8_s32(_r37ttt.val[0]);
+    _r4 = vreinterpret_s8_s32(_r04ttt.val[1]);
+    _r5 = vreinterpret_s8_s32(_r15ttt.val[1]);
+    _r6 = vreinterpret_s8_s32(_r26ttt.val[1]);
+    _r7 = vreinterpret_s8_s32(_r37ttt.val[1]);
+}
+
 static inline void transpose4x4_u16(uint16x4_t& _r0, uint16x4_t& _r1, uint16x4_t& _r2, uint16x4_t& _r3)
 {
     uint16x4x2_t _r01z = vzip_u16(_r0, _r1);

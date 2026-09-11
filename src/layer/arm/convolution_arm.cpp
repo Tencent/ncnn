@@ -60,6 +60,10 @@ namespace ncnn {
 #endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_NEON
 
+#if NCNN_ARM82
+#include "convolution_fp16s.h"
+#endif
+
 Convolution_arm::Convolution_arm()
 {
 #if __ARM_NEON
@@ -68,6 +72,11 @@ Convolution_arm::Convolution_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -114,8 +123,11 @@ static void convolution_transform_kernel_packed_neon(const Mat& weight_data, Mat
     }
 }
 
-int Convolution_arm::create_pipeline(const Option& opt)
+int Convolution_arm::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     if (dynamic_weight)
         return 0;
 
@@ -321,8 +333,11 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
@@ -738,8 +753,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     return 0;
 }
 
-int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& _weight_data = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -845,6 +863,97 @@ int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Convolution_arm::create_pipeline_fp16s(const Option& opt)
+{
+    convolution_transform_kernel_fp16s(weight_data, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, weight_data_size, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+    if (opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+
+    return 0;
+}
+
+int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    bool activation_unfused;
+    int ret = convolution_fp16sa(bottom_blob_bordered, top_blob, weight_data_tm, weight_sgemm_data, weight_winograd23_data, weight_winograd43_data, weight_winograd63_data, bias_data_fp16, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, activation_unfused, opt);
+    if (ret != 0)
+        return ret;
+
+    if (activation_unfused && activation)
+        activation->forward_inplace(top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void convolution_transform_kernel_packed_bf16s_neon(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)

@@ -22,6 +22,11 @@ ShuffleChannel_arm::ShuffleChannel_arm()
 #endif
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif

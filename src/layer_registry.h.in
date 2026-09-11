@@ -22,6 +22,12 @@ static const layer_registry_entry layer_registry_avx[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM86SVE
+static const layer_registry_entry layer_registry_sve[] = {
+@layer_registry_sve@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM86SVE
+
 #if NCNN_RUNTIME_CPU && NCNN_MSA
 static const layer_registry_entry layer_registry_msa[] = {
 @layer_registry_msa@

@@ -431,86 +431,113 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         {
             if (elembits == 32)
             {
+#if NCNN_ARM86SVE
+                if (ncnn::cpu_support_arm_sve() && ncnn::cpu_arm_sve_vlenb() != 16)
+                {
+                    const int packn = ncnn::cpu_arm_sve_vlenb() / 4;
+                    if (elemcount % packn == 0)
+                        dst_elempack = packn;
+                }
+                else
+#endif // NCNN_ARM86SVE
 #if NCNN_AVX512
-                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
-                    dst_elempack = 16;
-                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                        dst_elempack = 16;
+                    else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_AVX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
-                const int packn = ncnn::cpu_riscv_vlenb() / 4;
+                    const int packn = ncnn::cpu_riscv_vlenb() / 4;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
 #elif NCNN_LASX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #else
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #endif
             }
             if (elembits == 16)
             {
+#if NCNN_ARM86SVE
+                if (ncnn::cpu_support_arm_sve() && ncnn::cpu_arm_sve_vlenb() != 16)
+                {
+                    const int packn = ncnn::cpu_arm_sve_vlenb() / 2;
+                    if (elemcount % packn == 0)
+                        dst_elempack = packn;
+                }
+                else
+#endif // NCNN_ARM86SVE
 #if NCNN_ARM82
-                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && layer->support_fp16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_AVX512
-                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
-                    dst_elempack = 16;
-                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                        dst_elempack = 16;
+                    else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_AVX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
-                const int packn = ncnn::cpu_riscv_vlenb() / 2;
+                    const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
 #elif NCNN_LASX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx() && opt.use_bf16_storage && layer->support_bf16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_LSX
-                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lsx() && opt.use_bf16_storage && layer->support_bf16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #elif NCNN_MSA
-                if (elemcount % 8 == 0 && ncnn::cpu_support_mips_msa() && opt.use_bf16_storage && layer->support_bf16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_mips_msa() && opt.use_bf16_storage && layer->support_bf16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #else
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                    if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #endif
             }
             if (elembits == 8)
             {
+#if NCNN_ARM86SVE
+                if (ncnn::cpu_support_arm_sve() && ncnn::cpu_arm_sve_vlenb() != 16)
+                {
+                    const int packn = ncnn::cpu_arm_sve_vlenb();
+                    if (elemcount % packn == 0)
+                        dst_elempack = packn;
+                }
+                else
+#endif // NCNN_ARM86SVE
 #if NCNN_RVV || NCNN_XTHEADVECTOR
-                const int packn = ncnn::cpu_riscv_vlenb() / 1;
+                    const int packn = ncnn::cpu_riscv_vlenb() / 1;
                 if (elemcount % packn == 0)
                     dst_elempack = packn;
 #else
-                if (elemcount % 8 == 0)
-                    dst_elempack = 8;
+                    if (elemcount % 8 == 0)
+                        dst_elempack = 8;
 #endif
             }
 
