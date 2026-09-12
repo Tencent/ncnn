@@ -16,10 +16,7 @@ static void set_sum_dtype_param(Operator* op, const std::map<std::string, Parame
 
     const Parameter& dtype = it->second;
     if (dtype.type == 0)
-    {
-        op->params["dtype"] = Parameter();
-        return;
-    }
+        return; // dtype=None: leave the param unset so the pass_ncnn pattern, which does not list dtype, keeps matching
     if (dtype.type != 2)
         return;
 
@@ -101,6 +98,8 @@ pnnx.Output             output      1 0 out
         // accumulation/output type and can alter overflow behavior)
         for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
         {
+            if (x->first == "dtype")
+                continue; // dtype is written by set_sum_dtype_param below
             op->params[x->first] = x->second;
         }
         set_sum_dtype_param(op, captured_params);

@@ -33,7 +33,8 @@ pnnx.Output             output      1 0 out
         // generated code would accumulate in the input's default dtype instead
         if (captured_params.at("dtype").type == 0)
         {
-            op->params["dtype"] = Parameter();
+            // dtype=None: leave the param unset so the pass_ncnn pattern, which
+            // does not list dtype, keeps matching
         }
         else if (captured_params.at("dtype").type == 2)
         {

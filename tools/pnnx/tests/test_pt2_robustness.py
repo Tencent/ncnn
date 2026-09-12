@@ -466,6 +466,34 @@ def test():
         ok = rc != 0 and rc is not None and "invalid stored entry" in text
         results.append(_case("stored_mismatch(reject)", ok, "rc=%r\n%s" % (rc, text[-800:])))
 
+        # seeded byte mutations of a valid archive. the pt2 reader parses
+        # untrusted input, so each mutation must terminate with a diagnostic
+        # instead of a crash; only the crash-free invariant is asserted, since
+        # a mutated archive may legitimately still be valid and convert.
+        import random
+
+        rng = random.Random(20260912)
+        with open(cases["base"], "rb") as f:
+            raw = f.read()
+        crashes = []
+        for i in range(24):
+            buf = bytearray(raw)
+            for _ in range(rng.randint(1, 4)):
+                buf[rng.randrange(len(buf))] ^= 1 << rng.randrange(8)
+            mdir = os.path.join(workdir, "mut_%03d" % i)
+            os.makedirs(mdir, exist_ok=True)
+            mpt2 = os.path.join(mdir, "m.pt2")
+            with open(mpt2, "wb") as f:
+                f.write(bytes(buf))
+            rc, text = _run_pnnx(pnnx, mpt2, mdir, timeout=60)
+            # pnnx uses 1/255 for ordinary rejections, so only a signal
+            # (negative returncode) or a hang counts as a crash
+            if rc is None:
+                crashes.append("mut_%03d timeout" % i)
+            elif rc < 0:
+                crashes.append("mut_%03d killed rc=%r\n%s" % (i, rc, text[-400:]))
+        results.append(_case("mutation(no crash)", not crashes, "\n".join(crashes[:10])))
+
     return all(results)
 
 

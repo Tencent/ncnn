@@ -27,6 +27,26 @@
 # below with a pinned diagnostic. PNNX_PT2_RESULT_LOG appends the exporter error
 # for each skip, so a regeneration run yields the needles directly.
 
+# Audited pt2-ncnn skips: the pt2 (torch.export) channel of these tags produces
+# a graph whose operators have no ncnn lowering. pnnx still exits 0 and writes a
+# .ncnn.param that keeps the ATen op, which ncnn then refuses to load, so
+# test_pnnx_ncnn() reports a skip for the tags listed here and a *failure* for
+# any other tag that ends up with a leftover op.
+#
+# All four are torchaudio spectrogram models: torch.export lifts the frontend to
+# torchaudio.functional.spectrogram / .inverse_spectrogram, whose graphs keep the
+# plain normalization ops (torch.stft + torch.view_as_real, torch.istft +
+# torch.view_as_complex). pass_ncnn/torch_stft.cpp deliberately declines those
+# forms because the surrounding abs()/sqrt(norm) scaling cannot be fused safely,
+# so there is nothing to enable here. The torchscript channel of the same tests
+# is unaffected and still converts to a plain Spectrogram layer.
+EXPECT_NCNN_NO_LOWERING = {
+    "test_torchaudio_F_spectrogram",
+    "test_torchaudio_Spectrogram",
+    "test_torchaudio_F_inverse_spectrogram",
+    "test_torchaudio_InverseSpectrogram",
+}
+
 EXPECT = {
     # torch.export rejects these models (dynamic indexing / control flow /
     # dynamic-arange shapes); recorded so a future torch that starts exporting
