@@ -49,7 +49,7 @@ pnnx.Output             output      1 0 out
         return "pnnx.Attribute";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         // v and g must be constant parameters (pnnx.Attribute); extract the
         // data now since the matched nodes are removed before write()
@@ -115,13 +115,17 @@ pnnx.Output             output      1 0 out
             return false;
         if (!has_keepdim || !keepdim)
             return false;
-        // only fold float-family weights that get/set_float32_data can round-trip
-        // (f32/f64/f16); a non-float v would leave the replacement pnnx.Attribute
-        // without usable weight data (write() would bail out after the graph was
-        // already rewritten), and bf16 etc. are not supported by those helpers.
-        if (m_v.type != 1 && m_v.type != 2 && m_v.type != 3)
-            return false;
-        if (m_g.type != 1 && m_g.type != 2 && m_g.type != 3)
+        // only fold weights that get/set_float32_data round-trip in the same
+        // precision the fold itself computes in (f32/f16). an f64 weight is
+        // excluded on purpose: the norm and the product are computed in f32, so
+        // the folded constant would be written back rounded to f32 precision
+        // while its declared type stays f64 - a silent precision change for a
+        // double model. keep the original norm/div/mul chain there instead (an
+        // f16 weight is computed in f32 and then rounded, which is more precise
+        // than the chain). a non-float or bf16 weight would leave the
+        // replacement pnnx.Attribute without usable weight data, so write()
+        // would bail out after the graph was already rewritten.
+        if ((m_v.type != 1 && m_v.type != 3) || (m_g.type != 1 && m_g.type != 3))
             return false;
         // a scalar v cannot be folded (no per-coord norm); reject before rewrite
         if (m_v.shape.empty())
@@ -147,8 +151,6 @@ pnnx.Output             output      1 0 out
         if (m_g.shape.empty() && m_g.type == 3)
             return false;
         if (m_g.shape.empty() && m_g.type == 1 && m_g.data.size() < 4)
-            return false;
-        if (m_g.shape.empty() && m_g.type == 2 && m_g.data.size() < 8)
             return false;
         // fold would overflow the coord[16] stack buffer for >16-d weights;
         // reject before the graph is rewritten
@@ -192,7 +194,7 @@ pnnx.Output             output      1 0 out
     mutable bool m_use_reduce_list = false;
     mutable std::vector<int> m_reduce_dims;
 
-    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         Operator* op = ops.at("out");
 
@@ -276,8 +278,6 @@ pnnx.Output             output      1 0 out
             gv.resize(1);
             if (g_attr.type == 1)
                 gv[0] = *(const float*)g_attr.data.data();
-            else if (g_attr.type == 2)
-                gv[0] = (float)*(const double*)g_attr.data.data();
             else
                 return;
         }
@@ -315,9 +315,10 @@ pnnx.Output             output      1 0 out
         std::vector<float> weight_flat(v_count);
         for (int idx = 0; idx < v_count; idx++)
         {
-            // decompose idx into v coordinates
+            // decompose idx into v coordinates (match() rejected weights above
+            // 16 dims, so the buffer always covers v_shape)
             int rem = idx;
-            int coord[16];
+            int coord[16] = {0};
             for (int dd = dims - 1; dd >= 0; dd--)
             {
                 coord[dd] = rem % v_shape[dd];
