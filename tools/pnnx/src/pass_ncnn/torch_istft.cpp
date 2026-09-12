@@ -381,10 +381,11 @@ pnnx.Output             output      1 0 out
         if (detect_window_type(window_data) == -1)
             return false;
 
-        // torch.export materializes the window constant once per use, so the
-        // istft window and the operand that is squared are separate tensors; the
-        // denormalization the layer reproduces for normalized=2 uses the istft
-        // window, so both must carry the same window
+        // attribute_unpooling (pass_level5) gives every use of a constant its
+        // own pnnx.Attribute, so the istft window and the operand that is
+        // squared are separate nodes; the denormalization the layer reproduces
+        // for normalized=2 uses the istft window, so both must carry the same
+        // window
         if (!(captured_attrs.at("op_2.data") == captured_attrs.at("op_3.data")))
             return false;
 

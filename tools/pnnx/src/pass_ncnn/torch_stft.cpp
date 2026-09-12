@@ -76,6 +76,15 @@ static bool match_full_reduction(const std::map<std::string, Parameter>& capture
     return captured_params.find(prefix + "3") == captured_params.end();
 }
 
+// pt2 (torch.export) inlines torchaudio.functional.spectrogram, so this channel
+// sees the expanded stft instead of the single functional op the torchscript
+// channel matches. the variants below fold the expansions the frontend produces
+// for the covered configs - complex output feeding view_as_real (power=None),
+// squared magnitude (power=2), plain magnitude (power=1) and the hand-written
+// window-energy normalized magnitude (power=1 with normalized='window') - and
+// decline anything else, which then surfaces as a leftover operator instead of
+// a silently different layout.
+//
 // pt2: stft preceded by an explicit reshape + F.pad (center pad expanded); absorb
 // into Spectrogram(center=True). Must match before torch_stft_pt2_complex (stft
 // with leading structure).
@@ -107,10 +116,20 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         if (detect_window_type(window_data) == -1)
+            return false;
+
+        // the two reshapes around the pad are the frontend's batch pack and
+        // unpack; absorbing the pad as centering is only equivalent while they
+        // merely add or drop leading singleton dims. a reshape that regroups
+        // rows changes both the padded samples and the layout, so it must keep
+        // its own Reshape.
+        if (!match_batch_singleton_reshape(matched_operators, "op_r1"))
+            return false;
+        if (!match_batch_singleton_reshape(matched_operators, "op_r2"))
             return false;
 
         // the pad matched here is the centering pad dynamo materialized for
@@ -390,7 +409,7 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         if (detect_window_type(window_data) == -1)
@@ -443,7 +462,7 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         if (detect_window_type(window_data) == -1)
@@ -502,11 +521,18 @@ pnnx.Output             output      1 0 out
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         if (detect_window_type(window_data) == -1)
             return false;
-        // torch.export materializes the window constant once per use, so the
-        // stft window and the operand that is squared are separate tensors; the
-        // folded factor is the layer's own window energy only when both carry
-        // the same window
+        // attribute_unpooling (pass_level5) gives every use of a constant its
+        // own pnnx.Attribute, so the stft window and the operand that is
+        // squared are separate nodes; the folded factor is the layer's own
+        // window energy only when both carry the same window
         if (!(captured_attrs.at("op_0.data") == captured_attrs.at("op_1.data")))
+            return false;
+
+        // the layer applies one normalization only, so the hand-written
+        // window-energy division can only stand in for it while the stft
+        // itself is unnormalized; with normalized=True the graph normalizes by
+        // sqrt(n_fft) as well and the fold would drop that factor
+        if (captured_params.at("normalized").type != 0 && (captured_params.at("normalized").type != 1 || captured_params.at("normalized").b))
             return false;
 
         if (!match_full_reduction(captured_params, "op_5"))
@@ -526,6 +552,58 @@ pnnx.Output             output      1 0 out
 // priority 21: the window-energy chain holds the fully lowered Reduction, which
 // only exists after the priority-20 torch_sum pass has run
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_norm, 21)
+
+// pt2: torch.stft + Reshape + UnaryOp abs (power=1 magnitude spectrum, the
+// shape the frontend produces for the default Spectrogram config). registered
+// after the power variant so a squared magnitude is folded with power=2 there,
+// and the layer's power=1 already emits the magnitude this tail computes.
+class torch_stft_pt2_abs : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_0        0 1 window @data
+torch.stft              op_1        2 1 input window a center=%center pad_mode=%pad_mode hop_length=%hop_length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=True win_length=%win_length
+Reshape                 op_2        1 1 a b %*=%*
+UnaryOp                 op_3        1 1 b out 0=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Spectrogram";
+    }
+
+    const char* name_str() const
+    {
+        return "stft";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
+        if (detect_window_type(window_data) == -1)
+            return false;
+
+        // only the caller's batch unpack may be folded away
+        return match_batch_singleton_reshape(matched_operators, "op_2");
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        // the graph's only normalization is the stft's own frame-length flag,
+        // which the layer's normalized=1 applies; a window-energy division
+        // would sit between the reshape and the abs and is folded separately
+        int normalized = captured_params.at("normalized").type == 1 && captured_params.at("normalized").b ? 1 : 0;
+        write_stft_spectrogram(op, captured_params, captured_attrs, 1, normalized);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_abs, 20)
 
 } // namespace ncnn
 
