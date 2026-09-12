@@ -5,7 +5,7 @@
 #
 # torch.export.save switched to the pt2-archive layout in torch 2.8. the
 # fixtures under fixtures/pt2_legacy/ were exported with torch 2.7.1 (see
-# fixtures/pt2_legacy/README.md for the exact reproducer), whose containers
+# fixtures/pt2_legacy/generate.py for the exact reproducer), whose containers
 # store a JSON graph plus pickled state dicts instead of raw weight shards.
 #
 # these tests convert each fixture with the current pnnx binary and verify the

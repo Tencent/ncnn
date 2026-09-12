@@ -3,7 +3,7 @@
 
 # cross-producer coverage: fixtures/pt2_producer/*.pt2 are real
 # ExportedProgram archives written by several torch releases at and after the
-# 2.8 pt2-archive switch (see that directory's generate.py + README). The
+# 2.8 pt2-archive switch (see that directory's generate.py). The
 # loader is producer-agnostic: the archive layout and the raw-payload schema
 # field set differ between releases, so each fixture must convert and produce
 # numerically identical output. The reference is the eager model built by
