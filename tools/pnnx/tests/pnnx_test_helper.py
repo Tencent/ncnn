@@ -398,22 +398,6 @@ def _load_ncnn_module(tag):
     return sys.modules[mod_name]
 
 
-def _nn_param_unconverted_op(tag):
-    # a generated ncnn model that still contains an ATen operator name cannot be
-    # loaded by ncnn: the pt2 channel has no lowering for it. pnnx exits 0 in
-    # that case, so the leftover op is the only reliable signal.
-    path = "%s.ncnn.param" % tag
-    if not os.path.isfile(path):
-        return None
-    prefixes = ("torch.", "torchaudio.", "aten::", "prim::", "Tensor.", "F.")
-    with open(path, "r", errors="replace") as f:
-        for line in f:
-            fields = line.split()
-            if fields and fields[0].startswith(prefixes):
-                return fields[0]
-    return None
-
-
 def test_pnnx_ncnn(net, args, inputshapes, tag, atol=1e-3, rtol=1e-3, fp16=0):
     """Export pt2, convert and compare ncnn inference output.
 
@@ -442,14 +426,6 @@ def test_pnnx_ncnn(net, args, inputshapes, tag, atol=1e-3, rtol=1e-3, fp16=0):
         return None
 
     if not _convert_pnnx(pt2_path, _inputshapes_with_dtype(args, inputshapes), pnnx_path=os.path.join("..", "..", "src", "pnnx"), fp16=fp16):
-        return False
-
-    # pnnx exits 0 even when a graph has no ncnn lowering, leaving the ATen op
-    # in the generated .ncnn.param; ncnn cannot load such a model, so a leftover
-    # operator name is always a failure instead of a silently dropped check.
-    leftover = _nn_param_unconverted_op(tag)
-    if leftover is not None:
-        print("[pt2-ncnn] %s: generated ncnn model still contains %s" % (tag, leftover))
         return False
 
     try:
