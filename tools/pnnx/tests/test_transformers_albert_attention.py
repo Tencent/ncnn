@@ -10,7 +10,14 @@ if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
 from transformers import AlbertConfig
-from transformers.models.albert.modeling_albert import AlbertAttention, AlbertSdpaAttention
+from transformers import __version__ as _transformers_version
+if version.parse(_transformers_version) >= version.parse('5.0'):
+    # transformers 5.x unified the SDPA/eager attention implementation and
+    # AlbertSdpaAttention no longer exists
+    from transformers.models.albert.modeling_albert import AlbertAttention
+    AlbertSdpaAttention = AlbertAttention
+else:
+    from transformers.models.albert.modeling_albert import AlbertAttention, AlbertSdpaAttention
 
 class Model(nn.Module):
     def __init__(self):
@@ -43,7 +50,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_albert_attention.pt inputshape=[3,16,192],[1,5,66]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_albert_attention.pt inputshape=[3,16,192],[1,5,66]")
 
     # pnnx inference
     import test_transformers_albert_attention_pnnx
@@ -52,7 +59,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[3,16,192]", "[1,5,66]"], "test_transformers_albert_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

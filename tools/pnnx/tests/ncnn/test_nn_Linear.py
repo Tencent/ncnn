@@ -22,7 +22,7 @@ class Model(nn.Module):
         else:
             self.linear_2 = torch.nn.utils.parametrizations.weight_norm(self.linear_2)
 
-    def forward(self, x, y, z, w, q):
+    def forward(self, x, y, z, w, q, r):
         x = self.linear_0(x)
         x = self.linear_1(x)
         x = self.linear_2(x)
@@ -43,7 +43,12 @@ class Model(nn.Module):
         q = self.linear_0(q)
         q = self.linear_1(q)
         q = self.linear_2(q)
-        return x, y, z, w, q
+        # rank-3 input with a non-singleton middle dim (regression: ncnn Gemm
+        # N1M layout would drop the h dim, so pnnx must flatten it instead)
+        r = self.linear_0(r)
+        r = self.linear_1(r)
+        r = self.linear_2(r)
+        return x, y, z, w, q, r
 
 def test():
     net = Model().half().float()
@@ -55,25 +60,29 @@ def test():
     z = torch.rand(1, 3, 12, 64)
     w = torch.rand(1, 64)
     q = torch.rand(2, 3, 5, 64)
+    r = torch.rand(4, 7, 64)
 
-    a = net(x, y, z, w, q)
+    a = net(x, y, z, w, q, r)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, q))
+    mod = torch.jit.trace(net, (x, y, z, w, q, r))
     mod.save("test_nn_Linear.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64],[1,64],[2,3,5,64]")
+    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64],[1,64],[2,3,5,64],[4,7,64]")
 
     # ncnn inference
     import test_nn_Linear_ncnn
     b = test_nn_Linear_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-3, 1e-3) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, w, q, r), ["[64]", "[12,64]", "[1,3,12,64]", "[1,64]", "[2,3,5,64]", "[4,7,64]"], "test_nn_Linear")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

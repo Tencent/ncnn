@@ -83,7 +83,11 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
-    return test_batch()
+    
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y), ["[1,10,32]", "[1,12,25]"], "test_nn_LSTM")
+    return (test_batch()) and (pt2_ok is not False)
 
 def test_batch():
     net = ModelBatch().half().float()
@@ -110,7 +114,11 @@ def test_batch():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
-    return True
+    
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y), ["[2,4,8]", "[2,5,7]"], "test_nn_LSTM_batch")
+    return (True) and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

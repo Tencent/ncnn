@@ -36,13 +36,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_eliminate_noop_math.pt inputshape=[1,12,52]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_eliminate_noop_math.pt inputshape=[1,12,52]")
 
     # pnnx inference
     import test_pnnx_eliminate_noop_math_pnnx
     b = test_pnnx_eliminate_noop_math_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,52]"], "test_pnnx_eliminate_noop_math")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

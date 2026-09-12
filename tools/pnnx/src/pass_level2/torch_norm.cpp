@@ -5,6 +5,70 @@
 
 namespace pnnx {
 
+// dtype constants serialize as the torch scalar-type enum; map it to the
+// torch.<dtype> literal the generated python needs (None stays unset so the
+// norm keeps its natural accumulation dtype)
+static void set_norm_dtype_param(Operator* op, const std::map<std::string, Parameter>& captured_params)
+{
+    const std::map<std::string, Parameter>::const_iterator it = captured_params.find("dtype");
+    if (it == captured_params.end())
+        return;
+
+    const Parameter& dtype = it->second;
+    if (dtype.type == 0)
+        return; // dtype=None: leave the param unset so downstream patterns that expect torch.norm without dtype keep matching
+    if (dtype.type != 2)
+        return;
+
+    const char* dtype_str = 0;
+    switch (dtype.i)
+    {
+    case 0:
+        dtype_str = "torch.uint8";
+        break;
+    case 1:
+        dtype_str = "torch.int8";
+        break;
+    case 2:
+        dtype_str = "torch.short";
+        break;
+    case 3:
+        dtype_str = "torch.int";
+        break;
+    case 4:
+        dtype_str = "torch.long";
+        break;
+    case 5:
+        dtype_str = "torch.half";
+        break;
+    case 6:
+        dtype_str = "torch.float";
+        break;
+    case 7:
+        dtype_str = "torch.double";
+        break;
+    case 8:
+        dtype_str = "torch.complex32";
+        break;
+    case 9:
+        dtype_str = "torch.complex64";
+        break;
+    case 10:
+        dtype_str = "torch.complex128";
+        break;
+    case 11:
+        dtype_str = "torch.bool";
+        break;
+    case 15:
+        dtype_str = "torch.bfloat16";
+        break;
+    default:
+        break;
+    }
+    if (dtype_str)
+        op->params["dtype"] = dtype_str;
+}
+
 class torch_norm : public GraphRewriterPass
 {
 public:
@@ -38,10 +102,25 @@ pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 dim value=%dim
 prim::Constant          op_1        0 1 p value=%p
 prim::Constant          op_2        0 1 keepdim value=%keepdim
-prim::Constant          op_3        0 1 dtype value=*
+prim::Constant          op_3        0 1 dtype value=%dtype
 aten::linalg_vector_norm op_4       5 1 input p dim keepdim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        // copy the captured defaults (dim/p/keepdim) like the default rewriter,
+        // then restore the explicit dtype so the generated torch.norm does not
+        // silently accumulate in the input dtype (dtype=torch.float64 changes
+        // accumulation/output type and numerics)
+        for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
+        {
+            if (x->first == "dtype")
+                continue; // dtype is written by set_norm_dtype_param below
+            op->params[x->first] = x->second;
+        }
+        set_norm_dtype_param(op, captured_params);
     }
 };
 
@@ -73,10 +152,21 @@ pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 dim value=%dim
 prim::Constant          op_1        0 1 p value=%p
 prim::Constant          op_2        0 1 keepdim value=%keepdim
-prim::Constant          op_3        0 1 dtype value=*
+prim::Constant          op_3        0 1 dtype value=%dtype
 aten::linalg_vector_norm op_4       5 1 input p dim keepdim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
+        {
+            if (x->first == "dtype")
+                continue; // dtype is written by set_norm_dtype_param below
+            op->params[x->first] = x->second;
+        }
+        set_norm_dtype_param(op, captured_params);
     }
 };
 

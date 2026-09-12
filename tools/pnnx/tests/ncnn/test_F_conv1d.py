@@ -54,9 +54,15 @@ def test():
 
     # ncnn inference
     import test_F_conv1d_ncnn
-    b0, b1, b2 = test_F_conv1d_ncnn.test_inference()
+    b0, ncnn_b1, b2 = test_F_conv1d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, ncnn_b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, w0, w1, b1, y, q), ["[1,12,52]", "[16,12,3]", "[16,8,5]", "[16]", "[1,6,25]", "[2,12,52]"], "test_F_conv1d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

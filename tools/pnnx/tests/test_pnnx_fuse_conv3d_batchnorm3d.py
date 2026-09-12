@@ -72,13 +72,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_conv3d_batchnorm3d.pt inputshape=[1,12,64,64,64]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_conv3d_batchnorm3d.pt inputshape=[1,12,64,64,64]")
 
     # pnnx inference
     import test_pnnx_fuse_conv3d_batchnorm3d_pnnx
     b = test_pnnx_fuse_conv3d_batchnorm3d_pnnx.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,64,64,64]"], "test_pnnx_fuse_conv3d_batchnorm3d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

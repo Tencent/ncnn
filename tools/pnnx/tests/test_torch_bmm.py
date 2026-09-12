@@ -29,13 +29,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_bmm.pt inputshape=[10,23,14],[10,14,5]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_bmm.pt inputshape=[10,23,14],[10,14,5]")
 
     # pnnx inference
     import test_torch_bmm_pnnx
     b = test_torch_bmm_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (a0, a1), ["[10,23,14]", "[10,14,5]"], "test_torch_bmm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -29,13 +29,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_adaptive_avg_pool1d.pt inputshape=[1,12,24]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_adaptive_avg_pool1d.pt inputshape=[1,12,24]")
 
     # pnnx inference
     import test_F_adaptive_avg_pool1d_pnnx
     b = test_F_adaptive_avg_pool1d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,24]"], "test_F_adaptive_avg_pool1d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

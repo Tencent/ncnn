@@ -62,10 +62,13 @@ def test():
     import test_torch_cumsum_ncnn
     b = test_torch_cumsum_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-4, 1e-4) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, w, q), ["[2,3,16]", "[5,9]", "[3]", "[2,3,4,5]", "[2,3,4,5]"], "test_torch_cumsum")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

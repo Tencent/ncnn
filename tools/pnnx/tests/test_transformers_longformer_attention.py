@@ -10,7 +10,10 @@ if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
 from transformers import LongformerConfig
+from transformers import __version__ as _transformers_version
 from transformers.models.longformer.modeling_longformer import LongformerAttention
+
+_is_tf5 = version.parse(_transformers_version) >= version.parse('5.0')
 
 class Model(nn.Module):
     def __init__(self):
@@ -21,7 +24,11 @@ class Model(nn.Module):
 
     def forward(self, x, mask0):
         is_index_masked = mask0 < 0
-        out0 = self.attn0(x, attention_mask=mask0, layer_head_mask=None, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
+        if _is_tf5:
+            # transformers 5.x removed the layer_head_mask argument
+            out0 = self.attn0(x, attention_mask=mask0, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
+        else:
+            out0 = self.attn0(x, attention_mask=mask0, layer_head_mask=None, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
         return out0[0],
 
 def test():
@@ -40,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_longformer_attention.pt inputshape=[3,16,192],[3,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_longformer_attention.pt inputshape=[3,16,192],[3,16]")
 
     # pnnx inference
     import test_transformers_longformer_attention_pnnx
@@ -49,7 +56,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, mask0), ["[3,16,192]", "[3,16]"], "test_transformers_longformer_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

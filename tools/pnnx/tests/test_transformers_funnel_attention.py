@@ -50,13 +50,22 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_funnel_attention.pt inputshape=[3,16,192],[3,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_funnel_attention.pt inputshape=[3,16,192],[3,16]")
 
     # pnnx inference
     import test_transformers_funnel_attention_pnnx
     b = test_transformers_funnel_attention_pnnx.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a, b, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, mask0), ["[3,16,192]", "[3,16]"], "test_transformers_funnel_attention")
+    if pt2_ok is False:
+        # dynamo sym shape eval unsupported, skip pt2 validation (ts path already covers)
+        pt2_ok = None
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

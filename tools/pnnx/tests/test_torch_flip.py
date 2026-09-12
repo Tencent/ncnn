@@ -61,7 +61,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_flip.pt inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_flip.pt inputshape=[36],[14,17],[13,14,15],[48,12,16,17]")
 
     # pnnx inference
     import test_torch_flip_pnnx
@@ -70,7 +70,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, w), ["[36]", "[14,17]", "[13,14,15]", "[48,12,16,17]"], "test_torch_flip")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

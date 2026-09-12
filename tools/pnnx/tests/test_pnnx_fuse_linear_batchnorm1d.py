@@ -42,13 +42,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_linear_batchnorm1d.pt inputshape=[1,64],[12,64]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_linear_batchnorm1d.pt inputshape=[1,64],[12,64]")
 
     # pnnx inference
     import test_pnnx_fuse_linear_batchnorm1d_pnnx
     b0, b1 = test_pnnx_fuse_linear_batchnorm1d_pnnx.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[1,64]", "[12,64]"], "test_pnnx_fuse_linear_batchnorm1d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

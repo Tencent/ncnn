@@ -9,18 +9,32 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
+from transformers import CTRLConfig
+from transformers import __version__ as _transformers_version
 from transformers.models.ctrl.modeling_ctrl import MultiHeadAttention
+
+_is_tf5 = version.parse(_transformers_version) >= version.parse('5.0')
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.attn0 = MultiHeadAttention(d_model_size=192, num_heads=16)
-        self.attn1 = MultiHeadAttention(d_model_size=66, num_heads=11)
+        if _is_tf5:
+            # transformers 5.x takes a config instead of d_model_size/num_heads
+            self.attn0 = MultiHeadAttention(CTRLConfig(n_embd=192, n_head=16))
+            self.attn1 = MultiHeadAttention(CTRLConfig(n_embd=66, n_head=11))
+        else:
+            self.attn0 = MultiHeadAttention(d_model_size=192, num_heads=16)
+            self.attn1 = MultiHeadAttention(d_model_size=66, num_heads=11)
 
     def forward(self, x, y):
-        out0 = self.attn0(x, x, x, mask=None, attention_mask=None, head_mask=None, use_cache=False, output_attentions=True)
-        out1 = self.attn1(y, y, y, mask=None, attention_mask=None, head_mask=None, use_cache=False, output_attentions=True)
+        if _is_tf5:
+            # transformers 5.x forward takes (v, k, q) and dropped mask/head_mask/use_cache
+            out0 = self.attn0(x, x, x, attention_mask=None)
+            out1 = self.attn1(y, y, y, attention_mask=None)
+        else:
+            out0 = self.attn0(x, x, x, mask=None, attention_mask=None, head_mask=None, use_cache=False, output_attentions=True)
+            out1 = self.attn1(y, y, y, mask=None, attention_mask=None, head_mask=None, use_cache=False, output_attentions=True)
         return out0[0], out1[0]
 
 def test():
@@ -39,7 +53,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_ctrl_attention.pt inputshape=[3,16,192],[1,5,66]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_transformers_ctrl_attention.pt inputshape=[3,16,192],[1,5,66]")
 
     # pnnx inference
     import test_transformers_ctrl_attention_pnnx
@@ -48,7 +62,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[3,16,192]", "[1,5,66]"], "test_transformers_ctrl_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

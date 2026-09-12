@@ -42,8 +42,12 @@ def test():
 
     a0, a1 = net(x, y)
 
-    # export onnx
-    torch.onnx.export(net, (x,y), "test.onnx")
+    # export onnx (optional; requires onnxscript on torch 2.13+, not used further in this test)
+    try:
+        torch.onnx.export(net, (x, y), "test.onnx")
+    except Exception:
+        # onnxscript not available, the onnx file is not used below
+        pass
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y))
@@ -51,13 +55,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_rmsnorm.pt inputshape=[1,64,26],[3,15,15,21]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_rmsnorm.pt inputshape=[1,64,26],[3,15,15,21]")
 
     # pnnx inference
     import test_pnnx_fuse_rmsnorm_pnnx
     b0, b1 = test_pnnx_fuse_rmsnorm_pnnx.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[1,64,26]", "[3,15,15,21]"], "test_pnnx_fuse_rmsnorm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

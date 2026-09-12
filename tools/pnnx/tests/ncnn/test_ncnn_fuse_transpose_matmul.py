@@ -73,10 +73,13 @@ def test():
     import test_ncnn_fuse_transpose_matmul_ncnn
     b = test_ncnn_fuse_transpose_matmul_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-4, 1e-4) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, q0, q1), ["[14]", "[6,14]", "[13]", "[7,4,13]", "[15]", "[5,7,9,15]", "[23,14]", "[25,14]", "[4,5]", "[10,40,5]", "[14,6]", "[2,4,20,6]", "[10,23,14]", "[5,14]", "[7,8,13,14]", "[35,14]", "[10,23,14]", "[10,5,14]", "[10,13,18]", "[3,1,8,18]", "[1,5,23,11]", "[8,1,9,11]", "[6,9,13,14]", "[6,9,15,14]", "[2,3,5,7]", "[2,3,4,7]"], "test_ncnn_fuse_transpose_matmul")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

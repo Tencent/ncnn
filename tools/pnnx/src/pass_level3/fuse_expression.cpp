@@ -259,6 +259,33 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
     else if (op->type == "pnnx.Attribute")
     {
+        // a single-element tensor that feeds a Tensor.index / Tensor.index_put
+        // indices list must stay a tensor reference: scalarizing it (x[[1]] ->
+        // x[1]) changes advanced-indexing semantics and produces an illegal
+        // index_put(indices=[1], ...) python call (indices need tensors)
+        for (const Operator* cons : operand->consumers)
+        {
+            if (cons->type == "prim::ListConstruct")
+            {
+                bool feeds_index = false;
+                for (const Operand* lr : cons->outputs)
+                {
+                    for (const Operator* lcons : lr->consumers)
+                    {
+                        if (lcons->type == "Tensor.index" || lcons->type == "Tensor.index_put")
+                        {
+                            feeds_index = true;
+                            break;
+                        }
+                    }
+                    if (feeds_index)
+                        break;
+                }
+                if (feeds_index)
+                    goto DEFAULT;
+            }
+        }
+
         // fprintf(stderr, "operand pnnx.Attribute %s\n", operand->name.c_str());
 
         const Attribute& data = op->attrs["data"];

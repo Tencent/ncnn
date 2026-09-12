@@ -29,17 +29,20 @@ void eliminate_noop_reshape(Graph& graph)
             if (input_shape.empty())
                 continue;
 
-            // if only one dynamic dim-size
-            int dynamic_dim_count = 0;
-            for (size_t j = 0; j < output_shape.size(); j++)
+            // with -1 (unresolved symbolic/dynamic dims) we cannot prove the
+            // reshape is a no-op (the real size may be hidden behind -1, e.g.
+            // funnel relative_shift 32->16 compression), skip deletion
+            bool has_dynamic = false;
+            for (size_t j = 0; j < input_shape.size(); j++)
             {
-                if (output_shape[j] == -1)
+                if (input_shape[j] == -1)
                 {
-                    dynamic_dim_count += 1;
+                    has_dynamic = true;
+                    break;
                 }
             }
 
-            if (dynamic_dim_count > 1)
+            if (has_dynamic)
                 continue;
 
             matched = true;

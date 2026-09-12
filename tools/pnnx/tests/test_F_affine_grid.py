@@ -32,13 +32,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_affine_grid.pt inputshape=[32,2,3],[12,3,4]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_affine_grid.pt inputshape=[32,2,3],[12,3,4]")
 
     # pnnx inference
     import test_F_affine_grid_pnnx
     b0, b1 = test_F_affine_grid_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, b1)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[32,2,3]", "[12,3,4]"], "test_F_affine_grid")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

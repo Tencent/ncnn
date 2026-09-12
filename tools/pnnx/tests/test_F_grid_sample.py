@@ -70,13 +70,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_grid_sample.pt inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_grid_sample.pt inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3]")
 
     # pnnx inference
     import test_F_grid_sample_pnnx
     b0, b1 = test_F_grid_sample_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, b1)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, xg1, xg2, y, yg1, yg2), ["[1,3,12,16]", "[1,21,27,2]", "[1,12,16,2]", "[1,5,10,12,16]", "[1,10,21,27,3]", "[1,10,12,16,3]"], "test_F_grid_sample")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

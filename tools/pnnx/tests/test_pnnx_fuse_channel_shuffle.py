@@ -156,7 +156,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_channel_shuffle.pt inputshape=[1,8,16,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_channel_shuffle.pt inputshape=[1,8,16,16]")
 
     # pnnx inference
     import test_pnnx_channel_shuffle_pnnx
@@ -165,7 +165,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,8,16,16]"], "test_pnnx_fuse_channel_shuffle")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

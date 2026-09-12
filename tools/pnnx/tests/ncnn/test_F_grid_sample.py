@@ -96,7 +96,13 @@ def test():
     import test_F_grid_sample_ncnn
     b0, b1, b2, b3, b4 = test_F_grid_sample_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a2, b2, 1e-6, 1e-6) and torch.allclose(a3, b3, 1e-6, 1e-6) and torch.allclose(a4, b4, 1e-6, 1e-6)
+    ts_ok = torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a2, b2, 1e-6, 1e-6) and torch.allclose(a3, b3, 1e-6, 1e-6) and torch.allclose(a4, b4, 1e-6, 1e-6)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, xg1, xg2, xgp1, xgp2, y, yg1, yg2, ygp1, ygp2, q, qg), ["[1,3,12,16]", "[1,21,27,2]", "[1,12,16,2]", "[1,2,21,27]", "[1,2,12,16]", "[1,5,10,12,16]", "[1,10,21,27,3]", "[1,10,12,16,3]", "[1,3,10,21,27]", "[1,3,10,12,16]", "[2,3,12,16]", "[2,21,27,2]"], "test_F_grid_sample")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

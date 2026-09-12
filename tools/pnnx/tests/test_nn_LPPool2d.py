@@ -42,13 +42,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_LPPool2d.pt inputshape=[1,12,128,128]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_nn_LPPool2d.pt inputshape=[1,12,128,128]")
 
     # pnnx inference
     import test_nn_LPPool2d_pnnx
     b = test_nn_LPPool2d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,12,128,128]"], "test_nn_LPPool2d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

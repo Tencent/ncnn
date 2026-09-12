@@ -426,7 +426,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (r->shape.size() < 2)
                 batch_index = 233;
 
-            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
+            if (batch_index == 233)
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+            else
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");

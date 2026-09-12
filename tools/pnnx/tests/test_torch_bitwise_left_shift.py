@@ -33,13 +33,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_bitwise_left_shift.pt inputshape=[3,16]i32,[3,16]i32")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_bitwise_left_shift.pt inputshape=[3,16]i32,[3,16]i32")
 
     # pnnx inference
     import test_torch_bitwise_left_shift_pnnx
     b = test_torch_bitwise_left_shift_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    ts_ok = torch.equal(a, b)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y), ["[3,16]", "[3,16]"], "test_torch_bitwise_left_shift")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

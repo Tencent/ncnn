@@ -172,7 +172,7 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
     if (shape.size() > 0)
     {
         data.resize(elemcount() * type_to_elemsize(type));
-        memcpy((void*)data.data(), (const void*)t.data(), data.size());
+        memcpy((void*)data.data(), (const void*)t.data(), std::min(data.size(), t.size() * sizeof(float)));
     }
 }
 
@@ -197,17 +197,22 @@ int Attribute::elemcount() const
 
 std::vector<float> Attribute::get_float32_data() const
 {
-    std::vector<float> v(elemcount());
+    const int ec = elemcount();
+    if (ec <= 0)
+        return std::vector<float>();
+
+    std::vector<float> v(ec);
 
     if (type == 1)
     {
-        memcpy((void*)v.data(), (const void*)data.data(), data.size());
+        memcpy((void*)v.data(), (const void*)data.data(), std::min(data.size(), v.size() * sizeof(float)));
     }
     else if (type == 2)
     {
         // f64
         const double* p = (const double*)data.data();
-        for (size_t i = 0; i < v.size(); i++)
+        const size_t n = std::min(v.size(), data.size() / sizeof(double));
+        for (size_t i = 0; i < n; i++)
         {
             v[i] = float(p[i]);
         }
@@ -216,7 +221,8 @@ std::vector<float> Attribute::get_float32_data() const
     {
         // f16
         const unsigned short* p = (const unsigned short*)data.data();
-        for (size_t i = 0; i < v.size(); i++)
+        const size_t n = std::min(v.size(), data.size() / sizeof(unsigned short));
+        for (size_t i = 0; i < n; i++)
         {
             v[i] = float16_to_float32(p[i]);
         }
@@ -670,17 +676,26 @@ static void load_attribute(Operator* op, const std::string& key, const std::stri
 
     if (filesize == 0)
     {
-        // no such file
+        // no such file (or a legitimately empty entry for a shape-{0} tensor)
         return;
     }
 
     if (filesize != bytesize)
     {
-        fprintf(stderr, "file size not match expect %lu but got %lu\n", bytesize, filesize);
+        // keep the attribute empty instead of copying `filesize` bytes into a
+        // `bytesize` buffer: a corrupt/tampered param+bin pair could otherwise
+        // overflow the heap before read_file's crc check
+        fprintf(stderr, "file size not match expect %lu but got %lu\n", (unsigned long)bytesize, (unsigned long)filesize);
+        a.data.clear();
+        return;
     }
 
     a.data.resize(bytesize);
-    szr.read_file(filename, (char*)a.data.data());
+    if (szr.read_file(filename, (char*)a.data.data()) != 0)
+    {
+        a.data.clear();
+        return;
+    }
 }
 
 int Graph::load(const std::string& parampath, const std::string& binpath)
@@ -1474,6 +1489,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     const std::string flops = format_model_stat_ops(model_stat.flops);
     const std::string memops = format_model_stat_ops(model_stat.memops);
 
+    // the archive path is embedded into the generated python as a string
+    // literal; on Windows it may contain backslashes, which would make the
+    // literal invalid (e.g. '\U' escape) and crash the generated code at
+    // import time - normalize to '/' which zipfile accepts on every platform
+    std::string binpath_literal = pnnxbinpath;
+    for (size_t i = 0; i < binpath_literal.size(); i++)
+    {
+        if (binpath_literal[i] == '\\')
+            binpath_literal[i] = '/';
+    }
+
     fprintf(pyfp, "# pnnx model stat\n");
     fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
     fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
@@ -1491,6 +1517,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     fprintf(pyfp, "    import torchaudio\n");
     fprintf(pyfp, "except:\n");
     fprintf(pyfp, "    pass\n");
+
+    fprintf(pyfp, "\n");
+
+    fprintf(pyfp, "# torch 2.x renamed torch.var/std unbiased to correction; the\n");
+    fprintf(pyfp, "# generated calls pick the right keyword at runtime\n");
+    fprintf(pyfp, "_torch_has_correction = int(torch.__version__.split('.')[0]) >= 2\n");
 
     fprintf(pyfp, "\n");
 
@@ -1624,7 +1656,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // load weights
     {
-        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", pnnxbinpath.c_str());
+        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", binpath_literal.c_str());
 
         for (const Operator* op : ops)
         {
@@ -1727,14 +1759,29 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             if (is_empty)
             {
-                fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
-
-                for (size_t i = 0; i < attr.shape.size(); i++)
+                if (attr.type == 13)
                 {
-                    fprintf(pyfp, "%d,", attr.shape[i]);
-                }
+                    // numpy has no native bfloat16, use torch.empty directly
+                    fprintf(pyfp, "        self.%s_%s = torch.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
 
-                fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
+                    for (size_t i = 0; i < attr.shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d,", attr.shape[i]);
+                    }
+
+                    fprintf(pyfp, "), dtype=torch.bfloat16)\n");
+                }
+                else
+                {
+                    fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+
+                    for (size_t i = 0; i < attr.shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d,", attr.shape[i]);
+                    }
+
+                    fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
+                }
             }
             else
             {
@@ -1777,6 +1824,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
         fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
         fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
+        fprintf(pyfp, "        if dtype == 'bfloat16':\n");
+        fprintf(pyfp, "            # numpy has no native bfloat16; read the 2-byte raw words as int16 and reinterpret (bit-preserving)\n");
+        fprintf(pyfp, "            m = np.memmap(tmppath, dtype='int16', mode='r', shape=shape).copy()\n");
+        fprintf(pyfp, "            os.remove(tmppath)\n");
+        fprintf(pyfp, "            return torch.from_numpy(m).view(torch.bfloat16)\n");
         fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
         fprintf(pyfp, "        os.remove(tmppath)\n");
         fprintf(pyfp, "        return torch.from_numpy(m)\n");
@@ -1990,11 +2042,22 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
 
-                if (op->params.at("dim").type == 2)
+                // an explicit dtype (dtype=torch.float64 changes accumulation)
+                std::string dtype_suffix;
+                if (op->has_param("dtype") && op->params.at("dtype").type == 4)
+                    dtype_suffix = std::string(", dtype=") + op->params.at("dtype").s;
+
+                if (!op->has_param("dim") || op->params.at("dim").type == 0)
+                {
+                    // full-reduction prod(input) (e.g. torch.prod(x) in pt2):
+                    // no dim/keepdim parameters were folded in
+                    fprintf(pyfp, "torch.prod(input=v_%s%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dtype_suffix.c_str());
+                }
+                else if (op->params.at("dim").type == 2)
                 {
                     const int dim = op->params.at("dim").i;
                     const bool keepdim = op->params.at("keepdim").b;
-                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False");
+                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False", dtype_suffix.c_str());
                 }
                 else
                 {
@@ -2015,7 +2078,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     for (size_t i = 0; i < dims.size(); i++)
                     {
                         int dim = dims[i];
-                        fprintf(pyfp, ", dim=%d, keepdim=%s)", dim, keepdim ? "True" : "False");
+                        // each nested reduction must carry the explicit dtype
+                        // (only decorating the outermost call would let the
+                        // inner float32 reductions lose precision/overflow)
+                        fprintf(pyfp, ", dim=%d, keepdim=%s%s)", dim, keepdim ? "True" : "False", dtype_suffix.c_str());
                     }
                 }
 
@@ -2304,9 +2370,28 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 int i = 0;
                 for (const auto& it : op->params)
                 {
+                    // torch 2.x renamed torch.var/std unbiased to correction;
+                    // emit a runtime-selected kwargs dict so the generated code
+                    // also runs on the torch 1.8-1.13 environments covered by
+                    // pnnx.yml (those only know the unbiased keyword)
+                    if ((op->type == "torch.var" || op->type == "torch.std") && it.first == "unbiased" && it.second.type == 1)
+                    {
+                        // a positional input list was already printed above, so
+                        // the kwargs dict needs a leading separator unless it is
+                        // the only argument (an op with no tensor inputs)
+                        if (!(op->inputs.empty() && i == 0))
+                            fprintf(pyfp, ", ");
+                        fprintf(pyfp, "**({'correction': %s} if _torch_has_correction else {'unbiased': %s})",
+                                it.second.b ? "True" : "False", it.second.b ? "True" : "False");
+                        i++;
+                        continue;
+                    }
+
+                    const char* key_name = it.first.c_str();
+
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
                     {
-                        fprintf(pyfp, "%s=", it.first.c_str());
+                        fprintf(pyfp, "%s=", key_name);
                     }
                     else if (op->type == "F.pad" && op->params.at("mode").s != "constant" && it.first == "value")
                     {
@@ -2316,11 +2401,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                     else if (op->inputs.empty() && i == 0)
                     {
-                        fprintf(pyfp, "%s=", it.first.c_str());
+                        fprintf(pyfp, "%s=", key_name);
                     }
                     else
                     {
-                        fprintf(pyfp, ", %s=", it.first.c_str());
+                        fprintf(pyfp, ", %s=", key_name);
                     }
 
                     i++;
@@ -2533,7 +2618,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2545,10 +2631,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
-                }
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
+                else
+                    for (size_t i = 0; i < r->shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d, ", r->shape[i]);
+                    }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
 
@@ -2599,7 +2688,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2611,10 +2701,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
-                }
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
+                else
+                    for (size_t i = 0; i < r->shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d, ", r->shape[i]);
+                    }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
 
@@ -2721,7 +2814,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2733,10 +2827,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
-                {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
-                }
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
+                else
+                    for (size_t i = 0; i < r->shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d, ", r->shape[i]);
+                    }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
 
@@ -2787,6 +2884,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
         int input_shapes_i = 0;
 
+        // count graph inputs; if the user-provided input_shapes count does not
+        // match (some unused inputs were dropped during passes), fall back to
+        // the shape-inferred shapes to avoid misalignment
+        int graph_input_count = 0;
+        for (const Operator* op : ops)
+        {
+            if (op->type == "pnnx.Input")
+                graph_input_count++;
+        }
+        const bool input_shapes_aligned = !input_shapes.empty() && ((int)input_shapes.size() == graph_input_count);
+
         std::vector<std::string> input_names;
         for (const Operator* op : ops)
         {
@@ -2796,7 +2904,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             const Operand* r = op->outputs[0];
 
             std::vector<int> input_shape;
-            if (input_shapes.empty())
+            if (!input_shapes_aligned)
             {
                 input_shape = r->shape;
             }
@@ -2812,7 +2920,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
@@ -2827,13 +2936,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < input_shape.size(); i++)
-                {
-                    int dimsize = input_shape[i];
-                    if (dimsize == -1)
-                        dimsize = 128; // try with a good default
-                    fprintf(pyfp, "%d, ", dimsize);
-                }
+                if (input_shape.empty())
+                    fprintf(pyfp, "(), ");
+                else
+                    for (size_t i = 0; i < input_shape.size(); i++)
+                    {
+                        int dimsize = input_shape[i];
+                        if (dimsize == -1)
+                            dimsize = 128; // try with a good default
+                        fprintf(pyfp, "%d, ", dimsize);
+                    }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
 
@@ -2859,6 +2971,232 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             fprintf(pyfp, ")\n");
         }
+    }
+
+    fprintf(pyfp, "\n");
+
+    // pt2 round-trip / dynamic re-export helper: rebuilds the model from the
+    // pnnx archive and exports it again as an ExportedProgram, restoring the
+    // symbolic dims recorded by the loader as torch.export.Dim constraints
+    {
+        std::vector<const Operator*> py_input_ops;
+        std::vector<const Operand*> py_input_operands;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+            py_input_ops.push_back(op);
+            py_input_operands.push_back(op->outputs[0]);
+        }
+
+        // the loader records specs keyed by the pnnx.Input op name (the
+        // graph-level name, e.g. "x"), while operands get renamed to
+        // numeric ids during graph construction
+        std::map<std::string, const Pt2InputSymSpec*> py_spec_by_name;
+        for (size_t i = 0; i < pt2_input_sym_specs.size(); i++)
+            py_spec_by_name[pt2_input_sym_specs[i].input_name] = &pt2_input_sym_specs[i];
+
+        bool py_any_dynamic = false;
+        for (size_t i = 0; i < py_input_ops.size(); i++)
+        {
+            const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(py_input_ops[i]->name);
+            if (it == py_spec_by_name.end())
+                continue;
+            for (size_t j = 0; j < it->second->dim_syms.size(); j++)
+            {
+                if (!it->second->dim_syms[j].empty())
+                    py_any_dynamic = true;
+            }
+        }
+
+        fprintf(pyfp, "def export_exported_program(example_inputs=None, out_path=None):\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    if example_inputs is None:\n");
+        fprintf(pyfp, "        torch.manual_seed(0)\n");
+        for (size_t i = 0; i < py_input_operands.size(); i++)
+        {
+            const Operand* r = py_input_operands[i];
+            const std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            std::vector<int> input_shape = r->shape;
+            for (size_t j = 0; j < input_shape.size(); j++)
+            {
+                if (input_shape[j] == -1)
+                    input_shape[j] = 128; // try with a good default
+            }
+            if (type_is_integer(r->type))
+            {
+                // a bool tensor can only hold 0/1; randint(10) would raise
+                fprintf(pyfp, "        %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
+                for (size_t j = 0; j < input_shape.size(); j++)
+                {
+                    fprintf(pyfp, "%d", input_shape[j]);
+                    if (j + 1 != input_shape.size() || input_shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "        %s = torch.rand(", input_name.c_str());
+                if (input_shape.empty())
+                    fprintf(pyfp, "(), ");
+                else
+                    for (size_t j = 0; j < input_shape.size(); j++)
+                        fprintf(pyfp, "%d, ", input_shape[j]);
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+        }
+        fprintf(pyfp, "        example_inputs = (");
+        for (size_t i = 0; i < py_input_operands.size(); i++)
+        {
+            fprintf(pyfp, "v_%s", sanitize_identifier(py_input_operands[i]->name).c_str());
+            if (i + 1 != py_input_operands.size() || py_input_operands.size() == 1)
+                fprintf(pyfp, ", ");
+        }
+        fprintf(pyfp, ")\n");
+        fprintf(pyfp, "\n");
+
+        if (py_any_dynamic)
+        {
+            // runtime input validation: the exported program recorded dynamic
+            // dimension ranges (range_constraints); check caller-provided
+            // inputs against them so an out-of-range shape fails with a clear
+            // message instead of an opaque guard error inside torch.export
+            fprintf(pyfp, "    def _validate_inputs(inputs):\n");
+            fprintf(pyfp, "        # dynamic dimension constraints recorded from the original export\n");
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+                if (it == py_spec_by_name.end())
+                    continue;
+
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                bool has_dyn = false;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (!ds[j].empty())
+                        has_dyn = true;
+                }
+                if (!has_dyn)
+                    continue;
+
+                fprintf(pyfp, "        x%d = inputs[%zu]\n", (int)i, i);
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
+                    int64_t mn = 2;
+                    int64_t mx = INT64_MAX;
+                    if (rit != pt2_sym_ranges.end())
+                    {
+                        mn = rit->second.first;
+                        mx = rit->second.second;
+                    }
+
+                    if (mx != INT64_MAX)
+                        fprintf(pyfp, "        if x%d.size(%zu) < %lld or x%d.size(%zu) > %lld:\n            raise ValueError(\"input '%s' dim %zu (%s) must be within [%lld, %lld], got %%d\" %% x%d.size(%zu))\n",
+                                (int)i, j, (long long)mn, (int)i, j, (long long)mx, iname.c_str(), j, ds[j].c_str(), (long long)mn, (long long)mx, (int)i, j);
+                    else
+                        fprintf(pyfp, "        if x%d.size(%zu) < %lld:\n            raise ValueError(\"input '%s' dim %zu (%s) must be at least %lld, got %%d\" %% x%d.size(%zu))\n",
+                                (int)i, j, (long long)mn, iname.c_str(), j, ds[j].c_str(), (long long)mn, (int)i, j);
+                }
+            }
+            fprintf(pyfp, "\n");
+
+            fprintf(pyfp, "    _validate_inputs(example_inputs)\n");
+            fprintf(pyfp, "\n");
+
+            // create one Dim object per distinct dynamic-axis name and reuse it
+            // everywhere that axis appears. torch.export infers equality of two
+            // axes only from the *same* Dim instance (a shared batch dimension
+            // across two inputs, a square-matrix dim, ...); emitting a fresh
+            // Dim with an equal name per occurrence would silently drop that
+            // identity constraint and let the re-export accept inconsistent
+            // shapes (or fail the original guard that required the equality).
+            std::map<std::string, std::string> py_dim_names;
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+                if (it == py_spec_by_name.end())
+                    continue;
+
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    const std::map<std::string, std::pair<int64_t, int64_t> >::const_iterator rit = pt2_sym_ranges.find(ds[j]);
+
+                    if (py_dim_names.find(ds[j]) == py_dim_names.end())
+                    {
+                        std::string varname = std::string("dim_") + sanitize_identifier(ds[j]);
+                        py_dim_names[ds[j]] = varname;
+                        fprintf(pyfp, "    %s = torch.export.Dim('%s'", varname.c_str(), ds[j].c_str());
+                        if (rit != pt2_sym_ranges.end())
+                        {
+                            if (rit->second.first > 2)
+                                fprintf(pyfp, ", min=%lld", (long long)rit->second.first);
+                            if (rit->second.second != INT64_MAX)
+                                fprintf(pyfp, ", max=%lld", (long long)rit->second.second);
+                        }
+                        fprintf(pyfp, ")\n");
+                    }
+                }
+            }
+            fprintf(pyfp, "\n");
+
+            fprintf(pyfp, "    dynamic_shapes = (\n");
+            for (size_t i = 0; i < py_input_operands.size(); i++)
+            {
+                const std::string& iname = py_input_ops[i]->name;
+                const std::map<std::string, const Pt2InputSymSpec*>::const_iterator it = py_spec_by_name.find(iname);
+
+                bool has_dyn = false;
+                if (it != py_spec_by_name.end())
+                {
+                    for (size_t j = 0; j < it->second->dim_syms.size(); j++)
+                    {
+                        if (!it->second->dim_syms[j].empty())
+                            has_dyn = true;
+                    }
+                }
+
+                if (!has_dyn)
+                {
+                    fprintf(pyfp, "        None,\n");
+                    continue;
+                }
+
+                fprintf(pyfp, "        {\n");
+                const std::vector<std::string>& ds = it->second->dim_syms;
+                for (size_t j = 0; j < ds.size(); j++)
+                {
+                    if (ds[j].empty())
+                        continue;
+
+                    fprintf(pyfp, "            %zu: %s,\n", j, py_dim_names[ds[j]].c_str());
+                }
+                fprintf(pyfp, "        },\n");
+            }
+            fprintf(pyfp, "    )\n");
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs, dynamic_shapes=dynamic_shapes)\n");
+        }
+        else
+        {
+            fprintf(pyfp, "    ep = torch.export.export(net, example_inputs)\n");
+        }
+
+        fprintf(pyfp, "    if out_path is None:\n");
+        fprintf(pyfp, "        out_path = os.path.splitext(os.path.abspath(__file__))[0] + '_reexported.pt2'\n");
+        fprintf(pyfp, "    torch.export.save(ep, out_path)\n");
+        fprintf(pyfp, "    return ep\n");
     }
 
     fprintf(pyfp, "\n");
