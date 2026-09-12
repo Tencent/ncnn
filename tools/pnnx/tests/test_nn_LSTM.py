@@ -13,6 +13,7 @@ class Model(nn.Module):
         self.lstm_0_1 = nn.LSTM(input_size=16, hidden_size=16, num_layers=3, bias=False)
         self.lstm_0_2 = nn.LSTM(input_size=16, hidden_size=16, num_layers=4, bias=True, bidirectional=True, proj_size=10)
         self.lstm_0_3 = nn.LSTM(input_size=20, hidden_size=16, num_layers=4, bias=True, bidirectional=True, proj_size=10)
+        self.lstm_0_4 = nn.LSTM(input_size=20, hidden_size=16, bias=False, proj_size=8)
 
         self.lstm_1_0 = nn.LSTM(input_size=25, hidden_size=16, batch_first=True)
         self.lstm_1_1 = nn.LSTM(input_size=16, hidden_size=16, num_layers=3, bias=False, batch_first=True)
@@ -24,12 +25,13 @@ class Model(nn.Module):
         x1, _ = self.lstm_0_1(x0)
         x2, (h2, c2) = self.lstm_0_2(x1)
         x3, (h3, c3) = self.lstm_0_3(x2, (h2, c2))
+        x4, (h4_no_bias, c4_no_bias) = self.lstm_0_4(x2)
 
         y0, (h4, c4) = self.lstm_1_0(y)
         y1, _ = self.lstm_1_1(y0)
         y2, (h6, c6) = self.lstm_1_2(y1)
         y3, (h7, c7) = self.lstm_1_3(y2, (h6, c6))
-        return x2, x3, h0, h2, h3, c0, c2, c3, y2, y3, h4, h6, h7, c4, c6, c7
+        return x2, x3, x4, h0, h2, h3, h4_no_bias, c0, c2, c3, c4_no_bias, y2, y3, h4, h6, h7, c4, c6, c7
 
 def test():
     net = Model()

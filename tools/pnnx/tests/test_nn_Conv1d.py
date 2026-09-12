@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -56,14 +58,23 @@ def test():
     mod.save("test_nn_Conv1d.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_Conv1d.pt inputshape=[1,12,64]")
+    converted = torchscript_to_pnnx("test_nn_Conv1d", "[1,12,64]")
 
     # pnnx inference
-    import test_nn_Conv1d_pnnx
-    b = test_nn_Conv1d_pnnx.test_inference()
+    b = converted(x)
 
-    return torch.allclose(a, b, 1e-3, 1e-3)
+    if not torch.allclose(a, b, 1e-3, 1e-3):
+        return False
+
+    if not has_torch_export():
+        return True
+
+    torch.nn.utils.parametrize.remove_parametrizations(net.conv_8, "weight", leave_parametrized=True)
+    a = net(x)
+    converted = exported_program_to_pnnx(net, x, "test_nn_Conv1d_pt2")
+    c = converted(x)
+
+    return torch.allclose(a, c, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

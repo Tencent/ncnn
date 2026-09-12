@@ -3,6 +3,9 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 macro(pnnx_ncnn_add_test name)
     add_test(NAME test_ncnn_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/../run_test.cmake)
+    add_test(NAME test_ncnn_${name}_pt2 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../run_test_pt2.py ${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py)
+    set_tests_properties(test_ncnn_${name} test_ncnn_${name}_pt2 PROPERTIES RESOURCE_LOCK pnnx_ncnn_${name})
+    set_tests_properties(test_ncnn_${name}_pt2 PROPERTIES SKIP_RETURN_CODE 77)
 endmacro()
 
 pnnx_ncnn_add_test(F_adaptive_avg_pool1d)

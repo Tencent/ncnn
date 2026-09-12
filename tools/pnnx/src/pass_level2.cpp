@@ -13,6 +13,7 @@
 #include "pass_level2/eliminate_size_numtotensor_int.h"
 #include "pass_level2/functionize.h"
 #include "pass_level2/fuse_constantlist.h"
+#include "pass_level2/fuse_exported_rnn.h"
 
 namespace pnnx {
 
@@ -1141,6 +1142,8 @@ void pass_level2(Graph& g)
     eliminate_contiguous(g);
 
     eliminate_size_numtotensor_int(g);
+
+    fuse_exported_rnn(g);
 
     fuse_constantlist(g);
 
