@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "fold_size_limit.h"
 #include "utils.h"
 
 #include <string.h>
@@ -149,6 +150,14 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // an oversized or invalid static shape is declined here so the graph
+        // keeps the original operator; write() can then always materialize the
+        // payload instead of truncating it into an empty attribute
+        return fold_size_within_limit(captured_params.at("size").ai, matched_operators.at("op_5")->outputs[0]->type);
+    }
+
     const char* type_str() const
     {
         return "pnnx.Attribute";
@@ -171,28 +180,12 @@ pnnx.Output             output      1 0 out
         a.type = op->outputs[0]->type;
         a.shape = shape;
 
-        size_t es = 4;
-        if (a.type == 2 || a.type == 5) es = 8;                 // f64/i64
-        if (a.type == 3 || a.type == 6 || a.type == 13) es = 2; // f16/i16/bf16
-        if (a.type == 7 || a.type == 8 || a.type == 9) es = 1;  // i8/u8/bool
-        if (a.type == 10) es = 8;                               // complex64
-        if (a.type == 11) es = 16;                              // complex128
+        const size_t es = fold_elemsize(a.type);
 
+        // match() already rejected an invalid or oversized shape
         size_t count = 1;
-        bool valid = true;
         for (int s : shape)
-        {
-            if (s <= 0 || count > (size_t)-1 / (size_t)s)
-            {
-                valid = false;
-                break;
-            }
             count *= (size_t)s;
-        }
-        // reject invalid/overflowing shapes and cap the serialized constant at
-        // 1 GiB (a valid but huge shape must not OOM the converter)
-        if (!valid || count > (size_t)-1 / es || count * es > (size_t)0x40000000)
-            count = 0;
 
         a.data.resize(count * es);
         char* d = a.data.data();
@@ -351,6 +344,14 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // an oversized or invalid static shape is declined here so the graph
+        // keeps the original operator; write() can then always materialize the
+        // payload instead of truncating it into an empty attribute
+        return fold_size_within_limit(captured_params.at("size").ai, matched_operators.at("op_6")->outputs[0]->type);
+    }
+
     const char* type_str() const
     {
         return "pnnx.Attribute";
@@ -373,28 +374,12 @@ pnnx.Output             output      1 0 out
         a.type = op->outputs[0]->type;
         a.shape = shape;
 
-        size_t es = 4;
-        if (a.type == 2 || a.type == 5) es = 8;                 // f64/i64
-        if (a.type == 3 || a.type == 6 || a.type == 13) es = 2; // f16/i16/bf16
-        if (a.type == 7 || a.type == 8 || a.type == 9) es = 1;  // i8/u8/bool
-        if (a.type == 10) es = 8;                               // complex64
-        if (a.type == 11) es = 16;                              // complex128
+        const size_t es = fold_elemsize(a.type);
 
+        // match() already rejected an invalid or oversized shape
         size_t count = 1;
-        bool valid = true;
         for (int s : shape)
-        {
-            if (s <= 0 || count > (size_t)-1 / (size_t)s)
-            {
-                valid = false;
-                break;
-            }
             count *= (size_t)s;
-        }
-        // reject invalid/overflowing shapes and cap the serialized constant at
-        // 1 GiB (a valid but huge shape must not OOM the converter)
-        if (!valid || count > (size_t)-1 / es || count * es > (size_t)0x40000000)
-            count = 0;
 
         a.data.resize(count * es);
         char* d = a.data.data();
