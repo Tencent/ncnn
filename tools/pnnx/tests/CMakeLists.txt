@@ -419,6 +419,7 @@ pnnx_add_test(transformers_xlm_roberta_attention)
 pnnx_add_test(transformers_xlnet_attention)
 
 add_subdirectory(ncnn)
+add_subdirectory(pt2)
 
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)

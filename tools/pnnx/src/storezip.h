@@ -33,7 +33,9 @@ private:
     struct StoreZipMeta
     {
         uint64_t offset;
-        uint64_t size;
+        uint64_t compressed_size;
+        uint64_t uncompressed_size;
+        uint16_t compression;
     };
 
     std::map<std::string, StoreZipMeta> filemetas;

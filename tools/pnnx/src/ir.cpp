@@ -1346,14 +1346,14 @@ static std::string make_slice_expression(const Operator* op)
         if (op->has_param("end"))
         {
             int end = op->params.at("end").i;
-            if (end != INT_MAX)
+            if (end != INT_MAX && end != INT_MIN)
                 r += std::to_string(end);
         }
         else if (op->has_param("ends"))
         {
             std::vector<int> ends = op->params.at("ends").ai;
             int end = ends[i];
-            if (end != INT_MAX)
+            if (end != INT_MAX && end != INT_MIN)
                 r += std::to_string(end);
         }
         else if (op->has_input("end"))
@@ -1373,7 +1373,7 @@ static std::string make_slice_expression(const Operator* op)
             else
             {
                 int end = std::stoi(index);
-                if (end != INT_MAX)
+                if (end != INT_MAX && end != INT_MIN)
                     r += std::to_string(end);
             }
         }
@@ -1482,7 +1482,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");
-    fprintf(pyfp, "import tempfile, zipfile\n");
+    fprintf(pyfp, "import zipfile\n");
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
@@ -1648,9 +1648,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     const Attribute& attr = it.second;
                     for (size_t i = 0; i < attr.shape.size(); i++)
                     {
-                        fprintf(pyfp, "%d", attr.shape[i]);
-                        if (i + 1 != attr.shape.size())
-                            fprintf(pyfp, ",");
+                        fprintf(pyfp, "%d,", attr.shape[i]);
                     }
 
                     fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
@@ -1678,9 +1676,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 const Attribute& attr = it.second;
                 for (size_t i = 0; i < attr.shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", attr.shape[i]);
-                    if (i + 1 != attr.shape.size())
-                        fprintf(pyfp, ",");
+                    fprintf(pyfp, "%d,", attr.shape[i]);
                 }
 
                 if (attr.type == 1 || attr.type == 2 || attr.type == 3)
@@ -1774,12 +1770,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
-        fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
-        fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
-        fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
-        fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
-        fprintf(pyfp, "        os.remove(tmppath)\n");
-        fprintf(pyfp, "        return torch.from_numpy(m)\n");
+        fprintf(pyfp, "        with archive.open(key) as keyfile:\n");
+        fprintf(pyfp, "            m = np.frombuffer(keyfile.read(), dtype=dtype).copy()\n");
+        fprintf(pyfp, "        return torch.from_numpy(m).reshape(shape)\n");
     }
 
     fprintf(pyfp, "\n");
@@ -2698,6 +2691,64 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "]");
 
         fprintf(pyfp, ")\n");
+    }
+
+    fprintf(pyfp, "\n");
+
+    // export exported program
+    {
+        fprintf(pyfp, "def export_exported_program():\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    torch.manual_seed(0)\n");
+
+        std::vector<std::string> input_names;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+
+            input_names.push_back(input_name);
+        }
+
+        fprintf(pyfp, "\n");
+
+        fprintf(pyfp, "    program = torch.export.export(net, (");
+        for (size_t i = 0; i < input_names.size(); i++)
+        {
+            fprintf(pyfp, "%s", input_names[i].c_str());
+            if (i + 1 != input_names.size())
+                fprintf(pyfp, ", ");
+        }
+        if (input_names.size() == 1)
+            fprintf(pyfp, ",");
+        fprintf(pyfp, "))\n");
+        fprintf(pyfp, "    torch.export.save(program, \"%s.pt2\")\n", pypath.c_str());
     }
 
     fprintf(pyfp, "\n");
