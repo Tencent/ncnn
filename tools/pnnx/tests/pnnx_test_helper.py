@@ -24,10 +24,6 @@ try:
     from pt2_expectations import EXPECT as _PT2_EXPECT
 except Exception:
     _PT2_EXPECT = {}
-try:
-    from pt2_expectations import EXPECT_NCNN_NO_LOWERING as _PT2_NCNN_SKIP
-except Exception:
-    _PT2_NCNN_SKIP = set()
 
 
 def _pt2_expectation(exp):
@@ -449,14 +445,10 @@ def test_pnnx_ncnn(net, args, inputshapes, tag, atol=1e-3, rtol=1e-3, fp16=0):
         return False
 
     # pnnx exits 0 even when a graph has no ncnn lowering, leaving the ATen op
-    # in the generated .ncnn.param; ncnn cannot load such a model. the tags in
-    # EXPECT_NCNN_NO_LOWERING are the audited set where that is expected, any
-    # other tag still carrying an ATen op is a regression.
+    # in the generated .ncnn.param; ncnn cannot load such a model, so a leftover
+    # operator name is always a failure instead of a silently dropped check.
     leftover = _nn_param_unconverted_op(tag)
     if leftover is not None:
-        if tag in _PT2_NCNN_SKIP:
-            print("[pt2-ncnn skip] %s: no ncnn lowering for %s" % (tag, leftover))
-            return None
         print("[pt2-ncnn] %s: generated ncnn model still contains %s" % (tag, leftover))
         return False
 

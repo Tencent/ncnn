@@ -10,6 +10,72 @@ namespace ncnn {
 static void write_stft_spectrogram(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, int power, int normalized);
 static int detect_window_type(const std::vector<float>& window_data);
 
+// pt2 (torch.export) materializes the torchaudio.functional frontend instead of
+// keeping it as one op: the caller's batch pack/unpack appears as a Reshape
+// around the stft result and the magnitude/normalization tail is plain
+// operators. ncnn's Spectrogram layer only reads bottom_blob.w and only emits
+// the natural frequency/frame layout, so such a Reshape may be folded away
+// exactly when it adds or removes leading singleton dims (a batch of one). a
+// reshape that regroups the frequency/frame axes must keep its own Reshape.
+static bool is_batch_singleton_reshape(const std::vector<int>& ishape, const std::vector<int>& oshape)
+{
+    if (ishape.empty() || oshape.empty())
+        return false;
+
+    size_t i = 0;
+    size_t o = 0;
+    while (i < ishape.size() && ishape[i] == 1)
+        i++;
+    while (o < oshape.size() && oshape[o] == 1)
+        o++;
+
+    if (ishape.size() - i != oshape.size() - o)
+        return false;
+
+    for (; i < ishape.size(); i++, o++)
+    {
+        if (ishape[i] != oshape[o])
+            return false;
+    }
+
+    return true;
+}
+
+static bool match_batch_singleton_reshape(const std::map<std::string, const Operator*>& matched_operators, const char* name)
+{
+    std::map<std::string, const Operator*>::const_iterator it = matched_operators.find(name);
+    if (it == matched_operators.end())
+        return false;
+
+    const Operator* op = it->second;
+    if (op->inputs.empty() || op->outputs.empty())
+        return false;
+
+    return is_batch_singleton_reshape(op->inputs[0]->shape, op->outputs[0]->shape);
+}
+
+// the full reduction guard for the window-energy chain below: torch_sum has
+// already lowered the sum to a ncnn Reduction by the time the normalized
+// variants run, and only sum over every element is the window energy the layer
+// pre-computes for normalized=2. a sum that selects axes is a different factor.
+static bool match_full_reduction(const std::map<std::string, Parameter>& captured_params, const char* name)
+{
+    const std::string prefix = std::string(name) + ".";
+
+    // ReductionOp_SUM
+    std::map<std::string, Parameter>::const_iterator operation = captured_params.find(prefix + "0");
+    if (operation == captured_params.end() || operation->second.type != 2 || operation->second.i != 0)
+        return false;
+
+    // reduce_all
+    std::map<std::string, Parameter>::const_iterator reduce_all = captured_params.find(prefix + "1");
+    if (reduce_all == captured_params.end() || reduce_all->second.type != 2 || reduce_all->second.i != 1)
+        return false;
+
+    // a dim-reduced sum carries its axes, and is a different factor
+    return captured_params.find(prefix + "3") == captured_params.end();
+}
+
 // pt2: stft preceded by an explicit reshape + F.pad (center pad expanded); absorb
 // into Spectrogram(center=True). Must match before torch_stft_pt2_complex (stft
 // with leading structure).
@@ -45,6 +111,12 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         if (detect_window_type(window_data) == -1)
+            return false;
+
+        // the pad matched here is the centering pad dynamo materialized for
+        // center=True, so it may only be absorbed while the stft itself does
+        // not pad; otherwise the layer would center a second time
+        if (captured_params.at("center").type == 1 && captured_params.at("center").b)
             return false;
 
         // only absorb the leading pad when it exactly implements STFT
@@ -318,10 +390,14 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
-        return detect_window_type(window_data) != -1;
+        if (detect_window_type(window_data) == -1)
+            return false;
+
+        // only the caller's batch unpack may be folded away
+        return match_batch_singleton_reshape(matched_operators, "op_2");
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -333,17 +409,11 @@ pnnx.Output             output      1 0 out
     }
 };
 
-// NOTE: torch_stft_pt2_complex is intentionally NOT registered (same reason as
-// the istft pt2 variants below): it matches a wildcard Reshape between the
-// stft output and view_as_real and folds the whole chain into Spectrogram,
-// dropping that reshape. a real export does not produce such a reshape - the
-// complex stft output is consumed directly by view_as_real (see
-// torch_stft_pt2_pad_complex, which only validates the leading pad) - so the
-// only graphs that can reach this pattern are user reshapes that regroup the
-// batch/frame/frequency axes, and folding them into Spectrogram's native
-// layout would silently return the wrong shape. decline until a fixture-backed
-// standard layout exists.
-// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_complex, 20)
+// a real torch.export of torchaudio.functional.spectrogram(power=None) does put
+// a Reshape between the complex stft and view_as_real: it is the frontend's
+// batch unpack, verified above to be a leading-singleton reshape only. user
+// reshapes that regroup frequency/frame axes keep the original operators.
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_complex, 20)
 
 // pt2: torch.stft + Reshape + UnaryOp abs + UnaryOp square (power=2 spectrum)
 class torch_stft_pt2_power : public GraphRewriterPass
@@ -373,42 +443,46 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
-        return detect_window_type(window_data) != -1;
+        if (detect_window_type(window_data) == -1)
+            return false;
+
+        // power=2 is abs(x) ** 2, so square(abs(complex)) == re*re + im*im is
+        // exactly the layer's power=2 output; only the batch unpack reshapes
+        return match_batch_singleton_reshape(matched_operators, "op_2");
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        // frame_length normalization (normalized=True) maps to Spectrogram's 1
+        // frame_length normalization (stft normalized=True) maps to Spectrogram's 1
         int normalized = captured_params.at("normalized").type == 1 && captured_params.at("normalized").b ? 1 : 0;
         write_stft_spectrogram(op, captured_params, captured_attrs, 2, normalized);
     }
 };
 
-// NOTE: torch_stft_pt2_power is intentionally NOT registered (same reason as
-// torch_stft_pt2_complex above: the wildcard Reshape before the magnitude
-// ops is not produced by torch.export and can only be a user reshape that a
-// Spectrogram replacement would silently drop).
-// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_power, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_power, 20)
 
-// pt2: torch.stft + Reshape + UnaryOp abs(div(@0,sqrt(@1))) (window-normalized magnitude spectrum)
+// pt2: torch.stft + Reshape + BinaryOp div + UnaryOp abs, scaled by the
+// torchaudio frontend's window normalization sqrt(sum(window ** 2))
 class torch_stft_pt2_norm : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
+11 10
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_0        0 1 window @data
-torch.stft              op_1        2 1 input window a center=%center pad_mode=%pad_mode hop_length=%hop_length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=True win_length=%win_length
-Reshape                 op_2        1 1 a b %*=%*
-pnnx.Input              norm        0 1 norm
-UnaryOp                 op_3        1 1 norm sqrt_out 0=5
-BinaryOp                op_4        2 1 b sqrt_out d 0=3
-UnaryOp                 op_5        1 1 d out 0=0
+pnnx.Attribute          op_1        0 1 window2 @data2
+torch.stft              op_2        2 1 input window a center=%center pad_mode=%pad_mode hop_length=%hop_length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=True win_length=%win_length
+Reshape                 op_3        1 1 a b %*=%*
+UnaryOp                 op_4        1 1 window2 square 0=4
+Reduction               op_5        1 1 square sqsum %*=%*
+UnaryOp                 op_6        1 1 sqsum win_norm 0=5
+BinaryOp                op_7        2 1 b win_norm c 0=3
+UnaryOp                 op_8        1 1 c out 0=0
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -423,28 +497,35 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
-        return detect_window_type(window_data) != -1;
+        if (detect_window_type(window_data) == -1)
+            return false;
+        // torch.export materializes the window constant once per use, so the
+        // stft window and the operand that is squared are separate tensors; the
+        // folded factor is the layer's own window energy only when both carry
+        // the same window
+        if (!(captured_attrs.at("op_0.data") == captured_attrs.at("op_1.data")))
+            return false;
+
+        if (!match_full_reduction(captured_params, "op_5"))
+            return false;
+
+        return match_batch_singleton_reshape(matched_operators, "op_3");
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        // window normalization (normalized='window') maps to Spectrogram's 2
+        // abs(stft / sqrt(sum(window ** 2))) is the layer's window-normalized
+        // magnitude, i.e. normalized=2 with power=1
         write_stft_spectrogram(op, captured_params, captured_attrs, 1, 2);
     }
 };
 
-// NOTE: torch_stft_pt2_norm is intentionally NOT registered. besides the
-// wildcard Reshape issue shared with the complex/power variants above, its
-// `norm` operand is a graph-boundary pnnx.Input: the single-op rewriter would
-// wire it as a second input of the resulting Spectrogram, but the ncnn layer
-// accepts only the signal input, and the pattern never verifies that norm is
-// actually the window-energy factor (an arbitrary abs(stft / sqrt(norm)) graph
-// would be mis-scaled). decline the rewrite; the export-time normalization
-// stays as plain torch operators until a verified standard expansion exists.
-// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_norm, 20)
+// priority 21: the window-energy chain holds the fully lowered Reduction, which
+// only exists after the priority-20 torch_sum pass has run
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_stft_pt2_norm, 21)
 
 } // namespace ncnn
 

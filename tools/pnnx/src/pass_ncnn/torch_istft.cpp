@@ -120,6 +120,74 @@ static int detect_window_type(const std::vector<float>& window_data)
     return -1;
 }
 
+// pt2 (torch.export) materializes the torchaudio.functional frontend instead of
+// keeping it as one op, so the inverse path carries the caller's batch
+// pack/unpack as a Reshape on both sides of the istft, plus the plain operators
+// of the window normalization. ncnn's InverseSpectrogram layer consumes the
+// (freq, frame, 2) layout and only produces the natural one-dimensional wave,
+// so such a Reshape may be folded away exactly when it adds or removes leading
+// singleton dims (a batch of one). a reshape that regroups batch/time dims must
+// keep its own Reshape.
+static bool is_batch_singleton_reshape(const std::vector<int>& ishape, const std::vector<int>& oshape)
+{
+    if (ishape.empty() || oshape.empty())
+        return false;
+
+    size_t i = 0;
+    size_t o = 0;
+    while (i < ishape.size() && ishape[i] == 1)
+        i++;
+    while (o < oshape.size() && oshape[o] == 1)
+        o++;
+
+    if (ishape.size() - i != oshape.size() - o)
+        return false;
+
+    for (; i < ishape.size(); i++, o++)
+    {
+        if (ishape[i] != oshape[o])
+            return false;
+    }
+
+    return true;
+}
+
+static bool match_batch_singleton_reshape(const std::map<std::string, const Operator*>& matched_operators, const char* name)
+{
+    std::map<std::string, const Operator*>::const_iterator it = matched_operators.find(name);
+    if (it == matched_operators.end())
+        return false;
+
+    const Operator* op = it->second;
+    if (op->inputs.empty() || op->outputs.empty())
+        return false;
+
+    return is_batch_singleton_reshape(op->inputs[0]->shape, op->outputs[0]->shape);
+}
+
+// the window-energy chain below folds sqrt(sum(window ** 2)) into the layer's
+// normalized=2, which is exactly what the layer pre-computes. torch_sum has
+// already lowered the sum to a ncnn Reduction by the time the normalized
+// variants run, and only sum over every element of the squared window is that
+// factor; a sum that selects axes is a different one.
+static bool match_full_reduction(const std::map<std::string, Parameter>& captured_params, const char* name)
+{
+    const std::string prefix = std::string(name) + ".";
+
+    // ReductionOp_SUM
+    std::map<std::string, Parameter>::const_iterator operation = captured_params.find(prefix + "0");
+    if (operation == captured_params.end() || operation->second.type != 2 || operation->second.i != 0)
+        return false;
+
+    // reduce_all
+    std::map<std::string, Parameter>::const_iterator reduce_all = captured_params.find(prefix + "1");
+    if (reduce_all == captured_params.end() || reduce_all->second.type != 2 || reduce_all->second.i != 1)
+        return false;
+
+    // a dim-reduced sum carries its axes, and is a different factor
+    return captured_params.find(prefix + "3") == captured_params.end();
+}
+
 class torch_istft_2 : public GraphRewriterPass
 {
 public:
@@ -229,7 +297,7 @@ pnnx.Output             output      1 0 out
         return "istft";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         // InverseSpectrogram always computes the natural output length, so an
         // explicit length that trims or zero-pads cannot be reproduced; keep
@@ -239,7 +307,12 @@ pnnx.Output             output      1 0 out
 
         const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
-        return window_type != -1;
+        if (window_type == -1)
+            return false;
+
+        // both reshapes are the frontend's batch pack and unpack
+        return match_batch_singleton_reshape(matched_operators, "op_1")
+               && match_batch_singleton_reshape(matched_operators, "op_4");
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -257,36 +330,31 @@ pnnx.Output             output      1 0 out
     }
 };
 
-// NOTE: torch_istft_pt2 is intentionally NOT registered. it matched the pt2
-// inverse-spectrogram expansion chain through two wildcard Reshape nodes and
-// replaced the whole sequence (dropping those reshapes) with InverseSpectrogram
-// - but the wildcards also matched user reshape ops that reorganize batch/time
-// dims, silently returning the layer's natural layout instead of the requested
-// shape. the chain is not produced by the current torch (2.13 istft exports as
-// a single aten node), so there is no verified standard layout to restrict the
-// match to; until a fixture-backed expansion appears, decline the rewrite so a
-// genuinely different reshape can never be folded away. restore (with shape
-// validation) once such a fixture exists.
-// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2, 20)
+// the two reshapes are the caller's batch pack/unpack of the inverse
+// spectrogram frontend, verified above to be leading-singleton only
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2, 20)
 
-// pt2: torch.view_as_complex + UnaryOp sqrt + BinaryOp mul(window normalization)
-// + Reshape + torch.istft + Reshape
+// pt2: torch.view_as_complex + BinaryOp mul + Reshape + torch.istft + Reshape,
+// where the mul factor is the torchaudio frontend's window denormalization
+// sqrt(sum(window ** 2)) built from the stft window attribute
 class torch_istft_pt2_norm : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-11 10
+12 11
 pnnx.Input              input       0 1 input
-torch.view_as_complex   op_0        1 1 input a
-pnnx.Input              norm        0 1 norm
-UnaryOp                 op_sqrt     1 1 norm sqrt_out 0=5
-BinaryOp                op_mul      2 1 a sqrt_out b 0=2
-Reshape                 op_1        1 1 b c %*=%*
 pnnx.Attribute          op_2        0 1 window @data
-torch.istft             op_3        2 1 c window d center=%center hop_length=%hop_length length=%length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=False win_length=%win_length
-Reshape                 op_4        1 1 d out %*=%*
+pnnx.Attribute          op_3        0 1 window2 @data2
+torch.view_as_complex   op_0        1 1 input a
+UnaryOp                 op_5        1 1 window2 square 0=4
+Reduction               op_6        1 1 square sqsum %*=%*
+UnaryOp                 op_7        1 1 sqsum win_norm 0=5
+BinaryOp                op_mul      2 1 a win_norm b 0=2
+Reshape                 op_1        1 1 b c %*=%*
+torch.istft             op_4        2 1 c window d center=%center hop_length=%hop_length length=%length n_fft=%n_fft normalized=%normalized onesided=%onesided return_complex=False win_length=%win_length
+Reshape                 op_8        1 1 d out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -301,7 +369,7 @@ pnnx.Output             output      1 0 out
         return "istft";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         // InverseSpectrogram always computes the natural output length, so an
         // explicit length that trims or zero-pads cannot be reproduced; keep
@@ -310,8 +378,26 @@ pnnx.Output             output      1 0 out
             return false;
 
         const std::vector<float> window_data = captured_attrs.at("op_2.data").get_float32_data();
-        const int window_type = detect_window_type(window_data);
-        return window_type != -1;
+        if (detect_window_type(window_data) == -1)
+            return false;
+
+        // torch.export materializes the window constant once per use, so the
+        // istft window and the operand that is squared are separate tensors; the
+        // denormalization the layer reproduces for normalized=2 uses the istft
+        // window, so both must carry the same window
+        if (!(captured_attrs.at("op_2.data") == captured_attrs.at("op_3.data")))
+            return false;
+
+        if (!match_full_reduction(captured_params, "op_6"))
+            return false;
+
+        // the frontend only denormalizes for normalized='window', which it does
+        // by hand before calling the (un-normalized) istft
+        if (captured_params.at("normalized").type != 0 && (captured_params.at("normalized").type != 1 || captured_params.at("normalized").b))
+            return false;
+
+        return match_batch_singleton_reshape(matched_operators, "op_1")
+               && match_batch_singleton_reshape(matched_operators, "op_8");
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -329,10 +415,9 @@ pnnx.Output             output      1 0 out
     }
 };
 
-// NOTE: torch_istft_pt2_norm is intentionally NOT registered (same reason as
-// torch_istft_pt2 above: wildcard Reshape removal can silently change the
-// requested output layout). see the note on torch_istft_pt2.
-// REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2_norm, 20)
+// priority 21: the window-energy chain holds the fully lowered Reduction, which
+// only exists after the priority-20 torch_sum pass has run
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_istft_pt2_norm, 21)
 
 } // namespace ncnn
 
