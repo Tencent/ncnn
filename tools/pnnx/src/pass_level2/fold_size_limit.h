@@ -15,11 +15,11 @@ namespace pnnx {
 inline size_t fold_elemsize(int type)
 {
     size_t es = 4;
-    if (type == 2 || type == 5) es = 8;                 // f64/i64
-    if (type == 3 || type == 6 || type == 13) es = 2;   // f16/i16/bf16
-    if (type == 7 || type == 8 || type == 9) es = 1;    // i8/u8/bool
-    if (type == 10) es = 8;                             // complex64 (2 x f32)
-    if (type == 11) es = 16;                            // complex128 (2 x f64)
+    if (type == 2 || type == 5) es = 8;               // f64/i64
+    if (type == 3 || type == 6 || type == 13) es = 2; // f16/i16/bf16
+    if (type == 7 || type == 8 || type == 9) es = 1;  // i8/u8/bool
+    if (type == 10) es = 8;                           // complex64 (2 x f32)
+    if (type == 11) es = 16;                          // complex128 (2 x f64)
     return es;
 }
 
