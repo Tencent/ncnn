@@ -23,6 +23,41 @@ namespace pnnx {
 // correctly. shared by the 2.8+ archive path (raw byte records) and the
 // legacy(<2.8) path (raw storage shards from a pickled state dict). raw is
 // taken by value because the contiguous path may resize it.
+// every element address a view can reach must stay inside the raw storage.
+// computed in O(dims) and before any allocation, so a corrupt or hostile
+// tensor_meta can neither drive the materialization loop out of bounds nor make
+// it allocate gigabytes. a zero-stride (expanded) dimension repeats elements
+// and is skipped here, and so are the extent<=0 dimensions.
+static bool view_addresses_within_storage(const std::vector<int>& sizes, const std::vector<int64_t>& strides, int dims, int64_t storage_offset, size_t raw_elems_total)
+{
+    int64_t min_addr = storage_offset;
+    int64_t max_addr = storage_offset;
+    for (int i = 0; i < dims && min_addr >= 0 && max_addr < (int64_t)raw_elems_total; i++)
+    {
+        const int64_t extent = (int64_t)sizes[i] - 1;
+        const int64_t st = (int64_t)strides[i];
+        if (extent <= 0 || st == 0)
+            continue;
+
+        // safe absolute value (st == INT64_MIN would overflow -st)
+        const uint64_t as = st < 0 ? (uint64_t)(-(st + 1)) + 1 : (uint64_t)st;
+
+        // if this dimension alone reaches >= storage the view is OOB; compare
+        // via ceil(raw/as) so extent*as cannot overflow
+        const uint64_t need = ((uint64_t)raw_elems_total + as - 1) / as;
+        if ((uint64_t)extent >= need)
+            return false;
+
+        const int64_t span = extent * st;
+        if (st >= 0)
+            max_addr += span;
+        else
+            min_addr += span;
+    }
+
+    return min_addr >= 0 && (uint64_t)max_addr < (uint64_t)raw_elems_total;
+}
+
 int load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute& a)
 {
     // parse serialized sizes / strides / storage_offset from tensor_meta
@@ -156,110 +191,37 @@ int load_tensor_from_raw(std::vector<char> raw, const JsonValue& meta, Attribute
                 break;
             }
         }
-        if (has_zero_stride)
+        // an expanded view repeats elements through stride 0, so its logical
+        // count legitimately exceeds the number of distinct source elements,
+        // and an overlapping view with only non-zero strides can exceed the
+        // storage too (e.g. base.as_strided((3,3),(1,1)) over a five-element
+        // storage). the source may also be a slice of a larger shared storage
+        // (e.g. base[2:3].expand(100)), so raw_elems_total is not the source
+        // footprint - only storage_offset and the non-zero strides select which
+        // slots are actually read, so validate that reachable range instead.
+        if (raw_elems_total == 0)
         {
-            // an expanded view repeats elements through stride 0, so its
-            // logical count legitimately exceeds the number of distinct source
-            // elements. the source may also be a slice of a larger shared
-            // storage (e.g. base[2:3].expand(100)), so raw_elems_total is not
-            // the source footprint - only storage_offset and the non-zero
-            // strides select which storage slots are actually read. validate
-            // the reachable address range (in O(dims), before any allocation)
-            // and leave the absolute count to the byte cap below: every
-            // repeated read goes to the same in-range source, so no huge
-            // allocation can be driven unless the element count itself is
-            // huge, which the materialization guard rejects.
-            if (raw_elems_total == 0)
-            {
-                a.data.clear();
-                return -1;
-            }
-            int64_t min_addr = storage_offset;
-            int64_t max_addr = storage_offset;
-            for (int i = 0; i < dims && min_addr >= 0 && max_addr < (int64_t)raw_elems_total; i++)
-            {
-                const int64_t extent = (int64_t)sizes[i] - 1;
-                const int64_t st = (int64_t)strides[i];
-                if (extent <= 0 || st == 0)
-                    continue;
-                // safe absolute value (st == INT64_MIN would overflow -st)
-                const uint64_t as = st < 0 ? (uint64_t)(-(st + 1)) + 1 : (uint64_t)st;
-                // if this dimension alone reaches >= storage the view is OOB;
-                // compare via ceil(raw/as) so extent*as cannot overflow
-                const uint64_t need = ((uint64_t)raw_elems_total + as - 1) / as;
-                if ((uint64_t)extent >= need)
-                {
-                    a.data.clear();
-                    return -1;
-                }
-                const int64_t span = extent * st;
-                if (st >= 0)
-                    max_addr += span;
-                else
-                    min_addr += span;
-            }
-            if (min_addr < 0 || (uint64_t)max_addr >= (uint64_t)raw_elems_total)
-            {
-                // some repeated read would fall outside the storage: the
-                // shape/strides/storage_offset are inconsistent with it
-                a.data.clear();
-                return -1;
-            }
+            a.data.clear();
+            return -1;
         }
-        else
+        if (!view_addresses_within_storage(sizes, strides, dims, storage_offset, raw_elems_total))
         {
-            // overlapping view with only non-zero strides: the logical element
-            // count may exceed the backing storage while every element address
-            // is still valid (e.g. base.as_strided((3,3),(1,1)) over a
-            // five-element storage, or a negative-stride flip view). materialize
-            // below repeats the overlapping reads, so only reject when an extreme
-            // reachable address escapes the storage - computed here in O(dims),
-            // before any allocation (a hostile meta can neither OOM us nor pass
-            // an out-of-range address).
-            int64_t min_addr = storage_offset;
-            int64_t max_addr = storage_offset;
-            for (int i = 0; i < dims && min_addr >= 0 && max_addr < (int64_t)raw_elems_total; i++)
-            {
-                const int64_t extent = (int64_t)sizes[i] - 1;
-                const int64_t st = (int64_t)strides[i];
-                if (extent <= 0 || st == 0)
-                    continue;
-                // safe absolute value (st == INT64_MIN would overflow -st)
-                const uint64_t as = st < 0 ? (uint64_t)(-(st + 1)) + 1 : (uint64_t)st;
-                // if this dimension alone reaches >= storage the view is OOB;
-                // compare via ceil(raw/as) so extent*as cannot overflow
-                const uint64_t need = ((uint64_t)raw_elems_total + as - 1) / as;
-                if ((uint64_t)extent >= need)
-                {
-                    a.data.clear();
-                    return -1;
-                }
-                const int64_t span = extent * st;
-                if (st >= 0)
-                    max_addr += span;
-                else
-                    min_addr += span;
-            }
-            if (min_addr < 0 || (uint64_t)max_addr >= (uint64_t)raw_elems_total)
-            {
-                // some element address would fall outside the storage: the
-                // shape/strides are inconsistent with it
-                a.data.clear();
-                return -1;
-            }
-            // in-bounds overlap is legitimate (e.g. base.as_strided((3,3),(1,1))
-            // over a five-element storage), but the materialization loop below
-            // is O(count): a pathological box wholly inside a small storage
-            // (e.g. a stride-(1,1) square) makes count quadratic in the storage
-            // size and the out-buffer allocation would OOM before any OOB check
-            // fires. only materialize a modest multiple of the storage; real
-            // overlapping views repeat a handful of elements, never a large
-            // fraction of a quadratic blowup.
-            if (raw_elems_total == 0 || count / raw_elems_total > 16)
-            {
-                a.data.clear();
-                return -1;
-            }
+            // some element address would fall outside the storage: the
+            // shape/strides/storage_offset are inconsistent with it
+            a.data.clear();
+            return -1;
+        }
+        if (!has_zero_stride && count / raw_elems_total > 16)
+        {
+            // in-bounds overlap is legitimate, but the materialization loop
+            // below is O(count): a pathological box wholly inside a small
+            // storage (e.g. a stride-(1,1) square) makes count quadratic in the
+            // storage size and the out-buffer allocation would OOM before any
+            // OOB check fires. only materialize a modest multiple of the
+            // storage; real overlapping views repeat a handful of elements,
+            // never a large fraction of a quadratic blowup.
+            a.data.clear();
+            return -1;
         }
     }
 
