@@ -17,7 +17,7 @@ pnnx.Input              input_2     0 1 running_mean
 pnnx.Input              input_3     0 1 running_var
 pnnx.Input              input_4     0 1 weight
 pnnx.Input              input_5     0 1 bias
-prim::Constant          op_0        0 1 use_input_stats value=True
+prim::Constant          op_0        0 1 use_input_stats value=%use_input_stats
 prim::Constant          op_1        0 1 momentum value=*
 prim::Constant          op_2        0 1 eps value=%eps
 prim::Constant          op_3        0 1 cudnn_enabled value=*
@@ -29,6 +29,15 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.instance_norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        // Default matches F.instance_norm; keep False explicit for eval + running stats.
+        if (captured_params.at("use_input_stats").type == 1 && captured_params.at("use_input_stats").b)
+            op->params.erase("use_input_stats");
     }
 };
 
