@@ -45,6 +45,11 @@ class UserInputMutationModel(nn.Module):
         return x * 2
 
 
+class LargeIntegerScalarModel(nn.Module):
+    def forward(self, x):
+        return x + 5000000000
+
+
 def json_member(path):
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
@@ -159,6 +164,9 @@ def test():
     user_input_mutation = "test_exported_program_invalid_user_input_mutation.pt2"
     torch.export.save(torch.export.export(UserInputMutationModel().eval(), (x,)), user_input_mutation)
 
+    large_integer_scalar = "test_exported_program_invalid_large_integer_scalar.pt2"
+    torch.export.save(torch.export.export(LargeIntegerScalarModel().eval(), (torch.ones(2, dtype=torch.int64),)), large_integer_scalar)
+
     return all((
         expect_failure(compressed, "compressed zip entry is not supported"),
         expect_failure(compressed_renamed, "compressed zip entry is not supported"),
@@ -171,6 +179,7 @@ def test():
         expect_failure(dict_input, "unsupported or invalid pt2 input pytree"),
         expect_failure(buffer_mutation, "unsupported pt2 graph output kind"),
         expect_failure(user_input_mutation, "user input mutation is not supported"),
+        expect_failure(large_integer_scalar, "pt2 integer scalar is outside pnnx parameter range"),
     ))
 
 

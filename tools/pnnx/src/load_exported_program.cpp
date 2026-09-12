@@ -1606,6 +1606,15 @@ static bool parameter_from_json(const JsonValue& argument, Parameter& parameter)
     int64_t integer = 0;
     if (value && json_integer(*value, integer))
     {
+        const bool pnnx_sentinel = integer == std::numeric_limits<int64_t>::max()
+                                   || integer == std::numeric_limits<int64_t>::max() - 1
+                                   || integer == std::numeric_limits<int64_t>::min()
+                                   || integer == std::numeric_limits<int64_t>::min() + 1;
+        if ((integer < INT_MIN || integer > INT_MAX) && !pnnx_sentinel)
+        {
+            fprintf(stderr, "pt2 integer scalar is outside pnnx parameter range\n");
+            return false;
+        }
         parameter = Parameter((long long)integer);
         return true;
     }

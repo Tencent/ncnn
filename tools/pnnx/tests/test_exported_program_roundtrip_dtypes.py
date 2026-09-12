@@ -23,6 +23,11 @@ class BoolIdentity(nn.Module):
         return x
 
 
+class ScalarFloatInput(nn.Module):
+    def forward(self, x):
+        return x + 1.0
+
+
 def load_generated_module(basename):
     module_name = basename + "_pnnx"
     spec = importlib.util.spec_from_file_location(module_name, module_name + ".py")
@@ -52,7 +57,10 @@ def test():
         return False
 
     bool_input = torch.tensor([[True, False, True], [False, True, False]])
-    return test_roundtrip(BoolIdentity().eval(), (bool_input,), "test_exported_program_roundtrip_bool")
+    if not test_roundtrip(BoolIdentity().eval(), (bool_input,), "test_exported_program_roundtrip_bool"):
+        return False
+
+    return test_roundtrip(ScalarFloatInput().eval(), (torch.tensor(2.5),), "test_exported_program_roundtrip_scalar_float_input")
 
 
 if __name__ == "__main__":
