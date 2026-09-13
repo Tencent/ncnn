@@ -127,7 +127,7 @@ static int test_attribute_payload_size_mismatch()
         return 1;
     }
 
-    const int metadata_only_types[] = {1, 2, 3};
+    const int metadata_only_types[] = {1, 2, 3, 13};
     for (int type : metadata_only_types)
     {
         pnnx::Attribute metadata_only;
@@ -144,6 +144,35 @@ static int test_attribute_payload_size_mismatch()
     {
         fprintf(stderr, "empty scalar initializer was presented as valid data\n");
         return 1;
+    }
+
+    return 0;
+}
+
+static int test_bfloat16_conversion()
+{
+    const uint32_t float_bits[] = {0, 0x80000000, 0x3f808000, 0x3f818000, 0xbf808000, 0x7f800000, 0xff800000, 0x7f800001, 0x7f7fffff};
+    const uint16_t bf16_bits[] = {0, 0x8000, 0x3f80, 0x3f82, 0xbf80, 0x7f80, 0xff80, 0x7fc0, 0x7f80};
+    std::vector<float> values(sizeof(float_bits) / sizeof(float_bits[0]));
+    memcpy(values.data(), float_bits, sizeof(float_bits));
+    pnnx::Attribute bf16;
+    bf16.type = 13;
+    bf16.shape = {(int)values.size()};
+    bf16.set_float32_data(values);
+    if (bf16.data.size() != sizeof(bf16_bits) || memcmp(bf16.data.data(), bf16_bits, sizeof(bf16_bits)) != 0)
+    {
+        fprintf(stderr, "bfloat16 rounding or special values mismatch\n");
+        return 1;
+    }
+    values = bf16.get_float32_data();
+    if (values.size() != sizeof(bf16_bits) / sizeof(bf16_bits[0]))
+        return 1;
+    for (size_t i = 0; i < values.size(); i++)
+    {
+        uint32_t bits;
+        memcpy(&bits, &values[i], 4);
+        if (bits != (uint32_t)bf16_bits[i] << 16)
+            return 1;
     }
 
     return 0;
@@ -388,6 +417,7 @@ int main(int argc, char** argv)
     int failures = 0;
     failures += test_parameter_roundtrip();
     failures += test_attribute_payload_size_mismatch();
+    failures += test_bfloat16_conversion();
     failures += test_attribute_contract();
     failures += test_storezip_writer_lifecycle();
     failures += test_attribute_file_roundtrip();

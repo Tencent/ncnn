@@ -31,9 +31,10 @@ class Model(nn.Module):
         self.conv0 = nn.Conv2d(3, channels, 3, padding=1)
         self.conv1 = nn.Conv2d(channels, 8, 3, padding=1)
         keep = (torch.arange(channels) % 3 != 1).reshape(1, channels, 1, 1)
-        if dtype in (torch.uint8, torch.int8, torch.int16):
+        if dtype in (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64):
             info = torch.iinfo(dtype)
-            keep = torch.tensor([info.min, 0, 1, info.max], dtype=dtype).repeat(channels // 4).reshape(1, channels, 1, 1)
+            values = [info.min, 0, 1, info.max] if info.bits <= 16 else [-7, -1, 0, 9]
+            keep = torch.tensor(values, dtype=dtype).repeat(channels // 4).reshape(1, channels, 1, 1)
             # Isolate integer limits from amplified convolution rounding error.
             with torch.no_grad():
                 self.conv0.weight.zero_()
@@ -124,13 +125,55 @@ def test_attribute(dtype, fp16):
     return True
 
 
+def test_shared_integer_attribute(dtype, transpose):
+    class SharedInteger(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.embed = nn.Embedding(8, 1)
+            indices = torch.tensor([0, 7, 2, 4], dtype=dtype)
+            self.register_buffer("indices", indices.reshape(2, 2) if transpose else indices)
+
+        def forward(self, x):
+            indices = self.indices.t() if transpose else self.indices
+            return x + indices + self.embed(indices).reshape_as(indices)
+
+    print("shared integer attribute dtype=%s transpose=%s" % (dtype, transpose), flush=True)
+    torch.manual_seed(0)
+    net = SharedInteger().eval()
+    torch.manual_seed(0)
+    x = torch.rand(2, 2) if transpose else torch.rand(4)
+    pnnx = Path(os.environ.get("PNNX_TEST_PNNX", "../../src/pnnx")).resolve()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        work_dir = Path(temp_dir)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            torch.export.save(torch.export.export(net, (x,)), work_dir / "shared.pt2")
+        result = subprocess.run([str(pnnx), "shared.pt2", "fp16=0"], cwd=work_dir, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(result.stderr)
+            return False
+        previous_dir = Path.cwd()
+        try:
+            os.chdir(work_dir)
+            module = _import_generated_module(work_dir / "shared_ncnn.py", "shared")
+            actual = module.test_inference()
+        finally:
+            os.chdir(previous_dir)
+        torch.testing.assert_close(actual, net(x))
+    return True
+
+
 def test():
     return all(test_attribute(dtype, fp16) for dtype, fp16 in
                ((torch.bool, 0), (torch.float64, 0), (torch.float64, 1),
                 (torch.bfloat16, 0), (torch.bfloat16, 1),
                 (torch.uint8, 0), (torch.uint8, 1),
                 (torch.int8, 0), (torch.int8, 1),
-                (torch.int16, 0), (torch.int16, 1)))
+                (torch.int16, 0), (torch.int16, 1),
+                (torch.int32, 0), (torch.int32, 1),
+                (torch.int64, 0), (torch.int64, 1))) and all(
+                    test_shared_integer_attribute(dtype, transpose)
+                    for dtype in (torch.int32, torch.int64) for transpose in (False, True))
 
 
 if __name__ == "__main__":

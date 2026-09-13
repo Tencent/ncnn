@@ -23,6 +23,7 @@ permissions:
 env:
   LIBTORCH_VERSION: 2.12.1
   QUICK_TEST_TORCH_VERSION: 2.13.0
+  QUICK_TEST_TORCHVISION_VERSION: 0.28.0
   TORCHVISION_VERSION: 0.27.1
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.27.0
@@ -42,6 +43,8 @@ jobs:
       UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
 
     - uses: actions/setup-python@v7
       with:
@@ -50,7 +53,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.QUICK_TEST_TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.QUICK_TEST_TORCH_VERSION }} torchvision==${{ env.QUICK_TEST_TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
 
     - name: setup-pytorch-dll-path
@@ -65,20 +68,26 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
+    - name: build-ncnn-python
+      env:
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+      run: pip3 install --user . --no-deps --verbose
+
     - name: quick-test
       if: matrix.os != 'windows-latest'
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
 
-    - name: exported-program-frontend-test
+    - name: exported-program-test
       env:
         OMP_THREAD_LIMIT: 1
         OMP_NUM_THREADS: 1
         MKL_NUM_THREADS: 1
       run: |
         cd tools/pnnx/build
-        ctest -C Release --output-on-failure -L '^pt2_frontend$'
+        ctest -C Release --output-on-failure -L '^pt2_(frontend|ncnn)$'
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]

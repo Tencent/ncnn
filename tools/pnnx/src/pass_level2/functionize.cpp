@@ -184,6 +184,33 @@ void functionize(Graph& graph)
             const int alias_index = out0->params.at("__alias__").i;
             Operand* alias_in0 = graph.operands[alias_index];
 
+            // Slice updates operate on the shape before the first slice. If
+            // that base is a view, restore the root shape before updating its
+            // other aliases. reshape_as also preserves dynamic dimensions.
+            Operand* copy_base = op->inputs[0];
+            while (copy_base->producer->type == "aten::slice" || copy_base->producer->type == "aten::select")
+                copy_base = copy_base->producer->inputs[0];
+            Operand* view_base = copy_base;
+            while (view_base != alias_in0 && view_base->producer->type == "aten::view")
+                view_base = view_base->producer->inputs[0];
+            if (copy_base != alias_in0 && view_base == alias_in0)
+            {
+                Operator* reshape = graph.new_operator_after("aten::reshape_as", op->name + "_restore", op);
+                Operand* restored = graph.new_operand(reshape->name + "_out");
+                restored->type = out0->type;
+                restored->shape = out0->shape;
+                restored->params = out0->params;
+                restored->producer = reshape;
+                reshape->inputs = {out0, alias_in0};
+                reshape->outputs.push_back(restored);
+                out0->consumers.push_back(reshape);
+                alias_in0->consumers.push_back(reshape);
+                out0->shape = copy_base->shape;
+                out0->params.erase("__alias__");
+                out0 = restored;
+                i++;
+            }
+
             // fprintf(stderr, "\n---> %s  for %s\n", op->name.c_str(), alias_in0->name.c_str());
 
             size_t i_advanced = 0;

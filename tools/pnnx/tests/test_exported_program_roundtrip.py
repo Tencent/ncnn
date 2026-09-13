@@ -215,7 +215,9 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             model = StateDtypeModel().eval()
-            module = self.convert(self.save("state_dtypes", model, (torch.ones(1),)))
+            path = self.save("state_dtypes", model, (torch.ones(1),))
+            run_pnnx(self.work_dir, path, ncnn_error="complex")
+            module = load_generated_module(self.work_dir, path.stem)
             source = (self.work_dir / "state_dtypes_pnnx.py").read_text()
             self.assertNotIn("net.float()", source)
             actual_outputs = (
@@ -233,6 +235,34 @@ class ExportedProgramRoundTripTest(unittest.TestCase):
                         actual_tensor.view(torch.uint8), expected_tensor.view(torch.uint8)
                     )
                 )
+
+    def test_bfloat16_batchnorm_fusion(self):
+        for linear in (False, True):
+            for bias in (False, True):
+                with self.subTest(linear=linear, bias=bias):
+                    layer = torch.nn.Linear(3, 4, bias=bias) if linear else torch.nn.Conv2d(3, 4, 1, bias=bias)
+                    norm = torch.nn.BatchNorm1d(4) if linear else torch.nn.BatchNorm2d(4)
+                    model = torch.nn.Sequential(layer, norm).to(torch.bfloat16).eval()
+                    with torch.no_grad():
+                        layer.weight.fill_(0.25)
+                        if bias:
+                            layer.bias.fill_(0.5)
+                        norm.running_mean.fill_(2)
+                        norm.running_var.fill_(4)
+                        norm.weight.fill_(3)
+                        norm.bias.fill_(5)
+                    shape = (2, 3) if linear else (2, 3, 2, 2)
+                    inputs = (torch.arange(torch.tensor(shape).prod()).reshape(shape).to(torch.bfloat16) / 4,)
+                    path = self.save("bf16_batchnorm", model, inputs)
+                    expected = torch.export.load(path).module()(*inputs)
+                    for optlevel in (1, 2):
+                        result = run_pnnx(self.work_dir, path, "optlevel=%d" % optlevel)
+                        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                        module = load_generated_module(self.work_dir, path.stem)
+                        actual = self.call(module.Model).eval()(*inputs)
+                        torch.testing.assert_close(actual, expected)
+                        if optlevel == 2:
+                            self.assertNotIn("nn.BatchNorm", path.with_suffix(".pnnx.param").read_text())
 
     def test_normalization_state_inference_and_reexport(self):
         for norm_type in (torch.nn.BatchNorm2d, torch.nn.InstanceNorm2d):

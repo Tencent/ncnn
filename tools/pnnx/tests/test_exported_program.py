@@ -420,8 +420,11 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
         return result
 
-    def assert_conversion_matches(self, work_dir, model_path, expected=None):
-        self.assert_conversion_succeeds(work_dir, model_path)
+    def assert_conversion_matches(self, work_dir, model_path, expected=None, ncnn_error=None):
+        if ncnn_error is None:
+            self.assert_conversion_succeeds(work_dir, model_path)
+        else:
+            run_pnnx(work_dir, model_path, ncnn_error=ncnn_error)
 
         if expected is None:
             torch.manual_seed(0)
@@ -608,6 +611,55 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                             self.assert_nested_close(expected, generated(input_value))
                             self.assertTrue(torch.equal(input_value, original))
 
+    def test_local_mutation_view_boundaries(self):
+        class LocalViews(torch.nn.Module):
+            def __init__(self, kind, root_write):
+                super().__init__()
+                self.kind = kind
+                self.root_write = root_write
+
+            def forward(self, x):
+                y = x + 1
+                if self.kind in ("view", "updated_view"):
+                    z = y.view(-1)
+                    if self.kind == "updated_view":
+                        z.add_(2)
+                elif self.kind == "transpose_slice":
+                    y = y.transpose(0, 1)
+                    z = y[:1]
+                elif self.kind == "view_slice":
+                    z = y.view(-1)[1:4]
+                elif self.kind == "slice_view":
+                    z = y[:1].view(-1)
+                elif self.kind == "transpose":
+                    z = y.transpose(0, 1)
+                elif self.kind == "permute":
+                    z = y.permute(1, 0)
+                elif self.kind == "detach":
+                    z = y.detach()
+                else:
+                    z = y.unsqueeze(0)
+                target = y if self.root_write else z
+                target.add_(2)
+                return y, z
+
+        x = torch.arange(6).float().reshape(2, 3)
+        for kind in ("view", "view_slice", "transpose_slice", "slice_view", "updated_view", "transpose", "permute", "detach", "unsqueeze"):
+            for root_write in (False, True):
+                with self.subTest(kind=kind, root_write=root_write), temporary_work_dir() as work_dir:
+                    model = LocalViews(kind, root_write).eval()
+                    path = work_dir / "local_views.pt2"
+                    save_exported_program(model, path, (x,))
+                    expected = torch.export.load(path).module()(x)
+                    self.assert_nested_close(model(x), expected)
+                    if kind not in ("view", "view_slice", "transpose_slice"):
+                        self.assert_conversion_fails(work_dir, path, "unsupported local alias mutation", "live alias")
+                        continue
+                    self.assert_conversion_succeeds(work_dir, path)
+                    with working_directory(work_dir):
+                        actual = load_generated_module(work_dir, path.stem).Model().eval()(x)
+                    self.assert_nested_close(expected, actual)
+
     def test_external_fill_mutations_are_rejected(self):
         class ExternalFill(torch.nn.Module):
             def __init__(self, view, tensor_value):
@@ -770,7 +822,7 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
                 archive_path = work_dir / "empty_linear.pt2"
                 save_exported_program(model, archive_path, inputs)
                 expected = torch.export.load(archive_path).module()(*inputs)
-                self.assert_conversion_succeeds(work_dir, archive_path)
+                run_pnnx(work_dir, archive_path, ncnn_error="empty")
                 with working_directory(work_dir):
                     generated = load_generated_module(work_dir, archive_path.stem).Model().eval()
                 self.assert_nested_close(expected, generated(*inputs))
@@ -850,7 +902,32 @@ class ExportedProgramEndToEndTest(unittest.TestCase):
             model = EmptyViewStateModel().eval()
             save_exported_program(model, archive_path, (torch.ones(8),))
             torch.manual_seed(0)
-            self.assert_conversion_matches(work_dir, archive_path, model(torch.rand(8)))
+            self.assert_conversion_matches(work_dir, archive_path, model(torch.rand(8)), ncnn_error="empty")
+
+    def test_unsupported_native_state_preserves_frontend_artifacts(self):
+        class State(torch.nn.Module):
+            def __init__(self, value):
+                super().__init__()
+                self.register_buffer("value", value)
+
+            def forward(self, x):
+                return x + self.value, self.value
+
+        values = [torch.empty(0), torch.empty(0, 3)]
+        values += [torch.tensor([1 + 2j, 3 - 4j], dtype=dtype)
+                   for dtype in (torch.complex64, torch.complex128)]
+        for value in values:
+            for optlevel in (0, 1, 2):
+                with self.subTest(dtype=value.dtype, shape=value.shape, optlevel=optlevel), temporary_work_dir() as work_dir:
+                    model = State(value).eval()
+                    path = work_dir / "state.pt2"
+                    x = torch.ones(value.shape)
+                    save_exported_program(model, path, (x,))
+                    run_pnnx(work_dir, path, f"optlevel={optlevel}",
+                             ncnn_error="empty" if value.numel() == 0 else "complex")
+                    with working_directory(work_dir):
+                        actual = load_generated_module(work_dir, path.stem).Model().eval()(x)
+                    self.assert_nested_close(torch.export.load(path).module()(x), actual)
 
     def test_scalar_numpy_input_override(self):
         with temporary_work_dir() as work_dir:

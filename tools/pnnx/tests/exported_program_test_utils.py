@@ -27,14 +27,26 @@ class TinyModel(torch.nn.Module):
         return torch.relu(self.linear(x))
 
 
-def run_pnnx(work_dir, model_path, *arguments):
-    return subprocess.run(
+def run_pnnx(work_dir, model_path, *arguments, ncnn_error=None):
+    result = subprocess.run(
         [str(PNNX), model_path.name, *arguments],
         cwd=work_dir,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
     )
+    if ncnn_error is not None:
+        diagnostic = result.stderr.decode(errors="replace")
+        if (result.returncode <= 0 or 0x80000000 <= result.returncode < 0xffffffff
+                or "lower ncnn failed: unsupported " + ncnn_error not in diagnostic):
+            raise AssertionError(diagnostic)
+        for suffix in (".pnnx.param", ".pnnx.bin", "_pnnx.py"):
+            if not (work_dir / (model_path.stem + suffix)).is_file():
+                raise AssertionError("missing frontend artifact " + suffix)
+        for suffix in (".ncnn.param", ".ncnn.bin", "_ncnn.py"):
+            if (work_dir / (model_path.stem + suffix)).exists():
+                raise AssertionError("unsupported native artifact " + suffix)
+    return result
 
 
 def save_exported_program(model, archive_path, example_inputs=None, **export_kwargs):

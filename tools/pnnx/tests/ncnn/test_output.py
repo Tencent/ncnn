@@ -21,7 +21,7 @@ class Model(nn.Module):
         self.output_type = output_type
 
     def forward(self, x):
-        a = torch.relu(x)
+        a = torch.relu((x + 1) * 0.5)
         b = torch.sigmoid(x)
         if self.output_type == "single":
             return [a]

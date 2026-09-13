@@ -125,6 +125,7 @@ def convert_and_import(
     export_kwargs=None,
     output_basename=None,
     return_diagnostic=False,
+    ncnn_error=None,
 ):
     if not isinstance(inputs, tuple):
         raise TypeError("inputs must be a tuple")
@@ -182,12 +183,23 @@ def convert_and_import(
     if completed.returncode < 0 or 0x80000000 <= completed.returncode < 0xffffffff:
         raise RuntimeError("pnnx terminated abnormally with exit code %d\n%s" % (completed.returncode, diagnostic))
     if completed.returncode != 0:
-        if export_format == ExportTestFormat.EXPORTED_PROGRAM:
+        if ncnn_error is not None and "lower ncnn failed: " + ncnn_error in diagnostic:
+            # This test verifies PNNX inference, not a native ncnn model. Keep
+            # its numerical assertions even when the native backend rejects it.
+            for suffix in (".pnnx.param", ".pnnx.bin", "_pnnx.py"):
+                if not Path(output_basename + suffix).is_file():
+                    raise AssertionError("missing frontend artifact " + suffix)
+            for suffix in (".ncnn.param", ".ncnn.bin", "_ncnn.py"):
+                if Path(output_basename + suffix).exists():
+                    raise AssertionError("unsupported native artifact " + suffix)
+            print("%s: PNNX inference only; ncnn: %s" % (basename, ncnn_error))
+        elif export_format == ExportTestFormat.EXPORTED_PROGRAM:
             category = PNNX_LOWERING_UNSUPPORTED
             if "load exported program failed:" in diagnostic:
                 category = PT2_FRONTEND_UNSUPPORTED
             return _handle_pt2_failure(basename, category, diagnostic)
-        raise RuntimeError("pnnx failed with exit code %d\n%s" % (completed.returncode, diagnostic))
+        else:
+            raise RuntimeError("pnnx failed with exit code %d\n%s" % (completed.returncode, diagnostic))
 
     try:
         module = _import_generated_module(generated_path, output_basename)
@@ -202,3 +214,10 @@ def convert_and_import(
     if return_diagnostic:
         return module, diagnostic
     return module
+
+
+def convert_and_import_ncnn(net, inputs, basename, pnnx_args=()):
+    module = convert_and_import(net, inputs, basename, pnnx_args=pnnx_args)
+    path = Path(module.__file__)
+    path = path.with_name(path.name[:-len("_pnnx.py")] + "_ncnn.py")
+    return _import_generated_module(path, path.stem)

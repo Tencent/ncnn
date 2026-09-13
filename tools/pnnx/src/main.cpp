@@ -17,6 +17,7 @@
 #include "ir.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
+#include "pass_level3/fuse_expression.h"
 #include "pass_level4.h"
 #include "pass_level5.h"
 #include "utils.h"
@@ -657,6 +658,10 @@ int main(int argc, char** argv)
 
     if (model_format.format == pnnx::MODEL_FORMAT_EXPORTED_PROGRAM_PT2)
     {
+        // Scalar constants and arithmetic need expression lowering even without optional optimizations.
+        if (optlevel < 1)
+            pnnx::fuse_expression(pnnx_graph, foldable_constants, foldable_constants_zippath);
+
         for (const pnnx::Operator* op : pnnx_graph.ops)
         {
             if (op->type.find("::") == std::string::npos)
@@ -690,9 +695,11 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph, module_operators);
+        if (pnnx::pass_ncnn(pnnx_graph, module_operators) != 0)
+            return -1;
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+            return -1;
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());

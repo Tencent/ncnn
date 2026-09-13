@@ -80,7 +80,7 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - Inference-state values, shapes and data types from parameters, persistent and non-persistent buffers, and tensor constants, with raw strided tensor payloads including stride and storage offset; payload layout is used for state materialization, not as a runtime input-stride contract, and the original state category and training identity are not preserved
 - Byte, Char, Short, Int, Long, Half, Float, Double, ComplexHalf, ComplexFloat, ComplexDouble, Bool and BFloat16 state tensors
 - Generated PNNX python helpers preserve imported ExportedProgram state data types instead of converting the model to Float
-- Native ncnn lowering converts Half, Double, BFloat16, Byte, Char and Short state to Float before operator conversion and weight serialization; PNNX attributes and generated PNNX Python retain the imported state dtype. BFloat16 and narrow integer values are exactly representable in Float, but native inference does not preserve float64 precision, BFloat16 arithmetic or typed integer arithmetic
+- Native ncnn lowering converts Half, Double, BFloat16, Byte, Char and Short state to Float before operator conversion and weight serialization; Int and Long constants on expression-arithmetic branches are also converted numerically, directly or through supported layout-only chains such as transpose and reshape, while shared index consumers retain integer storage. PNNX attributes and generated PNNX Python retain the imported state dtype. BFloat16 and narrow integer values are exactly representable in Float, but native inference does not preserve float64 precision, BFloat16 arithmetic or typed integer arithmetic
 - Finite non-tensor Float, Float-list and Complex arguments continue to use PNNX float parameters. When such a value is narrowed in a node with an f64 or c128 tensor input or output, pnnx reports the operator target, argument and before/after values once per distinct warning. This diagnostic makes detected loss visible; it does not guarantee end-to-end double-precision scalar or Expression arithmetic
 - ATen operator targets registered by the linked libtorch dispatcher when their serialized arguments can be represented and the resulting graph can be lowered by the existing PNNX passes
 - `torch.ops.aten.einsum.default` equation syntax and input/output ranks are validated without executing the operator, then whitespace is removed before PNNX parameter serialization; scalar tensor operands are rejected because current PNNX einsum lowering cannot preserve them, and string arguments for other operators are not normalized
@@ -94,15 +94,18 @@ Named dynamic input dimensions retain their ranges and shared identities through
 - AOTInductor-only packages or multiple ExportedPrograms in one PT2 package
 - Derived symbolic sizes or strides (for example `2*s0` or `s0*s1`), symbolic scalar arithmetic, data-dependent dimensions, dynamic `SymFloat`/`SymBool` values, symbolic scalar dataflow inside higher-order wrappers, and dynamic model state
 - Keyword inputs, positional input PyTrees containing dict, namedtuple or custom containers, and output PyTrees containing dict, namedtuple or custom containers
-- Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs. Retained nodes that write directly or through aliases to external state, or whose possible external writes cannot be ruled out, are also rejected even without mutation outputs. Supported local temporary updates remain allowed within the existing slice/select/view functionalization coverage; this is not general view functionalization.
+- Training graphs, loss or gradient outputs, and parameter, buffer or user-input mutation outputs. Retained nodes that write directly or through aliases to external state, or whose possible external writes cannot be ruled out, are also rejected even without mutation outputs. Supported local temporary updates remain allowed within the existing slice/select/view functionalization coverage, including reshaping an updated view back to its root. Writes that must synchronize live aliases across an untracked view (such as transpose or detach), across a view after a slice, or between an earlier in-place result and another live alias chain are rejected. Updates confined to a supported alias chain remain allowed; this is not general view functionalization.
 - Lossless restoration of original module state identity or training semantics. An imported state tensor may be emitted as a generated Python `Parameter` regardless of whether it originated as a parameter, persistent buffer, non-persistent buffer or tensor constant; original `requires_grad`, buffer persistence, `state_dict` keys and parameter/buffer registration are not a round-trip contract
 - End-to-end f64/c128 fidelity for non-tensor scalar parameters and Expressions; high-precision tensor payload and dtype restoration does not widen PNNX scalar parameter storage beyond float
 - Custom objects, tokens, unknown higher-order operators, enabled autocast/set-grad wrappers and control-flow or mutation higher-order operators
 - Non-tensor user input or output leaves, unsupported serialized operator arguments, and graphs which the existing PNNX passes cannot lower
 - Generated native ncnn python inference with Double, Byte, Char, Short, Bool, BFloat16, complex or scalar tensor inputs; ExportedProgram conversion and generated PNNX python inference remain supported
+- Empty or complex attributes in native ncnn models. They remain supported by PNNX; native lowering returns a nonzero exit with `lower ncnn failed:` after saving the PNNX artifacts, before writing native artifacts
 - Compressed PT2 entries consumed by the frontend, any encrypted PT2 entry, and PT2 archive versions other than `0`
 
 Unsupported graph and schema features detected during import fail with a feature-specific `load exported program failed:` diagnostic. Unlowered operator targets left after the PNNX passes fail with `lower exported program failed:` before model artifacts are written. Archive detection failures use `detect model format failed:`. A package recognized by its PT2 archive marker is not retried as TorchScript.
+
+At `optlevel=0`, scalar constants and arithmetic still use the existing expression lowering required by PNNX Python emission; optional level 3/4/5 passes remain disabled.
 
 ### ExportedProgram contributor tests
 
@@ -112,11 +115,13 @@ The frontend suite requires Python PyTorch 2.9 or newer. `test_real_producer_omi
 ctest --test-dir build --output-on-failure -L '^pt2_frontend$'
 ```
 
-Run the complete PT2 operator and model expectation suite, including the focused Bool/Double/BFloat16/narrow-integer attribute ncnn smoke test, with:
+Run the complete PT2 operator and model expectation suite, including native ncnn regressions, with:
 
 ```shell
 ctest --test-dir build --output-on-failure -j 8 -L '^pt2_operator$'
 ```
+
+Use `-L '^pt2_ncnn$'` for native execution of ResNet18, Conv2d, Linear, LayerNorm, BatchNorm2d, Embedding, attributes and tuple/list outputs. The model tests reuse the existing TorchScript fixtures and numerical assertions, including weight-norm parametrizations. Ubuntu/macOS/Windows quick CI builds the current checkout's CPU ncnn binding and runs both `pt2_frontend` and `pt2_ncnn`; this does not claim native support for every graph in the PNNX operator suite.
 
 CTest assigns these labels when registering tests. Use `-L '^pt2$'` for both groups or `-LE '^pt2$'` for the remaining tests; CI uses the same labels rather than duplicating test-name lists. TorchScript and PT2 cases reuse model definitions and numerical checks but run in separate processes with separate generated-model names. The two input-npy cases retain a shared resource lock for their common input files.
 

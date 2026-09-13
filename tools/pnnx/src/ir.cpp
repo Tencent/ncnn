@@ -198,7 +198,7 @@ int Attribute::elemcount() const
 
 std::vector<float> Attribute::get_float32_data() const
 {
-    if ((type == 1 || type == 2 || type == 3) && data.size() != (size_t)elemcount() * elemsize())
+    if ((type == 1 || type == 2 || type == 3 || type == 13) && data.size() != (size_t)elemcount() * elemsize())
         return std::vector<float>();
 
     std::vector<float> v(elemcount());
@@ -223,6 +223,17 @@ std::vector<float> Attribute::get_float32_data() const
         for (size_t i = 0; i < v.size(); i++)
         {
             v[i] = float16_to_float32(p[i]);
+        }
+    }
+    else if (type == 13)
+    {
+        // bf16
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            uint16_t value;
+            memcpy(&value, data.data() + i * 2, 2);
+            const uint32_t bits = (uint32_t)value << 16;
+            memcpy(&v[i], &bits, 4);
         }
     }
     else
@@ -257,6 +268,17 @@ void Attribute::set_float32_data(const std::vector<float>& newdata)
         for (size_t i = 0; i < newdata.size(); i++)
         {
             p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else if (type == 13)
+    {
+        // bf16, round to nearest even and preserve NaNs
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            uint32_t bits;
+            memcpy(&bits, &newdata[i], 4);
+            const uint16_t value = (bits & 0x7fffffff) > 0x7f800000 ? (bits >> 16) | 0x40 : (bits + 0x7fff + ((bits >> 16) & 1)) >> 16;
+            memcpy(data.data() + i * 2, &value, 2);
         }
     }
     else

@@ -38,6 +38,7 @@ def test():
         (x, y, z, w),
         "test_Tensor_index_put",
         pnnx_args=("inputshape=[12],[2],[6,9],[3]",),
+        ncnn_error="unsupported empty attribute",
     )
 
     b = mod.test_inference()

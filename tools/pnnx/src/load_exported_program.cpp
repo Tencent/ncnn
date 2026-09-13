@@ -801,6 +801,10 @@ struct ExportedTensorSources
 {
     std::set<std::string> definite;
     std::set<std::string> possible;
+    std::set<std::string> local;
+    std::string alias_root;
+    bool unsupported_alias = false;
+    bool sliced = false;
 };
 
 static std::vector<std::string> exported_tensor_names(const ExportedArgument& argument)
@@ -852,6 +856,8 @@ static int propagate_exported_effects(const ExportedNode& node,
                                       const ExportedOperatorEffects& effects,
                                       const ExportedProgram& program,
                                       const ExportedGraph& graph,
+                                      size_t node_index,
+                                      const std::map<std::string, size_t>& last_uses,
                                       std::map<std::string, ExportedTensorSources>& sources,
                                       std::string& error)
 {
@@ -895,6 +901,24 @@ static int propagate_exported_effects(const ExportedNode& node,
                         + " through argument " + argument.name + " of " + node.target;
                 return -1;
             }
+            // A fresh allocation is not enough: every alias still observed
+            // after this write must be representable by functionize.
+            for (const auto& x : sources)
+            {
+                if (x.first == names[k] || (!source.unsupported_alias && !x.second.unsupported_alias && source.alias_root == x.second.alias_root))
+                    continue;
+                const auto use = last_uses.find(x.first);
+                if (use == last_uses.end() || use->second <= node_index)
+                    continue;
+                for (const std::string& origin : source.local)
+                {
+                    if (x.second.local.find(origin) == x.second.local.end())
+                        continue;
+                    error = "unsupported local alias mutation through " + names[k] + " of " + node.target
+                            + ": live alias " + x.first + " cannot be updated";
+                    return -1;
+                }
+            }
         }
     }
 
@@ -917,11 +941,32 @@ static int propagate_exported_effects(const ExportedNode& node,
                 std::set<std::string>& destination = definite ? output.definite : output.possible;
                 destination.insert(source.definite.begin(), source.definite.end());
                 output.possible.insert(source.possible.begin(), source.possible.end());
+                output.local.insert(source.local.begin(), source.local.end());
+                const bool slice = target.operator_name == "aten::slice" || target.operator_name == "aten::select";
+                const bool view = target.operator_name == "aten::view";
+                const bool supported = slice || view || target.operator_name == "aten::alias";
+                if (supported)
+                {
+                    output.alias_root = source.alias_root;
+                    output.unsupported_alias |= source.unsupported_alias || (view && source.sliced);
+                    output.sliced |= source.sliced || slice;
+                }
             }
         }
         const std::vector<std::string> names = exported_tensor_names(node.outputs[i]);
         for (size_t j = 0; j < names.size(); j++)
-            sources.insert(std::make_pair(names[j], output));
+        {
+            ExportedTensorSources value = output;
+            if (copies || aliases.empty())
+                value.local.insert(names[j]);
+            // functionize starts a new alias chain at operators it does not
+            // track (e.g. transpose), including the now-functional result of
+            // an inplace operator. Only live aliases crossing that root need
+            // to be rejected; updates wholly within the new chain still work.
+            if (value.alias_root.empty())
+                value.alias_root = names[j];
+            sources.insert(std::make_pair(names[j], value));
+        }
     }
     return 0;
 }
@@ -965,6 +1010,20 @@ static int lower_exported_program(const ExportedProgram& source_program,
     Graph candidate;
     std::map<std::string, Operand*> values;
     std::map<std::string, ExportedTensorSources> sources;
+    std::map<std::string, size_t> last_uses;
+    for (size_t i = 0; i < normalized_graph.nodes.size(); i++)
+    {
+        for (const ExportedNamedArgument& input : normalized_graph.nodes[i].inputs)
+        {
+            for (const std::string& name : exported_tensor_names(input.arg))
+                last_uses[name] = i;
+        }
+    }
+    for (const ExportedArgument& output : normalized_graph.outputs)
+    {
+        for (const std::string& name : exported_tensor_names(output))
+            last_uses[name] = normalized_graph.nodes.size();
+    }
     std::set<std::string> scalar_narrowing_warnings;
     std::set<std::string> operand_names;
     std::set<std::string> operator_names;
@@ -1066,7 +1125,7 @@ static int lower_exported_program(const ExportedProgram& source_program,
         if (canonicalize_exported_arguments(node, source_program.header, target, arguments, effects, error) != 0)
             return -1;
         report_exported_scalar_narrowing(node, arguments, normalized_graph, scalar_narrowing_warnings);
-        if (propagate_exported_effects(node, target, arguments, effects, source_program, normalized_graph, sources, error) != 0)
+        if (propagate_exported_effects(node, target, arguments, effects, source_program, normalized_graph, i, last_uses, sources, error) != 0)
             return -1;
 
         if (normalize_exported_operator_arguments(node, target, normalized_graph, arguments, error) != 0)
