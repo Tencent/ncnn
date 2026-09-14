@@ -16,77 +16,86 @@ int Einsum::load_param(const ParamDict& pd)
 {
     Mat equation_mat = pd.get(0, Mat());
 
-    const int equation_len = equation_mat.w;
-
-    // restore to lexical equation string
-    std::string equation;
-    equation.resize(equation_len);
-    char* equation_ptr = (char*)equation.c_str();
     {
-        const int* p = equation_mat;
-        for (int i = 0; i < equation_len; i++)
-        {
-            equation_ptr[i] = p[i];
-        }
+        const int type = pd.type(0);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((equation_mat.dims != 0 || equation_mat.w != 0 || equation_mat.data) && (equation_mat.dims != 1 || equation_mat.w <= 0 || equation_mat.elempack != 1 || equation_mat.elemsize != 4u || !equation_mat.data))
+            return -1;
+    }
+
+    if (equation_mat.empty())
+        return -1;
+
+    // parse locally so repeated loads do not retain tokens, and simultaneous
+    // loads do not share strtok state, validate before narrowing int to char
+    const int* p = equation_mat;
+    std::string equation;
+    equation.resize(equation_mat.w);
+    for (int i = 0; i < equation_mat.w; i++)
+    {
+        if ((p[i] < 'i' || p[i] > 'x') && p[i] != ',' && p[i] != '-' && p[i] != '>')
+            return -1;
+        equation[i] = (char)p[i];
     }
 
     if (equation == "ii")
     {
-        // trace
+        lhs_tokens.clear();
         rhs_token = "ii";
-
         return 0;
     }
 
-    // split into tokens
-    char* arrow = strstr(equation_ptr, "->");
-    if (!arrow)
+    std::vector<std::string> tokens;
+    std::string token;
+    bool seen[16] = {false};
+    int arrow = -1;
+    for (int i = 0; i < equation_mat.w; i++)
     {
-        NCNN_LOGE("invalid equation %s", equation_ptr);
-        return -1;
-    }
-
-    arrow[0] = '\0';
-    arrow[1] = '\0';
-
-    char* lhs = equation_ptr;
-    char* rhs = arrow + 2;
-
-    {
-        char* t = strtok(lhs, ",");
-        while (t)
+        const char ch = equation[i];
+        if (ch == ',' || ch == '-')
         {
-            lhs_tokens.push_back(std::string(t));
-            t = strtok(NULL, ",");
-        }
-    }
-
-    rhs_token = std::string(rhs);
-
-    // check token always in ijkl
-    {
-        for (size_t i = 0; i < rhs_token.size(); i++)
-        {
-            if (rhs_token[i] < 'i' || rhs_token[i] > 'l')
-            {
-                NCNN_LOGE("invalid rhs_token %s", rhs_token.c_str());
+            if (token.empty() || token.size() > 4)
                 return -1;
+            tokens.push_back(token);
+            token.clear();
+            if (ch == '-')
+            {
+                if (i + 1 >= equation_mat.w || equation[i + 1] != '>')
+                    return -1;
+                arrow = i;
+                break;
             }
         }
-
-        for (size_t i = 0; i < lhs_tokens.size(); i++)
+        else
         {
-            const std::string& lhs_token = lhs_tokens[i];
-            for (size_t j = 0; j < lhs_token.size(); j++)
-            {
-                if (lhs_token[j] < 'i' || lhs_token[j] > 'x')
-                {
-                    NCNN_LOGE("invalid lhs_token %s", lhs_token.c_str());
-                    return -1;
-                }
-            }
+            if (ch < 'i' || ch > 'x')
+                return -1;
+            token.resize(token.size() + 1);
+            token[token.size() - 1] = ch;
+            seen[ch - 'i'] = true;
         }
     }
+
+    if (arrow < 0)
+        return -1;
+    const int output_dims = equation_mat.w - arrow - 2;
+    if (output_dims < 1 || output_dims > 4)
+        return -1;
+
+    // the implementation emits dimensions in the canonical i,j,k,l order
+    std::string output;
+    output.resize(output_dims);
+    for (int i = 0; i < output_dims; i++)
+    {
+        if (equation[arrow + 2 + i] != 'i' + i || !seen[i])
+            return -1;
+        output[i] = equation[arrow + 2 + i];
+    }
+
+    lhs_tokens = tokens;
+    rhs_token = output;
 
     return 0;
 }

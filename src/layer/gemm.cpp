@@ -325,15 +325,15 @@ int Gemm::load_param(const ParamDict& pd)
 #endif
     }
 
-    if (constantA == 1 && (constantM == 0 || constantK == 0))
+    if (constantA == 1 && (constantM <= 0 || constantK <= 0))
     {
-        NCNN_LOGE("constantM and constantK must be non-zero when constantA enabled");
+        NCNN_LOGE("constantM and constantK must be positive when constantA enabled");
         return -1;
     }
 
-    if (constantB == 1 && (constantN == 0 || constantK == 0))
+    if (constantB == 1 && (constantN <= 0 || constantK <= 0))
     {
-        NCNN_LOGE("constantN and constantK must be non-zero when constantB enabled");
+        NCNN_LOGE("constantN and constantK must be positive when constantB enabled");
         return -1;
     }
 

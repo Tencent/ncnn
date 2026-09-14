@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
+#include "datareader.h"
 
 static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
 {
@@ -343,8 +347,112 @@ static int test_innerproduct_7()
 }
 #endif // NCNN_INT8
 
+static int test_innerproduct_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::InnerProduct) : ncnn::create_layer_cpu(ncnn::LayerType::InnerProduct);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "InnerProduct load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+#if NCNN_STRING
+class TextParamDict : public ncnn::ParamDict
+{
+public:
+    int parse(const char* text)
+    {
+        const unsigned char* p = (const unsigned char*)text;
+        ncnn::DataReaderFromMemory reader(p);
+        return load_param(reader);
+    }
+};
+
+static int test_innerproduct_param_text()
+{
+    TextParamDict pd;
+    if (pd.parse("0=8 2=64 9=3 -23310=2,-1,2")) return -1;
+    if (test_innerproduct_load_param_case(pd, true)) return -1;
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::InnerProduct);
+    if (layer)
+    {
+        pd.set(0, 1);
+        pd.set(2, 1);
+        int ret = layer->load_param(pd);
+        ncnn::Mat weight(1);
+        weight[0] = 1.f;
+        ncnn::ModelBinFromMatArray mb(&weight);
+        if (ret == 0) ret = layer->load_model(mb);
+        ncnn::Mat input(1);
+        ncnn::Mat output;
+        ncnn::Option opt;
+        input[0] = 3.f;
+        if (ret == 0) ret = layer->forward(input, output, opt);
+        if (ret == 0 && (output.empty() || output[0] != 2.f)) ret = -1;
+        input[0] = -3.f;
+        if (ret == 0) ret = layer->forward(input, output, opt);
+        if (ret == 0 && (output.empty() || output[0] != -1.f)) ret = -1;
+        const ncnn::Mat original = pd.get(10, ncnn::Mat());
+        const int* p = original;
+        if (p[0] != -1 || p[1] != 2) ret = -1;
+        delete layer;
+        if (ret) return ret;
+    }
+    return 0;
+}
+#endif
+
+static int test_innerproduct_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 3);
+    base.set(6, 216);
+    base.set(7, 2);
+    base.set(2, 64);
+    if (test_innerproduct_load_param_case(base, true)) return -1;
+    for (int activation = 0; activation <= 7; activation++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(9, activation);
+        bool need_params = activation == 2 || activation == 3 || activation == 6;
+        if (test_innerproduct_load_param_case(pd, !need_params && activation != 7)) return -1;
+        if (activation == 7) continue;
+        ncnn::Mat params(2);
+        params[0] = 0.1f;
+        params[1] = 0.5f;
+        pd.set(10, params);
+        if (test_innerproduct_load_param_case(pd, true)) return -1;
+        pd.set(10, params.range(0, 1));
+        if (test_innerproduct_load_param_case(pd, activation != 3 && activation != 6)) return -1;
+    }
+    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4)};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(10, bad[i]);
+        if (test_innerproduct_load_param_case(pd, false)) return -1;
+    }
+#if NCNN_STRING
+    return test_innerproduct_param_text();
+#else
+    return 0;
+#endif
+}
+
 int main()
 {
+    if (test_innerproduct_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
 #if NCNN_INT8

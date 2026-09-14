@@ -3,6 +3,8 @@
 
 #include "pixelshuffle.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 PixelShuffle::PixelShuffle()
@@ -15,6 +17,12 @@ int PixelShuffle::load_param(const ParamDict& pd)
 {
     upscale_factor = pd.get(0, 1);
     mode = pd.get(1, 0);
+
+    if (upscale_factor <= 0 || upscale_factor > INT_MAX / upscale_factor)
+    {
+        // reject invalid upscale_factor (forward divides by upscale_factor^2)
+        return -100;
+    }
 
     return 0;
 }

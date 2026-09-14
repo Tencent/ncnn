@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, int outw, int outh, int outd, int outc, int woffset2, int hoffset2, int doffset2, int coffset2)
 {
@@ -248,8 +251,61 @@ static int test_crop_9(const ncnn::Mat& a)
            || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12);
 }
 
+static int test_crop_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Crop) : ncnn::create_layer_cpu(ncnn::LayerType::Crop);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Crop load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+    return m;
+}
+
+static int test_crop_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(9, param_int_array(1, 0));
+    base.set(10, param_int_array(1, 1));
+    base.set(11, param_int_array(1, 0));
+    if (test_crop_load_param_case(base, true)) return -1;
+    ncnn::ParamDict pd = base;
+    pd.set(11, ncnn::Mat(1, (size_t)1u));
+    if (test_crop_load_param_case(pd, false)) return -1;
+    pd.set(11, ncnn::Mat(1, 2));
+    if (test_crop_load_param_case(pd, false)) return -1;
+    pd.set(11, 1.f);
+    if (test_crop_load_param_case(pd, false)) return -1;
+    pd.set(11, param_int_array(5, 1));
+    if (test_crop_load_param_case(pd, false)) return -1;
+    pd.set(11, param_int_array(1, INT_MIN));
+    if (test_crop_load_param_case(pd, false)) return -1;
+    pd = base;
+    pd.set(9, param_int_array(2, 0));
+    if (test_crop_load_param_case(pd, false)) return -1;
+    return 0;
+}
+
 int main()
 {
+    if (test_crop_load_param() != 0)
+        return -1;
+
     SRAND(776757);
 
     return 0

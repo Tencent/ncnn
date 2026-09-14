@@ -19,6 +19,24 @@ int Squeeze::load_param(const ParamDict& pd)
     squeeze_c = pd.get(2, 0);
     axes = pd.get(3, Mat());
 
+    {
+        const int type = pd.type(3);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
+            return -1;
+    }
+
+    if (axes.w > 4)
+        return -1;
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+
     return 0;
 }
 

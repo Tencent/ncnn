@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_squeeze(const ncnn::Mat& a, int squeeze_w, int squeeze_h, int squeeze_d, int squeeze_c)
 {
@@ -178,8 +181,56 @@ static int test_squeeze_3()
            || test_squeeze_all_params(RandomMat(1));
 }
 
+static int test_squeeze_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Squeeze) : ncnn::create_layer_cpu(ncnn::LayerType::Squeeze);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Squeeze load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+    return m;
+}
+
+static int test_squeeze_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(3, param_int_array(1, 0));
+    if (test_squeeze_load_param_case(base, true)) return -1;
+    ncnn::ParamDict pd = base;
+    pd.set(3, ncnn::Mat(1, (size_t)1u));
+    if (test_squeeze_load_param_case(pd, false)) return -1;
+    pd.set(3, ncnn::Mat(1, 2));
+    if (test_squeeze_load_param_case(pd, false)) return -1;
+    pd.set(3, 1.f);
+    if (test_squeeze_load_param_case(pd, false)) return -1;
+    pd.set(3, param_int_array(5, 1));
+    if (test_squeeze_load_param_case(pd, false)) return -1;
+    pd.set(3, param_int_array(1, INT_MIN));
+    if (test_squeeze_load_param_case(pd, false)) return -1;
+    return 0;
+}
+
 int main()
 {
+    if (test_squeeze_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return test_squeeze_0() || test_squeeze_1() || test_squeeze_2() || test_squeeze_3();

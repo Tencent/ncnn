@@ -3,6 +3,8 @@
 
 #include "pooling3d.h"
 
+#include <limits.h>
+
 #include <float.h>
 
 namespace ncnn {
@@ -35,6 +37,12 @@ int Pooling3D::load_param(const ParamDict& pd)
     out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
     out_d = pd.get(28, out_w);
+
+    if (!global_pooling && !adaptive_pooling)
+    {
+        if (kernel_w <= 0 || stride_w <= 0 || kernel_h <= 0 || stride_h <= 0 || kernel_d <= 0 || stride_d <= 0 || kernel_w > INT_MAX / kernel_h || kernel_w * kernel_h > INT_MAX / kernel_d)
+            return -1;
+    }
 
     return 0;
 }

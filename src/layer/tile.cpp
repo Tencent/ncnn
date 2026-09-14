@@ -17,6 +17,24 @@ int Tile::load_param(const ParamDict& pd)
     tiles = pd.get(1, 1);
     repeats = pd.get(2, Mat());
 
+    {
+        const int type = pd.type(2);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((repeats.dims != 0 || repeats.w != 0 || repeats.data) && (repeats.dims != 1 || repeats.w <= 0 || repeats.elempack != 1 || repeats.elemsize != 4u || !repeats.data))
+            return -1;
+    }
+
+    if (repeats.w > 4 || (repeats.empty() && tiles <= 0))
+        return -1;
+    const int* repeats_ptr = repeats;
+    for (int i = 0; i < repeats.w; i++)
+    {
+        if (repeats_ptr[i] <= 0)
+            return -1;
+    }
+
     return 0;
 }
 

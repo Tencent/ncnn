@@ -25,7 +25,8 @@ int ROIAlign::load_param(const ParamDict& pd)
      * version 1:
      *  the version in detectron2
      */
-    assert(version >= 0 && version <= 1);
+    if (version < 0 || version > 1 || pooled_width <= 0 || pooled_height <= 0 || sampling_ratio < 0)
+        return -1;
 
     return 0;
 }

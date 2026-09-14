@@ -25,10 +25,28 @@ int Reduction::load_param(const ParamDict& pd)
     // the original reduction handle axes as blob with batch dimension
     // ask user to regenerate param instead of producing wrong result
     int fixbug0 = pd.get(5, 0);
+
+    {
+        const int type = pd.type(3);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
+            return -1;
+    }
     if (fixbug0 == 0 && !axes.empty())
     {
         NCNN_LOGE("param is too old, please regenerate!");
         return -1;
+    }
+
+    if (axes.w > 4)
+        return -1;
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
     }
 
     return 0;

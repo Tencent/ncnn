@@ -16,6 +16,12 @@ int ShuffleChannel::load_param(const ParamDict& pd)
     group = pd.get(0, 1);
     reverse = pd.get(1, 0);
 
+    if (group <= 0)
+    {
+        // reject invalid group (forward divides by group)
+        return -100;
+    }
+
     return 0;
 }
 

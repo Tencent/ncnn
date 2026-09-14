@@ -3,6 +3,8 @@
 
 #include "rnn.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 RNN::RNN()
@@ -25,6 +27,19 @@ int RNN::load_param(const ParamDict& pd)
         return -1;
 #endif
     }
+
+    if (num_output <= 0)
+    {
+        // reject invalid num_output (load_model divides by it)
+        return -100;
+    }
+
+    if (direction < 0 || direction > 2 || num_output > INT_MAX / 1 / (direction == 2 ? 2 : 1))
+        return -1;
+
+    const int rows = num_output * 1 * (direction == 2 ? 2 : 1);
+    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
+        return -1;
 
     return 0;
 }

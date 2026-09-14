@@ -14,10 +14,22 @@ int Flip::load_param(const ParamDict& pd)
 {
     axes = pd.get(0, Mat());
 
-    if (axes.w > 4)
     {
-        // only handle up to 4-dim
+        const int type = pd.type(0);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
+            return -1;
+    }
+
+    if (axes.w > 4)
         return -1;
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
     }
 
     return 0;

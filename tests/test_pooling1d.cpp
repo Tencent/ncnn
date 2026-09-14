@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_pooling1d(int w, int h, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
 {
@@ -236,8 +239,40 @@ static int test_pooling1d_4()
            || test_pooling1d(13, 16, 0, 1, 1, 0, 0, 0, 1, 0, 12);
 }
 
+static int test_pooling1d_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Pooling1D) : ncnn::create_layer_cpu(ncnn::LayerType::Pooling1D);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Pooling1D load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int test_pooling1d_load_param()
+{
+    ncnn::ParamDict pd;
+    pd.set(1, 3);
+    if (test_pooling1d_load_param_case(pd, true)) return -1;
+    pd.set(2, 0);
+    if (test_pooling1d_load_param_case(pd, false)) return -1;
+    pd.set(4, 1); // global pooling does not use the local stride
+    if (test_pooling1d_load_param_case(pd, true)) return -1;
+    return 0;
+}
+
 int main()
 {
+    if (test_pooling1d_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return 0

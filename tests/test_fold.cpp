@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_fold(int w, int h, int outw, int outh, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_w, int pad_h)
 {
@@ -38,8 +41,41 @@ static int test_fold_0()
            || test_fold(120, 36, 11, 5, 3, 2, 2, 1, 1, 1, 4, 2);
 }
 
+static int test_fold_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Fold) : ncnn::create_layer_cpu(ncnn::LayerType::Fold);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Fold load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int test_fold_load_param()
+{
+    ncnn::ParamDict pd;
+    pd.set(1, 3);
+    if (test_fold_load_param_case(pd, true)) return -1;
+    pd.set(3, 0);
+    if (test_fold_load_param_case(pd, false)) return -1;
+    pd.set(3, 1);
+    pd.set(1, 65536);
+    if (test_fold_load_param_case(pd, false)) return -1;
+    return 0;
+}
+
 int main()
 {
+    if (test_fold_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return test_fold_0();

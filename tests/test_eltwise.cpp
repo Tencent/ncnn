@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
 
 static void print_float_array(const ncnn::Mat& a)
 {
@@ -342,8 +343,36 @@ static int test_eltwise_12()
            || test_eltwise(c, 2, RandomMat(4));
 }
 
+static int test_eltwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    ncnn::Layer* layer = ncnn::create_layer_cpu(ncnn::LayerType::Eltwise);
+    if (!layer) return -1;
+    int ret = layer->load_param(pd);
+    delete layer;
+    if ((ret == 0) != valid)
+    {
+        fprintf(stderr, "Eltwise load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        return -1;
+    }
+    return 0;
+}
+
+static int test_eltwise_load_param()
+{
+    ncnn::ParamDict pd;
+    pd.set(1, ncnn::Mat(2));
+    if (test_eltwise_load_param_case(pd, true)) return -1;
+    pd.set(1, ncnn::Mat(2, (size_t)1u));
+    if (test_eltwise_load_param_case(pd, false)) return -1;
+    pd.set(1, ncnn::Mat(2, 2));
+    return test_eltwise_load_param_case(pd, false);
+}
+
 int main()
 {
+    if (test_eltwise_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return 0

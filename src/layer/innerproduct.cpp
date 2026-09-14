@@ -24,6 +24,27 @@ int InnerProduct::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    {
+        const int type = pd.type(10);
+        if (type != 0 && type != 4 && type != 5 && type != 6)
+            return -1;
+
+        if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w <= 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || !activation_params.data))
+            return -1;
+
+        // convert integer text arrays by value, preserving the shared ParamDict
+        if (type == 5 && !activation_params.empty())
+        {
+            Mat converted(activation_params.w);
+            if (converted.empty())
+                return -100;
+            const int* p = activation_params;
+            for (int i = 0; i < activation_params.w; i++)
+                converted[i] = (float)p[i];
+            activation_params = converted;
+        }
+    }
+
     if (int8_scale_term)
     {
 #if NCNN_INT8
@@ -33,6 +54,14 @@ int InnerProduct::load_param(const ParamDict& pd)
         return -1;
 #endif
     }
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0)
+        return -1;
 
     return 0;
 }

@@ -15,6 +15,31 @@ int Slice::load_param(const ParamDict& pd)
     axis = pd.get(1, 0);
     indices = pd.get(2, Mat());
 
+    {
+        const int type = pd.type(0);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((slices.dims != 0 || slices.w != 0 || slices.data) && (slices.dims != 1 || slices.w <= 0 || slices.elempack != 1 || slices.elemsize != 4u || !slices.data))
+            return -1;
+    }
+
+    {
+        const int type = pd.type(2);
+        if (type != 0 && type != 4 && type != 5)
+            return -1;
+
+        if ((indices.dims != 0 || indices.w != 0 || indices.data) && (indices.dims != 1 || indices.w <= 0 || indices.elempack != 1 || indices.elemsize != 4u || !indices.data))
+            return -1;
+    }
+
+    const int* slices_ptr = slices;
+    for (int i = 0; i < slices.w; i++)
+    {
+        if (slices_ptr[i] <= 0 && slices_ptr[i] != -233)
+            return -1;
+    }
+
     return 0;
 }
 

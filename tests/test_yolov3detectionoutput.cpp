@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_class,
                                       int num_box, float confidence_threshold, float nms_threshold,
@@ -117,8 +120,57 @@ static int test_yolov3detectionoutput_v3tiny()
            || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
 }
 
+static int test_yolov3detectionoutput_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Yolov3DetectionOutput) : ncnn::create_layer_cpu(ncnn::LayerType::Yolov3DetectionOutput);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Yolov3DetectionOutput load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int test_yolov3detectionoutput_load_param()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 20);
+    pd.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    pd.set(4, biases);
+    ncnn::Mat mask(1);
+    mask[0] = 0.f;
+    pd.set(5, mask);
+    ncnn::Mat scales(1);
+    scales[0] = 32.f;
+    pd.set(6, scales);
+    if (test_yolov3detectionoutput_load_param_case(pd, true)) return -1;
+    const float invalid[] = {-1.f, 0.5f, 1.f, (float)INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        mask[0] = invalid[i];
+        if (test_yolov3detectionoutput_load_param_case(pd, false)) return -1;
+    }
+    mask[0] = 0.f;
+    pd.set(6, ncnn::Mat());
+    if (test_yolov3detectionoutput_load_param_case(pd, false)) return -1;
+    pd.set(4, biases.range(0, 1));
+    if (test_yolov3detectionoutput_load_param_case(pd, false)) return -1;
+    return 0;
+}
+
 int main()
 {
+    if (test_yolov3detectionoutput_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return 0

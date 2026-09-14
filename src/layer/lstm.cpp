@@ -3,6 +3,8 @@
 
 #include "lstm.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 LSTM::LSTM()
@@ -26,6 +28,19 @@ int LSTM::load_param(const ParamDict& pd)
         return -1;
 #endif
     }
+
+    if (num_output <= 0 || hidden_size <= 0)
+    {
+        // reject invalid sizes (load_model divides by hidden_size)
+        return -100;
+    }
+
+    if (direction < 0 || direction > 2 || hidden_size > INT_MAX / 4 / (direction == 2 ? 2 : 1))
+        return -1;
+
+    const int rows = hidden_size * 4 * (direction == 2 ? 2 : 1);
+    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
+        return -1;
 
     return 0;
 }

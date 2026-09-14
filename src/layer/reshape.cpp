@@ -25,6 +25,14 @@ int Reshape::load_param(const ParamDict& pd)
     h = pd.get(1, -233);
     d = pd.get(11, -233);
     c = pd.get(2, -233);
+    shape_expr = pd.get(6, "");
+#if NCNN_BATCH
+    input_batch_axis = pd.get(12, 233);
+    output_batch_axis = pd.get(13, 233);
+#else
+    const int input_batch_axis = pd.get(12, 233);
+    const int output_batch_axis = pd.get(13, 233);
+#endif
 
     ndim = 4;
     if (d == -233)
@@ -37,21 +45,17 @@ int Reshape::load_param(const ParamDict& pd)
         ndim = 0;
 
 #if NCNN_BATCH
-    input_batch_axis = pd.get(12, 233);
-    output_batch_axis = pd.get(13, 233);
     if (input_batch_axis != 233 || output_batch_axis != 233)
     {
         support_batch = true;
     }
 #else
-    if (pd.get(12, 233) != 233 || pd.get(13, 233) != 233)
+    if (input_batch_axis != 233 || output_batch_axis != 233)
     {
         NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch inference");
         return -1;
     }
 #endif
-
-    shape_expr = pd.get(6, "");
 
     // count reference blobs
     if (!shape_expr.empty())
@@ -69,6 +73,14 @@ int Reshape::load_param(const ParamDict& pd)
 
         ndim = (int)outshape.size();
     }
+
+    int max_ndim = 4;
+#if NCNN_BATCH
+    if (output_batch_axis != 233)
+        max_ndim = 5;
+#endif
+    if (ndim < 1 || ndim > max_ndim)
+        return -1;
 
     return 0;
 }

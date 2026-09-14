@@ -56,9 +56,26 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     kdim = pd.get(3, embed_dim);
     vdim = pd.get(4, embed_dim);
     attn_mask = pd.get(5, 0);
-    scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
+
+    if (num_heads <= 0)
+    {
+        NCNN_LOGE("MultiHeadAttention invalid num_heads %d", num_heads);
+        return -1;
+    }
+
+    if (embed_dim <= 0 || embed_dim % num_heads != 0)
+    {
+        NCNN_LOGE("MultiHeadAttention invalid embed_dim %d", embed_dim);
+        return -1;
+    }
+
+    scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
+
+    if (weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0 || kdim > INT_MAX / embed_dim || vdim > INT_MAX / embed_dim)
+        return -1;
+
     int weight_bits;
     int block_size;
     bool has_input_scale;
@@ -82,12 +99,6 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
-        if (embed_dim <= 0 || num_heads <= 0 || embed_dim % num_heads != 0 || weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0)
-        {
-            NCNN_LOGE("MultiHeadAttention unsupported weight block quantize");
-            return -1;
-        }
-
         support_packing = false;
         support_bf16_storage = false;
         support_fp16_storage = false;

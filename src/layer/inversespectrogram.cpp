@@ -3,6 +3,8 @@
 
 #include "inversespectrogram.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 InverseSpectrogram::InverseSpectrogram()
@@ -21,9 +23,20 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
     center = pd.get(5, 1);
     normalized = pd.get(7, 0);
 
-    // assert winlen <= n_fft
+    // reject invalid params before writing into window_data (same class of ASan as #6939)
+    if (n_fft <= 0 || winlen <= 0 || winlen > n_fft)
+    {
+        NCNN_LOGE("InverseSpectrogram load_param invalid n_fft=%d winlen=%d", n_fft, winlen);
+        return -1;
+    }
+
+    if (hoplen <= 0 || window_type < 0 || window_type > 2 || normalized < 0 || normalized > 2 || (normalized == 2 && n_fft == INT_MAX))
+        return -1;
+
     // generate window
     window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
+    if (window_data.empty())
+        return -100;
     {
         float* p = window_data;
         for (int i = 0; i < (n_fft - winlen) / 2; i++)

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer_type.h"
+#include "datareader.h"
+
+#include <limits.h>
 
 static std::vector<int> IntArray(int a0)
 {
@@ -170,8 +174,76 @@ static int test_flip_3()
            || test_flip_nd(c);
 }
 
+static int test_flip_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Flip) : ncnn::create_layer_cpu(ncnn::LayerType::Flip);
+        if (!layer) return -1;
+        int ret = layer->load_param(pd);
+        delete layer;
+        if ((ret == 0) != valid)
+        {
+            fprintf(stderr, "Flip load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+    return m;
+}
+
+static int test_flip_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, param_int_array(1, 0));
+    if (test_flip_load_param_case(base, true)) return -1;
+    ncnn::ParamDict pd = base;
+    pd.set(0, ncnn::Mat(1, (size_t)1u));
+    if (test_flip_load_param_case(pd, false)) return -1;
+    pd.set(0, ncnn::Mat(1, 2));
+    if (test_flip_load_param_case(pd, false)) return -1;
+    pd.set(0, 1.f);
+    if (test_flip_load_param_case(pd, false)) return -1;
+    pd.set(0, param_int_array(5, 1));
+    if (test_flip_load_param_case(pd, false)) return -1;
+    pd.set(0, param_int_array(1, INT_MIN));
+    if (test_flip_load_param_case(pd, false)) return -1;
+    class FlipParamDict : public ncnn::ParamDict
+    {
+    public:
+        using ncnn::ParamDict::load_param;
+        using ncnn::ParamDict::load_param_bin;
+    };
+
+    FlipParamDict typed;
+#if NCNN_STRING
+    const unsigned char* text = (const unsigned char*)"-23300=1,0.0";
+    ncnn::DataReaderFromMemory text_reader(text);
+    if (typed.load_param(text_reader) != 0) return -1;
+    if (test_flip_load_param_case(typed, false)) return -1;
+#endif
+    const int binary[] = {-23300, 1, 0, -233};
+    const unsigned char* data = (const unsigned char*)binary;
+    ncnn::DataReaderFromMemory binary_reader(data);
+    if (typed.load_param_bin(binary_reader) != 0) return -1;
+    if (test_flip_load_param_case(typed, true)) return -1;
+
+    return 0;
+}
+
 int main()
 {
+    if (test_flip_load_param() != 0)
+        return -1;
+
     SRAND(7767517);
 
     return 0
