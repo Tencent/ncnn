@@ -1616,6 +1616,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     {
                         fprintf(pyfp, "%s", param.s.c_str());
                     }
+                    else if (param.s == "inf" || param.s == "-inf" || param.s == "nan")
+                    {
+                        fprintf(pyfp, "float(\'%s\')", param.s.c_str());
+                    }
                     else
                     {
                         fprintf(pyfp, "\'%s\'", param.s.c_str());
@@ -2468,7 +2472,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         }
                         else if (scalar_as_tensor)
                         {
-                            if (param.s == "inf" || param.s == "-inf")
+                            if (param.s == "inf" || param.s == "-inf" || param.s == "nan")
                             {
                                 fprintf(pyfp, "torch.tensor(float(\'%s\'))", param.s.c_str());
                             }
@@ -2479,7 +2483,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         }
                         else
                         {
-                            if (param.s == "inf" || param.s == "-inf")
+                            if (param.s == "inf" || param.s == "-inf" || param.s == "nan")
                             {
                                 fprintf(pyfp, "float(\'%s\')", param.s.c_str());
                             }

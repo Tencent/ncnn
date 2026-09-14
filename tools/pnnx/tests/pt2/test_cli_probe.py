@@ -5,6 +5,7 @@
 import argparse
 import pathlib
 import subprocess
+import sys
 import tempfile
 import zipfile
 
@@ -18,7 +19,12 @@ class UnsupportedOperator(torch.nn.Module):
 
 class UnsupportedNcnnExpression(torch.nn.Module):
     def forward(self, x):
-        return x + torch.sym_ite(x.shape[0] >= 2, 1.0, 2.0)
+        return x + (torch.sym_ite(x.shape[0] >= 2, 1.0, 2.0) + 0.5)
+
+
+class NaNScalar(torch.nn.Module):
+    def forward(self, x):
+        return torch.full_like(x, float("nan"))
 
 
 class UnsupportedRNN(torch.nn.Module):
@@ -69,6 +75,11 @@ def main():
         dynamic_shapes = ({0: torch.export.Dim("batch", min=1, max=4)},)
         torch.export.save(torch.export.export(UnsupportedNcnnExpression(), (torch.randn(3, 2),), dynamic_shapes=dynamic_shapes), unsupported_expression)
         check_failure(args.pnnx, unsupported_expression, "unsupported ncnn expression", "inputshape=[3,2]")
+
+        nan = root / "nan.pt2"
+        torch.export.save(torch.export.export(NaNScalar(), (torch.randn(2, 3),)), nan)
+        subprocess.run([args.pnnx, nan], cwd=root, check=True)
+        subprocess.run([sys.executable, root / "nan_pnnx.py"], cwd=root, check=True)
 
         for nonlinearity in ("tanh", "relu"):
             unsupported_rnn = root / ("unsupported_rnn_%s.pt2" % nonlinearity)

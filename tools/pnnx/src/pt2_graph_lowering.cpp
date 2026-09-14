@@ -80,7 +80,7 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
         value = Parameter(arg.ai);
     }
     else if (arg.type == Pt2Argument::Float)
-        value = std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
+        value = std::isnan(arg.f) ? Parameter("nan") : std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
     else if (arg.type == Pt2Argument::Floats)
         value = Parameter(arg.af);
     else if (arg.type == Pt2Argument::Complex)
@@ -136,7 +136,7 @@ static int parameter_from_argument(const Pt2Argument& arg, Parameter& value, std
         value = Parameter((long long)arg.i);
     }
     else if (arg.type == Pt2Argument::SymFloat && arg.s.empty())
-        value = std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
+        value = std::isnan(arg.f) ? Parameter("nan") : std::isinf(arg.f) ? Parameter(arg.f < 0 ? "-inf" : "inf") : Parameter(arg.f);
     else if (arg.type == Pt2Argument::SymBool && arg.s.empty())
         value = Parameter(arg.b);
     else
