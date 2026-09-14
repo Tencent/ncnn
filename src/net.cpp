@@ -53,6 +53,7 @@ public:
 #endif // NCNN_VULKAN
 
     int find_overwrite_builtin_layer_index(int typeindex) const;
+    // release layers, blobs and graph indexes before pipeline creation or after pipeline destruction
     void clear_layers();
     void destroy_layer(Layer* layer);
     int load_shape_hints(Layer* layer, const ParamDict& pd);
@@ -1593,8 +1594,9 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
+        const int typeindex = layer_to_index(layer_type);
         Layer* layer = create_overwrite_builtin_layer(layer_type);
-        if (!layer && d->find_overwrite_builtin_layer_index(layer_to_index(layer_type)) != -1)
+        if (!layer && d->find_overwrite_builtin_layer_index(typeindex) != -1)
         {
             NCNN_LOGE("create overwritten layer %s failed", layer_type);
             d->clear_layers();
@@ -1603,12 +1605,12 @@ int Net::load_param(const DataReader& dr)
 #if NCNN_VULKAN
         if (!layer && opt.use_vulkan_compute && d->vkdev)
         {
-            layer = create_layer_vulkan(layer_type);
+            layer = create_layer_vulkan(typeindex);
         }
 #endif // NCNN_VULKAN
         if (!layer)
         {
-            layer = create_layer_cpu(layer_type);
+            layer = create_layer_cpu(typeindex);
         }
         if (!layer)
         {
@@ -1713,7 +1715,8 @@ int Net::load_param(const DataReader& dr)
         }
 
         // pull out layer specific feature disabled set
-        if (pd.type(31) != 0 && pd.type(31) != 1 && pd.type(31) != 2)
+        const int featmask_type = pd.type(31);
+        if (featmask_type != 0 && featmask_type != 1 && featmask_type != 2)
         {
             NCNN_LOGE("invalid feature mask at layer %d", i);
             d->clear_layers();
@@ -1735,7 +1738,7 @@ int Net::load_param(const DataReader& dr)
         {
             // vulkan layer cannot handle these param, recreate cpu layer
             Layer* layer_cpu = create_overwrite_builtin_layer(layer_type);
-            if (!layer_cpu && d->find_overwrite_builtin_layer_index(layer_to_index(layer_type)) != -1)
+            if (!layer_cpu && d->find_overwrite_builtin_layer_index(typeindex) != -1)
             {
                 NCNN_LOGE("create overwritten layer %s failed", layer_type);
                 d->clear_layers();
@@ -1743,7 +1746,7 @@ int Net::load_param(const DataReader& dr)
             }
             if (!layer_cpu)
             {
-                layer_cpu = create_layer_cpu(layer_type);
+                layer_cpu = create_layer_cpu(typeindex);
             }
             if (!layer_cpu)
             {
@@ -2097,7 +2100,8 @@ int Net::load_param_bin(const DataReader& dr)
         }
 
         // pull out layer specific feature disabled set
-        if (pd.type(31) != 0 && pd.type(31) != 1 && pd.type(31) != 2)
+        const int featmask_type = pd.type(31);
+        if (featmask_type != 0 && featmask_type != 1 && featmask_type != 2)
         {
             NCNN_LOGE("invalid feature mask at layer %d", i);
             d->clear_layers();

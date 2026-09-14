@@ -13,7 +13,8 @@
 struct LayerState
 {
     LayerState()
-        : created(0), destroyed(0), pipeline_created(0), pipeline_destroyed(0), invalid_pipeline_destroyed(0), load_param_ret(0), cpu_load_param_ret(0), one_blob_only(false), support_vulkan(false)
+        : created(0), destroyed(0), pipeline_created(0), pipeline_destroyed(0), invalid_pipeline_destroyed(0),
+          load_param_ret(0), cpu_load_param_ret(0), one_blob_only(false), support_vulkan(false), fail_create(false)
     {
     }
 
@@ -26,25 +27,24 @@ struct LayerState
     int cpu_load_param_ret;
     bool one_blob_only;
     bool support_vulkan;
+    bool fail_create;
 };
 
 class TestLayer : public ncnn::Layer
 {
 public:
-    TestLayer(LayerState* _state)
-        : state(_state), param_loaded(false)
+    TestLayer(LayerState* _state, bool _support_vulkan, int _load_param_ret)
+        : state(_state), load_param_ret(_load_param_ret), param_loaded(false)
     {
         one_blob_only = state->one_blob_only;
-        support_vulkan = state->support_vulkan && state->created == 1;
+        support_vulkan = _support_vulkan;
     }
 
     virtual int load_param(const ncnn::ParamDict&)
     {
         support_vulkan = false;
-        if (state->created == 2 && state->cpu_load_param_ret != 0)
-            return state->cpu_load_param_ret;
-        param_loaded = state->load_param_ret == 0;
-        return state->load_param_ret;
+        param_loaded = load_param_ret == 0;
+        return load_param_ret;
     }
 
     virtual int create_pipeline(const ncnn::Option&)
@@ -63,14 +63,18 @@ public:
 
 private:
     LayerState* state;
+    int load_param_ret;
     bool param_loaded;
 };
 
 static ncnn::Layer* create_test_layer(void* userdata)
 {
     LayerState* state = (LayerState*)userdata;
+    if (state->fail_create)
+        return 0;
+
     state->created++;
-    return new TestLayer(state);
+    return new TestLayer(state, state->support_vulkan, state->load_param_ret);
 }
 
 static void destroy_test_layer(ncnn::Layer* layer, void* userdata)
@@ -88,10 +92,19 @@ static ncnn::Layer* create_null_layer(void*)
 static ncnn::Layer* create_layer_once(void* userdata)
 {
     LayerState* state = (LayerState*)userdata;
-    if (state->created != 0)
-        return 0;
+    ncnn::Layer* layer = create_test_layer(userdata);
+    state->fail_create = true;
+    return layer;
+}
 
-    return create_test_layer(userdata);
+static ncnn::Layer* create_recreated_layer(void* userdata)
+{
+    LayerState* state = (LayerState*)userdata;
+    ncnn::Layer* layer = create_test_layer(userdata);
+    // configure the next instance for cpu fallback
+    state->support_vulkan = false;
+    state->load_param_ret = state->cpu_load_param_ret;
+    return layer;
 }
 
 static bool empty_net(const ncnn::Net& net)
@@ -151,7 +164,27 @@ static std::vector<unsigned char> binary_header(int layers, int blobs, int type,
     return data;
 }
 
-static int check_text(const char* text, int expected_ret)
+static int check_shape_hints(const ncnn::Net& net, const int shapes[][5])
+{
+    const ncnn::Layer* layer = net.layers()[0];
+    for (size_t i = 0; i < layer->tops.size(); i++)
+    {
+        const ncnn::Mat& shape = net.blobs()[layer->tops[i]].shape;
+        const int* expected = shapes[i];
+        if (shape.dims != expected[0] || shape.w != expected[1] || shape.h != expected[2]
+                || shape.d != expected[3] || shape.c != expected[4])
+        {
+            fprintf(stderr, "test_net shape hint failed top=%zu shape=%d,%d,%d,%d,%d expected=%d,%d,%d,%d,%d\n",
+                    i, shape.dims, shape.w, shape.h, shape.d, shape.c,
+                    expected[0], expected[1], expected[2], expected[3], expected[4]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int check_text(const char* text, int expected_ret, const int shapes[][5] = 0)
 {
     LayerState state;
     ncnn::Net net;
@@ -165,18 +198,22 @@ static int check_text(const char* text, int expected_ret)
         return -1;
     }
 
+    if (ret == 0 && shapes && check_shape_hints(net, shapes) != 0)
+        return -1;
+
     net.clear();
     if (!empty_net(net) || state.created != state.destroyed || state.invalid_pipeline_destroyed != 0
             || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
     {
-        fprintf(stderr, "test_net text cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n%s\n", state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed, text);
+        fprintf(stderr, "test_net text cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n%s\n",
+                state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed, text);
         return -1;
     }
 
     return 0;
 }
 
-static int check_binary(const char* name, const std::vector<unsigned char>& data, size_t size, int expected_ret)
+static int check_binary(const char* name, const std::vector<unsigned char>& data, size_t size, int expected_ret, const int shapes[][5] = 0)
 {
     LayerState state;
     ncnn::Net net;
@@ -190,11 +227,15 @@ static int check_binary(const char* name, const std::vector<unsigned char>& data
         return -1;
     }
 
+    if (ret == 0 && shapes && check_shape_hints(net, shapes) != 0)
+        return -1;
+
     net.clear();
     if (!empty_net(net) || state.created != state.destroyed || state.invalid_pipeline_destroyed != 0
             || state.pipeline_destroyed != (expected_ret == 0 ? state.created : 0))
     {
-        fprintf(stderr, "test_net binary %s cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n", name, state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
+        fprintf(stderr, "test_net binary %s cleanup failed created=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n",
+                name, state.created, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
         return -1;
     }
 
@@ -339,6 +380,7 @@ static int test_binary_dependencies()
 
 static int test_binary_deep_dependencies()
 {
+    // only test that cycle detection handles deep graphs without recursive traversal
     const int layer_count = 16384;
     for (int cyclic = 0; cyclic < 2; cyclic++)
     {
@@ -384,7 +426,8 @@ static int test_layer_load_param_error()
             int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
             if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
             {
-                fprintf(stderr, "test_net load_param error cleanup failed type=%s binary=%d ret=%d created=%d destroyed=%d pipelines=%d\n", layer_types[i], binary, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                fprintf(stderr, "test_net load_param error cleanup failed type=%s binary=%d ret=%d created=%d destroyed=%d pipelines=%d\n",
+                        layer_types[i], binary, ret, state.created, state.destroyed, state.pipeline_destroyed);
                 return -1;
             }
         }
@@ -419,7 +462,8 @@ static int test_one_blob_only()
             int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text[i]);
             if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
             {
-                fprintf(stderr, "test_net one_blob_only failed binary=%d bottoms=%d tops=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, bottom_count, top_count, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                fprintf(stderr, "test_net one_blob_only failed binary=%d bottoms=%d tops=%d ret=%d created=%d destroyed=%d pipelines=%d\n",
+                        binary, bottom_count, top_count, ret, state.created, state.destroyed, state.pipeline_destroyed);
                 return -1;
             }
         }
@@ -437,26 +481,27 @@ static int test_shape_hints()
         int values[10];
         int tops;
         int expected_ret;
+        int shapes[2][5];
     };
     const Case cases[] = {
-        {"4,1,7,0,0", 4, {1, 7, 0, 0}, 1, 0},
-        {"4,2,7,6,0", 4, {2, 7, 6, 0}, 1, 0},
-        {"4,3,7,6,5", 4, {3, 7, 6, 5}, 1, 0},
-        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 1, 0},
-        {"5,4,7,6,5,4", 5, {4, 7, 6, 5, 4}, 1, 0},
-        {"8,1,7,0,0,2,6,5,0", 8, {1, 7, 0, 0, 2, 6, 5, 0}, 2, 0},
-        {"4,0,0,0,0", 4, {0, 0, 0, 0}, 1, 0},
-        {"4,1,0,0,0", 4, {1, 0, 0, 0}, 1, 0},
-        {"1,4", 1, {4}, 0, 0},
-        {"1,4", 1, {4}, 1, -1},
-        {"3,3,7,6", 3, {3, 7, 6}, 1, -1},
-        {"4,4,7,6,5", 4, {4, 7, 6, 5}, 1, -1},
-        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 2, -1},
-        {"4,5,7,6,5", 4, {5, 7, 6, 5}, 1, -1},
-        {"4,-1,7,6,5", 4, {-1, 7, 6, 5}, 1, -1},
-        {"4,3,-1,6,5", 4, {3, -1, 6, 5}, 1, -1},
-        {"5,4,2147483647,2147483647,2147483647,1", 5, {4, INT_MAX, INT_MAX, INT_MAX, 1}, 1, -1},
-        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1, -1}
+        {"4,1,7,0,0", 4, {1, 7, 0, 0}, 1, 0, {{1, 7, 1, 1, 1}}},
+        {"4,2,7,6,0", 4, {2, 7, 6, 0}, 1, 0, {{2, 7, 6, 1, 1}}},
+        {"4,3,7,6,5", 4, {3, 7, 6, 5}, 1, 0, {{3, 7, 6, 1, 5}}},
+        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 1, 0, {{3, 7, 6, 1, 5}}},
+        {"5,4,7,6,5,4", 5, {4, 7, 6, 5, 4}, 1, 0, {{4, 7, 6, 5, 4}}},
+        {"8,1,7,0,0,2,6,5,0", 8, {1, 7, 0, 0, 2, 6, 5, 0}, 2, 0, {{1, 7, 1, 1, 1}, {2, 6, 5, 1, 1}}},
+        {"4,0,0,0,0", 4, {0, 0, 0, 0}, 1, 0, {{0}}},
+        {"4,1,0,0,0", 4, {1, 0, 0, 0}, 1, 0, {{1, 0, 1, 1, 1}}},
+        {"1,4", 1, {4}, 0, 0, {{0}}},
+        {"1,4", 1, {4}, 1, -1, {{0}}},
+        {"3,3,7,6", 3, {3, 7, 6}, 1, -1, {{0}}},
+        {"4,4,7,6,5", 4, {4, 7, 6, 5}, 1, -1, {{0}}},
+        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 2, -1, {{0}}},
+        {"4,5,7,6,5", 4, {5, 7, 6, 5}, 1, -1, {{0}}},
+        {"4,-1,7,6,5", 4, {-1, 7, 6, 5}, 1, -1, {{0}}},
+        {"4,3,-1,6,5", 4, {3, -1, 6, 5}, 1, -1, {{0}}},
+        {"5,4,2147483647,2147483647,2147483647,1", 5, {4, INT_MAX, INT_MAX, INT_MAX, 1}, 1, -1, {{0}}},
+        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1, -1, {{0}}}
     };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
@@ -464,7 +509,7 @@ static int test_shape_hints()
         char text[512];
         const char* top_names[] = {"", " out", " out out2"};
         snprintf(text, sizeof(text), "7767517\n1 2\nTest t 0 %d%s -23330=%s\n", c.tops, top_names[c.tops], c.text);
-        if (check_text(text, c.expected_ret))
+        if (check_text(text, c.expected_ret, c.shapes))
             return -1;
         std::vector<unsigned char> data = binary_header(1, 2, ncnn::LayerType::CustomBit, 0, c.tops);
         for (int j = 0; j < c.tops; j++) append_int(data, j);
@@ -472,7 +517,7 @@ static int test_shape_hints()
         append_int(data, c.count);
         for (int j = 0; j < c.count; j++) append_int(data, c.values[j]);
         append_int(data, -233);
-        if (check_binary(c.text, data, data.size(), c.expected_ret))
+        if (check_binary(c.text, data, data.size(), c.expected_ret, c.shapes))
             return -1;
     }
     if (check_text("7767517\n1 1\nTest t 0 1 out 30=4\n", -1)
@@ -649,7 +694,8 @@ static int test_null_creators()
                 ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
                 if (ret != -1 || !empty_net(net) || state.created != 0 || state.destroyed != 0)
                 {
-                    fprintf(stderr, "test_net null creator failed binary=%d builtin=%d null_function=%d ret=%d created=%d destroyed=%d\n", binary, builtin, null_function, ret, state.created, state.destroyed);
+                    fprintf(stderr, "test_net null creator failed binary=%d builtin=%d null_function=%d ret=%d created=%d destroyed=%d\n",
+                            binary, builtin, null_function, ret, state.created, state.destroyed);
                     return -1;
                 }
             }
@@ -701,21 +747,23 @@ static int test_recreate_layer()
                 state.support_vulkan = true;
                 state.cpu_load_param_ret = fail ? -1 : 0;
                 ncnn::Net net;
-                net.register_custom_layer(builtin ? "Input" : "Test", create_test_layer, destroy_test_layer, &state);
+                net.register_custom_layer(builtin ? "Input" : "Test", create_recreated_layer, destroy_test_layer, &state);
                 std::vector<unsigned char> data = binary_header(1, 1, builtin ? ncnn::LayerType::Input : ncnn::LayerType::CustomBit, 0, 1);
                 append_int(data, 0);
                 append_int(data, -233);
                 const char* text = builtin ? "7767517\n1 1\nInput t 0 1 out\n" : "7767517\n1 1\nTest t 0 1 out\n";
                 int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
-                if (ret != state.cpu_load_param_ret || state.created != 2 || state.destroyed != (fail ? 2 : 1) || state.pipeline_destroyed != 0 || (fail && !empty_net(net)))
+                if (ret != (fail ? -1 : 0) || state.created != 2 || state.destroyed != (fail ? 2 : 1) || state.pipeline_destroyed != 0 || (fail && !empty_net(net)))
                 {
-                    fprintf(stderr, "test_net recreate binary=%d builtin=%d fail=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, builtin, fail, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                    fprintf(stderr, "test_net recreate binary=%d builtin=%d fail=%d ret=%d created=%d destroyed=%d pipelines=%d\n",
+                            binary, builtin, fail, ret, state.created, state.destroyed, state.pipeline_destroyed);
                     return -1;
                 }
                 net.clear();
                 if (state.destroyed != 2 || state.pipeline_destroyed != (fail ? 0 : 1) || state.invalid_pipeline_destroyed != 0)
                 {
-                    fprintf(stderr, "test_net recreate cleanup failed binary=%d builtin=%d fail=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n", binary, builtin, fail, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
+                    fprintf(stderr, "test_net recreate cleanup failed binary=%d builtin=%d fail=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n",
+                            binary, builtin, fail, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
                     return -1;
                 }
             }
@@ -746,7 +794,8 @@ static int test_recreate_layer_null_creator()
             int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
             if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
             {
-                fprintf(stderr, "test_net null cpu creator failed binary=%d builtin=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, builtin, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                fprintf(stderr, "test_net null cpu creator failed binary=%d builtin=%d ret=%d created=%d destroyed=%d pipelines=%d\n",
+                        binary, builtin, ret, state.created, state.destroyed, state.pipeline_destroyed);
                 return -1;
             }
         }
@@ -931,7 +980,8 @@ static int test_pipeline_lifecycle()
         net.clear();
         if (!empty_net(net) || state.destroyed != 1 || state.pipeline_destroyed != 1 || state.invalid_pipeline_destroyed != 0)
         {
-            fprintf(stderr, "test_net pipeline clear failed binary=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n", binary, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
+            fprintf(stderr, "test_net pipeline clear failed binary=%d destroyed=%d pipelines=%d invalid_pipelines=%d\n",
+                    binary, state.destroyed, state.pipeline_destroyed, state.invalid_pipeline_destroyed);
             return -1;
         }
     }
