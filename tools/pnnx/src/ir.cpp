@@ -274,7 +274,10 @@ void Attribute::set_float32_data(const std::vector<float>& newdata)
         {
             uint32_t bits;
             memcpy(&bits, &newdata[i], sizeof(bits));
-            p[i] = bits >> 16;
+            if ((bits & 0x7fffffff) > 0x7f800000)
+                p[i] = (bits >> 16) | 0x40;
+            else
+                p[i] = (bits + 0x7fff + ((bits >> 16) & 1)) >> 16;
         }
     }
     else

@@ -89,8 +89,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
 
     - name: python-ncnn
@@ -138,8 +137,7 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user --no-deps torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.LIBTORCH_VERSION }} torchvision==${{ env.TORCHVISION_VERSION }} torchaudio==${{ env.TORCHAUDIO_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging transformers==${{ env.TRANSFORMERS_VERSION }} einops onnxscript
 
     - name: python-ncnn

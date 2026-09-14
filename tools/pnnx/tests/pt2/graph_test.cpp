@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
+#include <string.h>
+
 #include <map>
 #include <set>
 #include <string>
@@ -400,6 +402,17 @@ static pnnx::Pt2Program pilot_program()
 
 static int check_pilot()
 {
+    const uint32_t special_bits[2] = {0x7f800000, 0x7f800001};
+    float special[2];
+    memcpy(special, special_bits, sizeof(special));
+
+    pnnx::Attribute bf16;
+    bf16.type = 13;
+    bf16.set_float32_data(std::vector<float> {1.00390625f, 1.01171875f, special[0], special[1]});
+    const unsigned short* bf16_data = (const unsigned short*)bf16.data.data();
+    if (bf16_data[0] != 0x3f80 || bf16_data[1] != 0x3f82 || bf16_data[2] != 0x7f80 || bf16_data[3] != 0x7fc0)
+        return -1;
+
     pnnx::Pt2Program program = pilot_program();
     pnnx::Pt2Weights weights;
     pnnx::Graph graph;
