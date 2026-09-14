@@ -1353,6 +1353,9 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
         return 0;
     }
 
+    if (custom_index >= max_net_count)
+        return -1;
+
     if ((int)d->custom_layer_registry.size() <= custom_index)
     {
 #if NCNN_STRING
@@ -1378,8 +1381,15 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
 static int scan_net_value(const DataReader& dr, int& value)
 {
     char token[32];
-    if (dr.scan("%31s", token) != 1 || strlen(token) == 31)
+    if (dr.scan("%31s", token) != 1)
         return 0;
+
+    if (strlen(token) == 31)
+    {
+        char suffix[2];
+        if (dr.scan("%1[^ \t\r\n\v\f]", suffix) == 1)
+            return 0;
+    }
 
     const char* p = token;
     const bool negative = *p == '-';
@@ -1655,6 +1665,9 @@ int Net::load_param(const DataReader& dr)
             layer->bottoms[j] = bottom_blob_index;
         }
 
+        // text tops always use fresh slots, so bottoms can only refer to earlier
+        // producers or external inputs
+        // reusing top slots would require cycle checks
         layer->tops.resize(top_count);
         for (int j = 0; j < top_count; j++)
         {

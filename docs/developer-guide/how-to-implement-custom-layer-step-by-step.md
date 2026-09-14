@@ -321,3 +321,5 @@ net.register_custom_layer("MyLayer", MyLayer_layer_creator);
 net.load_param("model.param");
 net.load_model("model.bin");
 ```
+
+When `register_custom_layer` overrides a built-in layer, its creator must return a layer object. Returning null fails parameter loading; it no longer requests fallback to the built-in implementation. The built-in implementation is used when no override is registered. This ensures that the registered destroyer only receives objects created by its matching creator.

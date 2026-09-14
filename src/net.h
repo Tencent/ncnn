@@ -46,6 +46,8 @@ public:
     const VulkanDevice* vulkan_device() const;
 #endif // NCNN_VULKAN
 
+    // a registered built-in override must create a layer; returning null fails
+    // parameter loading instead of falling back to the built-in implementation
 #if NCNN_STRING
     // register custom layer or overwrite built-in layer by layer type name
     // return 0 if success
@@ -53,6 +55,7 @@ public:
     virtual int custom_layer_to_index(const char* type);
 #endif // NCNN_STRING
     // register custom layer or overwrite built-in layer by layer type
+    // custom indexes must carry LayerType::CustomBit; the untagged slot must be < 1000000
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 

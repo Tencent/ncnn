@@ -395,21 +395,33 @@ static int test_layer_load_param_error()
 
 static int test_one_blob_only()
 {
+    const int counts[][2] = {{0, 1}, {1, 0}, {1, 2}, {2, 1}};
     for (int binary = 0; binary < 2; binary++)
     {
-        LayerState state;
-        state.one_blob_only = true;
-        ncnn::Net net;
-        net.register_custom_layer("Test", create_test_layer, destroy_test_layer, &state);
-
-        std::vector<unsigned char> data = binary_header(1, 1, ncnn::LayerType::CustomBit, 0, 1);
-        append_int(data, 0);
-        append_int(data, -233);
-        int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem("7767517\n1 1\nTest t 0 1 out\n");
-        if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
+        for (size_t i = 0; i < sizeof(counts) / sizeof(counts[0]); i++)
         {
-            fprintf(stderr, "test_net one_blob_only failed binary=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, ret, state.created, state.destroyed, state.pipeline_destroyed);
-            return -1;
+            const int bottom_count = counts[i][0];
+            const int top_count = counts[i][1];
+            LayerState state;
+            state.one_blob_only = true;
+            ncnn::Net net;
+            net.register_custom_layer("Test", create_test_layer, destroy_test_layer, &state);
+
+            std::vector<unsigned char> data = binary_header(1, bottom_count + top_count, ncnn::LayerType::CustomBit, bottom_count, top_count);
+            for (int j = 0; j < bottom_count + top_count; j++) append_int(data, j);
+            append_int(data, -233);
+            const char* text[] = {
+                "7767517\n1 1\nTest t 0 1 out\n",
+                "7767517\n1 1\nTest t 1 0 in\n",
+                "7767517\n1 3\nTest t 1 2 in out out2\n",
+                "7767517\n1 3\nTest t 2 1 in in2 out\n"
+            };
+            int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text[i]);
+            if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
+            {
+                fprintf(stderr, "test_net one_blob_only failed binary=%d bottoms=%d tops=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, bottom_count, top_count, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                return -1;
+            }
         }
     }
 
@@ -533,6 +545,43 @@ static int test_name_length()
     snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 1 %s\n", name);
     if (check_text(text, -1))
         return -1;
+
+    return 0;
+}
+
+static int test_integer_length()
+{
+    for (int length = 30; length <= 32; length++)
+    {
+        char token[33];
+        memset(token, '0', length);
+        token[length - 1] = '1';
+        token[length] = 0;
+        char text[256];
+        snprintf(text, sizeof(text), "7767517\n%s 1\nTest t 0 1 out\n", token);
+        if (check_text(text, length <= 31 ? 0 : -1))
+            return -1;
+        snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 %s out\n", token);
+        if (check_text(text, length <= 31 ? 0 : -1))
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_custom_index_limit()
+{
+    ncnn::Net net;
+    const int indexes[] = {1000000 | ncnn::LayerType::CustomBit, INT_MAX};
+    for (size_t i = 0; i < sizeof(indexes) / sizeof(indexes[0]); i++)
+    {
+        int ret = net.register_custom_layer(indexes[i], create_null_layer);
+        if (ret != -1)
+        {
+            fprintf(stderr, "test_net custom layer index limit failed index=%d ret=%d\n", indexes[i], ret);
+            return -1;
+        }
+    }
 
     return 0;
 }
@@ -902,6 +951,8 @@ int main()
            || test_one_blob_only()
            || test_reload()
            || test_name_length()
+           || test_integer_length()
+           || test_custom_index_limit()
            || test_repeated_blob_references()
            || test_null_creators()
            || test_shape_layout()

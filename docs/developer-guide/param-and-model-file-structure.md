@@ -61,6 +61,10 @@ In modern ncnn param file
 * array could be represented as `3=2.0,3.0` that is much more human friendly
 * string typed value: `4=hello` and the string is no longer than 255
 
+## net.param.bin
+
+Binary custom layer type indexes must include `LayerType::CustomBit`. Untagged unknown type indexes are rejected instead of falling back to a custom registry slot. `ncnn2mem` adds this tag automatically.
+
 ## net.bin
 ```
   +---------+---------+---------+---------+---------+---------+
