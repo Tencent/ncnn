@@ -628,13 +628,14 @@ static int check_pilot()
     add_symbolic("torch._sym_sqrt", "sym_sqrt", {sym_float_argument("item_start")}, sym_float_argument("sym_sqrt"));
     add_symbolic("_operator.and_", "sym_and", {sym_bool_argument("le_out"), sym_bool_argument("sym_ge")}, sym_bool_argument("sym_and"));
     add_symbolic("_operator.or_", "sym_or", {sym_bool_argument("le_out"), sym_bool_argument("sym_ge")}, sym_bool_argument("sym_or"));
+    add_symbolic("_operator.xor", "sym_xor", {sym_int_argument("sym_trunc"), int_argument(1)}, sym_int_argument("sym_xor"));
     add_symbolic("_operator.lshift", "sym_lshift", {sym_int_argument("sym_trunc"), int_argument(1)}, sym_int_argument("sym_lshift"));
     add_symbolic("_operator.rshift", "sym_rshift", {sym_int_argument("sym_lshift"), int_argument(1)}, sym_int_argument("sym_rshift"));
 
     pnnx::Graph symbolic_graph;
     if (pnnx::lower_pt2_graph(symbolic, weights, symbolic_graph, error) != 0 || check_topology(symbolic_graph) != 0)
         return -1;
-    const char* symbolic_names[] = {"sym_sub", "sym_div", "sym_floor_div", "sym_mod", "sym_pow", "sym_neg", "sym_pos", "sym_ge", "sym_eq", "sym_ne", "sym_lt", "sym_gt", "sym_not", "sym_trunc", "sym_int", "sym_float", "sym_ite", "sym_min", "sym_max", "sym_sqrt", "sym_and", "sym_or", "sym_lshift", "sym_rshift"};
+    const char* symbolic_names[] = {"sym_sub", "sym_div", "sym_floor_div", "sym_mod", "sym_pow", "sym_neg", "sym_pos", "sym_ge", "sym_eq", "sym_ne", "sym_lt", "sym_gt", "sym_not", "sym_trunc", "sym_int", "sym_float", "sym_ite", "sym_min", "sym_max", "sym_sqrt", "sym_and", "sym_or", "sym_xor", "sym_lshift", "sym_rshift"};
     for (size_t i = 0; i < sizeof(symbolic_names) / sizeof(symbolic_names[0]); i++)
     {
         const pnnx::Operator* op = find_operator(symbolic_graph, symbolic_names[i]);

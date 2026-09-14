@@ -22,6 +22,11 @@ class UnsupportedNcnnExpression(torch.nn.Module):
         return x + (torch.sym_ite(x.shape[0] >= 2, 1.0, 2.0) + 0.5)
 
 
+class UnsupportedNcnnBitwise(torch.nn.Module):
+    def forward(self, x):
+        return x + (x.shape[0] & 1)
+
+
 class NaNScalar(torch.nn.Module):
     def forward(self, x):
         return torch.full_like(x, float("nan"))
@@ -75,6 +80,10 @@ def main():
         dynamic_shapes = ({0: torch.export.Dim("batch", min=1, max=4)},)
         torch.export.save(torch.export.export(UnsupportedNcnnExpression(), (torch.randn(3, 2),), dynamic_shapes=dynamic_shapes), unsupported_expression)
         check_failure(args.pnnx, unsupported_expression, "unsupported ncnn expression", "inputshape=[3,2]")
+
+        unsupported_bitwise = root / "unsupported_bitwise.pt2"
+        torch.export.save(torch.export.export(UnsupportedNcnnBitwise(), (torch.randn(3, 2),), dynamic_shapes=dynamic_shapes), unsupported_bitwise)
+        check_failure(args.pnnx, unsupported_bitwise, "unsupported ncnn expression", "inputshape=[3,2]", "inputshape2=[4,2]")
 
         nan = root / "nan.pt2"
         torch.export.save(torch.export.export(NaNScalar(), (torch.randn(2, 3),)), nan)

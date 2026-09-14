@@ -578,7 +578,7 @@ int main(int argc, char** argv)
 
     if (pt2)
     {
-        const char* unsupported_expr[] = {"sym_ite", "sym_not", "eq", "ne", "lt", "le", "gt", "ge"};
+        const char* unsupported_expr[] = {"sym_ite", "sym_not", "eq", "ne", "lt", "le", "gt", "ge", "and", "or", "xor", "lshift", "rshift"};
         for (size_t i = 0; i < pnnx_graph.ops.size(); i++)
         {
             const pnnx::Operator* op = pnnx_graph.ops[i];

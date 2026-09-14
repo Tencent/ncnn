@@ -586,6 +586,11 @@ private:
             expr = "or";
             aten = "aten::__or__";
         }
+        else if (node.target == "_operator.xor")
+        {
+            expr = "xor";
+            aten = "aten::__xor__";
+        }
         else if (node.target == "_operator.lshift")
         {
             expr = "lshift";
@@ -694,7 +699,7 @@ private:
             result_kind = kinds[0] >= 2 ? 3 : 0;
         else if (node.target == "torch.sym_ite")
             result_kind = kinds[0] == 1 && (kinds[1] == kinds[2] || (kinds[1] >= 2 && kinds[2] >= 2)) ? std::max(kinds[1], kinds[2]) : 0;
-        else if (node.target == "_operator.and_" || node.target == "_operator.or_")
+        else if (node.target == "_operator.and_" || node.target == "_operator.or_" || node.target == "_operator.xor")
             result_kind = kinds[0] == kinds[1] && kinds[0] <= 2 ? kinds[0] : 0;
         else if (node.target == "_operator.lshift" || node.target == "_operator.rshift")
             result_kind = kinds[0] == 2 && kinds[1] == 2 ? 2 : 0;
