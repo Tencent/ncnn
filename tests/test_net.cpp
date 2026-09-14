@@ -238,6 +238,7 @@ static int test_text_errors()
         "7767517\n1 1\nTest t 0 1 out 0=1,,2\n",
         "7767517\n1 1\nTest t 0 1 out 31=1.0\n",
         "7767517\n1 1\nTest t 0 1 out 31=1,2\n",
+        // missing bottom name checks builtin override cleanup after a truncated connection
         "7767517\n1 1\nInput t 1 0",
         "7767517\n1 1\nInput t 0 1 out 0=1,,2\n"
     };
@@ -604,6 +605,7 @@ static int test_reload()
         return -1;
     }
 
+    // truncate the bottom name to exercise failed reload cleanup
     ret = net.load_param_mem("7767517\n1 1\nInput t 1 0");
     if (ret != -1 || !empty_net(net) || state.created != state.destroyed)
     {
@@ -672,7 +674,7 @@ static int test_integer_length()
 static int test_custom_index_limit()
 {
     ncnn::Net net;
-    const int indexes[] = {1000000 | ncnn::LayerType::CustomBit, INT_MAX};
+    const int indexes[] = {-1, 1000000 | ncnn::LayerType::CustomBit, INT_MAX};
     for (size_t i = 0; i < sizeof(indexes) / sizeof(indexes[0]); i++)
     {
         int ret = net.register_custom_layer(indexes[i], create_null_layer);
@@ -707,30 +709,30 @@ static int test_repeated_blob_references()
     return 0;
 }
 
-static int test_null_creators()
+static int test_builtin_without_override()
 {
-    ncnn::Net net;
-    int ret = net.register_custom_layer(-1, create_null_layer);
-    if (ret != -1)
-    {
-        fprintf(stderr, "test_net negative custom layer index failed ret=%d\n", ret);
-        return -1;
-    }
-
     for (int binary = 0; binary < 2; binary++)
     {
+        ncnn::Net net;
         std::vector<unsigned char> data = binary_header(1, 1);
         append_layer_header(data, ncnn::LayerType::Input, 0, 1);
         append_int(data, 0);
         append_int(data, -233);
-        ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem("7767517\n1 1\nInput t 0 1 out\n");
+        int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem("7767517\n1 1\nInput t 0 1 out\n");
         if (ret != 0)
         {
             fprintf(stderr, "test_net builtin without override failed binary=%d ret=%d\n", binary, ret);
             return -1;
         }
-        net.clear();
+    }
 
+    return 0;
+}
+
+static int test_null_creators()
+{
+    for (int binary = 0; binary < 2; binary++)
+    {
         for (int builtin = 0; builtin < 2; builtin++)
         {
             for (int null_function = 0; null_function < 2; null_function++)
@@ -749,7 +751,7 @@ static int test_null_creators()
                 append_int(data, 0);
                 append_int(data, -233);
                 const char* text = builtin ? "7767517\n1 1\nInput t 0 1 out\n" : "7767517\n1 1\nTest t 0 1 out\n";
-                ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
+                int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text);
                 if (ret != -1 || !empty_net(net) || state.created != 0 || state.destroyed != 0)
                 {
                     fprintf(stderr, "test_net null creator failed binary=%d builtin=%d null_function=%d ret=%d created=%d destroyed=%d\n", binary, builtin, null_function, ret, state.created, state.destroyed);
@@ -1067,6 +1069,7 @@ int main()
            || test_integer_length()
            || test_custom_index_limit()
            || test_repeated_blob_references()
+           || test_builtin_without_override()
            || test_null_creators()
            || test_shape_layout()
            || test_recreate_layer()
