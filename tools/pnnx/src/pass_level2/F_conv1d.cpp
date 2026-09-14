@@ -74,11 +74,11 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-pnnx.Input              input_3     0 1 stride
-pnnx.Input              input_4     0 1 padding
-pnnx.Input              input_5     0 1 dilation
-pnnx.Input              input_6     0 1 groups
-aten::conv1d            op_0        7 1 input weight bias stride padding dilation groups out
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 dilation value=%dilation
+prim::Constant          op_3        0 1 groups value=%groups
+aten::conv1d            op_4        7 1 input weight bias stride padding dilation groups out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

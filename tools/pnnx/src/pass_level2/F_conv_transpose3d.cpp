@@ -53,12 +53,12 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-pnnx.Input              input_3     0 1 stride
-pnnx.Input              input_4     0 1 padding
-pnnx.Input              input_5     0 1 output_padding
-pnnx.Input              input_6     0 1 groups
-pnnx.Input              input_7     0 1 dilation
-aten::conv_transpose3d  op_0        8 1 input weight bias stride padding output_padding groups dilation out
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 output_padding value=%output_padding
+prim::Constant          op_3        0 1 groups value=%groups
+prim::Constant          op_4        0 1 dilation value=%dilation
+aten::conv_transpose3d  op_5        8 1 input weight bias stride padding output_padding groups dilation out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

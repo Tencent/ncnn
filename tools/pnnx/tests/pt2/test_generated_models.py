@@ -55,6 +55,12 @@ class BFloat16Weights(torch.nn.Module):
         return (torch.nn.functional.conv2d(x.to(torch.bfloat16), self.weight, self.bias) * self.scale).float()
 
 
+class LowOptConvolution(torch.nn.Module):
+    def forward(self, x, weight, bias, deconv_weight, deconv_bias):
+        x = torch.nn.functional.conv1d(x, weight, bias, stride=2, padding=1, dilation=2, groups=2)
+        return torch.nn.functional.conv_transpose1d(x, deconv_weight, deconv_bias, stride=2, padding=1, groups=2)
+
+
 def load_module(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -143,6 +149,23 @@ def check_bfloat16(args, root):
         raise AssertionError("scalar bfloat16 weight was dropped")
 
 
+def check_low_opt_convolution(args, root):
+    workdir = root / "low_opt_convolution"
+    workdir.mkdir()
+    model = LowOptConvolution().eval()
+    inputs = (torch.rand(1, 4, 16), torch.rand(4, 2, 3), torch.rand(4), torch.rand(4, 2, 3), torch.rand(4))
+    torch.export.save(torch.export.export(model, inputs), workdir / "model.pt2")
+    run([args.pnnx, "model.pt2", "optlevel=0"], workdir)
+    oldcwd = pathlib.Path.cwd()
+    try:
+        os.chdir(workdir)
+        pnnx_output = load_module(workdir / "model_pnnx.py", "pt2_low_opt_convolution_pnnx").test_inference()
+        ncnn_output = load_module(workdir / "model_ncnn.py", "pt2_low_opt_convolution_ncnn").test_inference()
+    finally:
+        os.chdir(oldcwd)
+    check_output(pnnx_output, ncnn_output, 1e-3, 1e-3, True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pnnx", type=pathlib.Path, required=True)
@@ -171,6 +194,7 @@ def main():
             inference_args = tuple(torch.rand(x.shape, dtype=x.dtype) for x in export_args)
             check_case(args, root, name, model, export_args, export_kwargs, inference_args)
         check_bfloat16(args, root)
+        check_low_opt_convolution(args, root)
 
 
 if __name__ == "__main__":
