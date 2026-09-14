@@ -42,7 +42,12 @@ def test():
     import test_nn_ChannelShuffle_pnnx
     b0, b1 = test_nn_ChannelShuffle_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    os.system(os.path.normpath("../../src/pnnx") + " test_nn_ChannelShuffle.pt2 optlevel=0 inputshape=[1,64,6,8],[1,96,7,9]")
+    import importlib
+    test_nn_ChannelShuffle_pnnx = importlib.reload(test_nn_ChannelShuffle_pnnx)
+    c0, c1 = test_nn_ChannelShuffle_pnnx.test_inference()
+
+    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a0, c0) and torch.equal(a1, c1)
 
 if __name__ == "__main__":
     if test():

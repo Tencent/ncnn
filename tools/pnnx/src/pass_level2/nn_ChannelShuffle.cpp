@@ -13,7 +13,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Input              groups      0 1 groups
+prim::Constant          op_1        0 1 groups value=%groups
 aten::channel_shuffle   op_0        2 1 input groups out
 pnnx.Output             output      1 0 out
 )PNNXIR";

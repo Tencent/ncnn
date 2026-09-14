@@ -16,6 +16,11 @@ class UnsupportedOperator(torch.nn.Module):
         return torch.special.airy_ai(x)
 
 
+class UnsupportedNcnnExpression(torch.nn.Module):
+    def forward(self, x):
+        return x + torch.sym_ite(x.shape[0] >= 2, 1.0, 2.0)
+
+
 class UnsupportedRNN(torch.nn.Module):
     def __init__(self, nonlinearity):
         super().__init__()
@@ -59,6 +64,11 @@ def main():
         check_failure(args.pnnx, unsupported, "unsupported operator aten::special_airy_ai")
         check_failure(args.pnnx, unsupported, "unsupported operator aten::special_airy_ai", "moduleop=aten::special_airy_ai")
         check_failure(args.pnnx, unsupported, "PT2 models only support device=cpu", "device=gpu")
+
+        unsupported_expression = root / "unsupported_expression.pt2"
+        dynamic_shapes = ({0: torch.export.Dim("batch", min=1, max=4)},)
+        torch.export.save(torch.export.export(UnsupportedNcnnExpression(), (torch.randn(3, 2),), dynamic_shapes=dynamic_shapes), unsupported_expression)
+        check_failure(args.pnnx, unsupported_expression, "unsupported ncnn expression", "inputshape=[3,2]")
 
         for nonlinearity in ("tanh", "relu"):
             unsupported_rnn = root / ("unsupported_rnn_%s.pt2" % nonlinearity)

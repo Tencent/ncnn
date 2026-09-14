@@ -15,6 +15,8 @@ class Model(nn.Module):
 
         self.conv_2 = nn.Conv2d(in_channels=12, out_channels=3*3, kernel_size=3)
         self.conv_3 = torchvision.ops.DeformConv2d(in_channels=12, out_channels=16, kernel_size=3)
+        self.conv_4 = torchvision.ops.DeformConv2d(in_channels=12, out_channels=16, kernel_size=3, bias=False)
+        self.conv_5 = torchvision.ops.DeformConv2d(in_channels=12, out_channels=15, kernel_size=3, bias=False)
 
     def forward(self, x):
         offset = self.conv_0(x)
@@ -22,7 +24,9 @@ class Model(nn.Module):
 
         mask = F.sigmoid(self.conv_2(x))
         x2 = self.conv_3(x, offset, mask)
-        return x1, x2
+        x3 = self.conv_4(x, offset)
+        x4 = self.conv_5(x, offset, mask)
+        return x1, x2, x3, x4
 
 def test():
     net = Model()
@@ -31,7 +35,7 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 12, 64, 64)
 
-    a0, a1 = net(x)
+    a = net(x)
 
     # export pt2
     mod = torch.export.export(net, (x,))
@@ -43,9 +47,9 @@ def test():
 
     # pnnx inference
     import test_torchvision_DeformConv2d_pnnx
-    b0, b1 = test_torchvision_DeformConv2d_pnnx.test_inference()
+    b = test_torchvision_DeformConv2d_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    return all(torch.equal(x, y) for x, y in zip(a, b))
 
 if __name__ == "__main__":
     if test():

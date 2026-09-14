@@ -38,7 +38,7 @@ static int scalar_type_info(int dtype, int& attribute_type, size_t& element_size
 {
     static const unsigned char element_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 4, 8, 16, 1, 2};
     static const unsigned char component_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 2, 4, 8, 1, 2};
-    if (dtype < 1 || dtype > 13)
+    if (dtype < 1 || dtype > 13 || dtype == 9)
         return -1;
     attribute_type = scalar_type_to_pnnx(dtype);
     element_size = element_sizes[dtype];
@@ -815,7 +815,9 @@ private:
             int attribute_type;
             size_t element_size;
             size_t component_size;
-            if (scalar_type_info(meta.dtype, attribute_type, element_size, component_size) != 0 || storage_it->second.size() % element_size != 0)
+            if (scalar_type_info(meta.dtype, attribute_type, element_size, component_size) != 0)
+                return fail(path + ": unsupported scalar type " + std::to_string(meta.dtype));
+            if (storage_it->second.size() % element_size != 0)
                 return fail(path + ": invalid storage dtype or byte size");
 
             Pt2LoadedTensor loaded;

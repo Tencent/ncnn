@@ -119,10 +119,12 @@ static int check_weights(const pnnx::Pt2Weights& weights, const std::string& nam
     {
         const int attribute_types[] = {0, 8, 7, 6, 4, 5, 3, 1, 2, 12, 10, 11, 9, 13};
         const int element_sizes[] = {0, 1, 1, 2, 4, 8, 2, 4, 8, 4, 8, 16, 1, 2};
-        if (weights.values.size() != 15)
+        if (weights.values.size() != 14)
             return -1;
         for (int dtype = 1; dtype <= 13; dtype++)
         {
+            if (dtype == 9)
+                continue;
             const pnnx::Attribute& attribute = weights.values.at("dtype_" + std::to_string(dtype));
             if (attribute.type != attribute_types[dtype] || attribute.shape != std::vector<int> {2} || attribute.data.size() != (size_t)element_sizes[dtype] * 2)
                 return -1;

@@ -582,6 +582,24 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
+        if (pt2)
+        {
+            for (size_t i = 0; i < pnnx_graph.ops.size(); i++)
+            {
+                const pnnx::Operator* op = pnnx_graph.ops[i];
+                if (op->type != "pnnx.Expression")
+                    continue;
+
+                const std::string& expr = op->params.at("expr").s;
+                const std::string expr_op = expr.substr(0, expr.find_first_of("(,"));
+                if (expr_op == "sym_ite" || expr_op == "sym_not" || expr_op == "eq" || expr_op == "ne" || expr_op == "lt" || expr_op == "le" || expr_op == "gt" || expr_op == "ge")
+                {
+                    fprintf(stderr, "unsupported ncnn expression %s\n", expr.c_str());
+                    return -1;
+                }
+            }
+        }
+
         if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
             return -1;
     }

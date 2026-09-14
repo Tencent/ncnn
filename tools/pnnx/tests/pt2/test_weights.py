@@ -183,6 +183,8 @@ def main():
 
         entries = []
         for dtype in range(1, 14):
+            if dtype == 9:
+                continue
             entries.append(
                 (f"dtype_{dtype}", dtype, [2], bytes(range(ELEMENT_SIZES[dtype] * 2)))
             )
@@ -195,6 +197,10 @@ def main():
         scalar_types = root / "scalar_types.pt2"
         write_zip(scalar_types, make_raw_archive(entries))
         run(args.tester, scalar_types, "scalar_types", True)
+
+        complex_half = root / "complex_half.pt2"
+        write_zip(complex_half, make_raw_archive([("value", 9, [1], bytes(4))]))
+        run(args.tester, complex_half, "scalar_types", False, "unsupported scalar type 9")
 
         big_endian = root / "big_endian.pt2"
         write_zip(big_endian, make_raw_archive([("value", 7, [1], struct.pack(">f", 1.0))], "big"))
