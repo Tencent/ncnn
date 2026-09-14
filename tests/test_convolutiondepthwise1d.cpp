@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -201,15 +202,19 @@ static int test_convolutiondepthwise1d_load_param_case(const ncnn::ParamDict& pd
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::ConvolutionDepthWise1D) : ncnn::create_layer_cpu(ncnn::LayerType::ConvolutionDepthWise1D);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "ConvolutionDepthWise1D load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -220,57 +225,68 @@ static int test_convolutiondepthwise1d_load_param()
     base.set(1, 3);
     base.set(6, 216);
     base.set(7, 2);
-    if (test_convolutiondepthwise1d_load_param_case(base, true)) return -1;
+    if (test_convolutiondepthwise1d_load_param_case(base, true) != 0)
+        return -1;
+
     for (int activation = 0; activation <= 7; activation++)
     {
         ncnn::ParamDict pd = base;
         pd.set(9, activation);
         bool need_params = activation == 2 || activation == 3 || activation == 6;
-        if (test_convolutiondepthwise1d_load_param_case(pd, !need_params && activation != 7)) return -1;
-        if (activation == 7) continue;
+        if (test_convolutiondepthwise1d_load_param_case(pd, !need_params && activation != 7) != 0)
+            return -1;
+        if (activation == 7)
+            continue;
         ncnn::Mat params(2);
         params[0] = 0.1f;
         params[1] = 0.5f;
         pd.set(10, params);
-        if (test_convolutiondepthwise1d_load_param_case(pd, true)) return -1;
+        if (test_convolutiondepthwise1d_load_param_case(pd, true) != 0)
+            return -1;
         pd.set(10, params.range(0, 1));
-        if (test_convolutiondepthwise1d_load_param_case(pd, activation != 3 && activation != 6)) return -1;
+        if (test_convolutiondepthwise1d_load_param_case(pd, activation != 3 && activation != 6) != 0)
+            return -1;
     }
+
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4)};
     for (int i = 0; i < 4; i++)
     {
         ncnn::ParamDict pd = base;
         pd.set(10, bad[i]);
-        if (test_convolutiondepthwise1d_load_param_case(pd, false)) return -1;
+        if (test_convolutiondepthwise1d_load_param_case(pd, false) != 0)
+            return -1;
     }
+
     const int ids[] = {0, 1, 2, 3, 1, 6};
     const int values[] = {0, 0, 0, 0, INT_MAX, 217};
     for (int i = 0; i < 6; i++)
     {
         ncnn::ParamDict pd = base;
         pd.set(ids[i], values[i]);
-        if (test_convolutiondepthwise1d_load_param_case(pd, false)) return -1;
+        if (test_convolutiondepthwise1d_load_param_case(pd, false) != 0)
+            return -1;
     }
+
     const int groups[] = {0, -1, -8, INT_MIN, 3};
     for (int i = 0; i < 5; i++)
     {
         ncnn::ParamDict pd = base;
         pd.set(7, groups[i]);
-        if (test_convolutiondepthwise1d_load_param_case(pd, false)) return -1;
+        if (test_convolutiondepthwise1d_load_param_case(pd, false) != 0)
+            return -1;
     }
+
     ncnn::ParamDict pd = base;
     pd.set(0, INT_MIN);
     pd.set(7, -1); // avoid evaluating INT_MIN % -1
-    if (test_convolutiondepthwise1d_load_param_case(pd, false)) return -1;
+    if (test_convolutiondepthwise1d_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_convolutiondepthwise1d_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
-    return test_convolutiondepthwise1d_0() || test_convolutiondepthwise1d_1();
+    return test_convolutiondepthwise1d_0() || test_convolutiondepthwise1d_1() || test_convolutiondepthwise1d_load_param();
 }

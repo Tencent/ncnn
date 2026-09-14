@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int outc)
@@ -211,7 +212,8 @@ static int test_reshape_9()
 static int test_reshape_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
     ncnn::Layer* layer = ncnn::create_layer_cpu(ncnn::LayerType::Reshape);
-    if (!layer) return -1;
+    if (!layer)
+        return -1;
     int ret = layer->load_param(pd);
     delete layer;
     if ((ret == 0) != valid)
@@ -219,6 +221,7 @@ static int test_reshape_load_param_case(const ncnn::ParamDict& pd, bool valid)
         fprintf(stderr, "Reshape load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
         return -1;
     }
+
     return 0;
 }
 
@@ -226,12 +229,16 @@ static int test_reshape_load_param()
 {
     ncnn::ParamDict pd;
     pd.set(0, -1);
-    if (test_reshape_load_param_case(pd, true)) return -1;
+    if (test_reshape_load_param_case(pd, true) != 0)
+        return -1;
+
     pd.set(6, "1,1,1,1,1");
-    if (test_reshape_load_param_case(pd, false)) return -1;
+    if (test_reshape_load_param_case(pd, false) != 0)
+        return -1;
 #if NCNN_BATCH
     pd.set(13, 0);
-    if (test_reshape_load_param_case(pd, true)) return -1;
+    if (test_reshape_load_param_case(pd, true) != 0)
+        return -1;
 #endif
     pd.set(6, "1,1,1,1,1,1");
     return test_reshape_load_param_case(pd, false);
@@ -239,9 +246,6 @@ static int test_reshape_load_param()
 
 int main()
 {
-    if (test_reshape_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
@@ -254,5 +258,6 @@ int main()
            || test_reshape_6()
            || test_reshape_7()
            || test_reshape_8()
-           || test_reshape_9();
+           || test_reshape_9()
+           || test_reshape_load_param();
 }

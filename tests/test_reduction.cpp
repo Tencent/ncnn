@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -229,15 +230,19 @@ static int test_reduction_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Reduction) : ncnn::create_layer_cpu(ncnn::LayerType::Reduction);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "Reduction load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -255,26 +260,34 @@ static int test_reduction_load_param()
     ncnn::ParamDict base;
     base.set(5, 1); // fixbug0
     base.set(3, param_int_array(1, 0));
-    if (test_reduction_load_param_case(base, true)) return -1;
+    if (test_reduction_load_param_case(base, true) != 0)
+        return -1;
+
     ncnn::ParamDict pd = base;
     pd.set(3, ncnn::Mat(1, (size_t)1u));
-    if (test_reduction_load_param_case(pd, false)) return -1;
+    if (test_reduction_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(3, ncnn::Mat(1, 2));
-    if (test_reduction_load_param_case(pd, false)) return -1;
+    if (test_reduction_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(3, 1.f);
-    if (test_reduction_load_param_case(pd, false)) return -1;
+    if (test_reduction_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(3, param_int_array(5, 1));
-    if (test_reduction_load_param_case(pd, false)) return -1;
+    if (test_reduction_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(3, param_int_array(1, INT_MIN));
-    if (test_reduction_load_param_case(pd, false)) return -1;
+    if (test_reduction_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_reduction_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     for (op_type = 0; op_type < OP_TYPE_MAX; op_type++)
@@ -289,5 +302,5 @@ int main()
             return ret;
     }
 
-    return 0;
+    return test_reduction_load_param();
 }

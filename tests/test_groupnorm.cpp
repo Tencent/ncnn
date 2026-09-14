@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -110,15 +111,19 @@ static int test_groupnorm_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::GroupNorm) : ncnn::create_layer_cpu(ncnn::LayerType::GroupNorm);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "GroupNorm load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -127,28 +132,30 @@ static int test_groupnorm_load_param()
     ncnn::ParamDict pd;
     pd.set(0, 2);
     pd.set(1, 8);
-    if (test_groupnorm_load_param_case(pd, true)) return -1;
+    if (test_groupnorm_load_param_case(pd, true) != 0)
+        return -1;
+
     const int invalid[] = {0, -1, -8, INT_MIN};
     for (int i = 0; i < 4; i++)
     {
         pd.set(0, invalid[i]);
-        if (test_groupnorm_load_param_case(pd, false)) return -1;
+        if (test_groupnorm_load_param_case(pd, false) != 0)
+            return -1;
     }
     pd.set(0, 3);
-    if (test_groupnorm_load_param_case(pd, false)) return -1;
+    if (test_groupnorm_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_groupnorm_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
            || test_groupnorm_0()
            || test_groupnorm_1()
            || test_groupnorm_2()
-           || test_groupnorm_3();
+           || test_groupnorm_3()
+           || test_groupnorm_load_param();
 }

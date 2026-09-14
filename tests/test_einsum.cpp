@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -157,15 +158,19 @@ static int test_einsum_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Einsum) : ncnn::create_layer_cpu(ncnn::LayerType::Einsum);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "Einsum load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -182,7 +187,8 @@ static ncnn::ParamDict equation_params(const char* equation)
 {
     ncnn::Mat m = param_int_array((int)strlen(equation), 0);
     int* p = m;
-    for (int i = 0; i < m.w; i++) p[i] = equation[i];
+    for (int i = 0; i < m.w; i++)
+        p[i] = equation[i];
     ncnn::ParamDict pd;
     pd.set(0, m);
     return pd;
@@ -193,22 +199,30 @@ static int test_einsum_load_param()
     const char* invalid[] = {"", "->i", "i,->i", ",i->i", "i,,j->ij", "i->", "i->ij", "i->ii", "i->j", "ijklm->i", "i->i->i"};
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
     {
-        if (test_einsum_load_param_case(equation_params(invalid[i]), false)) return -1;
+        if (test_einsum_load_param_case(equation_params(invalid[i]), false) != 0)
+            return -1;
     }
+
     ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Einsum);
-    if (!layer) return 0;
+    if (!layer)
+        return 0;
     int ret = layer->load_param(equation_params("ij,j->i"));
     ret |= layer->load_param(equation_params("ii"));
     std::vector<ncnn::Mat> inputs(1);
     inputs[0].create(2, 2);
-    for (int i = 0; i < 4; i++) inputs[0][i] = (float)(i + 1);
+    for (int i = 0; i < 4; i++)
+        inputs[0][i] = (float)(i + 1);
     std::vector<ncnn::Mat> outputs(1);
     ncnn::Option opt;
-    if (ret == 0) ret = layer->forward(inputs, outputs, opt);
-    if (ret == 0 && (outputs[0].empty() || outputs[0][0] != 5.f)) ret = -1;
+    if (ret == 0)
+        ret = layer->forward(inputs, outputs, opt);
+    if (ret == 0 && (outputs[0].empty() || outputs[0][0] != 5.f))
+        ret = -1;
     ret |= layer->load_param(equation_params("ij->i"));
-    if (ret == 0) ret = layer->forward(inputs, outputs, opt);
-    if (ret == 0 && (outputs[0].w != 2 || outputs[0][0] != 3.f || outputs[0][1] != 7.f)) ret = -1;
+    if (ret == 0)
+        ret = layer->forward(inputs, outputs, opt);
+    if (ret == 0 && (outputs[0].w != 2 || outputs[0][0] != 3.f || outputs[0][1] != 7.f))
+        ret = -1;
     delete layer;
     ncnn::ParamDict pd = equation_params("ij->i");
     ncnn::Mat m = pd.get(0, ncnn::Mat());
@@ -219,9 +233,6 @@ static int test_einsum_load_param()
 
 int main()
 {
-    if (test_einsum_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
@@ -236,5 +247,6 @@ int main()
            || test_einsum_8()
            || test_einsum_9()
            || test_einsum_10()
-           || test_einsum_11();
+           || test_einsum_11()
+           || test_einsum_load_param();
 }

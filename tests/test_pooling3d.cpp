@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -246,15 +247,19 @@ static int test_pooling3d_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Pooling3D) : ncnn::create_layer_cpu(ncnn::LayerType::Pooling3D);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "Pooling3D load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -262,19 +267,21 @@ static int test_pooling3d_load_param()
 {
     ncnn::ParamDict pd;
     pd.set(1, 3);
-    if (test_pooling3d_load_param_case(pd, true)) return -1;
+    if (test_pooling3d_load_param_case(pd, true) != 0)
+        return -1;
+
     pd.set(2, 0);
-    if (test_pooling3d_load_param_case(pd, false)) return -1;
+    if (test_pooling3d_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(4, 1); // global pooling does not use the local stride
-    if (test_pooling3d_load_param_case(pd, true)) return -1;
+    if (test_pooling3d_load_param_case(pd, true) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_pooling3d_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
@@ -282,5 +289,6 @@ int main()
            || test_pooling3d_1()
            || test_pooling3d_2()
            || test_pooling3d_3()
-           || test_pooling3d_4();
+           || test_pooling3d_4()
+           || test_pooling3d_load_param();
 }

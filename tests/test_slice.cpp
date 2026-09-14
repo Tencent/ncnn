@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -241,15 +242,19 @@ static int test_slice_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Slice) : ncnn::create_layer_cpu(ncnn::LayerType::Slice);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "Slice load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -266,24 +271,30 @@ static int test_slice_load_param()
 {
     ncnn::ParamDict base;
     base.set(0, param_int_array(1, 1));
-    if (test_slice_load_param_case(base, true)) return -1;
+    if (test_slice_load_param_case(base, true) != 0)
+        return -1;
+
     ncnn::ParamDict pd = base;
     pd.set(0, ncnn::Mat(1, (size_t)1u));
-    if (test_slice_load_param_case(pd, false)) return -1;
+    if (test_slice_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(0, ncnn::Mat(1, 2));
-    if (test_slice_load_param_case(pd, false)) return -1;
+    if (test_slice_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(0, 1.f);
-    if (test_slice_load_param_case(pd, false)) return -1;
+    if (test_slice_load_param_case(pd, false) != 0)
+        return -1;
+
     pd.set(0, param_int_array(1, INT_MIN));
-    if (test_slice_load_param_case(pd, false)) return -1;
+    if (test_slice_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_slice_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
@@ -291,5 +302,6 @@ int main()
            || test_slice_1()
            || test_slice_2()
            || test_slice_3()
-           || test_slice_4();
+           || test_slice_4()
+           || test_slice_load_param();
 }

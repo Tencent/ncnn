@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -103,15 +104,19 @@ static int test_priorbox_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::PriorBox) : ncnn::create_layer_cpu(ncnn::LayerType::PriorBox);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "PriorBox load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -121,20 +126,21 @@ static int test_priorbox_load_param()
     ncnn::Mat sizes(2);
     sizes.fill(1.f);
     pd.set(0, sizes);
-    if (test_priorbox_load_param_case(pd, true)) return -1;
+    if (test_priorbox_load_param_case(pd, true) != 0)
+        return -1;
+
     pd.set(1, sizes.range(0, 1));
-    if (test_priorbox_load_param_case(pd, false)) return -1;
+    if (test_priorbox_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_priorbox_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
            || test_priorbox_caffe()
-           || test_priorbox_mxnet();
+           || test_priorbox_mxnet()
+           || test_priorbox_load_param();
 }

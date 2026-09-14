@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -553,15 +554,19 @@ static int test_rnn_load_param_case(const ncnn::ParamDict& pd, bool valid)
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::RNN) : ncnn::create_layer_cpu(ncnn::LayerType::RNN);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "RNN load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -570,28 +575,32 @@ static int test_rnn_load_param()
     ncnn::ParamDict base;
     base.set(0, 8);
     base.set(1, 192);
-    if (test_rnn_load_param_case(base, true)) return -1;
+    if (test_rnn_load_param_case(base, true) != 0)
+        return -1;
+
     const int invalid[] = {0, -1, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
         ncnn::ParamDict pd = base;
         pd.set(0, invalid[i]);
-        if (test_rnn_load_param_case(pd, false)) return -1;
+        if (test_rnn_load_param_case(pd, false) != 0)
+            return -1;
     }
+
     ncnn::ParamDict pd = base;
     pd.set(2, 3);
-    if (test_rnn_load_param_case(pd, false)) return -1;
+    if (test_rnn_load_param_case(pd, false) != 0)
+        return -1;
+
     pd = base;
     pd.set(1, 193);
-    if (test_rnn_load_param_case(pd, false)) return -1;
+    if (test_rnn_load_param_case(pd, false) != 0)
+        return -1;
     return 0;
 }
 
 int main()
 {
-    if (test_rnn_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
 #if NCNN_INT8
@@ -603,12 +612,14 @@ int main()
            || test_rnn_4()
            || test_rnn_5()
            || test_rnn_6()
-           || test_rnn_7();
+           || test_rnn_7()
+           || test_rnn_load_param();
 #else
     return 0
            || test_rnn_0()
            || test_rnn_1()
            || test_rnn_2()
-           || test_rnn_3();
+           || test_rnn_3()
+           || test_rnn_load_param();
 #endif
 }

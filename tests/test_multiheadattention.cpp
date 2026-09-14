@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+
 #include "layer_type.h"
 
 #include <limits.h>
@@ -160,15 +161,19 @@ static int test_multiheadattention_load_param_case(const ncnn::ParamDict& pd, bo
     for (int backend = 0; backend < 2; backend++)
     {
         ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::MultiHeadAttention) : ncnn::create_layer_cpu(ncnn::LayerType::MultiHeadAttention);
-        if (!layer) return -1;
+        if (!layer)
+            return -1;
+
         int ret = layer->load_param(pd);
         delete layer;
+
         if ((ret == 0) != valid)
         {
             fprintf(stderr, "MultiHeadAttention load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -178,30 +183,32 @@ static int test_multiheadattention_load_param()
     pd.set(0, 8);
     pd.set(1, 2);
     pd.set(2, 64);
-    if (test_multiheadattention_load_param_case(pd, true)) return -1;
+    if (test_multiheadattention_load_param_case(pd, true) != 0)
+        return -1;
+
     const int invalid[] = {0, -1, INT_MIN, 3, 16};
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
     {
         pd.set(1, invalid[i]);
         pd.set(6, 1.f); // explicit scale must not bypass dimension validation
-        if (test_multiheadattention_load_param_case(pd, false)) return -1;
+        if (test_multiheadattention_load_param_case(pd, false) != 0)
+            return -1;
     }
     pd.set(1, 2);
     pd.set(0, 0);
-    if (test_multiheadattention_load_param_case(pd, false)) return -1;
+    if (test_multiheadattention_load_param_case(pd, false) != 0)
+        return -1;
 
     return 0;
 }
 
 int main()
 {
-    if (test_multiheadattention_load_param() != 0)
-        return -1;
-
     SRAND(7767517);
 
     return 0
            || test_multiheadattention_0()
            || test_multiheadattention_1()
-           || test_multiheadattention_2();
+           || test_multiheadattention_2()
+           || test_multiheadattention_load_param();
 }
