@@ -3,10 +3,8 @@
 
 #include "testutil.h"
 
-#include "layer_type.h"
-
-#include <limits.h>
 #include "datareader.h"
+#include "layer_type.h"
 
 static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
 {
@@ -357,104 +355,133 @@ static int test_innerproduct_load_param_case(const ncnn::ParamDict& pd, bool val
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "InnerProduct load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int num_output = pd.get(0, 0);
+        const int weight_data_size = pd.get(2, 0);
+        const int int8_scale_term = pd.get(8, 0);
+        const int activation_type = pd.get(9, 0);
+
+        fprintf(stderr, "test_innerproduct_load_param failed ret=%d expected=%d num_output=%d weight_data_size=%d int8_scale_term=%d activation_type=%d\n", ret, valid ? 0 : -1, num_output, weight_data_size, int8_scale_term, activation_type);
+
+        const ncnn::Mat activation_params = pd.get(10, ncnn::Mat());
+        fprintf(stderr, "activation_params type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(10), activation_params.dims, activation_params.w, activation_params.elemsize, activation_params.elempack);
         return -1;
     }
 
     return 0;
 }
 
+static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, bool valid)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    return test_innerproduct_load_param_case(pd, valid);
+}
+
 #if NCNN_STRING
-class TextParamDict : public ncnn::ParamDict
+class InnerProductParamDict : public ncnn::ParamDict
 {
 public:
-    int parse(const char* text)
-    {
-        const unsigned char* p = (const unsigned char*)text;
-        ncnn::DataReaderFromMemory reader(p);
-        return load_param(reader);
-    }
+    using ncnn::ParamDict::load_param;
 };
 
-static int test_innerproduct_param_text()
+static int test_innerproduct_param_text(float value, float expected)
 {
-    TextParamDict pd;
-    if (pd.parse("0=8 2=64 9=3 -23310=2,-1,2"))
+    InnerProductParamDict pd;
+    const unsigned char* text = (const unsigned char*)"0=8 2=64 9=3 -23310=2,-1,2";
+    ncnn::DataReaderFromMemory reader(text);
+    if (pd.load_param(reader) != 0)
         return -1;
+
     if (test_innerproduct_load_param_case(pd, true) != 0)
         return -1;
 
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::InnerProduct);
-    if (layer)
+    pd.set(0, 1);
+    pd.set(2, 1);
+    if (test_innerproduct_load_param_case(pd, true) != 0)
+        return -1;
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0].create(1);
+    weights[0][0] = 1.f;
+
+    ncnn::Mat a(1);
+    a[0] = value;
+    ncnn::Mat reference(1);
+    reference[0] = expected;
+    ncnn::Mat b;
+    int ret = test_layer_naive(ncnn::LayerType::InnerProduct, pd, weights, a, b, 0);
+    if (ret == 0)
+        ret = CompareMat(reference, b, 0.f);
+    if (ret != 0)
     {
-        pd.set(0, 1);
-        pd.set(2, 1);
+        fprintf(stderr, "test_innerproduct_param_text failed value=%f expected=%f ret=%d\n", value, expected, ret);
+        return ret;
+    }
 
-        int ret = layer->load_param(pd);
-        ncnn::Mat weight(1);
-        weight[0] = 1.f;
-        ncnn::ModelBinFromMatArray mb(&weight);
-        if (ret == 0)
-            ret = layer->load_model(mb);
-        ncnn::Mat input(1);
-        ncnn::Mat output;
-        ncnn::Option opt;
-        input[0] = 3.f;
-        if (ret == 0)
-            ret = layer->forward(input, output, opt);
-        if (ret == 0 && (output.empty() || output[0] != 2.f))
-            ret = -1;
-        input[0] = -3.f;
-        if (ret == 0)
-            ret = layer->forward(input, output, opt);
-        if (ret == 0 && (output.empty() || output[0] != -1.f))
-            ret = -1;
-        const ncnn::Mat original = pd.get(10, ncnn::Mat());
-        const int* p = original;
-        if (p[0] != -1 || p[1] != 2)
-            ret = -1;
-        delete layer;
-
-        if (ret)
-            return ret;
+    const ncnn::Mat original = pd.get(10, ncnn::Mat());
+    const int* p = original;
+    if (p[0] != -1 || p[1] != 2)
+    {
+        fprintf(stderr, "test_innerproduct_param_text modified params=[%d,%d]\n", p[0], p[1]);
+        return -1;
     }
 
     return 0;
 }
 #endif
 
+static int test_innerproduct_param_text()
+{
+#if NCNN_STRING
+    return 0
+           || test_innerproduct_param_text(3.f, 2.f)
+           || test_innerproduct_param_text(-3.f, -1.f);
+#else
+    return 0;
+#endif
+}
+
 static int test_innerproduct_load_param()
 {
     ncnn::ParamDict base;
     base.set(0, 8);
-    base.set(1, 3);
-    base.set(6, 216);
-    base.set(7, 2);
     base.set(2, 64);
     if (test_innerproduct_load_param_case(base, true) != 0)
         return -1;
 
-    for (int activation = 0; activation <= 7; activation++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(9, activation);
-        bool need_params = activation == 2 || activation == 3 || activation == 6;
-        if (test_innerproduct_load_param_case(pd, !need_params && activation != 7) != 0)
-            return -1;
-        if (activation == 7)
-            continue;
-        ncnn::Mat params(2);
-        params[0] = 0.1f;
-        params[1] = 0.5f;
-        pd.set(10, params);
-        if (test_innerproduct_load_param_case(pd, true) != 0)
-            return -1;
-        pd.set(10, params.range(0, 1));
-        if (test_innerproduct_load_param_case(pd, activation != 3 && activation != 6) != 0)
-            return -1;
-    }
+    ncnn::Mat params(2);
+    params[0] = 0.1f;
+    params[1] = 0.5f;
+
+    int ret = 0
+              || test_innerproduct_load_param_activation(base, 0, ncnn::Mat(), true)
+              || test_innerproduct_load_param_activation(base, 0, params, true)
+              || test_innerproduct_load_param_activation(base, 0, params.range(0, 1), true)
+              || test_innerproduct_load_param_activation(base, 1, ncnn::Mat(), true)
+              || test_innerproduct_load_param_activation(base, 1, params, true)
+              || test_innerproduct_load_param_activation(base, 1, params.range(0, 1), true)
+              || test_innerproduct_load_param_activation(base, 2, ncnn::Mat(), false)
+              || test_innerproduct_load_param_activation(base, 2, params, true)
+              || test_innerproduct_load_param_activation(base, 2, params.range(0, 1), true)
+              || test_innerproduct_load_param_activation(base, 3, ncnn::Mat(), false)
+              || test_innerproduct_load_param_activation(base, 3, params, true)
+              || test_innerproduct_load_param_activation(base, 3, params.range(0, 1), false)
+              || test_innerproduct_load_param_activation(base, 4, ncnn::Mat(), true)
+              || test_innerproduct_load_param_activation(base, 4, params, true)
+              || test_innerproduct_load_param_activation(base, 4, params.range(0, 1), true)
+              || test_innerproduct_load_param_activation(base, 5, ncnn::Mat(), true)
+              || test_innerproduct_load_param_activation(base, 5, params, true)
+              || test_innerproduct_load_param_activation(base, 5, params.range(0, 1), true)
+              || test_innerproduct_load_param_activation(base, 6, ncnn::Mat(), false)
+              || test_innerproduct_load_param_activation(base, 6, params, true)
+              || test_innerproduct_load_param_activation(base, 6, params.range(0, 1), false)
+              || test_innerproduct_load_param_activation(base, 7, ncnn::Mat(), false);
+    if (ret != 0)
+        return ret;
 
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4)};
     for (int i = 0; i < 4; i++)
@@ -464,11 +491,8 @@ static int test_innerproduct_load_param()
         if (test_innerproduct_load_param_case(pd, false) != 0)
             return -1;
     }
-#if NCNN_STRING
-    return test_innerproduct_param_text();
-#else
+
     return 0;
-#endif
 }
 
 int main()
@@ -485,7 +509,8 @@ int main()
            || test_innerproduct_5()
            || test_innerproduct_6()
            || test_innerproduct_7()
-           || test_innerproduct_load_param();
+           || test_innerproduct_load_param()
+           || test_innerproduct_param_text();
 #else
     return 0
            || test_innerproduct_0()
@@ -493,6 +518,7 @@ int main()
            || test_innerproduct_2()
            || test_innerproduct_3()
            || test_innerproduct_5()
-           || test_innerproduct_load_param();
+           || test_innerproduct_load_param()
+           || test_innerproduct_param_text();
 #endif
 }

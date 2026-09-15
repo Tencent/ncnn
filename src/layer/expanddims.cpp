@@ -26,6 +26,7 @@ int ExpandDims::load_param(const ParamDict& pd)
 
     if (axes.w > 4)
         return -1;
+
     const int* axes_ptr = axes;
     for (int i = 0; i < axes.w; i++)
     {

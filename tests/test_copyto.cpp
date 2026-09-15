@@ -202,9 +202,15 @@ static int test_copyto_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "CopyTo load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_copyto_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+
+        const ncnn::Mat starts = pd.get(9, ncnn::Mat());
+        fprintf(stderr, "starts type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(9), starts.dims, starts.w, starts.elemsize, starts.elempack);
+
+        const ncnn::Mat axes = pd.get(11, ncnn::Mat());
+        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(11), axes.dims, axes.w, axes.elemsize, axes.elempack);
         return -1;
     }
 
@@ -217,6 +223,7 @@ static ncnn::Mat param_int_array(int size, int value)
     int* p = m;
     for (int i = 0; i < size; i++)
         p[i] = value;
+
     return m;
 }
 
@@ -253,6 +260,7 @@ static int test_copyto_load_param()
     pd.set(9, param_int_array(2, 0));
     if (test_copyto_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

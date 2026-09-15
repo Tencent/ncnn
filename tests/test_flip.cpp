@@ -184,9 +184,12 @@ static int test_flip_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Flip load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_flip_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+
+        const ncnn::Mat axes = pd.get(0, ncnn::Mat());
+        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), axes.dims, axes.w, axes.elemsize, axes.elempack);
         return -1;
     }
 
@@ -199,6 +202,7 @@ static ncnn::Mat param_int_array(int size, int value)
     int* p = m;
     for (int i = 0; i < size; i++)
         p[i] = value;
+
     return m;
 }
 
@@ -229,19 +233,26 @@ static int test_flip_load_param()
     pd.set(0, param_int_array(1, INT_MIN));
     if (test_flip_load_param_case(pd, false) != 0)
         return -1;
-    class FlipParamDict : public ncnn::ParamDict
-    {
-    public:
-        using ncnn::ParamDict::load_param;
-        using ncnn::ParamDict::load_param_bin;
-    };
 
+    return 0;
+}
+
+class FlipParamDict : public ncnn::ParamDict
+{
+public:
+    using ncnn::ParamDict::load_param;
+    using ncnn::ParamDict::load_param_bin;
+};
+
+static int test_flip_load_param_serialized()
+{
     FlipParamDict typed;
 #if NCNN_STRING
     const unsigned char* text = (const unsigned char*)"-23300=1,0.0";
     ncnn::DataReaderFromMemory text_reader(text);
     if (typed.load_param(text_reader) != 0)
         return -1;
+
     if (test_flip_load_param_case(typed, false) != 0)
         return -1;
 #endif
@@ -256,6 +267,7 @@ static int test_flip_load_param()
     ncnn::DataReaderFromMemory binary_reader(data);
     if (typed.load_param_bin(binary_reader) != 0)
         return -1;
+
     if (test_flip_load_param_case(typed, true) != 0)
         return -1;
 
@@ -271,5 +283,6 @@ int main()
            || test_flip_1()
            || test_flip_2()
            || test_flip_3()
-           || test_flip_load_param();
+           || test_flip_load_param()
+           || test_flip_load_param_serialized();
 }

@@ -218,9 +218,17 @@ static int test_reshape_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Reshape load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int w = pd.get(0, -233);
+        const int h = pd.get(1, -233);
+        const int d = pd.get(11, -233);
+        const int c = pd.get(2, -233);
+        const std::string shape_expr = pd.get(6, "");
+        const int input_batch_axis = pd.get(12, 233);
+        const int output_batch_axis = pd.get(13, 233);
+
+        fprintf(stderr, "test_reshape_load_param failed ret=%d expected=%d w=%d h=%d d=%d c=%d shape_expr=%s input_batch_axis=%d output_batch_axis=%d\n", ret, valid ? 0 : -1, w, h, d, c, shape_expr.c_str(), input_batch_axis, output_batch_axis);
         return -1;
     }
 

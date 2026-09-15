@@ -28,8 +28,7 @@ int Einsum::load_param(const ParamDict& pd)
     if (equation_mat.empty())
         return -1;
 
-    // parse locally so repeated loads do not retain tokens, and simultaneous
-    // loads do not share strtok state, validate before narrowing int to char
+    // validate character values before narrowing to char
     const int* p = equation_mat;
     std::string equation;
     equation.resize(equation_mat.w);
@@ -47,6 +46,7 @@ int Einsum::load_param(const ParamDict& pd)
         return 0;
     }
 
+    // keep parsed tokens local until the equation is valid
     std::vector<std::string> tokens;
     std::string token;
     bool seen[16] = {false};
@@ -80,6 +80,7 @@ int Einsum::load_param(const ParamDict& pd)
 
     if (arrow < 0)
         return -1;
+
     const int output_dims = equation_mat.w - arrow - 2;
     if (output_dims < 1 || output_dims > 4)
         return -1;

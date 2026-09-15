@@ -110,7 +110,9 @@ static int test_shufflechannel_load_param_case(const ncnn::ParamDict& pd, bool v
 
     if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "ShuffleChannel load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int group = pd.get(0, 1);
+
+        fprintf(stderr, "test_shufflechannel_load_param failed ret=%d expected=%d group=%d\n", ret, valid ? 0 : -1, group);
         return -1;
     }
 

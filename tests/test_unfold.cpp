@@ -5,8 +5,6 @@
 
 #include "layer_type.h"
 
-#include <limits.h>
-
 static int test_unfold(int w, int h, int c, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_w, int pad_h, float pad_value)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -58,9 +56,16 @@ static int test_unfold_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Unfold load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int kernel_w = pd.get(1, 0);
+        const int kernel_h = pd.get(11, kernel_w);
+        const int dilation_w = pd.get(2, 1);
+        const int dilation_h = pd.get(12, dilation_w);
+        const int stride_w = pd.get(3, 1);
+        const int stride_h = pd.get(13, stride_w);
+
+        fprintf(stderr, "test_unfold_load_param failed ret=%d expected=%d kernel_w=%d kernel_h=%d dilation_w=%d dilation_h=%d stride_w=%d stride_h=%d\n", ret, valid ? 0 : -1, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
         return -1;
     }
 
@@ -82,6 +87,7 @@ static int test_unfold_load_param()
     pd.set(1, 65536);
     if (test_unfold_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

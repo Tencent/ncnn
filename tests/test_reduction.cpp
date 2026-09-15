@@ -234,9 +234,12 @@ static int test_reduction_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Reduction load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_reduction_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+
+        const ncnn::Mat axes = pd.get(3, ncnn::Mat());
+        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(3), axes.dims, axes.w, axes.elemsize, axes.elempack);
         return -1;
     }
 
@@ -249,6 +252,7 @@ static ncnn::Mat param_int_array(int size, int value)
     int* p = m;
     for (int i = 0; i < size; i++)
         p[i] = value;
+
     return m;
 }
 
@@ -280,6 +284,7 @@ static int test_reduction_load_param()
     pd.set(3, param_int_array(1, INT_MIN));
     if (test_reduction_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

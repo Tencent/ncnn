@@ -5,8 +5,6 @@
 
 #include "layer_type.h"
 
-#include <limits.h>
-
 static int test_einsum(const std::vector<ncnn::Mat>& a, const std::string& equation)
 {
     ncnn::Mat equation_mat(equation.size());
@@ -162,70 +160,124 @@ static int test_einsum_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Einsum load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_einsum_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
         return -1;
     }
 
     return 0;
 }
 
-static ncnn::Mat param_int_array(int size, int value)
-{
-    ncnn::Mat m(size);
-    int* p = m;
-    for (int i = 0; i < size; i++)
-        p[i] = value;
-    return m;
-}
-
 static ncnn::ParamDict equation_params(const char* equation)
 {
-    ncnn::Mat m = param_int_array((int)strlen(equation), 0);
+    ncnn::Mat m((int)strlen(equation));
     int* p = m;
     for (int i = 0; i < m.w; i++)
         p[i] = equation[i];
+
     ncnn::ParamDict pd;
     pd.set(0, m);
     return pd;
 }
 
-static int test_einsum_load_param()
+static int test_einsum_load_param_case(const char* equation, bool valid)
 {
-    const char* invalid[] = {"", "->i", "i,->i", ",i->i", "i,,j->ij", "i->", "i->ij", "i->ii", "i->j", "ijklm->i", "i->i->i"};
-    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
+    int ret = test_einsum_load_param_case(equation_params(equation), valid);
+    if (ret != 0)
     {
-        if (test_einsum_load_param_case(equation_params(invalid[i]), false) != 0)
-            return -1;
+        fprintf(stderr, "test_einsum_load_param failed equation=%s\n", equation);
     }
 
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Einsum);
-    if (!layer)
-        return 0;
-    int ret = layer->load_param(equation_params("ij,j->i"));
-    ret |= layer->load_param(equation_params("ii"));
-    std::vector<ncnn::Mat> inputs(1);
-    inputs[0].create(2, 2);
-    for (int i = 0; i < 4; i++)
-        inputs[0][i] = (float)(i + 1);
-    std::vector<ncnn::Mat> outputs(1);
-    ncnn::Option opt;
-    if (ret == 0)
-        ret = layer->forward(inputs, outputs, opt);
-    if (ret == 0 && (outputs[0].empty() || outputs[0][0] != 5.f))
-        ret = -1;
-    ret |= layer->load_param(equation_params("ij->i"));
-    if (ret == 0)
-        ret = layer->forward(inputs, outputs, opt);
-    if (ret == 0 && (outputs[0].w != 2 || outputs[0][0] != 3.f || outputs[0][1] != 7.f))
-        ret = -1;
-    delete layer;
+    return ret;
+}
+
+static int test_einsum_load_param()
+{
+    return 0
+           || test_einsum_load_param_case("", false)
+           || test_einsum_load_param_case("->i", false)
+           || test_einsum_load_param_case("i,->i", false)
+           || test_einsum_load_param_case(",i->i", false)
+           || test_einsum_load_param_case("i,,j->ij", false)
+           || test_einsum_load_param_case("i->", false)
+           || test_einsum_load_param_case("i->ij", false)
+           || test_einsum_load_param_case("i->ii", false)
+           || test_einsum_load_param_case("i->j", false)
+           || test_einsum_load_param_case("ijklm->i", false)
+           || test_einsum_load_param_case("i->i->i", false);
+}
+
+static int test_einsum_load_param_char()
+{
     ncnn::ParamDict pd = equation_params("ij->i");
     ncnn::Mat m = pd.get(0, ncnn::Mat());
     int* p = m;
-    p[0] = 'i' + 256; // cannot silently narrow to a valid token
-    return ret || test_einsum_load_param_case(pd, false);
+    p[0] = 'i' + 256;
+
+    int ret = test_einsum_load_param_case(pd, false);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_load_param_char failed value=%d\n", p[0]);
+    }
+
+    return ret;
+}
+
+static int test_einsum_reload_case(ncnn::Layer* layer, const char* equation, const std::vector<ncnn::Mat>& a, const ncnn::Mat& expected)
+{
+    int ret = layer->load_param(equation_params(equation));
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload load_param failed equation=%s ret=%d\n", equation, ret);
+        return ret;
+    }
+
+    std::vector<ncnn::Mat> b(1);
+    ncnn::Option opt;
+    ret = layer->forward(a, b, opt);
+    if (ret == 0)
+        ret = CompareMat(expected, b[0], 0.f);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload failed equation=%s ret=%d\n", equation, ret);
+    }
+
+    return ret;
+}
+
+static int test_einsum_reload()
+{
+    std::vector<ncnn::Mat> a(1);
+    a[0].create(2, 2);
+    for (int i = 0; i < 4; i++)
+        a[0][i] = (float)(i + 1);
+
+    ncnn::Mat trace(1);
+    trace[0] = 5.f;
+    ncnn::Mat sum(2);
+    sum[0] = 3.f;
+    sum[1] = 7.f;
+
+    // reuse one layer to check that loading replaces the previous equation
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Einsum);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(equation_params("ij,j->i"));
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload initial load failed ret=%d\n", ret);
+        delete layer;
+        return ret;
+    }
+
+    ret = 0
+          || test_einsum_reload_case(layer, "ii", a, trace)
+          || test_einsum_reload_case(layer, "ij->i", a, sum);
+    delete layer;
+
+    return ret;
 }
 
 int main()
@@ -245,5 +297,7 @@ int main()
            || test_einsum_9()
            || test_einsum_10()
            || test_einsum_11()
-           || test_einsum_load_param();
+           || test_einsum_load_param()
+           || test_einsum_load_param_char()
+           || test_einsum_reload();
 }

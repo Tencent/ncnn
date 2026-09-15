@@ -58,9 +58,13 @@ static int test_roialign_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "ROIAlign load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int pooled_width = pd.get(0, 0);
+        const int pooled_height = pd.get(1, 0);
+        const int version = pd.get(5, 0);
+
+        fprintf(stderr, "test_roialign_load_param failed ret=%d expected=%d pooled_width=%d pooled_height=%d version=%d\n", ret, valid ? 0 : -1, pooled_width, pooled_height, version);
         return -1;
     }
 
@@ -88,6 +92,7 @@ static int test_roialign_load_param()
     pd.set(5, 2);
     if (test_roialign_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

@@ -21,6 +21,17 @@ int LSTM::load_param(const ParamDict& pd)
     hidden_size = pd.get(3, num_output);
     int8_scale_term = pd.get(8, 0);
 
+    if (num_output <= 0 || hidden_size <= 0)
+        return -1;
+
+    const int num_directions = direction == 2 ? 2 : 1;
+    if (direction < 0 || direction > 2 || hidden_size > INT_MAX / 4 / num_directions)
+        return -1;
+
+    const int rows = hidden_size * 4 * num_directions;
+    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
+        return -1;
+
     if (int8_scale_term)
     {
 #if !NCNN_INT8
@@ -28,17 +39,6 @@ int LSTM::load_param(const ParamDict& pd)
         return -1;
 #endif
     }
-
-    // reject invalid sizes (load_model divides by hidden_size)
-    if (num_output <= 0 || hidden_size <= 0)
-        return -1;
-
-    if (direction < 0 || direction > 2 || hidden_size > INT_MAX / 4 / (direction == 2 ? 2 : 1))
-        return -1;
-
-    const int rows = hidden_size * 4 * (direction == 2 ? 2 : 1);
-    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
-        return -1;
 
     return 0;
 }

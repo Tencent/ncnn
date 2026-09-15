@@ -47,20 +47,9 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 
         if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w <= 0 || biases.elempack != 1 || biases.elemsize != 4u || !biases.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !biases.empty())
-        {
-            Mat converted(biases.w);
-            if (converted.empty())
-                return -100;
-            const int* p = biases;
-            for (int i = 0; i < biases.w; i++)
-                converted[i] = (float)p[i];
-            biases = converted;
-        }
     }
 
+    // integer text masks from ModelWriter contain float bit patterns
     {
         const int type = pd.type(5);
         if (type != 0 && type != 4 && type != 5 && type != 6)
@@ -68,8 +57,6 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 
         if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w <= 0 || mask.elempack != 1 || mask.elemsize != 4u || !mask.data))
             return -1;
-
-        // preserve float bits in integer text masks written by ModelWriter
     }
 
     {
@@ -79,21 +66,11 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 
         if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w <= 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || !anchors_scale.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !anchors_scale.empty())
-        {
-            Mat converted(anchors_scale.w);
-            if (converted.empty())
-                return -100;
-            const int* p = anchors_scale;
-            for (int i = 0; i < anchors_scale.w; i++)
-                converted[i] = (float)p[i];
-            anchors_scale = converted;
-        }
     }
+
     if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w != mask.w / num_box)
         return -1;
+
     for (int i = 0; i < mask.w; i++)
     {
         // reject non-finite indices before floating-point comparisons
@@ -106,6 +83,34 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         const float index = mask[i];
         if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)
             return -1;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(6) == 5 && !anchors_scale.empty())
+    {
+        Mat converted(anchors_scale.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = anchors_scale;
+        for (int i = 0; i < anchors_scale.w; i++)
+            converted[i] = (float)p[i];
+
+        anchors_scale = converted;
     }
 
     return 0;

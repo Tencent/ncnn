@@ -560,7 +560,12 @@ static int test_rnn_load_param_case(const ncnn::ParamDict& pd, bool valid)
 
     if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "RNN load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int num_output = pd.get(0, 0);
+        const int weight_data_size = pd.get(1, 0);
+        const int direction = pd.get(2, 0);
+        const int int8_scale_term = pd.get(8, 0);
+
+        fprintf(stderr, "test_rnn_load_param failed ret=%d expected=%d num_output=%d weight_data_size=%d direction=%d int8_scale_term=%d\n", ret, valid ? 0 : -1, num_output, weight_data_size, direction, int8_scale_term);
         return -1;
     }
 
@@ -593,6 +598,7 @@ static int test_rnn_load_param()
     pd.set(1, 193);
     if (test_rnn_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

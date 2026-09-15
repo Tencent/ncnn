@@ -77,7 +77,9 @@ static int test_pixelshuffle_load_param_case(const ncnn::ParamDict& pd, bool val
 
     if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "PixelShuffle load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int upscale_factor = pd.get(0, 1);
+
+        fprintf(stderr, "test_pixelshuffle_load_param failed ret=%d expected=%d upscale_factor=%d\n", ret, valid ? 0 : -1, upscale_factor);
         return -1;
     }
 
@@ -98,9 +100,10 @@ static int test_pixelshuffle_load_param()
         if (test_pixelshuffle_load_param_case(pd, false) != 0)
             return -1;
     }
-    pd.set(0, 65536); // squaring this value wraps to zero on 32-bit int
+    pd.set(0, 65536); // the squared value exceeds the int range
     if (test_pixelshuffle_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

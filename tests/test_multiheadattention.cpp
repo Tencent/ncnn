@@ -165,9 +165,17 @@ static int test_multiheadattention_load_param_case(const ncnn::ParamDict& pd, bo
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "MultiHeadAttention load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int embed_dim = pd.get(0, 0);
+        const int num_heads = pd.get(1, 1);
+        const int weight_data_size = pd.get(2, 0);
+        const int kdim = pd.get(3, embed_dim);
+        const int vdim = pd.get(4, embed_dim);
+        const int kv_cache = pd.get(7, 0);
+        const int quantize_term = pd.get(18, 0);
+
+        fprintf(stderr, "test_multiheadattention_load_param failed ret=%d expected=%d embed_dim=%d num_heads=%d weight_data_size=%d kdim=%d vdim=%d kv_cache=%d quantize_term=%d\n", ret, valid ? 0 : -1, embed_dim, num_heads, weight_data_size, kdim, vdim, kv_cache, quantize_term);
         return -1;
     }
 

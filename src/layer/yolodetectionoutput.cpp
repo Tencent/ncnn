@@ -31,22 +31,24 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
 
         if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w <= 0 || biases.elempack != 1 || biases.elemsize != 4u || !biases.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !biases.empty())
-        {
-            Mat converted(biases.w);
-            if (converted.empty())
-                return -100;
-            const int* p = biases;
-            for (int i = 0; i < biases.w; i++)
-                converted[i] = (float)p[i];
-            biases = converted;
-        }
     }
 
     if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || num_box > biases.w / 2)
         return -1;
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
 
     return 0;
 }

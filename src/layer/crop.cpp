@@ -63,6 +63,19 @@ int Crop::load_param(const ParamDict& pd)
             return -1;
     }
 
+    if (axes.w > 4)
+        return -1;
+
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+
+    if (starts.w > 4 || ends.w != starts.w || (!axes.empty() && axes.w != starts.w))
+        return -1;
+
     // NCNN_LOGE("%s %s %s", starts_expr.c_str(), ends_expr.c_str(), axes_expr.c_str());
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
@@ -86,18 +99,6 @@ int Crop::load_param(const ParamDict& pd)
         if (starts_blob_count > 1 || ends_blob_count > 1 || axes_blob_count > 1)
             one_blob_only = false;
     }
-
-    if (axes.w > 4)
-        return -1;
-    const int* axes_ptr = axes;
-    for (int i = 0; i < axes.w; i++)
-    {
-        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
-            return -1;
-    }
-
-    if (starts.w > 4 || ends.w != starts.w || (!axes.empty() && axes.w != starts.w))
-        return -1;
 
     return 0;
 }

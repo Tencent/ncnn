@@ -93,11 +93,51 @@ static int test_convolutiondepthwise3d_load_param_case(const ncnn::ParamDict& pd
 
     if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "ConvolutionDepthWise3D load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int num_output = pd.get(0, 0);
+        const int kernel_w = pd.get(1, 0);
+        const int kernel_h = pd.get(11, kernel_w);
+        const int kernel_d = pd.get(21, kernel_w);
+        const int dilation_w = pd.get(2, 1);
+        const int dilation_h = pd.get(12, dilation_w);
+        const int dilation_d = pd.get(22, dilation_w);
+        const int stride_w = pd.get(3, 1);
+        const int stride_h = pd.get(13, stride_w);
+        const int stride_d = pd.get(23, stride_w);
+        const int weight_data_size = pd.get(6, 0);
+        const int group = pd.get(7, 1);
+        const int activation_type = pd.get(9, 0);
+
+        fprintf(stderr, "test_convolutiondepthwise3d_load_param failed ret=%d expected=%d num_output=%d kernel_w=%d kernel_h=%d kernel_d=%d dilation_w=%d dilation_h=%d dilation_d=%d stride_w=%d stride_h=%d stride_d=%d weight_data_size=%d group=%d activation_type=%d\n", ret, valid ? 0 : -1, num_output, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, weight_data_size, group, activation_type);
+
+        const ncnn::Mat activation_params = pd.get(10, ncnn::Mat());
+        fprintf(stderr, "activation_params type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(10), activation_params.dims, activation_params.w, activation_params.elemsize, activation_params.elempack);
         return -1;
     }
 
     return 0;
+}
+
+static int test_convolutiondepthwise3d_load_param_case(const ncnn::ParamDict& base, int id, int value, bool valid)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+
+    int ret = test_convolutiondepthwise3d_load_param_case(pd, valid);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_convolutiondepthwise3d_load_param failed id=%d value=%d\n", id, value);
+    }
+
+    return ret;
+}
+
+static int test_convolutiondepthwise3d_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, bool valid)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    return test_convolutiondepthwise3d_load_param_case(pd, valid);
 }
 
 static int test_convolutiondepthwise3d_load_param()
@@ -110,25 +150,35 @@ static int test_convolutiondepthwise3d_load_param()
     if (test_convolutiondepthwise3d_load_param_case(base, true) != 0)
         return -1;
 
-    for (int activation = 0; activation <= 7; activation++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(9, activation);
-        bool need_params = activation == 2 || activation == 3 || activation == 6;
-        if (test_convolutiondepthwise3d_load_param_case(pd, !need_params && activation != 7) != 0)
-            return -1;
-        if (activation == 7)
-            continue;
-        ncnn::Mat params(2);
-        params[0] = 0.1f;
-        params[1] = 0.5f;
-        pd.set(10, params);
-        if (test_convolutiondepthwise3d_load_param_case(pd, true) != 0)
-            return -1;
-        pd.set(10, params.range(0, 1));
-        if (test_convolutiondepthwise3d_load_param_case(pd, activation != 3 && activation != 6) != 0)
-            return -1;
-    }
+    ncnn::Mat params(2);
+    params[0] = 0.1f;
+    params[1] = 0.5f;
+
+    int ret = 0
+              || test_convolutiondepthwise3d_load_param_activation(base, 0, ncnn::Mat(), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 0, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 0, params.range(0, 1), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 1, ncnn::Mat(), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 1, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 1, params.range(0, 1), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 2, ncnn::Mat(), false)
+              || test_convolutiondepthwise3d_load_param_activation(base, 2, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 2, params.range(0, 1), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 3, ncnn::Mat(), false)
+              || test_convolutiondepthwise3d_load_param_activation(base, 3, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 3, params.range(0, 1), false)
+              || test_convolutiondepthwise3d_load_param_activation(base, 4, ncnn::Mat(), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 4, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 4, params.range(0, 1), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 5, ncnn::Mat(), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 5, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 5, params.range(0, 1), true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 6, ncnn::Mat(), false)
+              || test_convolutiondepthwise3d_load_param_activation(base, 6, params, true)
+              || test_convolutiondepthwise3d_load_param_activation(base, 6, params.range(0, 1), false)
+              || test_convolutiondepthwise3d_load_param_activation(base, 7, ncnn::Mat(), false);
+    if (ret != 0)
+        return ret;
 
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4)};
     for (int i = 0; i < 4; i++)
@@ -139,15 +189,15 @@ static int test_convolutiondepthwise3d_load_param()
             return -1;
     }
 
-    const int ids[] = {0, 1, 2, 3, 1, 6};
-    const int values[] = {0, 0, 0, 0, INT_MAX, 217};
-    for (int i = 0; i < 6; i++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(ids[i], values[i]);
-        if (test_convolutiondepthwise3d_load_param_case(pd, false) != 0)
-            return -1;
-    }
+    ret = 0
+          || test_convolutiondepthwise3d_load_param_case(base, 0, 0, false)
+          || test_convolutiondepthwise3d_load_param_case(base, 1, 0, false)
+          || test_convolutiondepthwise3d_load_param_case(base, 2, 0, false)
+          || test_convolutiondepthwise3d_load_param_case(base, 3, 0, false)
+          || test_convolutiondepthwise3d_load_param_case(base, 1, INT_MAX, false)
+          || test_convolutiondepthwise3d_load_param_case(base, 6, 217, false);
+    if (ret != 0)
+        return ret;
 
     const int groups[] = {0, -1, -8, INT_MIN, 3};
     for (int i = 0; i < 5; i++)
@@ -163,6 +213,7 @@ static int test_convolutiondepthwise3d_load_param()
     pd.set(7, -1); // avoid evaluating INT_MIN % -1
     if (test_convolutiondepthwise3d_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

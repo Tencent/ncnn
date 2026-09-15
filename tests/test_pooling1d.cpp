@@ -5,8 +5,6 @@
 
 #include "layer_type.h"
 
-#include <limits.h>
-
 static int test_pooling1d(int w, int h, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
 {
     ncnn::Mat a = RandomMat(w, h);
@@ -249,9 +247,14 @@ static int test_pooling1d_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Pooling1D load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int kernel_w = pd.get(1, 0);
+        const int stride_w = pd.get(2, 1);
+        const int global_pooling = pd.get(4, 0);
+        const int adaptive_pooling = pd.get(7, 0);
+
+        fprintf(stderr, "test_pooling1d_load_param failed ret=%d expected=%d kernel_w=%d stride_w=%d global_pooling=%d adaptive_pooling=%d\n", ret, valid ? 0 : -1, kernel_w, stride_w, global_pooling, adaptive_pooling);
         return -1;
     }
 
@@ -272,6 +275,7 @@ static int test_pooling1d_load_param()
     pd.set(4, 1); // global pooling does not use the local stride
     if (test_pooling1d_load_param_case(pd, true) != 0)
         return -1;
+
     return 0;
 }
 

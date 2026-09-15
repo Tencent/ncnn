@@ -37,18 +37,6 @@ int PriorBox::load_param(const ParamDict& pd)
 
         if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w <= 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || !min_sizes.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !min_sizes.empty())
-        {
-            Mat converted(min_sizes.w);
-            if (converted.empty())
-                return -100;
-            const int* p = min_sizes;
-            for (int i = 0; i < min_sizes.w; i++)
-                converted[i] = (float)p[i];
-            min_sizes = converted;
-        }
     }
 
     {
@@ -58,18 +46,6 @@ int PriorBox::load_param(const ParamDict& pd)
 
         if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w <= 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || !max_sizes.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !max_sizes.empty())
-        {
-            Mat converted(max_sizes.w);
-            if (converted.empty())
-                return -100;
-            const int* p = max_sizes;
-            for (int i = 0; i < max_sizes.w; i++)
-                converted[i] = (float)p[i];
-            max_sizes = converted;
-        }
     }
 
     {
@@ -79,22 +55,52 @@ int PriorBox::load_param(const ParamDict& pd)
 
         if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w <= 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || !aspect_ratios.data))
             return -1;
-
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !aspect_ratios.empty())
-        {
-            Mat converted(aspect_ratios.w);
-            if (converted.empty())
-                return -100;
-            const int* p = aspect_ratios;
-            for (int i = 0; i < aspect_ratios.w; i++)
-                converted[i] = (float)p[i];
-            aspect_ratios = converted;
-        }
     }
 
     if (min_sizes.empty() || (!max_sizes.empty() && max_sizes.w != min_sizes.w))
         return -1;
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(0) == 5 && !min_sizes.empty())
+    {
+        Mat converted(min_sizes.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = min_sizes;
+        for (int i = 0; i < min_sizes.w; i++)
+            converted[i] = (float)p[i];
+
+        min_sizes = converted;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(1) == 5 && !max_sizes.empty())
+    {
+        Mat converted(max_sizes.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = max_sizes;
+        for (int i = 0; i < max_sizes.w; i++)
+            converted[i] = (float)p[i];
+
+        max_sizes = converted;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(2) == 5 && !aspect_ratios.empty())
+    {
+        Mat converted(aspect_ratios.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = aspect_ratios;
+        for (int i = 0; i < aspect_ratios.w; i++)
+            converted[i] = (float)p[i];
+
+        aspect_ratios = converted;
+    }
 
     return 0;
 }

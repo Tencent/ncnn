@@ -34,6 +34,7 @@ int Reduction::load_param(const ParamDict& pd)
         if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
             return -1;
     }
+
     if (fixbug0 == 0 && !axes.empty())
     {
         NCNN_LOGE("param is too old, please regenerate!");
@@ -42,6 +43,7 @@ int Reduction::load_param(const ParamDict& pd)
 
     if (axes.w > 4)
         return -1;
+
     const int* axes_ptr = axes;
     for (int i = 0; i < axes.w; i++)
     {

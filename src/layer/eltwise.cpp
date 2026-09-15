@@ -23,18 +23,20 @@ int Eltwise::load_param(const ParamDict& pd)
 
         if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w <= 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || !coeffs.data))
             return -1;
+    }
 
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !coeffs.empty())
-        {
-            Mat converted(coeffs.w);
-            if (converted.empty())
-                return -100;
-            const int* p = coeffs;
-            for (int i = 0; i < coeffs.w; i++)
-                converted[i] = (float)p[i];
-            coeffs = converted;
-        }
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(1) == 5 && !coeffs.empty())
+    {
+        Mat converted(coeffs.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = coeffs;
+        for (int i = 0; i < coeffs.w; i++)
+            converted[i] = (float)p[i];
+
+        coeffs = converted;
     }
 
     return 0;

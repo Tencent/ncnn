@@ -261,9 +261,30 @@ static int test_crop_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Crop load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int outw = pd.get(3, 0);
+        const int outh = pd.get(4, 0);
+        const int outd = pd.get(14, 0);
+        const int outc = pd.get(5, 0);
+        const int woffset2 = pd.get(6, 0);
+        const int hoffset2 = pd.get(7, 0);
+        const int doffset2 = pd.get(15, 0);
+        const int coffset2 = pd.get(8, 0);
+        const std::string starts_expr = pd.get(19, "");
+        const std::string ends_expr = pd.get(20, "");
+        const std::string axes_expr = pd.get(21, "");
+
+        fprintf(stderr, "test_crop_load_param failed ret=%d expected=%d outw=%d outh=%d outd=%d outc=%d woffset2=%d hoffset2=%d doffset2=%d coffset2=%d starts_expr=%s ends_expr=%s axes_expr=%s\n", ret, valid ? 0 : -1, outw, outh, outd, outc, woffset2, hoffset2, doffset2, coffset2, starts_expr.c_str(), ends_expr.c_str(), axes_expr.c_str());
+
+        const ncnn::Mat starts = pd.get(9, ncnn::Mat());
+        fprintf(stderr, "starts type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(9), starts.dims, starts.w, starts.elemsize, starts.elempack);
+
+        const ncnn::Mat ends = pd.get(10, ncnn::Mat());
+        fprintf(stderr, "ends type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(10), ends.dims, ends.w, ends.elemsize, ends.elempack);
+
+        const ncnn::Mat axes = pd.get(11, ncnn::Mat());
+        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(11), axes.dims, axes.w, axes.elemsize, axes.elempack);
         return -1;
     }
 
@@ -276,6 +297,7 @@ static ncnn::Mat param_int_array(int size, int value)
     int* p = m;
     for (int i = 0; i < size; i++)
         p[i] = value;
+
     return m;
 }
 
@@ -313,6 +335,7 @@ static int test_crop_load_param()
     pd.set(9, param_int_array(2, 0));
     if (test_crop_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

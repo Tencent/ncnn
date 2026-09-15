@@ -50,13 +50,33 @@ static int test_inversespectrogram_load_param_case(const ncnn::ParamDict& pd, bo
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "InverseSpectrogram load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int n_fft = pd.get(0, 0);
+        const int hoplen = pd.get(2, n_fft / 4);
+        const int winlen = pd.get(3, n_fft);
+        const int window_type = pd.get(4, 0);
+        const int normalized = pd.get(7, 0);
+
+        fprintf(stderr, "test_inversespectrogram_load_param failed ret=%d expected=%d n_fft=%d hoplen=%d winlen=%d window_type=%d normalized=%d\n", ret, valid ? 0 : -1, n_fft, hoplen, winlen, window_type, normalized);
         return -1;
     }
 
     return 0;
+}
+
+static int test_inversespectrogram_load_param_case(const ncnn::ParamDict& base, int id, int value, bool valid)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+
+    int ret = test_inversespectrogram_load_param_case(pd, valid);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_inversespectrogram_load_param failed id=%d value=%d\n", id, value);
+    }
+
+    return ret;
 }
 
 static int test_inversespectrogram_load_param()
@@ -66,15 +86,17 @@ static int test_inversespectrogram_load_param()
     if (test_inversespectrogram_load_param_case(base, true) != 0)
         return -1;
 
-    const int ids[] = {0, 0, 3, 3, 3, 2, 4, 7};
-    const int values[] = {0, -1, 0, -1, 17, 0, 3, 3};
-    for (int i = 0; i < 8; i++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(ids[i], values[i]);
-        if (test_inversespectrogram_load_param_case(pd, false) != 0)
-            return -1;
-    }
+    int ret = 0
+              || test_inversespectrogram_load_param_case(base, 0, 0, false)
+              || test_inversespectrogram_load_param_case(base, 0, -1, false)
+              || test_inversespectrogram_load_param_case(base, 3, 0, false)
+              || test_inversespectrogram_load_param_case(base, 3, -1, false)
+              || test_inversespectrogram_load_param_case(base, 3, 17, false)
+              || test_inversespectrogram_load_param_case(base, 2, 0, false)
+              || test_inversespectrogram_load_param_case(base, 4, 3, false)
+              || test_inversespectrogram_load_param_case(base, 7, 3, false);
+    if (ret != 0)
+        return ret;
 
     ncnn::ParamDict pd = base;
     pd.set(0, INT_MAX);

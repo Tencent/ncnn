@@ -353,9 +353,12 @@ static int test_eltwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Eltwise load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_eltwise_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+
+        const ncnn::Mat coeffs = pd.get(1, ncnn::Mat());
+        fprintf(stderr, "coeffs type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(1), coeffs.dims, coeffs.w, coeffs.elemsize, coeffs.elempack);
         return -1;
     }
 

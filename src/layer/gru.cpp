@@ -20,6 +20,17 @@ int GRU::load_param(const ParamDict& pd)
     direction = pd.get(2, 0);
     int8_scale_term = pd.get(8, 0);
 
+    if (num_output <= 0)
+        return -1;
+
+    const int num_directions = direction == 2 ? 2 : 1;
+    if (direction < 0 || direction > 2 || num_output > INT_MAX / 3 / num_directions)
+        return -1;
+
+    const int rows = num_output * 3 * num_directions;
+    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
+        return -1;
+
     if (int8_scale_term)
     {
 #if !NCNN_INT8
@@ -27,17 +38,6 @@ int GRU::load_param(const ParamDict& pd)
         return -1;
 #endif
     }
-
-    // reject invalid num_output (load_model divides by it)
-    if (num_output <= 0)
-        return -1;
-
-    if (direction < 0 || direction > 2 || num_output > INT_MAX / 3 / (direction == 2 ? 2 : 1))
-        return -1;
-
-    const int rows = num_output * 3 * (direction == 2 ? 2 : 1);
-    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
-        return -1;
 
     return 0;
 }

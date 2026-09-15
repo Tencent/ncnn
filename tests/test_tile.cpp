@@ -225,9 +225,14 @@ static int test_tile_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Tile load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int tiles = pd.get(1, 1);
+
+        fprintf(stderr, "test_tile_load_param failed ret=%d expected=%d tiles=%d\n", ret, valid ? 0 : -1, tiles);
+
+        const ncnn::Mat repeats = pd.get(2, ncnn::Mat());
+        fprintf(stderr, "repeats type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), repeats.dims, repeats.w, repeats.elemsize, repeats.elempack);
         return -1;
     }
 
@@ -240,6 +245,7 @@ static ncnn::Mat param_int_array(int size, int value)
     int* p = m;
     for (int i = 0; i < size; i++)
         p[i] = value;
+
     return m;
 }
 
@@ -270,6 +276,7 @@ static int test_tile_load_param()
     pd.set(2, param_int_array(1, INT_MIN));
     if (test_tile_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

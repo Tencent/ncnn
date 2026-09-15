@@ -61,7 +61,9 @@ static int test_reorg_load_param_case(const ncnn::ParamDict& pd, bool valid)
 
     if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "Reorg load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        const int stride = pd.get(0, 1);
+
+        fprintf(stderr, "test_reorg_load_param failed ret=%d expected=%d stride=%d\n", ret, valid ? 0 : -1, stride);
         return -1;
     }
 
@@ -82,9 +84,10 @@ static int test_reorg_load_param()
         if (test_reorg_load_param_case(pd, false) != 0)
             return -1;
     }
-    pd.set(0, 65536); // squaring this value wraps to zero on 32-bit int
+    pd.set(0, 65536); // the squared value exceeds the int range
     if (test_reorg_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 

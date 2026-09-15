@@ -5,8 +5,6 @@
 
 #include "layer_type.h"
 
-#include <limits.h>
-
 static int test_priorbox_caffe()
 {
     ncnn::Mat min_sizes(1);
@@ -108,9 +106,18 @@ static int test_priorbox_load_param_case(const ncnn::ParamDict& pd, bool valid)
     int ret = layer->load_param(pd);
     delete layer;
 
-    if ((ret == 0) != valid)
+    if (ret != (valid ? 0 : -1))
     {
-        fprintf(stderr, "PriorBox load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        fprintf(stderr, "test_priorbox_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+
+        const ncnn::Mat min_sizes = pd.get(0, ncnn::Mat());
+        fprintf(stderr, "min_sizes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), min_sizes.dims, min_sizes.w, min_sizes.elemsize, min_sizes.elempack);
+
+        const ncnn::Mat max_sizes = pd.get(1, ncnn::Mat());
+        fprintf(stderr, "max_sizes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(1), max_sizes.dims, max_sizes.w, max_sizes.elemsize, max_sizes.elempack);
+
+        const ncnn::Mat aspect_ratios = pd.get(2, ncnn::Mat());
+        fprintf(stderr, "aspect_ratios type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), aspect_ratios.dims, aspect_ratios.w, aspect_ratios.elemsize, aspect_ratios.elempack);
         return -1;
     }
 
@@ -129,6 +136,7 @@ static int test_priorbox_load_param()
     pd.set(1, sizes.range(0, 1));
     if (test_priorbox_load_param_case(pd, false) != 0)
         return -1;
+
     return 0;
 }
 
