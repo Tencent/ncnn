@@ -69,17 +69,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w <= 0 || mask.elempack != 1 || mask.elemsize != 4u || !mask.data))
             return -1;
 
-        // convert integer text arrays by value, preserving the shared ParamDict
-        if (type == 5 && !mask.empty())
-        {
-            Mat converted(mask.w);
-            if (converted.empty())
-                return -100;
-            const int* p = mask;
-            for (int i = 0; i < mask.w; i++)
-                converted[i] = (float)p[i];
-            mask = converted;
-        }
+        // preserve float bits in integer text masks written by ModelWriter
     }
 
     {
@@ -106,6 +96,12 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         return -1;
     for (int i = 0; i < mask.w; i++)
     {
+        // reject non-finite indices before floating-point comparisons
+        unsigned int bits;
+        memcpy(&bits, (const float*)mask + i, sizeof(bits));
+        if ((bits & 0x7f800000u) == 0x7f800000u)
+            return -1;
+
         // check the floating-point index before converting it to int
         const float index = mask[i];
         if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)

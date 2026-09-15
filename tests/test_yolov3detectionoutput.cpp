@@ -3,6 +3,7 @@
 
 #include "testutil.h"
 
+#include "datareader.h"
 #include "layer_type.h"
 
 #include <limits.h>
@@ -174,6 +175,55 @@ static int test_yolov3detectionoutput_load_param()
     return 0;
 }
 
+static int test_yolov3detectionoutput_load_param_text()
+{
+#if NCNN_STRING
+    class Yolov3DetectionOutputParamDict : public ncnn::ParamDict
+    {
+    public:
+        using ncnn::ParamDict::load_param;
+    };
+
+    const float b[] = {10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
+    const float s[] = {33.6, 16.8};
+    ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
+    ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
+
+    const char* masks[] = {
+        // integer bit patterns written by ModelWriter for yolov4-tiny
+        "-23305=6,1077936128,1082130432,1084227584,1065353216,1073741824,1077936128",
+        "-23305=6,3.0,4.0,5.0,1.0,2.0,3.0",
+        // negative, fractional, out-of-range, infinite and nan indices
+        "-23305=6,-1082130432,1082130432,1084227584,1065353216,1073741824,1077936128",
+        "-23305=6,1056964608,1082130432,1084227584,1065353216,1073741824,1077936128",
+        "-23305=6,1086324736,1082130432,1084227584,1065353216,1073741824,1077936128",
+        "-23305=6,2139095040,1082130432,1084227584,1065353216,1073741824,1077936128",
+        "-23305=6,2143289344,1082130432,1084227584,1065353216,1073741824,1077936128"
+    };
+
+    for (int i = 0; i < 7; i++)
+    {
+        Yolov3DetectionOutputParamDict pd;
+        const unsigned char* text = (const unsigned char*)masks[i];
+        ncnn::DataReaderFromMemory reader(text);
+        if (pd.load_param(reader) != 0)
+            return -1;
+
+        pd.set(0, 80);
+        pd.set(1, 3);
+        pd.set(4, biases);
+        pd.set(6, anchors_scale);
+        if (test_yolov3detectionoutput_load_param_case(pd, i < 2) != 0)
+        {
+            fprintf(stderr, "test_yolov3detectionoutput_load_param_text failed mask=%s\n", masks[i]);
+            return -1;
+        }
+    }
+#endif
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -183,5 +233,6 @@ int main()
            || test_yolov3detectionoutput_v3()
            || test_yolov3detectionoutput_v4tiny()
            || test_yolov3detectionoutput_v4()
-           || test_yolov3detectionoutput_load_param();
+           || test_yolov3detectionoutput_load_param()
+           || test_yolov3detectionoutput_load_param_text();
 }
