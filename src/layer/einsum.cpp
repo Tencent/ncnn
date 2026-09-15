@@ -71,8 +71,7 @@ int Einsum::load_param(const ParamDict& pd)
         {
             if (ch < 'i' || ch > 'x')
                 return -1;
-            token.resize(token.size() + 1);
-            token[token.size() - 1] = ch;
+            token.push_back(ch);
             seen[ch - 'i'] = true;
         }
     }

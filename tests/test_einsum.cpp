@@ -195,6 +195,8 @@ static int test_einsum_load_param_case(const char* equation, bool valid)
 static int test_einsum_load_param()
 {
     return 0
+           || test_einsum_load_param_case("ij->ji", false)
+           || test_einsum_load_param_case("ji->ij", true)
            || test_einsum_load_param_case("", false)
            || test_einsum_load_param_case("->i", false)
            || test_einsum_load_param_case("i,->i", false)
