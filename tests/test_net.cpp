@@ -241,7 +241,6 @@ static int test_binary_truncated()
         }
         if (check_binary(layer_name, valid, valid.size(), 0))
             return -1;
-
     }
 
     return 0;

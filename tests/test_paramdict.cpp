@@ -1198,7 +1198,6 @@ static int test_paramdict_reload()
 
 static int test_paramdict_binary_bounds()
 {
-
     // untyped binary scalars/arrays remain readable as both int and float
     std::vector<unsigned char> data;
     append_param_word(data, 0);
