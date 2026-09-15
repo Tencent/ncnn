@@ -120,7 +120,16 @@ static int test_groupnorm_load_param()
         if (test_layer_param(ncnn::LayerType::GroupNorm, base, 0, invalid[i], -1) != 0)
             return -1;
     }
-    return test_layer_param(ncnn::LayerType::GroupNorm, base, 0, 3, -1);
+
+    ncnn::ParamDict nonaffine = base;
+    nonaffine.set(3, 0);
+
+    return 0
+           || test_layer_param(ncnn::LayerType::GroupNorm, base, 0, 3, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, base, 1, -1, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, -1, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 7, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 8, 0);
 }
 
 int main()

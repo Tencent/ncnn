@@ -294,6 +294,33 @@ static int test_deconvolutiondepthwise1d_load_param()
     return 0;
 }
 
+static int test_deconvolutiondepthwise1d_load_param_dynamic()
+{
+    ncnn::ParamDict base;
+    base.set(0, 5);
+    base.set(1, 1);
+    base.set(6, 10);
+    base.set(7, 2);
+    if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, base, -1) != 0)
+        return -1;
+
+    ncnn::ParamDict dynamic = base;
+    dynamic.set(28, 1);
+
+    const int num_outputs[] = {0, -1, 5, INT_MIN, INT_MAX};
+    for (int i = 0; i < 5; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, dynamic, 0, num_outputs[i], 0) != 0)
+            return -1;
+    }
+
+    return 0
+           || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, base, 0, 2, 0)
+           || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, dynamic, 7, 0, -1)
+           || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, dynamic, 7, -1, -1)
+           || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, dynamic, 7, INT_MIN, -1);
+}
+
 static int test_deconvolutiondepthwise1d_load_param_text()
 {
 #if NCNN_STRING
@@ -343,5 +370,5 @@ int main()
 {
     SRAND(7767517);
 
-    return test_deconvolutiondepthwise1d_0() || test_deconvolutiondepthwise1d_1() || test_deconvolutiondepthwise1d_load_param() || test_deconvolutiondepthwise1d_load_param_text();
+    return test_deconvolutiondepthwise1d_0() || test_deconvolutiondepthwise1d_1() || test_deconvolutiondepthwise1d_load_param() || test_deconvolutiondepthwise1d_load_param_dynamic() || test_deconvolutiondepthwise1d_load_param_text();
 }

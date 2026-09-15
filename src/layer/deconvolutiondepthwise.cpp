@@ -49,7 +49,7 @@ int DeconvolutionDepthWise::load_param(const ParamDict& pd)
             return -1;
     }
 
-    if (group <= 0 || num_output % group != 0)
+    if (group <= 0)
         return -1;
 
     if (activation_type < 0 || activation_type > 6)
@@ -66,7 +66,7 @@ int DeconvolutionDepthWise::load_param(const ParamDict& pd)
         if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_w > INT_MAX / kernel_h)
             return -1;
 
-        if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h) != 0)
+        if (num_output <= 0 || num_output % group != 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h) != 0)
             return -1;
     }
 

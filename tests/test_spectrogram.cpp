@@ -70,14 +70,18 @@ static int test_spectrogram_load_param()
             return -1;
     }
 
+    for (int n_fft = 1; n_fft <= 3; n_fft++)
     {
         ncnn::ParamDict pd = base;
-        pd.set(0, 1);
+        pd.set(0, n_fft);
         pd.set(7, 2);
-        pd.set(2, 1); // a one-sample FFT is valid with an explicit hop length
-        if (test_layer_param(ncnn::LayerType::Spectrogram, pd, 0) != 0)
+        if (test_layer_param(ncnn::LayerType::Spectrogram, pd, -1)
+                || test_layer_param(ncnn::LayerType::Spectrogram, pd, 2, 1, 0))
             return -1;
     }
+
+    if (test_layer_param(ncnn::LayerType::Spectrogram, base, 0, 4, 0) != 0)
+        return -1;
 
     if (sizeof(size_t) == 4)
     {

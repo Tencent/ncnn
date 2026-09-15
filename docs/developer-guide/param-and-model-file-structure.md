@@ -58,6 +58,8 @@ This also matters when using `ncnn2mem`. Some layers convert integer text arrays
 
 Keep integer arrays, such as axes and slice indices, in integer form. Legacy YOLO mask arrays also use integer spellings to preserve float bit patterns. Converting every integer array numerically to floats would corrupt these parameters.
 
+Layers that expect integer arrays, including axes, slice indices, and Einsum character codes, reject floating-point text arrays rather than converting their elements to integers. For example, write CopyTo starts as `-23309=2,0,1`, not `-23309=2,0.0,1.0`. The mixed spelling `-23309=2,0,1.0` is also invalid; the parser stores each element according to its spelling, so the bits for `1.0` would be read as the integer `1065353216`, not `1`.
+
 A zero-length array such as `-23300=0` explicitly supplies an empty array. Array getters return that empty array even when a nonempty default is supplied; omitting the parameter returns the default.
 
 In modern ncnn param file

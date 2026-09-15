@@ -245,6 +245,33 @@ static int test_convolutiondepthwise_load_param_int8()
     return 0;
 }
 
+static int test_convolutiondepthwise_load_param_dynamic()
+{
+    ncnn::ParamDict base;
+    base.set(0, 5);
+    base.set(1, 1);
+    base.set(6, 10);
+    base.set(7, 2);
+    if (test_layer_param(ncnn::LayerType::ConvolutionDepthWise, base, -1) != 0)
+        return -1;
+
+    ncnn::ParamDict dynamic = base;
+    dynamic.set(19, 1);
+
+    const int num_outputs[] = {0, -1, 5, INT_MIN, INT_MAX};
+    for (int i = 0; i < 5; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::ConvolutionDepthWise, dynamic, 0, num_outputs[i], 0) != 0)
+            return -1;
+    }
+
+    return 0
+           || test_layer_param(ncnn::LayerType::ConvolutionDepthWise, base, 0, 2, 0)
+           || test_layer_param(ncnn::LayerType::ConvolutionDepthWise, dynamic, 7, 0, -1)
+           || test_layer_param(ncnn::LayerType::ConvolutionDepthWise, dynamic, 7, -1, -1)
+           || test_layer_param(ncnn::LayerType::ConvolutionDepthWise, dynamic, 7, INT_MIN, -1);
+}
+
 static int test_convolutiondepthwise_load_param_text()
 {
 #if NCNN_STRING
@@ -294,5 +321,5 @@ int main()
 {
     SRAND(7767517);
 
-    return test_convolutiondepthwise_0() || test_convolutiondepthwise_load_param() || test_convolutiondepthwise_load_param_text() || test_convolutiondepthwise_load_param_int8();
+    return test_convolutiondepthwise_0() || test_convolutiondepthwise_load_param() || test_convolutiondepthwise_load_param_dynamic() || test_convolutiondepthwise_load_param_text() || test_convolutiondepthwise_load_param_int8();
 }
