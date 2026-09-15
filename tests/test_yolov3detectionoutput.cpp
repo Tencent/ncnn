@@ -224,6 +224,63 @@ static int test_yolov3detectionoutput_load_param()
     return 0;
 }
 
+static int test_yolov3detectionoutput_load_param_values()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+    pd.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    pd.set(4, biases);
+    ncnn::Mat mask(2);
+    mask.fill(0.f);
+    pd.set(5, mask);
+    ncnn::Mat scales(2);
+    scales.fill(32.f);
+    pd.set(6, scales);
+
+    const float valid[] = {0.5f, 1.f, 33.6f, 2147483520.f};
+    for (int i = 0; i < 4; i++)
+    {
+        biases.fill(valid[i]);
+        scales.fill(valid[i]);
+        if (test_yolov3detectionoutput_load_param_case(pd, true) != 0)
+            return -1;
+    }
+    biases.fill(1.f);
+    scales.fill(32.f);
+
+    // zero, negative zero, negative values, infinities and nan
+    const unsigned int invalid[] = {0x00000000u, 0x80000000u, 0xbf800000u, 0x7f800000u, 0xff800000u, 0x7fc00000u, 0x7f800001u};
+    for (int i = 0; i < 7; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            memcpy((float*)biases + j, &invalid[i], sizeof(float));
+            if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed biases[%d]=0x%08x\n", j, invalid[i]);
+                return -1;
+            }
+            biases[j] = 1.f;
+
+            memcpy((float*)scales + j, &invalid[i], sizeof(float));
+            if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed anchors_scale[%d]=0x%08x\n", j, invalid[i]);
+                return -1;
+            }
+            scales[j] = 32.f;
+        }
+    }
+
+    scales[0] = (float)INT_MAX;
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    return 0;
+}
+
 #if NCNN_STRING
 class Yolov3DetectionOutputParamDict : public ncnn::ParamDict
 {
@@ -256,6 +313,29 @@ static int test_yolov3detectionoutput_load_param_text(const char* mask, bool val
 
     return ret;
 }
+static int test_yolov3detectionoutput_load_param_values_text(const char* params, bool valid)
+{
+    Yolov3DetectionOutputParamDict pd;
+    const unsigned char* text = (const unsigned char*)params;
+    ncnn::DataReaderFromMemory reader(text);
+    if (pd.load_param(reader) != 0)
+        return -1;
+
+    pd.set(0, 1);
+    pd.set(1, 1);
+    ncnn::Mat mask(1);
+    mask.fill(0.f);
+    pd.set(5, mask);
+
+    int ret = test_yolov3detectionoutput_load_param_case(pd, valid);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_yolov3detectionoutput_load_param_values_text failed params=%s\n", params);
+    }
+
+    return ret;
+}
+
 #endif
 
 static int test_yolov3detectionoutput_load_param_text()
@@ -276,6 +356,22 @@ static int test_yolov3detectionoutput_load_param_text()
 #endif
 }
 
+static int test_yolov3detectionoutput_load_param_values_text()
+{
+#if NCNN_STRING
+    return 0
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,32", true)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,0.5,1.5 -23306=1,0.5", true)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,0,14 -23306=1,32", false)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,-1 -23306=1,32", false)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,0", false)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,-1", false)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483647", false);
+#else
+    return 0;
+#endif
+}
+
 int main()
 {
     SRAND(7767517);
@@ -286,5 +382,7 @@ int main()
            || test_yolov3detectionoutput_v4tiny()
            || test_yolov3detectionoutput_v4()
            || test_yolov3detectionoutput_load_param()
-           || test_yolov3detectionoutput_load_param_text();
+           || test_yolov3detectionoutput_load_param_text()
+           || test_yolov3detectionoutput_load_param_values()
+           || test_yolov3detectionoutput_load_param_values_text();
 }

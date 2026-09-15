@@ -230,6 +230,7 @@ static int test_tile_load_param_case(const ncnn::ParamDict& pd, bool valid)
         const int tiles = pd.get(1, 1);
 
         fprintf(stderr, "test_tile_load_param failed ret=%d expected=%d tiles=%d\n", ret, valid ? 0 : -1, tiles);
+        fprintf(stderr, "axis=%d\n", pd.get(0, 0));
 
         const ncnn::Mat repeats = pd.get(2, ncnn::Mat());
         fprintf(stderr, "repeats type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), repeats.dims, repeats.w, repeats.elemsize, repeats.elempack);
@@ -293,6 +294,36 @@ static int test_tile_load_param()
     return 0;
 }
 
+static int test_tile_load_param_axis()
+{
+    for (int i = 0; i <= 3; i++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, i);
+        if (test_tile_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, invalid[i]);
+        if (test_tile_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(2, ncnn::Mat(0));
+        if (test_tile_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(2, param_int_array(1, 1)); // repeats overrides axis
+        if (test_tile_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -302,5 +333,6 @@ int main()
            || test_tile_1()
            || test_tile_2()
            || test_tile_3()
-           || test_tile_load_param();
+           || test_tile_load_param()
+           || test_tile_load_param_axis();
 }

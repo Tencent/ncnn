@@ -15,6 +15,9 @@ int Slice::load_param(const ParamDict& pd)
     axis = pd.get(1, 0);
     indices = pd.get(2, Mat());
 
+    if (axis < -4 || axis > 3)
+        return -1;
+
     {
         const int slices_type = pd.type(0);
         if (slices_type != 0 && slices_type != 4 && slices_type != 5)

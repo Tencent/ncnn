@@ -71,6 +71,24 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w != mask.w / num_box)
         return -1;
 
+    for (int i = 0; i < biases.w; i++)
+    {
+        const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[i] : biases[i];
+        unsigned int bits;
+        memcpy(&bits, &bias, sizeof(bits));
+        if ((bits & 0x7f800000u) == 0x7f800000u || bias <= 0.f)
+            return -1;
+    }
+
+    for (int i = 0; i < anchors_scale.w; i++)
+    {
+        const float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
+        unsigned int bits;
+        memcpy(&bits, &scale, sizeof(bits));
+        if ((bits & 0x7f800000u) == 0x7f800000u || scale <= 0.f || (double)scale > INT_MAX)
+            return -1;
+    }
+
     for (int i = 0; i < mask.w; i++)
     {
         // reject non-finite indices before floating-point comparisons

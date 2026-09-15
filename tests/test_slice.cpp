@@ -249,6 +249,7 @@ static int test_slice_load_param_case(const ncnn::ParamDict& pd, bool valid)
     if (ret != (valid ? 0 : -1))
     {
         fprintf(stderr, "test_slice_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+        fprintf(stderr, "axis=%d\n", pd.get(1, 0));
 
         const ncnn::Mat slices = pd.get(0, ncnn::Mat());
         fprintf(stderr, "slices type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), slices.dims, slices.w, slices.elemsize, slices.elempack);
@@ -317,6 +318,28 @@ static int test_slice_load_param()
     return 0;
 }
 
+static int test_slice_load_param_axis()
+{
+    for (int i = -4; i <= 3; i++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(1, i);
+        if (test_slice_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-5, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(1, invalid[i]);
+        if (test_slice_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -327,5 +350,6 @@ int main()
            || test_slice_2()
            || test_slice_3()
            || test_slice_4()
-           || test_slice_load_param();
+           || test_slice_load_param()
+           || test_slice_load_param_axis();
 }

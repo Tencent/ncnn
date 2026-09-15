@@ -261,9 +261,43 @@ static int test_convolutiondepthwise_load_param()
     return 0;
 }
 
+static int test_convolutiondepthwise_load_param_int8()
+{
+    ncnn::ParamDict base;
+    base.set(0, 1);
+    base.set(1, 1);
+    base.set(6, 1);
+    if (test_convolutiondepthwise_load_param_case(base, true) != 0)
+        return -1;
+
+    const int valid[] = {1, 2, 101, 102};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(8, valid[i]);
+#if NCNN_INT8
+        if (test_convolutiondepthwise_load_param_case(pd, true) != 0)
+#else
+        if (test_convolutiondepthwise_load_param_case(pd, false) != 0)
+#endif
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, 100, 103, INT_MIN, INT_MAX};
+    for (int i = 0; i < 6; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(8, invalid[i]);
+        if (test_convolutiondepthwise_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_convolutiondepthwise_0() || test_convolutiondepthwise_load_param();
+    return test_convolutiondepthwise_0() || test_convolutiondepthwise_load_param() || test_convolutiondepthwise_load_param_int8();
 }

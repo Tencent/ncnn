@@ -38,6 +38,12 @@ int Pooling::load_param(const ParamDict& pd)
     if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
         return -1;
 
+    if (!global_pooling && adaptive_pooling)
+    {
+        if ((out_w <= 0 && out_w != -233) || (out_h <= 0 && out_h != -233))
+            return -1;
+    }
+
     if (!global_pooling && !adaptive_pooling)
     {
         if (pad_mode < 0 || pad_mode > 3)

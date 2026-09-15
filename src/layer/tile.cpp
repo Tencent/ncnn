@@ -26,7 +26,7 @@ int Tile::load_param(const ParamDict& pd)
             return -1;
     }
 
-    if (repeats.w > 4 || (repeats.empty() && tiles <= 0))
+    if (repeats.w > 4 || (repeats.empty() && (axis < 0 || axis > 3 || tiles <= 0)))
         return -1;
 
     const int* repeats_ptr = repeats;

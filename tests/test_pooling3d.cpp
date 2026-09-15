@@ -264,6 +264,7 @@ static int test_pooling3d_load_param_case(const ncnn::ParamDict& pd, bool valid)
 
         fprintf(stderr, "test_pooling3d_load_param failed ret=%d expected=%d kernel_w=%d kernel_h=%d kernel_d=%d stride_w=%d stride_h=%d stride_d=%d global_pooling=%d adaptive_pooling=%d\n", ret, valid ? 0 : -1, kernel_w, kernel_h, kernel_d, stride_w, stride_h, stride_d, global_pooling, adaptive_pooling);
         fprintf(stderr, "pooling_type=%d pad_mode=%d\n", pd.get(0, 0), pd.get(5, 0));
+        fprintf(stderr, "out_w=%d out_h=%d out_d=%d\n", pd.get(8, 0), pd.get(18, pd.get(8, 0)), pd.get(28, pd.get(8, 0)));
         return -1;
     }
 
@@ -333,7 +334,111 @@ static int test_pooling3d_load_param_type()
             return -1;
 
         pd.set(4, 0);
+        pd.set(8, 1);
         pd.set(7, 1); // adaptive pooling does not use pad_mode
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_pooling3d_load_param_adaptive()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    base.set(7, 1);
+    if (test_pooling3d_load_param_case(base, false) != 0)
+        return -1;
+
+    base.set(8, 2);
+    if (test_pooling3d_load_param_case(base, true) != 0)
+        return -1;
+
+    base.set(18, 2);
+    base.set(28, 2);
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(8, 1);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(8, -233);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(18, 1);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(18, -233);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(28, 1);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(28, -233);
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {0, -1, -234, INT_MIN};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(8, invalid[i]);
+        if (test_pooling3d_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(4, 1); // global pooling ignores the adaptive output size
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(4, 0);
+        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(18, invalid[i]);
+        if (test_pooling3d_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(4, 1); // global pooling ignores the adaptive output size
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(4, 0);
+        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(28, invalid[i]);
+        if (test_pooling3d_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(4, 1); // global pooling ignores the adaptive output size
+        if (test_pooling3d_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(4, 0);
+        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
         if (test_pooling3d_load_param_case(pd, true) != 0)
             return -1;
     }
@@ -352,5 +457,6 @@ int main()
            || test_pooling3d_3()
            || test_pooling3d_4()
            || test_pooling3d_load_param()
-           || test_pooling3d_load_param_type();
+           || test_pooling3d_load_param_type()
+           || test_pooling3d_load_param_adaptive();
 }

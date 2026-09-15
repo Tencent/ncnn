@@ -49,6 +49,9 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
             return -1;
     }
 
+    if (int8_scale_term != 0 && int8_scale_term != 1 && int8_scale_term != 2 && int8_scale_term != 101 && int8_scale_term != 102)
+        return -1;
+
     if (group <= 0 || num_output % group != 0)
         return -1;
 
