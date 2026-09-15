@@ -73,19 +73,33 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 
     for (int i = 0; i < biases.w; i++)
     {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(4) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)biases + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
         const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[i] : biases[i];
-        unsigned int bits;
-        memcpy(&bits, &bias, sizeof(bits));
-        if ((bits & 0x7f800000u) == 0x7f800000u || bias <= 0.f)
+        if (bias <= 0.f)
             return -1;
     }
 
     for (int i = 0; i < anchors_scale.w; i++)
     {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(6) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)anchors_scale + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
         const float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
-        unsigned int bits;
-        memcpy(&bits, &scale, sizeof(bits));
-        if ((bits & 0x7f800000u) == 0x7f800000u || scale <= 0.f || (double)scale > INT_MAX)
+        if (scale <= 0.f || (double)scale > INT_MAX)
             return -1;
     }
 
