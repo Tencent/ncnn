@@ -1873,6 +1873,11 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        if (weight_block_quantize_bits == 8)
+            return create_pipeline_wq_int8(opt);
+#endif // NCNN_WEIGHT_QUANT
+
         return 0;
     }
 
@@ -2023,6 +2028,11 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 {
     if (weight_block_quantize)
     {
+#if NCNN_WEIGHT_QUANT
+        if (weight_block_quantize_bits == 8)
+            return forward_wq_int8(bottom_blobs, top_blobs, opt);
+#endif
+
         return Gemm::forward(bottom_blobs, top_blobs, opt);
     }
 
@@ -2228,5 +2238,372 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     return 0;
 }
+
+#if NCNN_WEIGHT_QUANT
+#include "gemm_wq_int8.h"
+
+static void quantize_A_tile_wq_int8_riscv(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+#if NCNN_ZFH
+    if (A.elembits() == 16)
+    {
+        Gemm_riscv::quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif // NCNN_ZFH
+
+    quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void transpose_quantize_A_tile_wq_int8_riscv(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
+{
+#if NCNN_ZFH
+    if (A.elembits() == 16)
+    {
+        Gemm_riscv::transpose_quantize_A_tile_wq_int8_fp16s(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        return;
+    }
+#endif // NCNN_ZFH
+
+    transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+}
+
+static void unpack_output_tile_wq_int8_riscv(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_elemtype, int output_transpose)
+{
+#if NCNN_ZFH
+    if (output_elemtype == 2)
+    {
+        Gemm_riscv::unpack_output_tile_wq_int8_fp16s(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
+        return;
+    }
+#else
+    (void)output_elemtype;
+#endif // NCNN_ZFH
+
+    unpack_output_tile_wq_int8(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, 1, output_transpose);
+}
+
+static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int block_count = (K + block_size - 1) / block_size;
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int c_elempack = C.elempack;
+    const int out_elempack = top_blob.elempack;
+    const int m_elempack = std::max(transA ? 1 : A.elempack, std::max(broadcast_type_C == 3 ? c_elempack : 1, output_transpose ? 1 : out_elempack));
+    const int n_elempack = output_transpose ? out_elempack : 1;
+    TILE_M = (TILE_M + m_elempack - 1) / m_elempack * m_elempack;
+    TILE_N = (TILE_N + n_elempack - 1) / n_elempack * n_elempack;
+
+    const int mr = std::min(M, TILE_M);
+    const int nr = std::min(N, TILE_N);
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+    Mat topT(mr * nr, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    if (nT > nn_M)
+    {
+        Mat AT(mr, K, nn_M, 1u, opt.workspace_allocator);
+        Mat AT_descales(mr, block_count, nn_M, 4u, opt.workspace_allocator);
+        if (AT.empty() || AT_descales.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+            const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+            Mat AT_channel = AT.channel(ppi);
+            Mat AT_descales_channel = AT_descales.channel(ppi);
+            Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+            Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
+            if (transA)
+                transpose_quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+            else
+                quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_jj = std::min(N - j, TILE_N);
+
+            Mat BT_tile = BT.row_range(j, max_jj);
+            Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+            Mat AT_channel = AT.channel(ppi);
+            Mat AT_descales_channel = AT_descales.channel(ppi);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+                Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
+
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+            }
+
+            unpack_output_tile_wq_int8_riscv(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
+        }
+    }
+    else
+    {
+        Mat ATX(mr, K, nT, 1u, opt.workspace_allocator);
+        Mat ATX_descales(mr, block_count, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty() || ATX_descales.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min(M - i, TILE_M);
+
+            Mat ATX_tile = ATX.channel(get_omp_thread_num());
+            Mat ATX_descales_tile = ATX_descales.channel(get_omp_thread_num());
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+                Mat AT_tile(max_kk, max_ii, ATX_tile.row<signed char>(k), (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, ATX_descales_tile.row<float>(k / block_size), (size_t)4u);
+                if (transA)
+                    transpose_quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                else
+                    quantize_A_tile_wq_int8_riscv(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+            }
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min(N - j, TILE_N);
+
+                Mat BT_tile = BT.row_range(j, max_jj);
+                Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min(K - k, TILE_K);
+                    const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+                    Mat AT_tile(max_kk, max_ii, ATX_tile.row<signed char>(k), (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, max_ii, ATX_descales_tile.row<float>(k / block_size), (size_t)4u);
+
+                    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+                }
+
+                unpack_output_tile_wq_int8_riscv(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Gemm_riscv::create_pipeline_wq_int8(const Option& opt)
+{
+    const int N = constantN;
+    const int K = constantK;
+    const int block_size = weight_block_quantize_block_size;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(0, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+    BT_data_wq_int8.create(K, N, (size_t)1u, (Allocator*)0);
+    if (BT_data_wq_int8.empty())
+        return -100;
+
+    BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
+    if (BT_data_wq_int8_descales.empty())
+        return -100;
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        Mat BT_tile = BT_data_wq_int8.row_range(j, max_jj);
+        Mat BT_descales_tile = BT_data_wq_int8_descales.row_range(j, max_jj);
+
+        pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
+    }
+
+    if (opt.lightmode)
+    {
+        B_data.release();
+        B_data_quantize_scales.release();
+    }
+
+    return 0;
+}
+
+int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+    const bool use_fp16_storage = support_fp16_storage && opt.use_fp16_storage;
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+#if NCNN_ZFH
+    const int packn_fp16 = csrr_vlenb() / 2;
+#endif // NCNN_ZFH
+#endif // __riscv_vector
+
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+    const int block_size = weight_block_quantize_block_size;
+
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+
+    Mat C;
+    Mat C_fp32;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (bottom_blobs.size() == 2)
+            C = bottom_blobs[1];
+
+        if (!C.empty())
+        {
+            if (C.dims == 1 && C.w * C.elempack == 1)
+            {
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w * C.elempack == M)
+            {
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
+            {
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
+            {
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 1 && C.w * C.elempack == N)
+            {
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
+            {
+                broadcast_type_C = 4;
+            }
+
+            if (C.elembits() == 16)
+            {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if NCNN_ZFH
+#if __riscv_vector
+                if (C.elempack == packn_fp16)
+                {
+                    const int C_h = C.dims == 1 ? C.w * C.elempack : C.h * C.elempack;
+                    const int C_elempack = C_h % packn == 0 ? packn : 1;
+                    Mat C_packed;
+                    convert_packing(C, C_packed, C_elempack, opt_cast);
+                    if (C_packed.empty())
+                        return -100;
+                    C = C_packed;
+                }
+#endif // __riscv_vector
+#endif // NCNN_ZFH
+
+                cast_float16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+                C = C_fp32;
+            }
+        }
+    }
+
+    const int output_elemtype = this->output_elemtype == 0 && use_fp16_storage ? 2 : 1;
+    const int outh = output_transpose ? N : M;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+#if NCNN_ZFH
+        if (output_elemtype == 2)
+            out_elempack = outh % packn_fp16 == 0 ? packn_fp16 : 1;
+        else
+#endif // NCNN_ZFH
+            out_elempack = outh % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_vector
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    const size_t out_elemsize = (output_elemtype == 2 ? 2u : 4u) * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return gemm_BT_riscv_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, output_elemtype, opt);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

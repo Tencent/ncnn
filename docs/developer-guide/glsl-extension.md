@@ -53,6 +53,8 @@ void main()
 
 The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load, store, conversion functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 as the intermediate data type, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
 
+The extension is implemented in `src/ncnn_glsl_ext.comp` and is injected automatically by `compile_spirv_module()` after the option and device capability macros.
+
 # entrypoint for compiling GLSL
 
 The gpu.h header in the ncnn library exposes 3 APIs for compiling glsl code into spir-v binary, they support ncnn glsl extension, these 3 functions accept opt switch to control the expansion form of ncnn glsl extension. The first two accept raw glsl code strings, and the last one is used to create ncnn's built-in shader.

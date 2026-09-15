@@ -36,6 +36,48 @@ int Crop::load_param(const ParamDict& pd)
     ends_expr = pd.get(20, "");
     axes_expr = pd.get(21, "");
 
+#if NCNN_VALIDATION
+    {
+        const int starts_type = pd.type(9);
+        if (starts_type != 0 && starts_type != 4 && starts_type != 5)
+            return -1;
+
+        if ((starts.dims != 0 || starts.w != 0 || starts.data) && (starts.dims != 1 || starts.w < 0 || starts.elempack != 1 || starts.elemsize != 4u || (starts.w > 0 && !starts.data)))
+            return -1;
+    }
+
+    {
+        const int ends_type = pd.type(10);
+        if (ends_type != 0 && ends_type != 4 && ends_type != 5)
+            return -1;
+
+        if ((ends.dims != 0 || ends.w != 0 || ends.data) && (ends.dims != 1 || ends.w < 0 || ends.elempack != 1 || ends.elemsize != 4u || (ends.w > 0 && !ends.data)))
+            return -1;
+    }
+
+    {
+        const int axes_type = pd.type(11);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
+            return -1;
+    }
+
+    if (axes.w > 4)
+        return -1;
+
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+
+    if (starts.w > 4 || ends.w != starts.w || (!axes.empty() && axes.w != starts.w))
+        return -1;
+#endif // NCNN_VALIDATION
+
     // NCNN_LOGE("%s %s %s", starts_expr.c_str(), ends_expr.c_str(), axes_expr.c_str());
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();

@@ -18,6 +18,14 @@ int GroupNorm::load_param(const ParamDict& pd)
     eps = pd.get(2, 0.001f);
     affine = pd.get(3, 1);
 
+#if NCNN_VALIDATION
+    if (group <= 0)
+        return -1;
+
+    if (channels < 0 || (channels > 0 && channels % group != 0) || (affine && channels == 0))
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 
