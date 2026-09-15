@@ -236,6 +236,15 @@ static int test_copyto_load_param()
         return -1;
 
     ncnn::ParamDict pd = base;
+    pd.set(9, ncnn::Mat());
+    if (test_copyto_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd.set(9, ncnn::Mat(0));
+    if (test_copyto_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd = base;
     pd.set(11, ncnn::Mat(0));
     if (test_copyto_load_param_case(pd, true) != 0)
         return -1;

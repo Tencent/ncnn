@@ -49,7 +49,7 @@ int CopyTo::load_param(const ParamDict& pd)
             return -1;
     }
 
-    if (starts.w > 4 || (!axes.empty() && axes.w != starts.w))
+    if (starts.w > 4 || (!starts.empty() && !axes.empty() && axes.w != starts.w))
         return -1;
 
     return 0;
