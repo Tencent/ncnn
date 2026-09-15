@@ -7,6 +7,8 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Scale_arm::Scale_arm()
@@ -14,6 +16,11 @@ Scale_arm::Scale_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 }
 
 int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const

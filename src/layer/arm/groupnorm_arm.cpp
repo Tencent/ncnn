@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "groupnorm_fp16s.h"
+#endif
+
 GroupNorm_arm::GroupNorm_arm()
 {
 #if __ARM_NEON
@@ -20,6 +24,11 @@ GroupNorm_arm::GroupNorm_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -192,8 +201,11 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     }
 }
 
-int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_top_blob.elembits();
 
 #if NCNN_ARM82
@@ -276,6 +288,13 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if NCNN_ARM82
+int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return groupnorm_inplace_fp16s(bottom_top_blob, group, channels, eps, affine, gamma_data, beta_data, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 static void groupnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)

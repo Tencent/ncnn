@@ -19,6 +19,10 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 #include "deconvolution_4x4.h"
 
+#if NCNN_ARM82
+#include "deconvolution_fp16s.h"
+#endif
+
 Deconvolution_arm::Deconvolution_arm()
 {
 #if __ARM_NEON
@@ -28,6 +32,11 @@ Deconvolution_arm::Deconvolution_arm()
 #endif
 #endif // __ARM_NEON
 
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -36,8 +45,11 @@ Deconvolution_arm::Deconvolution_arm()
     gemm = 0;
 }
 
-int Deconvolution_arm::create_pipeline(const Option& opt)
+int Deconvolution_arm::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     if (dynamic_weight)
         return 0;
 
@@ -225,8 +237,11 @@ int Deconvolution_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     int elembits = bottom_blob.elembits();
 
 #if NCNN_ARM82
@@ -742,8 +757,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     return 0;
 }
 
-int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+    Option opt = _opt;
+    opt.use_packing_layout = support_packing && opt.use_packing_layout;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& _weight_data = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -881,6 +899,198 @@ int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_ARM82
+int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+
+    if (opt.use_packing_layout)
+    {
+        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+
+    if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+    {
+        const int maxk = kernel_w * kernel_h;
+
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
+        pd.set(12, out_elempack);
+
+        gemm->load_param(pd);
+
+        // maxk-inch-outch to pa-maxk-outch/pa-inch
+        Mat tmp;
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            tmp.create(maxk * num_output, num_input);
+
+            for (int p = 0; p < num_input; p += 1)
+            {
+                float* g00 = tmp.row(p);
+
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + i).row(p);
+                            g00[0] = k00[k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+
+        ncnn::Mat weights[1];
+        weights[0] = tmp;
+
+        gemm->load_model(ModelBinFromMatArray(weights));
+
+        gemm->create_pipeline(opt);
+    }
+    else
+    {
+        deconvolution_transform_kernel_fp16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+    }
+
+    if (elempack == 1 && out_elempack == 1 && opt.use_fp16_arithmetic)
+    {
+        if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
+        }
+    }
+
+    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    const int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    deconvolution_fp16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const size_t elemsize = bottom_blob.elemsize;
+    const int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    const int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+    const size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    if (opt.use_sgemm_convolution)
+    {
+        Mat bottom_blob_2 = bottom_blob;
+        bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+        bottom_blob_2.h = 1;
+
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
+
+        deconvolution_col2im_fp16sa(top_col2im, top_blob_bordered, bias_data, bias_data_fp16, w, h, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+        if (activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+    else
+    {
+        const bool activation_unfused = deconvolution_fp16sa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, num_output, bias_term, activation_type, activation_params, opt);
+        if (activation_unfused && activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)

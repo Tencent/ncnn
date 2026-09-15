@@ -15,6 +15,10 @@
 
 namespace ncnn {
 
+#if NCNN_ARM82
+#include "pooling_fp16s.h"
+#endif
+
 #if NCNN_GNU_INLINE_ASM
 #include "pooling_2x2.h"
 #include "pooling_3x3.h"
@@ -35,6 +39,11 @@ Pooling_arm::Pooling_arm()
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -374,6 +383,62 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return Pooling::forward(bottom_blob, top_blob, opt);
 #endif // NCNN_GNU_INLINE_ASM
 }
+
+#if NCNN_ARM82
+int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    Mat bottom_blob_bordered;
+    if (!global_pooling)
+    {
+        make_padding(bottom_blob, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+    }
+
+    const Mat& bottom_blob_padded = global_pooling ? bottom_blob : bottom_blob_bordered;
+    if (global_pooling)
+    {
+        top_blob.create(bottom_blob.c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
+    }
+    else
+    {
+        const int outw = (bottom_blob_padded.w - kernel_w) / stride_w + 1;
+        const int outh = (bottom_blob_padded.h - kernel_h) / stride_h + 1;
+        top_blob.create(outw, outh, bottom_blob.c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return pooling_fp16s(bottom_blob, bottom_blob_bordered, top_blob, pooling_type, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, global_pooling, pad_mode, avgpool_count_include_pad, opt);
+}
+
+int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    Mat bottom_blob_bordered;
+    if (!global_pooling)
+    {
+        make_padding(bottom_blob, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+    }
+
+    const Mat& bottom_blob_padded = global_pooling ? bottom_blob : bottom_blob_bordered;
+    if (global_pooling)
+    {
+        top_blob.create(bottom_blob.c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
+    }
+    else
+    {
+        const int outw = (bottom_blob_padded.w - kernel_w) / stride_w + 1;
+        const int outh = (bottom_blob_padded.h - kernel_h) / stride_h + 1;
+        top_blob.create(outw, outh, bottom_blob.c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return pooling_fp16sa(bottom_blob, bottom_blob_bordered, top_blob, pooling_type, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, global_pooling, pad_mode, avgpool_count_include_pad, opt);
+}
+#endif // NCNN_ARM82
 
 #if NCNN_BF16
 int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

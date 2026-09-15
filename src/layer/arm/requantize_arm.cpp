@@ -11,6 +11,8 @@
 #include "arm_activation.h"
 #include "arm_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Requantize_arm::Requantize_arm()
@@ -18,6 +20,11 @@ Requantize_arm::Requantize_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+#if __ARM_FEATURE_SVE
+    if (cpu_arm_sve_vlenb() != 16)
+        support_packing = false;
+#endif // __ARM_FEATURE_SVE
 }
 
 static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scale_in_data, const Mat& bias_data, const Mat& scale_out_data, int elemcount, int elempack)

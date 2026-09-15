@@ -1,6 +1,15 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+void pack_A_tile_fp32_to_fp16_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void transpose_pack_A_tile_fp32_to_fp16_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void pack_B_tile_fp32_to_fp16_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+void transpose_pack_B_tile_fp32_to_fp16_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+void transpose_unpack_output_tile_fp32_to_fp16_vfpv4(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj);
+void gemm_transB_packed_tile_fp16s_vfpv4(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int output_elemtype);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
 void gemm_transB_packed_tile_fp16s_asimdfhm(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int output_elemtype);
 #endif
@@ -1514,6 +1523,9 @@ static void transpose_unpack_output_tile_fp16(const Mat& topT, Mat& top_blob, in
 
 static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    pack_A_tile_fp32_to_fp16_vfpv4(A, AT, i, max_ii, k, max_kk);
+#else
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     unsigned short* pp = AT;
@@ -1693,10 +1705,14 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
             p0++;
         }
     }
+#endif
 }
 
 static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    transpose_pack_A_tile_fp32_to_fp16_vfpv4(A, AT, i, max_ii, k, max_kk);
+#else
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     unsigned short* pp = AT;
@@ -1755,10 +1771,14 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
             p0 += A_hstep;
         }
     }
+#endif
 }
 
 static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    pack_B_tile_fp32_to_fp16_vfpv4(B, BT, j, max_jj, k, max_kk);
+#else
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     unsigned short* pp = BT;
@@ -2060,10 +2080,14 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             p0++;
         }
     }
+#endif
 }
 
 static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    transpose_pack_B_tile_fp32_to_fp16_vfpv4(B, BT, j, max_jj, k, max_kk);
+#else
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     unsigned short* pp = BT;
@@ -2136,10 +2160,14 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
             p0 += B_hstep;
         }
     }
+#endif
 }
 
 static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    transpose_unpack_output_tile_fp32_to_fp16_vfpv4(topT, top_blob, i, max_ii, j, max_jj);
+#else
     const int out_elempack = top_blob.elempack;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
@@ -2275,10 +2303,15 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
             }
         }
     }
+#endif
 }
 
 static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int output_elemtype)
 {
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+    gemm_transB_packed_tile_fp16s_vfpv4(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end, output_elemtype);
+#else
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdfhm())
     {
@@ -6217,6 +6250,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
         pAT += max_kk;
     }
+#endif
 }
 
 static void get_optimal_tile_mnk_fp16s(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
