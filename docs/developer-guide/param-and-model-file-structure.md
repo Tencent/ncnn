@@ -1,3 +1,5 @@
+Additional model and layer parameter validation is enabled by default through the `NCNN_VALIDATION` build option. Builds with `NCNN_VALIDATION=OFF` require prevalidated models and do not guarantee rejection of invalid parameters. Parameter formats, defaults and numeric conversions are unchanged. See [build minimal library](../how-to-use-and-FAQ/build-minimal-library.md#disable-ncnn_validation).
+
 ## net.param
 ### example
 ```
@@ -54,12 +56,22 @@ Keep floating-point spellings when converting models with `ncnn2mem`: binary sca
 
 Use a decimal point or exponent for every element of a floating-point array, including integral values, for example `-23303=2,1.0,2.0`. Mixed integer and float element spellings within an array are not defined by the format.
 
+This also matters when using `ncnn2mem`. Some layers convert integer text arrays to floating-point values during `load_param`, but `ncnn2mem` writes the array element bits without that conversion. Binary arrays do not retain integer/float type tags, so the layer cannot recover the original text element type. For example, write activation parameters as `-23310=2,-1.0,2.0`, not `-23310=2,-1,2`, when converting to binary. The latter preserves integer bit patterns rather than the intended floating-point values.
+
+Keep integer arrays, such as axes and slice indices, in integer form. Legacy YOLO mask arrays also use integer spellings to preserve float bit patterns. Converting every integer array numerically to floats would corrupt these parameters.
+
+Layers that expect integer arrays, including axes, slice indices, and Einsum character codes, reject floating-point text arrays rather than converting their elements to integers. For example, write CopyTo starts as `-23309=2,0,1`, not `-23309=2,0.0,1.0`. The mixed spelling `-23309=2,0,1.0` is also invalid; the parser stores each element according to its spelling, so the bits for `1.0` would be read as the integer `1065353216`, not `1`.
+
 A zero-length array such as `-23300=0` explicitly supplies an empty array. Array getters return that empty array even when a nonempty default is supplied; omitting the parameter returns the default.
 
 In modern ncnn param file
 
 * array could be represented as `3=2.0,3.0` that is much more human friendly
 * string typed value: `4=hello` and the string is no longer than 255
+
+## net.param.bin
+
+Binary custom layer type indexes must include `LayerType::CustomBit`. Untagged unknown type indexes are rejected instead of falling back to a custom registry slot. `ncnn2mem` adds this tag automatically.
 
 ## net.bin
 ```

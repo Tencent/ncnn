@@ -19,6 +19,11 @@ int Packing::load_param(const ParamDict& pd)
     cast_type_from = pd.get(2, 0);
     cast_type_to = pd.get(3, 0);
 
+#if NCNN_VALIDATION
+    if (out_elempack <= 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 

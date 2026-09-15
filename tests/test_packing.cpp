@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int packing_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int out_elempack)
 {
     ncnn::ParamDict pd;
@@ -441,6 +445,7 @@ static int test_packing_0()
 {
     ncnn::Mat a = RandomMat(9, 7, 10, 16);
     ncnn::Mat b = RandomMat(9, 7, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -454,6 +459,7 @@ static int test_packing_1()
 {
     ncnn::Mat a = RandomMat(9, 10, 16);
     ncnn::Mat b = RandomMat(9, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -466,6 +472,7 @@ static int test_packing_1()
 static int test_packing_2()
 {
     ncnn::Mat a = RandomMat(19, 16);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -477,6 +484,7 @@ static int test_packing_2()
 static int test_packing_3()
 {
     ncnn::Mat a = RandomMat(80);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -484,6 +492,30 @@ static int test_packing_3()
 #endif
            ;
 }
+
+#if NCNN_VALIDATION
+static int test_packing_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Packing, base, 0) != 0)
+        return -1;
+
+    for (int i = 1; i <= 16; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {0, -1, INT_MIN};
+    for (int i = 0; i < 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -493,5 +525,9 @@ int main()
            || test_packing_0()
            || test_packing_1()
            || test_packing_2()
-           || test_packing_3();
+           || test_packing_3()
+#if NCNN_VALIDATION
+           || test_packing_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }
