@@ -50,6 +50,17 @@ static int test_tanh_3()
            || test_tanh(RandomMat(127));
 }
 
+static int test_tanh_4()
+{
+    // inputs beyond the saturation range, tanh(x) must be exactly -/+1
+    return 0
+           || test_tanh(RandomMat(5, 6, 7, 24, -10.f, 10.f))
+           || test_tanh(RandomMat(5, 7, 24, -10.f, 10.f))
+           || test_tanh(RandomMat(15, 24, -10.f, 10.f))
+           || test_tanh(RandomMat(128, -10.f, 10.f))
+           || test_tanh(RandomMat(128, -1000.f, 1000.f));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -58,5 +69,6 @@ int main()
            || test_tanh_0()
            || test_tanh_1()
            || test_tanh_2()
-           || test_tanh_3();
+           || test_tanh_3()
+           || test_tanh_4();
 }

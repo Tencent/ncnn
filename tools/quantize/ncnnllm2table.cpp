@@ -1219,8 +1219,8 @@ int QuantNet::collect_activation_stats()
                     ex.extract(mha->bottoms[attn_mask_i], attn_mask_blob);
                 if (mha->kv_cache)
                 {
-                    ex.extract(mha->bottoms[cached_xk_i], cached_xk_blob);
-                    ex.extract(mha->bottoms[cached_xv_i], cached_xv_blob);
+                    ex.extract(mha->bottoms[cached_xk_i], cached_xk_blob, 1);
+                    ex.extract(mha->bottoms[cached_xv_i], cached_xv_blob, 1);
                 }
 
                 const size_t mha_act_offset = mha_act_index * 4;

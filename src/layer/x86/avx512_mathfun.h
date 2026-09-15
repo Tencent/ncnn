@@ -830,7 +830,7 @@ static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 
 // MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
 // This function still be inlined compiled by MSVC 2017 even without that.
-#if _MSC_VER < 1920
+#if defined(_MSC_VER) && _MSC_VER < 1920
 static __m512 atan2512_ps(const __m512& y, const __m512& x)
 #else
 static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)

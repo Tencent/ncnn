@@ -333,6 +333,9 @@ static int test_c_api_3()
 {
     // test option setter getter
     ncnn_option_t opt = ncnn_option_create();
+    ncnn_allocator_t kvcache_allocator = ncnn_allocator_create_unlocked_pool_allocator();
+    ncnn_option_set_kvcache_allocator(opt, kvcache_allocator);
+    ncnn_option_set_kvcache_max_seqlen_hint(opt, 4096);
 
 #define TEST_OPTION_SET_GET(name, V0, V1)      \
     {                                          \
@@ -369,6 +372,7 @@ static int test_c_api_3()
 #undef TEST_OPTION_SET_GET
 
     ncnn_option_destroy(opt);
+    ncnn_allocator_destroy(kvcache_allocator);
 
     // test layer setter getter
     ncnn_layer_t layer = ncnn_layer_create();

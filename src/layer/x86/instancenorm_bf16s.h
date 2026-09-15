@@ -2,16 +2,64 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void instancenorm_bf16s_sse_avx512bf16(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_avx512bf16(unsigned short* ptr, int size, float a, float b);
 void instancenorm_bf16s_compute_mean_var_avx512bf16(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
 
-static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float b)
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void instancenorm_bf16s_avxneconvert(unsigned short* ptr, int size, float a, float b);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void instancenorm_bf16s_avx2(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_compute_mean_var_avx2(const unsigned short* ptr, int size, float& mean, float& var);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void instancenorm_bf16s_fma(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_compute_mean_var_fma(const unsigned short* ptr, int size, float& mean, float& var);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void instancenorm_bf16s_fma4(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_compute_mean_var_fma4(const unsigned short* ptr, int size, float& mean, float& var);
+#endif
+
+static void instancenorm_bf16s(unsigned short* ptr, int size, float a, float b)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        instancenorm_bf16s_sse_avx512bf16(ptr, size, a, b);
+        instancenorm_bf16s_avx512bf16(ptr, size, a, b);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        instancenorm_bf16s_avxneconvert(ptr, size, a, b);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        instancenorm_bf16s_avx2(ptr, size, a, b);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        instancenorm_bf16s_fma(ptr, size, a, b);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        instancenorm_bf16s_fma4(ptr, size, a, b);
         return;
     }
 #endif
@@ -46,7 +94,7 @@ static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_comp_fmadd_ps(_p, _a, _b);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -63,6 +111,28 @@ static void instancenorm_bf16s_compute_mean_var(const unsigned short* ptr, int s
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         instancenorm_bf16s_compute_mean_var_avx512bf16(ptr, size, mean, var);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        instancenorm_bf16s_compute_mean_var_avx2(ptr, size, mean, var);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        instancenorm_bf16s_compute_mean_var_fma(ptr, size, mean, var);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        instancenorm_bf16s_compute_mean_var_fma4(ptr, size, mean, var);
         return;
     }
 #endif

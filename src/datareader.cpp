@@ -3,6 +3,7 @@
 
 #include "datareader.h"
 
+#include <ctype.h>
 #include <string.h>
 
 namespace ncnn {
@@ -187,23 +188,12 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
     std::string line;
     {
         off64_t remain_length = AAsset_getRemainingLength64(d->asset);
-        const char* newline_pos;
-        if (remain_length > 1 && ((const char*)d->mem)[0] == '\n')
-        {
-            // skip the leading newline
-            // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
-            newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
-        }
-        else if (remain_length > 2 && ((const char*)d->mem)[0] == '\r' && ((const char*)d->mem)[1] == '\n')
-        {
-            // skip the leading newline
-            // however, it is fine to create "\r\nXYZ 123 abc" as sscanf will skip the leading newline silently
-            newline_pos = (const char*)memchr((const char*)d->mem + 2, '\n', remain_length - 2);
-        }
-        else
-        {
-            newline_pos = (const char*)memchr((const char*)d->mem, '\n', remain_length);
-        }
+        // include all leading whitespace and the following line in the buffer
+        // sscanf decides whether the conversion consumes that whitespace
+        size_t offset = 0;
+        while (offset < (size_t)remain_length && isspace(d->mem[offset]))
+            offset++;
+        const char* newline_pos = (const char*)memchr(d->mem + offset, '\n', (size_t)remain_length - offset);
 
         size_t line_length = newline_pos ? newline_pos - (const char*)d->mem : (size_t)remain_length;
         line = std::string((const char*)d->mem, line_length);

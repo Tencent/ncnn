@@ -63,6 +63,8 @@ NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 
 NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_max_seqlen_hint(ncnn_option_t opt, int max_seqlen_hint);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
@@ -222,6 +224,9 @@ struct NCNN_EXPORT __ncnn_datareader_t
     void* pthis;
 
 #if NCNN_STRING
+    /* follow scanf conversion and input consumption rules, including field widths and scansets */
+    /* %1023[^\r\n] must preserve leading whitespace and leave CR/LF unread */
+    /* append a null terminator on a successful scanset conversion and return 1 */
     int (*scan)(ncnn_datareader_t dr, const char* format, void* p);
 #endif /* NCNN_STRING */
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);

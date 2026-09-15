@@ -17,6 +17,11 @@
 #extension GL_NV_integer_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno needs stride * 4 for these packed int8 loads; int32 stores are unchanged
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
 layout(constant_id = 2) const int constantC = 0;
@@ -104,7 +109,12 @@ void main()
     //
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(GM) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (psc(GN) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -120,7 +130,12 @@ void main()
     if (wgmi >= wgmm)
         return;
 
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;

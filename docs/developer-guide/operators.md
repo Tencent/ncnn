@@ -2217,6 +2217,7 @@ for each num_head part
 ```
 
 * input mat dims: q 3d; k 3d; v 3d; attn_mask optional 2d
+* attn_mask values must be finite; use a large negative value for masked positions and keep at least one key unmasked for each query
 * output mat dims: 3d
 
 | param id  | name          | type  | default   | description       |
