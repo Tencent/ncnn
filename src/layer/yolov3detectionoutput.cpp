@@ -77,26 +77,10 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
             return -1;
     }
 
-    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w != mask.w / num_box)
+    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w < mask.w / num_box)
         return -1;
 
-    for (int i = 0; i < biases.w; i++)
-    {
-        // check raw bits before floating-point operations under fast-math
-        if (pd.type(4) != 5)
-        {
-            unsigned int bits;
-            memcpy(&bits, (const float*)biases + i, sizeof(bits));
-            if ((bits & 0x7f800000u) == 0x7f800000u)
-                return -1;
-        }
-
-        const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[i] : biases[i];
-        if (bias <= 0.f)
-            return -1;
-    }
-
-    for (int i = 0; i < anchors_scale.w; i++)
+    for (int i = 0; i < mask.w / num_box; i++)
     {
         // check raw bits before floating-point operations under fast-math
         if (pd.type(6) != 5)
@@ -126,6 +110,24 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         const float index = mask[i];
         if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)
             return -1;
+
+        for (int j = 0; j < 2; j++)
+        {
+            const int bias_index = (int)index * 2 + j;
+
+            // check raw bits before floating-point operations under fast-math
+            if (pd.type(4) != 5)
+            {
+                unsigned int bias_bits;
+                memcpy(&bias_bits, (const float*)biases + bias_index, sizeof(bias_bits));
+                if ((bias_bits & 0x7f800000u) == 0x7f800000u)
+                    return -1;
+            }
+
+            const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[bias_index] : biases[bias_index];
+            if (bias <= 0.f)
+                return -1;
+        }
     }
 #endif // NCNN_VALIDATION
 

@@ -244,6 +244,55 @@ static int test_yolov3detectionoutput_load_param_values()
     return 0;
 }
 
+static int test_yolov3detectionoutput_load_param_unused()
+{
+    ncnn::ParamDict base;
+    base.set(0, 1);
+    base.set(1, 1);
+    ncnn::Mat biases(6);
+    biases.fill(1.f);
+    base.set(4, biases);
+    ncnn::Mat mask(2);
+    mask[0] = 2.f;
+    mask[1] = 0.f;
+    base.set(5, mask);
+    ncnn::Mat scales(3);
+    scales.fill(32.f);
+    base.set(6, scales);
+
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 0)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, scales.range(0, 1), -1))
+        return -1;
+
+    // unused anchors and scales may contain values that would otherwise be rejected
+    const unsigned int invalid[] = {0x00000000u, 0x80000000u, 0xbf800000u, 0x7f800000u, 0xff800000u, 0x7fc00000u, 0x7f800001u};
+    for (int i = 0; i < 7; i++)
+    {
+        memcpy((float*)scales + 2, &invalid[i], sizeof(float));
+        for (int anchor = 0; anchor < 3; anchor++)
+        {
+            mask[0] = (float)((anchor + 1) % 3);
+            mask[1] = (float)((anchor + 2) % 3);
+            ncnn::Mat used_mask = mask.clone();
+            used_mask[1] = (float)anchor;
+
+            for (int j = 0; j < 2; j++)
+            {
+                memcpy((float*)biases + anchor * 2 + j, &invalid[i], sizeof(float));
+                if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 0)
+                        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, used_mask, -1))
+                {
+                    fprintf(stderr, "test_yolov3detectionoutput_load_param_unused failed anchor=%d component=%d value=0x%08x\n", anchor, j, invalid[i]);
+                    return -1;
+                }
+                biases[anchor * 2 + j] = 1.f;
+            }
+        }
+    }
+
+    return 0;
+}
+
 #if NCNN_STRING
 static int test_yolov3detectionoutput_load_param_text(const char* mask, int expected_ret)
 {
@@ -316,6 +365,8 @@ static int test_yolov3detectionoutput_load_param_values_text()
     return 0
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,32", 0)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,0.5,1.5 -23306=1,0.5", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=4,10,14,0,-1 -23306=2,32,2147483647", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=4,10.0,14.0,0.0,-1.0 -23306=2,32.0,2147483648.0", 0)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,0,14 -23306=1,32", -1)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,-1 -23306=1,32", -1)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,0", -1)
@@ -400,6 +451,7 @@ int main()
            || test_yolov3detectionoutput_load_param()
            || test_yolov3detectionoutput_load_param_text()
            || test_yolov3detectionoutput_load_param_values()
+           || test_yolov3detectionoutput_load_param_unused()
            || test_yolov3detectionoutput_load_param_values_text()
            || test_yolov3detectionoutput_load_param_thresholds()
 #endif // NCNN_VALIDATION
