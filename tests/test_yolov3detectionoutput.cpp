@@ -315,6 +315,61 @@ static int test_yolov3detectionoutput_load_param_values_text()
 #endif
 }
 
+static int test_yolov3detectionoutput_load_param_thresholds()
+{
+    ncnn::ParamDict base;
+    base.set(0, 1);
+    base.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    base.set(4, biases);
+    ncnn::Mat mask(1);
+    mask.fill(0.f);
+    base.set(5, mask);
+    ncnn::Mat scales(1);
+    scales.fill(32.f);
+    base.set(6, scales);
+
+    const float valid[] = {-1.f, 0.f, 0.5f, 1.f, 2.f};
+    const unsigned int special[] = {0x7f800000u, 0xff800000u, 0x7fc00000u, 0xffc00000u, 0x7f800001u, 0xff800001u};
+    for (int id = 2; id <= 3; id++)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, id, valid[i], 0) != 0)
+                return -1;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            float value;
+            memcpy(&value, &special[i], sizeof(value));
+            const int expected_ret = i < 2 ? 0 : -1;
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, id, value, expected_ret) != 0)
+                return -1;
+
+            // binary scalar parameters have no integer or float type tag
+            unsigned char binary[] = {0, 0, 0, 0, 0, 0, 0, 0, 0x17, 0xff, 0xff, 0xff};
+            binary[0] = (unsigned char)id;
+            for (int j = 0; j < 4; j++)
+                binary[4 + j] = (unsigned char)(special[i] >> (j * 8));
+
+            TestParamDict pd;
+            if (pd.load_param_bin(binary) != 0)
+                return -1;
+            pd.set(0, 1);
+            pd.set(1, 1);
+            pd.set(4, biases);
+            pd.set(5, mask);
+            pd.set(6, scales);
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, expected_ret) != 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -327,5 +382,6 @@ int main()
            || test_yolov3detectionoutput_load_param()
            || test_yolov3detectionoutput_load_param_text()
            || test_yolov3detectionoutput_load_param_values()
-           || test_yolov3detectionoutput_load_param_values_text();
+           || test_yolov3detectionoutput_load_param_values_text()
+           || test_yolov3detectionoutput_load_param_thresholds();
 }

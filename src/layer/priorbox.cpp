@@ -30,38 +30,32 @@ int PriorBox::load_param(const ParamDict& pd)
     step_mmdetection = pd.get(14, 0);
     center_mmdetection = pd.get(15, 0);
 
-    {
-        const int min_sizes_type = pd.type(0);
-        if (min_sizes_type != 0 && min_sizes_type != 4 && min_sizes_type != 5 && min_sizes_type != 6)
-            return -1;
+    const int min_sizes_type = pd.type(0);
+    if (min_sizes_type != 0 && min_sizes_type != 4 && min_sizes_type != 5 && min_sizes_type != 6)
+        return -1;
 
-        if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w < 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || (min_sizes.w > 0 && !min_sizes.data)))
-            return -1;
-    }
+    if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w < 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || (min_sizes.w > 0 && !min_sizes.data)))
+        return -1;
 
-    {
-        const int max_sizes_type = pd.type(1);
-        if (max_sizes_type != 0 && max_sizes_type != 4 && max_sizes_type != 5 && max_sizes_type != 6)
-            return -1;
+    const int max_sizes_type = pd.type(1);
+    if (max_sizes_type != 0 && max_sizes_type != 4 && max_sizes_type != 5 && max_sizes_type != 6)
+        return -1;
 
-        if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w < 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || (max_sizes.w > 0 && !max_sizes.data)))
-            return -1;
-    }
+    if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w < 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || (max_sizes.w > 0 && !max_sizes.data)))
+        return -1;
 
-    {
-        const int aspect_ratios_type = pd.type(2);
-        if (aspect_ratios_type != 0 && aspect_ratios_type != 4 && aspect_ratios_type != 5 && aspect_ratios_type != 6)
-            return -1;
+    const int aspect_ratios_type = pd.type(2);
+    if (aspect_ratios_type != 0 && aspect_ratios_type != 4 && aspect_ratios_type != 5 && aspect_ratios_type != 6)
+        return -1;
 
-        if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w < 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || (aspect_ratios.w > 0 && !aspect_ratios.data)))
-            return -1;
-    }
+    if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w < 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || (aspect_ratios.w > 0 && !aspect_ratios.data)))
+        return -1;
 
     if (min_sizes.empty() || (!max_sizes.empty() && max_sizes.w != min_sizes.w))
         return -1;
 
     // convert integer text arrays without modifying the shared data
-    if (pd.type(0) == 5 && !min_sizes.empty())
+    if (min_sizes_type == 5)
     {
         Mat converted(min_sizes.w);
         if (converted.empty())
@@ -74,8 +68,7 @@ int PriorBox::load_param(const ParamDict& pd)
         min_sizes = converted;
     }
 
-    // convert integer text arrays without modifying the shared data
-    if (pd.type(1) == 5 && !max_sizes.empty())
+    if (max_sizes_type == 5 && !max_sizes.empty())
     {
         Mat converted(max_sizes.w);
         if (converted.empty())
@@ -88,8 +81,7 @@ int PriorBox::load_param(const ParamDict& pd)
         max_sizes = converted;
     }
 
-    // convert integer text arrays without modifying the shared data
-    if (pd.type(2) == 5 && !aspect_ratios.empty())
+    if (aspect_ratios_type == 5 && !aspect_ratios.empty())
     {
         Mat converted(aspect_ratios.w);
         if (converted.empty())

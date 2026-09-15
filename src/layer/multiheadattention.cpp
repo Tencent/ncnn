@@ -73,10 +73,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     int weight_bits;
     int block_size;
     bool has_input_scale;
-    weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
-
-    if (kv_cache)
-        support_batch = true;
+    const bool is_weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
@@ -84,21 +81,15 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
         return -1;
     }
 
-    if (quantize_term >= 400 && !weight_block_quantize)
+    if (quantize_term >= 400 && !is_weight_block_quantize)
     {
         NCNN_LOGE("MultiHeadAttention unsupported quantize_term %d", quantize_term);
         return -1;
     }
 
-    if (weight_block_quantize)
+    if (is_weight_block_quantize)
     {
-#if NCNN_WEIGHT_QUANT
-        support_packing = false;
-        support_bf16_storage = false;
-        support_fp16_storage = false;
-        support_vulkan = false;
-        support_vulkan_packing = false;
-#else
+#if !NCNN_WEIGHT_QUANT
         NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
         return -1;
 #endif
@@ -109,6 +100,20 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
         NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
         return -1;
 #endif
+    }
+
+    weight_block_quantize = is_weight_block_quantize;
+
+    if (kv_cache)
+        support_batch = true;
+
+    if (weight_block_quantize)
+    {
+        support_packing = false;
+        support_bf16_storage = false;
+        support_fp16_storage = false;
+        support_vulkan = false;
+        support_vulkan_packing = false;
     }
 
     return 0;

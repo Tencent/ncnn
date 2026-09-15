@@ -19,17 +19,15 @@ int Eltwise::load_param(const ParamDict& pd)
     if (op_type < Operation_PROD || op_type > Operation_MAX)
         return -1;
 
-    {
-        const int coeffs_type = pd.type(1);
-        if (coeffs_type != 0 && coeffs_type != 4 && coeffs_type != 5 && coeffs_type != 6)
-            return -1;
+    const int coeffs_type = pd.type(1);
+    if (coeffs_type != 0 && coeffs_type != 4 && coeffs_type != 5 && coeffs_type != 6)
+        return -1;
 
-        if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w < 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || (coeffs.w > 0 && !coeffs.data)))
-            return -1;
-    }
+    if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w < 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || (coeffs.w > 0 && !coeffs.data)))
+        return -1;
 
     // convert integer text arrays without modifying the shared data
-    if (pd.type(1) == 5 && !coeffs.empty())
+    if (coeffs_type == 5 && !coeffs.empty())
     {
         Mat converted(coeffs.w);
         if (converted.empty())

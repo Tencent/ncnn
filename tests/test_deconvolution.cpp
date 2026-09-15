@@ -362,8 +362,11 @@ static int test_deconvolution_load_param()
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
-    for (int i = 0; i < 5; i++)
+    ncnn::Mat negative_length(0);
+    negative_length.w = -1;
+
+    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data, negative_length};
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
     {
         if (test_layer_param(ncnn::LayerType::Deconvolution, base, 10, bad[i], -1) != 0)
             return -1;

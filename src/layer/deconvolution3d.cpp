@@ -44,14 +44,12 @@ int Deconvolution3D::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
-    {
-        const int activation_params_type = pd.type(10);
-        if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
-            return -1;
+    const int activation_params_type = pd.type(10);
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
 
-        if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
-            return -1;
-    }
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
 
     if (activation_type < 0 || activation_type > 6)
         return -1;
@@ -66,7 +64,7 @@ int Deconvolution3D::load_param(const ParamDict& pd)
         return -1;
 
     // convert integer text arrays without modifying the shared data
-    if (pd.type(10) == 5 && !activation_params.empty())
+    if (activation_params_type == 5 && !activation_params.empty())
     {
         Mat converted(activation_params.w);
         if (converted.empty())

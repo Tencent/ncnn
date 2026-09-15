@@ -40,6 +40,14 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     mask = pd.get(5, Mat());
     anchors_scale = pd.get(6, Mat());
 
+    // reject nan thresholds while preserving infinite cutoffs
+    unsigned int confidence_bits;
+    unsigned int nms_bits;
+    memcpy(&confidence_bits, &confidence_threshold, sizeof(confidence_bits));
+    memcpy(&nms_bits, &nms_threshold, sizeof(nms_bits));
+    if ((confidence_bits & 0x7fffffffu) > 0x7f800000u || (nms_bits & 0x7fffffffu) > 0x7f800000u)
+        return -1;
+
     {
         const int biases_type = pd.type(4);
         if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
