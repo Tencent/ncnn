@@ -28,11 +28,9 @@ int RNN::load_param(const ParamDict& pd)
 #endif
     }
 
+    // reject invalid num_output (load_model divides by it)
     if (num_output <= 0)
-    {
-        // reject invalid num_output (load_model divides by it)
-        return -100;
-    }
+        return -1;
 
     if (direction < 0 || direction > 2 || num_output > INT_MAX / 1 / (direction == 2 ? 2 : 1))
         return -1;

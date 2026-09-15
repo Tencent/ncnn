@@ -29,11 +29,9 @@ int LSTM::load_param(const ParamDict& pd)
 #endif
     }
 
+    // reject invalid sizes (load_model divides by hidden_size)
     if (num_output <= 0 || hidden_size <= 0)
-    {
-        // reject invalid sizes (load_model divides by hidden_size)
-        return -100;
-    }
+        return -1;
 
     if (direction < 0 || direction > 2 || hidden_size > INT_MAX / 4 / (direction == 2 ? 2 : 1))
         return -1;

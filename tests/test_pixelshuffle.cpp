@@ -77,7 +77,7 @@ static int test_pixelshuffle_load_param_case(const ncnn::ParamDict& pd, bool val
         int ret = layer->load_param(pd);
         delete layer;
 
-        if ((ret == 0) != valid)
+        if (ret != (valid ? 0 : -1))
         {
             fprintf(stderr, "PixelShuffle load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;

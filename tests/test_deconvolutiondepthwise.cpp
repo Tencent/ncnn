@@ -112,7 +112,7 @@ static int test_deconvolutiondepthwise_load_param_case(const ncnn::ParamDict& pd
         int ret = layer->load_param(pd);
         delete layer;
 
-        if ((ret == 0) != valid)
+        if (ret != (valid ? 0 : -1))
         {
             fprintf(stderr, "DeconvolutionDepthWise load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
             return -1;

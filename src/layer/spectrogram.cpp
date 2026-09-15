@@ -27,10 +27,7 @@ int Spectrogram::load_param(const ParamDict& pd)
 
     // reject invalid params before writing into window_data (ASan #6939)
     if (n_fft <= 0 || winlen <= 0 || winlen > n_fft)
-    {
-        NCNN_LOGE("Spectrogram load_param invalid n_fft=%d winlen=%d", n_fft, winlen);
         return -1;
-    }
 
     if (hoplen <= 0 || window_type < 0 || window_type > 2 || normalized < 0 || normalized > 2 || (normalized == 2 && n_fft == INT_MAX))
         return -1;

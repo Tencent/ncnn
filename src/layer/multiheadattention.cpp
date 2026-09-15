@@ -60,16 +60,10 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     quantize_term = pd.get(18, 0);
 
     if (num_heads <= 0)
-    {
-        NCNN_LOGE("MultiHeadAttention invalid num_heads %d", num_heads);
         return -1;
-    }
 
     if (embed_dim <= 0 || embed_dim % num_heads != 0)
-    {
-        NCNN_LOGE("MultiHeadAttention invalid embed_dim %d", embed_dim);
         return -1;
-    }
 
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
 

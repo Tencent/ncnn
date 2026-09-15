@@ -66,11 +66,9 @@ int DeconvolutionDepthWise3D::load_param(const ParamDict& pd)
         }
     }
 
+    // reject invalid group
     if (group <= 0 || num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
-    }
+        return -1;
 
     if (activation_type < 0 || activation_type > 6)
         return -1;
