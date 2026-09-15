@@ -278,6 +278,23 @@ static int test_reduction_load_param_type()
     return 0;
 }
 
+static int test_reduction_load_param_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"5=1 -23303=1,0", "5=1 -23303=1,0.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(3) != 5 + i)
+            return -1;
+
+        if (test_layer_param(ncnn::LayerType::Reduction, pd, i == 0 ? 0 : -1) != 0)
+            return -1;
+    }
+#endif
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -294,5 +311,5 @@ int main()
             return ret;
     }
 
-    return test_reduction_load_param() || test_reduction_load_param_type();
+    return test_reduction_load_param() || test_reduction_load_param_type() || test_reduction_load_param_text();
 }

@@ -168,6 +168,10 @@ static int test_expanddims_load_param()
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, ncnn::Mat(1, 2), -1)
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, 1.f, -1)
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, -4), 0)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, 3), 0)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, -5), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, 4), -1)
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, INT_MIN), -1);
 }
 

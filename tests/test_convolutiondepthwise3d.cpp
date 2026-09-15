@@ -138,6 +138,10 @@ static int test_convolutiondepthwise3d_load_param()
     if (ret != 0)
         return ret;
 
+    if (test_layer_param(ncnn::LayerType::ConvolutionDepthWise3D, base, 10, 1, -1)
+            || test_layer_param(ncnn::LayerType::ConvolutionDepthWise3D, base, 10, 1.f, -1))
+        return -1;
+
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
@@ -176,9 +180,54 @@ static int test_convolutiondepthwise3d_load_param()
     return 0;
 }
 
+static int test_convolutiondepthwise3d_load_param_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"0=1 1=1 6=1 9=3 -23310=2,-1,2", "0=1 1=1 6=1 9=3 -23310=2,-1.0,2.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(10) != 5 + i)
+            return -1;
+
+        if (test_layer_param(ncnn::LayerType::ConvolutionDepthWise3D, pd, 0) != 0)
+            return -1;
+
+        std::vector<ncnn::Mat> weights(1);
+        weights[0].create(1);
+        weights[0][0] = 1.f;
+
+        ncnn::Mat a(2, 1, 1, 1);
+        a[0] = -3.f;
+        a[1] = 3.f;
+        ncnn::Mat reference(2, 1, 1, 1);
+        reference[0] = -1.f;
+        reference[1] = 2.f;
+        ncnn::Mat b;
+        int ret = test_layer_naive(ncnn::LayerType::ConvolutionDepthWise3D, pd, weights, a, b, 0);
+        if (ret == 0)
+            ret = CompareMat(reference, b, 0.f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolutiondepthwise3d_load_param_text failed params=%s ret=%d\n", params[i], ret);
+            return ret;
+        }
+
+        const ncnn::Mat original = pd.get(10, ncnn::Mat());
+        const int* p = original;
+        if (i == 0 ? (p[0] != -1 || p[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
+        {
+            fprintf(stderr, "test_convolutiondepthwise3d_load_param_text modified params=%s\n", params[i]);
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_convolutiondepthwise3d_0() || test_convolutiondepthwise3d_load_param();
+    return test_convolutiondepthwise3d_0() || test_convolutiondepthwise3d_load_param() || test_convolutiondepthwise3d_load_param_text();
 }

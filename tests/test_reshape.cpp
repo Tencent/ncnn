@@ -211,6 +211,16 @@ static int test_reshape_9()
 
 static int test_reshape_load_param()
 {
+    ncnn::ParamDict empty;
+    if (test_layer_param(ncnn::LayerType::Reshape, empty, -1) != 0
+            || test_layer_param(ncnn::LayerType::Reshape, empty, 0, -233, -1) != 0)
+        return -1;
+
+    ncnn::ParamDict expr;
+    expr.set(6, "1,1");
+    if (test_layer_param(ncnn::LayerType::Reshape, expr, 0) != 0)
+        return -1;
+
     ncnn::ParamDict base;
     base.set(0, -1);
     if (test_layer_param(ncnn::LayerType::Reshape, base, 0) != 0)
