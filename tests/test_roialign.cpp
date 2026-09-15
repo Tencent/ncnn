@@ -84,11 +84,76 @@ static int test_roialign_load_param()
     return 0;
 }
 
+static int test_roialign_adaptive(int version, bool aligned)
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(8, 8, 3);
+    a[1].create(4);
+    a[1][0] = 1.25f;
+    a[1][1] = 1.5f;
+    a[1][2] = 6.75f;
+    a[1][3] = 5.5f;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 3);
+    pd.set(1, 2);
+    pd.set(4, aligned);
+    pd.set(5, version);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    const int sampling_ratios[] = {-1, -2, INT_MIN};
+    for (int backend = 0; backend < 2; backend++)
+    {
+        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::ROIAlign) : ncnn::create_layer_cpu(ncnn::LayerType::ROIAlign);
+        if (!layer)
+            return -1;
+
+        pd.set(3, 0);
+        std::vector<ncnn::Mat> reference(1);
+        int ret = layer->load_param(pd);
+        if (ret == 0)
+            ret = layer->forward(a, reference, opt);
+        if (ret != 0)
+        {
+            delete layer;
+            fprintf(stderr, "test_roialign_adaptive reference failed backend=%d version=%d aligned=%d ret=%d\n", backend, version, aligned, ret);
+            return -1;
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            pd.set(3, sampling_ratios[i]);
+            std::vector<ncnn::Mat> output(1);
+            ret = layer->load_param(pd);
+            if (ret == 0)
+                ret = layer->forward(a, output, opt);
+            if (ret == 0)
+                ret = CompareMat(reference, output, 0.f);
+            if (ret != 0)
+            {
+                delete layer;
+                fprintf(stderr, "test_roialign_adaptive failed backend=%d version=%d aligned=%d sampling_ratio=%d ret=%d\n", backend, version, aligned, sampling_ratios[i], ret);
+                return -1;
+            }
+        }
+
+        delete layer;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
            || test_roialign_0()
-           || test_roialign_load_param();
+           || test_roialign_load_param()
+           || test_roialign_adaptive(0, false)
+           || test_roialign_adaptive(0, true)
+           || test_roialign_adaptive(1, false)
+           || test_roialign_adaptive(1, true);
 }
