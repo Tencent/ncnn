@@ -245,8 +245,14 @@ static int test_flip_load_param()
     if (test_flip_load_param_case(typed, false) != 0)
         return -1;
 #endif
-    const int binary[] = {-23300, 1, 0, -233};
-    const unsigned char* data = (const unsigned char*)binary;
+    // binary parameters use little-endian byte order
+    const unsigned char binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    const unsigned char* data = binary;
     ncnn::DataReaderFromMemory binary_reader(data);
     if (typed.load_param_bin(binary_reader) != 0)
         return -1;
