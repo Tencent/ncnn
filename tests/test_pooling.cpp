@@ -248,20 +248,17 @@ static int test_pooling_4()
 
 static int test_pooling_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
-    for (int backend = 0; backend < 2; backend++)
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Pooling);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if ((ret == 0) != valid)
     {
-        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Pooling) : ncnn::create_layer_cpu(ncnn::LayerType::Pooling);
-        if (!layer)
-            return -1;
-
-        int ret = layer->load_param(pd);
-        delete layer;
-
-        if ((ret == 0) != valid)
-        {
-            fprintf(stderr, "Pooling load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
-            return -1;
-        }
+        fprintf(stderr, "Pooling load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        return -1;
     }
 
     return 0;

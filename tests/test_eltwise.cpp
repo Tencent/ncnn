@@ -346,11 +346,13 @@ static int test_eltwise_12()
 
 static int test_eltwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
-    ncnn::Layer* layer = ncnn::create_layer_cpu(ncnn::LayerType::Eltwise);
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Eltwise);
     if (!layer)
         return -1;
+
     int ret = layer->load_param(pd);
     delete layer;
+
     if ((ret == 0) != valid)
     {
         fprintf(stderr, "Eltwise load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");

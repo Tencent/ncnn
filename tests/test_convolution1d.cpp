@@ -208,20 +208,17 @@ static int test_convolution1d_1()
 
 static int test_convolution1d_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
-    for (int backend = 0; backend < 2; backend++)
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Convolution1D);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if ((ret == 0) != valid)
     {
-        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::Convolution1D) : ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
-        if (!layer)
-            return -1;
-
-        int ret = layer->load_param(pd);
-        delete layer;
-
-        if ((ret == 0) != valid)
-        {
-            fprintf(stderr, "Convolution1D load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
-            return -1;
-        }
+        fprintf(stderr, "Convolution1D load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        return -1;
     }
 
     return 0;

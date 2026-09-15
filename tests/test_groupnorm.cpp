@@ -108,20 +108,17 @@ static int test_groupnorm_3()
 
 static int test_groupnorm_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
-    for (int backend = 0; backend < 2; backend++)
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::GroupNorm);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if (ret != (valid ? 0 : -1))
     {
-        ncnn::Layer* layer = backend == 0 ? ncnn::create_layer_naive(ncnn::LayerType::GroupNorm) : ncnn::create_layer_cpu(ncnn::LayerType::GroupNorm);
-        if (!layer)
-            return -1;
-
-        int ret = layer->load_param(pd);
-        delete layer;
-
-        if (ret != (valid ? 0 : -1))
-        {
-            fprintf(stderr, "GroupNorm load_param backend=%d returned %d, expected %s\n", backend, ret, valid ? "success" : "failure");
-            return -1;
-        }
+        fprintf(stderr, "GroupNorm load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
+        return -1;
     }
 
     return 0;

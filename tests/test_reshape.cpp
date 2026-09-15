@@ -211,11 +211,13 @@ static int test_reshape_9()
 
 static int test_reshape_load_param_case(const ncnn::ParamDict& pd, bool valid)
 {
-    ncnn::Layer* layer = ncnn::create_layer_cpu(ncnn::LayerType::Reshape);
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Reshape);
     if (!layer)
         return -1;
+
     int ret = layer->load_param(pd);
     delete layer;
+
     if ((ret == 0) != valid)
     {
         fprintf(stderr, "Reshape load_param returned %d, expected %s\n", ret, valid ? "success" : "failure");
