@@ -336,6 +336,8 @@ public:
 
     // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
+    // convenient construct from bfloat16 floating point data
+    static Mat from_bfloat16(const unsigned short* data, int size);
 
     // pointer to the data
     void* data;
@@ -346,7 +348,7 @@ public:
 
     // element size in bytes
     // 4 = float32/int32
-    // 2 = float16
+    // 2 = float16/bfloat16
     // 1 = int8/uint8
     // 0 = empty
     size_t elemsize;
@@ -816,11 +818,11 @@ NCNN_EXPORT void draw_text_yuv420sp(unsigned char* yuv420sp, int w, int h, const
 #endif // NCNN_PIXEL_DRAWING
 
 // type conversion
-// convert float to half precision floating point
+// convert float to half precision floating point round to nearest ties away from zero
 NCNN_EXPORT unsigned short float32_to_float16(float value);
 // convert half precision floating point to float
 NCNN_EXPORT float float16_to_float32(unsigned short value);
-// convert float to brain half
+// convert float to brain half round to nearest ties away from zero
 NCNN_EXPORT NCNN_FORCEINLINE unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
@@ -830,7 +832,7 @@ NCNN_EXPORT NCNN_FORCEINLINE unsigned short float32_to_bfloat16(float value)
         float f;
     } tmp;
     tmp.f = value;
-    return tmp.u >> 16;
+    return (tmp.u + 0x8000) >> 16;
 }
 // convert brain half to float
 NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
@@ -844,22 +846,20 @@ NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
     tmp.u = value << 16;
     return tmp.f;
 }
-// convert float16 to float8 e4m3
+// convert float16 to float8 e4m3 round to nearest ties away from zero
 NCNN_EXPORT unsigned char float16_to_float8(unsigned short value);
 // convert float8 e4m3 to float16
 NCNN_EXPORT unsigned short float8_to_float16(unsigned char value);
-// convert float16 to bfloat8 e5m2
+// convert float16 to bfloat8 e5m2 round to nearest ties away from zero
 NCNN_EXPORT NCNN_FORCEINLINE unsigned char float16_to_bfloat8(unsigned short value)
 {
     // 1 : 5 : 10 -> 1 : 5 : 2
-    // direct truncation for bfloat8 e5m2, similar to bfloat16
-    return value >> 8;
+    return (value + 0x80) >> 8;
 }
 // convert bfloat8 e5m2 to float16
 NCNN_EXPORT NCNN_FORCEINLINE unsigned short bfloat8_to_float16(unsigned char value)
 {
     // 1 : 5 : 2 -> 1 : 5 : 10
-    // direct extension for bfloat8 e5m2, similar to bfloat16
     return value << 8;
 }
 

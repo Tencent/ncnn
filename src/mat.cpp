@@ -1898,6 +1898,18 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     return dst;
 }
 
+Mat Mat::from_bfloat16(const unsigned short* data, int size)
+{
+    Mat src(size, (void*)data, (size_t)2u);
+    Mat dst;
+
+    Option opt;
+    opt.num_threads = 1; // TODO
+    cast_bfloat16_to_float32(src, dst, opt);
+
+    return dst;
+}
+
 #if NCNN_VULKAN
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
@@ -1960,7 +1972,8 @@ unsigned short float32_to_float16(float value)
         else
         {
             // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
+            significand += 0x1000;
+            fp16 = (sign << 15) | ((newexp << 10) + (significand >> 13));
         }
     }
 
@@ -2063,7 +2076,8 @@ unsigned char float16_to_float8(unsigned short value)
         else
         {
             // normal fp8
-            fp8 = (sign << 7) | (newexp << 3) | (significand >> 7);
+            significand += 0x40;
+            fp8 = (sign << 7) | ((newexp << 3) + (significand >> 7));
         }
     }
 
