@@ -180,6 +180,19 @@ static int test_expanddims_load_param()
         return -1;
 
     ncnn::ParamDict pd = base;
+    pd.set(3, ncnn::Mat(0));
+    if (test_expanddims_load_param_case(pd, true) != 0)
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    pd = base;
+    pd.set(3, missing_data);
+    if (test_expanddims_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
     pd.set(3, ncnn::Mat(1, (size_t)1u));
     if (test_expanddims_load_param_case(pd, false) != 0)
         return -1;

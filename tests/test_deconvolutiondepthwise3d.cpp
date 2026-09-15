@@ -168,32 +168,42 @@ static int test_deconvolutiondepthwise3d_load_param()
 
     int ret = 0
               || test_deconvolutiondepthwise3d_load_param_activation(base, 0, ncnn::Mat(), true)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 0, ncnn::Mat(0), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 0, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 0, params.range(0, 1), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 1, ncnn::Mat(), true)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 1, ncnn::Mat(0), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 1, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 1, params.range(0, 1), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 2, ncnn::Mat(), false)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 2, ncnn::Mat(0), false)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 2, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 2, params.range(0, 1), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 3, ncnn::Mat(), false)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 3, ncnn::Mat(0), false)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 3, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 3, params.range(0, 1), false)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 4, ncnn::Mat(), true)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 4, ncnn::Mat(0), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 4, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 4, params.range(0, 1), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 5, ncnn::Mat(), true)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 5, ncnn::Mat(0), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 5, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 5, params.range(0, 1), true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 6, ncnn::Mat(), false)
+              || test_deconvolutiondepthwise3d_load_param_activation(base, 6, ncnn::Mat(0), false)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 6, params, true)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 6, params.range(0, 1), false)
               || test_deconvolutiondepthwise3d_load_param_activation(base, 7, ncnn::Mat(), false);
     if (ret != 0)
         return ret;
 
-    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4)};
-    for (int i = 0; i < 4; i++)
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
+    for (int i = 0; i < 5; i++)
     {
         ncnn::ParamDict pd = base;
         pd.set(10, bad[i]);

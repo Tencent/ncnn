@@ -4,6 +4,7 @@
 #include "testutil.h"
 
 #include "layer_type.h"
+#include "datareader.h"
 
 static int test_priorbox_caffe()
 {
@@ -133,11 +134,89 @@ static int test_priorbox_load_param()
     if (test_priorbox_load_param_case(pd, true) != 0)
         return -1;
 
+    const ncnn::ParamDict base = pd;
+
+    pd = base;
+    pd.set(1, ncnn::Mat(0));
+    if (test_priorbox_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(2, ncnn::Mat(0));
+    if (test_priorbox_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd.set(1, ncnn::Mat(0));
+    if (test_priorbox_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd.set(0, ncnn::Mat(0));
+    if (test_priorbox_load_param_case(pd, false) != 0)
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    pd = base;
+    pd.set(0, missing_data);
+    if (test_priorbox_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(1, missing_data);
+    if (test_priorbox_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(2, missing_data);
+    if (test_priorbox_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
     pd.set(1, sizes.range(0, 1));
     if (test_priorbox_load_param_case(pd, false) != 0)
         return -1;
 
     return 0;
+}
+
+class PriorBoxParamDict : public ncnn::ParamDict
+{
+public:
+    using ncnn::ParamDict::load_param;
+    using ncnn::ParamDict::load_param_bin;
+};
+
+static int test_priorbox_load_param_serialized()
+{
+    PriorBoxParamDict pd;
+#if NCNN_STRING
+    const unsigned char* text = (const unsigned char*)"-23300=1,1.0 -23301=0 -23302=0";
+    ncnn::DataReaderFromMemory text_reader(text);
+    if (pd.load_param(text_reader) != 0)
+        return -1;
+
+    if (test_priorbox_load_param_case(pd, true) != 0)
+        return -1;
+#endif
+
+    // binary parameters use little-endian byte order
+    const unsigned char binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x80, 0x3f,
+        0xfb, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0xfa, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    const unsigned char* data = binary;
+    ncnn::DataReaderFromMemory binary_reader(data);
+    if (pd.load_param_bin(binary_reader) != 0)
+        return -1;
+
+    return test_priorbox_load_param_case(pd, true);
 }
 
 int main()
@@ -147,5 +226,6 @@ int main()
     return 0
            || test_priorbox_caffe()
            || test_priorbox_mxnet()
-           || test_priorbox_load_param();
+           || test_priorbox_load_param()
+           || test_priorbox_load_param_serialized();
 }

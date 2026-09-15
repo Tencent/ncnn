@@ -22,7 +22,7 @@ int Tile::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((repeats.dims != 0 || repeats.w != 0 || repeats.data) && (repeats.dims != 1 || repeats.w <= 0 || repeats.elempack != 1 || repeats.elemsize != 4u || !repeats.data))
+        if ((repeats.dims != 0 || repeats.w != 0 || repeats.data) && (repeats.dims != 1 || repeats.w < 0 || repeats.elempack != 1 || repeats.elemsize != 4u || (repeats.w > 0 && !repeats.data)))
             return -1;
     }
 

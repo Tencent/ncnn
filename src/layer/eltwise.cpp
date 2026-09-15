@@ -21,7 +21,7 @@ int Eltwise::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w <= 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || !coeffs.data))
+        if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w < 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || (coeffs.w > 0 && !coeffs.data)))
             return -1;
     }
 

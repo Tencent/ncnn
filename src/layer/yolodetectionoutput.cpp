@@ -29,7 +29,7 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w <= 0 || biases.elempack != 1 || biases.elemsize != 4u || !biases.data))
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
             return -1;
     }
 

@@ -21,7 +21,7 @@ int Einsum::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((equation_mat.dims != 0 || equation_mat.w != 0 || equation_mat.data) && (equation_mat.dims != 1 || equation_mat.w <= 0 || equation_mat.elempack != 1 || equation_mat.elemsize != 4u || !equation_mat.data))
+        if ((equation_mat.dims != 0 || equation_mat.w != 0 || equation_mat.data) && (equation_mat.dims != 1 || equation_mat.w < 0 || equation_mat.elempack != 1 || equation_mat.elemsize != 4u || (equation_mat.w > 0 && !equation_mat.data)))
             return -1;
     }
 

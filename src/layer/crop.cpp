@@ -41,7 +41,7 @@ int Crop::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((starts.dims != 0 || starts.w != 0 || starts.data) && (starts.dims != 1 || starts.w <= 0 || starts.elempack != 1 || starts.elemsize != 4u || !starts.data))
+        if ((starts.dims != 0 || starts.w != 0 || starts.data) && (starts.dims != 1 || starts.w < 0 || starts.elempack != 1 || starts.elemsize != 4u || (starts.w > 0 && !starts.data)))
             return -1;
     }
 
@@ -50,7 +50,7 @@ int Crop::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((ends.dims != 0 || ends.w != 0 || ends.data) && (ends.dims != 1 || ends.w <= 0 || ends.elempack != 1 || ends.elemsize != 4u || !ends.data))
+        if ((ends.dims != 0 || ends.w != 0 || ends.data) && (ends.dims != 1 || ends.w < 0 || ends.elempack != 1 || ends.elemsize != 4u || (ends.w > 0 && !ends.data)))
             return -1;
     }
 
@@ -59,7 +59,7 @@ int Crop::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
             return -1;
     }
 

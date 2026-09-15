@@ -169,6 +169,42 @@ static int test_yolov3detectionoutput_load_param()
     if (test_yolov3detectionoutput_load_param_case(pd, true) != 0)
         return -1;
 
+    const ncnn::ParamDict base = pd;
+
+    pd = base;
+    pd.set(4, ncnn::Mat(0));
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(5, ncnn::Mat(0));
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(6, ncnn::Mat(0));
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    pd = base;
+    pd.set(4, missing_data);
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(5, missing_data);
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
+    pd.set(6, missing_data);
+    if (test_yolov3detectionoutput_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
     const float invalid[] = {-1.f, 0.5f, 1.f, (float)INT_MAX};
     for (int i = 0; i < 4; i++)
     {

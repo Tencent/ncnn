@@ -24,7 +24,7 @@ int Squeeze::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w <= 0 || axes.elempack != 1 || axes.elemsize != 4u || !axes.data))
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
             return -1;
     }
 

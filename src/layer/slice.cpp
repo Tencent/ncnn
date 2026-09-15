@@ -20,7 +20,7 @@ int Slice::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((slices.dims != 0 || slices.w != 0 || slices.data) && (slices.dims != 1 || slices.w <= 0 || slices.elempack != 1 || slices.elemsize != 4u || !slices.data))
+        if ((slices.dims != 0 || slices.w != 0 || slices.data) && (slices.dims != 1 || slices.w < 0 || slices.elempack != 1 || slices.elemsize != 4u || (slices.w > 0 && !slices.data)))
             return -1;
     }
 
@@ -29,7 +29,7 @@ int Slice::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5)
             return -1;
 
-        if ((indices.dims != 0 || indices.w != 0 || indices.data) && (indices.dims != 1 || indices.w <= 0 || indices.elempack != 1 || indices.elemsize != 4u || !indices.data))
+        if ((indices.dims != 0 || indices.w != 0 || indices.data) && (indices.dims != 1 || indices.w < 0 || indices.elempack != 1 || indices.elemsize != 4u || (indices.w > 0 && !indices.data)))
             return -1;
     }
 

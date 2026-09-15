@@ -39,7 +39,7 @@ int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w <= 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || !activation_params.data))
+        if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
             return -1;
     }
 

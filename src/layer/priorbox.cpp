@@ -35,7 +35,7 @@ int PriorBox::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w <= 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || !min_sizes.data))
+        if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w < 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || (min_sizes.w > 0 && !min_sizes.data)))
             return -1;
     }
 
@@ -44,7 +44,7 @@ int PriorBox::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w <= 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || !max_sizes.data))
+        if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w < 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || (max_sizes.w > 0 && !max_sizes.data)))
             return -1;
     }
 
@@ -53,7 +53,7 @@ int PriorBox::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w <= 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || !aspect_ratios.data))
+        if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w < 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || (aspect_ratios.w > 0 && !aspect_ratios.data)))
             return -1;
     }
 

@@ -214,6 +214,29 @@ static int test_flip_load_param()
         return -1;
 
     ncnn::ParamDict pd = base;
+    pd.set(0, ncnn::Mat(0));
+    if (test_flip_load_param_case(pd, true) != 0)
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    pd = base;
+    pd.set(0, missing_data);
+    if (test_flip_load_param_case(pd, false) != 0)
+        return -1;
+
+    ncnn::Mat negative_length(0);
+    negative_length.w = -1;
+    pd.set(0, negative_length);
+    if (test_flip_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd.set(0, ncnn::Mat(0, (size_t)1u));
+    if (test_flip_load_param_case(pd, false) != 0)
+        return -1;
+
+    pd = base;
     pd.set(0, ncnn::Mat(1, (size_t)1u));
     if (test_flip_load_param_case(pd, false) != 0)
         return -1;
@@ -255,6 +278,14 @@ static int test_flip_load_param_serialized()
 
     if (test_flip_load_param_case(typed, false) != 0)
         return -1;
+
+    const unsigned char* empty_text = (const unsigned char*)"-23300=0";
+    ncnn::DataReaderFromMemory empty_text_reader(empty_text);
+    if (typed.load_param(empty_text_reader) != 0)
+        return -1;
+
+    if (test_flip_load_param_case(typed, true) != 0)
+        return -1;
 #endif
     // binary parameters use little-endian byte order
     const unsigned char binary[] = {
@@ -266,6 +297,19 @@ static int test_flip_load_param_serialized()
     const unsigned char* data = binary;
     ncnn::DataReaderFromMemory binary_reader(data);
     if (typed.load_param_bin(binary_reader) != 0)
+        return -1;
+
+    if (test_flip_load_param_case(typed, true) != 0)
+        return -1;
+
+    const unsigned char empty_binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    data = empty_binary;
+    ncnn::DataReaderFromMemory empty_binary_reader(data);
+    if (typed.load_param_bin(empty_binary_reader) != 0)
         return -1;
 
     if (test_flip_load_param_case(typed, true) != 0)

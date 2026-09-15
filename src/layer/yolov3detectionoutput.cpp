@@ -45,7 +45,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w <= 0 || biases.elempack != 1 || biases.elemsize != 4u || !biases.data))
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
             return -1;
     }
 
@@ -55,7 +55,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w <= 0 || mask.elempack != 1 || mask.elemsize != 4u || !mask.data))
+        if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w < 0 || mask.elempack != 1 || mask.elemsize != 4u || (mask.w > 0 && !mask.data)))
             return -1;
     }
 
@@ -64,7 +64,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         if (type != 0 && type != 4 && type != 5 && type != 6)
             return -1;
 
-        if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w <= 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || !anchors_scale.data))
+        if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w < 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || (anchors_scale.w > 0 && !anchors_scale.data)))
             return -1;
     }
 
