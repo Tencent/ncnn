@@ -381,26 +381,8 @@ static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, 
     return test_innerproduct_load_param_case(pd, valid);
 }
 
-#if NCNN_STRING
-class InnerProductParamDict : public ncnn::ParamDict
+static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float expected)
 {
-public:
-    using ncnn::ParamDict::load_param;
-};
-
-static int test_innerproduct_param_text(float value, float expected)
-{
-    InnerProductParamDict pd;
-    const unsigned char* text = (const unsigned char*)"0=8 2=64 9=3 -23310=2,-1,2";
-    ncnn::DataReaderFromMemory reader(text);
-    if (pd.load_param(reader) != 0)
-        return -1;
-
-    if (test_innerproduct_load_param_case(pd, true) != 0)
-        return -1;
-
-    pd.set(0, 1);
-    pd.set(2, 1);
     if (test_innerproduct_load_param_case(pd, true) != 0)
         return -1;
 
@@ -418,9 +400,37 @@ static int test_innerproduct_param_text(float value, float expected)
         ret = CompareMat(reference, b, 0.f);
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct_param_text failed value=%f expected=%f ret=%d\n", value, expected, ret);
+        fprintf(stderr, "test_innerproduct_param failed value=%f expected=%f ret=%d\n", value, expected, ret);
         return ret;
     }
+
+    return 0;
+}
+
+class InnerProductParamDict : public ncnn::ParamDict
+{
+public:
+    using ncnn::ParamDict::load_param;
+    using ncnn::ParamDict::load_param_bin;
+};
+
+#if NCNN_STRING
+static int test_innerproduct_param_text(float value, float expected)
+{
+    InnerProductParamDict pd;
+    const unsigned char* text = (const unsigned char*)"0=8 2=64 9=3 -23310=2,-1,2";
+    ncnn::DataReaderFromMemory reader(text);
+    if (pd.load_param(reader) != 0)
+        return -1;
+
+    if (test_innerproduct_load_param_case(pd, true) != 0)
+        return -1;
+
+    pd.set(0, 1);
+    pd.set(2, 1);
+    int ret = test_innerproduct_param(pd, value, expected);
+    if (ret != 0)
+        return ret;
 
     const ncnn::Mat original = pd.get(10, ncnn::Mat());
     const int* p = original;
@@ -443,6 +453,51 @@ static int test_innerproduct_param_text()
 #else
     return 0;
 #endif
+}
+
+static int test_innerproduct_load_param_binary()
+{
+    // ncnn2mem output for 0=1 2=1 9=3 -23310=2,-1.0,2.0 in little-endian byte order
+    const unsigned char binary[] = {
+        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x09, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0xf2, 0xa4, 0xff, 0xff, 0x02, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x40,
+        0x17, 0xff, 0xff, 0xff
+    };
+    const unsigned char* data = binary;
+    ncnn::DataReaderFromMemory reader(data);
+    InnerProductParamDict pd;
+    if (pd.load_param_bin(reader) != 0)
+        return -1;
+
+    int ret = 0
+              || test_innerproduct_param(pd, 3.f, 2.f)
+              || test_innerproduct_param(pd, -3.f, -1.f);
+    if (ret != 0)
+        return ret;
+
+    // binary arrays preserve bits without retaining the text integer type
+    const unsigned char integer_binary[] = {
+        0xf2, 0xa4, 0xff, 0xff, 0x02, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0x02, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    data = integer_binary;
+    ncnn::DataReaderFromMemory integer_reader(data);
+    if (pd.load_param_bin(integer_reader) != 0)
+        return -1;
+
+    const ncnn::Mat params = pd.get(10, ncnn::Mat());
+    const unsigned int expected_bits[] = {0xffffffffu, 0x00000002u};
+    if (pd.type(10) != 4 || params.w != 2 || params.empty() || memcmp(params.data, expected_bits, sizeof(expected_bits)) != 0)
+    {
+        fprintf(stderr, "test_innerproduct_load_param_binary changed untyped array bits\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 static int test_innerproduct_load_param()
@@ -520,7 +575,8 @@ int main()
            || test_innerproduct_6()
            || test_innerproduct_7()
            || test_innerproduct_load_param()
-           || test_innerproduct_param_text();
+           || test_innerproduct_param_text()
+           || test_innerproduct_load_param_binary();
 #else
     return 0
            || test_innerproduct_0()
@@ -529,6 +585,7 @@ int main()
            || test_innerproduct_3()
            || test_innerproduct_5()
            || test_innerproduct_load_param()
-           || test_innerproduct_param_text();
+           || test_innerproduct_param_text()
+           || test_innerproduct_load_param_binary();
 #endif
 }

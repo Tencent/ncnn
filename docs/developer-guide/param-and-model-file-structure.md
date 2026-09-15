@@ -54,6 +54,10 @@ Keep floating-point spellings when converting models with `ncnn2mem`: binary sca
 
 Use a decimal point or exponent for every element of a floating-point array, including integral values, for example `-23303=2,1.0,2.0`. Mixed integer and float element spellings within an array are not defined by the format.
 
+This also matters when using `ncnn2mem`. Some layers convert integer text arrays to floating-point values during `load_param`, but `ncnn2mem` writes the array element bits without that conversion. Binary arrays do not retain integer/float type tags, so the layer cannot recover the original text element type. For example, write activation parameters as `-23310=2,-1.0,2.0`, not `-23310=2,-1,2`, when converting to binary. The latter preserves integer bit patterns rather than the intended floating-point values.
+
+Keep integer arrays, such as axes and slice indices, in integer form. Legacy YOLO mask arrays also use integer spellings to preserve float bit patterns. Converting every integer array numerically to floats would corrupt these parameters.
+
 A zero-length array such as `-23300=0` explicitly supplies an empty array. Array getters return that empty array even when a nonempty default is supplied; omitting the parameter returns the default.
 
 In modern ncnn param file
