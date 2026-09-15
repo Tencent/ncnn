@@ -88,6 +88,24 @@ static int test_spectrogram_load_param()
     pd.set(2, 1); // a one-sample FFT is valid with an explicit hop length
     if (test_spectrogram_load_param_case(pd, true) != 0)
         return -1;
+
+    if (sizeof(size_t) == 4)
+    {
+        // window allocation overflows on 32-bit platforms
+        const int n_ffts[] = {0x40000001, 0x40000000, 0x3fffffff, INT_MAX};
+        for (int i = 0; i < 4; i++)
+        {
+            for (int normalized = 0; normalized <= 2; normalized++)
+            {
+                pd = base;
+                pd.set(0, n_ffts[i]);
+                pd.set(7, normalized);
+                if (test_spectrogram_load_param_case(pd, false) != 0)
+                    return -1;
+            }
+        }
+    }
+
     return 0;
 }
 

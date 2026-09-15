@@ -30,6 +30,11 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
     if (hoplen <= 0 || window_type < 0 || window_type > 2 || normalized < 0 || normalized > 2 || (normalized == 2 && n_fft == INT_MAX))
         return -1;
 
+    // leave room for Mat alignment, the reference count and fastMalloc overhead
+    const size_t max_window_size = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
+    if ((size_t)n_fft + (normalized == 2 ? 1 : 0) > max_window_size)
+        return -1;
+
     // generate window
     window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
     if (window_data.empty())
