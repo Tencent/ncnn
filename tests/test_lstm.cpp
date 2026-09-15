@@ -643,6 +643,7 @@ static int test_lstm_7()
 }
 #endif
 
+#if NCNN_VALIDATION
 static int test_lstm_load_param()
 {
     ncnn::ParamDict base;
@@ -664,28 +665,25 @@ static int test_lstm_load_param()
            || test_layer_param(ncnn::LayerType::LSTM, base, 3, 0, -1)
            || test_layer_param(ncnn::LayerType::LSTM, base, 3, INT_MAX, -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_INT8
     return 0
            || test_lstm_0()
            || test_lstm_1()
            || test_lstm_2()
            || test_lstm_3()
+#if NCNN_INT8
            || test_lstm_4()
            || test_lstm_5()
            || test_lstm_6()
            || test_lstm_7()
-           || test_lstm_load_param();
-#else
-    return 0
-           || test_lstm_0()
-           || test_lstm_1()
-           || test_lstm_2()
-           || test_lstm_3()
-           || test_lstm_load_param();
-#endif
+#endif // NCNN_INT8
+#if NCNN_VALIDATION
+           || test_lstm_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

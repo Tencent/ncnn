@@ -66,6 +66,7 @@ static int test_pixelshuffle_2()
            || test_pixelshuffle(RandomMat(5, 3, 64), 4, 1);
 }
 
+#if NCNN_VALIDATION
 static int test_pixelshuffle_load_param()
 {
     ncnn::ParamDict base;
@@ -104,10 +105,19 @@ static int test_pixelshuffle_load_param_type()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_pixelshuffle_0() || test_pixelshuffle_1() || test_pixelshuffle_2() || test_pixelshuffle_load_param() || test_pixelshuffle_load_param_type();
+    return 0
+           || test_pixelshuffle_0()
+           || test_pixelshuffle_1()
+           || test_pixelshuffle_2()
+#if NCNN_VALIDATION
+           || test_pixelshuffle_load_param()
+           || test_pixelshuffle_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

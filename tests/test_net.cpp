@@ -217,41 +217,7 @@ static int check_binary(const char* name, const std::vector<unsigned char>& data
     return 0;
 }
 
-static int test_text_errors()
-{
-    const char* cases[] = {
-        "", "7767517", "7767517\n0 1\n", "7767517\n1 -1\n",
-        "7767517\n2147483647 1\n", "7767517\n1 2147483647\n",
-        "7767517\n1000001 1\n", "7767517\n1 1000001\n",
-        "7767517\n1 1\nTest t 1000001 0\n", "7767517\n1 1\nTest t 0 1000001\n",
-        "7767517\n4294967297 1\nTest t 0 1 out\n",
-        "7767517\n1 1\nTest t -1 1 out\n", "7767517\n1 1\nTest t 0 -1\n",
-        "7767517\n1 1\nTest t 2147483647 1\n", "7767517\n1 1\nTest t 0 2147483647\n",
-        "7767517\n1 1\nTest t 0 4294967297 out\n",
-        "7767517\n1x 1\nTest t 0 1 out\n",
-        "7767517\n1 1\nTest t 0 1x out\n",
-        "7767517\n1 1\nTest t 1 1 in out\n",
-        "7767517\n1 1\nTest t 2 0 in in2\n",
-        "7767517\n1 1\nTest t 0 2 out out2\n",
-        "7767517\n1 1\nTest t 1 0", "7767517\n1 1\nTest t 0 1",
-        "7767517\n2 1\nTest t 0 1 out\n",
-        "7767517\n1 1\nTest t 0 1 out 0=1,,2\n",
-        "7767517\n1 1\nTest t 0 1 out 31=1.0\n",
-        "7767517\n1 1\nTest t 0 1 out 31=1,2\n",
-        // missing bottom name checks builtin override cleanup after a truncated connection
-        "7767517\n1 1\nInput t 1 0",
-        "7767517\n1 1\nInput t 0 1 out 0=1,,2\n"
-    };
-    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
-    {
-        if (check_text(cases[i], -1))
-            return -1;
-    }
-
-    return 0;
-}
-
-static int test_binary_errors()
+static int test_binary_truncated()
 {
     const int custom = ncnn::LayerType::CustomBit;
     for (int builtin = 0; builtin < 2; builtin++)
@@ -276,45 +242,7 @@ static int test_binary_errors()
         if (check_binary(layer_name, valid, valid.size(), 0))
             return -1;
 
-        const int bad[] = {-1, INT_MIN, 2, INT_MAX};
-        for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
-        {
-            for (int bottom = 0; bottom < 2; bottom++)
-            {
-                std::vector<unsigned char> data = binary_header(1, 2);
-                append_layer_header(data, type, bottom, 1 - bottom);
-                append_int(data, bad[i]);
-                append_int(data, -233);
-                if (check_binary(layer_name, data, data.size(), -1))
-                {
-                    fprintf(stderr, "test_net blob index failed bottom=%d index=%d\n", bottom, bad[i]);
-                    return -1;
-                }
-            }
-        }
     }
-    const int bad_counts[] = {-1, INT_MIN, 1000001, INT_MAX};
-    for (size_t i = 0; i < sizeof(bad_counts) / sizeof(bad_counts[0]); i++)
-    {
-        for (int field = 0; field < 4; field++)
-        {
-            int counts[] = {1, 1, 0, 1};
-            counts[field] = bad_counts[i];
-            std::vector<unsigned char> data = binary_header(counts[0], counts[1]);
-            append_layer_header(data, custom, counts[2], counts[3]);
-            if (check_binary("header count", data, data.size(), -1))
-            {
-                fprintf(stderr, "test_net header count failed field=%d value=%d\n", field, bad_counts[i]);
-                return -1;
-            }
-        }
-    }
-    std::vector<unsigned char> data = binary_header(1, 1);
-    append_layer_header(data, -1, 0, 1);
-    append_int(data, 0);
-    append_int(data, -233);
-    if (check_binary("negative layer type", data, data.size(), -1))
-        return -1;
 
     return 0;
 }
@@ -332,10 +260,6 @@ static int test_binary_dependencies()
         int expected_ret;
     };
     const Case cases[] = {
-        {"self cycle", 1, 1, {custom, 1, 1, 0, 0, -233}, 6, -1},
-        {"two layer cycle", 2, 2, {custom, 1, 1, 1, 0, -233, custom, 1, 1, 0, 1, -233}, 12, -1},
-        {"disconnected cycle", 3, 3, {custom, 0, 1, 0, -233, custom, 1, 1, 2, 1, -233, custom, 1, 1, 1, 2, -233}, 17, -1},
-        {"reassigned producer cycle", 3, 2, {custom, 0, 1, 0, -233, custom, 1, 1, 0, 1, -233, custom, 1, 1, 1, 0, -233}, 17, -1},
         {"forward reference", 2, 2, {custom, 1, 1, 1, 0, -233, custom, 0, 1, 1, -233}, 11, 0},
         {"shared dependency", 4, 4, {custom, 2, 1, 1, 2, 0, -233, custom, 1, 1, 3, 1, -233, custom, 1, 1, 3, 2, -233, custom, 0, 1, 3, -233}, 24, 0},
         {"repeated dependency", 2, 2, {custom, 2, 1, 1, 1, 0, -233, custom, 0, 1, 1, -233}, 12, 0},
@@ -358,28 +282,25 @@ static int test_binary_dependencies()
     return 0;
 }
 
-static int test_binary_deep_dependencies()
+static int test_binary_deep_dependencies(int cyclic)
 {
     // only test that cycle detection handles deep graphs without recursive traversal
     const int layer_count = 16384;
-    for (int cyclic = 0; cyclic < 2; cyclic++)
+    std::vector<unsigned char> data;
+    append_int(data, 7767517);
+    append_int(data, layer_count);
+    append_int(data, layer_count + 1);
+    for (int i = 0; i < layer_count; i++)
     {
-        std::vector<unsigned char> data;
-        append_int(data, 7767517);
-        append_int(data, layer_count);
-        append_int(data, layer_count + 1);
-        for (int i = 0; i < layer_count; i++)
-        {
-            append_int(data, ncnn::LayerType::CustomBit);
-            append_int(data, 1);
-            append_int(data, 1);
-            append_int(data, cyclic && i == layer_count - 1 ? 0 : i + 1);
-            append_int(data, i);
-            append_int(data, -233);
-        }
-        if (check_binary(cyclic ? "deep cycle" : "deep chain", data, data.size(), cyclic ? -1 : 0))
-            return -1;
+        append_int(data, ncnn::LayerType::CustomBit);
+        append_int(data, 1);
+        append_int(data, 1);
+        append_int(data, cyclic && i == layer_count - 1 ? 0 : i + 1);
+        append_int(data, i);
+        append_int(data, -233);
     }
+    if (check_binary(cyclic ? "deep cycle" : "deep chain", data, data.size(), cyclic ? -1 : 0))
+        return -1;
 
     return 0;
 }
@@ -412,88 +333,6 @@ static int test_layer_load_param_error()
             }
         }
     }
-
-    return 0;
-}
-
-static int test_one_blob_only()
-{
-    const int counts[][2] = {{0, 1}, {1, 0}, {1, 2}, {2, 1}};
-    for (int binary = 0; binary < 2; binary++)
-    {
-        for (size_t i = 0; i < sizeof(counts) / sizeof(counts[0]); i++)
-        {
-            const int bottom_count = counts[i][0];
-            const int top_count = counts[i][1];
-            LayerState state;
-            state.one_blob_only = true;
-            ncnn::Net net;
-            net.register_custom_layer("Test", create_test_layer, destroy_test_layer, &state);
-
-            std::vector<unsigned char> data = binary_header(1, bottom_count + top_count);
-            append_layer_header(data, ncnn::LayerType::CustomBit, bottom_count, top_count);
-            for (int j = 0; j < bottom_count + top_count; j++) append_int(data, j);
-            append_int(data, -233);
-            const char* text[] = {
-                "7767517\n1 1\nTest t 0 1 out\n",
-                "7767517\n1 1\nTest t 1 0 in\n",
-                "7767517\n1 3\nTest t 1 2 in out out2\n",
-                "7767517\n1 3\nTest t 2 1 in in2 out\n"
-            };
-            int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text[i]);
-            if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
-            {
-                fprintf(stderr, "test_net one_blob_only failed binary=%d bottoms=%d tops=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, bottom_count, top_count, ret, state.created, state.destroyed, state.pipeline_destroyed);
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int test_shape_hint_errors()
-{
-    struct Case
-    {
-        const char* text;
-        int count;
-        int values[10];
-        int tops;
-    };
-    const Case cases[] = {
-        {"1,4", 1, {4}, 1},
-        {"3,3,7,6", 3, {3, 7, 6}, 1},
-        {"4,4,7,6,5", 4, {4, 7, 6, 5}, 1},
-        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 2},
-        {"4,5,7,6,5", 4, {5, 7, 6, 5}, 1},
-        {"4,-1,7,6,5", 4, {-1, 7, 6, 5}, 1},
-        {"4,3,-1,6,5", 4, {3, -1, 6, 5}, 1},
-        {"5,4,2147483647,2147483647,2147483647,1", 5, {4, INT_MAX, INT_MAX, INT_MAX, 1}, 1},
-        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1}
-    };
-    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
-    {
-        const Case& c = cases[i];
-        char text[512];
-        const char* top_names[] = {"", " out", " out out2"};
-        snprintf(text, sizeof(text), "7767517\n1 2\nTest t 0 %d%s -23330=%s\n", c.tops, top_names[c.tops], c.text);
-        if (check_text(text, -1))
-            return -1;
-
-        std::vector<unsigned char> data = binary_header(1, 2);
-        append_layer_header(data, ncnn::LayerType::CustomBit, 0, c.tops);
-        for (int j = 0; j < c.tops; j++) append_int(data, j);
-        append_int(data, -23330);
-        append_int(data, c.count);
-        for (int j = 0; j < c.count; j++) append_int(data, c.values[j]);
-        append_int(data, -233);
-        if (check_binary(c.text, data, data.size(), -1))
-            return -1;
-    }
-    if (check_text("7767517\n1 1\nTest t 0 1 out 30=4\n", -1)
-            || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1))
-        return -1;
 
     return 0;
 }
@@ -639,51 +478,23 @@ static int test_name_length()
     snprintf(text, sizeof(text), "7767517\n1 1\nTest %s 0 1 %s\n", name, name);
     if (check_text(text, 0))
         return -1;
-    name[255] = 'a';
-    name[256] = 0;
-    snprintf(text, sizeof(text), "7767517\n1 1\nTest %s 0 1 out\n", name);
-    if (check_text(text, -1))
-        return -1;
-    snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 1 %s\n", name);
-    if (check_text(text, -1))
-        return -1;
 
     return 0;
 }
 
-static int test_integer_length()
+static int test_integer_length(int length)
 {
-    for (int length = 30; length <= 32; length++)
-    {
-        char token[33];
-        memset(token, '0', length);
-        token[length - 1] = '1';
-        token[length] = 0;
-        char text[256];
-        snprintf(text, sizeof(text), "7767517\n%s 1\nTest t 0 1 out\n", token);
-        if (check_text(text, length <= 31 ? 0 : -1))
-            return -1;
-        snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 %s out\n", token);
-        if (check_text(text, length <= 31 ? 0 : -1))
-            return -1;
-    }
-
-    return 0;
-}
-
-static int test_custom_index_limit()
-{
-    ncnn::Net net;
-    const int indexes[] = {-1, 1000000 | ncnn::LayerType::CustomBit, INT_MAX};
-    for (size_t i = 0; i < sizeof(indexes) / sizeof(indexes[0]); i++)
-    {
-        int ret = net.register_custom_layer(indexes[i], create_null_layer);
-        if (ret != -1)
-        {
-            fprintf(stderr, "test_net custom layer index limit failed index=%d ret=%d\n", indexes[i], ret);
-            return -1;
-        }
-    }
+    char token[33];
+    memset(token, '0', length);
+    token[length - 1] = '1';
+    token[length] = 0;
+    char text[256];
+    snprintf(text, sizeof(text), "7767517\n%s 1\nTest t 0 1 out\n", token);
+    if (check_text(text, length <= 31 ? 0 : -1))
+        return -1;
+    snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 %s out\n", token);
+    if (check_text(text, length <= 31 ? 0 : -1))
+        return -1;
 
     return 0;
 }
@@ -694,8 +505,7 @@ static int test_repeated_blob_references()
     if (check_text("7767517\n1 1\nTest t 2 0 in in\n", 0))
         return -1;
     if (check_text("7767517\n1 2\nTest t 3 0 a a b\n", 0)
-            || check_text("7767517\n1 2\nTest t 3 0 a b a\n", 0)
-            || check_text("7767517\n1 1\nTest t 3 0 a a b\n", -1))
+            || check_text("7767517\n1 2\nTest t 3 0 a b a\n", 0))
         return -1;
 
     std::vector<unsigned char> data = binary_header(1, 1);
@@ -931,28 +741,6 @@ static int test_binary_layer_types()
     return 0;
 }
 
-static int test_binary_param_types()
-{
-    const int ids[] = {30, -23331};
-    for (int i = 0; i < 2; i++)
-    {
-        std::vector<unsigned char> data = binary_header(1, 1);
-        append_layer_header(data, ncnn::LayerType::CustomBit, 0, 1);
-        append_int(data, 0);
-        append_int(data, ids[i]);
-        append_int(data, 1);
-        if (i == 1) append_int(data, 1);
-        append_int(data, -233);
-        if (check_binary("parameter type", data, data.size(), -1))
-        {
-            fprintf(stderr, "test_net binary parameter type failed id=%d\n", ids[i]);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
 static int test_magic_mismatch()
 {
     for (int binary = 0; binary < 2; binary++)
@@ -1053,21 +841,278 @@ static int test_pipeline_lifecycle()
     return 0;
 }
 
+#if NCNN_VALIDATION
+static int test_text_errors()
+{
+    const char* cases[] = {
+        "7767517\n1 1\nTest t 3 0 a a b\n",
+        "", "7767517", "7767517\n0 1\n", "7767517\n1 -1\n",
+        "7767517\n2147483647 1\n", "7767517\n1 2147483647\n",
+        "7767517\n1000001 1\n", "7767517\n1 1000001\n",
+        "7767517\n1 1\nTest t 1000001 0\n", "7767517\n1 1\nTest t 0 1000001\n",
+        "7767517\n4294967297 1\nTest t 0 1 out\n",
+        "7767517\n1 1\nTest t -1 1 out\n", "7767517\n1 1\nTest t 0 -1\n",
+        "7767517\n1 1\nTest t 2147483647 1\n", "7767517\n1 1\nTest t 0 2147483647\n",
+        "7767517\n1 1\nTest t 0 4294967297 out\n",
+        "7767517\n1x 1\nTest t 0 1 out\n",
+        "7767517\n1 1\nTest t 0 1x out\n",
+        "7767517\n1 1\nTest t 1 1 in out\n",
+        "7767517\n1 1\nTest t 2 0 in in2\n",
+        "7767517\n1 1\nTest t 0 2 out out2\n",
+        "7767517\n1 1\nTest t 1 0", "7767517\n1 1\nTest t 0 1",
+        "7767517\n2 1\nTest t 0 1 out\n",
+        "7767517\n1 1\nTest t 0 1 out 0=1,,2\n",
+        "7767517\n1 1\nTest t 0 1 out 31=1.0\n",
+        "7767517\n1 1\nTest t 0 1 out 31=1,2\n",
+        // missing bottom name checks builtin override cleanup after a truncated connection
+        "7767517\n1 1\nInput t 1 0",
+        "7767517\n1 1\nInput t 0 1 out 0=1,,2\n"
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        if (check_text(cases[i], -1))
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_one_blob_only()
+{
+    const int counts[][2] = {{0, 1}, {1, 0}, {1, 2}, {2, 1}};
+    for (int binary = 0; binary < 2; binary++)
+    {
+        for (size_t i = 0; i < sizeof(counts) / sizeof(counts[0]); i++)
+        {
+            const int bottom_count = counts[i][0];
+            const int top_count = counts[i][1];
+            LayerState state;
+            state.one_blob_only = true;
+            ncnn::Net net;
+            net.register_custom_layer("Test", create_test_layer, destroy_test_layer, &state);
+
+            std::vector<unsigned char> data = binary_header(1, bottom_count + top_count);
+            append_layer_header(data, ncnn::LayerType::CustomBit, bottom_count, top_count);
+            for (int j = 0; j < bottom_count + top_count; j++) append_int(data, j);
+            append_int(data, -233);
+            const char* text[] = {
+                "7767517\n1 1\nTest t 0 1 out\n",
+                "7767517\n1 1\nTest t 1 0 in\n",
+                "7767517\n1 3\nTest t 1 2 in out out2\n",
+                "7767517\n1 3\nTest t 2 1 in in2 out\n"
+            };
+            int ret = binary ? load_binary(net, &data[0], data.size()) : net.load_param_mem(text[i]);
+            if (ret != -1 || !empty_net(net) || state.created != 1 || state.destroyed != 1 || state.pipeline_destroyed != 0)
+            {
+                fprintf(stderr, "test_net one_blob_only failed binary=%d bottoms=%d tops=%d ret=%d created=%d destroyed=%d pipelines=%d\n", binary, bottom_count, top_count, ret, state.created, state.destroyed, state.pipeline_destroyed);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_shape_hint_errors()
+{
+    struct Case
+    {
+        const char* text;
+        int count;
+        int values[10];
+        int tops;
+    };
+    const Case cases[] = {
+        {"1,4", 1, {4}, 1},
+        {"3,3,7,6", 3, {3, 7, 6}, 1},
+        {"4,4,7,6,5", 4, {4, 7, 6, 5}, 1},
+        {"5,3,7,6,1,5", 5, {3, 7, 6, 1, 5}, 2},
+        {"4,5,7,6,5", 4, {5, 7, 6, 5}, 1},
+        {"4,-1,7,6,5", 4, {-1, 7, 6, 5}, 1},
+        {"4,3,-1,6,5", 4, {3, -1, 6, 5}, 1},
+        {"5,4,2147483647,2147483647,2147483647,1", 5, {4, INT_MAX, INT_MAX, INT_MAX, 1}, 1},
+        {"4,3,2147483647,2147483647,2147483647", 4, {3, INT_MAX, INT_MAX, INT_MAX}, 1}
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const Case& c = cases[i];
+        char text[512];
+        const char* top_names[] = {"", " out", " out out2"};
+        snprintf(text, sizeof(text), "7767517\n1 2\nTest t 0 %d%s -23330=%s\n", c.tops, top_names[c.tops], c.text);
+        if (check_text(text, -1))
+            return -1;
+
+        std::vector<unsigned char> data = binary_header(1, 2);
+        append_layer_header(data, ncnn::LayerType::CustomBit, 0, c.tops);
+        for (int j = 0; j < c.tops; j++) append_int(data, j);
+        append_int(data, -23330);
+        append_int(data, c.count);
+        for (int j = 0; j < c.count; j++) append_int(data, c.values[j]);
+        append_int(data, -233);
+        if (check_binary(c.text, data, data.size(), -1))
+            return -1;
+    }
+    if (check_text("7767517\n1 1\nTest t 0 1 out 30=4\n", -1)
+            || check_text("7767517\n1 1\nTest t 0 1 out 30=3.0,7.0,6.0,5.0\n", -1))
+        return -1;
+
+    return 0;
+}
+
+static int test_custom_index_limit()
+{
+    ncnn::Net net;
+    const int indexes[] = {-1, 1000000 | ncnn::LayerType::CustomBit, INT_MAX};
+    for (size_t i = 0; i < sizeof(indexes) / sizeof(indexes[0]); i++)
+    {
+        int ret = net.register_custom_layer(indexes[i], create_null_layer);
+        if (ret != -1)
+        {
+            fprintf(stderr, "test_net custom layer index limit failed index=%d ret=%d\n", indexes[i], ret);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_binary_param_types()
+{
+    const int ids[] = {30, -23331};
+    for (int i = 0; i < 2; i++)
+    {
+        std::vector<unsigned char> data = binary_header(1, 1);
+        append_layer_header(data, ncnn::LayerType::CustomBit, 0, 1);
+        append_int(data, 0);
+        append_int(data, ids[i]);
+        append_int(data, 1);
+        if (i == 1) append_int(data, 1);
+        append_int(data, -233);
+        if (check_binary("parameter type", data, data.size(), -1))
+        {
+            fprintf(stderr, "test_net binary parameter type failed id=%d\n", ids[i]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_binary_errors()
+{
+    const int custom = ncnn::LayerType::CustomBit;
+    for (int builtin = 0; builtin < 2; builtin++)
+    {
+        const int type = builtin ? ncnn::LayerType::Input : custom;
+        const char* layer_name = builtin ? "overwritten layer" : "custom layer";
+        const int bad[] = {-1, INT_MIN, 2, INT_MAX};
+        for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
+        {
+            for (int bottom = 0; bottom < 2; bottom++)
+            {
+                std::vector<unsigned char> data = binary_header(1, 2);
+                append_layer_header(data, type, bottom, 1 - bottom);
+                append_int(data, bad[i]);
+                append_int(data, -233);
+                if (check_binary(layer_name, data, data.size(), -1))
+                {
+                    fprintf(stderr, "test_net blob index failed bottom=%d index=%d\n", bottom, bad[i]);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    const int bad_counts[] = {-1, INT_MIN, 1000001, INT_MAX};
+    for (size_t i = 0; i < sizeof(bad_counts) / sizeof(bad_counts[0]); i++)
+    {
+        for (int field = 0; field < 4; field++)
+        {
+            int counts[] = {1, 1, 0, 1};
+            counts[field] = bad_counts[i];
+            std::vector<unsigned char> data = binary_header(counts[0], counts[1]);
+            append_layer_header(data, custom, counts[2], counts[3]);
+            if (check_binary("header count", data, data.size(), -1))
+            {
+                fprintf(stderr, "test_net header count failed field=%d value=%d\n", field, bad_counts[i]);
+                return -1;
+            }
+        }
+    }
+    std::vector<unsigned char> data = binary_header(1, 1);
+    append_layer_header(data, -1, 0, 1);
+    append_int(data, 0);
+    append_int(data, -233);
+    if (check_binary("negative layer type", data, data.size(), -1))
+        return -1;
+
+    return 0;
+}
+
+static int test_binary_cycles()
+{
+    const int custom = ncnn::LayerType::CustomBit;
+    struct Case
+    {
+        const char* name;
+        int layers;
+        int blobs;
+        int values[24];
+        int count;
+        int expected_ret;
+    };
+    const Case cases[] = {
+        {"self cycle", 1, 1, {custom, 1, 1, 0, 0, -233}, 6, -1},
+        {"two layer cycle", 2, 2, {custom, 1, 1, 1, 0, -233, custom, 1, 1, 0, 1, -233}, 12, -1},
+        {"disconnected cycle", 3, 3, {custom, 0, 1, 0, -233, custom, 1, 1, 2, 1, -233, custom, 1, 1, 1, 2, -233}, 17, -1},
+        {"reassigned producer cycle", 3, 2, {custom, 0, 1, 0, -233, custom, 1, 1, 0, 1, -233, custom, 1, 1, 1, 0, -233}, 17, -1},
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const Case& c = cases[i];
+        std::vector<unsigned char> data;
+        append_int(data, 7767517);
+        append_int(data, c.layers);
+        append_int(data, c.blobs);
+        for (int j = 0; j < c.count; j++)
+            append_int(data, c.values[j]);
+
+        if (check_binary(c.name, data, data.size(), c.expected_ret))
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_name_length_invalid()
+{
+    char name[257];
+    memset(name, 'a', 256);
+    name[256] = 0;
+    char text[1024];
+    snprintf(text, sizeof(text), "7767517\n1 1\nTest %s 0 1 out\n", name);
+    if (check_text(text, -1))
+        return -1;
+    snprintf(text, sizeof(text), "7767517\n1 1\nTest t 0 1 %s\n", name);
+    if (check_text(text, -1))
+        return -1;
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     return 0
-           || test_text_errors()
-           || test_binary_errors()
+           || test_binary_truncated()
            || test_binary_dependencies()
-           || test_binary_deep_dependencies()
-           || test_shape_hint_errors()
+           || test_binary_deep_dependencies(0)
            || test_shape_hints()
            || test_layer_load_param_error()
-           || test_one_blob_only()
            || test_reload()
            || test_name_length()
-           || test_integer_length()
-           || test_custom_index_limit()
+           || test_integer_length(30)
+           || test_integer_length(31)
            || test_repeated_blob_references()
            || test_builtin_without_override()
            || test_null_creators()
@@ -1076,8 +1121,20 @@ int main()
            || test_recreate_layer_null_creator()
            || test_external_input()
            || test_binary_layer_types()
-           || test_binary_param_types()
            || test_magic_mismatch()
            || test_feature_mask()
-           || test_pipeline_lifecycle();
+           || test_pipeline_lifecycle()
+#if NCNN_VALIDATION
+           || test_text_errors()
+           || test_binary_errors()
+           || test_binary_cycles()
+           || test_binary_deep_dependencies(1)
+           || test_name_length_invalid()
+           || test_integer_length(32)
+           || test_shape_hint_errors()
+           || test_one_blob_only()
+           || test_custom_index_limit()
+           || test_binary_param_types()
+#endif // NCNN_VALIDATION
+           ;
 }

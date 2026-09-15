@@ -118,10 +118,12 @@ public:
     int load_param_bin(const unsigned char* mem);
 };
 
+#if NCNN_VALIDATION
 int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret = 0);
 
 int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, int value, int expected_ret);
 int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, float value, int expected_ret);
 int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret);
+#endif // NCNN_VALIDATION
 
 #endif // TESTUTIL_H

@@ -15,6 +15,7 @@ int Einsum::load_param(const ParamDict& pd)
 {
     Mat equation_mat = pd.get(0, Mat());
 
+#if NCNN_VALIDATION
     {
         const int equation_mat_type = pd.type(0);
         if (equation_mat_type != 0 && equation_mat_type != 4 && equation_mat_type != 5)
@@ -26,6 +27,7 @@ int Einsum::load_param(const ParamDict& pd)
 
     if (equation_mat.empty())
         return -1;
+#endif // NCNN_VALIDATION
 
     // validate character values before narrowing to char
     const int* p = equation_mat;
@@ -33,8 +35,10 @@ int Einsum::load_param(const ParamDict& pd)
     equation.resize(equation_mat.w);
     for (int i = 0; i < equation_mat.w; i++)
     {
+#if NCNN_VALIDATION
         if ((p[i] < 'i' || p[i] > 'x') && p[i] != ',' && p[i] != '-' && p[i] != '>')
             return -1;
+#endif // NCNN_VALIDATION
         equation[i] = (char)p[i];
     }
 
@@ -48,48 +52,64 @@ int Einsum::load_param(const ParamDict& pd)
     // keep parsed tokens local until the equation is valid
     std::vector<std::string> tokens;
     std::string token;
+#if NCNN_VALIDATION
     bool seen[16] = {false};
+#endif // NCNN_VALIDATION
     int arrow = -1;
     for (int i = 0; i < equation_mat.w; i++)
     {
         const char ch = equation[i];
         if (ch == ',' || ch == '-')
         {
+#if NCNN_VALIDATION
             if (token.empty() || token.size() > 4)
                 return -1;
+#endif // NCNN_VALIDATION
             tokens.push_back(token);
             token.clear();
             if (ch == '-')
             {
+#if NCNN_VALIDATION
                 if (i + 1 >= equation_mat.w || equation[i + 1] != '>')
                     return -1;
+#endif // NCNN_VALIDATION
                 arrow = i;
                 break;
             }
         }
         else
         {
+#if NCNN_VALIDATION
             if (ch < 'i' || ch > 'x')
                 return -1;
+#endif // NCNN_VALIDATION
             token.push_back(ch);
+#if NCNN_VALIDATION
             seen[ch - 'i'] = true;
+#endif // NCNN_VALIDATION
         }
     }
 
+#if NCNN_VALIDATION
     if (arrow < 0)
         return -1;
+#endif // NCNN_VALIDATION
 
     const int output_dims = equation_mat.w - arrow - 2;
+#if NCNN_VALIDATION
     if (output_dims < 1 || output_dims > 4)
         return -1;
+#endif // NCNN_VALIDATION
 
     // the implementation emits dimensions in the canonical i,j,k,l order
     std::string output;
     output.resize(output_dims);
     for (int i = 0; i < output_dims; i++)
     {
+#if NCNN_VALIDATION
         if (equation[arrow + 2 + i] != 'i' + i || !seen[i])
             return -1;
+#endif // NCNN_VALIDATION
         output[i] = equation[arrow + 2 + i];
     }
 

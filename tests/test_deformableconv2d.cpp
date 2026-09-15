@@ -146,6 +146,7 @@ static int test_deformableconv2d_0()
            || test_deformableconv2d(7, 5, 32, 26, 4, 2, 2, 2, 1);
 }
 
+#if NCNN_VALIDATION
 static int test_deformableconv2d_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
@@ -223,10 +224,16 @@ static int test_deformableconv2d_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_deformableconv2d_0() || test_deformableconv2d_load_param();
+    return 0
+           || test_deformableconv2d_0()
+#if NCNN_VALIDATION
+           || test_deformableconv2d_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

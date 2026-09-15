@@ -370,6 +370,7 @@ static int test_binaryop_6()
     return 0;
 }
 
+#if NCNN_VALIDATION
 static int test_binaryop_load_param()
 {
     ncnn::ParamDict base;
@@ -391,6 +392,7 @@ static int test_binaryop_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -410,5 +412,9 @@ int main()
             return ret;
     }
 
-    return test_binaryop_load_param();
+    return 0
+#if NCNN_VALIDATION
+           || test_binaryop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -15,6 +15,7 @@ int Slice::load_param(const ParamDict& pd)
     axis = pd.get(1, 0);
     indices = pd.get(2, Mat());
 
+#if NCNN_VALIDATION
     if (axis < -4 || axis > 3)
         return -1;
 
@@ -42,6 +43,7 @@ int Slice::load_param(const ParamDict& pd)
         if (slices_ptr[i] <= 0 && slices_ptr[i] != -233)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

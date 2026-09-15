@@ -345,20 +345,8 @@ static int test_innerproduct_7()
 }
 #endif // NCNN_INT8
 
-static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
+static int test_innerproduct_activation_params(const ncnn::ParamDict& pd, float value, float expected)
 {
-    ncnn::ParamDict pd = base;
-    pd.set(9, activation_type);
-    pd.set(10, activation_params);
-
-    return test_layer_param(ncnn::LayerType::InnerProduct, pd, expected_ret);
-}
-
-static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float expected)
-{
-    if (test_layer_param(ncnn::LayerType::InnerProduct, pd, 0) != 0)
-        return -1;
-
     std::vector<ncnn::Mat> weights(1);
     weights[0].create(1);
     weights[0][0] = 1.f;
@@ -373,7 +361,7 @@ static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float
         ret = CompareMat(reference, b, 0.f);
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct_param failed value=%f expected=%f ret=%d\n", value, expected, ret);
+        fprintf(stderr, "test_innerproduct_activation_params failed value=%f expected=%f ret=%d\n", value, expected, ret);
         return ret;
     }
 
@@ -381,18 +369,15 @@ static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float
 }
 
 #if NCNN_STRING
-static int test_innerproduct_param_text(float value, float expected)
+static int test_innerproduct_activation_params_text(float value, float expected)
 {
     TestParamDict pd;
     if (pd.load_param("0=8 2=64 9=3 -23310=2,-1,2") != 0)
         return -1;
 
-    if (test_layer_param(ncnn::LayerType::InnerProduct, pd, 0) != 0)
-        return -1;
-
     pd.set(0, 1);
     pd.set(2, 1);
-    int ret = test_innerproduct_param(pd, value, expected);
+    int ret = test_innerproduct_activation_params(pd, value, expected);
     if (ret != 0)
         return ret;
 
@@ -400,7 +385,7 @@ static int test_innerproduct_param_text(float value, float expected)
     const int* p = original;
     if (p[0] != -1 || p[1] != 2)
     {
-        fprintf(stderr, "test_innerproduct_param_text modified params=[%d,%d]\n", p[0], p[1]);
+        fprintf(stderr, "test_innerproduct_activation_params_text modified params=[%d,%d]\n", p[0], p[1]);
         return -1;
     }
 
@@ -408,18 +393,18 @@ static int test_innerproduct_param_text(float value, float expected)
 }
 #endif
 
-static int test_innerproduct_param_text()
+static int test_innerproduct_activation_params_text()
 {
 #if NCNN_STRING
     return 0
-           || test_innerproduct_param_text(3.f, 2.f)
-           || test_innerproduct_param_text(-3.f, -1.f);
+           || test_innerproduct_activation_params_text(3.f, 2.f)
+           || test_innerproduct_activation_params_text(-3.f, -1.f);
 #else
     return 0;
 #endif
 }
 
-static int test_innerproduct_load_param_binary()
+static int test_innerproduct_activation_params_binary()
 {
     // ncnn2mem output for 0=1 2=1 9=3 -23310=2,-1.0,2.0 in little-endian byte order
     const unsigned char binary[] = {
@@ -435,8 +420,8 @@ static int test_innerproduct_load_param_binary()
         return -1;
 
     int ret = 0
-              || test_innerproduct_param(pd, 3.f, 2.f)
-              || test_innerproduct_param(pd, -3.f, -1.f);
+              || test_innerproduct_activation_params(pd, 3.f, 2.f)
+              || test_innerproduct_activation_params(pd, -3.f, -1.f);
     if (ret != 0)
         return ret;
 
@@ -453,11 +438,21 @@ static int test_innerproduct_load_param_binary()
     const unsigned int expected_bits[] = {0xffffffffu, 0x00000002u};
     if (pd.type(10) != 4 || params.w != 2 || params.empty() || memcmp(params.data, expected_bits, sizeof(expected_bits)) != 0)
     {
-        fprintf(stderr, "test_innerproduct_load_param_binary changed untyped array bits\n");
+        fprintf(stderr, "test_innerproduct_activation_params_binary changed untyped array bits\n");
         return -1;
     }
 
     return 0;
+}
+
+#if NCNN_VALIDATION
+static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    return test_layer_param(ncnn::LayerType::InnerProduct, pd, expected_ret);
 }
 
 static int test_innerproduct_load_param()
@@ -518,32 +513,66 @@ static int test_innerproduct_load_param()
     return 0;
 }
 
+static int test_innerproduct_load_param_text()
+{
+#if NCNN_STRING
+    TestParamDict pd;
+    if (pd.load_param("0=8 2=64 9=3 -23310=2,-1,2") != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::InnerProduct, pd, 0) != 0)
+        return -1;
+
+    pd.set(0, 1);
+    pd.set(2, 1);
+    return test_layer_param(ncnn::LayerType::InnerProduct, pd, 0);
+#else
+    return 0;
+#endif
+}
+
+static int test_innerproduct_load_param_binary()
+{
+    // ncnn2mem output for 0=1 2=1 9=3 -23310=2,-1.0,2.0 in little-endian byte order
+    const unsigned char binary[] = {
+        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x09, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0xf2, 0xa4, 0xff, 0xff, 0x02, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x40,
+        0x17, 0xff, 0xff, 0xff
+    };
+    TestParamDict pd;
+    if (pd.load_param_bin(binary) != 0)
+        return -1;
+
+    return test_layer_param(ncnn::LayerType::InnerProduct, pd, 0);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_INT8
     return 0
            || test_innerproduct_0()
            || test_innerproduct_1()
            || test_innerproduct_2()
            || test_innerproduct_3()
+#if NCNN_INT8
            || test_innerproduct_4()
+#endif // NCNN_INT8
            || test_innerproduct_5()
+#if NCNN_INT8
            || test_innerproduct_6()
            || test_innerproduct_7()
+#endif // NCNN_INT8
+           || test_innerproduct_activation_params_text()
+           || test_innerproduct_activation_params_binary()
+#if NCNN_VALIDATION
            || test_innerproduct_load_param()
-           || test_innerproduct_param_text()
-           || test_innerproduct_load_param_binary();
-#else
-    return 0
-           || test_innerproduct_0()
-           || test_innerproduct_1()
-           || test_innerproduct_2()
-           || test_innerproduct_3()
-           || test_innerproduct_5()
-           || test_innerproduct_load_param()
-           || test_innerproduct_param_text()
-           || test_innerproduct_load_param_binary();
-#endif
+           || test_innerproduct_load_param_text()
+           || test_innerproduct_load_param_binary()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -47,6 +47,7 @@ static int test_unfold_1()
            || test_unfold(32, 32, 16, 3, 2, 2, 1, 1, 1, -233, -233, 1.f);
 }
 
+#if NCNN_VALIDATION
 static int test_unfold_load_param()
 {
     ncnn::ParamDict base;
@@ -67,10 +68,17 @@ static int test_unfold_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_unfold_0() || test_unfold_1() || test_unfold_load_param();
+    return 0
+           || test_unfold_0()
+           || test_unfold_1()
+#if NCNN_VALIDATION
+           || test_unfold_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

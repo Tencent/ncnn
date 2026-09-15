@@ -25,6 +25,7 @@ int Spectrogram::load_param(const ParamDict& pd)
     normalized = pd.get(7, 0);
     onesided = pd.get(8, 1);
 
+#if NCNN_VALIDATION
     if (power < 0 || power > 2)
         return -1;
 
@@ -41,6 +42,7 @@ int Spectrogram::load_param(const ParamDict& pd)
     const size_t max_window_size = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
     if ((size_t)n_fft + (normalized == 2 ? 1 : 0) > max_window_size)
         return -1;
+#endif // NCNN_VALIDATION
 
     // generate window
     window_data.create(normalized == 2 ? n_fft + 1 : n_fft);

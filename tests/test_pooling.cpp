@@ -246,6 +246,7 @@ static int test_pooling_4()
            || test_pooling(13, 11, 16, 0, 1, 1, 0, 0, 0, 1, 0, 12);
 }
 
+#if NCNN_VALIDATION
 static int test_pooling_load_param()
 {
     ncnn::ParamDict base;
@@ -354,6 +355,7 @@ static int test_pooling_load_param_adaptive()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -365,7 +367,10 @@ int main()
            || test_pooling_2()
            || test_pooling_3()
            || test_pooling_4()
+#if NCNN_VALIDATION
            || test_pooling_load_param()
            || test_pooling_load_param_type()
-           || test_pooling_load_param_adaptive();
+           || test_pooling_load_param_adaptive()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -226,6 +226,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_tile_load_param()
 {
     ncnn::ParamDict base;
@@ -274,6 +275,7 @@ static int test_tile_load_param_axis()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -284,6 +286,9 @@ int main()
            || test_tile_1()
            || test_tile_2()
            || test_tile_3()
+#if NCNN_VALIDATION
            || test_tile_load_param()
-           || test_tile_load_param_axis();
+           || test_tile_load_param_axis()
+#endif // NCNN_VALIDATION
+           ;
 }

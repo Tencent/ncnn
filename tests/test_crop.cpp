@@ -262,6 +262,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_crop_load_param()
 {
     ncnn::ParamDict base;
@@ -295,6 +296,7 @@ static int test_crop_load_param()
            || test_layer_param(ncnn::LayerType::Crop, base, 11, param_int_array(1, INT_MIN), -1)
            || test_layer_param(ncnn::LayerType::Crop, base, 9, param_int_array(2, 0), -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -313,5 +315,8 @@ int main()
            || test_crop_9(RandomMat(20, 20, 20, 48))
            || test_crop_9(RandomMat(15, 15, 15, 36))
            || test_crop_9(RandomMat(16, 16, 16, 33))
-           || test_crop_load_param();
+#if NCNN_VALIDATION
+           || test_crop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

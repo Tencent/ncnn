@@ -21,6 +21,7 @@ int LSTM::load_param(const ParamDict& pd)
     hidden_size = pd.get(3, num_output);
     int8_scale_term = pd.get(8, 0);
 
+#if NCNN_VALIDATION
     if (num_output <= 0 || hidden_size <= 0)
         return -1;
 
@@ -31,6 +32,7 @@ int LSTM::load_param(const ParamDict& pd)
     const int rows = hidden_size * 4 * num_directions;
     if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
         return -1;
+#endif // NCNN_VALIDATION
 
     if (int8_scale_term)
     {

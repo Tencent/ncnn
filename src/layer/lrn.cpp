@@ -19,8 +19,10 @@ int LRN::load_param(const ParamDict& pd)
     beta = pd.get(3, 0.75f);
     bias = pd.get(4, 1.f);
 
+#if NCNN_VALIDATION
     if (region_type < NormRegion_ACROSS_CHANNELS || region_type > NormRegion_WITHIN_CHANNEL)
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

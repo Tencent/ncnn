@@ -325,6 +325,7 @@ int Gemm::load_param(const ParamDict& pd)
 #endif
     }
 
+#if NCNN_VALIDATION
     if (constantA == 1 && (constantM <= 0 || constantK <= 0))
         return -1;
 
@@ -336,6 +337,7 @@ int Gemm::load_param(const ParamDict& pd)
         NCNN_LOGE("constant_broadcast_type_C must be -1 or 0~4 when constantC enabled");
         return -1;
     }
+#endif // NCNN_VALIDATION
 
     if (constantA == 0 && constantB == 1 && constantC == 1)
         one_blob_only = true;

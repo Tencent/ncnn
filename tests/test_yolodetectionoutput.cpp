@@ -7,6 +7,7 @@
 
 #include <float.h>
 
+#if NCNN_VALIDATION
 static int test_yolodetectionoutput_load_param()
 {
     ncnn::ParamDict pd;
@@ -140,14 +141,18 @@ static int test_yolodetectionoutput_load_param_thresholds()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
     return 0
+#if NCNN_VALIDATION
            || test_yolodetectionoutput_load_param()
            || test_yolodetectionoutput_load_param_biases()
            || test_yolodetectionoutput_load_param_text()
-           || test_yolodetectionoutput_load_param_thresholds();
+           || test_yolodetectionoutput_load_param_thresholds()
+#endif // NCNN_VALIDATION
+           ;
 }

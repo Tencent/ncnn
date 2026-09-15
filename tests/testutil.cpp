@@ -2567,6 +2567,7 @@ int TestParamDict::load_param_bin(const unsigned char* mem)
     return ncnn::ParamDict::load_param_bin(dr);
 }
 
+#if NCNN_VALIDATION
 int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret)
 {
     ncnn::Layer* op = ncnn::create_layer_naive(typeindex);
@@ -2661,3 +2662,4 @@ int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const n
     }
     return ret;
 }
+#endif // NCNN_VALIDATION

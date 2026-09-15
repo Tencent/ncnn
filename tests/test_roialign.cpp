@@ -49,32 +49,6 @@ static int test_roialign_0()
            || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1);
 }
 
-static int test_roialign_load_param(int version, int sampling_ratio, int expected_ret)
-{
-    ncnn::ParamDict pd;
-    pd.set(0, 2);
-    pd.set(1, 2);
-    pd.set(5, version);
-    pd.set(3, sampling_ratio);
-
-    return test_layer_param(ncnn::LayerType::ROIAlign, pd, expected_ret);
-}
-
-static int test_roialign_load_param()
-{
-    const int sampling_ratios[] = {0, -1, -2, INT_MIN};
-    for (int version = 0; version < 2; version++)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            if (test_roialign_load_param(version, sampling_ratios[i], 0) != 0)
-                return -1;
-        }
-    }
-
-    return test_roialign_load_param(2, INT_MIN, -1);
-}
-
 static int test_roialign_adaptive(int version, bool aligned)
 {
     std::vector<ncnn::Mat> a(2);
@@ -125,15 +99,46 @@ static int test_roialign_adaptive(int version, bool aligned)
     return 0;
 }
 
+#if NCNN_VALIDATION
+static int test_roialign_load_param(int version, int sampling_ratio, int expected_ret)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 2);
+    pd.set(1, 2);
+    pd.set(5, version);
+    pd.set(3, sampling_ratio);
+
+    return test_layer_param(ncnn::LayerType::ROIAlign, pd, expected_ret);
+}
+
+static int test_roialign_load_param()
+{
+    const int sampling_ratios[] = {0, -1, -2, INT_MIN};
+    for (int version = 0; version < 2; version++)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (test_roialign_load_param(version, sampling_ratios[i], 0) != 0)
+                return -1;
+        }
+    }
+
+    return test_roialign_load_param(2, INT_MIN, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
     return 0
            || test_roialign_0()
-           || test_roialign_load_param()
            || test_roialign_adaptive(0, false)
            || test_roialign_adaptive(0, true)
            || test_roialign_adaptive(1, false)
-           || test_roialign_adaptive(1, true);
+           || test_roialign_adaptive(1, true)
+#if NCNN_VALIDATION
+           || test_roialign_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

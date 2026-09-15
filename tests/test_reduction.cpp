@@ -235,6 +235,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_reduction_load_param()
 {
     ncnn::ParamDict base;
@@ -294,6 +295,7 @@ static int test_reduction_load_param_text()
 #endif
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -311,5 +313,11 @@ int main()
             return ret;
     }
 
-    return test_reduction_load_param() || test_reduction_load_param_type() || test_reduction_load_param_text();
+    return 0
+#if NCNN_VALIDATION
+           || test_reduction_load_param()
+           || test_reduction_load_param_type()
+           || test_reduction_load_param_text()
+#endif // NCNN_VALIDATION
+           ;
 }

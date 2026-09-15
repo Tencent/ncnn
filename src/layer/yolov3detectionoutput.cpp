@@ -40,6 +40,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     mask = pd.get(5, Mat());
     anchors_scale = pd.get(6, Mat());
 
+#if NCNN_VALIDATION
     // reject nan thresholds while preserving infinite cutoffs
     unsigned int confidence_bits;
     unsigned int nms_bits;
@@ -126,6 +127,7 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
         if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     // convert integer text arrays without modifying the shared data
     if (pd.type(4) == 5 && !biases.empty())

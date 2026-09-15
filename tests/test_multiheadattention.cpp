@@ -156,6 +156,7 @@ static int test_multiheadattention_2()
            || test_multiheadattention_sameqkv(RandomMat(48, 127), 64, 8);
 }
 
+#if NCNN_VALIDATION
 static int test_multiheadattention_load_param()
 {
     ncnn::ParamDict base;
@@ -221,6 +222,7 @@ static int test_multiheadattention_load_param()
            || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, 65, -1)
            || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, INT_MAX, -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -230,5 +232,8 @@ int main()
            || test_multiheadattention_0()
            || test_multiheadattention_1()
            || test_multiheadattention_2()
-           || test_multiheadattention_load_param();
+#if NCNN_VALIDATION
+           || test_multiheadattention_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

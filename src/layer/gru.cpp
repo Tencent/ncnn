@@ -20,6 +20,7 @@ int GRU::load_param(const ParamDict& pd)
     direction = pd.get(2, 0);
     int8_scale_term = pd.get(8, 0);
 
+#if NCNN_VALIDATION
     if (num_output <= 0)
         return -1;
 
@@ -30,6 +31,7 @@ int GRU::load_param(const ParamDict& pd)
     const int rows = num_output * 3 * num_directions;
     if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
         return -1;
+#endif // NCNN_VALIDATION
 
     if (int8_scale_term)
     {

@@ -106,6 +106,7 @@ static int test_groupnorm_3()
            || test_groupnorm(RandomMat(324), 3, 0.0001f, 1);
 }
 
+#if NCNN_VALIDATION
 static int test_groupnorm_load_param()
 {
     ncnn::ParamDict base;
@@ -131,6 +132,7 @@ static int test_groupnorm_load_param()
            || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 7, -1)
            || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 8, 0);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -141,5 +143,8 @@ int main()
            || test_groupnorm_1()
            || test_groupnorm_2()
            || test_groupnorm_3()
-           || test_groupnorm_load_param();
+#if NCNN_VALIDATION
+           || test_groupnorm_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -1,3 +1,5 @@
+Additional model and layer parameter validation is enabled by default through the `NCNN_VALIDATION` build option. Builds with `NCNN_VALIDATION=OFF` require prevalidated models and do not guarantee rejection of invalid parameters. Parameter formats, defaults and numeric conversions are unchanged. See [build minimal library](../how-to-use-and-FAQ/build-minimal-library.md#disable-ncnn_validation).
+
 ## net.param
 ### example
 ```

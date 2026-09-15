@@ -25,8 +25,10 @@
 
 namespace ncnn {
 
+#if NCNN_VALIDATION
 // bound model header allocations, including repeated blob references
 static const int max_net_count = 1000000;
+#endif // NCNN_VALIDATION
 
 class NetPrivate
 {
@@ -57,7 +59,9 @@ public:
     void clear_layers();
     void destroy_layer(Layer* layer);
     int load_shape_hints(Layer* layer, const ParamDict& pd);
+#if NCNN_VALIDATION
     int check_graph_cycles() const;
+#endif // NCNN_VALIDATION
 
     void update_input_output_indexes();
 #if NCNN_STRING
@@ -1166,6 +1170,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 }
 #endif // NCNN_VULKAN
 
+#if NCNN_VALIDATION
 int NetPrivate::check_graph_cycles() const
 {
     // 0 = unvisited, 1 = visiting, 2 = finished
@@ -1212,6 +1217,7 @@ int NetPrivate::check_graph_cycles() const
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 void NetPrivate::update_input_output_indexes()
 {
@@ -1328,8 +1334,10 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator, lay
 
 int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer, void* userdata)
 {
+#if NCNN_VALIDATION
     if (index < 0)
         return -1;
+#endif // NCNN_VALIDATION
 
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
@@ -1354,8 +1362,10 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
         return 0;
     }
 
+#if NCNN_VALIDATION
     if (custom_index >= max_net_count)
         return -1;
+#endif // NCNN_VALIDATION
 
     if ((int)d->custom_layer_registry.size() <= custom_index)
     {
@@ -1385,12 +1395,14 @@ static int scan_net_value(const DataReader& dr, int& value)
     if (dr.scan("%31s", token) != 1)
         return 0;
 
+#if NCNN_VALIDATION
     if (strlen(token) == 31)
     {
         char suffix[2];
         if (dr.scan("%1[^ \t\r\n\v\f]", suffix) == 1)
             return 0;
     }
+#endif // NCNN_VALIDATION
 
     const char* p = token;
     const bool negative = *p == '-';
@@ -1399,15 +1411,19 @@ static int scan_net_value(const DataReader& dr, int& value)
         return 0;
 
     unsigned int v = 0;
+#if NCNN_VALIDATION
     const unsigned int limit = negative ? (unsigned int)INT_MAX + 1u : (unsigned int)INT_MAX;
+#endif // NCNN_VALIDATION
     for (; *p; p++)
     {
         if (*p < '0' || *p > '9')
             return 0;
 
         const unsigned int digit = *p - '0';
+#if NCNN_VALIDATION
         if (v > (limit - digit) / 10)
             return 0;
+#endif // NCNN_VALIDATION
         v = v * 10 + digit;
     }
 
@@ -1420,12 +1436,14 @@ static int scan_net_value(const DataReader& dr, char (&value)[256])
     if (dr.scan("%255s", value) != 1)
         return 0;
 
+#if NCNN_VALIDATION
     if (strlen(value) == 255)
     {
         char suffix[2];
         if (dr.scan("%1[^ \t\r\n\v\f]", suffix) == 1)
             return 0;
     }
+#endif // NCNN_VALIDATION
 
     return 1;
 }
@@ -1436,26 +1454,34 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
     const int type = pd.type(30);
     if (type == 0)
         return 0;
+#if NCNN_VALIDATION
     if (type != 4 && type != 5)
         return -1;
+#endif // NCNN_VALIDATION
 
     const Mat shape_hints = pd.get(30, Mat());
     const int top_count = (int)layer->tops.size();
     if (shape_hints.empty() || top_count == 0)
         return 0;
 
+#if NCNN_VALIDATION
     if (shape_hints.w % top_count != 0)
         return -1;
+#endif // NCNN_VALIDATION
     const int step = shape_hints.w / top_count;
+#if NCNN_VALIDATION
     if (step != 4 && step != 5)
         return -1;
+#endif // NCNN_VALIDATION
 
     const int* p = shape_hints;
     for (int j = 0; j < top_count; j++, p += step)
     {
         const int dims = p[0];
+#if NCNN_VALIDATION
         if (dims < 0 || dims > 4 || (dims == 4 && step != 5))
             return -1;
+#endif // NCNN_VALIDATION
         if (dims == 0)
             continue;
 
@@ -1463,6 +1489,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
         const int h = dims >= 2 ? p[2] : 1;
         const int d = dims == 4 ? p[3] : 1;
         const int c = dims >= 3 ? p[step - 1] : 1;
+#if NCNN_VALIDATION
         if (w < 0 || h < 0 || d < 0 || c < 0)
             return -1;
 
@@ -1478,7 +1505,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
         size = alignSize(size * 4, 16) / 4;
         if (c != 0 && size > ((size_t)-1 / 4) / c)
             return -1;
-
+#endif // NCNN_VALIDATION
         Blob& blob = blobs[layer->tops[j]];
         if (dims == 1) blob.shape = Mat(w, (void*)0, 4u, 1);
         if (dims == 2) blob.shape = Mat(w, h, (void*)0, 4u, 1);
@@ -1515,11 +1542,13 @@ int Net::load_param(const DataReader& dr)
     int blob_count = 0;
     SCAN_VALUE(layer_count)
     SCAN_VALUE(blob_count)
+#if NCNN_VALIDATION
     if (layer_count <= 0 || blob_count <= 0 || layer_count > max_net_count || blob_count > max_net_count)
     {
         NCNN_LOGE("invalid layer_count or blob_count");
         return -1;
     }
+#endif // NCNN_VALIDATION
 
     d->layers.resize((size_t)layer_count);
     d->blobs.resize((size_t)blob_count);
@@ -1587,12 +1616,14 @@ int Net::load_param(const DataReader& dr)
         SCAN_VALUE(bottom_count)
         SCAN_VALUE(top_count)
 
+#if NCNN_VALIDATION
         if (bottom_count < 0 || top_count < 0 || bottom_count > max_net_count || top_count > max_net_count)
         {
             NCNN_LOGE("invalid bottom_count or top_count %d %d", bottom_count, top_count);
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         const int typeindex = layer_to_index(layer_type);
         Layer* layer = create_overwrite_builtin_layer(layer_type);
@@ -1643,12 +1674,14 @@ int Net::load_param(const DataReader& dr)
             int bottom_blob_index = find_blob_index_by_name(bottom_name);
             if (bottom_blob_index == -1)
             {
+#if NCNN_VALIDATION
                 if (blob_index >= blob_count)
                 {
                     NCNN_LOGE("too many blobs at layer %d bottom %d", i, j);
                     d->clear_layers();
                     return -1;
                 }
+#endif // NCNN_VALIDATION
 
                 Blob& blob = d->blobs[blob_index];
 
@@ -1673,12 +1706,14 @@ int Net::load_param(const DataReader& dr)
         layer->tops.resize(top_count);
         for (int j = 0; j < top_count; j++)
         {
+#if NCNN_VALIDATION
             if (blob_index >= blob_count)
             {
                 NCNN_LOGE("too many blobs at layer %d top %d", i, j);
                 d->clear_layers();
                 return -1;
             }
+#endif // NCNN_VALIDATION
 
             Blob& blob = d->blobs[blob_index];
 
@@ -1715,6 +1750,7 @@ int Net::load_param(const DataReader& dr)
         }
 
         // pull out layer specific feature disabled set
+#if NCNN_VALIDATION
         const int featmask_type = pd.type(31);
         if (featmask_type != 0 && featmask_type != 1 && featmask_type != 2)
         {
@@ -1722,6 +1758,7 @@ int Net::load_param(const DataReader& dr)
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
         layer->featmask = pd.get(31, 0);
 
         int lr = layer->load_param(pd);
@@ -1781,12 +1818,14 @@ int Net::load_param(const DataReader& dr)
             d->layers[i] = layer;
         }
 
+#if NCNN_VALIDATION
         if (layer->typeindex != LayerType::Input && layer->one_blob_only && (bottom_count != 1 || top_count != 1))
         {
             NCNN_LOGE("invalid bottom_count or top_count for one_blob_only layer %d", i);
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         // set bottom and top shape hints
         layer->bottom_shapes.resize(bottom_count);
@@ -1914,11 +1953,13 @@ int Net::load_param_bin(const DataReader& dr)
     int blob_count = 0;
     READ_VALUE(layer_count)
     READ_VALUE(blob_count)
+#if NCNN_VALIDATION
     if (layer_count <= 0 || blob_count <= 0 || layer_count > max_net_count || blob_count > max_net_count)
     {
         NCNN_LOGE("invalid layer_count or blob_count");
         return -1;
     }
+#endif // NCNN_VALIDATION
 
     d->layers.resize(layer_count);
     d->blobs.resize(blob_count);
@@ -1983,6 +2024,7 @@ int Net::load_param_bin(const DataReader& dr)
         READ_VALUE(bottom_count)
         READ_VALUE(top_count)
 
+#if NCNN_VALIDATION
         if (typeindex < 0)
         {
             NCNN_LOGE("invalid layer type %d", typeindex);
@@ -1996,6 +2038,7 @@ int Net::load_param_bin(const DataReader& dr)
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         Layer* layer = create_overwrite_builtin_layer(typeindex);
         if (!layer && d->find_overwrite_builtin_layer_index(typeindex) != -1)
@@ -2043,12 +2086,14 @@ int Net::load_param_bin(const DataReader& dr)
             int bottom_blob_index;
             READ_VALUE(bottom_blob_index)
 
+#if NCNN_VALIDATION
             if (bottom_blob_index < 0 || bottom_blob_index >= blob_count)
             {
                 NCNN_LOGE("layer %d invalid bottom_blob_index %d", i, bottom_blob_index);
                 d->clear_layers();
                 return -1;
             }
+#endif // NCNN_VALIDATION
 
             Blob& blob = d->blobs[bottom_blob_index];
 
@@ -2063,12 +2108,14 @@ int Net::load_param_bin(const DataReader& dr)
             int top_blob_index;
             READ_VALUE(top_blob_index)
 
+#if NCNN_VALIDATION
             if (top_blob_index < 0 || top_blob_index >= blob_count)
             {
                 NCNN_LOGE("layer %d invalid top_blob_index %d", i, top_blob_index);
                 d->clear_layers();
                 return -1;
             }
+#endif // NCNN_VALIDATION
 
             Blob& blob = d->blobs[top_blob_index];
 
@@ -2100,6 +2147,7 @@ int Net::load_param_bin(const DataReader& dr)
         }
 
         // pull out layer specific feature disabled set
+#if NCNN_VALIDATION
         const int featmask_type = pd.type(31);
         if (featmask_type != 0 && featmask_type != 1 && featmask_type != 2)
         {
@@ -2107,6 +2155,7 @@ int Net::load_param_bin(const DataReader& dr)
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
         layer->featmask = pd.get(31, 0);
 
         int lr = layer->load_param(pd);
@@ -2165,12 +2214,14 @@ int Net::load_param_bin(const DataReader& dr)
             d->layers[i] = layer;
         }
 
+#if NCNN_VALIDATION
         if (layer->typeindex != LayerType::Input && layer->one_blob_only && (bottom_count != 1 || top_count != 1))
         {
             NCNN_LOGE("invalid bottom_count or top_count for one_blob_only layer %d", i);
             d->clear_layers();
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         // set bottom and top shape hints
         layer->bottom_shapes.resize(bottom_count);
@@ -2252,11 +2303,13 @@ int Net::load_param_bin(const DataReader& dr)
         }
     }
 
+#if NCNN_VALIDATION
     if (d->check_graph_cycles() != 0)
     {
         d->clear_layers();
         return -1;
     }
+#endif // NCNN_VALIDATION
 
     d->update_input_output_indexes();
 

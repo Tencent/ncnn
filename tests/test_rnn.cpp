@@ -549,6 +549,7 @@ static int test_rnn_7()
 }
 #endif
 
+#if NCNN_VALIDATION
 static int test_rnn_load_param()
 {
     ncnn::ParamDict base;
@@ -568,28 +569,25 @@ static int test_rnn_load_param()
            || test_layer_param(ncnn::LayerType::RNN, base, 2, 3, -1)
            || test_layer_param(ncnn::LayerType::RNN, base, 1, 193, -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_INT8
     return 0
            || test_rnn_0()
            || test_rnn_1()
            || test_rnn_2()
            || test_rnn_3()
+#if NCNN_INT8
            || test_rnn_4()
            || test_rnn_5()
            || test_rnn_6()
            || test_rnn_7()
-           || test_rnn_load_param();
-#else
-    return 0
-           || test_rnn_0()
-           || test_rnn_1()
-           || test_rnn_2()
-           || test_rnn_3()
-           || test_rnn_load_param();
-#endif
+#endif // NCNN_INT8
+#if NCNN_VALIDATION
+           || test_rnn_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

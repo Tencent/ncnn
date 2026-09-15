@@ -74,6 +74,7 @@ int Reshape::load_param(const ParamDict& pd)
         ndim = (int)outshape.size();
     }
 
+#if NCNN_VALIDATION
     int max_ndim = 4;
 #if NCNN_BATCH
     if (output_batch_axis != 233)
@@ -81,6 +82,7 @@ int Reshape::load_param(const ParamDict& pd)
 #endif
     if (ndim < 1 || ndim > max_ndim)
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

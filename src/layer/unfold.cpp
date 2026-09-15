@@ -26,8 +26,10 @@ int Unfold::load_param(const ParamDict& pd)
     pad_bottom = pd.get(16, pad_top);
     pad_value = pd.get(18, 0.f);
 
+#if NCNN_VALIDATION
     if (kernel_w <= 0 || dilation_w <= 0 || stride_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || dilation_h <= 0 || stride_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_w > INT_MAX / kernel_h)
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

@@ -35,6 +35,7 @@ int Pooling::load_param(const ParamDict& pd)
     out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
 
+#if NCNN_VALIDATION
     if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
         return -1;
 
@@ -52,6 +53,7 @@ int Pooling::load_param(const ParamDict& pd)
         if (kernel_w <= 0 || stride_w <= 0 || kernel_h <= 0 || stride_h <= 0 || kernel_w > INT_MAX / kernel_h)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

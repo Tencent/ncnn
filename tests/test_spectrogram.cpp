@@ -43,6 +43,7 @@ static int test_spectrogram_0()
            || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 2, 0);
 }
 
+#if NCNN_VALIDATION
 static int test_spectrogram_load_param()
 {
     ncnn::ParamDict base;
@@ -145,10 +146,17 @@ static int test_spectrogram_load_param_type()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_spectrogram_0() || test_spectrogram_load_param() || test_spectrogram_load_param_type();
+    return 0
+           || test_spectrogram_0()
+#if NCNN_VALIDATION
+           || test_spectrogram_load_param()
+           || test_spectrogram_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

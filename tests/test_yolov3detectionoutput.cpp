@@ -121,6 +121,7 @@ static int test_yolov3detectionoutput_v3tiny()
            || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
 }
 
+#if NCNN_VALIDATION
 static int test_yolov3detectionoutput_load_param()
 {
     ncnn::ParamDict pd;
@@ -267,6 +268,7 @@ static int test_yolov3detectionoutput_load_param_text(const char* mask, int expe
 
     return ret;
 }
+
 static int test_yolov3detectionoutput_load_param_values_text(const char* params, int expected_ret)
 {
     TestParamDict pd;
@@ -383,6 +385,7 @@ static int test_yolov3detectionoutput_load_param_thresholds()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -393,9 +396,12 @@ int main()
            || test_yolov3detectionoutput_v3()
            || test_yolov3detectionoutput_v4tiny()
            || test_yolov3detectionoutput_v4()
+#if NCNN_VALIDATION
            || test_yolov3detectionoutput_load_param()
            || test_yolov3detectionoutput_load_param_text()
            || test_yolov3detectionoutput_load_param_values()
            || test_yolov3detectionoutput_load_param_values_text()
-           || test_yolov3detectionoutput_load_param_thresholds();
+           || test_yolov3detectionoutput_load_param_thresholds()
+#endif // NCNN_VALIDATION
+           ;
 }

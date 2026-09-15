@@ -439,6 +439,7 @@ static int test_padding_7()
            || test_padding_int8(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
 }
 
+#if NCNN_VALIDATION
 static int test_padding_load_param()
 {
     ncnn::ParamDict base;
@@ -460,12 +461,14 @@ static int test_padding_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_padding_0()
+    return 0
+           || test_padding_0()
            || test_padding_1()
            || test_padding_2()
            || test_padding_3()
@@ -473,5 +476,8 @@ int main()
            || test_padding_5()
            || test_padding_6()
            || test_padding_7()
-           || test_padding_load_param();
+#if NCNN_VALIDATION
+           || test_padding_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

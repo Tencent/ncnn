@@ -24,6 +24,7 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
     nms_threshold = pd.get(3, 0.45f);
     biases = pd.get(4, Mat());
 
+#if NCNN_VALIDATION
     // reject nan thresholds while preserving infinite cutoffs
     unsigned int confidence_bits;
     unsigned int nms_bits;
@@ -59,6 +60,7 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
         if (bias <= 0.f)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     // convert integer text arrays without modifying the shared data
     if (pd.type(4) == 5 && !biases.empty())

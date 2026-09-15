@@ -5,6 +5,7 @@
 
 #include "layer_type.h"
 
+#if NCNN_VALIDATION
 static int test_gemm_load_param()
 {
     ncnn::ParamDict base;
@@ -16,10 +17,15 @@ static int test_gemm_load_param()
 
     return test_layer_param(ncnn::LayerType::Gemm, base, 7, -1, -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_gemm_load_param();
+    return 0
+#if NCNN_VALIDATION
+           || test_gemm_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

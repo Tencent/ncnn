@@ -40,6 +40,7 @@ static int test_fold_0()
            || test_fold(120, 36, 11, 5, 3, 2, 2, 1, 1, 1, 4, 2);
 }
 
+#if NCNN_VALIDATION
 static int test_fold_load_param()
 {
     ncnn::ParamDict base;
@@ -60,10 +61,16 @@ static int test_fold_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_fold_0() || test_fold_load_param();
+    return 0
+           || test_fold_0()
+#if NCNN_VALIDATION
+           || test_fold_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -16,11 +16,13 @@ int SPP::load_param(const ParamDict& pd)
     pooling_type = pd.get(0, 0);
     pyramid_height = pd.get(1, 1);
 
+#if NCNN_VALIDATION
     if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
         return -1;
 
     if (pyramid_height <= 0 || pyramid_height > 15)
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

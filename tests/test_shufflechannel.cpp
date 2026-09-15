@@ -99,6 +99,7 @@ static int test_shufflechannel_2()
            || test_shufflechannel(5, 3, 2, 16, 8, 1);
 }
 
+#if NCNN_VALIDATION
 static int test_shufflechannel_load_param()
 {
     ncnn::ParamDict base;
@@ -115,6 +116,7 @@ static int test_shufflechannel_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -124,5 +126,8 @@ int main()
            || test_shufflechannel_2()
            || test_shufflechannel_0()
            || test_shufflechannel_1()
-           || test_shufflechannel_load_param();
+#if NCNN_VALIDATION
+           || test_shufflechannel_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

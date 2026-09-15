@@ -247,6 +247,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_slice_load_param()
 {
     ncnn::ParamDict base;
@@ -292,6 +293,7 @@ static int test_slice_load_param_axis()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -303,6 +305,9 @@ int main()
            || test_slice_2()
            || test_slice_3()
            || test_slice_4()
+#if NCNN_VALIDATION
            || test_slice_load_param()
-           || test_slice_load_param_axis();
+           || test_slice_load_param_axis()
+#endif // NCNN_VALIDATION
+           ;
 }

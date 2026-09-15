@@ -184,6 +184,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_flip_load_param()
 {
     ncnn::ParamDict base;
@@ -250,6 +251,7 @@ static int test_flip_load_param_serialized()
 
     return test_layer_param(ncnn::LayerType::Flip, typed, 0);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -260,6 +262,9 @@ int main()
            || test_flip_1()
            || test_flip_2()
            || test_flip_3()
+#if NCNN_VALIDATION
            || test_flip_load_param()
-           || test_flip_load_param_serialized();
+           || test_flip_load_param_serialized()
+#endif // NCNN_VALIDATION
+           ;
 }

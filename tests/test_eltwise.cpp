@@ -346,6 +346,7 @@ static int test_eltwise_12()
            || test_eltwise(c, 2, RandomMat(4));
 }
 
+#if NCNN_VALIDATION
 static int test_eltwise_load_param()
 {
     ncnn::ParamDict pd;
@@ -398,6 +399,7 @@ static int test_eltwise_load_param_type()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -417,6 +419,9 @@ int main()
            || test_eltwise_10()
            || test_eltwise_11()
            || test_eltwise_12()
+#if NCNN_VALIDATION
            || test_eltwise_load_param()
-           || test_eltwise_load_param_type();
+           || test_eltwise_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

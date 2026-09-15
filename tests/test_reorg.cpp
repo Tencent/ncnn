@@ -50,6 +50,7 @@ static int test_reorg_1()
            || test_reorg(RandomMat(9, 9, 16), 3, 1);
 }
 
+#if NCNN_VALIDATION
 static int test_reorg_load_param()
 {
     ncnn::ParamDict base;
@@ -88,10 +89,18 @@ static int test_reorg_load_param_type()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_reorg_0() || test_reorg_1() || test_reorg_load_param() || test_reorg_load_param_type();
+    return 0
+           || test_reorg_0()
+           || test_reorg_1()
+#if NCNN_VALIDATION
+           || test_reorg_load_param()
+           || test_reorg_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

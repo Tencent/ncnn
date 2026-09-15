@@ -203,6 +203,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_copyto_load_param()
 {
     ncnn::ParamDict base;
@@ -235,6 +236,7 @@ static int test_copyto_load_param()
            || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(1, INT_MIN), -1)
            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, param_int_array(2, 0), -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -246,5 +248,8 @@ int main()
            || test_copyto_2()
            || test_copyto_3()
            || test_copyto_4()
-           || test_copyto_load_param();
+#if NCNN_VALIDATION
+           || test_copyto_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

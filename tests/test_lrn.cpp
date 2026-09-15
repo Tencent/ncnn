@@ -60,6 +60,7 @@ static int test_lrn_2()
            || test_lrn(a, 1, 3, 1.f, 0.75f, 0.5f);
 }
 
+#if NCNN_VALIDATION
 static int test_lrn_load_param()
 {
     ncnn::ParamDict base;
@@ -81,6 +82,7 @@ static int test_lrn_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -90,5 +92,8 @@ int main()
            || test_lrn_0()
            || test_lrn_1()
            || test_lrn_2()
-           || test_lrn_load_param();
+#if NCNN_VALIDATION
+           || test_lrn_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

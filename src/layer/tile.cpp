@@ -17,6 +17,7 @@ int Tile::load_param(const ParamDict& pd)
     tiles = pd.get(1, 1);
     repeats = pd.get(2, Mat());
 
+#if NCNN_VALIDATION
     {
         const int repeats_type = pd.type(2);
         if (repeats_type != 0 && repeats_type != 4 && repeats_type != 5)
@@ -35,6 +36,7 @@ int Tile::load_param(const ParamDict& pd)
         if (repeats_ptr[i] <= 0)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

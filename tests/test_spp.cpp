@@ -7,6 +7,7 @@
 
 #include <limits.h>
 
+#if NCNN_VALIDATION
 static int test_spp_load_param()
 {
     ncnn::ParamDict base;
@@ -41,10 +42,15 @@ static int test_spp_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_spp_load_param();
+    return 0
+#if NCNN_VALIDATION
+           || test_spp_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

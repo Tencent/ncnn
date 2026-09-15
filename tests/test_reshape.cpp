@@ -209,6 +209,7 @@ static int test_reshape_9()
     return test_reshape(a, 19, 15, -233, 18);
 }
 
+#if NCNN_VALIDATION
 static int test_reshape_load_param()
 {
     ncnn::ParamDict empty;
@@ -239,6 +240,7 @@ static int test_reshape_load_param()
     pd.set(6, "1,1,1,1,1,1");
     return test_layer_param(ncnn::LayerType::Reshape, pd, -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -255,5 +257,8 @@ int main()
            || test_reshape_7()
            || test_reshape_8()
            || test_reshape_9()
-           || test_reshape_load_param();
+#if NCNN_VALIDATION
+           || test_reshape_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

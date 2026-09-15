@@ -32,6 +32,7 @@ int Convolution1D::load_param(const ParamDict& pd)
     dynamic_weight = pd.get(19, 0);
 
     const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
     if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
         return -1;
 
@@ -55,6 +56,7 @@ int Convolution1D::load_param(const ParamDict& pd)
         if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % kernel_w != 0)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     // convert integer text arrays without modifying the shared data
     if (activation_params_type == 5 && !activation_params.empty())

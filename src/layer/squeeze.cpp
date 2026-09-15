@@ -19,6 +19,7 @@ int Squeeze::load_param(const ParamDict& pd)
     squeeze_c = pd.get(2, 0);
     axes = pd.get(3, Mat());
 
+#if NCNN_VALIDATION
     {
         const int axes_type = pd.type(3);
         if (axes_type != 0 && axes_type != 4 && axes_type != 5)
@@ -37,6 +38,7 @@ int Squeeze::load_param(const ParamDict& pd)
         if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

@@ -196,6 +196,49 @@ static int test_deconvolutiondepthwise1d_1()
     return 0;
 }
 
+static int test_deconvolutiondepthwise1d_activation_params_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"0=1 1=1 6=1 9=3 -23310=2,-1,2", "0=1 1=1 6=1 9=3 -23310=2,-1.0,2.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(10) != 5 + i)
+            return -1;
+
+        std::vector<ncnn::Mat> weights(1);
+        weights[0].create(1);
+        weights[0][0] = 1.f;
+
+        ncnn::Mat a(2, 1);
+        a[0] = -3.f;
+        a[1] = 3.f;
+        ncnn::Mat reference(2, 1);
+        reference[0] = -1.f;
+        reference[1] = 2.f;
+        ncnn::Mat b;
+        int ret = test_layer_naive(ncnn::LayerType::DeconvolutionDepthWise1D, pd, weights, a, b, 0);
+        if (ret == 0)
+            ret = CompareMat(reference, b, 0.f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_deconvolutiondepthwise1d_activation_params_text failed params=%s ret=%d\n", params[i], ret);
+            return ret;
+        }
+
+        const ncnn::Mat original = pd.get(10, ncnn::Mat());
+        const int* p = original;
+        if (i == 0 ? (p[0] != -1 || p[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
+        {
+            fprintf(stderr, "test_deconvolutiondepthwise1d_activation_params_text modified params=%s\n", params[i]);
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
+#if NCNN_VALIDATION
 static int test_deconvolutiondepthwise1d_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
@@ -333,42 +376,24 @@ static int test_deconvolutiondepthwise1d_load_param_text()
 
         if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise1D, pd, 0) != 0)
             return -1;
-
-        std::vector<ncnn::Mat> weights(1);
-        weights[0].create(1);
-        weights[0][0] = 1.f;
-
-        ncnn::Mat a(2, 1);
-        a[0] = -3.f;
-        a[1] = 3.f;
-        ncnn::Mat reference(2, 1);
-        reference[0] = -1.f;
-        reference[1] = 2.f;
-        ncnn::Mat b;
-        int ret = test_layer_naive(ncnn::LayerType::DeconvolutionDepthWise1D, pd, weights, a, b, 0);
-        if (ret == 0)
-            ret = CompareMat(reference, b, 0.f);
-        if (ret != 0)
-        {
-            fprintf(stderr, "test_deconvolutiondepthwise1d_load_param_text failed params=%s ret=%d\n", params[i], ret);
-            return ret;
-        }
-
-        const ncnn::Mat original = pd.get(10, ncnn::Mat());
-        const int* p = original;
-        if (i == 0 ? (p[0] != -1 || p[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
-        {
-            fprintf(stderr, "test_deconvolutiondepthwise1d_load_param_text modified params=%s\n", params[i]);
-            return -1;
-        }
     }
 #endif
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_deconvolutiondepthwise1d_0() || test_deconvolutiondepthwise1d_1() || test_deconvolutiondepthwise1d_load_param() || test_deconvolutiondepthwise1d_load_param_dynamic() || test_deconvolutiondepthwise1d_load_param_text();
+    return 0
+           || test_deconvolutiondepthwise1d_0()
+           || test_deconvolutiondepthwise1d_1()
+           || test_deconvolutiondepthwise1d_activation_params_text()
+#if NCNN_VALIDATION
+           || test_deconvolutiondepthwise1d_load_param()
+           || test_deconvolutiondepthwise1d_load_param_text()
+           || test_deconvolutiondepthwise1d_load_param_dynamic()
+#endif // NCNN_VALIDATION
+           ;
 }

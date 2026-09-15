@@ -59,16 +59,20 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
 
+#if NCNN_VALIDATION
     if (num_heads <= 0)
         return -1;
 
     if (embed_dim <= 0 || embed_dim % num_heads != 0)
         return -1;
+#endif // NCNN_VALIDATION
 
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
 
+#if NCNN_VALIDATION
     if (weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0 || kdim > INT_MAX / embed_dim || vdim > INT_MAX / embed_dim)
         return -1;
+#endif // NCNN_VALIDATION
 
     int weight_bits;
     int block_size;

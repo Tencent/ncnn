@@ -151,6 +151,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_expanddims_load_param()
 {
     ncnn::ParamDict base;
@@ -174,10 +175,19 @@ static int test_expanddims_load_param()
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, 4), -1)
            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, INT_MIN), -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_expanddims_0() || test_expanddims_1() || test_expanddims_2() || test_expanddims_3() || test_expanddims_load_param();
+    return 0
+           || test_expanddims_0()
+           || test_expanddims_1()
+           || test_expanddims_2()
+           || test_expanddims_3()
+#if NCNN_VALIDATION
+           || test_expanddims_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

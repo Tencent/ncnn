@@ -25,6 +25,7 @@ int Reduction::load_param(const ParamDict& pd)
     // ask user to regenerate param instead of producing wrong result
     int fixbug0 = pd.get(5, 0);
 
+#if NCNN_VALIDATION
     if (operation < ReductionOp_SUM || operation > ReductionOp_LogSumExp)
         return -1;
 
@@ -36,13 +37,14 @@ int Reduction::load_param(const ParamDict& pd)
         if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
             return -1;
     }
-
+#endif // NCNN_VALIDATION
     if (fixbug0 == 0 && !axes.empty())
     {
         NCNN_LOGE("param is too old, please regenerate!");
         return -1;
     }
 
+#if NCNN_VALIDATION
     if (axes.w > 4)
         return -1;
 
@@ -52,6 +54,7 @@ int Reduction::load_param(const ParamDict& pd)
         if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
             return -1;
     }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

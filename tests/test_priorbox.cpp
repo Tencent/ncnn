@@ -97,6 +97,7 @@ static int test_priorbox_mxnet()
     return ret;
 }
 
+#if NCNN_VALIDATION
 static int test_priorbox_load_param()
 {
     ncnn::ParamDict pd;
@@ -166,6 +167,7 @@ static int test_priorbox_load_param_serialized()
 
     return test_layer_param(ncnn::LayerType::PriorBox, pd, 0);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -174,6 +176,9 @@ int main()
     return 0
            || test_priorbox_caffe()
            || test_priorbox_mxnet()
+#if NCNN_VALIDATION
            || test_priorbox_load_param()
-           || test_priorbox_load_param_serialized();
+           || test_priorbox_load_param_serialized()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -192,6 +192,7 @@ static ncnn::Mat param_int_array(int size, int value)
     return m;
 }
 
+#if NCNN_VALIDATION
 static int test_squeeze_load_param()
 {
     ncnn::ParamDict base;
@@ -211,10 +212,19 @@ static int test_squeeze_load_param()
            || test_layer_param(ncnn::LayerType::Squeeze, base, 3, param_int_array(5, 1), -1)
            || test_layer_param(ncnn::LayerType::Squeeze, base, 3, param_int_array(1, INT_MIN), -1);
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_squeeze_0() || test_squeeze_1() || test_squeeze_2() || test_squeeze_3() || test_squeeze_load_param();
+    return 0
+           || test_squeeze_0()
+           || test_squeeze_1()
+           || test_squeeze_2()
+           || test_squeeze_3()
+#if NCNN_VALIDATION
+           || test_squeeze_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -493,6 +493,7 @@ static int test_packing_3()
            ;
 }
 
+#if NCNN_VALIDATION
 static int test_packing_load_param()
 {
     ncnn::ParamDict base;
@@ -514,6 +515,7 @@ static int test_packing_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -524,5 +526,8 @@ int main()
            || test_packing_1()
            || test_packing_2()
            || test_packing_3()
-           || test_packing_load_param();
+#if NCNN_VALIDATION
+           || test_packing_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

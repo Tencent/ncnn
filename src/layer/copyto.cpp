@@ -21,6 +21,7 @@ int CopyTo::load_param(const ParamDict& pd)
     starts = pd.get(9, Mat());
     axes = pd.get(11, Mat());
 
+#if NCNN_VALIDATION
     {
         const int starts_type = pd.type(9);
         if (starts_type != 0 && starts_type != 4 && starts_type != 5)
@@ -51,6 +52,7 @@ int CopyTo::load_param(const ParamDict& pd)
 
     if (starts.w > 4 || (!starts.empty() && !axes.empty() && axes.w != starts.w))
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

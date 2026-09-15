@@ -304,6 +304,52 @@ static int test_requantize_4()
            || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 24, 24, 0);
 }
 
+static int test_requantize_activation_params_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"0=1 1=1 3=3 -23304=2,-1,2", "0=1 1=1 3=3 -23304=2,-1.0,2.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(4) != 5 + i)
+            return -1;
+
+        std::vector<ncnn::Mat> weights(2);
+        weights[0].create(1);
+        weights[0][0] = 1.f;
+        weights[1].create(1);
+        weights[1][0] = 1.f;
+
+        ncnn::Mat a(2);
+        int* p = a;
+        p[0] = -3;
+        p[1] = 3;
+        ncnn::Mat reference(2);
+        reference[0] = -1.f;
+        reference[1] = 2.f;
+        ncnn::Mat b;
+        int ret = test_layer_naive(ncnn::LayerType::Requantize, pd, weights, a, b, 0);
+        if (ret == 0)
+            ret = CompareMat(reference, b, 0.f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_requantize_activation_params_text failed params=%s ret=%d\n", params[i], ret);
+            return ret;
+        }
+
+        const ncnn::Mat original = pd.get(4, ncnn::Mat());
+        const int* q = original;
+        if (i == 0 ? (q[0] != -1 || q[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
+        {
+            fprintf(stderr, "test_requantize_activation_params_text modified params=%s\n", params[i]);
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
+#if NCNN_VALIDATION
 static int test_requantize_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
@@ -387,41 +433,11 @@ static int test_requantize_load_param_text()
 
         if (test_layer_param(ncnn::LayerType::Requantize, pd, 0) != 0)
             return -1;
-
-        std::vector<ncnn::Mat> weights(2);
-        weights[0].create(1);
-        weights[0][0] = 1.f;
-        weights[1].create(1);
-        weights[1][0] = 1.f;
-
-        ncnn::Mat a(2);
-        int* p = a;
-        p[0] = -3;
-        p[1] = 3;
-        ncnn::Mat reference(2);
-        reference[0] = -1.f;
-        reference[1] = 2.f;
-        ncnn::Mat b;
-        int ret = test_layer_naive(ncnn::LayerType::Requantize, pd, weights, a, b, 0);
-        if (ret == 0)
-            ret = CompareMat(reference, b, 0.f);
-        if (ret != 0)
-        {
-            fprintf(stderr, "test_requantize_load_param_text failed params=%s ret=%d\n", params[i], ret);
-            return ret;
-        }
-
-        const ncnn::Mat original = pd.get(4, ncnn::Mat());
-        const int* q = original;
-        if (i == 0 ? (q[0] != -1 || q[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
-        {
-            fprintf(stderr, "test_requantize_load_param_text modified params=%s\n", params[i]);
-            return -1;
-        }
     }
 #endif
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -433,6 +449,10 @@ int main()
            || test_requantize_1()
            || test_requantize_2()
            || test_requantize_3()
+           || test_requantize_activation_params_text()
+#if NCNN_VALIDATION
            || test_requantize_load_param()
-           || test_requantize_load_param_text();
+           || test_requantize_load_param_text()
+#endif // NCNN_VALIDATION
+           ;
 }

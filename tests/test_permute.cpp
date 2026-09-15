@@ -107,6 +107,7 @@ static int test_permute_3()
     return 0;
 }
 
+#if NCNN_VALIDATION
 static int test_permute_load_param()
 {
     ncnn::ParamDict base;
@@ -128,6 +129,7 @@ static int test_permute_load_param()
 
     return 0;
 }
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -138,5 +140,8 @@ int main()
            || test_permute_1()
            || test_permute_2()
            || test_permute_3()
-           || test_permute_load_param();
+#if NCNN_VALIDATION
+           || test_permute_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

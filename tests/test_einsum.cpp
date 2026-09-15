@@ -163,51 +163,6 @@ static ncnn::ParamDict equation_params(const char* equation)
     return pd;
 }
 
-static int test_einsum_load_param_equation(const char* equation, int expected_ret)
-{
-    int ret = test_layer_param(ncnn::LayerType::Einsum, equation_params(equation), expected_ret);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_einsum_load_param failed equation=%s\n", equation);
-    }
-
-    return ret;
-}
-
-static int test_einsum_load_param()
-{
-    return 0
-           || test_einsum_load_param_equation("ij->ji", -1)
-           || test_einsum_load_param_equation("ji->ij", 0)
-           || test_einsum_load_param_equation("", -1)
-           || test_einsum_load_param_equation("->i", -1)
-           || test_einsum_load_param_equation("i,->i", -1)
-           || test_einsum_load_param_equation(",i->i", -1)
-           || test_einsum_load_param_equation("i,,j->ij", -1)
-           || test_einsum_load_param_equation("i->", -1)
-           || test_einsum_load_param_equation("i->ij", -1)
-           || test_einsum_load_param_equation("i->ii", -1)
-           || test_einsum_load_param_equation("i->j", -1)
-           || test_einsum_load_param_equation("ijklm->i", -1)
-           || test_einsum_load_param_equation("i->i->i", -1);
-}
-
-static int test_einsum_load_param_char()
-{
-    ncnn::ParamDict pd = equation_params("ij->i");
-    ncnn::Mat m = pd.get(0, ncnn::Mat());
-    int* p = m;
-    p[0] = 'i' + 256;
-
-    int ret = test_layer_param(ncnn::LayerType::Einsum, pd, -1);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_einsum_load_param_char failed value=%d\n", p[0]);
-    }
-
-    return ret;
-}
-
 static int test_einsum_reload_case(ncnn::Layer* layer, const char* equation, const std::vector<ncnn::Mat>& a, const ncnn::Mat& expected)
 {
     int ret = layer->load_param(equation_params(equation));
@@ -264,6 +219,53 @@ static int test_einsum_reload()
     return ret;
 }
 
+#if NCNN_VALIDATION
+static int test_einsum_load_param_equation(const char* equation, int expected_ret)
+{
+    int ret = test_layer_param(ncnn::LayerType::Einsum, equation_params(equation), expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_load_param failed equation=%s\n", equation);
+    }
+
+    return ret;
+}
+
+static int test_einsum_load_param()
+{
+    return 0
+           || test_einsum_load_param_equation("ij->ji", -1)
+           || test_einsum_load_param_equation("ji->ij", 0)
+           || test_einsum_load_param_equation("", -1)
+           || test_einsum_load_param_equation("->i", -1)
+           || test_einsum_load_param_equation("i,->i", -1)
+           || test_einsum_load_param_equation(",i->i", -1)
+           || test_einsum_load_param_equation("i,,j->ij", -1)
+           || test_einsum_load_param_equation("i->", -1)
+           || test_einsum_load_param_equation("i->ij", -1)
+           || test_einsum_load_param_equation("i->ii", -1)
+           || test_einsum_load_param_equation("i->j", -1)
+           || test_einsum_load_param_equation("ijklm->i", -1)
+           || test_einsum_load_param_equation("i->i->i", -1);
+}
+
+static int test_einsum_load_param_char()
+{
+    ncnn::ParamDict pd = equation_params("ij->i");
+    ncnn::Mat m = pd.get(0, ncnn::Mat());
+    int* p = m;
+    p[0] = 'i' + 256;
+
+    int ret = test_layer_param(ncnn::LayerType::Einsum, pd, -1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_load_param_char failed value=%d\n", p[0]);
+    }
+
+    return ret;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -281,7 +283,10 @@ int main()
            || test_einsum_9()
            || test_einsum_10()
            || test_einsum_11()
+           || test_einsum_reload()
+#if NCNN_VALIDATION
            || test_einsum_load_param()
            || test_einsum_load_param_char()
-           || test_einsum_reload();
+#endif // NCNN_VALIDATION
+           ;
 }

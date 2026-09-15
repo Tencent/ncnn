@@ -16,8 +16,10 @@ int ShuffleChannel::load_param(const ParamDict& pd)
     group = pd.get(0, 1);
     reverse = pd.get(1, 0);
 
+#if NCNN_VALIDATION
     if (group <= 0)
         return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }
