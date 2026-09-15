@@ -304,36 +304,13 @@ static int test_requantize_4()
            || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 24, 24, 0);
 }
 
-static int test_requantize_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Requantize);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int activation_type = pd.get(3, 0);
-
-        fprintf(stderr, "test_requantize_load_param failed ret=%d expected=%d activation_type=%d\n", ret, valid ? 0 : -1, activation_type);
-
-        const ncnn::Mat activation_params = pd.get(4, ncnn::Mat());
-        fprintf(stderr, "activation_params type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(4), activation_params.dims, activation_params.w, activation_params.elemsize, activation_params.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int test_requantize_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, bool valid)
+static int test_requantize_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
     pd.set(3, activation_type);
     pd.set(4, activation_params);
 
-    return test_requantize_load_param_case(pd, valid);
+    return test_layer_param(ncnn::LayerType::Requantize, pd, expected_ret);
 }
 
 static int test_requantize_load_param()
@@ -341,7 +318,7 @@ static int test_requantize_load_param()
     ncnn::ParamDict base;
     base.set(0, 1);
     base.set(1, 1);
-    if (test_requantize_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Requantize, base, 0) != 0)
         return -1;
 
     ncnn::Mat params(2);
@@ -349,35 +326,35 @@ static int test_requantize_load_param()
     params[1] = 0.5f;
 
     int ret = 0
-              || test_requantize_load_param_activation(base, 0, ncnn::Mat(), true)
-              || test_requantize_load_param_activation(base, 0, ncnn::Mat(0), true)
-              || test_requantize_load_param_activation(base, 0, params, true)
-              || test_requantize_load_param_activation(base, 0, params.range(0, 1), true)
-              || test_requantize_load_param_activation(base, 1, ncnn::Mat(), true)
-              || test_requantize_load_param_activation(base, 1, ncnn::Mat(0), true)
-              || test_requantize_load_param_activation(base, 1, params, true)
-              || test_requantize_load_param_activation(base, 1, params.range(0, 1), true)
-              || test_requantize_load_param_activation(base, 2, ncnn::Mat(), false)
-              || test_requantize_load_param_activation(base, 2, ncnn::Mat(0), false)
-              || test_requantize_load_param_activation(base, 2, params, true)
-              || test_requantize_load_param_activation(base, 2, params.range(0, 1), true)
-              || test_requantize_load_param_activation(base, 3, ncnn::Mat(), false)
-              || test_requantize_load_param_activation(base, 3, ncnn::Mat(0), false)
-              || test_requantize_load_param_activation(base, 3, params, true)
-              || test_requantize_load_param_activation(base, 3, params.range(0, 1), false)
-              || test_requantize_load_param_activation(base, 4, ncnn::Mat(), true)
-              || test_requantize_load_param_activation(base, 4, ncnn::Mat(0), true)
-              || test_requantize_load_param_activation(base, 4, params, true)
-              || test_requantize_load_param_activation(base, 4, params.range(0, 1), true)
-              || test_requantize_load_param_activation(base, 5, ncnn::Mat(), true)
-              || test_requantize_load_param_activation(base, 5, ncnn::Mat(0), true)
-              || test_requantize_load_param_activation(base, 5, params, true)
-              || test_requantize_load_param_activation(base, 5, params.range(0, 1), true)
-              || test_requantize_load_param_activation(base, 6, ncnn::Mat(), false)
-              || test_requantize_load_param_activation(base, 6, ncnn::Mat(0), false)
-              || test_requantize_load_param_activation(base, 6, params, true)
-              || test_requantize_load_param_activation(base, 6, params.range(0, 1), false)
-              || test_requantize_load_param_activation(base, 7, ncnn::Mat(), false);
+              || test_requantize_load_param_activation(base, 0, ncnn::Mat(), 0)
+              || test_requantize_load_param_activation(base, 0, ncnn::Mat(0), 0)
+              || test_requantize_load_param_activation(base, 0, params, 0)
+              || test_requantize_load_param_activation(base, 0, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 1, ncnn::Mat(), 0)
+              || test_requantize_load_param_activation(base, 1, ncnn::Mat(0), 0)
+              || test_requantize_load_param_activation(base, 1, params, 0)
+              || test_requantize_load_param_activation(base, 1, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 2, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 2, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 2, params, 0)
+              || test_requantize_load_param_activation(base, 2, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 3, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 3, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 3, params, 0)
+              || test_requantize_load_param_activation(base, 3, params.range(0, 1), -1)
+              || test_requantize_load_param_activation(base, 4, ncnn::Mat(), 0)
+              || test_requantize_load_param_activation(base, 4, ncnn::Mat(0), 0)
+              || test_requantize_load_param_activation(base, 4, params, 0)
+              || test_requantize_load_param_activation(base, 4, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 5, ncnn::Mat(), 0)
+              || test_requantize_load_param_activation(base, 5, ncnn::Mat(0), 0)
+              || test_requantize_load_param_activation(base, 5, params, 0)
+              || test_requantize_load_param_activation(base, 5, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 6, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 6, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 6, params, 0)
+              || test_requantize_load_param_activation(base, 6, params.range(0, 1), -1)
+              || test_requantize_load_param_activation(base, 7, ncnn::Mat(), -1);
     if (ret != 0)
         return ret;
 
@@ -387,9 +364,7 @@ static int test_requantize_load_param()
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
     for (int i = 0; i < 5; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(4, bad[i]);
-        if (test_requantize_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Requantize, base, 4, bad[i], -1) != 0)
             return -1;
     }
 

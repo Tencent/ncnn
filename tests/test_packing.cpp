@@ -445,6 +445,7 @@ static int test_packing_0()
 {
     ncnn::Mat a = RandomMat(9, 7, 10, 16);
     ncnn::Mat b = RandomMat(9, 7, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -458,6 +459,7 @@ static int test_packing_1()
 {
     ncnn::Mat a = RandomMat(9, 10, 16);
     ncnn::Mat b = RandomMat(9, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -470,6 +472,7 @@ static int test_packing_1()
 static int test_packing_2()
 {
     ncnn::Mat a = RandomMat(19, 16);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -481,6 +484,7 @@ static int test_packing_2()
 static int test_packing_3()
 {
     ncnn::Mat a = RandomMat(80);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -489,44 +493,22 @@ static int test_packing_3()
            ;
 }
 
-static int test_packing_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Packing);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_packing_load_param failed ret=%d expected=%d out_elempack=%d\n", ret, valid ? 0 : -1, pd.get(0, 1));
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_packing_load_param()
 {
     ncnn::ParamDict base;
-    if (test_packing_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Packing, base, 0) != 0)
         return -1;
 
     for (int i = 1; i <= 16; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, i);
-        if (test_packing_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, i, 0) != 0)
             return -1;
     }
 
     const int invalid[] = {0, -1, INT_MIN};
     for (int i = 0; i < 3; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, invalid[i]);
-        if (test_packing_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 

@@ -107,4 +107,29 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, int flag = 0);
 
+class TestParamDict : public ncnn::ParamDict
+{
+public:
+    using ncnn::ParamDict::load_param;
+    using ncnn::ParamDict::load_param_bin;
+#if NCNN_STRING
+    int load_param(const char* str);
+#endif
+    int load_param_bin(const unsigned char* mem);
+};
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret = 0);
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, int value, int expected_ret);
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, float value, int expected_ret);
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret);
+
+#if NCNN_STRING
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& pd, int expected_ret = 0);
+
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, int value, int expected_ret);
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, float value, int expected_ret);
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret);
+#endif
+
 #endif // TESTUTIL_H

@@ -7,33 +7,11 @@
 #include <string.h>
 
 #include "datareader.h"
-#include "paramdict.h"
-
-class ParamDictTest : public ncnn::ParamDict
-{
-public:
-    using ncnn::ParamDict::load_param;
-    using ncnn::ParamDict::load_param_bin;
-    int load_param(const char* str);
-    int load_param_bin(const unsigned char* mem);
-};
-
-int ParamDictTest::load_param(const char* str)
-{
-    const unsigned char* mem = (const unsigned char*)str;
-    ncnn::DataReaderFromMemory dr(mem);
-    return ncnn::ParamDict::load_param(dr);
-}
-
-int ParamDictTest::load_param_bin(const unsigned char* mem)
-{
-    ncnn::DataReaderFromMemory dr(mem);
-    return ncnn::ParamDict::load_param_bin(dr);
-}
+#include "testutil.h"
 
 static int test_paramdict_0()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=100 1=1,-1,4,5,1,4 2=1.250000 -23303=5,0.1,0.2,-0.4,0.8,1.0 -23304=3,-1,10,-88");
 
     // int
@@ -128,7 +106,7 @@ static int test_paramdict_0()
 
 static int test_paramdict_1()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=-1 1=4, 2=0.01 3=-1.45e-2,3.14");
 
     // int
@@ -203,7 +181,7 @@ static int test_paramdict_1()
 
 static int test_paramdict_2()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 3=\"1,2,3 and 6.667          zzz\" 2=\"X\" 6=\"qwqwqwq\"");
 
     // string
@@ -304,7 +282,7 @@ static int test_paramdict_3()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // int
@@ -394,7 +372,7 @@ static int test_paramdict_4()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // int
@@ -491,7 +469,7 @@ static int test_paramdict_5()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // string
@@ -769,7 +747,7 @@ static int test_paramdict_numeric_conversion()
     for (size_t j = 0; j < sizeof(integers) / sizeof(integers[0]); j++)
         for (int mode = 0; mode < 2; mode++)
         {
-            ParamDictTest pd;
+            TestParamDict pd;
             if (mode == 0)
             {
                 pd.set(0, integers[j]);
@@ -797,7 +775,7 @@ static int test_paramdict_numeric_conversion()
 
 static int check_text_result(const char* text, bool valid)
 {
-    ParamDictTest memory;
+    TestParamDict memory;
     if ((memory.load_param(text) == 0) != valid)
     {
         fprintf(stderr, "ParamDict memory parse result failed: %s\n", text);
@@ -848,7 +826,7 @@ static int test_paramdict_invalid_text()
 
 static int test_paramdict_text_boundaries()
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     const char* text = "0=-2147483648\t1=2147483647 2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
     if (pd.load_param(text))
         return -1;
@@ -975,7 +953,7 @@ static int test_paramdict_text_boundaries()
 
 static int check_float_boundary(const char* text, float expected, int count, bool valid)
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     const int ret = pd.load_param(text);
     if ((ret == 0) != valid)
     {
@@ -1112,7 +1090,7 @@ static void append_param_word(std::vector<unsigned char>& bytes, int value)
         bytes.push_back((v >> (i * 8)) & 255);
 }
 
-static int check_reloaded_params(const ParamDictTest& pd, int present_id, int value)
+static int check_reloaded_params(const TestParamDict& pd, int present_id, int value)
 {
     for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
     {
@@ -1135,7 +1113,7 @@ static int check_reloaded_params(const ParamDictTest& pd, int present_id, int va
 
 static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     int ret = binary ? pd.load_param_bin(dr) : pd.load_param(dr);
     const ncnn::Mat values = pd.get(2, ncnn::Mat());
     if (ret != 0 || pd.get(0, 0) != 42 || pd.get(1, 0.f) != 1.5f
@@ -1183,7 +1161,7 @@ static int test_paramdict_reload_after_failure()
 {
     for (int binary = 0; binary < 2; binary++)
     {
-        ParamDictTest pd;
+        TestParamDict pd;
         pd.set(9, 99);
 
         // the first scalar is valid, but the second value is invalid or missing
@@ -1226,7 +1204,7 @@ static int test_paramdict_reload()
             snprintf(input, sizeof(input), "%s\n%s\n", empty ? "" : "+0=42 -23301=2,3,4", headers[i]);
             const unsigned char* ptr = (const unsigned char*)input;
             ncnn::DataReaderFromMemory dr(ptr);
-            ParamDictTest pd;
+            TestParamDict pd;
             if (pd.load_param(dr))
                 return -1;
             if (!empty)
@@ -1283,7 +1261,7 @@ static int test_paramdict_binary_bounds()
             append_param_word(data, lengths[j]);
             append_param_word(data, -233);
             BoundedParamReader reader(&data[0], data.size());
-            ParamDictTest pd;
+            TestParamDict pd;
             if (pd.load_param_bin(reader) == 0)
             {
                 fprintf(stderr, "ParamDict negative binary length accepted id=%d len=%d\n", ids[i], lengths[j]);
@@ -1298,7 +1276,7 @@ static int test_paramdict_binary_bounds()
         append_param_word(data, invalid_ids[i]);
         append_param_word(data, -233);
         BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
+        TestParamDict pd;
         if (pd.load_param_bin(reader) == 0)
         {
             fprintf(stderr, "ParamDict invalid binary id accepted %d\n", invalid_ids[i]);
@@ -1313,7 +1291,7 @@ static int test_paramdict_binary_bounds()
         append_param_word(data, -23400);
         append_param_word(data, invalid_string_lengths[i]);
         BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
+        TestParamDict pd;
         if (pd.load_param_bin(reader) == 0)
         {
             fprintf(stderr, "ParamDict oversized binary string accepted len=%d\n", invalid_string_lengths[i]);
@@ -1327,7 +1305,7 @@ static int test_paramdict_binary_bounds()
         append_param_word(data, -23300);
         append_param_word(data, 0x40000000); // byte count wraps on 32-bit targets
         BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
+        TestParamDict pd;
         if (pd.load_param_bin(reader) == 0 || check_text_result("-23300=1073741824", false))
         {
             fprintf(stderr, "ParamDict overflowing array byte count accepted\n");
@@ -1365,7 +1343,7 @@ static int test_paramdict_binary_bounds()
     append_param_word(data, 9);
     append_param_word(data, 99);
     append_param_word(data, -233);
-    ParamDictTest pd;
+    TestParamDict pd;
     BoundedParamReader reader(&data[0], data.size());
     if (pd.load_param_bin(reader) || pd.get(0, 0) != 0x3f800000 || pd.get(0, 0.f) != 1.f
             || pd.get(1, ncnn::Mat()).w != 1 || pd.get(1, ncnn::Mat())[0] != 1.f
@@ -1390,7 +1368,7 @@ static int test_paramdict_binary_bounds()
     for (size_t size = 0; size < data.size(); size++)
     {
         BoundedParamReader truncated(&data[0], size);
-        ParamDictTest partial;
+        TestParamDict partial;
         if (partial.load_param_bin(truncated) == 0)
         {
             fprintf(stderr, "ParamDict truncated binary accepted at %zu\n", size);

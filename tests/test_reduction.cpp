@@ -225,28 +225,6 @@ static int test_reduction_3()
            || test_reduction_nd(c);
 }
 
-static int test_reduction_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Reduction);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_reduction_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-        fprintf(stderr, "operation=%d\n", pd.get(0, 0));
-
-        const ncnn::Mat axes = pd.get(3, ncnn::Mat());
-        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(3), axes.dims, axes.w, axes.elemsize, axes.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -262,66 +240,38 @@ static int test_reduction_load_param()
     ncnn::ParamDict base;
     base.set(5, 1); // fixbug0
     base.set(3, param_int_array(1, 0));
-    if (test_reduction_load_param_case(base, true) != 0)
-        return -1;
-
-    ncnn::ParamDict pd = base;
-    pd.set(3, ncnn::Mat(0));
-    if (test_reduction_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Reduction, base, 0)
+        || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(0), 0))
         return -1;
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(3, missing_data);
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(3, ncnn::Mat(1, (size_t)1u));
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(3, ncnn::Mat(1, 2));
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(3, 1.f);
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(3, param_int_array(5, 1));
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(3, param_int_array(1, INT_MIN));
-    if (test_reduction_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, param_int_array(1, INT_MIN), -1);
 }
 
 static int test_reduction_load_param_type()
 {
     ncnn::ParamDict base;
-    if (test_reduction_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Reduction, base, 0) != 0)
         return -1;
 
     for (int i = 0; i <= 10; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, i);
-        if (test_reduction_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Reduction, base, 0, i, 0) != 0)
             return -1;
     }
 
     const int invalid[] = {-1, 11, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, invalid[i]);
-        if (test_reduction_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Reduction, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 

@@ -101,60 +101,13 @@ static int test_deconvolutiondepthwise_0()
     return 0;
 }
 
-static int test_deconvolutiondepthwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::DeconvolutionDepthWise);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int num_output = pd.get(0, 0);
-        const int kernel_w = pd.get(1, 0);
-        const int kernel_h = pd.get(11, kernel_w);
-        const int dilation_w = pd.get(2, 1);
-        const int dilation_h = pd.get(12, dilation_w);
-        const int stride_w = pd.get(3, 1);
-        const int stride_h = pd.get(13, stride_w);
-        const int weight_data_size = pd.get(6, 0);
-        const int group = pd.get(7, 1);
-        const int activation_type = pd.get(9, 0);
-        const int dynamic_weight = pd.get(28, 0);
-
-        fprintf(stderr, "test_deconvolutiondepthwise_load_param failed ret=%d expected=%d num_output=%d kernel_w=%d kernel_h=%d dilation_w=%d dilation_h=%d stride_w=%d stride_h=%d weight_data_size=%d group=%d activation_type=%d dynamic_weight=%d\n", ret, valid ? 0 : -1, num_output, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, weight_data_size, group, activation_type, dynamic_weight);
-
-        const ncnn::Mat activation_params = pd.get(10, ncnn::Mat());
-        fprintf(stderr, "activation_params type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(10), activation_params.dims, activation_params.w, activation_params.elemsize, activation_params.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int test_deconvolutiondepthwise_load_param_case(const ncnn::ParamDict& base, int id, int value, bool valid)
-{
-    ncnn::ParamDict pd = base;
-    pd.set(id, value);
-
-    int ret = test_deconvolutiondepthwise_load_param_case(pd, valid);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_deconvolutiondepthwise_load_param failed id=%d value=%d\n", id, value);
-    }
-
-    return ret;
-}
-
-static int test_deconvolutiondepthwise_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, bool valid)
+static int test_deconvolutiondepthwise_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    return test_deconvolutiondepthwise_load_param_case(pd, valid);
+    return test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, pd, expected_ret);
 }
 
 static int test_deconvolutiondepthwise_load_param()
@@ -164,7 +117,7 @@ static int test_deconvolutiondepthwise_load_param()
     base.set(1, 3);
     base.set(6, 216);
     base.set(7, 2);
-    if (test_deconvolutiondepthwise_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 0) != 0)
         return -1;
 
     ncnn::Mat params(2);
@@ -172,35 +125,35 @@ static int test_deconvolutiondepthwise_load_param()
     params[1] = 0.5f;
 
     int ret = 0
-              || test_deconvolutiondepthwise_load_param_activation(base, 0, ncnn::Mat(), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 0, ncnn::Mat(0), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 0, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 0, params.range(0, 1), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 1, ncnn::Mat(), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 1, ncnn::Mat(0), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 1, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 1, params.range(0, 1), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 2, ncnn::Mat(), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 2, ncnn::Mat(0), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 2, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 2, params.range(0, 1), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 3, ncnn::Mat(), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 3, ncnn::Mat(0), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 3, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 3, params.range(0, 1), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 4, ncnn::Mat(), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 4, ncnn::Mat(0), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 4, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 4, params.range(0, 1), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 5, ncnn::Mat(), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 5, ncnn::Mat(0), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 5, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 5, params.range(0, 1), true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 6, ncnn::Mat(), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 6, ncnn::Mat(0), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 6, params, true)
-              || test_deconvolutiondepthwise_load_param_activation(base, 6, params.range(0, 1), false)
-              || test_deconvolutiondepthwise_load_param_activation(base, 7, ncnn::Mat(), false);
+              || test_deconvolutiondepthwise_load_param_activation(base, 0, ncnn::Mat(), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 0, ncnn::Mat(0), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 0, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 0, params.range(0, 1), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 1, ncnn::Mat(), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 1, ncnn::Mat(0), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 1, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 1, params.range(0, 1), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 2, ncnn::Mat(), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 2, ncnn::Mat(0), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 2, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 2, params.range(0, 1), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 3, ncnn::Mat(), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 3, ncnn::Mat(0), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 3, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 3, params.range(0, 1), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 4, ncnn::Mat(), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 4, ncnn::Mat(0), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 4, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 4, params.range(0, 1), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 5, ncnn::Mat(), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 5, ncnn::Mat(0), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 5, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 5, params.range(0, 1), 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 6, ncnn::Mat(), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 6, ncnn::Mat(0), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 6, params, 0)
+              || test_deconvolutiondepthwise_load_param_activation(base, 6, params.range(0, 1), -1)
+              || test_deconvolutiondepthwise_load_param_activation(base, 7, ncnn::Mat(), -1);
     if (ret != 0)
         return ret;
 
@@ -210,36 +163,34 @@ static int test_deconvolutiondepthwise_load_param()
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
     for (int i = 0; i < 5; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(10, bad[i]);
-        if (test_deconvolutiondepthwise_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 10, bad[i], -1) != 0)
             return -1;
     }
 
     ret = 0
-          || test_deconvolutiondepthwise_load_param_case(base, 0, 0, false)
-          || test_deconvolutiondepthwise_load_param_case(base, 1, 0, false)
-          || test_deconvolutiondepthwise_load_param_case(base, 2, 0, false)
-          || test_deconvolutiondepthwise_load_param_case(base, 3, 0, false)
-          || test_deconvolutiondepthwise_load_param_case(base, 1, INT_MAX, false)
-          || test_deconvolutiondepthwise_load_param_case(base, 6, 217, false);
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 0, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 1, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 2, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 3, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 1, INT_MAX, -1)
+          || test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 6, 217, -1);
     if (ret != 0)
         return ret;
 
     const int groups[] = {0, -1, -8, INT_MIN, 3};
     for (int i = 0; i < 5; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(7, groups[i]);
-        if (test_deconvolutiondepthwise_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, base, 7, groups[i], -1) != 0)
             return -1;
     }
 
-    ncnn::ParamDict pd = base;
-    pd.set(0, INT_MIN);
-    pd.set(7, -1); // avoid evaluating INT_MIN % -1
-    if (test_deconvolutiondepthwise_load_param_case(pd, false) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, INT_MIN);
+        pd.set(7, -1); // avoid evaluating INT_MIN % -1
+        if (test_layer_param(ncnn::LayerType::DeconvolutionDepthWise, pd, -1) != 0)
+            return -1;
+    }
 
     return 0;
 }

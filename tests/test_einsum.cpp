@@ -151,24 +151,6 @@ static int test_einsum_11()
     return test_einsum(a, "imnj,kmln->ijkl");
 }
 
-static int test_einsum_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Einsum);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_einsum_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::ParamDict equation_params(const char* equation)
 {
     ncnn::Mat m((int)strlen(equation));
@@ -181,9 +163,9 @@ static ncnn::ParamDict equation_params(const char* equation)
     return pd;
 }
 
-static int test_einsum_load_param_case(const char* equation, bool valid)
+static int test_einsum_load_param_equation(const char* equation, int expected_ret)
 {
-    int ret = test_einsum_load_param_case(equation_params(equation), valid);
+    int ret = test_layer_param(ncnn::LayerType::Einsum, equation_params(equation), expected_ret);
     if (ret != 0)
     {
         fprintf(stderr, "test_einsum_load_param failed equation=%s\n", equation);
@@ -195,19 +177,19 @@ static int test_einsum_load_param_case(const char* equation, bool valid)
 static int test_einsum_load_param()
 {
     return 0
-           || test_einsum_load_param_case("ij->ji", false)
-           || test_einsum_load_param_case("ji->ij", true)
-           || test_einsum_load_param_case("", false)
-           || test_einsum_load_param_case("->i", false)
-           || test_einsum_load_param_case("i,->i", false)
-           || test_einsum_load_param_case(",i->i", false)
-           || test_einsum_load_param_case("i,,j->ij", false)
-           || test_einsum_load_param_case("i->", false)
-           || test_einsum_load_param_case("i->ij", false)
-           || test_einsum_load_param_case("i->ii", false)
-           || test_einsum_load_param_case("i->j", false)
-           || test_einsum_load_param_case("ijklm->i", false)
-           || test_einsum_load_param_case("i->i->i", false);
+           || test_einsum_load_param_equation("ij->ji", -1)
+           || test_einsum_load_param_equation("ji->ij", 0)
+           || test_einsum_load_param_equation("", -1)
+           || test_einsum_load_param_equation("->i", -1)
+           || test_einsum_load_param_equation("i,->i", -1)
+           || test_einsum_load_param_equation(",i->i", -1)
+           || test_einsum_load_param_equation("i,,j->ij", -1)
+           || test_einsum_load_param_equation("i->", -1)
+           || test_einsum_load_param_equation("i->ij", -1)
+           || test_einsum_load_param_equation("i->ii", -1)
+           || test_einsum_load_param_equation("i->j", -1)
+           || test_einsum_load_param_equation("ijklm->i", -1)
+           || test_einsum_load_param_equation("i->i->i", -1);
 }
 
 static int test_einsum_load_param_char()
@@ -217,7 +199,7 @@ static int test_einsum_load_param_char()
     int* p = m;
     p[0] = 'i' + 256;
 
-    int ret = test_einsum_load_param_case(pd, false);
+    int ret = test_layer_param(ncnn::LayerType::Einsum, pd, -1);
     if (ret != 0)
     {
         fprintf(stderr, "test_einsum_load_param_char failed value=%d\n", p[0]);

@@ -4,6 +4,7 @@
 #include "testutil.h"
 
 #include "cpu.h"
+#include "datareader.h"
 #include "layer.h"
 #include "layer_type.h"
 #include "mat.h"
@@ -2550,3 +2551,110 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
     return 0;
 }
+
+#if NCNN_STRING
+int TestParamDict::load_param(const char* str)
+{
+    const unsigned char* mem = (const unsigned char*)str;
+    ncnn::DataReaderFromMemory dr(mem);
+    return ncnn::ParamDict::load_param(dr);
+}
+#endif
+
+int TestParamDict::load_param_bin(const unsigned char* mem)
+{
+    ncnn::DataReaderFromMemory dr(mem);
+    return ncnn::ParamDict::load_param_bin(dr);
+}
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret)
+{
+    ncnn::Layer* op = ncnn::create_layer_naive(typeindex);
+    if (!op)
+    {
+        fprintf(stderr, "test_layer_param failed to create layer typeindex=%d\n", typeindex);
+        return -1;
+    }
+
+    int ret = op->load_param(pd);
+    delete op;
+
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_layer_param failed typeindex=%d ret=%d expected=%d\n", typeindex, ret, expected_ret);
+        for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
+        {
+            const int param_type = pd.type(id);
+            if (param_type == 1)
+                fprintf(stderr, "id=%d type=%d int=%d float=%g\n", id, param_type, pd.get(id, 0), pd.get(id, 0.f));
+            if (param_type == 2)
+                fprintf(stderr, "id=%d type=%d value=%d\n", id, param_type, pd.get(id, 0));
+            if (param_type == 3)
+                fprintf(stderr, "id=%d type=%d value=%g\n", id, param_type, pd.get(id, 0.f));
+            if (param_type == 4 || param_type == 5 || param_type == 6)
+            {
+                const ncnn::Mat m = pd.get(id, ncnn::Mat());
+                fprintf(stderr, "id=%d type=%d dims=%d w=%d h=%d d=%d c=%d elemsize=%zu elempack=%d data=%p\n", id, param_type, m.dims, m.w, m.h, m.d, m.c, m.elemsize, m.elempack, m.data);
+            }
+            if (param_type == 7)
+                fprintf(stderr, "id=%d type=%d value=%s\n", id, param_type, pd.get(id, std::string()).c_str());
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, int value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(typeindex, pd, expected_ret);
+}
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, float value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(typeindex, pd, expected_ret);
+}
+
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(typeindex, pd, expected_ret);
+}
+
+#if NCNN_STRING
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& pd, int expected_ret)
+{
+    int ret = test_layer_param(ncnn::layer_to_index(layer_type), pd, expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_layer_param failed layer_type=%s\n", layer_type);
+    }
+    return ret;
+}
+
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, int value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(layer_type, pd, expected_ret);
+}
+
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, float value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(layer_type, pd, expected_ret);
+}
+
+int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(id, value);
+    return test_layer_param(layer_type, pd, expected_ret);
+}
+#endif

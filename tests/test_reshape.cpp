@@ -209,49 +209,25 @@ static int test_reshape_9()
     return test_reshape(a, 19, 15, -233, 18);
 }
 
-static int test_reshape_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Reshape);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int w = pd.get(0, -233);
-        const int h = pd.get(1, -233);
-        const int d = pd.get(11, -233);
-        const int c = pd.get(2, -233);
-        const std::string shape_expr = pd.get(6, "");
-        const int input_batch_axis = pd.get(12, 233);
-        const int output_batch_axis = pd.get(13, 233);
-
-        fprintf(stderr, "test_reshape_load_param failed ret=%d expected=%d w=%d h=%d d=%d c=%d shape_expr=%s input_batch_axis=%d output_batch_axis=%d\n", ret, valid ? 0 : -1, w, h, d, c, shape_expr.c_str(), input_batch_axis, output_batch_axis);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_reshape_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(0, -1);
-    if (test_reshape_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(0, -1);
+    if (test_layer_param(ncnn::LayerType::Reshape, base, 0) != 0)
         return -1;
 
+    ncnn::ParamDict pd = base;
+
     pd.set(6, "1,1,1,1,1");
-    if (test_reshape_load_param_case(pd, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, -1) != 0)
         return -1;
 #if NCNN_BATCH
     pd.set(13, 0);
-    if (test_reshape_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, 0) != 0)
         return -1;
 #endif
     pd.set(6, "1,1,1,1,1,1");
-    return test_reshape_load_param_case(pd, false);
+    return test_layer_param(ncnn::LayerType::Reshape, pd, -1);
 }
 
 int main()

@@ -549,57 +549,24 @@ static int test_gru_7()
 }
 #endif
 
-static int test_gru_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::GRU);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int num_output = pd.get(0, 0);
-        const int weight_data_size = pd.get(1, 0);
-        const int direction = pd.get(2, 0);
-        const int int8_scale_term = pd.get(8, 0);
-
-        fprintf(stderr, "test_gru_load_param failed ret=%d expected=%d num_output=%d weight_data_size=%d direction=%d int8_scale_term=%d\n", ret, valid ? 0 : -1, num_output, weight_data_size, direction, int8_scale_term);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_gru_load_param()
 {
     ncnn::ParamDict base;
     base.set(0, 8);
     base.set(1, 192);
-    if (test_gru_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::GRU, base, 0) != 0)
         return -1;
 
     const int invalid[] = {0, -1, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, invalid[i]);
-        if (test_gru_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::GRU, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 
-    ncnn::ParamDict pd = base;
-    pd.set(2, 3);
-    if (test_gru_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(1, 193);
-    if (test_gru_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::GRU, base, 2, 3, -1)
+           || test_layer_param(ncnn::LayerType::GRU, base, 1, 193, -1);
 }
 
 int main()

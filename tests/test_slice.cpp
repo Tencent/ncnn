@@ -237,31 +237,6 @@ static int test_slice_4()
     return test_slice(a, IntArray(4, -233), 0) || test_slice(b, IntArray(12, -233), 0);
 }
 
-static int test_slice_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Slice);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_slice_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-        fprintf(stderr, "axis=%d\n", pd.get(1, 0));
-
-        const ncnn::Mat slices = pd.get(0, ncnn::Mat());
-        fprintf(stderr, "slices type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), slices.dims, slices.w, slices.elemsize, slices.elempack);
-
-        const ncnn::Mat indices = pd.get(2, ncnn::Mat());
-        fprintf(stderr, "indices type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), indices.dims, indices.w, indices.elemsize, indices.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -276,64 +251,42 @@ static int test_slice_load_param()
 {
     ncnn::ParamDict base;
     base.set(0, param_int_array(1, 1));
-    if (test_slice_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Slice, base, 0) != 0)
         return -1;
 
-    ncnn::ParamDict pd = base;
-    pd.set(0, ncnn::Mat(0));
-    pd.set(2, ncnn::Mat(0));
-    if (test_slice_load_param_case(pd, true) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, ncnn::Mat(0));
+        pd.set(2, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::Slice, pd, 0) != 0)
+            return -1;
+    }
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(0, missing_data);
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(2, missing_data);
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(0, ncnn::Mat(1, (size_t)1u));
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, ncnn::Mat(1, 2));
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, 1.f);
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, param_int_array(1, INT_MIN));
-    if (test_slice_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::Slice, base, 0, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Slice, base, 2, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Slice, base, 0, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Slice, base, 0, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Slice, base, 0, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Slice, base, 0, param_int_array(1, INT_MIN), -1);
 }
 
 static int test_slice_load_param_axis()
 {
+    ncnn::ParamDict base;
     for (int i = -4; i <= 3; i++)
     {
-        ncnn::ParamDict pd;
-        pd.set(1, i);
-        if (test_slice_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Slice, base, 1, i, 0) != 0)
             return -1;
     }
 
     const int invalid[] = {-5, 4, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd;
-        pd.set(1, invalid[i]);
-        if (test_slice_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Slice, base, 1, invalid[i], -1) != 0)
             return -1;
     }
 

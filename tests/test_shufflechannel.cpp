@@ -99,38 +99,17 @@ static int test_shufflechannel_2()
            || test_shufflechannel(5, 3, 2, 16, 8, 1);
 }
 
-static int test_shufflechannel_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::ShuffleChannel);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int group = pd.get(0, 1);
-
-        fprintf(stderr, "test_shufflechannel_load_param failed ret=%d expected=%d group=%d\n", ret, valid ? 0 : -1, group);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_shufflechannel_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(0, 2);
-    if (test_shufflechannel_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    if (test_layer_param(ncnn::LayerType::ShuffleChannel, base, 0) != 0)
         return -1;
 
     const int invalid[] = {0, -1, -8, INT_MIN};
     for (int i = 0; i < 4; i++)
     {
-        pd.set(0, invalid[i]);
-        if (test_shufflechannel_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::ShuffleChannel, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 

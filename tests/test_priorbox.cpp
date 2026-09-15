@@ -4,7 +4,6 @@
 #include "testutil.h"
 
 #include "layer_type.h"
-#include "datareader.h"
 
 static int test_priorbox_caffe()
 {
@@ -98,105 +97,56 @@ static int test_priorbox_mxnet()
     return ret;
 }
 
-static int test_priorbox_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::PriorBox);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_priorbox_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-
-        const ncnn::Mat min_sizes = pd.get(0, ncnn::Mat());
-        fprintf(stderr, "min_sizes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), min_sizes.dims, min_sizes.w, min_sizes.elemsize, min_sizes.elempack);
-
-        const ncnn::Mat max_sizes = pd.get(1, ncnn::Mat());
-        fprintf(stderr, "max_sizes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(1), max_sizes.dims, max_sizes.w, max_sizes.elemsize, max_sizes.elempack);
-
-        const ncnn::Mat aspect_ratios = pd.get(2, ncnn::Mat());
-        fprintf(stderr, "aspect_ratios type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), aspect_ratios.dims, aspect_ratios.w, aspect_ratios.elemsize, aspect_ratios.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_priorbox_load_param()
 {
     ncnn::ParamDict pd;
     ncnn::Mat sizes(2);
     sizes.fill(1.f);
     pd.set(0, sizes);
-    if (test_priorbox_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
         return -1;
 
     const ncnn::ParamDict base = pd;
 
-    pd = base;
-    pd.set(1, ncnn::Mat(0));
-    if (test_priorbox_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::PriorBox, base, 1, ncnn::Mat(0), 0)
+        || test_layer_param(ncnn::LayerType::PriorBox, base, 2, ncnn::Mat(0), 0))
         return -1;
 
-    pd = base;
-    pd.set(2, ncnn::Mat(0));
-    if (test_priorbox_load_param_case(pd, true) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(2, ncnn::Mat(0));
+        pd.set(1, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
+            return -1;
+    }
 
-    pd.set(1, ncnn::Mat(0));
-    if (test_priorbox_load_param_case(pd, true) != 0)
-        return -1;
-
-    pd.set(0, ncnn::Mat(0));
-    if (test_priorbox_load_param_case(pd, false) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(2, ncnn::Mat(0));
+        pd.set(1, ncnn::Mat(0));
+        pd.set(0, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::PriorBox, pd, -1) != 0)
+            return -1;
+    }
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(0, missing_data);
-    if (test_priorbox_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(1, missing_data);
-    if (test_priorbox_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(2, missing_data);
-    if (test_priorbox_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(1, sizes.range(0, 1));
-    if (test_priorbox_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 0, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 1, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 2, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 1, sizes.range(0, 1), -1);
 }
-
-class PriorBoxParamDict : public ncnn::ParamDict
-{
-public:
-    using ncnn::ParamDict::load_param;
-    using ncnn::ParamDict::load_param_bin;
-};
 
 static int test_priorbox_load_param_serialized()
 {
-    PriorBoxParamDict pd;
+    TestParamDict pd;
 #if NCNN_STRING
-    const unsigned char* text = (const unsigned char*)"-23300=1,1.0 -23301=0 -23302=0";
-    ncnn::DataReaderFromMemory text_reader(text);
-    if (pd.load_param(text_reader) != 0)
+    if (pd.load_param("-23300=1,1.0 -23301=0 -23302=0") != 0)
         return -1;
 
-    if (test_priorbox_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
         return -1;
 #endif
 
@@ -211,12 +161,10 @@ static int test_priorbox_load_param_serialized()
         0x00, 0x00, 0x00, 0x00,
         0x17, 0xff, 0xff, 0xff
     };
-    const unsigned char* data = binary;
-    ncnn::DataReaderFromMemory binary_reader(data);
-    if (pd.load_param_bin(binary_reader) != 0)
+    if (pd.load_param_bin(binary) != 0)
         return -1;
 
-    return test_priorbox_load_param_case(pd, true);
+    return test_layer_param(ncnn::LayerType::PriorBox, pd, 0);
 }
 
 int main()

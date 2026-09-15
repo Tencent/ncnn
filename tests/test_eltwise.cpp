@@ -346,40 +346,18 @@ static int test_eltwise_12()
            || test_eltwise(c, 2, RandomMat(4));
 }
 
-static int test_eltwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Eltwise);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_eltwise_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-        fprintf(stderr, "op_type=%d\n", pd.get(0, 0));
-
-        const ncnn::Mat coeffs = pd.get(1, ncnn::Mat());
-        fprintf(stderr, "coeffs type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(1), coeffs.dims, coeffs.w, coeffs.elemsize, coeffs.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_eltwise_load_param()
 {
     ncnn::ParamDict pd;
     pd.set(1, ncnn::Mat(2));
-    if (test_eltwise_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Eltwise, pd, 0) != 0)
         return -1;
 
     const ncnn::ParamDict base = pd;
 
     pd = base;
     pd.set(1, ncnn::Mat(0));
-    if (test_eltwise_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Eltwise, pd, 0) != 0)
         return -1;
 
     ncnn::Mat missing_data(0);
@@ -387,38 +365,34 @@ static int test_eltwise_load_param()
 
     pd = base;
     pd.set(1, missing_data);
-    if (test_eltwise_load_param_case(pd, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Eltwise, pd, -1) != 0)
         return -1;
 
     pd = base;
     pd.set(1, ncnn::Mat(2, (size_t)1u));
-    if (test_eltwise_load_param_case(pd, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Eltwise, pd, -1) != 0)
         return -1;
 
     pd.set(1, ncnn::Mat(2, 2));
-    return test_eltwise_load_param_case(pd, false);
+    return test_layer_param(ncnn::LayerType::Eltwise, pd, -1);
 }
 
 static int test_eltwise_load_param_type()
 {
     ncnn::ParamDict base;
-    if (test_eltwise_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Eltwise, base, 0) != 0)
         return -1;
 
     for (int i = 0; i <= 2; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, i);
-        if (test_eltwise_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Eltwise, base, 0, i, 0) != 0)
             return -1;
     }
 
     const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, invalid[i]);
-        if (test_eltwise_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Eltwise, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 

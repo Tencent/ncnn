@@ -49,51 +49,30 @@ static int test_roialign_0()
            || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1);
 }
 
-static int test_roialign_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::ROIAlign);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int pooled_width = pd.get(0, 0);
-        const int pooled_height = pd.get(1, 0);
-        const int version = pd.get(5, 0);
-
-        fprintf(stderr, "test_roialign_load_param failed ret=%d expected=%d pooled_width=%d pooled_height=%d version=%d\n", ret, valid ? 0 : -1, pooled_width, pooled_height, version);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int test_roialign_load_param()
+static int test_roialign_load_param(int version, int sampling_ratio, int expected_ret)
 {
     ncnn::ParamDict pd;
     pd.set(0, 2);
     pd.set(1, 2);
+    pd.set(5, version);
+    pd.set(3, sampling_ratio);
 
+    return test_layer_param(ncnn::LayerType::ROIAlign, pd, expected_ret);
+}
+
+static int test_roialign_load_param()
+{
     const int sampling_ratios[] = {0, -1, -2, INT_MIN};
     for (int version = 0; version < 2; version++)
     {
-        pd.set(5, version);
         for (int i = 0; i < 4; i++)
         {
-            pd.set(3, sampling_ratios[i]);
-            if (test_roialign_load_param_case(pd, true) != 0)
+            if (test_roialign_load_param(version, sampling_ratios[i], 0) != 0)
                 return -1;
         }
     }
 
-    pd.set(5, 2);
-    if (test_roialign_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return test_roialign_load_param(2, INT_MIN, -1);
 }
 
 static int test_roialign_adaptive(int version, bool aligned)

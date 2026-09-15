@@ -216,30 +216,6 @@ static int test_tile_3()
            || test_tile(c, IntArray(1, 3, 2, 2));
 }
 
-static int test_tile_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Tile);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int tiles = pd.get(1, 1);
-
-        fprintf(stderr, "test_tile_load_param failed ret=%d expected=%d tiles=%d\n", ret, valid ? 0 : -1, tiles);
-        fprintf(stderr, "axis=%d\n", pd.get(0, 0));
-
-        const ncnn::Mat repeats = pd.get(2, ncnn::Mat());
-        fprintf(stderr, "repeats type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(2), repeats.dims, repeats.w, repeats.elemsize, repeats.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -254,71 +230,46 @@ static int test_tile_load_param()
 {
     ncnn::ParamDict base;
     base.set(2, param_int_array(1, 1));
-    if (test_tile_load_param_case(base, true) != 0)
-        return -1;
-
-    ncnn::ParamDict pd = base;
-    pd.set(2, ncnn::Mat(0));
-    if (test_tile_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Tile, base, 0)
+        || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(0), 0))
         return -1;
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(2, missing_data);
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(2, ncnn::Mat(1, (size_t)1u));
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(2, ncnn::Mat(1, 2));
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(2, 1.f);
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(2, param_int_array(5, 1));
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(2, param_int_array(1, INT_MIN));
-    if (test_tile_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, param_int_array(1, INT_MIN), -1);
 }
 
 static int test_tile_load_param_axis()
 {
+    ncnn::ParamDict base;
     for (int i = 0; i <= 3; i++)
     {
-        ncnn::ParamDict pd;
-        pd.set(0, i);
-        if (test_tile_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Tile, base, 0, i, 0) != 0)
             return -1;
     }
+
+    ncnn::ParamDict empty = base;
+    empty.set(2, ncnn::Mat(0));
+    // repeats overrides axis
+    ncnn::ParamDict repeats = base;
+    repeats.set(2, param_int_array(1, 1));
 
     const int invalid[] = {-1, 4, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd;
-        pd.set(0, invalid[i]);
-        if (test_tile_load_param_case(pd, false) != 0)
-            return -1;
-
-        pd.set(2, ncnn::Mat(0));
-        if (test_tile_load_param_case(pd, false) != 0)
-            return -1;
-
-        pd.set(2, param_int_array(1, 1)); // repeats overrides axis
-        if (test_tile_load_param_case(pd, true) != 0)
-            return -1;
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Tile, base, 0, invalid[i], -1)
+                  || test_layer_param(ncnn::LayerType::Tile, empty, 0, invalid[i], -1)
+                  || test_layer_param(ncnn::LayerType::Tile, repeats, 0, invalid[i], 0);
+        if (ret != 0)
+            return ret;
     }
 
     return 0;

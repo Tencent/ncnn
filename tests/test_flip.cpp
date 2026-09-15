@@ -4,7 +4,6 @@
 #include "testutil.h"
 
 #include "layer_type.h"
-#include "datareader.h"
 
 #include <limits.h>
 
@@ -175,27 +174,6 @@ static int test_flip_3()
            || test_flip_nd(c);
 }
 
-static int test_flip_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Flip);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_flip_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-
-        const ncnn::Mat axes = pd.get(0, ncnn::Mat());
-        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(0), axes.dims, axes.w, axes.elemsize, axes.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -210,81 +188,43 @@ static int test_flip_load_param()
 {
     ncnn::ParamDict base;
     base.set(0, param_int_array(1, 0));
-    if (test_flip_load_param_case(base, true) != 0)
-        return -1;
-
-    ncnn::ParamDict pd = base;
-    pd.set(0, ncnn::Mat(0));
-    if (test_flip_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Flip, base, 0)
+        || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(0), 0))
         return -1;
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(0, missing_data);
-    if (test_flip_load_param_case(pd, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Flip, base, 0, missing_data, -1) != 0)
         return -1;
 
     ncnn::Mat negative_length(0);
     negative_length.w = -1;
-    pd.set(0, negative_length);
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
 
-    pd.set(0, ncnn::Mat(0, (size_t)1u));
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(0, ncnn::Mat(1, (size_t)1u));
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, ncnn::Mat(1, 2));
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, 1.f);
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, param_int_array(5, 1));
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(0, param_int_array(1, INT_MIN));
-    if (test_flip_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, negative_length, -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(0, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, param_int_array(1, INT_MIN), -1);
 }
-
-class FlipParamDict : public ncnn::ParamDict
-{
-public:
-    using ncnn::ParamDict::load_param;
-    using ncnn::ParamDict::load_param_bin;
-};
 
 static int test_flip_load_param_serialized()
 {
-    FlipParamDict typed;
+    TestParamDict typed;
 #if NCNN_STRING
-    const unsigned char* text = (const unsigned char*)"-23300=1,0.0";
-    ncnn::DataReaderFromMemory text_reader(text);
-    if (typed.load_param(text_reader) != 0)
+    if (typed.load_param("-23300=1,0.0") != 0)
         return -1;
 
-    if (test_flip_load_param_case(typed, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Flip, typed, -1) != 0)
         return -1;
 
-    const unsigned char* empty_text = (const unsigned char*)"-23300=0";
-    ncnn::DataReaderFromMemory empty_text_reader(empty_text);
-    if (typed.load_param(empty_text_reader) != 0)
+    if (typed.load_param("-23300=0") != 0)
         return -1;
 
-    if (test_flip_load_param_case(typed, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Flip, typed, 0) != 0)
         return -1;
 #endif
     // binary parameters use little-endian byte order
@@ -294,12 +234,10 @@ static int test_flip_load_param_serialized()
         0x00, 0x00, 0x00, 0x00,
         0x17, 0xff, 0xff, 0xff
     };
-    const unsigned char* data = binary;
-    ncnn::DataReaderFromMemory binary_reader(data);
-    if (typed.load_param_bin(binary_reader) != 0)
+    if (typed.load_param_bin(binary) != 0)
         return -1;
 
-    if (test_flip_load_param_case(typed, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Flip, typed, 0) != 0)
         return -1;
 
     const unsigned char empty_binary[] = {
@@ -307,15 +245,10 @@ static int test_flip_load_param_serialized()
         0x00, 0x00, 0x00, 0x00,
         0x17, 0xff, 0xff, 0xff
     };
-    data = empty_binary;
-    ncnn::DataReaderFromMemory empty_binary_reader(data);
-    if (typed.load_param_bin(empty_binary_reader) != 0)
+    if (typed.load_param_bin(empty_binary) != 0)
         return -1;
 
-    if (test_flip_load_param_case(typed, true) != 0)
-        return -1;
-
-    return 0;
+    return test_layer_param(ncnn::LayerType::Flip, typed, 0);
 }
 
 int main()

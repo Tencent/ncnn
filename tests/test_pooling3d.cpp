@@ -242,102 +242,65 @@ static int test_pooling3d_4()
            || test_pooling3d(13, 12, 11, 16, 0, 1, 1, 0, 0, 0, 1, 0, 12);
 }
 
-static int test_pooling3d_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Pooling3D);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int kernel_w = pd.get(1, 0);
-        const int kernel_h = pd.get(11, kernel_w);
-        const int kernel_d = pd.get(21, kernel_w);
-        const int stride_w = pd.get(2, 1);
-        const int stride_h = pd.get(12, stride_w);
-        const int stride_d = pd.get(22, stride_w);
-        const int global_pooling = pd.get(4, 0);
-        const int adaptive_pooling = pd.get(7, 0);
-
-        fprintf(stderr, "test_pooling3d_load_param failed ret=%d expected=%d kernel_w=%d kernel_h=%d kernel_d=%d stride_w=%d stride_h=%d stride_d=%d global_pooling=%d adaptive_pooling=%d\n", ret, valid ? 0 : -1, kernel_w, kernel_h, kernel_d, stride_w, stride_h, stride_d, global_pooling, adaptive_pooling);
-        fprintf(stderr, "pooling_type=%d pad_mode=%d\n", pd.get(0, 0), pd.get(5, 0));
-        fprintf(stderr, "out_w=%d out_h=%d out_d=%d\n", pd.get(8, 0), pd.get(18, pd.get(8, 0)), pd.get(28, pd.get(8, 0)));
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_pooling3d_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(1, 3);
-    if (test_pooling3d_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
         return -1;
 
-    pd.set(2, 0);
-    if (test_pooling3d_load_param_case(pd, false) != 0)
-        return -1;
+    // global pooling does not use the local stride
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
 
-    pd.set(4, 1); // global pooling does not use the local stride
-    if (test_pooling3d_load_param_case(pd, true) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::Pooling3D, base, 2, 0, -1)
+           || test_layer_param(ncnn::LayerType::Pooling3D, global, 2, 0, 0);
 }
 
 static int test_pooling3d_load_param_type()
 {
     ncnn::ParamDict base;
     base.set(1, 3);
-    if (test_pooling3d_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
         return -1;
 
     for (int i = 0; i <= 1; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, i);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0, i, 0) != 0)
             return -1;
     }
 
     const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(0, invalid[i]);
-        if (test_pooling3d_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0, invalid[i], -1) != 0)
             return -1;
     }
 
     for (int i = 0; i <= 3; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(5, i);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 5, i, 0) != 0)
             return -1;
     }
+
+    // global and adaptive pooling do not use pad_mode
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict adaptive = base;
+    adaptive.set(4, 0);
+    adaptive.set(8, 1);
+    adaptive.set(7, 1);
 
     const int invalid_pad[] = {-1, 4, INT_MIN, INT_MAX};
     for (int i = 0; i < 4; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(5, invalid_pad[i]);
-        if (test_pooling3d_load_param_case(pd, false) != 0)
-            return -1;
-
-        pd.set(4, 1); // global pooling does not use pad_mode
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-
-        pd.set(4, 0);
-        pd.set(8, 1);
-        pd.set(7, 1); // adaptive pooling does not use pad_mode
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Pooling3D, base, 5, invalid_pad[i], -1)
+                  || test_layer_param(ncnn::LayerType::Pooling3D, global, 5, invalid_pad[i], 0)
+                  || test_layer_param(ncnn::LayerType::Pooling3D, adaptive, 5, invalid_pad[i], 0);
+        if (ret != 0)
+            return ret;
     }
 
     return 0;
@@ -348,99 +311,42 @@ static int test_pooling3d_load_param_adaptive()
     ncnn::ParamDict base;
     base.set(1, 3);
     base.set(7, 1);
-    if (test_pooling3d_load_param_case(base, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, -1) != 0)
         return -1;
 
     base.set(8, 2);
-    if (test_pooling3d_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
         return -1;
 
     base.set(18, 2);
     base.set(28, 2);
 
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(8, 1);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
+    // global and ordinary pooling ignore adaptive output sizes
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict ordinary = base;
+    ordinary.set(4, 0);
+    ordinary.set(7, 0);
 
-        pd.set(8, -233);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-    }
-
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(18, 1);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-
-        pd.set(18, -233);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-    }
-
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(28, 1);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-
-        pd.set(28, -233);
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-    }
-
+    const int ids[] = {8, 18, 28};
     const int invalid[] = {0, -1, -234, INT_MIN};
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 3; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(8, invalid[i]);
-        if (test_pooling3d_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], 1, 0) != 0)
             return -1;
 
-        pd.set(4, 1); // global pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], -233, 0) != 0)
             return -1;
 
-        pd.set(4, 0);
-        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(18, invalid[i]);
-        if (test_pooling3d_load_param_case(pd, false) != 0)
-            return -1;
-
-        pd.set(4, 1); // global pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-
-        pd.set(4, 0);
-        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        ncnn::ParamDict pd = base;
-        pd.set(28, invalid[i]);
-        if (test_pooling3d_load_param_case(pd, false) != 0)
-            return -1;
-
-        pd.set(4, 1); // global pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
-
-        pd.set(4, 0);
-        pd.set(7, 0); // ordinary pooling ignores the adaptive output size
-        if (test_pooling3d_load_param_case(pd, true) != 0)
-            return -1;
+        for (int j = 0; j < 4; j++)
+        {
+            int ret = 0
+                      || test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], invalid[j], -1)
+                      || test_layer_param(ncnn::LayerType::Pooling3D, global, ids[i], invalid[j], 0)
+                      || test_layer_param(ncnn::LayerType::Pooling3D, ordinary, ids[i], invalid[j], 0);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;

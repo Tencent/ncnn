@@ -156,55 +156,27 @@ static int test_multiheadattention_2()
            || test_multiheadattention_sameqkv(RandomMat(48, 127), 64, 8);
 }
 
-static int test_multiheadattention_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::MultiHeadAttention);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int embed_dim = pd.get(0, 0);
-        const int num_heads = pd.get(1, 1);
-        const int weight_data_size = pd.get(2, 0);
-        const int kdim = pd.get(3, embed_dim);
-        const int vdim = pd.get(4, embed_dim);
-        const int kv_cache = pd.get(7, 0);
-        const int quantize_term = pd.get(18, 0);
-
-        fprintf(stderr, "test_multiheadattention_load_param failed ret=%d expected=%d embed_dim=%d num_heads=%d weight_data_size=%d kdim=%d vdim=%d kv_cache=%d quantize_term=%d\n", ret, valid ? 0 : -1, embed_dim, num_heads, weight_data_size, kdim, vdim, kv_cache, quantize_term);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_multiheadattention_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(0, 8);
-    pd.set(1, 2);
-    pd.set(2, 64);
-    if (test_multiheadattention_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 2);
+    base.set(2, 64);
+    if (test_layer_param(ncnn::LayerType::MultiHeadAttention, base, 0) != 0)
         return -1;
+
+    // explicit scale must not bypass dimension validation
+    ncnn::ParamDict scaled = base;
+    scaled.set(6, 1.f);
 
     const int invalid[] = {0, -1, INT_MIN, 3, 16};
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
     {
-        pd.set(1, invalid[i]);
-        pd.set(6, 1.f); // explicit scale must not bypass dimension validation
-        if (test_multiheadattention_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 1, invalid[i], -1) != 0)
             return -1;
     }
-    pd.set(1, 2);
-    pd.set(0, 0);
-    if (test_multiheadattention_load_param_case(pd, false) != 0)
-        return -1;
 
-    return 0;
+    return test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 0, 0, -1);
 }
 
 int main()

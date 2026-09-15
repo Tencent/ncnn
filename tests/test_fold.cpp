@@ -40,46 +40,23 @@ static int test_fold_0()
            || test_fold(120, 36, 11, 5, 3, 2, 2, 1, 1, 1, 4, 2);
 }
 
-static int test_fold_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Fold);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int kernel_w = pd.get(1, 0);
-        const int kernel_h = pd.get(11, kernel_w);
-        const int dilation_w = pd.get(2, 1);
-        const int dilation_h = pd.get(12, dilation_w);
-        const int stride_w = pd.get(3, 1);
-        const int stride_h = pd.get(13, stride_w);
-
-        fprintf(stderr, "test_fold_load_param failed ret=%d expected=%d kernel_w=%d kernel_h=%d dilation_w=%d dilation_h=%d stride_w=%d stride_h=%d\n", ret, valid ? 0 : -1, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_fold_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(1, 3);
-    if (test_fold_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Fold, base, 0) != 0)
         return -1;
 
-    pd.set(3, 0);
-    if (test_fold_load_param_case(pd, false) != 0)
+    if (test_layer_param(ncnn::LayerType::Fold, base, 3, 0, -1) != 0)
         return -1;
 
-    pd.set(3, 1);
-    pd.set(1, 65536);
-    if (test_fold_load_param_case(pd, false) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(3, 1);
+        pd.set(1, 65536);
+        if (test_layer_param(ncnn::LayerType::Fold, pd, -1) != 0)
+            return -1;
+    }
 
     return 0;
 }

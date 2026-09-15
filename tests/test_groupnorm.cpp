@@ -106,48 +106,21 @@ static int test_groupnorm_3()
            || test_groupnorm(RandomMat(324), 3, 0.0001f, 1);
 }
 
-static int test_groupnorm_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::GroupNorm);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int group = pd.get(0, 1);
-        const int channels = pd.get(1, 0);
-        const int affine = pd.get(3, 1);
-
-        fprintf(stderr, "test_groupnorm_load_param failed ret=%d expected=%d group=%d channels=%d affine=%d\n", ret, valid ? 0 : -1, group, channels, affine);
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_groupnorm_load_param()
 {
-    ncnn::ParamDict pd;
-    pd.set(0, 2);
-    pd.set(1, 8);
-    if (test_groupnorm_load_param_case(pd, true) != 0)
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    base.set(1, 8);
+    if (test_layer_param(ncnn::LayerType::GroupNorm, base, 0) != 0)
         return -1;
 
     const int invalid[] = {0, -1, -8, INT_MIN};
     for (int i = 0; i < 4; i++)
     {
-        pd.set(0, invalid[i]);
-        if (test_groupnorm_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::GroupNorm, base, 0, invalid[i], -1) != 0)
             return -1;
     }
-    pd.set(0, 3);
-    if (test_groupnorm_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return test_layer_param(ncnn::LayerType::GroupNorm, base, 0, 3, -1);
 }
 
 int main()

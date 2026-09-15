@@ -3,7 +3,6 @@
 
 #include "testutil.h"
 
-#include "datareader.h"
 #include "layer_type.h"
 
 static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
@@ -346,44 +345,18 @@ static int test_innerproduct_7()
 }
 #endif // NCNN_INT8
 
-static int test_innerproduct_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::InnerProduct);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        const int num_output = pd.get(0, 0);
-        const int weight_data_size = pd.get(2, 0);
-        const int int8_scale_term = pd.get(8, 0);
-        const int activation_type = pd.get(9, 0);
-
-        fprintf(stderr, "test_innerproduct_load_param failed ret=%d expected=%d num_output=%d weight_data_size=%d int8_scale_term=%d activation_type=%d\n", ret, valid ? 0 : -1, num_output, weight_data_size, int8_scale_term, activation_type);
-
-        const ncnn::Mat activation_params = pd.get(10, ncnn::Mat());
-        fprintf(stderr, "activation_params type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(10), activation_params.dims, activation_params.w, activation_params.elemsize, activation_params.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, bool valid)
+static int test_innerproduct_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
 {
     ncnn::ParamDict pd = base;
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    return test_innerproduct_load_param_case(pd, valid);
+    return test_layer_param(ncnn::LayerType::InnerProduct, pd, expected_ret);
 }
 
 static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float expected)
 {
-    if (test_innerproduct_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::InnerProduct, pd, 0) != 0)
         return -1;
 
     std::vector<ncnn::Mat> weights(1);
@@ -407,23 +380,14 @@ static int test_innerproduct_param(const ncnn::ParamDict& pd, float value, float
     return 0;
 }
 
-class InnerProductParamDict : public ncnn::ParamDict
-{
-public:
-    using ncnn::ParamDict::load_param;
-    using ncnn::ParamDict::load_param_bin;
-};
-
 #if NCNN_STRING
 static int test_innerproduct_param_text(float value, float expected)
 {
-    InnerProductParamDict pd;
-    const unsigned char* text = (const unsigned char*)"0=8 2=64 9=3 -23310=2,-1,2";
-    ncnn::DataReaderFromMemory reader(text);
-    if (pd.load_param(reader) != 0)
+    TestParamDict pd;
+    if (pd.load_param("0=8 2=64 9=3 -23310=2,-1,2") != 0)
         return -1;
 
-    if (test_innerproduct_load_param_case(pd, true) != 0)
+    if (test_layer_param(ncnn::LayerType::InnerProduct, pd, 0) != 0)
         return -1;
 
     pd.set(0, 1);
@@ -466,10 +430,8 @@ static int test_innerproduct_load_param_binary()
         0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x40,
         0x17, 0xff, 0xff, 0xff
     };
-    const unsigned char* data = binary;
-    ncnn::DataReaderFromMemory reader(data);
-    InnerProductParamDict pd;
-    if (pd.load_param_bin(reader) != 0)
+    TestParamDict pd;
+    if (pd.load_param_bin(binary) != 0)
         return -1;
 
     int ret = 0
@@ -484,9 +446,7 @@ static int test_innerproduct_load_param_binary()
         0xff, 0xff, 0xff, 0xff, 0x02, 0x00, 0x00, 0x00,
         0x17, 0xff, 0xff, 0xff
     };
-    data = integer_binary;
-    ncnn::DataReaderFromMemory integer_reader(data);
-    if (pd.load_param_bin(integer_reader) != 0)
+    if (pd.load_param_bin(integer_binary) != 0)
         return -1;
 
     const ncnn::Mat params = pd.get(10, ncnn::Mat());
@@ -505,7 +465,7 @@ static int test_innerproduct_load_param()
     ncnn::ParamDict base;
     base.set(0, 8);
     base.set(2, 64);
-    if (test_innerproduct_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::InnerProduct, base, 0) != 0)
         return -1;
 
     ncnn::Mat params(2);
@@ -513,35 +473,35 @@ static int test_innerproduct_load_param()
     params[1] = 0.5f;
 
     int ret = 0
-              || test_innerproduct_load_param_activation(base, 0, ncnn::Mat(), true)
-              || test_innerproduct_load_param_activation(base, 0, ncnn::Mat(0), true)
-              || test_innerproduct_load_param_activation(base, 0, params, true)
-              || test_innerproduct_load_param_activation(base, 0, params.range(0, 1), true)
-              || test_innerproduct_load_param_activation(base, 1, ncnn::Mat(), true)
-              || test_innerproduct_load_param_activation(base, 1, ncnn::Mat(0), true)
-              || test_innerproduct_load_param_activation(base, 1, params, true)
-              || test_innerproduct_load_param_activation(base, 1, params.range(0, 1), true)
-              || test_innerproduct_load_param_activation(base, 2, ncnn::Mat(), false)
-              || test_innerproduct_load_param_activation(base, 2, ncnn::Mat(0), false)
-              || test_innerproduct_load_param_activation(base, 2, params, true)
-              || test_innerproduct_load_param_activation(base, 2, params.range(0, 1), true)
-              || test_innerproduct_load_param_activation(base, 3, ncnn::Mat(), false)
-              || test_innerproduct_load_param_activation(base, 3, ncnn::Mat(0), false)
-              || test_innerproduct_load_param_activation(base, 3, params, true)
-              || test_innerproduct_load_param_activation(base, 3, params.range(0, 1), false)
-              || test_innerproduct_load_param_activation(base, 4, ncnn::Mat(), true)
-              || test_innerproduct_load_param_activation(base, 4, ncnn::Mat(0), true)
-              || test_innerproduct_load_param_activation(base, 4, params, true)
-              || test_innerproduct_load_param_activation(base, 4, params.range(0, 1), true)
-              || test_innerproduct_load_param_activation(base, 5, ncnn::Mat(), true)
-              || test_innerproduct_load_param_activation(base, 5, ncnn::Mat(0), true)
-              || test_innerproduct_load_param_activation(base, 5, params, true)
-              || test_innerproduct_load_param_activation(base, 5, params.range(0, 1), true)
-              || test_innerproduct_load_param_activation(base, 6, ncnn::Mat(), false)
-              || test_innerproduct_load_param_activation(base, 6, ncnn::Mat(0), false)
-              || test_innerproduct_load_param_activation(base, 6, params, true)
-              || test_innerproduct_load_param_activation(base, 6, params.range(0, 1), false)
-              || test_innerproduct_load_param_activation(base, 7, ncnn::Mat(), false);
+              || test_innerproduct_load_param_activation(base, 0, ncnn::Mat(), 0)
+              || test_innerproduct_load_param_activation(base, 0, ncnn::Mat(0), 0)
+              || test_innerproduct_load_param_activation(base, 0, params, 0)
+              || test_innerproduct_load_param_activation(base, 0, params.range(0, 1), 0)
+              || test_innerproduct_load_param_activation(base, 1, ncnn::Mat(), 0)
+              || test_innerproduct_load_param_activation(base, 1, ncnn::Mat(0), 0)
+              || test_innerproduct_load_param_activation(base, 1, params, 0)
+              || test_innerproduct_load_param_activation(base, 1, params.range(0, 1), 0)
+              || test_innerproduct_load_param_activation(base, 2, ncnn::Mat(), -1)
+              || test_innerproduct_load_param_activation(base, 2, ncnn::Mat(0), -1)
+              || test_innerproduct_load_param_activation(base, 2, params, 0)
+              || test_innerproduct_load_param_activation(base, 2, params.range(0, 1), 0)
+              || test_innerproduct_load_param_activation(base, 3, ncnn::Mat(), -1)
+              || test_innerproduct_load_param_activation(base, 3, ncnn::Mat(0), -1)
+              || test_innerproduct_load_param_activation(base, 3, params, 0)
+              || test_innerproduct_load_param_activation(base, 3, params.range(0, 1), -1)
+              || test_innerproduct_load_param_activation(base, 4, ncnn::Mat(), 0)
+              || test_innerproduct_load_param_activation(base, 4, ncnn::Mat(0), 0)
+              || test_innerproduct_load_param_activation(base, 4, params, 0)
+              || test_innerproduct_load_param_activation(base, 4, params.range(0, 1), 0)
+              || test_innerproduct_load_param_activation(base, 5, ncnn::Mat(), 0)
+              || test_innerproduct_load_param_activation(base, 5, ncnn::Mat(0), 0)
+              || test_innerproduct_load_param_activation(base, 5, params, 0)
+              || test_innerproduct_load_param_activation(base, 5, params.range(0, 1), 0)
+              || test_innerproduct_load_param_activation(base, 6, ncnn::Mat(), -1)
+              || test_innerproduct_load_param_activation(base, 6, ncnn::Mat(0), -1)
+              || test_innerproduct_load_param_activation(base, 6, params, 0)
+              || test_innerproduct_load_param_activation(base, 6, params.range(0, 1), -1)
+              || test_innerproduct_load_param_activation(base, 7, ncnn::Mat(), -1);
     if (ret != 0)
         return ret;
 
@@ -551,9 +511,7 @@ static int test_innerproduct_load_param()
     const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
     for (int i = 0; i < 5; i++)
     {
-        ncnn::ParamDict pd = base;
-        pd.set(10, bad[i]);
-        if (test_innerproduct_load_param_case(pd, false) != 0)
+        if (test_layer_param(ncnn::LayerType::InnerProduct, base, 10, bad[i], -1) != 0)
             return -1;
     }
 

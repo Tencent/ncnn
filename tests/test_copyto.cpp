@@ -193,30 +193,6 @@ static int test_copyto_4()
            || test_copyto(RandomMat(3, 4, 5, 16), RandomMat(3, 4, 5, 16), 0, 0, 0, 0);
 }
 
-static int test_copyto_load_param_case(const ncnn::ParamDict& pd, bool valid)
-{
-    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::CopyTo);
-    if (!layer)
-        return -1;
-
-    int ret = layer->load_param(pd);
-    delete layer;
-
-    if (ret != (valid ? 0 : -1))
-    {
-        fprintf(stderr, "test_copyto_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
-
-        const ncnn::Mat starts = pd.get(9, ncnn::Mat());
-        fprintf(stderr, "starts type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(9), starts.dims, starts.w, starts.elemsize, starts.elempack);
-
-        const ncnn::Mat axes = pd.get(11, ncnn::Mat());
-        fprintf(stderr, "axes type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(11), axes.dims, axes.w, axes.elemsize, axes.elempack);
-        return -1;
-    }
-
-    return 0;
-}
-
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -232,68 +208,32 @@ static int test_copyto_load_param()
     ncnn::ParamDict base;
     base.set(9, param_int_array(1, 0));
     base.set(11, param_int_array(1, 0));
-    if (test_copyto_load_param_case(base, true) != 0)
+    if (test_layer_param(ncnn::LayerType::CopyTo, base, 0)
+        || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(), 0)
+        || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(0), 0)
+        || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(0), 0))
         return -1;
 
-    ncnn::ParamDict pd = base;
-    pd.set(9, ncnn::Mat());
-    if (test_copyto_load_param_case(pd, true) != 0)
-        return -1;
-
-    pd.set(9, ncnn::Mat(0));
-    if (test_copyto_load_param_case(pd, true) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(11, ncnn::Mat(0));
-    if (test_copyto_load_param_case(pd, true) != 0)
-        return -1;
-
-    pd.set(9, ncnn::Mat(0));
-    pd.set(11, ncnn::Mat(0));
-    if (test_copyto_load_param_case(pd, true) != 0)
-        return -1;
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(11, ncnn::Mat(0));
+        pd.set(9, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::CopyTo, pd, 0) != 0)
+            return -1;
+    }
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
-    pd = base;
-    pd.set(9, missing_data);
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(11, missing_data);
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(11, ncnn::Mat(1, (size_t)1u));
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(11, ncnn::Mat(1, 2));
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(11, 1.f);
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(11, param_int_array(5, 1));
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd.set(11, param_int_array(1, INT_MIN));
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    pd = base;
-    pd.set(9, param_int_array(2, 0));
-    if (test_copyto_load_param_case(pd, false) != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(1, INT_MIN), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, param_int_array(2, 0), -1);
 }
 
 int main()
