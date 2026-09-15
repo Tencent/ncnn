@@ -2594,7 +2594,7 @@ int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret)
             if (param_type == 4 || param_type == 5 || param_type == 6)
             {
                 const ncnn::Mat m = pd.get(id, ncnn::Mat());
-                fprintf(stderr, "id=%d type=%d dims=%d w=%d h=%d d=%d c=%d elemsize=%zu elempack=%d data=%p\n", id, param_type, m.dims, m.w, m.h, m.d, m.c, m.elemsize, m.elempack, m.data);
+                fprintf(stderr, "id=%d type=%d dims=%d w=%d h=%d d=%d c=%d elemsize=%zu elempack=%d has_data=%d\n", id, param_type, m.dims, m.w, m.h, m.d, m.c, m.elemsize, m.elempack, m.data != 0);
             }
             if (param_type == 7)
                 fprintf(stderr, "id=%d type=%d value=%s\n", id, param_type, pd.get(id, std::string()).c_str());
@@ -2607,54 +2607,57 @@ int test_layer_param(int typeindex, const ncnn::ParamDict& pd, int expected_ret)
 
 int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, int value, int expected_ret)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+    {
+        fprintf(stderr, "test_layer_param invalid param id=%d typeindex=%d\n", id, typeindex);
+        return -1;
+    }
+
     ncnn::ParamDict pd = base;
     pd.set(id, value);
-    return test_layer_param(typeindex, pd, expected_ret);
-}
 
-int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, float value, int expected_ret)
-{
-    ncnn::ParamDict pd = base;
-    pd.set(id, value);
-    return test_layer_param(typeindex, pd, expected_ret);
-}
-
-int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret)
-{
-    ncnn::ParamDict pd = base;
-    pd.set(id, value);
-    return test_layer_param(typeindex, pd, expected_ret);
-}
-
-#if NCNN_STRING
-int test_layer_param(const char* layer_type, const ncnn::ParamDict& pd, int expected_ret)
-{
-    int ret = test_layer_param(ncnn::layer_to_index(layer_type), pd, expected_ret);
+    int ret = test_layer_param(typeindex, pd, expected_ret);
     if (ret != 0)
     {
-        fprintf(stderr, "test_layer_param failed layer_type=%s\n", layer_type);
+        fprintf(stderr, "test_layer_param failed typeindex=%d modified_id=%d\n", typeindex, id);
     }
     return ret;
 }
 
-int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, int value, int expected_ret)
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, float value, int expected_ret)
 {
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+    {
+        fprintf(stderr, "test_layer_param invalid param id=%d typeindex=%d\n", id, typeindex);
+        return -1;
+    }
+
     ncnn::ParamDict pd = base;
     pd.set(id, value);
-    return test_layer_param(layer_type, pd, expected_ret);
+
+    int ret = test_layer_param(typeindex, pd, expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_layer_param failed typeindex=%d modified_id=%d\n", typeindex, id);
+    }
+    return ret;
 }
 
-int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, float value, int expected_ret)
+int test_layer_param(int typeindex, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret)
 {
-    ncnn::ParamDict pd = base;
-    pd.set(id, value);
-    return test_layer_param(layer_type, pd, expected_ret);
-}
+    if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
+    {
+        fprintf(stderr, "test_layer_param invalid param id=%d typeindex=%d\n", id, typeindex);
+        return -1;
+    }
 
-int test_layer_param(const char* layer_type, const ncnn::ParamDict& base, int id, const ncnn::Mat& value, int expected_ret)
-{
     ncnn::ParamDict pd = base;
     pd.set(id, value);
-    return test_layer_param(layer_type, pd, expected_ret);
+
+    int ret = test_layer_param(typeindex, pd, expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_layer_param failed typeindex=%d modified_id=%d\n", typeindex, id);
+    }
+    return ret;
 }
-#endif
