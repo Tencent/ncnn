@@ -69,6 +69,7 @@ if(NCNN_BATCH)
 endif()
 
 if(NCNN_VULKAN)
+    ncnn_add_test(gpu)
     ncnn_add_test(command)
     ncnn_add_test(pipeline_cache)
 endif()

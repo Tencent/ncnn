@@ -5,6 +5,7 @@
 
 #if NCNN_VULKAN
 
+#include <ctype.h>
 #include <float.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -6212,7 +6213,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         // split shader source by token "#version 450\n"
         int version_end_pos = -1;
         {
-            for (int i = 0; i < comp_data_size - 8; i++)
+            const int version_scan_end = comp_data_size > 8 ? comp_data_size - 8 : 0;
+            for (int i = 0; i < version_scan_end; i++)
             {
                 if (strncmp(comp_data + i, "#version", 8) != 0)
                     continue;
@@ -6221,12 +6223,24 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
                 if (i != 0 && comp_data[i - 1] != '\n')
                     continue;
 
-                int nversion = 0;
-                sscanf(comp_data + i, "#version %*d\n%n", &nversion);
-                if (nversion == 0)
+                int p = i + 8;
+                while (p < comp_data_size && isspace((unsigned char)comp_data[p]))
+                    p++;
+
+                if (p < comp_data_size && (comp_data[p] == '+' || comp_data[p] == '-'))
+                    p++;
+
+                const int version_start = p;
+                while (p < comp_data_size && comp_data[p] >= '0' && comp_data[p] <= '9')
+                    p++;
+
+                if (p == version_start)
                     continue;
 
-                version_end_pos = i + nversion;
+                while (p < comp_data_size && isspace((unsigned char)comp_data[p]))
+                    p++;
+
+                version_end_pos = p;
                 break;
             }
 
@@ -6285,7 +6299,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             // print as line_number: code
             {
                 const char* p = comp_datas[4];
-                const char* p_end = p + comp_data_size_2;
+                const char* p_end = p + comp_data_sizes[4];
                 const char* line_end;
                 int line_number = 1;
 
