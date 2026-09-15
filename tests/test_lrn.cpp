@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float alpha, float beta, float bias)
 {
     ncnn::ParamDict pd;
@@ -56,6 +60,50 @@ static int test_lrn_2()
            || test_lrn(a, 1, 3, 1.f, 0.75f, 0.5f);
 }
 
+static int test_lrn_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::LRN);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if (ret != (valid ? 0 : -1))
+    {
+        fprintf(stderr, "test_lrn_load_param failed ret=%d expected=%d region_type=%d\n", ret, valid ? 0 : -1, pd.get(0, 0));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_lrn_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_lrn_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, i);
+        if (test_lrn_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, invalid[i]);
+        if (test_lrn_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -63,5 +111,6 @@ int main()
     return 0
            || test_lrn_0()
            || test_lrn_1()
-           || test_lrn_2();
+           || test_lrn_2()
+           || test_lrn_load_param();
 }

@@ -41,8 +41,8 @@ int ConvolutionDepthWise3D::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
 
     {
-        const int type = pd.type(10);
-        if (type != 0 && type != 4 && type != 5 && type != 6)
+        const int activation_params_type = pd.type(10);
+        if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
             return -1;
 
         if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))

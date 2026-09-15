@@ -5,6 +5,8 @@
 
 #include "layer_type.h"
 
+#include <limits.h>
+
 static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -263,6 +265,7 @@ static int test_pooling_load_param_case(const ncnn::ParamDict& pd, bool valid)
         const int adaptive_pooling = pd.get(7, 0);
 
         fprintf(stderr, "test_pooling_load_param failed ret=%d expected=%d kernel_w=%d kernel_h=%d stride_w=%d stride_h=%d global_pooling=%d adaptive_pooling=%d\n", ret, valid ? 0 : -1, kernel_w, kernel_h, stride_w, stride_h, global_pooling, adaptive_pooling);
+        fprintf(stderr, "pooling_type=%d pad_mode=%d\n", pd.get(0, 0), pd.get(5, 0));
         return -1;
     }
 
@@ -287,6 +290,59 @@ static int test_pooling_load_param()
     return 0;
 }
 
+static int test_pooling_load_param_type()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_pooling_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, i);
+        if (test_pooling_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, invalid[i]);
+        if (test_pooling_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i <= 3; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(5, i);
+        if (test_pooling_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid_pad[] = {-1, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(5, invalid_pad[i]);
+        if (test_pooling_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(4, 1); // global pooling does not use pad_mode
+        if (test_pooling_load_param_case(pd, true) != 0)
+            return -1;
+
+        pd.set(4, 0);
+        pd.set(7, 1); // adaptive pooling does not use pad_mode
+        if (test_pooling_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -297,5 +353,6 @@ int main()
            || test_pooling_2()
            || test_pooling_3()
            || test_pooling_4()
-           || test_pooling_load_param();
+           || test_pooling_load_param()
+           || test_pooling_load_param_type();
 }

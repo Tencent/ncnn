@@ -59,6 +59,7 @@ static int test_inversespectrogram_load_param_case(const ncnn::ParamDict& pd, bo
         const int normalized = pd.get(7, 0);
 
         fprintf(stderr, "test_inversespectrogram_load_param failed ret=%d expected=%d n_fft=%d hoplen=%d winlen=%d window_type=%d normalized=%d\n", ret, valid ? 0 : -1, n_fft, hoplen, winlen, window_type, normalized);
+        fprintf(stderr, "returns=%d\n", pd.get(1, 0));
         return -1;
     }
 
@@ -129,9 +130,36 @@ static int test_inversespectrogram_load_param()
     return 0;
 }
 
+static int test_inversespectrogram_load_param_type()
+{
+    ncnn::ParamDict base;
+    base.set(0, 16);
+    if (test_inversespectrogram_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, i);
+        if (test_inversespectrogram_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, invalid[i]);
+        if (test_inversespectrogram_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_inversespectrogram_0() || test_inversespectrogram_load_param();
+    return test_inversespectrogram_0() || test_inversespectrogram_load_param() || test_inversespectrogram_load_param_type();
 }

@@ -5,6 +5,8 @@
 
 #include "layer_type.h"
 
+#include <limits.h>
+
 static void print_float_array(const ncnn::Mat& a)
 {
     fprintf(stderr, "[");
@@ -356,6 +358,7 @@ static int test_eltwise_load_param_case(const ncnn::ParamDict& pd, bool valid)
     if (ret != (valid ? 0 : -1))
     {
         fprintf(stderr, "test_eltwise_load_param failed ret=%d expected=%d\n", ret, valid ? 0 : -1);
+        fprintf(stderr, "op_type=%d\n", pd.get(0, 0));
 
         const ncnn::Mat coeffs = pd.get(1, ncnn::Mat());
         fprintf(stderr, "coeffs type=%d dims=%d w=%d elemsize=%zu elempack=%d\n", pd.type(1), coeffs.dims, coeffs.w, coeffs.elemsize, coeffs.elempack);
@@ -396,6 +399,32 @@ static int test_eltwise_load_param()
     return test_eltwise_load_param_case(pd, false);
 }
 
+static int test_eltwise_load_param_type()
+{
+    ncnn::ParamDict base;
+    if (test_eltwise_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, i);
+        if (test_eltwise_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, invalid[i]);
+        if (test_eltwise_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -414,5 +443,6 @@ int main()
            || test_eltwise_10()
            || test_eltwise_11()
            || test_eltwise_12()
-           || test_eltwise_load_param();
+           || test_eltwise_load_param()
+           || test_eltwise_load_param_type();
 }

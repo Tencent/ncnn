@@ -19,6 +19,9 @@ int Packing::load_param(const ParamDict& pd)
     cast_type_from = pd.get(2, 0);
     cast_type_to = pd.get(3, 0);
 
+    if (out_elempack <= 0)
+        return -1;
+
     return 0;
 }
 

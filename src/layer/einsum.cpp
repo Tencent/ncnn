@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "einsum.h"
-#include <string.h>
 
 namespace ncnn {
 
@@ -17,8 +16,8 @@ int Einsum::load_param(const ParamDict& pd)
     Mat equation_mat = pd.get(0, Mat());
 
     {
-        const int type = pd.type(0);
-        if (type != 0 && type != 4 && type != 5)
+        const int equation_mat_type = pd.type(0);
+        if (equation_mat_type != 0 && equation_mat_type != 4 && equation_mat_type != 5)
             return -1;
 
         if ((equation_mat.dims != 0 || equation_mat.w != 0 || equation_mat.data) && (equation_mat.dims != 1 || equation_mat.w < 0 || equation_mat.elempack != 1 || equation_mat.elemsize != 4u || (equation_mat.w > 0 && !equation_mat.data)))

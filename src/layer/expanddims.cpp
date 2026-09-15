@@ -16,8 +16,8 @@ int ExpandDims::load_param(const ParamDict& pd)
     axes = pd.get(3, Mat());
 
     {
-        const int type = pd.type(3);
-        if (type != 0 && type != 4 && type != 5)
+        const int axes_type = pd.type(3);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
             return -1;
 
         if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))

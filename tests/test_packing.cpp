@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int packing_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int out_elempack)
 {
     ncnn::ParamDict pd;
@@ -485,6 +489,50 @@ static int test_packing_3()
            ;
 }
 
+static int test_packing_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Packing);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if (ret != (valid ? 0 : -1))
+    {
+        fprintf(stderr, "test_packing_load_param failed ret=%d expected=%d out_elempack=%d\n", ret, valid ? 0 : -1, pd.get(0, 1));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_packing_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_packing_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 1; i <= 16; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, i);
+        if (test_packing_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {0, -1, INT_MIN};
+    for (int i = 0; i < 3; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, invalid[i]);
+        if (test_packing_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -493,5 +541,6 @@ int main()
            || test_packing_0()
            || test_packing_1()
            || test_packing_2()
-           || test_packing_3();
+           || test_packing_3()
+           || test_packing_load_param();
 }

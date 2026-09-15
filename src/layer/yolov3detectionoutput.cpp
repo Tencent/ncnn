@@ -41,8 +41,8 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     anchors_scale = pd.get(6, Mat());
 
     {
-        const int type = pd.type(4);
-        if (type != 0 && type != 4 && type != 5 && type != 6)
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
             return -1;
 
         if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
@@ -51,8 +51,8 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 
     // integer text masks from ModelWriter contain float bit patterns
     {
-        const int type = pd.type(5);
-        if (type != 0 && type != 4 && type != 5 && type != 6)
+        const int mask_type = pd.type(5);
+        if (mask_type != 0 && mask_type != 4 && mask_type != 5 && mask_type != 6)
             return -1;
 
         if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w < 0 || mask.elempack != 1 || mask.elemsize != 4u || (mask.w > 0 && !mask.data)))
@@ -60,8 +60,8 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     }
 
     {
-        const int type = pd.type(6);
-        if (type != 0 && type != 4 && type != 5 && type != 6)
+        const int anchors_scale_type = pd.type(6);
+        if (anchors_scale_type != 0 && anchors_scale_type != 4 && anchors_scale_type != 5 && anchors_scale_type != 6)
             return -1;
 
         if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w < 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || (anchors_scale.w > 0 && !anchors_scale.data)))

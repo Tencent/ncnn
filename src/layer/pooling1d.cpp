@@ -28,8 +28,14 @@ int Pooling1D::load_param(const ParamDict& pd)
     adaptive_pooling = pd.get(7, 0);
     out_w = pd.get(8, 0);
 
+    if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
+        return -1;
+
     if (!global_pooling && !adaptive_pooling)
     {
+        if (pad_mode < 0 || pad_mode > 3)
+            return -1;
+
         if (kernel_w <= 0 || stride_w <= 0)
             return -1;
     }

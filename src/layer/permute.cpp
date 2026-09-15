@@ -15,6 +15,9 @@ int Permute::load_param(const ParamDict& pd)
 {
     order_type = pd.get(0, 0);
 
+    if (order_type < 0 || order_type > 23)
+        return -1;
+
     return 0;
 }
 

@@ -18,8 +18,8 @@ int Tile::load_param(const ParamDict& pd)
     repeats = pd.get(2, Mat());
 
     {
-        const int type = pd.type(2);
-        if (type != 0 && type != 4 && type != 5)
+        const int repeats_type = pd.type(2);
+        if (repeats_type != 0 && repeats_type != 4 && repeats_type != 5)
             return -1;
 
         if ((repeats.dims != 0 || repeats.w != 0 || repeats.data) && (repeats.dims != 1 || repeats.w < 0 || repeats.elempack != 1 || repeats.elemsize != 4u || (repeats.w > 0 && !repeats.data)))

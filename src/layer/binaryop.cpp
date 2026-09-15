@@ -17,6 +17,9 @@ int BinaryOp::load_param(const ParamDict& pd)
     with_scalar = pd.get(1, 0);
     b = pd.get(2, 0.f);
 
+    if (op_type < Operation_ADD || op_type > Operation_RREMAINDER)
+        return -1;
+
     if (with_scalar != 0)
     {
         one_blob_only = true;

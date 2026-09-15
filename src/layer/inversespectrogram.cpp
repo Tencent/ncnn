@@ -23,6 +23,9 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
     center = pd.get(5, 1);
     normalized = pd.get(7, 0);
 
+    if (returns < 0 || returns > 2)
+        return -1;
+
     if (n_fft <= 0 || winlen <= 0 || winlen > n_fft)
         return -1;
 

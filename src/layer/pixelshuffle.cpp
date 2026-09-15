@@ -18,6 +18,9 @@ int PixelShuffle::load_param(const ParamDict& pd)
     upscale_factor = pd.get(0, 1);
     mode = pd.get(1, 0);
 
+    if (mode < 0 || mode > 1)
+        return -1;
+
     if (upscale_factor <= 0 || upscale_factor > INT_MAX / upscale_factor)
         return -1;
 

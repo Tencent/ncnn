@@ -80,6 +80,7 @@ static int test_pixelshuffle_load_param_case(const ncnn::ParamDict& pd, bool val
         const int upscale_factor = pd.get(0, 1);
 
         fprintf(stderr, "test_pixelshuffle_load_param failed ret=%d expected=%d upscale_factor=%d\n", ret, valid ? 0 : -1, upscale_factor);
+        fprintf(stderr, "mode=%d\n", pd.get(1, 0));
         return -1;
     }
 
@@ -107,9 +108,35 @@ static int test_pixelshuffle_load_param()
     return 0;
 }
 
+static int test_pixelshuffle_load_param_type()
+{
+    ncnn::ParamDict base;
+    if (test_pixelshuffle_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, i);
+        if (test_pixelshuffle_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, invalid[i]);
+        if (test_pixelshuffle_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_pixelshuffle_0() || test_pixelshuffle_1() || test_pixelshuffle_2() || test_pixelshuffle_load_param();
+    return test_pixelshuffle_0() || test_pixelshuffle_1() || test_pixelshuffle_2() || test_pixelshuffle_load_param() || test_pixelshuffle_load_param_type();
 }

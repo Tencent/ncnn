@@ -61,6 +61,7 @@ static int test_spectrogram_load_param_case(const ncnn::ParamDict& pd, bool vali
         const int normalized = pd.get(7, 0);
 
         fprintf(stderr, "test_spectrogram_load_param failed ret=%d expected=%d n_fft=%d hoplen=%d winlen=%d window_type=%d normalized=%d\n", ret, valid ? 0 : -1, n_fft, hoplen, winlen, window_type, normalized);
+        fprintf(stderr, "power=%d center=%d pad_type=%d\n", pd.get(1, 0), pd.get(5, 1), pd.get(6, 2));
         return -1;
     }
 
@@ -131,9 +132,57 @@ static int test_spectrogram_load_param()
     return 0;
 }
 
+static int test_spectrogram_load_param_type()
+{
+    ncnn::ParamDict base;
+    base.set(0, 16);
+    if (test_spectrogram_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, i);
+        if (test_spectrogram_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(1, invalid[i]);
+        if (test_spectrogram_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i <= 2; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(6, i);
+        if (test_spectrogram_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid_pad[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(6, invalid_pad[i]);
+        if (test_spectrogram_load_param_case(pd, false) != 0)
+            return -1;
+
+        pd.set(5, 0); // padding is unused without centering
+        if (test_spectrogram_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_spectrogram_0() || test_spectrogram_load_param();
+    return test_spectrogram_0() || test_spectrogram_load_param() || test_spectrogram_load_param_type();
 }

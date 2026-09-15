@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int right, int front, int behind, int type, float value, int per_channel_pad_data_size)
 {
     ncnn::ParamDict pd;
@@ -435,6 +439,50 @@ static int test_padding_7()
            || test_padding_int8(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
 }
 
+static int test_padding_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Padding);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if (ret != (valid ? 0 : -1))
+    {
+        fprintf(stderr, "test_padding_load_param failed ret=%d expected=%d type=%d\n", ret, valid ? 0 : -1, pd.get(4, 0));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_padding_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_padding_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(4, i);
+        if (test_padding_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(4, invalid[i]);
+        if (test_padding_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -446,5 +494,6 @@ int main()
            || test_padding_4()
            || test_padding_5()
            || test_padding_6()
-           || test_padding_7();
+           || test_padding_7()
+           || test_padding_load_param();
 }

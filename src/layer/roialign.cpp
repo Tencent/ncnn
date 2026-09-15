@@ -3,8 +3,6 @@
 
 #include "roialign.h"
 
-#include <assert.h>
-
 namespace ncnn {
 
 ROIAlign::ROIAlign()

@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_permute(const ncnn::Mat& a, int order_type)
 {
     ncnn::ParamDict pd;
@@ -103,6 +107,50 @@ static int test_permute_3()
     return 0;
 }
 
+static int test_permute_load_param_case(const ncnn::ParamDict& pd, bool valid)
+{
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Permute);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(pd);
+    delete layer;
+
+    if (ret != (valid ? 0 : -1))
+    {
+        fprintf(stderr, "test_permute_load_param failed ret=%d expected=%d order_type=%d\n", ret, valid ? 0 : -1, pd.get(0, 0));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_permute_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_permute_load_param_case(base, true) != 0)
+        return -1;
+
+    for (int i = 0; i <= 23; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, i);
+        if (test_permute_load_param_case(pd, true) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 24, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(0, invalid[i]);
+        if (test_permute_load_param_case(pd, false) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -111,5 +159,6 @@ int main()
            || test_permute_0()
            || test_permute_1()
            || test_permute_2()
-           || test_permute_3();
+           || test_permute_3()
+           || test_permute_load_param();
 }

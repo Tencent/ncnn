@@ -25,8 +25,8 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
     biases = pd.get(4, Mat());
 
     {
-        const int type = pd.type(4);
-        if (type != 0 && type != 4 && type != 5 && type != 6)
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
             return -1;
 
         if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))

@@ -4,7 +4,6 @@
 #include "reduction.h"
 
 #include <float.h>
-#include <limits.h>
 
 namespace ncnn {
 
@@ -26,9 +25,12 @@ int Reduction::load_param(const ParamDict& pd)
     // ask user to regenerate param instead of producing wrong result
     int fixbug0 = pd.get(5, 0);
 
+    if (operation < ReductionOp_SUM || operation > ReductionOp_LogSumExp)
+        return -1;
+
     {
-        const int type = pd.type(3);
-        if (type != 0 && type != 4 && type != 5)
+        const int axes_type = pd.type(3);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
             return -1;
 
         if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))

@@ -25,6 +25,12 @@ int Spectrogram::load_param(const ParamDict& pd)
     normalized = pd.get(7, 0);
     onesided = pd.get(8, 1);
 
+    if (power < 0 || power > 2)
+        return -1;
+
+    if (center == 1 && (pad_type < 0 || pad_type > 2))
+        return -1;
+
     if (n_fft <= 0 || winlen <= 0 || winlen > n_fft)
         return -1;
 
