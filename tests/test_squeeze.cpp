@@ -197,7 +197,7 @@ static int test_squeeze_load_param()
     ncnn::ParamDict base;
     base.set(3, param_int_array(1, 0));
     if (test_layer_param(ncnn::LayerType::Squeeze, base, 0)
-        || test_layer_param(ncnn::LayerType::Squeeze, base, 3, ncnn::Mat(0), 0))
+            || test_layer_param(ncnn::LayerType::Squeeze, base, 3, ncnn::Mat(0), 0))
         return -1;
 
     ncnn::Mat missing_data(0);

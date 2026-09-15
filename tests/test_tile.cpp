@@ -231,7 +231,7 @@ static int test_tile_load_param()
     ncnn::ParamDict base;
     base.set(2, param_int_array(1, 1));
     if (test_layer_param(ncnn::LayerType::Tile, base, 0)
-        || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(0), 0))
+            || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(0), 0))
         return -1;
 
     ncnn::Mat missing_data(0);

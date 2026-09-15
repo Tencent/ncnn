@@ -269,7 +269,7 @@ static int test_crop_load_param()
     base.set(10, param_int_array(1, 1));
     base.set(11, param_int_array(1, 0));
     if (test_layer_param(ncnn::LayerType::Crop, base, 0)
-        || test_layer_param(ncnn::LayerType::Crop, base, 11, ncnn::Mat(0), 0))
+            || test_layer_param(ncnn::LayerType::Crop, base, 11, ncnn::Mat(0), 0))
         return -1;
 
     {

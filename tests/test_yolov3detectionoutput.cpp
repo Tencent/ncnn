@@ -141,16 +141,16 @@ static int test_yolov3detectionoutput_load_param()
     const ncnn::ParamDict base = pd;
 
     if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 4, ncnn::Mat(0), -1)
-        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, ncnn::Mat(0), -1)
-        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, ncnn::Mat(0), -1))
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, ncnn::Mat(0), -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, ncnn::Mat(0), -1))
         return -1;
 
     ncnn::Mat missing_data(0);
     missing_data.w = 1;
 
     if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 4, missing_data, -1)
-        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, missing_data, -1)
-        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, missing_data, -1))
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, missing_data, -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, missing_data, -1))
         return -1;
 
     const float invalid[] = {-1.f, 0.5f, 1.f, (float)INT_MAX};

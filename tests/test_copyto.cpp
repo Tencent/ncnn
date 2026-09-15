@@ -209,9 +209,9 @@ static int test_copyto_load_param()
     base.set(9, param_int_array(1, 0));
     base.set(11, param_int_array(1, 0));
     if (test_layer_param(ncnn::LayerType::CopyTo, base, 0)
-        || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(), 0)
-        || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(0), 0)
-        || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(0), 0))
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(0), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(0), 0))
         return -1;
 
     {

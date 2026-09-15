@@ -109,7 +109,7 @@ static int test_priorbox_load_param()
     const ncnn::ParamDict base = pd;
 
     if (test_layer_param(ncnn::LayerType::PriorBox, base, 1, ncnn::Mat(0), 0)
-        || test_layer_param(ncnn::LayerType::PriorBox, base, 2, ncnn::Mat(0), 0))
+            || test_layer_param(ncnn::LayerType::PriorBox, base, 2, ncnn::Mat(0), 0))
         return -1;
 
     {
