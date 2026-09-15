@@ -449,6 +449,11 @@ int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat&
 
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     if (weight_block_quantize)
     {
         NCNN_LOGE("MultiHeadAttention weight block quantization is not supported by Vulkan");

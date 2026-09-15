@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 #define OP_TYPE_MAX 28
 
 static int op_type = 0;
@@ -40,7 +44,7 @@ static int test_unaryop(const ncnn::Mat& _a)
     }
     if (op_type == 27)
     {
-        // value must be > -1 for log1p
+        // leave margin above -1 for reduced precision log1p
         Randomize(a, -0.99f, 2.f);
     }
 #if __powerpc__
@@ -110,6 +114,30 @@ static int test_unaryop_3()
            || test_unaryop(RandomMat(15));
 }
 
+#if NCNN_VALIDATION
+static int test_unaryop_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 27; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 28, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -126,5 +154,9 @@ int main()
             return ret;
     }
 
-    return 0;
+    return 0
+#if NCNN_VALIDATION
+           || test_unaryop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

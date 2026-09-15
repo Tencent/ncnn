@@ -18,14 +18,9 @@ void convolution_im2col_input_tile_int8_avx2(const Mat& bottom_blob, Mat& B, int
 void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
-#endif
-
 // gemm_x86.h
 #if NCNN_RUNTIME_CPU && __AVX512F__
 namespace Gemm_x86_avx512_utility {
-#elif NCNN_RUNTIME_CPU && __FMA__
-namespace Gemm_x86_fma_utility {
 #elif NCNN_RUNTIME_CPU && __AVX__
 namespace Gemm_x86_avx_utility {
 #else
@@ -41,8 +36,6 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #else
@@ -56,8 +49,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #else
@@ -1086,9 +1077,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m512i _vindex0 = _mm512_add_epi32(_dxy_offset, _mm512_set1_epi32(puv_offset0));
 
-                    __m128i _p0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
-
-                    _mm_store_si128((__m128i*)pp, _p0);
+                    _mm512_mask_cvtepi32_storeu_epi8(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
 
                     pp += 16;
                 }
@@ -1618,9 +1607,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __AVX2__
                     __m256i _vindex0 = _mm256_add_epi32(_dxy_offset, _mm256_set1_epi32(puv_offset0));
 
+#if __AVX512F__
+                    _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_storel_epi64((__m128i*)pp, _p0);
+#endif
 
 #else // __AVX2__
 
@@ -2060,9 +2053,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset, _mm_set1_epi32(puv_offset));
 
 #if __AVX2__
+#if __AVX512F__
+                    _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_store_ss((float*)pp, _mm_castsi128_ps(_p0));
+#endif
 #else
 #ifdef _MSC_VER
                     __declspec(align(16))

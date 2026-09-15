@@ -17,6 +17,11 @@
 #extension GL_NV_integer_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno needs stride * 4 for these packed int8 loads; int32 stores are unchanged
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
 layout(constant_id = 0) const uint batch = 1;
 layout(constant_id = 1) const uint M = 1;
 layout(constant_id = 2) const uint N = 1;
@@ -78,7 +83,12 @@ void main()
         return;
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(size) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -94,15 +104,22 @@ void main()
 
     const uint kk = (inch + K - 1) / K;
     const uint kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
 
 #if ncnn_VK_KHR_cooperative_matrix
     coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
+#if ncnn_vendorID != 0x5143 || !ncnn_VK_KHR_cooperative_matrix
     coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum8[UNROLL_SG_N][UNROLL_SG_M];
     coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum16[UNROLL_SG_N][UNROLL_SG_M];
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
     icoopmatNV<32, gl_ScopeSubgroup, M, N> sum[UNROLL_SG_N][UNROLL_SG_M];
     icoopmatNV<32, gl_ScopeSubgroup, M, N> sum8[UNROLL_SG_N][UNROLL_SG_M];
@@ -115,8 +132,10 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             sum[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+#if ncnn_vendorID != 0x5143 || !ncnn_VK_KHR_cooperative_matrix
             sum8[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
             sum16[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
             sum[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
             sum8[zn][zm] = icoopmatNV<32, gl_ScopeSubgroup, M, N>(0);
@@ -125,6 +144,7 @@ void main()
         }
     }
 
+#if ncnn_vendorID != 0x5143 || !ncnn_VK_KHR_cooperative_matrix
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -268,7 +288,9 @@ void main()
                             const uint gm = (mi + zm) * Md4 + j;
 
                             const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                            prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
+                            prefetch_tmp_v[q] = ivec2(0);
+                            if (gk < inch)
+                                prefetch_tmp_v[q] = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
                         }
                     }
                 }
@@ -294,7 +316,9 @@ void main()
                             const uint gk = (ki + zk) * Kd4 + j;
 
                             const uint gi = (gz * inchd4 + gk) * cstepd2 + gm;
-                            prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
+                            prefetch_tmp_v[q] = ivec2(0);
+                            if (gk < inchd4)
+                                prefetch_tmp_v[q] = bottom_tm_low_high_data[gi];
                         }
                     }
                 }
@@ -485,6 +509,7 @@ void main()
         }
     }
     else
+#endif
     {
         // no ping-pong version
         for (uint k = 0; k < kk; k += UNROLL_SG_K)
@@ -516,8 +541,12 @@ void main()
 
                             const uint cstepd4 = psc(cstep) / 4;
                             const uint gi = (gz * inch + gk) * cstepd4 + gm;
-                            tmp_v0[sgmi][siq] = i8buffer_sm4(bottom_tm_low_data, gi);
-                            tmp_v1[sgmi][siq] = i8buffer_sm4(bottom_tm_high_data, gi);
+                            // padded K tiles have zero weights but no corresponding input channels
+                            ivec2 v01 = ivec2(0);
+                            if (gk < inch)
+                                v01 = ivec2(i8buffer_sm4(bottom_tm_low_data, gi), i8buffer_sm4(bottom_tm_high_data, gi));
+                            tmp_v0[sgmi][siq] = v01.x;
+                            tmp_v1[sgmi][siq] = v01.y;
                         }
                         else
                         {
@@ -532,7 +561,9 @@ void main()
                             const uint gm = (mi + zm) * M + i;
                             const uint gk = (k + zk) * Kd4 + j;
 
-                            const ivec2 v01 = bottom_tm_low_high_data[(gz * (inch / 4) + gk) * cstepd2 + gm];
+                            ivec2 v01 = ivec2(0);
+                            if (gk < inch / 4)
+                                v01 = bottom_tm_low_high_data[(gz * (inch / 4) + gk) * cstepd2 + gm];
                             tmp_v0[sgmi][siq] = v01.x;
                             tmp_v1[sgmi][siq] = v01.y;
                         }
@@ -560,6 +591,7 @@ void main()
 
             barrier();
 
+#if ncnn_vendorID != 0x5143 || !ncnn_VK_KHR_cooperative_matrix
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A0[UNROLL_SG_M];
             coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A1[UNROLL_SG_M];
@@ -571,9 +603,84 @@ void main()
             icoopmatNV<8, gl_ScopeSubgroup, K, N> B0[UNROLL_SG_N];
             icoopmatNV<8, gl_ScopeSubgroup, K, N> B1[UNROLL_SG_N];
 #endif
+#endif
 
+#if ncnn_vendorID == 0x5143 && ncnn_VK_KHR_cooperative_matrix
+            // adreno register allocation fails when unrolling the K tile loop
+            [[dont_unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
+#else
             [[unroll]] for (uint zk = 0; zk < UNROLL_SG_K; zk++)
+#endif
             {
+#if ncnn_vendorID == 0x5143 && ncnn_VK_KHR_cooperative_matrix
+                [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+                {
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        // keep one cooperative accumulator live on adreno
+                        int previous[M * N / subgroup_size];
+                        // adreno fails with constant component indices for a single K tile with N=16
+                        if (kk == 1 && N == 16)
+                        {
+                            for (uint i = 0; i < sum[zn][zm].length(); i++)
+                                previous[i] = sum[zn][zm][i];
+                        }
+                        else
+                        {
+                            [[unroll]] for (uint i = 0; i < previous.length(); i++)
+                                previous[i] = sum[zn][zm][i];
+                        }
+                        sum[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+
+                        coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A;
+                        coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
+
+                        // reload both operands before each multiply-add on adreno
+                        const uint v_offset = (zk * UNROLL_SG_M + zm) * (M * Kd4p);
+                        const uint k_offset = (zk * UNROLL_SG_N + zn) * (K * Nd4p);
+                        if (elempack == 1)
+                            coopMatLoad(A, tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        else
+                            coopMatLoad(A, tmp_v1[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B, tmp_k1[sgni], k_offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
+                        sum[zn][zm] *= 256;
+
+                        if (elempack == 1)
+                            coopMatLoad(A, tmp_v1[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        else
+                            coopMatLoad(A, tmp_v1[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B, tmp_k0[sgni], k_offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
+
+                        if (elempack == 1)
+                            coopMatLoad(A, tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        else
+                            coopMatLoad(A, tmp_v0[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B, tmp_k1[sgni], k_offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
+                        sum[zn][zm] *= 256;
+
+                        if (elempack == 1)
+                            coopMatLoad(A, tmp_v0[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
+                        else
+                            coopMatLoad(A, tmp_v0[sgmi], v_offset, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B, tmp_k0[sgni], k_offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
+
+                        if (kk == 1 && N == 16)
+                        {
+                            for (uint i = 0; i < sum[zn][zm].length(); i++)
+                                sum[zn][zm][i] += previous[i];
+                        }
+                        else
+                        {
+                            [[unroll]] for (uint i = 0; i < previous.length(); i++)
+                                sum[zn][zm][i] += previous[i];
+                        }
+                    }
+                }
+#else
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 {
                     if (elempack == 1)
@@ -628,12 +735,14 @@ void main()
 #endif
                     }
                 }
+#endif
             }
 
             barrier();
         }
     }
 
+#if ncnn_vendorID != 0x5143 || !ncnn_VK_KHR_cooperative_matrix
     [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -641,6 +750,7 @@ void main()
             sum[zn][zm] += sum8[zn][zm] * (1 << 8) + sum16[zn][zm] * (1 << 16);
         }
     }
+#endif
 
     [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
     {

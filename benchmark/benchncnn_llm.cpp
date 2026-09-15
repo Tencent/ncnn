@@ -294,7 +294,7 @@ static void make_attention_mask(int cur_seqlen, int past_seqlen, ncnn::Mat& atte
         float* row = attention_mask.row(i);
         for (int j = past_seqlen + i + 1; j < dst_seqlen; j++)
         {
-            row[j] = -INFINITY;
+            row[j] = -10000.f;
         }
     }
 }

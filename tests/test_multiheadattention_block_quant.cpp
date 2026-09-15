@@ -482,11 +482,10 @@ static int test_multiheadattention_wq_int8_pipeline()
         mha->forward(inputs[i], outputs, opt_forward);
         if (CompareMat(outputs, reference[i], 0.001f) != 0)
             test_ret = -1;
-        for (int j = 0; j < 3; j++)
-        {
-            if (outputs[j].allocator != &blob_pool_allocator)
-                test_ret = -1;
-        }
+        if (outputs[0].allocator != &blob_pool_allocator)
+            test_ret = -1;
+        if (outputs[1].allocator || outputs[2].allocator)
+            test_ret = -1;
     }
 
     mha->destroy_pipeline(opt);

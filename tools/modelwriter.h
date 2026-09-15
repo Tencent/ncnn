@@ -192,6 +192,10 @@ public:
             {
                 fprintf(pp, " %d=%e", i, mpd.get(i, 0.f));
             }
+            if (type == 4 && mpd.get(i, ncnn::Mat()).empty())
+            {
+                fprintf(pp, " %d=0", -i - 23300);
+            }
             if (type == 5)
             {
                 ncnn::Mat v = mpd.get(i, ncnn::Mat());
@@ -213,6 +217,15 @@ public:
                 {
                     fprintf(pp, ",%e", p[j]);
                 }
+            }
+            if (type == 7)
+            {
+                const std::string v = mpd.get(i, std::string());
+                // unquoted text strings may contain double quotes
+                if (v.find('"') != std::string::npos)
+                    fprintf(pp, " %d=%s", i, v.c_str());
+                else
+                    fprintf(pp, " %d=\"%s\"", i, v.c_str());
             }
         }
     }

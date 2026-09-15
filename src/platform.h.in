@@ -6,6 +6,7 @@
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
+#cmakedefine01 NCNN_VALIDATION
 #cmakedefine01 NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
@@ -28,6 +29,7 @@
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA
+#cmakedefine01 NCNN_FMA4
 #cmakedefine01 NCNN_F16C
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI

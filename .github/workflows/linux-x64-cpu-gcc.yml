@@ -88,6 +88,18 @@ jobs:
     - name: test-noint8
       run: cd build-noint8 && ctest --output-on-failure -j $(nproc)
 
+  linux-gcc-no-validation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VALIDATION=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: cd build && ctest --output-on-failure -j $(nproc)
+
   asan:
     runs-on: ubuntu-latest
     steps:
