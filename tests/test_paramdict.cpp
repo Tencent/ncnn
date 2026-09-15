@@ -7,33 +7,11 @@
 #include <string.h>
 
 #include "datareader.h"
-#include "paramdict.h"
-
-class ParamDictTest : public ncnn::ParamDict
-{
-public:
-    using ncnn::ParamDict::load_param;
-    using ncnn::ParamDict::load_param_bin;
-    int load_param(const char* str);
-    int load_param_bin(const unsigned char* mem);
-};
-
-int ParamDictTest::load_param(const char* str)
-{
-    const unsigned char* mem = (const unsigned char*)str;
-    ncnn::DataReaderFromMemory dr(mem);
-    return ncnn::ParamDict::load_param(dr);
-}
-
-int ParamDictTest::load_param_bin(const unsigned char* mem)
-{
-    ncnn::DataReaderFromMemory dr(mem);
-    return ncnn::ParamDict::load_param_bin(dr);
-}
+#include "testutil.h"
 
 static int test_paramdict_0()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=100 1=1,-1,4,5,1,4 2=1.250000 -23303=5,0.1,0.2,-0.4,0.8,1.0 -23304=3,-1,10,-88");
 
     // int
@@ -128,7 +106,7 @@ static int test_paramdict_0()
 
 static int test_paramdict_1()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=-1 1=4, 2=0.01 3=-1.45e-2,3.14");
 
     // int
@@ -203,7 +181,7 @@ static int test_paramdict_1()
 
 static int test_paramdict_2()
 {
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param("0=bij,bjk->bik 1=This_is_a_very_long_long_string 3=\"1,2,3 and 6.667          zzz\" 2=\"X\" 6=\"qwqwqwq\"");
 
     // string
@@ -304,7 +282,7 @@ static int test_paramdict_3()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // int
@@ -394,7 +372,7 @@ static int test_paramdict_4()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // int
@@ -491,7 +469,7 @@ static int test_paramdict_5()
         0x17, 0xff, 0xff, 0xff
     };
 
-    ParamDictTest pdt;
+    TestParamDict pdt;
     pdt.load_param_bin(mem);
 
     // string
@@ -700,21 +678,6 @@ static int test_paramdict_access()
     pd.set(3, text);
     pd.set(31, 31);
 
-    const int invalid_ids[] = {INT_MIN, -1, NCNN_MAX_PARAM_COUNT, INT_MAX};
-    for (size_t j = 0; j < sizeof(invalid_ids) / sizeof(invalid_ids[0]); j++)
-    {
-        const int id = invalid_ids[j];
-        pd.set(id, 1);
-        pd.set(id, 1.f);
-        pd.set(id, array);
-        pd.set(id, text);
-        if (pd.type(id) != 0 || pd.get(id, 7) != 7 || pd.get(id, 7.f) != 7.f
-                || pd.get(id, array).data != array.data || pd.get(id, text) != text)
-        {
-            fprintf(stderr, "ParamDict invalid id access failed %d\n", id);
-            return -1;
-        }
-    }
     if (pd.get(0, 0) != 10 || pd.get(0, 7.f) != 10.f || pd.get(31, 0) != 31)
     {
         fprintf(stderr, "ParamDict valid id access failed\n");
@@ -769,7 +732,7 @@ static int test_paramdict_numeric_conversion()
     for (size_t j = 0; j < sizeof(integers) / sizeof(integers[0]); j++)
         for (int mode = 0; mode < 2; mode++)
         {
-            ParamDictTest pd;
+            TestParamDict pd;
             if (mode == 0)
             {
                 pd.set(0, integers[j]);
@@ -797,7 +760,7 @@ static int test_paramdict_numeric_conversion()
 
 static int check_text_result(const char* text, bool valid)
 {
-    ParamDictTest memory;
+    TestParamDict memory;
     if ((memory.load_param(text) == 0) != valid)
     {
         fprintf(stderr, "ParamDict memory parse result failed: %s\n", text);
@@ -815,40 +778,9 @@ static std::string make_param_string(size_t len, char c)
     return s;
 }
 
-static int test_paramdict_invalid_text()
-{
-    const char* malformed[] = {
-        "-23304=-4", "-23304=-1", "-23304=-2147483648", "-23304=2147483648",
-        "-2147483648=0", "2147483648=0", "999999999999999999999=0", "32=0", "-1=0", "-23332=0",
-        "0", "0 1", "0=", "+=1", "0=2147483648", "0=-2147483649", "0=1junk", "0=1.0junk",
-        "0=.", "0=-", "0=--1", "0=1e", "0=1e+", "0=1.2.3", "0=1e4294967295", "0=1e39",
-        "0=\"", "0=\"unterminated", "0=\"abc\n", "0=\"abc\"suffix", "0=\"abc\"1=2",
-        "-23300=1", "-23300=2,1", "-23300=1,1,2", "-23300=0,1", "-23300=1x,2",
-        "-23300=1 1", "-23300=1,,1", "-23300=1, 1",
-        "0=1,,2", "0=1,2x", "0=1.0,2e", "-23300=1,1e+"
-    };
-    for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++)
-        if (check_text_result(malformed[i], false))
-            return -1;
-
-    std::string long_number = "0=0.";
-    long_number += make_param_string(128, '0');
-    long_number += "1";
-    if (check_text_result(long_number.c_str(), false))
-        return -1;
-    std::string long_string = "0=";
-    long_string += make_param_string(256, 'a');
-    std::string long_quoted = "0=\"";
-    long_quoted += make_param_string(256, 'a');
-    long_quoted += "\"";
-    if (check_text_result(long_string.c_str(), false) || check_text_result(long_quoted.c_str(), false))
-        return -1;
-    return 0;
-}
-
 static int test_paramdict_text_boundaries()
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     const char* text = "0=-2147483648\t1=2147483647 2=\"\" 3=\" \" 4=1.0,2.0,-3.0 5=7, -23306=2,1.0,2.0 -23307=0 8=0e9999999999 9=1e-9999999999 10=.5 11=4294967296.0";
     if (pd.load_param(text))
         return -1;
@@ -975,7 +907,7 @@ static int test_paramdict_text_boundaries()
 
 static int check_float_boundary(const char* text, float expected, int count, bool valid)
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     const int ret = pd.load_param(text);
     if ((ret == 0) != valid)
     {
@@ -1027,29 +959,22 @@ static int test_paramdict_float_boundaries()
     {
         const char* text;
         float expected;
-        bool valid;
     } cases[] = {
         // exact float midpoints and their decimal neighbors in the old token-length range
-        {"32768.017578124", 32768.015625f, true},
-        {"32768.017578125", 32768.015625f, true},
-        {"32768.017578126", 32768.01953125f, true},
-        {"32768.021484374", 32768.01953125f, true},
-        {"32768.021484375", 32768.0234375f, true},
-        {"32768.021484376", 32768.0234375f, true},
-        {"3.40282347e+38", FLT_MAX, true},
-        {"3.4028235e38", FLT_MAX, true},
-        {"3.40282356e38", FLT_MAX, true},
-        {"3.402823e38", 3.402823e38f, true},
-        {"3.40282357e38", 0.f, false},
-        {"1e39", 0.f, false},
-        {"3.402823567797336e38", FLT_MAX, true},
-        {"3.402823567797337e38", 0.f, false},
-        {"340282356779733661637539395458142568447.0", FLT_MAX, true},
-        {"340282356779733661637539395458142568448.0", 0.f, false},
-        {"340282356779733661637539395458142568449.0", 0.f, false},
-        {"0.000340282356779733661637539395458142568447e42", FLT_MAX, true},
-        {"000340282356779733661637539395458142568448e0", 0.f, false},
-        {"1e-46", 0.f, true},
+        {"32768.017578124", 32768.015625f},
+        {"32768.017578125", 32768.015625f},
+        {"32768.017578126", 32768.01953125f},
+        {"32768.021484374", 32768.01953125f},
+        {"32768.021484375", 32768.0234375f},
+        {"32768.021484376", 32768.0234375f},
+        {"3.40282347e+38", FLT_MAX},
+        {"3.4028235e38", FLT_MAX},
+        {"3.40282356e38", FLT_MAX},
+        {"3.402823e38", 3.402823e38f},
+        {"3.402823567797336e38", FLT_MAX},
+        {"340282356779733661637539395458142568447.0", FLT_MAX},
+        {"0.000340282356779733661637539395458142568447e42", FLT_MAX},
+        {"1e-46", 0.f},
     };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
         for (int negative = 0; negative < 2; negative++)
@@ -1058,13 +983,13 @@ static int test_paramdict_float_boundaries()
             const char* sign = negative ? "-" : "";
             const float value = negative ? -cases[i].expected : cases[i].expected;
             snprintf(text, sizeof(text), "0=%s%s", sign, cases[i].text);
-            if (check_float_boundary(text, value, 0, cases[i].valid))
+            if (check_float_boundary(text, value, 0, true))
                 return -1;
             snprintf(text, sizeof(text), "0=%s%s,1.0", sign, cases[i].text);
-            if (check_float_boundary(text, value, 2, cases[i].valid))
+            if (check_float_boundary(text, value, 2, true))
                 return -1;
             snprintf(text, sizeof(text), "-23300=1,%s%s", sign, cases[i].text);
-            if (check_float_boundary(text, value, 1, cases[i].valid))
+            if (check_float_boundary(text, value, 1, true))
                 return -1;
         }
 
@@ -1112,7 +1037,7 @@ static void append_param_word(std::vector<unsigned char>& bytes, int value)
         bytes.push_back((v >> (i * 8)) & 255);
 }
 
-static int check_reloaded_params(const ParamDictTest& pd, int present_id, int value)
+static int check_reloaded_params(const TestParamDict& pd, int present_id, int value)
 {
     for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
     {
@@ -1135,7 +1060,7 @@ static int check_reloaded_params(const ParamDictTest& pd, int present_id, int va
 
 static int check_paramdict_reload(const ncnn::DataReader& dr, bool binary)
 {
-    ParamDictTest pd;
+    TestParamDict pd;
     int ret = binary ? pd.load_param_bin(dr) : pd.load_param(dr);
     const ncnn::Mat values = pd.get(2, ncnn::Mat());
     if (ret != 0 || pd.get(0, 0) != 42 || pd.get(1, 0.f) != 1.5f
@@ -1183,7 +1108,7 @@ static int test_paramdict_reload_after_failure()
 {
     for (int binary = 0; binary < 2; binary++)
     {
-        ParamDictTest pd;
+        TestParamDict pd;
         pd.set(9, 99);
 
         // the first scalar is valid, but the second value is invalid or missing
@@ -1226,7 +1151,7 @@ static int test_paramdict_reload()
             snprintf(input, sizeof(input), "%s\n%s\n", empty ? "" : "+0=42 -23301=2,3,4", headers[i]);
             const unsigned char* ptr = (const unsigned char*)input;
             ncnn::DataReaderFromMemory dr(ptr);
-            ParamDictTest pd;
+            TestParamDict pd;
             if (pd.load_param(dr))
                 return -1;
             if (!empty)
@@ -1273,68 +1198,6 @@ static int test_paramdict_reload()
 
 static int test_paramdict_binary_bounds()
 {
-    const int ids[] = {-23304, -23404};
-    const int lengths[] = {-1, -4, -8, INT_MIN};
-    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++)
-        for (size_t j = 0; j < sizeof(lengths) / sizeof(lengths[0]); j++)
-        {
-            std::vector<unsigned char> data;
-            append_param_word(data, ids[i]);
-            append_param_word(data, lengths[j]);
-            append_param_word(data, -233);
-            BoundedParamReader reader(&data[0], data.size());
-            ParamDictTest pd;
-            if (pd.load_param_bin(reader) == 0)
-            {
-                fprintf(stderr, "ParamDict negative binary length accepted id=%d len=%d\n", ids[i], lengths[j]);
-                return -1;
-            }
-        }
-
-    const int invalid_ids[] = {INT_MIN, -1, 32, INT_MAX, -23332, -23432};
-    for (size_t i = 0; i < sizeof(invalid_ids) / sizeof(invalid_ids[0]); i++)
-    {
-        std::vector<unsigned char> data;
-        append_param_word(data, invalid_ids[i]);
-        append_param_word(data, -233);
-        BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
-        if (pd.load_param_bin(reader) == 0)
-        {
-            fprintf(stderr, "ParamDict invalid binary id accepted %d\n", invalid_ids[i]);
-            return -1;
-        }
-    }
-
-    const int invalid_string_lengths[] = {256, INT_MAX};
-    for (size_t i = 0; i < sizeof(invalid_string_lengths) / sizeof(invalid_string_lengths[0]); i++)
-    {
-        std::vector<unsigned char> data;
-        append_param_word(data, -23400);
-        append_param_word(data, invalid_string_lengths[i]);
-        BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
-        if (pd.load_param_bin(reader) == 0)
-        {
-            fprintf(stderr, "ParamDict oversized binary string accepted len=%d\n", invalid_string_lengths[i]);
-            return -1;
-        }
-    }
-
-    if (sizeof(size_t) == 4)
-    {
-        std::vector<unsigned char> data;
-        append_param_word(data, -23300);
-        append_param_word(data, 0x40000000); // byte count wraps on 32-bit targets
-        BoundedParamReader reader(&data[0], data.size());
-        ParamDictTest pd;
-        if (pd.load_param_bin(reader) == 0 || check_text_result("-23300=1073741824", false))
-        {
-            fprintf(stderr, "ParamDict overflowing array byte count accepted\n");
-            return -1;
-        }
-    }
-
     // untyped binary scalars/arrays remain readable as both int and float
     std::vector<unsigned char> data;
     append_param_word(data, 0);
@@ -1365,7 +1228,7 @@ static int test_paramdict_binary_bounds()
     append_param_word(data, 9);
     append_param_word(data, 99);
     append_param_word(data, -233);
-    ParamDictTest pd;
+    TestParamDict pd;
     BoundedParamReader reader(&data[0], data.size());
     if (pd.load_param_bin(reader) || pd.get(0, 0) != 0x3f800000 || pd.get(0, 0.f) != 1.f
             || pd.get(1, ncnn::Mat()).w != 1 || pd.get(1, ncnn::Mat())[0] != 1.f
@@ -1390,7 +1253,7 @@ static int test_paramdict_binary_bounds()
     for (size_t size = 0; size < data.size(); size++)
     {
         BoundedParamReader truncated(&data[0], size);
-        ParamDictTest partial;
+        TestParamDict partial;
         if (partial.load_param_bin(truncated) == 0)
         {
             fprintf(stderr, "ParamDict truncated binary accepted at %zu\n", size);
@@ -1399,6 +1262,171 @@ static int test_paramdict_binary_bounds()
     }
     return 0;
 }
+
+#if NCNN_VALIDATION
+static int test_paramdict_invalid_text()
+{
+    const char* malformed[] = {
+        "-23304=-4", "-23304=-1", "-23304=-2147483648", "-23304=2147483648",
+        "-2147483648=0", "2147483648=0", "999999999999999999999=0", "32=0", "-1=0", "-23332=0",
+        "0", "0 1", "0=", "+=1", "0=2147483648", "0=-2147483649", "0=1junk", "0=1.0junk",
+        "0=.", "0=-", "0=--1", "0=1e", "0=1e+", "0=1.2.3", "0=1e4294967295", "0=1e39",
+        "0=\"", "0=\"unterminated", "0=\"abc\n", "0=\"abc\"suffix", "0=\"abc\"1=2",
+        "-23300=1", "-23300=2,1", "-23300=1,1,2", "-23300=0,1", "-23300=1x,2",
+        "-23300=1 1", "-23300=1,,1", "-23300=1, 1",
+        "0=1,,2", "0=1,2x", "0=1.0,2e", "-23300=1,1e+"
+    };
+    for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++)
+        if (check_text_result(malformed[i], false))
+            return -1;
+
+    std::string long_number = "0=0.";
+    long_number += make_param_string(128, '0');
+    long_number += "1";
+    if (check_text_result(long_number.c_str(), false))
+        return -1;
+    std::string long_string = "0=";
+    long_string += make_param_string(256, 'a');
+    std::string long_quoted = "0=\"";
+    long_quoted += make_param_string(256, 'a');
+    long_quoted += "\"";
+    if (check_text_result(long_string.c_str(), false) || check_text_result(long_quoted.c_str(), false))
+        return -1;
+    return 0;
+}
+
+static int test_paramdict_invalid_access()
+{
+    ncnn::ParamDict pd;
+    ncnn::Mat array(1);
+    ((int*)array)[0] = 17;
+    const std::string text = "text";
+    pd.set(0, 10);
+    pd.set(1, 2.5f);
+    pd.set(2, array);
+    pd.set(3, text);
+    pd.set(31, 31);
+
+    const int invalid_ids[] = {INT_MIN, -1, NCNN_MAX_PARAM_COUNT, INT_MAX};
+    for (size_t j = 0; j < sizeof(invalid_ids) / sizeof(invalid_ids[0]); j++)
+    {
+        const int id = invalid_ids[j];
+        pd.set(id, 1);
+        pd.set(id, 1.f);
+        pd.set(id, array);
+        pd.set(id, text);
+        if (pd.type(id) != 0 || pd.get(id, 7) != 7 || pd.get(id, 7.f) != 7.f
+                || pd.get(id, array).data != array.data || pd.get(id, text) != text)
+        {
+            fprintf(stderr, "ParamDict invalid id access failed %d\n", id);
+            return -1;
+        }
+    }
+    if (pd.get(0, 0) != 10 || pd.get(0, 7.f) != 10.f || pd.get(31, 0) != 31)
+    {
+        fprintf(stderr, "ParamDict valid id access failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_paramdict_invalid_float()
+{
+    const char* cases[] = {
+        "3.40282357e38",
+        "1e39",
+        "3.402823567797337e38",
+        "340282356779733661637539395458142568448.0",
+        "340282356779733661637539395458142568449.0",
+        "000340282356779733661637539395458142568448e0",
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+        for (int negative = 0; negative < 2; negative++)
+        {
+            char text[128];
+            const char* sign = negative ? "-" : "";
+            snprintf(text, sizeof(text), "0=%s%s", sign, cases[i]);
+            if (check_float_boundary(text, 0.f, 0, false))
+                return -1;
+            snprintf(text, sizeof(text), "0=%s%s,1.0", sign, cases[i]);
+            if (check_float_boundary(text, 0.f, 2, false))
+                return -1;
+            snprintf(text, sizeof(text), "-23300=1,%s%s", sign, cases[i]);
+            if (check_float_boundary(text, 0.f, 1, false))
+                return -1;
+        }
+
+    return 0;
+}
+
+static int test_paramdict_invalid_binary()
+{
+    const int ids[] = {-23304, -23404};
+    const int lengths[] = {-1, -4, -8, INT_MIN};
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++)
+        for (size_t j = 0; j < sizeof(lengths) / sizeof(lengths[0]); j++)
+        {
+            std::vector<unsigned char> data;
+            append_param_word(data, ids[i]);
+            append_param_word(data, lengths[j]);
+            append_param_word(data, -233);
+            BoundedParamReader reader(&data[0], data.size());
+            TestParamDict pd;
+            if (pd.load_param_bin(reader) == 0)
+            {
+                fprintf(stderr, "ParamDict negative binary length accepted id=%d len=%d\n", ids[i], lengths[j]);
+                return -1;
+            }
+        }
+
+    const int invalid_ids[] = {INT_MIN, -1, 32, INT_MAX, -23332, -23432};
+    for (size_t i = 0; i < sizeof(invalid_ids) / sizeof(invalid_ids[0]); i++)
+    {
+        std::vector<unsigned char> data;
+        append_param_word(data, invalid_ids[i]);
+        append_param_word(data, -233);
+        BoundedParamReader reader(&data[0], data.size());
+        TestParamDict pd;
+        if (pd.load_param_bin(reader) == 0)
+        {
+            fprintf(stderr, "ParamDict invalid binary id accepted %d\n", invalid_ids[i]);
+            return -1;
+        }
+    }
+
+    const int invalid_string_lengths[] = {256, INT_MAX};
+    for (size_t i = 0; i < sizeof(invalid_string_lengths) / sizeof(invalid_string_lengths[0]); i++)
+    {
+        std::vector<unsigned char> data;
+        append_param_word(data, -23400);
+        append_param_word(data, invalid_string_lengths[i]);
+        BoundedParamReader reader(&data[0], data.size());
+        TestParamDict pd;
+        if (pd.load_param_bin(reader) == 0)
+        {
+            fprintf(stderr, "ParamDict oversized binary string accepted len=%d\n", invalid_string_lengths[i]);
+            return -1;
+        }
+    }
+
+    if (sizeof(size_t) == 4)
+    {
+        std::vector<unsigned char> data;
+        append_param_word(data, -23300);
+        append_param_word(data, 0x40000000); // byte count wraps on 32-bit targets
+        BoundedParamReader reader(&data[0], data.size());
+        TestParamDict pd;
+        if (pd.load_param_bin(reader) == 0 || check_text_result("-23300=1073741824", false))
+        {
+            fprintf(stderr, "ParamDict overflowing array byte count accepted\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -1412,10 +1440,16 @@ int main()
            || test_paramdict_6()
            || test_paramdict_access()
            || test_paramdict_numeric_conversion()
-           || test_paramdict_invalid_text()
            || test_paramdict_text_boundaries()
            || test_paramdict_float_boundaries()
            || test_paramdict_reload()
            || test_paramdict_reload_after_failure()
-           || test_paramdict_binary_bounds();
+           || test_paramdict_binary_bounds()
+#if NCNN_VALIDATION
+           || test_paramdict_invalid_access()
+           || test_paramdict_invalid_text()
+           || test_paramdict_invalid_float()
+           || test_paramdict_invalid_binary()
+#endif // NCNN_VALIDATION
+           ;
 }

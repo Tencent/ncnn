@@ -102,8 +102,10 @@ ParamDict& ParamDict::operator=(const ParamDict& rhs)
 
 int ParamDict::type(int id) const
 {
+#if NCNN_VALIDATION
     if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         return 0;
+#endif // NCNN_VALIDATION
 
     return d->params[id].type;
 }
@@ -135,8 +137,10 @@ std::string ParamDict::get(int id, const std::string& def) const
 
 void ParamDict::set(int id, int i)
 {
+#if NCNN_VALIDATION
     if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         return;
+#endif // NCNN_VALIDATION
 
     d->params[id].type = 2;
     d->params[id].i = i;
@@ -144,8 +148,10 @@ void ParamDict::set(int id, int i)
 
 void ParamDict::set(int id, float f)
 {
+#if NCNN_VALIDATION
     if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         return;
+#endif // NCNN_VALIDATION
 
     d->params[id].type = 3;
     d->params[id].f = f;
@@ -153,8 +159,10 @@ void ParamDict::set(int id, float f)
 
 void ParamDict::set(int id, const Mat& v)
 {
+#if NCNN_VALIDATION
     if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         return;
+#endif // NCNN_VALIDATION
 
     d->params[id].type = 4;
     d->params[id].v = v;
@@ -162,8 +170,10 @@ void ParamDict::set(int id, const Mat& v)
 
 void ParamDict::set(int id, const std::string& s)
 {
+#if NCNN_VALIDATION
     if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         return;
+#endif // NCNN_VALIDATION
 
     d->params[id].type = 7;
     d->params[id].s = s;
@@ -180,17 +190,21 @@ void ParamDict::clear()
     }
 }
 
+#if NCNN_STRING || NCNN_VALIDATION
 static size_t max_array_length()
 {
     // leave room for Mat alignment, the reference count and fastMalloc overhead
     const size_t max_len = ((size_t)-1 - 15 - sizeof(int) - sizeof(void*) - NCNN_MALLOC_ALIGN - NCNN_MALLOC_OVERREAD) / sizeof(float);
     return std::min((size_t)INT_MAX, max_len);
 }
+#endif // NCNN_STRING || NCNN_VALIDATION
 
+#if NCNN_VALIDATION
 static bool valid_array_length(size_t len)
 {
     return len <= max_array_length();
 }
+#endif // NCNN_VALIDATION
 
 #if NCNN_STRING
 static bool vstr_is_float(const char* vstr)
@@ -207,13 +221,17 @@ static bool vstr_to_int(const char* p, int& v)
     if (*p < '0' || *p > '9')
         return false;
 
+#if NCNN_VALIDATION
     const unsigned int limit = negative ? (unsigned int)INT_MAX + 1u : (unsigned int)INT_MAX;
+#endif // NCNN_VALIDATION
     unsigned int magnitude = 0;
     while (*p >= '0' && *p <= '9')
     {
         const unsigned int digit = *p++ - '0';
+#if NCNN_VALIDATION
         if (magnitude > (limit - digit) / 10)
             return false;
+#endif // NCNN_VALIDATION
         magnitude = magnitude * 10 + digit;
     }
     if (*p != '\0')
@@ -223,6 +241,7 @@ static bool vstr_to_int(const char* p, int& v)
     return true;
 }
 
+#if NCNN_VALIDATION
 // the input is a validated unsigned decimal token of at most 127 characters
 static bool vstr_fits_float(const char* p)
 {
@@ -277,6 +296,7 @@ static bool vstr_fits_float(const char* p)
     }
     return false;
 }
+#endif // NCNN_VALIDATION
 
 static bool vstr_to_float(const char* p, float& value)
 {
@@ -284,7 +304,9 @@ static bool vstr_to_float(const char* p, float& value)
     if (*p == '+' || *p == '-')
         p++;
 
+#if NCNN_VALIDATION
     const char* digits = p;
+#endif // NCNN_VALIDATION
     double v = 0.0;
     bool has_digit = false;
     while (*p >= '0' && *p <= '9')
@@ -352,8 +374,10 @@ static bool vstr_to_float(const char* p, float& value)
     // compare the original decimal near overflow, where double rounding can cross the midpoint
     if (v >= (double)FLT_MAX)
     {
+#if NCNN_VALIDATION
         if (!vstr_fits_float(digits))
             return false;
+#endif // NCNN_VALIDATION
         v = (double)FLT_MAX;
     }
     value = negative ? (float)-v : (float)v;
@@ -434,21 +458,31 @@ int ParamDict::load_param(const DataReader& dr)
         if (old_array)
             id = -(id + 23300);
 
+#if NCNN_VALIDATION
         if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         {
             NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         if (old_array)
         {
             char vstr[128];
             int len;
-            if (scan_numeric_value(p, vstr) != 1 || !vstr_to_int(vstr, len) || !valid_array_length((size_t)len))
+            if (scan_numeric_value(p, vstr) != 1 || !vstr_to_int(vstr, len))
             {
                 NCNN_LOGE("ParamDict invalid array length (id=%d)", id);
                 return -1;
             }
+
+#if NCNN_VALIDATION
+            if (!valid_array_length((size_t)len))
+            {
+                NCNN_LOGE("ParamDict invalid array length (id=%d)", id);
+                return -1;
+            }
+#endif // NCNN_VALIDATION
 
             Mat v(len);
             if (len > 0 && v.empty())
@@ -558,11 +592,18 @@ int ParamDict::load_param(const DataReader& dr)
                     }
                     break;
                 }
-                if (nscan < 0 || !valid_array_length((size_t)len + 1) || !(is_float ? vstr_to_float(vstr, f) : vstr_to_int(vstr, i)))
+                if (nscan < 0 || !(is_float ? vstr_to_float(vstr, f) : vstr_to_int(vstr, i)))
                 {
                     NCNN_LOGE("ParamDict invalid array element (id=%d, index=%d)", id, len);
                     return -1;
                 }
+#if NCNN_VALIDATION
+                if (!valid_array_length((size_t)len + 1))
+                {
+                    NCNN_LOGE("ParamDict invalid array element (id=%d, index=%d)", id, len);
+                    return -1;
+                }
+#endif // NCNN_VALIDATION
                 if (len == capacity)
                 {
                     const size_t next_capacity = std::min((size_t)capacity * 2, max_array_length());
@@ -662,11 +703,13 @@ int ParamDict::load_param_bin(const DataReader& dr)
             id = -(id + 23300);
         }
 
+#if NCNN_VALIDATION
         if (id < 0 || id >= NCNN_MAX_PARAM_COUNT)
         {
             NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
             return -1;
         }
+#endif // NCNN_VALIDATION
 
         if (is_string)
         {
@@ -682,11 +725,13 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
+#if NCNN_VALIDATION
             if (len < 0 || len > 255)
             {
                 NCNN_LOGE("invalid string length %d (id=%d)", len, id);
                 return -1;
             }
+#endif // NCNN_VALIDATION
 
             size_t len_padded = (len + 3) / 4 * 4;
             char tmpstr[256];
@@ -717,11 +762,13 @@ int ParamDict::load_param_bin(const DataReader& dr)
             swap_endianness_32(&len);
 #endif
 
+#if NCNN_VALIDATION
             if (!valid_array_length((size_t)len))
             {
                 NCNN_LOGE("ParamDict invalid array length %d (id=%d)", len, id);
                 return -1;
             }
+#endif // NCNN_VALIDATION
 
             Mat v(len);
             if (len > 0 && v.empty())
