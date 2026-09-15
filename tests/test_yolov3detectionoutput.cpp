@@ -225,8 +225,22 @@ static int test_yolov3detectionoutput_load_param_values()
         }
     }
 
-    scales[0] = (float)INT_MAX;
-    return test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, -1);
+    const unsigned int boundaries[] = {0x4effffffu, 0x4f000000u, 0x4f000001u};
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            memcpy((float*)scales + j, &boundaries[i], sizeof(float));
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, i == 0 ? 0 : -1) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed anchors_scale[%d]=0x%08x\n", j, boundaries[i]);
+                return -1;
+            }
+            scales[j] = 32.f;
+        }
+    }
+
+    return 0;
 }
 
 #if NCNN_STRING
