@@ -98,7 +98,8 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
                 return -1;
         }
 
-        const float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
+        // round to the stored fp32 value before checking the range on x87
+        const volatile float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
         if (scale <= 0.f || (double)scale > INT_MAX)
             return -1;
     }

@@ -304,6 +304,11 @@ static int test_yolov3detectionoutput_load_param_values_text()
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,-1 -23306=1,32", -1)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,0", -1)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,-1", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483520", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483583", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483584", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483520.0", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483647.0", -1)
            || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483647", -1);
 #else
     return 0;
