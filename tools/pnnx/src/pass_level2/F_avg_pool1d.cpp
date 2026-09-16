@@ -27,6 +27,14 @@ pnnx.Output             output      1 0 out
     {
         return "F.avg_pool1d";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        if (op->params["stride"].type == 5 && op->params["stride"].ai.empty())
+            op->params["stride"] = Parameter();
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool1d, 120)

@@ -5,6 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pnnx_test_utils import convert_and_import_ncnn
 
 class Model(nn.Module):
     def __init__(self):
@@ -58,17 +63,10 @@ def test():
 
     a = net(x, y, z, w, q)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, q))
-    mod.save("test_nn_Linear.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64],[1,64],[2,3,5,64]")
+    module = convert_and_import_ncnn(net, (x, y, z, w, q), "test_nn_Linear", pnnx_args=("inputshape=[64],[12,64],[1,3,12,64],[1,64],[2,3,5,64]",))
 
     # ncnn inference
-    import test_nn_Linear_ncnn
-    b = test_nn_Linear_ncnn.test_inference()
+    b = module.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-3, 1e-3):

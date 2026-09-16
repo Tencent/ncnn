@@ -32,6 +32,8 @@ class T5LayerNorm_without_gamma(nn.Module):
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -78,17 +80,14 @@ def test():
 
     a = net(x, y, z, w0, w1, w2, x2)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w0, w1, w2, x2))
-    mod.save("test_F_rms_norm.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z, w0, w1, w2, x2),
+        "test_F_rms_norm",
+        pnnx_args=("inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[24],[12,16],[24],[3,22,66]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_rms_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[24],[12,16],[24],[3,22,66]")
-
-    # pnnx inference
-    import test_F_rms_norm_pnnx
-    b = test_F_rms_norm_pnnx.test_inference()
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

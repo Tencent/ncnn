@@ -64,6 +64,9 @@ static std::string eval_expression(const Operator* op)
 {
     std::string expr = op->params.at("expr").s;
 
+    if (expr == "[]f")
+        return expr;
+
     //     fprintf(stderr, "eval_expression %s\n", expr.c_str());
 
     // split into tokens
@@ -754,6 +757,9 @@ static std::string eval_expression(const Operator* op)
 static std::string canonicalize_arguments(const Operator* op, std::vector<Operand*>& inputs)
 {
     std::string expr = op->params.at("expr").s;
+
+    if (expr == "[]f")
+        return expr;
 
     // split into tokens
     std::vector<std::string> tokens;

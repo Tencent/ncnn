@@ -26,18 +26,25 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.at("memory_format").i == 0)
+        const Parameter& memory_format = captured_params.at("memory_format");
+        // None and the legacy empty default both mean preserve_format.
+        if (memory_format.type != 2)
+            return;
+
+        if (memory_format.i == 0)
             op->params["memory_format"] = "torch.contiguous_format";
-        if (captured_params.at("memory_format").i == 1)
+        if (memory_format.i == 1)
             op->params["memory_format"] = "torch.preserve_format";
-        if (captured_params.at("memory_format").i == 2)
+        if (memory_format.i == 2)
             op->params["memory_format"] = "torch.channels_last";
+        if (memory_format.i == 3)
+            op->params["memory_format"] = "torch.channels_last_3d";
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone, 20)
 
-class torch_clone_1 : public GraphRewriterPass
+class torch_clone_1 : public torch_clone
 {
 public:
     const char* match_pattern_graph() const
@@ -49,30 +56,34 @@ aten::clone             op_1        1 1 input out memory_format=%memory_format
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_1, 20)
+
+class torch_clone_lift_fresh_copy : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+aten::lift_fresh_copy   op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
 
     const char* type_str() const
     {
         return "torch.clone";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        if (captured_params.at("memory_format").type == 4 && captured_params.at("memory_format").s.empty())
-        {
-            op->params["memory_format"] = "torch.contiguous_format";
-        }
-        else
-        {
-            if (captured_params.at("memory_format").i == 0)
-                op->params["memory_format"] = "torch.contiguous_format";
-            if (captured_params.at("memory_format").i == 1)
-                op->params["memory_format"] = "torch.preserve_format";
-            if (captured_params.at("memory_format").i == 2)
-                op->params["memory_format"] = "torch.channels_last";
-        }
+        op->params["memory_format"] = "torch.contiguous_format";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_1, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_lift_fresh_copy, 20)
 
 } // namespace pnnx

@@ -4,6 +4,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pnnx_test_utils import convert_and_import_ncnn
 
 class Model(nn.Module):
     def __init__(self):
@@ -26,17 +31,10 @@ def test():
 
     a = net(x, q)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, q))
-    mod.save("test_nn_Embedding.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_nn_Embedding.pt inputshape=[13]i32,[2,13]i32")
+    module = convert_and_import_ncnn(net, (x, q), "test_nn_Embedding", pnnx_args=("inputshape=[13]i32,[2,13]i32",))
 
     # ncnn inference
-    import test_nn_Embedding_ncnn
-    b = test_nn_Embedding_ncnn.test_inference()
+    b = module.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

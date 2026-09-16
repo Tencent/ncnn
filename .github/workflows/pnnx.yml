@@ -22,6 +22,8 @@ permissions:
 
 env:
   LIBTORCH_VERSION: 2.12.1
+  QUICK_TEST_TORCH_VERSION: 2.13.0
+  QUICK_TEST_TORCHVISION_VERSION: 0.28.0
   TORCHVISION_VERSION: 0.27.1
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.27.0
@@ -41,6 +43,8 @@ jobs:
       UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: true
 
     - uses: actions/setup-python@v7
       with:
@@ -49,8 +53,13 @@ jobs:
     - name: setup-pytorch
       run: |
         python3 -m pip config set global.break-system-packages true
-        pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
+        pip3 install --user torch==${{ env.QUICK_TEST_TORCH_VERSION }} torchvision==${{ env.QUICK_TEST_TORCHVISION_VERSION }} --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
+
+    - name: setup-pytorch-dll-path
+      if: matrix.os == 'windows-latest'
+      run: |
+        python3 -c "import os; from pathlib import Path; import torch; print(Path(torch.__file__).resolve().parent / 'lib', file=open(os.environ['GITHUB_PATH'], 'a'))"
 
     - name: build-pnnx
       run: |
@@ -59,11 +68,26 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
 
+    - name: build-ncnn-python
+      env:
+        EXTRA_CMAKE_ARGS: -DNCNN_VULKAN=OFF
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+      run: pip3 install --user . --no-deps --verbose
+
     - name: quick-test
       if: matrix.os != 'windows-latest'
       run: |
         cd tools/pnnx
         cd build && ctest -C Release --output-on-failure -R test_nn_Conv
+
+    - name: exported-program-test
+      env:
+        OMP_THREAD_LIMIT: 1
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+      run: |
+        cd tools/pnnx/build
+        ctest -C Release --output-on-failure -L '^pt2_(frontend|ncnn)$'
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -365,7 +389,19 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        ctest --output-on-failure -j 8 -LE '^pt2$'
+
+    - name: exported-program-test
+      if: matrix.torch == '2.12.1'
+      run: |
+        export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
+        export OMP_THREAD_LIMIT=1
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        cd tools/pnnx/build
+        cmake --build . -j 8 --target pnnx_test_exported_program_parameter_roundtrip
+        ctest --output-on-failure -j 8 -L '^pt2$'
 
     - name: python-pnnx
       run: |

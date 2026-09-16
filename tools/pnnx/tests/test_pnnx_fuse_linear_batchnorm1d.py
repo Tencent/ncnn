@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -36,17 +38,13 @@ def test():
 
     a0, a1 = net(x, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_pnnx_fuse_linear_batchnorm1d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_linear_batchnorm1d.pt inputshape=[1,64],[12,64]")
-
-    # pnnx inference
-    import test_pnnx_fuse_linear_batchnorm1d_pnnx
-    b0, b1 = test_pnnx_fuse_linear_batchnorm1d_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, y),
+        "test_pnnx_fuse_linear_batchnorm1d",
+        pnnx_args=("inputshape=[1,64],[12,64]",),
+    )
+    b0, b1 = mod.test_inference()
 
     return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
 

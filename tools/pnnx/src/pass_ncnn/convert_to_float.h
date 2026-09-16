@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void convert_half_to_float(Graph& graph);
+void convert_to_float(Graph& graph);
 
 } // namespace ncnn
 
