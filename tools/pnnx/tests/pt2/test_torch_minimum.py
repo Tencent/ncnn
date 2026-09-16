@@ -1,0 +1,52 @@
+# Copyright 2026 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from packaging import version
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+
+    def forward(self, x, y, z):
+        out0 = torch.minimum(x, y)
+        out1 = torch.minimum(y, y)
+        out2 = torch.minimum(z, torch.ones_like(z) + 0.1)
+        return out0, out1, out2
+
+def test():
+    if version.parse(torch.__version__) < version.parse('1.12'):
+        return True
+
+    net = Model()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(3, 16)
+    y = torch.rand(3, 16)
+    z = torch.rand(5, 9, 3)
+
+    a = net(x, y, z)
+
+    program = torch.export.export(net, (x, y, z))
+    torch.export.save(program, "test_torch_minimum.pt2")
+
+    from pnnxutil import run_pnnx
+    run_pnnx("test_torch_minimum.pt2", "inputshape=[3,16],[3,16],[5,9,3]")
+
+    # pnnx inference
+    import test_torch_minimum_pnnx
+    b = test_torch_minimum_pnnx.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
+
+if __name__ == "__main__":
+    if test():
+        exit(0)
+    else:
+        exit(1)

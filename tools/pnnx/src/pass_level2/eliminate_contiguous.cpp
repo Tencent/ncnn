@@ -18,7 +18,9 @@ void eliminate_contiguous(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "aten::contiguous")
+            if (op->type != "aten::contiguous" && op->type != "aten::alias")
+                continue;
+            if (op->inputs.empty() || op->outputs.empty())
                 continue;
 
             // fprintf(stderr, "eliminate_contiguous %s %s\n", op->type.c_str(), op->name.c_str());
@@ -26,11 +28,17 @@ void eliminate_contiguous(Graph& graph)
             need_eliminate = true;
 
             Operand* in0 = op->inputs[0];
-            Operand* in1 = op->inputs[1];
             Operand* out = op->outputs[0];
 
             in0->remove_consumer(op);
-            in1->remove_consumer(op);
+
+            std::vector<Operand*> extras;
+            for (size_t k = 1; k < op->inputs.size(); k++)
+            {
+                Operand* extra = op->inputs[k];
+                extra->remove_consumer(op);
+                extras.push_back(extra);
+            }
 
             for (auto& x : out->consumers)
             {
@@ -43,15 +51,20 @@ void eliminate_contiguous(Graph& graph)
                 in0->consumers.push_back(x);
             }
 
-            if (in1->consumers.empty())
+            for (size_t k = 0; k < extras.size(); k++)
             {
-                Operator* op_memory_format = in1->producer;
+                Operand* extra = extras[k];
+                if (!extra->consumers.empty())
+                    continue;
 
-                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), in1));
-                delete in1;
-
-                graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op_memory_format));
-                delete op_memory_format;
+                Operator* prod = extra->producer;
+                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), extra));
+                delete extra;
+                if (prod && prod->inputs.empty() && prod->outputs.size() <= 1)
+                {
+                    graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), prod));
+                    delete prod;
+                }
             }
 
             graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));

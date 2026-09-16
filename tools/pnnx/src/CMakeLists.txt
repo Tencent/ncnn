@@ -763,6 +763,9 @@ set(pnnx_SRCS
     model_stat.cpp
     storezip.cpp
     utils.cpp
+    puff.c
+    json.cpp
+    load_pt2.cpp
 
     pass_level2.cpp
     pass_level3.cpp
@@ -826,6 +829,13 @@ set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
 include(GNUInstallDirs)
 install(TARGETS pnnx RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Tests invoke ../src/pnnx from the tests binary dir.
+add_custom_command(TARGET pnnx POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:pnnx>
+        ${CMAKE_BINARY_DIR}/src/pnnx${CMAKE_EXECUTABLE_SUFFIX}
+)
 
 if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")

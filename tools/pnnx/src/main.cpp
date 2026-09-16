@@ -31,6 +31,8 @@
 #include "load_tnn.h"
 #endif
 
+#include "load_pt2.h"
+
 #include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
@@ -451,6 +453,13 @@ int main(int argc, char** argv)
     // clang-format off
     // *INDENT-OFF*
 
+    if (pnnx::is_pt2_archive(ptpath))
+    {
+        int ret = pnnx::load_pt2(ptpath, pnnx_graph);
+        if (ret != 0)
+            return ret;
+    }
+    else
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
