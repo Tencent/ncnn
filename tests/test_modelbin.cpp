@@ -1,6 +1,8 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <stdio.h>
+
 #include "datareader.h"
 #include "modelbin.h"
 
