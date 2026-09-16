@@ -2249,6 +2249,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 11=%d", d)
+            fprintf_param_value(" 21=%d", load_type)
 
             if (!op->data.empty())
             {
