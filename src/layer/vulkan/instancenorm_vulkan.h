@@ -32,6 +32,9 @@ public:
     Pipeline* pipeline_instancenorm_coeffs;
     Pipeline* pipeline_instancenorm_norm;
 
+    Pipeline* pipeline_instancenorm_reduce_subgroup;
+    Pipeline* pipeline_instancenorm_reduce_subgroup_pack4;
+
     Pipeline* pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4;
     Pipeline* pipeline_instancenorm_reduce_sum4_fp32_pack4[2];
     Pipeline* pipeline_instancenorm_reduce_mean_pack4;
