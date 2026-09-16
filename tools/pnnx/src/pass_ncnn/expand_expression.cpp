@@ -90,6 +90,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
         }
     }
 
+    // reject unsupported tokens before creating any operators
+    for (const std::string& t : tokens)
+    {
+        if (t == "sym_ite" || t == "sym_not" || t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge"
+            || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift" || t == "size" || t == "int" || t == "[")
+            return std::string();
+    }
+
     // scan and stack
     std::stack<std::string> exprstack;
     for (int i = (int)tokens.size() - 1; i >= 0; i--)

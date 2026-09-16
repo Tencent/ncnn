@@ -1691,7 +1691,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     // load weights
     {
-        fprintf(pyfp, "        archive = zipfile.ZipFile('%s', 'r')\n", pnnxbinpath.c_str());
+        fprintf(pyfp, "        archive = zipfile.ZipFile(r'%s', 'r')\n", pnnxbinpath.c_str());
 
         for (const Operator* op : ops)
         {
@@ -2659,7 +2659,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             fprintf(pyfp, "))\n");
         }
 
-        fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+        fprintf(pyfp, "    mod.save(r\"%s.pt\")\n", pypath.c_str());
     }
 
     fprintf(pyfp, "\n");
@@ -2727,7 +2727,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             fprintf(pyfp, ")");
         }
 
-        fprintf(pyfp, ", \"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
+        fprintf(pyfp, ", r\"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
 
         fprintf(pyfp, ", input_names=[");
         {
@@ -2832,11 +2832,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    import pnnx\n");
         if (input_names.size() == 1)
         {
-            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", %s)\n", pypath.c_str(), input_names[0].c_str());
+            fprintf(pyfp, "    pnnx.export(net, r\"%s.pt\", %s)\n", pypath.c_str(), input_names[0].c_str());
         }
         else
         {
-            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", (", pypath.c_str());
+            fprintf(pyfp, "    pnnx.export(net, r\"%s.pt\", (", pypath.c_str());
 
             for (size_t i = 0; i < input_names.size(); i++)
             {

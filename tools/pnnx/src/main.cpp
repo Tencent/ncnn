@@ -576,38 +576,21 @@ int main(int argc, char** argv)
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
 
-    if (pt2)
-    {
-        const char* unsupported_expr[] = {"sym_ite", "sym_not", "eq", "ne", "lt", "le", "gt", "ge", "and", "or", "xor", "lshift", "rshift"};
-        for (size_t i = 0; i < pnnx_graph.ops.size(); i++)
-        {
-            const pnnx::Operator* op = pnnx_graph.ops[i];
-            if (op->type != "pnnx.Expression")
-                continue;
-
-            const std::string& expr = op->params.at("expr").s;
-            for (size_t j = 0; j < sizeof(unsupported_expr) / sizeof(unsupported_expr[0]); j++)
-            {
-                size_t p = 0;
-                while ((p = expr.find(unsupported_expr[j], p)) != std::string::npos)
-                {
-                    const size_t q = p + strlen(unsupported_expr[j]);
-                    if ((p == 0 || expr[p - 1] == '(' || expr[p - 1] == ',') && (q == expr.size() || expr[q] == '(' || expr[q] == ','))
-                    {
-                        fprintf(stderr, "unsupported ncnn expression %s\n", expr.c_str());
-                        return -1;
-                    }
-                    p = q;
-                }
-            }
-        }
-    }
-
     //     if (optlevel >= 2)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
+
+        for (size_t i = 0; pt2 && i < pnnx_graph.ops.size(); i++)
+        {
+            const pnnx::Operator* op = pnnx_graph.ops[i];
+            if (op->type == "pnnx.Expression")
+            {
+                fprintf(stderr, "unsupported ncnn expression %s\n", op->params.at("expr").s.c_str());
+                return -1;
+            }
+        }
 
         if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
             return -1;

@@ -406,8 +406,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(pyfp, "\n");
 
         fprintf(pyfp, "    with ncnn.Net() as net:\n");
-        fprintf(pyfp, "        net.load_param(\"%s\")\n", parampath.c_str());
-        fprintf(pyfp, "        net.load_model(\"%s\")\n", binpath.c_str());
+        fprintf(pyfp, "        net.load_param(r\"%s\")\n", parampath.c_str());
+        fprintf(pyfp, "        net.load_model(r\"%s\")\n", binpath.c_str());
         fprintf(pyfp, "\n");
         fprintf(pyfp, "        with net.create_extractor() as ex:\n");
 
