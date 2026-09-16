@@ -333,19 +333,59 @@ struct less
 };
 
 template<typename RandomAccessIter, typename Compare>
+void heapify(RandomAccessIter first, int k, int i, Compare comp)
+{
+    // If we want to sort the topk largest elements, it will build the min-heap, or the max-heap.
+
+    // Initialize largest/smallest as root
+    int root = i;
+
+    int l = 2 * i + 1; // left = 2*i + 1
+    int r = 2 * i + 2; // right = 2*i + 2
+
+    // If left child is largest/smaller than root
+    if (l < k && comp(*(first + i), *(first + l)))
+        root = l;
+
+    // If right child is larger/smaller than smallest/largest so far
+    if (r < k && comp(*(first + root), *(first + r)))
+        root = r;
+
+    // If largest/smallest is not root
+    if (root != i)
+    {
+        swap(*(first + root), *(first + i));
+
+        // Recursively heapify the affected
+        heapify(first, k, root, comp);
+    }
+}
+
+template<typename RandomAccessIter, typename Compare>
 void partial_sort(RandomAccessIter first, RandomAccessIter middle, RandomAccessIter last, Compare comp)
 {
-    // [TODO] heap sort should be used here, but we simply use bubble sort now
-    for (RandomAccessIter i = first; i < middle; ++i)
+    // Build heap (rearrange array) from first to middle
+    int k = middle - first;
+    for (int i = k / 2 - 1; i >= 0; --i)
+        heapify(first, k, i, comp);
+
+    // One by one extract an element from the middle to last to get the topk elements(not in order)
+    for (RandomAccessIter i = middle; i < last; ++i)
     {
-        // bubble sort
-        for (RandomAccessIter j = last - 1; j > first; --j)
-        {
-            if (comp(*j, *(j - 1)))
-            {
-                swap(*j, *(j - 1));
-            }
-        }
+        // compare the i with the first elem of max/min-heap
+        if (comp(*i, *first))
+            swap(*i, *first);
+
+        // call heapify to sort the heap again
+        heapify(first, k, 0, comp);
+    }
+
+    // get the topk elements in order
+    for (int i = 0; i < k; ++i)
+    {
+        swap(*(first), *(middle - i - 1));
+
+        heapify(first, k - i - 1, 0, comp);
     }
 }
 
