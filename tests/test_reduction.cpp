@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 #define OP_TYPE_MAX 11
 
 static int op_type = 0;
@@ -221,6 +225,78 @@ static int test_reduction_3()
            || test_reduction_nd(c);
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_reduction_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(5, 1); // fixbug0
+    base.set(3, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::Reduction, base, 0)
+            || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(0), 0))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Reduction, base, 3, param_int_array(1, INT_MIN), -1);
+}
+
+static int test_reduction_load_param_type()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Reduction, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 10; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Reduction, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 11, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Reduction, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_reduction_load_param_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"5=1 -23303=1,0", "5=1 -23303=1,0.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(3) != 5 + i)
+            return -1;
+
+        if (test_layer_param(ncnn::LayerType::Reduction, pd, i == 0 ? 0 : -1) != 0)
+            return -1;
+    }
+#endif
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -237,5 +313,11 @@ int main()
             return ret;
     }
 
-    return 0;
+    return 0
+#if NCNN_VALIDATION
+           || test_reduction_load_param()
+           || test_reduction_load_param_type()
+           || test_reduction_load_param_text()
+#endif // NCNN_VALIDATION
+           ;
 }

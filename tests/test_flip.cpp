@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static std::vector<int> IntArray(int a0)
 {
     std::vector<int> m(1);
@@ -170,6 +174,85 @@ static int test_flip_3()
            || test_flip_nd(c);
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_flip_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::Flip, base, 0)
+            || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(0), 0))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    if (test_layer_param(ncnn::LayerType::Flip, base, 0, missing_data, -1) != 0)
+        return -1;
+
+    ncnn::Mat negative_length(0);
+    negative_length.w = -1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, negative_length, -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(0, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Flip, base, 0, param_int_array(1, INT_MIN), -1);
+}
+
+static int test_flip_load_param_serialized()
+{
+    TestParamDict typed;
+#if NCNN_STRING
+    if (typed.load_param("-23300=1,0.0") != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::Flip, typed, -1) != 0)
+        return -1;
+
+    if (typed.load_param("-23300=0") != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::Flip, typed, 0) != 0)
+        return -1;
+#endif
+    // binary parameters use little-endian byte order
+    const unsigned char binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    if (typed.load_param_bin(binary) != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::Flip, typed, 0) != 0)
+        return -1;
+
+    const unsigned char empty_binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    if (typed.load_param_bin(empty_binary) != 0)
+        return -1;
+
+    return test_layer_param(ncnn::LayerType::Flip, typed, 0);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -178,5 +261,10 @@ int main()
            || test_flip_0()
            || test_flip_1()
            || test_flip_2()
-           || test_flip_3();
+           || test_flip_3()
+#if NCNN_VALIDATION
+           || test_flip_load_param()
+           || test_flip_load_param_serialized()
+#endif // NCNN_VALIDATION
+           ;
 }

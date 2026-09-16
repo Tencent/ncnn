@@ -63,6 +63,7 @@ option(NCNN_ENABLE_LTO "enable link-time optimization" OFF)
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
+option(NCNN_VALIDATION "validate model and layer parameters" ON)
 option(NCNN_INSTALL_SDK "install ncnn library and headers" ON)
 option(NCNN_SIMPLEOCV "minimal opencv structure emulation" OFF)
 option(NCNN_SIMPLEOMP "minimal openmp runtime emulation" OFF)
@@ -558,6 +559,9 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
+        check_cxx_source_compiles("#include <immintrin.h>\n#include <ammintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
         check_cxx_source_compiles("#include <immintrin.h>\n#include <ammintrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
@@ -599,6 +603,9 @@ else()
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mxop -mfma4")
+        check_cxx_source_compiles("#include <x86intrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
 
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX -mxop")
         check_cxx_source_compiles("#include <x86intrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
@@ -642,6 +649,9 @@ else()
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_fmadd_ps(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "-mavx -mxop -mfma4")
+        check_cxx_source_compiles("#include <x86intrin.h>\n__m256 test(__m256 s, __m256 a, __m256 b) { return _mm256_macc_ps(a, b, s); }\n__m128i test2(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_FMA4)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mxop")
         check_cxx_source_compiles("#include <x86intrin.h>\n__m128i test(__m128i s, __m128i a, __m128i b) { return _mm_maddd_epi16(a, b, s); }" NCNN_COMPILER_SUPPORT_X86_XOP)
@@ -687,6 +697,13 @@ else()
             endif()
         else()
             message(WARNING "The compiler does not support fma extension. NCNN_FMA will be OFF.")
+        endif()
+        if(NCNN_COMPILER_SUPPORT_X86_FMA4)
+            if(NCNN_AVX)
+                option(NCNN_FMA4 "optimize x86 platform with fma4 extension" ON)
+            endif()
+        else()
+            message(WARNING "The compiler does not support fma4 extension. NCNN_FMA4 will be OFF.")
         endif()
         if(NCNN_COMPILER_SUPPORT_X86_XOP)
             if(NCNN_AVX)
@@ -790,14 +807,14 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
-    set(CMAKE_EXECUTBLE_LINKER_FLAGS "${CMAKE_EXECUTBLE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
 
     if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
         # TODO better flags for emscripten
         # node --experimental-wasm-threads xxx.js
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
-        set(CMAKE_EXECUTBLE_LINKER_FLAGS "${CMAKE_EXECUTBLE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
     endif()
 endif()
 

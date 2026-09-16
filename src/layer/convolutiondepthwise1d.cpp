@@ -3,6 +3,8 @@
 
 #include "convolutiondepthwise1d.h"
 
+#include <limits.h>
+
 #include "layer_type.h"
 
 #include "fused_activation.h"
@@ -32,15 +34,53 @@ int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
 
     dynamic_weight = pd.get(19, 0);
 
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (group <= 0)
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (dilation_w <= 0 || stride_w <= 0)
+        return -1;
+
+    if (!dynamic_weight)
+    {
+        if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w)
+            return -1;
+
+        if (num_output <= 0 || num_output % group != 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % kernel_w != 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
+
     if (dynamic_weight)
     {
         one_blob_only = false;
-    }
-
-    if (num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
     }
 
     return 0;

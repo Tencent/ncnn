@@ -1972,7 +1972,8 @@ unsigned short float32_to_float16(float value)
         else
         {
             // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
+            significand += 0x1000;
+            fp16 = (sign << 15) | ((newexp << 10) + (significand >> 13));
         }
     }
 
@@ -2075,7 +2076,8 @@ unsigned char float16_to_float8(unsigned short value)
         else
         {
             // normal fp8
-            fp8 = (sign << 7) | (newexp << 3) | (significand >> 7);
+            significand += 0x40;
+            fp8 = (sign << 7) | ((newexp << 3) + (significand >> 7));
         }
     }
 

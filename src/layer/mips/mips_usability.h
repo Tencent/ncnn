@@ -632,7 +632,7 @@ static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const unsigned short* ptr)
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0)
 {
     v4i32 _a = (v4i32)v0;
-    _a = __msa_srli_w(_a, 16);
+    _a = __msa_srlri_w(_a, 16);
     v8i16 _v = __msa_pckev_h((v8i16)__msa_fill_w(0), (v8i16)_a);
     return (v4i32)_v;
 }
@@ -641,8 +641,8 @@ static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0, const v4f32& v1)
 {
     v4i32 _a = (v4i32)v0;
     v4i32 _b = (v4i32)v1;
-    _a = __msa_srli_w(_a, 16);
-    _b = __msa_srli_w(_b, 16);
+    _a = __msa_srlri_w(_a, 16);
+    _b = __msa_srlri_w(_b, 16);
     v8i16 _v = __msa_pckev_h((v8i16)_b, (v8i16)_a);
     return (v4i32)_v;
 }
