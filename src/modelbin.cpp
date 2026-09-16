@@ -6,6 +6,7 @@
 #include "datareader.h"
 
 #include <string.h>
+#include <climits>
 
 namespace ncnn {
 
@@ -24,7 +25,11 @@ Mat ModelBin::load(int /*w*/, int /*type*/) const
 
 Mat ModelBin::load(int w, int h, int type) const
 {
-    Mat m = load(w * h, type);
+    long long total = (long long)w * h;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+
+    Mat m = load((int)total, type);
     if (m.empty())
         return m;
 
@@ -33,7 +38,14 @@ Mat ModelBin::load(int w, int h, int type) const
 
 Mat ModelBin::load(int w, int h, int c, int type) const
 {
-    Mat m = load(w * h * c, type);
+    long long total = (long long)w * h;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+    total *= c;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+
+    Mat m = load((int)total, type);
     if (m.empty())
         return m;
 
@@ -42,7 +54,17 @@ Mat ModelBin::load(int w, int h, int c, int type) const
 
 Mat ModelBin::load(int w, int h, int d, int c, int type) const
 {
-    Mat m = load(w * h * d * c, type);
+    long long total = (long long)w * h;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+    total *= d;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+    total *= c;
+    if (total > INT_MAX || total < 0)
+        return Mat();
+
+    Mat m = load((int)total, type);
     if (m.empty())
         return m;
 
