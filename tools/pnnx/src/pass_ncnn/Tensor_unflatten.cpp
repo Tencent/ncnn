@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "batch_reshape.h"
 
 namespace pnnx {
 
@@ -59,7 +60,7 @@ pnnx.Output             output      1 0 out
 
         const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
-        const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+        const bool batch_reshape = is_batch_reshape(op->inputs[0], op->outputs[0]);
 
         std::vector<int> new_shape = shape;
 
