@@ -11,7 +11,11 @@ class Model(nn.Module):
         count = 1
         for size in shape:
             count *= size
-        values = (torch.arange(count, dtype=torch.float32) % 2 - 0.5).reshape(shape)
+
+        if shape == ():
+            values = torch.tensor(0.5)
+        else:
+            values = (torch.arange(count, dtype=torch.float32) % 2 - 0.5).reshape(shape)
         self.register_buffer("values", values)
 
     def forward(self, x):
