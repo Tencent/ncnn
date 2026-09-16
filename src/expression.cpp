@@ -100,11 +100,6 @@ static bool float32_is_nan(float v)
     return (float32_as_uint(v) & 0x7fffffffu) > 0x7f800000u;
 }
 
-static bool float32_is_inf(float v)
-{
-    return (float32_as_uint(v) & 0x7fffffffu) == 0x7f800000u;
-}
-
 int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist)
 {
     // /(0w,2),*(0h,2),0c
@@ -509,8 +504,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                     r = a;
                 else if (float32_is_nan(b))
                     r = b;
-                else if (float32_is_inf(a) && float32_as_uint(a) == float32_as_uint(b))
-                    r = a;
+                else if (a == b)
+                    r = a + 0.6931471805599453f; // log(2), including equal infinities
                 else
                     r = std::max(a, b) + log1pf(expf(std::min(a, b) - std::max(a, b)));
             }
