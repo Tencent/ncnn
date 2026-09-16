@@ -334,7 +334,10 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
         }
         else if (t.data_type() == onnx::TensorProto::BOOL)
         {
-            data[0] = t.int32_data().at(0) ? 1 : 0;
+            for (size_t i = 0; i < data.size(); i++)
+            {
+                data[i] = t.int32_data().at(i) ? 1 : 0;
+            }
         }
         else
         {
