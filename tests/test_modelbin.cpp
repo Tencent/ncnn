@@ -50,7 +50,127 @@ static int test_modelbin_bfloat16()
     return 0;
 }
 
+static int test_modelbin_int8(const ncnn::DataReader& dr, int w)
+{
+    ncnn::ModelBinFromDataReader mb(dr);
+
+    ncnn::Mat m = mb.load(w, 3);
+    if (m.empty() || m.w != w || m.elemsize != 1u || m.elempack != 1)
+    {
+        fprintf(stderr, "test_modelbin_int8 shape failed w=%d\n", w);
+        return -1;
+    }
+
+    const signed char expected[] = {0, 1, -128, 127};
+    const signed char* p = m;
+    for (int i = 0; i < w; i++)
+    {
+        if (p[i] != expected[i])
+        {
+            fprintf(stderr, "test_modelbin_int8 value failed w=%d i=%d %d != %d\n", w, i, p[i], expected[i]);
+            return -1;
+        }
+    }
+
+    ncnn::Mat m2 = mb.load(1, 1);
+    if (m2.empty() || m2[0] != 4.f)
+    {
+        fprintf(stderr, "test_modelbin_int8 alignment failed w=%d\n", w);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_modelbin_int8(int w)
+{
+    unsigned char model_data[] = {
+        0x00, 0x01, 0x80, 0x7f,
+        0x00, 0x00, 0x80, 0x40
+    };
+    for (int i = w; i < 4; i++)
+        model_data[i] = 0;
+
+    const unsigned char* mem = model_data;
+    ncnn::DataReaderFromMemory dr(mem);
+    int ret = test_modelbin_int8(dr, w);
+    if (ret != 0)
+        return ret;
+
+#if NCNN_STDIO
+    FILE* fp = tmpfile();
+    if (!fp)
+    {
+        fprintf(stderr, "test_modelbin_int8 tmpfile failed\n");
+        return -1;
+    }
+    if (fwrite(model_data, 1, sizeof(model_data), fp) != sizeof(model_data))
+    {
+        fprintf(stderr, "test_modelbin_int8 fwrite failed\n");
+        fclose(fp);
+        return -1;
+    }
+    rewind(fp);
+
+    ncnn::DataReaderFromStdio dr2(fp);
+    ret = test_modelbin_int8(dr2, w);
+    fclose(fp);
+#endif
+
+    return ret;
+}
+
+#if NCNN_STDIO
+static int test_modelbin_int8_short_read()
+{
+    FILE* fp = tmpfile();
+    if (!fp)
+    {
+        fprintf(stderr, "test_modelbin_int8_short_read tmpfile failed\n");
+        return -1;
+    }
+
+    // three elements without the required fourth padding byte
+    const unsigned char model_data[] = {0, 1, 0};
+    if (fwrite(model_data, 1, sizeof(model_data), fp) != sizeof(model_data))
+    {
+        fprintf(stderr, "test_modelbin_int8_short_read fwrite failed\n");
+        fclose(fp);
+        return -1;
+    }
+    rewind(fp);
+
+    ncnn::DataReaderFromStdio dr(fp);
+    ncnn::ModelBinFromDataReader mb(dr);
+    ncnn::Mat m = mb.load(3, 3);
+    fclose(fp);
+    if (!m.empty())
+    {
+        fprintf(stderr, "test_modelbin_int8_short_read failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+#endif
+
+static int test_modelbin_int8()
+{
+    return 0
+           || test_modelbin_int8(1)
+           || test_modelbin_int8(2)
+           || test_modelbin_int8(3)
+           || test_modelbin_int8(4)
+#if NCNN_STDIO
+           || test_modelbin_int8_short_read()
+#endif
+           ;
+}
+
 int main()
 {
-    return test_mat_from_bfloat16() || test_modelbin_bfloat16();
+    return 0
+           || test_mat_from_bfloat16()
+           || test_modelbin_bfloat16()
+           || test_modelbin_int8();
 }

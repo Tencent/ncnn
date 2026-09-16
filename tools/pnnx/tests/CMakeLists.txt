@@ -340,6 +340,7 @@ pnnx_add_test(ir_complex)
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
+pnnx_add_test(pnnx_bool_attribute)
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_expand)
 pnnx_add_test(pnnx_eliminate_noop_math)
