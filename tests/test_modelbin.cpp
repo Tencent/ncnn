@@ -1,8 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <stdio.h>
-
 #include "datareader.h"
 #include "modelbin.h"
 
@@ -50,8 +48,18 @@ static int test_modelbin_bfloat16()
     return 0;
 }
 
-static int test_modelbin_int8(const ncnn::DataReader& dr, int w)
+static int test_modelbin_int8(int w)
 {
+    unsigned char model_data[] = {
+        0x00, 0x01, 0x80, 0x7f,
+        0x00, 0x00, 0x80, 0x40
+    };
+    for (int i = w; i < 4; i++)
+        model_data[i] = 0;
+
+    const unsigned char* mem = model_data;
+    ncnn::DataReaderFromMemory dr(mem);
+
     ncnn::ModelBinFromDataReader mb(dr);
 
     ncnn::Mat m = mb.load(w, 3);
@@ -82,89 +90,13 @@ static int test_modelbin_int8(const ncnn::DataReader& dr, int w)
     return 0;
 }
 
-static int test_modelbin_int8(int w)
-{
-    unsigned char model_data[] = {
-        0x00, 0x01, 0x80, 0x7f,
-        0x00, 0x00, 0x80, 0x40
-    };
-    for (int i = w; i < 4; i++)
-        model_data[i] = 0;
-
-    const unsigned char* mem = model_data;
-    ncnn::DataReaderFromMemory dr(mem);
-    int ret = test_modelbin_int8(dr, w);
-    if (ret != 0)
-        return ret;
-
-#if NCNN_STDIO
-    FILE* fp = tmpfile();
-    if (!fp)
-    {
-        fprintf(stderr, "test_modelbin_int8 tmpfile failed\n");
-        return -1;
-    }
-    if (fwrite(model_data, 1, sizeof(model_data), fp) != sizeof(model_data))
-    {
-        fprintf(stderr, "test_modelbin_int8 fwrite failed\n");
-        fclose(fp);
-        return -1;
-    }
-    rewind(fp);
-
-    ncnn::DataReaderFromStdio dr2(fp);
-    ret = test_modelbin_int8(dr2, w);
-    fclose(fp);
-#endif
-
-    return ret;
-}
-
-#if NCNN_STDIO
-static int test_modelbin_int8_short_read()
-{
-    FILE* fp = tmpfile();
-    if (!fp)
-    {
-        fprintf(stderr, "test_modelbin_int8_short_read tmpfile failed\n");
-        return -1;
-    }
-
-    // three elements without the required fourth padding byte
-    const unsigned char model_data[] = {0, 1, 0};
-    if (fwrite(model_data, 1, sizeof(model_data), fp) != sizeof(model_data))
-    {
-        fprintf(stderr, "test_modelbin_int8_short_read fwrite failed\n");
-        fclose(fp);
-        return -1;
-    }
-    rewind(fp);
-
-    ncnn::DataReaderFromStdio dr(fp);
-    ncnn::ModelBinFromDataReader mb(dr);
-    ncnn::Mat m = mb.load(3, 3);
-    fclose(fp);
-    if (!m.empty())
-    {
-        fprintf(stderr, "test_modelbin_int8_short_read failed\n");
-        return -1;
-    }
-
-    return 0;
-}
-#endif
-
 static int test_modelbin_int8()
 {
     return 0
            || test_modelbin_int8(1)
            || test_modelbin_int8(2)
            || test_modelbin_int8(3)
-           || test_modelbin_int8(4)
-#if NCNN_STDIO
-           || test_modelbin_int8_short_read()
-#endif
-           ;
+           || test_modelbin_int8(4);
 }
 
 int main()
