@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 from packaging import version
 
 class T5LayerNorm(nn.Module):
@@ -78,22 +80,7 @@ def test():
 
     a = net(x, y, z, w0, w1, w2, x2)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w0, w1, w2, x2))
-    mod.save("test_F_rms_norm.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_rms_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[24],[12,16],[24],[3,22,66]")
-
-    # pnnx inference
-    import test_F_rms_norm_pnnx
-    b = test_F_rms_norm_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, z, w0, w1, w2, x2), a, "test_F_rms_norm")
 
 if __name__ == "__main__":
     if test():

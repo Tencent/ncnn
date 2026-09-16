@@ -15,6 +15,8 @@
 #endif
 
 #include "ir.h"
+#include "load_exported_program.h"
+#include "model_format.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
@@ -84,10 +86,11 @@ static void print_string_list(const std::vector<std::string>& list)
     }
 }
 
-static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types)
+static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<bool>& explicit_types)
 {
     shapes.clear();
     types.clear();
+    explicit_types.clear();
 
     char* pch = strtok(s, "[]");
     while (pch != NULL)
@@ -100,6 +103,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
             if (nscan == 1)
             {
                 types[types.size() - 1] = std::string(type);
+                explicit_types[explicit_types.size() - 1] = true;
             }
         }
 
@@ -128,6 +132,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
             // shape end
             shapes.push_back(s);
             types.push_back("f32");
+            explicit_types.push_back(false);
         }
 
         pch = strtok(NULL, "[]");
@@ -211,6 +216,44 @@ static bool load_numpy_file_contents(const std::vector<std::string>& paths, cons
     return true;
 }
 
+static bool validate_exported_program_input_types(const pnnx::Graph& graph, const std::vector<std::string>& types, const std::vector<bool>& explicit_types, const char* option)
+{
+    if (types.empty())
+        return true;
+
+    std::vector<const pnnx::Operand*> inputs;
+    for (const pnnx::Operator* op : graph.ops)
+    {
+        if (op->type == "pnnx.Input")
+            inputs.insert(inputs.end(), op->outputs.begin(), op->outputs.end());
+    }
+
+    if (types.size() != inputs.size() || explicit_types.size() != types.size())
+    {
+        fprintf(stderr, "pt2 %s dtype count mismatch: expected %zu but got %zu\n", option, inputs.size(), types.size());
+        return false;
+    }
+
+    // Operand::type codes from ir.h. Untagged shapes retain the imported dtype,
+    // not parse_shape_list's f32 default used by the other frontends.
+    static const char* const type_names[] = {"null", "f32", "f64", "f16", "i32", "i64", "i16", "i8", "u8", "bool", "c64", "c128", "c32", "bf16"};
+    for (size_t i = 0; i < inputs.size(); i++)
+    {
+        if (!explicit_types[i])
+            continue;
+
+        const int type = inputs[i]->type;
+        const char* expected = type > 0 && (size_t)type < sizeof(type_names) / sizeof(type_names[0]) ? type_names[type] : "null";
+        if (types[i] != expected)
+        {
+            fprintf(stderr, "pt2 %s input %zu (%s) dtype mismatch: expected %s but got %s\n", option, i, inputs[i]->name.c_str(), expected, types[i].c_str());
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool model_file_maybe_torchscript(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -280,6 +323,10 @@ static void show_usage()
     fprintf(stderr, "  customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...\n");
 #endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
+    fprintf(stderr, "PT2: device=cpu only; nonempty customop/moduleop are unsupported.\n");
+    fprintf(stderr, "     inputshape dtype suffixes must match the graph; omitted suffixes keep graph dtypes.\n");
+    fprintf(stderr, "     input/input2 npy payloads are read and validated, not executed or used to specialize values.\n");
+    fprintf(stderr, "     inputshape2/input2 only validate a second sample; they do not enable dynamic execution.\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
@@ -321,10 +368,12 @@ int main(int argc, char** argv)
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
     std::vector<std::string> input_types;
+    std::vector<bool> input_types_explicit;
     std::vector<std::vector<char> > input_contents;
     std::vector<std::string> input_paths;
     std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> input_types2;
+    std::vector<bool> input_types_explicit2;
     std::vector<std::vector<char> > input_contents2;
     std::vector<std::string> input_paths2;
     std::vector<std::string> customop_modules;
@@ -374,7 +423,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "parameter conflict: input and inputshape cannot be used at the same time\n");
                 return -1;
             }
-            parse_shape_list(value, input_shapes, input_types);
+            parse_shape_list(value, input_shapes, input_types, input_types_explicit);
         }
         if (strcmp(key, "inputshape2") == 0)
         {
@@ -383,7 +432,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "parameter conflict: input2 and inputshape2 cannot be used at the same time\n");
                 return -1;
             }
-            parse_shape_list(value, input_shapes2, input_types2);
+            parse_shape_list(value, input_shapes2, input_types2, input_types_explicit2);
         }
         if (strcmp(key, "input") == 0)
         {
@@ -394,6 +443,7 @@ int main(int argc, char** argv)
             }
             if (!parse_numpy_file_list(value, input_shapes, input_types, input_contents, input_paths, false))
                 return -1;
+            input_types_explicit.assign(input_types.size(), true);
         }
         if (strcmp(key, "input2") == 0)
         {
@@ -404,6 +454,7 @@ int main(int argc, char** argv)
             }
             if (!parse_numpy_file_list(value, input_shapes2, input_types2, input_contents2, input_paths2, false))
                 return -1;
+            input_types_explicit2.assign(input_types2.size(), true);
         }
         if (strcmp(key, "customop") == 0)
             parse_string_list(value, customop_modules);
@@ -472,18 +523,66 @@ int main(int argc, char** argv)
     else
 #endif
     {
-        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
-            return -1;
-        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
-            return -1;
+        std::string format_error;
+        pnnx::ModelFormat model_format = pnnx::detect_model_format(ptpath, format_error);
+        if (model_format == pnnx::ModelFormatExportedProgram || model_format == pnnx::ModelFormatExportedProgramLegacy)
+        {
+            // Reject unsupported intent before invoking the PT2 dispatcher or
+            // creating outputs. TorchScript keeps its existing module loader.
+            if (!customop_modules.empty())
+            {
+                fprintf(stderr, "pt2 customop is not supported\n");
+                return -1;
+            }
+            if (!module_operators.empty())
+            {
+                fprintf(stderr, "pt2 moduleop is not supported\n");
+                return -1;
+            }
+            if (device != "cpu")
+            {
+                fprintf(stderr, "pt2 device=%s is not supported; only device=cpu is supported\n", device.c_str());
+                return -1;
+            }
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
-                                   device, input_shapes, input_types, input_contents,
-                                   input_shapes2, input_types2, input_contents2,
-                                   customop_modules, module_operators,
-                                   foldable_constants_zippath, foldable_constants);
-        if (ret != 0)
-            return ret;
+            // PT2 imports an exported graph rather than executing examples.
+            // Still read complete npy payloads so invalid user data cannot be
+            // silently accepted; the loader validates both sets of shapes.
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
+
+            const int ret = pnnx::load_exported_program(ptpath, pnnx_graph, input_shapes, input_shapes2);
+            if (ret != 0)
+                return ret;
+
+            if (!validate_exported_program_input_types(pnnx_graph, input_types, input_types_explicit, input_paths.empty() ? "inputshape" : "input"))
+                return -1;
+            if (!validate_exported_program_input_types(pnnx_graph, input_types2, input_types_explicit2, input_paths2.empty() ? "inputshape2" : "input2"))
+                return -1;
+        }
+        else if (model_format == pnnx::ModelFormatTorchScript)
+        {
+            if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+                return -1;
+            if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+                return -1;
+
+            int ret = load_torchscript(ptpath, pnnx_graph,
+                                       device, input_shapes, input_types, input_contents,
+                                       input_shapes2, input_types2, input_contents2,
+                                       customop_modules, module_operators,
+                                       foldable_constants_zippath, foldable_constants);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            // Unknown/corrupt archives must not fall back to TorchScript.
+            fprintf(stderr, "unsupported model format: %s\n", format_error.c_str());
+            return -1;
+        }
     }
 
     // *INDENT-ON*
@@ -522,12 +621,24 @@ int main(int argc, char** argv)
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
     const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
-    pnnx_graph.save(pnnxparampath, pnnxbinpath);
+    if (pnnx_graph.save(pnnxparampath, pnnxbinpath) != 0)
+    {
+        fprintf(stderr, "save pnnx graph failed\n");
+        return -1;
+    }
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
+    if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat) != 0)
+    {
+        fprintf(stderr, "save pnnx python failed\n");
+        return -1;
+    }
 
 #if BUILD_PNNX2ONNX
-    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
+    if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
+    {
+        fprintf(stderr, "save pnnx onnx failed\n");
+        return -1;
+    }
 #else
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
@@ -538,7 +649,11 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+        {
+            fprintf(stderr, "save ncnn failed\n");
+            return -1;
+        }
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());

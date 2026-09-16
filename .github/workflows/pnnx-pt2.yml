@@ -1,0 +1,105 @@
+name: pnnx-pt2-contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'tools/pnnx/**'
+      - '.github/workflows/pnnx-pt2.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'tools/pnnx/**'
+      - '.github/workflows/pnnx-pt2.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pnnx-pt2-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        producer: ['2.12.1', '2.13.0']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      OMP_THREAD_LIMIT: 1
+      OMP_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      MKL_ENABLE_INSTRUCTIONS: SSE4_2
+      PYTHONUTF8: 1
+      PYTHONNOUSERSITE: 1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      # Keep the binary's headers/libraries separate from producer upgrades.
+      - name: Install linked LibTorch and producer environments
+        shell: bash
+        run: |
+          python -m venv linked-torch
+          python -m venv producer-torch
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            linked="$GITHUB_WORKSPACE/linked-torch/Scripts/python.exe"
+            producer="$GITHUB_WORKSPACE/producer-torch/Scripts/python.exe"
+          else
+            linked="$GITHUB_WORKSPACE/linked-torch/bin/python"
+            producer="$GITHUB_WORKSPACE/producer-torch/bin/python"
+          fi
+          torch_index=https://pypi.org/simple
+          if [[ "$RUNNER_OS" != macOS ]]; then
+            torch_index=https://download.pytorch.org/whl/cpu
+          fi
+          "$linked" -m pip install torch==2.12.1 --index-url "$torch_index"
+          "$producer" -m pip install torch==${{ matrix.producer }} --index-url "$torch_index"
+          "$linked" -m pip install numpy==2.5.2 packaging==26.3
+          "$producer" -m pip install numpy==2.5.2 packaging==26.3
+          torch_dir=$("$linked" -c 'import os,torch; print(os.path.dirname(torch.__file__).replace("\\", "/"))')
+          echo "PRODUCER_PYTHON=$producer" >> "$GITHUB_ENV"
+          echo "LINKED_TORCH=$torch_dir" >> "$GITHUB_ENV"
+          echo "$torch_dir/lib" >> "$GITHUB_PATH"
+          "$linked" -c 'import torch; print("linked:", torch.__version__)'
+          "$producer" -c 'import torch; print("producer:", torch.__version__)'
+      - name: Install native backend test dependency
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: '"$PRODUCER_PYTHON" -m pip install ncnn==1.0.20260526'
+      - name: Build converter and native test targets
+        shell: bash
+        run: |
+          cmake -S tools/pnnx -B tools/pnnx/build-contract -DCMAKE_BUILD_TYPE=Release \
+            -DPython3_EXECUTABLE="$PRODUCER_PYTHON" -DTorch_INSTALL_DIR="$LINKED_TORCH"
+          cmake --build tools/pnnx/build-contract --config Release --target pnnx pnnx_test_binaries --parallel 4
+      - name: Frontend contracts and cross-format smoke
+        shell: bash
+        run: |
+          ctest --test-dir tools/pnnx/build-contract -C Release -N -L '^pt2$'
+          ctest --test-dir tools/pnnx/build-contract -C Release --output-on-failure --no-tests=error \
+            -L '^pt2_frontend$' --output-log frontend.log
+          ctest --test-dir tools/pnnx/build-contract -C Release --output-on-failure --no-tests=error \
+            -R '^test_nn_(ReLU|Linear|Conv2d)(_pt2)?$' --output-log smoke.log
+      - name: Native ncnn numerical parity
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          ctest --test-dir tools/pnnx/build-contract -C Release --output-on-failure --no-tests=error \
+            -L '^pt2_backend$' --output-log backend.log
+      - name: Retain validation logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pt2-contract-${{ matrix.os }}-${{ matrix.producer }}
+          path: |
+            frontend.log
+            smoke.log
+            backend.log
+            tools/pnnx/build-contract/Testing/Temporary/*.log
+            tools/pnnx/build-contract/CMakeCache.txt

@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -51,19 +53,13 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_ConvTranspose1d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_ConvTranspose1d.pt inputshape=[1,12,10]")
-
-    # pnnx inference
-    import test_nn_ConvTranspose1d_pnnx
-    b = test_nn_ConvTranspose1d_pnnx.test_inference()
-
-    return torch.allclose(a, b, 1e-3, 1e-3)
+    return test_model_formats(
+        net,
+        (x,),
+        a,
+        "test_nn_ConvTranspose1d",
+        lambda a0, b0: torch.allclose(a0, b0, 1e-3, 1e-3),
+    )
 
 if __name__ == "__main__":
     if test():

@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 from packaging import version
 
 class Model(nn.Module):
@@ -26,19 +28,7 @@ def test():
 
     a0, a1, a2 = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_F_unfold.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_unfold.pt inputshape=[1,12,64,64]")
-
-    # pnnx inference
-    import test_F_unfold_pnnx
-    b0, b1, b2 = test_F_unfold_pnnx.test_inference()
-
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    return test_model_formats(net, (x,), (a0, a1, a2), "test_F_unfold")
 
 if __name__ == "__main__":
     if test():

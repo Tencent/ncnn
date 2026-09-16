@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
         }
 
         std::vector<int> stride;
-        if (captured_params.at("stride").type == 0)
+        if (captured_params.at("stride").type == 0 || captured_params.at("stride").ai.empty())
         {
             stride = captured_params.at("kernel_size").ai;
         }

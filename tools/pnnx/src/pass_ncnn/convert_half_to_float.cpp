@@ -3,7 +3,8 @@
 
 #include "convert_half_to_float.h"
 
-#include <string.h>
+#include <algorithm>
+#include <stdio.h>
 
 namespace pnnx {
 
@@ -13,34 +14,28 @@ void convert_half_to_float(Graph& graph)
 {
     for (Operator* op : graph.ops)
     {
-        while (1)
+        for (auto& x : op->attrs)
         {
-            bool matched = false;
+            Attribute& attr = x.second;
+            if (attr.type != 3 && attr.type != 13)
+                continue;
 
-            for (auto x : op->attrs)
+            const int count = attr.elemcount();
+            const bool empty = std::find(attr.shape.begin(), attr.shape.end(), 0) != attr.shape.end();
+            const bool negative = std::any_of(attr.shape.begin(), attr.shape.end(), [](int dim) {
+                return dim < 0;
+            });
+            const std::vector<float> data = attr.get_float32_data();
+            if (negative || (count == 0 && !empty) || data.size() != (size_t)count || attr.data.size() / 2 != data.size() || attr.data.size() % 2 != 0)
             {
-                const Attribute& attr = x.second;
-                if (attr.type != 3)
-                    continue;
-
-                matched = true;
-
-                // fp16 -> fp32
-                Attribute attr_new;
-                attr_new.type = 1;
-                attr_new.shape = attr.shape;
-                attr_new.data.resize(attr.elemcount() * 4);
-
-                auto p = attr.get_float32_data();
-                memcpy((void*)attr_new.data.data(), (const void*)p.data(), attr_new.data.size());
-
-                op->attrs[x.first] = attr_new;
-
-                break;
+                fprintf(stderr, "cannot lower invalid half attribute %s.%s\n", op->name.c_str(), x.first.c_str());
+                continue;
             }
 
-            if (!matched)
-                break;
+            // Python/PNNX retain their original dtype. Only ncnn weights are
+            // promoted here; this does not add arbitrary ncnn input dtypes.
+            attr.type = 1;
+            attr.set_float32_data(data);
         }
     }
 }

@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pnnx_test_utils import test_model_formats
 from packaging import version
 
 class Model(nn.Module):
@@ -29,23 +31,12 @@ def test():
     z = torch.rand(3, 7, 8)
 
     a = net(x, y, z)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_repeat_interleave.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_repeat_interleave.pt inputshape=[3],[4,5],[3,7,8]")
-
-    # pnnx inference
-    import test_torch_repeat_interleave_pnnx
-    b = test_torch_repeat_interleave_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (x, y, z),
+        a,
+        "test_torch_repeat_interleave",
+    )
 
 if __name__ == "__main__":
     if test():

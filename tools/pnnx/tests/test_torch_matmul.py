@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -67,23 +69,12 @@ def test():
     p1 = torch.rand(6, 9, 14, 15)
 
     a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1)
-
-    # export torchscript
-    mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1))
-    mod.save("test_torch_matmul.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_matmul.pt inputshape=[13],[13],[14],[14,6],[13],[7,13,4],[15],[5,7,15,9],[5,12],[12],[10,3,4],[4],[6,3,7,14],[14],[23,14],[14,25],[4,5],[10,5,40],[14,6],[2,4,6,20],[10,23,14],[14,5],[7,8,13,14],[14,35],[10,23,14],[10,14,5],[10,13,18],[3,1,18,8],[1,5,23,11],[8,1,11,9],[6,9,13,14],[6,9,14,15]")
-
-    # pnnx inference
-    import test_torch_matmul_pnnx
-    b = test_torch_matmul_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(
+        net,
+        (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1),
+        a,
+        "test_torch_matmul",
+    )
 
 if __name__ == "__main__":
     if test():

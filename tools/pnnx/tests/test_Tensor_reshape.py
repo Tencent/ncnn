@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import test_model_formats
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -50,22 +52,7 @@ def test():
 
     a = net(x, y, z, w, u, v, r, s)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, u, v, r, s))
-    mod.save("test_Tensor_reshape.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_Tensor_reshape.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[210],[2,3,5,7],[280],[2,3,5,7],[210]")
-
-    # pnnx inference
-    import test_Tensor_reshape_pnnx
-    b = test_Tensor_reshape_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return test_model_formats(net, (x, y, z, w, u, v, r, s), a, "test_Tensor_reshape")
 
 if __name__ == "__main__":
     if test():
