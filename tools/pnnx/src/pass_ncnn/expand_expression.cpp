@@ -94,7 +94,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
     for (const std::string& t : tokens)
     {
         if (t == "sym_ite" || t == "sym_not" || t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge"
-            || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift" || t == "size" || t == "int" || t == "[")
+                || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift" || t == "size" || t == "int" || t == "[")
             return std::string();
     }
 
