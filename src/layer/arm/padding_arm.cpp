@@ -93,6 +93,12 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+    if (type == 2)
+    {
+        if (top >= h || bottom >= h || left >= w || right >= w || front >= channels || behind >= channels)
+            return -100;
+    }
+
 #if __ARM_NEON
     if (elempack == 4)
     {
