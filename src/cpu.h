@@ -22,21 +22,64 @@ class NCNN_EXPORT CpuSet
 {
 public:
     CpuSet();
+    CpuSet(const CpuSet& other);
+    CpuSet& operator=(const CpuSet& other);
+    ~CpuSet();
+
     void enable(int cpu);
     void disable(int cpu);
     void disable_all();
     bool is_enabled(int cpu) const;
     int num_enabled() const;
 
-public:
+    // New methods for >64 CPU support
+    int max_cpu_id() const;
+    bool is_empty() const;
+    void set_range(int start_cpu, int end_cpu, bool enabled);
+
+    // Platform-specific accessors for backward compatibility
 #if defined _WIN32
-    ULONG_PTR mask;
+    ULONG_PTR get_legacy_mask() const;
+    void set_legacy_mask(ULONG_PTR mask);
 #endif
 #if defined __ANDROID__ || defined __linux__
-    cpu_set_t cpu_set;
+    const cpu_set_t* get_cpu_set() const;
+    cpu_set_t* get_cpu_set_mutable();
+    void set_cpu_set(const cpu_set_t* cpuset);
 #endif
 #if __APPLE__
-    unsigned int policy;
+    unsigned int get_legacy_policy() const;
+    void set_legacy_policy(unsigned int policy);
+#endif
+
+private:
+    void ensure_capacity(int cpu_id);
+    void copy_from(const CpuSet& other);
+
+    // Internal implementation details
+    static const int FAST_PATH_BITS = 64;
+    static const int BITS_PER_WORD = 64;
+
+    // Fast path for systems with <= 64 CPUs
+    uint64_t fast_mask;
+
+    // Extended path for systems with > 64 CPUs
+    uint64_t* extended_mask;
+    int extended_capacity; // in number of uint64_t words
+    bool use_extended;
+
+    // Platform-specific storage for compatibility
+#if defined _WIN32
+    mutable ULONG_PTR legacy_mask_cache;
+    mutable bool legacy_mask_valid;
+#endif
+#if defined __ANDROID__ || defined __linux__
+    mutable cpu_set_t* cpu_set_cache;
+    mutable bool cpu_set_valid;
+#endif
+#if __APPLE__
+    mutable unsigned int legacy_policy_cache;
+    mutable bool legacy_policy_valid;
 #endif
 };
 
