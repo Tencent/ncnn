@@ -1,0 +1,85 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int M = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int N = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int K = 0;
+
+layout(binding = 0) readonly buffer a_blob { sfp a_blob_data[]; };
+layout(binding = 1) readonly buffer b_blob { sfp b_blob_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+
+    // Output batch extents. ncnn dispatches y over h*d and z over c
+    // (see VkCompute::record_pipeline), so depth is decoded out of y.
+    int outc;
+    int outd;
+
+    // An ncnn Mat strides channels by cstep and depth by w*h.
+    // c and d broadcast INDEPENDENTLY, matching MatMul::forward.
+    int a_cstep;
+    int a_dstep;
+    int a_c;
+    int a_d;
+    int b_cstep;
+    int b_dstep;
+    int b_c;
+    int b_d;
+    int c_cstep;
+    int c_dstep;
+} p;
+
+void main()
+{
+    const int n = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int cz = int(gl_GlobalInvocationID.z);
+
+    const int dz = gy / psc(M);
+    const int m = gy % psc(M);
+
+    if (n >= psc(N) || dz >= p.outd || cz >= p.outc)
+        return;
+
+    const int ac = p.a_c == 1 ? 0 : cz;
+    const int ad = p.a_d == 1 ? 0 : dz;
+    const int bc = p.b_c == 1 ? 0 : cz;
+    const int bd = p.b_d == 1 ? 0 : dz;
+
+    const int a_base = ac * p.a_cstep + ad * p.a_dstep + m * psc(K);
+    const int b_base = bc * p.b_cstep + bd * p.b_dstep;
+
+    afp sum = afp(0.f);
+
+    if (transB == 0)
+    {
+        // B is (K, N) row-major within its slice
+        for (int k = 0; k < psc(K); k++)
+        {
+            sum += buffer_ld1(a_blob_data, a_base + k)
+                 * buffer_ld1(b_blob_data, b_base + k * psc(N) + n);
+        }
+    }
+    else
+    {
+        // B is (N, K) row-major within its slice
+        const int b_row = b_base + n * psc(K);
+        for (int k = 0; k < psc(K); k++)
+        {
+            sum += buffer_ld1(a_blob_data, a_base + k)
+                 * buffer_ld1(b_blob_data, b_row + k);
+        }
+    }
+
+    buffer_st1(top_blob_data, cz * p.c_cstep + dz * p.c_dstep + m * psc(N) + n, sum);
+}
