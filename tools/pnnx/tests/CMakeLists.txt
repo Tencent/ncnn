@@ -451,6 +451,10 @@ add_executable(test_storezip_zip64 test_storezip_zip64.cpp ../src/storezip.cpp)
 target_include_directories(test_storezip_zip64 PRIVATE ../src)
 add_test(NAME test_storezip_zip64 COMMAND test_storezip_zip64)
 
+# the torch matrix jobs run ctest without compiling, so they exclude this label
+set_tests_properties(test_json test_pt2_schema test_pt2_regress test_storezip_zip64
+    PROPERTIES LABELS pt2_native)
+
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()

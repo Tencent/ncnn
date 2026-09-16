@@ -101,7 +101,7 @@ jobs:
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         cd tools/pnnx/build
-        ctest -R 'test_ncnn_pt2_' --output-on-failure -j 1
+        ctest -R 'test_ncnn_pt2_|test_json|test_pt2_schema|test_pt2_regress|test_storezip_zip64' --output-on-failure -j 1
 
   build:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -403,7 +403,8 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx/build
-        ctest --output-on-failure -j 8
+        # pt2_native are compiled C++ harnesses; this job only downloads pnnx
+        ctest -LE pt2_native --output-on-failure -j 8
 
     - name: python-pnnx
       run: |
