@@ -32,7 +32,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_new_empty.pt inputshape=[1,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_Tensor_new_empty.pt inputshape=[1,16]")
 
     # pnnx inference
     import test_Tensor_new_empty_pnnx
@@ -42,7 +42,14 @@ def test():
     for a0, b0 in zip(a, b):
         if not a0.shape == b0.shape:
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically); new_empty is
+    # uninitialized, compare shape and dtype only like the torchscript path
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,16]"], "test_Tensor_new_empty", shape_only=True)
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

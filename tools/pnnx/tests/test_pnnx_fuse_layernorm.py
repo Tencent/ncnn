@@ -44,13 +44,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_layernorm.pt inputshape=[1,64,16,16]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_layernorm.pt inputshape=[1,64,16,16]")
 
     # pnnx inference
     import test_pnnx_fuse_layernorm_pnnx
     b0 = test_pnnx_fuse_layernorm_pnnx.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,64,16,16]"], "test_pnnx_fuse_layernorm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

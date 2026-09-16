@@ -37,13 +37,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_local_response_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_local_response_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24]")
 
     # pnnx inference
     import test_F_local_response_norm_pnnx
     b0, b1, b2 = test_F_local_response_norm_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z), ["[1,12,24]", "[2,3,12,16]", "[1,10,12,16,24]"], "test_F_local_response_norm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

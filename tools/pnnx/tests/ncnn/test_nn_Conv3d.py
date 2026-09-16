@@ -78,7 +78,11 @@ def test():
 
     if not torch.allclose(a, b, 1e-3, 1e-3):
         return False
-    return test_batch()
+    
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[1,12,48,48,64]"], "test_nn_Conv3d")
+    return (test_batch()) and (pt2_ok is not False)
 
 def test_batch():
     net = ModelBatch().half().float()
@@ -101,7 +105,11 @@ def test_batch():
     import test_nn_Conv3d_batch_ncnn
     b = test_nn_Conv3d_batch_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-3, 1e-3)
+    
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[2,3,5,7,9]"], "test_nn_Conv3d_batch")
+    return (torch.allclose(a, b, 1e-3, 1e-3)) and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

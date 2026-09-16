@@ -49,10 +49,13 @@ def test():
     import test_nn_LayerNorm_ncnn
     b = test_nn_LayerNorm_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-3, 1e-3) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, w, q), ["[1,24,64]", "[1,12,24,64]", "[1,2,3,24,64]", "[2,24,64]"], "test_nn_LayerNorm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -41,7 +41,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_cumsum.pt inputshape=[2,3,16],[5,9],[14]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_torch_cumsum.pt inputshape=[2,3,16],[5,9],[14]")
 
     # pnnx inference
     import test_torch_cumsum_pnnx
@@ -50,7 +50,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z), ["[2,3,16]", "[5,9]", "[14]"], "test_torch_cumsum")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

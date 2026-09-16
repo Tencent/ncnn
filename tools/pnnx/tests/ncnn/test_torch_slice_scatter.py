@@ -55,10 +55,13 @@ def test():
     import test_torch_slice_scatter_ncnn
     b = test_torch_slice_scatter_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    ts_ok = all(torch.equal(a0, b0) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, q, r, s), ["[8,8]", "[2,8]", "[8,4]", "[2,3,5,8]", "[2,1,5,8]", "[2,3,5,1]"], "test_torch_slice_scatter")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

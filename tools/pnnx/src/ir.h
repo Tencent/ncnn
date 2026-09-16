@@ -11,6 +11,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if BUILD_TORCH2PNNX
@@ -317,6 +318,16 @@ private:
     }
 };
 
+// pt2 dynamic-input handoff: the loader records the symbolic dimension names
+// of each user input ("" = static dim) plus the sym -> (min,max) ranges from
+// the archive, so the generated *_pnnx.py can re-export the model with the
+// same dynamic shape constraints (torch.export.Dim)
+struct Pt2InputSymSpec
+{
+    std::string input_name;
+    std::vector<std::string> dim_syms;
+};
+
 class Graph
 {
 public:
@@ -351,6 +362,10 @@ public:
 
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
+
+    // pt2 loader -> generated python dynamic re-export metadata
+    std::vector<Pt2InputSymSpec> pt2_input_sym_specs;
+    std::map<std::string, std::pair<int64_t, int64_t> > pt2_sym_ranges;
 
 private:
     Graph(const Graph& rhs);

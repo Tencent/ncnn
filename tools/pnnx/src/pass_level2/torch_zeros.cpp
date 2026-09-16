@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "fold_size_limit.h"
 
 namespace pnnx {
 
@@ -79,5 +80,58 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_zeros_onnx, 20)
+
+class torch_zeros_fold : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // pt2: GRU/LSTM/RNN initial-state zeros have size/dtype etc. as
+        // prim::Constant inputs; ncnn has no zeros layer, fold to all-zero data
+        return R"PNNXIR(7767517
+6 5
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 dtype value=%dtype
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 pin_memory value=*
+aten::zeros             op_4        4 1 size dtype device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // an oversized or invalid static shape is declined here so the graph
+        // keeps the original operator; write() can then always materialize the
+        // payload instead of truncating it into an empty attribute
+        return fold_size_within_limit(captured_params.at("size").ai, matched_operators.at("op_4")->outputs[0]->type);
+    }
+
+    const char* type_str() const
+    {
+        return "pnnx.Attribute";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& shape = captured_params.at("size").ai;
+
+        Attribute& a = op->attrs["data"];
+        a.type = op->outputs[0]->type;
+        a.shape = shape;
+
+        const size_t es = fold_elemsize(a.type);
+
+        // match() already rejected an invalid or oversized shape
+        size_t count = 1;
+        for (int s : shape)
+            count *= (size_t)s;
+
+        a.data.resize(count * es, 0);
+        op->params.clear();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_zeros_fold, 30)
 
 } // namespace pnnx

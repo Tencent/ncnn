@@ -8,11 +8,14 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
-
 #include "pass_level2/eliminate_contiguous.h"
+#include "pass_level2/eliminate_noop_copy.h"
 #include "pass_level2/eliminate_size_numtotensor_int.h"
 #include "pass_level2/functionize.h"
 #include "pass_level2/fuse_constantlist.h"
+#include "pass_level2/torch_rnn_pt2.h"
+#include "pass_level2/fuse_unsqueeze_transpose_squeeze.h"
+#include "pass_ncnn/linalg_vector_norm.h"
 
 namespace pnnx {
 
@@ -795,7 +798,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 {
     Graph pattern_graph;
     pattern_graph.parse(pass->match_pattern_graph());
-
     // collect pattern inputs and outputs order
     std::vector<std::string> pattern_graph_inputs;
     std::vector<std::string> pattern_graph_outputs;
@@ -814,8 +816,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 pattern_graph_outputs.push_back(y->name);
         }
     }
-
-    std::vector<Operator*> new_ops;
 
     while (1)
     {
@@ -1037,7 +1037,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             pass->write(op, captured_params, captured_attrs);
 
-            new_ops.push_back(op);
+            op->name = op->name + "_" + std::to_string(opindex++);
         }
         else
         {
@@ -1120,17 +1120,11 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             for (auto x : ops)
             {
-                new_ops.push_back(x.second);
+                x.second->name = x.second->name + "_" + std::to_string(opindex++);
             }
 
             rgi++;
         }
-    }
-
-    // assign new op name number
-    for (int i = (int)new_ops.size() - 1; i >= 0; i--)
-    {
-        new_ops[i]->name = new_ops[i]->name + "_" + std::to_string(opindex++);
     }
 }
 
@@ -1140,9 +1134,14 @@ void pass_level2(Graph& g)
 
     eliminate_contiguous(g);
 
+    eliminate_noop_copy(g);
+
     eliminate_size_numtotensor_int(g);
 
     fuse_constantlist(g);
+
+    // pt2：aten::gru / aten::lstm / aten::rnn_tanh / aten::rnn_relu → nn.*
+    torch_rnn_pt2(g);
 
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
@@ -1152,6 +1151,11 @@ void pass_level2(Graph& g)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+
+    // weight_norm expansion produces aten::linalg_vector_norm (v not an
+    // Attribute; p/dim/keepdim are constant Expressions); rewrite to torch.norm
+    // early in pass_level2 to avoid it reaching pass_level5/Graph::python
+    ncnn::convert_aten_linalg_vector_norm(g);
 }
 
 } // namespace pnnx

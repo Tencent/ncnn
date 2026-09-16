@@ -53,7 +53,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_Linear.pt inputshape=[1,64],[12,64],[1,3,12,64]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_nn_Linear.pt inputshape=[1,64],[12,64],[1,3,12,64]")
 
     # pnnx inference
     import test_nn_Linear_pnnx
@@ -63,7 +63,13 @@ def test():
         b0 = b0.reshape_as(a0)
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z), ["[1,64]", "[12,64]", "[1,3,12,64]"], "test_nn_Linear")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

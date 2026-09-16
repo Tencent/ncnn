@@ -25,7 +25,14 @@ def test():
     import test_resnet18_ncnn
     b = test_resnet18_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-2, 1e-2)
+    ts_ok = torch.allclose(a, b, 1e-2, 1e-2)
+
+    # pt2 path (torch.export fails, skip automatically)
+    # ncnn uses fp16 conversion with ~1e-2 error; relax tolerance to 1e-2 (matching ts path)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x,), ["[1,3,224,224]"], "test_resnet18", atol=1e-2, rtol=1e-2)
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

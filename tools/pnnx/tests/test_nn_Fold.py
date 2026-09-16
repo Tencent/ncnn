@@ -38,13 +38,21 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_Fold.pt inputshape=[1,108,400],[1,96,190],[1,36,120]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_nn_Fold.pt inputshape=[1,108,400],[1,96,190],[1,36,120]")
 
     # pnnx inference
     import test_nn_Fold_pnnx
     b0, b1, b2 = test_nn_Fold_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    # fold sums overlapping windows; the accumulation order can differ across
+    # platforms/threads, so compare with tolerance instead of exact equality
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z), ["[1,108,400]", "[1,96,190]", "[1,36,120]"], "test_nn_Fold")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

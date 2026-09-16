@@ -23,16 +23,20 @@ void convert_half_to_float(Graph& graph)
                 if (attr.type != 3)
                     continue;
 
+                // fp16 -> fp32
+                const int ec = attr.elemcount();
+                if (ec <= 0)
+                    continue; // nothing to convert; skip (keep matched false)
+
                 matched = true;
 
-                // fp16 -> fp32
                 Attribute attr_new;
                 attr_new.type = 1;
                 attr_new.shape = attr.shape;
-                attr_new.data.resize(attr.elemcount() * 4);
+                attr_new.data.resize((size_t)ec * 4);
 
                 auto p = attr.get_float32_data();
-                memcpy((void*)attr_new.data.data(), (const void*)p.data(), attr_new.data.size());
+                memcpy((void*)attr_new.data.data(), (const void*)p.data(), std::min(attr_new.data.size(), p.size() * sizeof(float)));
 
                 op->attrs[x.first] = attr_new;
 

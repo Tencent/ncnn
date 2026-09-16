@@ -49,7 +49,13 @@ def test():
     import test_nn_ChannelShuffle_ncnn
     b0, b1, b2, b3 = test_nn_ChannelShuffle_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4) and torch.allclose(a3, b3, 1e-4, 1e-4)
+    ts_ok = torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4) and torch.allclose(a3, b3, 1e-4, 1e-4)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, q), ["[1,64,6,8]", "[1,96,7,9]", "[1,64,3,6,8]", "[2,64,6,8]"], "test_nn_ChannelShuffle")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

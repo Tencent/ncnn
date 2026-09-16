@@ -44,13 +44,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_conv3d.pt inputshape=[1,12,20,32,40],[16,12,3,2,3],[16,8,5,4,5],[16],[1,6,12,11,10]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_conv3d.pt inputshape=[1,12,20,32,40],[16,12,3,2,3],[16,8,5,4,5],[16],[1,6,12,11,10]")
 
     # pnnx inference
     import test_F_conv3d_pnnx
-    b0, b1 = test_F_conv3d_pnnx.test_inference()
+    b0, pnnx_b1 = test_F_conv3d_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, pnnx_b1)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, w0, w1, b1, y), ["[1,12,20,32,40]", "[16,12,3,2,3]", "[16,8,5,4,5]", "[16]", "[1,6,12,11,10]"], "test_F_conv3d")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

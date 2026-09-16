@@ -60,11 +60,11 @@ def test():
     import ncnn
     b0 = []
     b1 = []
-    with ncnn.Net() as net:
-        net.load_param("test_ncnn_interp_expr.ncnn.param")
-        net.load_model("test_ncnn_interp_expr.ncnn.bin")
+    with ncnn.Net() as ncnn_net:
+        ncnn_net.load_param("test_ncnn_interp_expr.ncnn.param")
+        ncnn_net.load_model("test_ncnn_interp_expr.ncnn.bin")
 
-        with net.create_extractor() as ex:
+        with ncnn_net.create_extractor() as ex:
             ex.input("in0", ncnn.Mat(x0.squeeze(0).numpy()).clone())
             ex.input("in1", ncnn.Mat(y0.squeeze(0).numpy()).clone())
             ex.input("in2", ncnn.Mat(z0.squeeze(0).numpy()).clone())
@@ -93,7 +93,7 @@ def test():
             b0.append(torch.from_numpy(out8.numpy(batch_index=0)))
             b0.append(torch.from_numpy(out9.numpy(batch_index=0)))
 
-        with net.create_extractor() as ex:
+        with ncnn_net.create_extractor() as ex:
             ex.input("in0", ncnn.Mat(x1.squeeze(0).numpy()).clone())
             ex.input("in1", ncnn.Mat(y1.squeeze(0).numpy()).clone())
             ex.input("in2", ncnn.Mat(z1.squeeze(0).numpy()).clone())
@@ -126,11 +126,13 @@ def test():
         if not torch.allclose(aa, bb, 1e-4, 1e-4):
             return False
 
-    for aa, bb in zip(a1, b1):
-        if not torch.allclose(aa, bb, 1e-4, 1e-4):
-            return False
+    ts_ok = all(torch.allclose(aa, bb, 1e-4, 1e-4) for aa, bb in zip(a1, b1))
 
-    return True
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x0, y0, z0, qx0, qy0, qz0), ["[1,13,120]", "[1,3,32,32]", "[1,1,64,48]", "[2,13,120]", "[2,3,32,32]", "[2,1,64,48]"], "test_ncnn_interp_expr")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

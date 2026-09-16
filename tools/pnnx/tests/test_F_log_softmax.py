@@ -38,13 +38,19 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_log_softmax.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_log_softmax.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
 
     # pnnx inference
     import test_F_log_softmax_pnnx
     b0, b1, b2, b3 = test_F_log_softmax_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+    ts_ok = torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z, w), ["[1,16]", "[12,2,16]", "[1,3,12,16]", "[1,5,7,9,11]"], "test_F_log_softmax")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -49,7 +49,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_F_scaled_dot_product_attention.pt inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
 
     # pnnx inference
     import test_F_scaled_dot_product_attention_pnnx
@@ -58,7 +58,13 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    ts_ok = True
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (q, k, v, m, k2, v2, m2), ["[3,8,128,64]", "[3,8,48,64]", "[3,8,48,77]", "[3,8,128,48]", "[3,2,48,64]", "[3,2,48,77]", "[3,1,128,48]"], "test_F_scaled_dot_product_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

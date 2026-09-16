@@ -44,21 +44,20 @@ def test():
     # torchscript to pnnx
     import os
 
-    os.system("../src/pnnx test_nn_GLU.pt inputshape=[18],[12,16],[24,28,34]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_nn_GLU.pt inputshape=[18],[12,16],[24,28,34]")
 
     # pnnx inference
     import test_nn_GLU_pnnx
 
     x0p, y0p, y1p, z0p, z1p, z2p = test_nn_GLU_pnnx.test_inference()
 
-    return (
-        torch.equal(x0, x0p)
-        and torch.equal(y0, y0p)
-        and torch.equal(y1, y1p)
-        and torch.equal(z0, z0p)
-        and torch.equal(z1, z1p)
-        and torch.equal(z2, z2p)
-    )
+    ts_ok = ( torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p) )
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x, y, z), ["[18]", "[12,16]", "[24,28,34]"], "test_nn_GLU")
+
+    return ts_ok and (pt2_ok is not False)
 
 
 if __name__ == "__main__":

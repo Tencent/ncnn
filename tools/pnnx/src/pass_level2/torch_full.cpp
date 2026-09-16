@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "fold_size_limit.h"
+#include "utils.h"
+
+#include <string.h>
 
 namespace pnnx {
 
@@ -26,6 +30,23 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "torch.full";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // write() reads fill_value/size with typed accessors and requires a
+        // positive size; decline anything else instead of folding wrong data
+        const std::map<std::string, Parameter>::const_iterator fv = captured_params.find("fill_value");
+        if (fv != captured_params.end() && fv->second.type != 1 && fv->second.type != 2 && fv->second.type != 3)
+            return false;
+        const std::map<std::string, Parameter>::const_iterator sz = captured_params.find("size");
+        if (sz != captured_params.end() && sz->second.type == 5)
+        {
+            for (int s : sz->second.ai)
+                if (s <= 0)
+                    return false;
+        }
+        return true;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -109,5 +130,391 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_tnn, 21)
+
+class torch_full_fold : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // pt2: torch.full with constant size/fill_value/dtype (e.g. the
+        // concretized full(x.size(), 1.5)); fold to an Attribute
+        return R"PNNXIR(7767517
+7 6
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 fill_value value=%fill_value
+prim::Constant          op_2        0 1 dtype value=%dtype
+prim::Constant          op_3        0 1 device value=*
+prim::Constant          op_4        0 1 pin_memory value=*
+aten::full              op_5        5 1 size fill_value dtype device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // an oversized or invalid static shape is declined here so the graph
+        // keeps the original operator; write() can then always materialize the
+        // payload instead of truncating it into an empty attribute
+        return fold_size_within_limit(captured_params.at("size").ai, matched_operators.at("op_5")->outputs[0]->type);
+    }
+
+    const char* type_str() const
+    {
+        return "pnnx.Attribute";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& shape = captured_params.at("size").ai;
+
+        double fv = 0;
+        const Parameter& fill_value = captured_params.at("fill_value");
+        if (fill_value.type == 1)
+            fv = fill_value.b ? 1 : 0; // bool fill_value (torch.full(..., True))
+        else if (fill_value.type == 3)
+            fv = fill_value.f;
+        else if (fill_value.type == 2)
+            fv = fill_value.i;
+
+        Attribute& a = op->attrs["data"];
+        a.type = op->outputs[0]->type;
+        a.shape = shape;
+
+        const size_t es = fold_elemsize(a.type);
+
+        // match() already rejected an invalid or oversized shape
+        size_t count = 1;
+        for (int s : shape)
+            count *= (size_t)s;
+
+        a.data.resize(count * es);
+        char* d = a.data.data();
+        if (a.type == 1) // f32
+        {
+            float* p = (float*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = (float)fv;
+        }
+        else if (a.type == 2) // f64
+        {
+            double* p = (double*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = fv;
+        }
+        else if (a.type == 3) // f16
+        {
+            const unsigned short v = float32_to_float16((float)fv);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = v;
+        }
+        else if (a.type == 13) // bf16
+        {
+            unsigned int bits;
+            float f = (float)fv;
+            memcpy(&bits, &f, 4);
+            // round-to-nearest-even to match torch's float -> bfloat16 cast
+            const unsigned int rounded = bits + 0x7fff + ((bits >> 16) & 1);
+            const unsigned short v = (unsigned short)(rounded >> 16);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = v;
+        }
+        else if (a.type == 4 || a.type == 5) // i32/i64
+        {
+            long long v = (long long)fv;
+            for (size_t i = 0; i < count; i++)
+            {
+                if (a.type == 4)
+                    ((int*)d)[i] = (int)v;
+                else
+                    ((long long*)d)[i] = v;
+            }
+        }
+        else if (a.type == 6) // i16
+        {
+            short* p = (short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = (short)fv;
+        }
+        else if (a.type == 7) // i8: write the wrapping signed byte, not 0/1
+        {
+            const signed char v = (signed char)(long long)fv;
+            memset(d, (unsigned char)v, count);
+        }
+        else if (a.type == 8) // u8: write the wrapping unsigned byte, not 0/1
+        {
+            const unsigned char v = (unsigned char)(long long)fv;
+            memset(d, v, count);
+        }
+        else if (a.type == 9) // bool: true becomes 1
+        {
+            memset(d, fv ? 1 : 0, count);
+        }
+        else if (a.type == 10) // complex64: real part is fill_value, imag is 0
+        {
+            float re, im;
+            if (fill_value.type == 10)
+            {
+                re = fill_value.c.real();
+                im = fill_value.c.imag();
+            }
+            else
+            {
+                re = (float)fv;
+                im = 0.f;
+            }
+            float* p = (float*)d;
+            for (size_t i = 0; i < count; i++)
+            {
+                p[2 * i] = re;
+                p[2 * i + 1] = im;
+            }
+        }
+        else if (a.type == 11) // complex128
+        {
+            double re, im;
+            if (fill_value.type == 10)
+            {
+                re = fill_value.c.real();
+                im = fill_value.c.imag();
+            }
+            else
+            {
+                re = fv;
+                im = 0.;
+            }
+            double* p = (double*)d;
+            for (size_t i = 0; i < count; i++)
+            {
+                p[2 * i] = re;
+                p[2 * i + 1] = im;
+            }
+        }
+        else if (a.type == 12) // complex32 (2 x f16)
+        {
+            float re, im;
+            if (fill_value.type == 10)
+            {
+                re = (float)fill_value.c.real();
+                im = (float)fill_value.c.imag();
+            }
+            else
+            {
+                re = (float)fv;
+                im = 0.f;
+            }
+            const unsigned short r = float32_to_float16(re);
+            const unsigned short i = float32_to_float16(im);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t k = 0; k < count; k++)
+            {
+                p[2 * k] = r;
+                p[2 * k + 1] = i;
+            }
+        }
+        else // unsupported dtype safety fallback
+        {
+            memset(d, 0, count * es);
+        }
+        op->params.clear();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_full_fold, 30)
+
+class Tensor_new_full_fold : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // pt2: Tensor.new_full(self, size, fill_value, ...) with constant
+        // arguments; fold to an Attribute filled with fill_value
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 fill_value value=%fill_value
+prim::Constant          op_2        0 1 dtype value=%dtype
+prim::Constant          op_3        0 1 layout value=*
+prim::Constant          op_4        0 1 device value=*
+prim::Constant          op_5        0 1 pin_memory value=*
+aten::new_full          op_6        7 1 input size fill_value dtype layout device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // an oversized or invalid static shape is declined here so the graph
+        // keeps the original operator; write() can then always materialize the
+        // payload instead of truncating it into an empty attribute
+        return fold_size_within_limit(captured_params.at("size").ai, matched_operators.at("op_6")->outputs[0]->type);
+    }
+
+    const char* type_str() const
+    {
+        return "pnnx.Attribute";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& shape = captured_params.at("size").ai;
+
+        double fv = 0;
+        const Parameter& fill_value = captured_params.at("fill_value");
+        if (fill_value.type == 1)
+            fv = fill_value.b ? 1 : 0; // bool fill_value (torch.full(..., True))
+        else if (fill_value.type == 3)
+            fv = fill_value.f;
+        else if (fill_value.type == 2)
+            fv = fill_value.i;
+
+        Attribute& a = op->attrs["data"];
+        a.type = op->outputs[0]->type;
+        a.shape = shape;
+
+        const size_t es = fold_elemsize(a.type);
+
+        // match() already rejected an invalid or oversized shape
+        size_t count = 1;
+        for (int s : shape)
+            count *= (size_t)s;
+
+        a.data.resize(count * es);
+        char* d = a.data.data();
+        if (a.type == 1) // f32
+        {
+            float* p = (float*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = (float)fv;
+        }
+        else if (a.type == 2) // f64
+        {
+            double* p = (double*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = fv;
+        }
+        else if (a.type == 3) // f16
+        {
+            const unsigned short v = float32_to_float16((float)fv);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = v;
+        }
+        else if (a.type == 13) // bf16
+        {
+            unsigned int bits;
+            float f = (float)fv;
+            memcpy(&bits, &f, 4);
+            // round-to-nearest-even to match torch's float -> bfloat16 cast
+            const unsigned int rounded = bits + 0x7fff + ((bits >> 16) & 1);
+            const unsigned short v = (unsigned short)(rounded >> 16);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = v;
+        }
+        else if (a.type == 4 || a.type == 5) // i32/i64
+        {
+            const long long v = (long long)fv;
+            for (size_t i = 0; i < count; i++)
+            {
+                if (a.type == 4)
+                    ((int*)d)[i] = (int)v;
+                else
+                    ((long long*)d)[i] = v;
+            }
+        }
+        else if (a.type == 6) // i16
+        {
+            short* p = (short*)d;
+            for (size_t i = 0; i < count; i++)
+                p[i] = (short)fv;
+        }
+        else if (a.type == 7) // i8: write the wrapping signed byte, not 0/1
+        {
+            const signed char v = (signed char)(long long)fv;
+            memset(d, (unsigned char)v, count);
+        }
+        else if (a.type == 8) // u8: write the wrapping unsigned byte, not 0/1
+        {
+            const unsigned char v = (unsigned char)(long long)fv;
+            memset(d, v, count);
+        }
+        else if (a.type == 9) // bool: true becomes 1
+        {
+            memset(d, fv ? 1 : 0, count);
+        }
+        else if (a.type == 10) // complex64: real part is fill_value, imag is 0
+        {
+            float re, im;
+            if (fill_value.type == 10)
+            {
+                re = fill_value.c.real();
+                im = fill_value.c.imag();
+            }
+            else
+            {
+                re = (float)fv;
+                im = 0.f;
+            }
+            float* p = (float*)d;
+            for (size_t i = 0; i < count; i++)
+            {
+                p[2 * i] = re;
+                p[2 * i + 1] = im;
+            }
+        }
+        else if (a.type == 11) // complex128
+        {
+            double re, im;
+            if (fill_value.type == 10)
+            {
+                re = fill_value.c.real();
+                im = fill_value.c.imag();
+            }
+            else
+            {
+                re = fv;
+                im = 0.;
+            }
+            double* p = (double*)d;
+            for (size_t i = 0; i < count; i++)
+            {
+                p[2 * i] = re;
+                p[2 * i + 1] = im;
+            }
+        }
+        else if (a.type == 12) // complex32 (2 x f16)
+        {
+            float re, im;
+            if (fill_value.type == 10)
+            {
+                re = (float)fill_value.c.real();
+                im = (float)fill_value.c.imag();
+            }
+            else
+            {
+                re = (float)fv;
+                im = 0.f;
+            }
+            const unsigned short r = float32_to_float16(re);
+            const unsigned short i = float32_to_float16(im);
+            unsigned short* p = (unsigned short*)d;
+            for (size_t k = 0; k < count; k++)
+            {
+                p[2 * k] = r;
+                p[2 * k + 1] = i;
+            }
+        }
+        else // unsupported dtype safety fallback
+        {
+            memset(d, 0, count * es);
+        }
+        op->params.clear();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_new_full_fold, 30)
 
 } // namespace pnnx

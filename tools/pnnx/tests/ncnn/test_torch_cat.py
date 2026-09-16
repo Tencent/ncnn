@@ -51,10 +51,13 @@ def test():
     import test_torch_cat_ncnn
     b = test_torch_cat_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    ts_ok = all(torch.equal(a0, b0) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (x, y, z, w, s, t, u, v), ["[3,16]", "[2,16]", "[5,9,11]", "[5,9,3]", "[12,3,9,3]", "[2,3,9,3]", "[2,3,5,7]", "[2,3,5,7]"], "test_torch_cat")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

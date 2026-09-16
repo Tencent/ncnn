@@ -45,10 +45,13 @@ def test():
     import test_torch_addmm_ncnn
     b = test_torch_addmm_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-4, 1e-4) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (a0, a1, a2, b0, b1, b2, c1), ["[23]", "[13,16]", "[16,23]", "[7,33]", "[7,26]", "[26,33]", "[16,48]"], "test_torch_addmm")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

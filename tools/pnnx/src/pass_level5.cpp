@@ -3,6 +3,7 @@
 
 #include "pass_level5.h"
 
+#include "pass_level2/fuse_unsqueeze_transpose_squeeze.h"
 #include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
@@ -18,6 +19,7 @@
 #include "pass_level5/eliminate_noop_reshape.h"
 #include "pass_level5/eliminate_reshape_shape_expression.h"
 #include "pass_level5/eliminate_type_as.h"
+#include "pass_level5/eliminate_noop_to.h"
 #include "pass_level5/eval_expression.h"
 #include "pass_level5/fuse_adjacent_reshape.h"
 #include "pass_level5/fuse_adjacent_permute.h"
@@ -125,6 +127,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_dropout(g);
     eliminate_type_as(g);
 
+    eliminate_noop_to(g);
+
     eliminate_noop_upsample(g);
 
     // need to execute before fuse_adjacent_reshape
@@ -143,6 +147,9 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_channel_shuffle(g);
     fuse_layernorm(g);
     fuse_rmsnorm(g);
+
+    // pt2: unsqueeze+transpose+squeeze (5D ops) -> 4D permute
+    fuse_unsqueeze_transpose_squeeze(g);
 
     fuse_transformers_multiheadattention(g);
     fuse_multiheadattention(g);

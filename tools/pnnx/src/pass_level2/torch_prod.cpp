@@ -5,6 +5,70 @@
 
 namespace pnnx {
 
+// dtype constants serialize as the torch scalar-type enum; map it to the
+// torch.<dtype> literal the generated python needs (None stays unset so the
+// op keeps its natural accumulation dtype)
+static void set_prod_dtype_param(Operator* op, const std::map<std::string, Parameter>& captured_params)
+{
+    const std::map<std::string, Parameter>::const_iterator it = captured_params.find("dtype");
+    if (it == captured_params.end())
+        return;
+
+    const Parameter& dtype = it->second;
+    if (dtype.type == 0)
+        return; // dtype=None: leave the param unset so the pass_ncnn pattern, which does not list dtype, keeps matching
+    if (dtype.type != 2)
+        return;
+
+    const char* dtype_str = 0;
+    switch (dtype.i)
+    {
+    case 0:
+        dtype_str = "torch.uint8";
+        break;
+    case 1:
+        dtype_str = "torch.int8";
+        break;
+    case 2:
+        dtype_str = "torch.short";
+        break;
+    case 3:
+        dtype_str = "torch.int";
+        break;
+    case 4:
+        dtype_str = "torch.long";
+        break;
+    case 5:
+        dtype_str = "torch.half";
+        break;
+    case 6:
+        dtype_str = "torch.float";
+        break;
+    case 7:
+        dtype_str = "torch.double";
+        break;
+    case 8:
+        dtype_str = "torch.complex32";
+        break;
+    case 9:
+        dtype_str = "torch.complex64";
+        break;
+    case 10:
+        dtype_str = "torch.complex128";
+        break;
+    case 11:
+        dtype_str = "torch.bool";
+        break;
+    case 15:
+        dtype_str = "torch.bfloat16";
+        break;
+    default:
+        break;
+    }
+    if (dtype_str)
+        op->params["dtype"] = dtype_str;
+}
+
 class torch_prod : public GraphRewriterPass
 {
 public:
@@ -15,7 +79,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 dim
 prim::Constant          op_0        0 1 keepdim value=%keepdim
-prim::Constant          op_1        0 1 dtype value=*
+prim::Constant          op_1        0 1 dtype value=%dtype
 aten::prod              op_2        4 1 input dim keepdim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -25,9 +89,52 @@ pnnx.Output             output      1 0 out
     {
         return "torch.prod";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        // copy the captured defaults (keepdim etc.) like the default rewriter,
+        // then restore the explicit dtype so generated code does not silently
+        // accumulate in the input's default dtype (dtype=torch.float64 changes
+        // the accumulation/output type and can alter overflow behavior)
+        for (std::map<std::string, Parameter>::const_iterator x = captured_params.begin(); x != captured_params.end(); ++x)
+        {
+            if (x->first == "dtype")
+                continue; // dtype is written by set_prod_dtype_param below
+            op->params[x->first] = x->second;
+        }
+        set_prod_dtype_param(op, captured_params);
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_prod, 50)
+
+class torch_prod_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // full-reduction prod(x): no dim/keepdim inputs, only an optional dtype
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 dtype value=%dtype
+aten::prod              op_1        2 1 input dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.prod";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        set_prod_dtype_param(op, captured_params);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_prod_1, 50)
 
 class torch_prod_onnx : public GraphRewriterPass
 {

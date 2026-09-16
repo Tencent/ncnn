@@ -78,10 +78,13 @@ def test():
     import test_F_scaled_dot_product_attention_ncnn
     b = test_F_scaled_dot_product_attention_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    ts_ok = all(torch.allclose(a0, b0, 1e-3, 1e-3) for a0, b0 in zip(a, b))
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx_ncnn
+    pt2_ok = test_pnnx_ncnn(net, (q, k, v, m, k2, v2, m2, q3, k3, v3, q4, k4, v4, q5, k5, v5, m5, q6, k6, v6, q7, k7, v7), ["[1,8,128,64]", "[1,8,48,64]", "[1,8,48,77]", "[1,8,128,48]", "[1,2,48,64]", "[1,2,48,77]", "[1,1,128,48]", "[2,4,16,8]", "[2,4,7,8]", "[2,4,7,9]", "[4,16,8]", "[4,7,8]", "[4,7,9]", "[2,4,16,8]", "[4,7,8]", "[4,7,9]", "[16,7]", "[4,16,8]", "[2,4,7,8]", "[2,4,7,9]", "[16,8]", "[7,8]", "[7,9]"], "test_F_scaled_dot_product_attention")
+
+    return ts_ok and (pt2_ok is not False)
 
 if __name__ == "__main__":
     if test():

@@ -44,7 +44,7 @@ def test():
     mod = torch.jit.trace(net, x)
     mod.save("test_pnnx_fuse_asymmetric_pad_conv2d.pt")
 
-    os.system("../src/pnnx test_pnnx_fuse_asymmetric_pad_conv2d.pt inputshape=[1,4,56,56]")
+    os.system(os.path.join("..", "src", "pnnx") + " test_pnnx_fuse_asymmetric_pad_conv2d.pt inputshape=[1,4,56,56]")
 
     import test_pnnx_fuse_asymmetric_pad_conv2d_pnnx
     b = test_pnnx_fuse_asymmetric_pad_conv2d_pnnx.test_inference()
@@ -63,7 +63,13 @@ def test():
     if "ConvolutionDepthWise" in ncnn_param:
         return " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
 
-    return "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+    ts_ok = "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+
+    # pt2 path (torch.export fails, skip automatically)
+    from pnnx_test_helper import test_pnnx
+    pt2_ok = test_pnnx(net, (x,), ["[1,4,56,56]"], "test_pnnx_fuse_asymmetric_pad_conv2d")
+
+    return ts_ok and (pt2_ok is not False)
 
 
 if __name__ == "__main__":

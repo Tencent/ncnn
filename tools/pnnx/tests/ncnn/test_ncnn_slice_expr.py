@@ -1,4 +1,9 @@
 # Copyright 2025 Tencent
+# note: ncnn backend internal special test verifying ncnn layout/expression
+# optimization (batch intermediate layout, expression cleanup, etc.) internals.
+# It depends on torchscript op shapes (pt2 has no pnnx.Expression and the layout
+# differs), so it does not participate in pt2 conversion tests.
+
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
