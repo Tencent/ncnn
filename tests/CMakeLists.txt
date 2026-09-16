@@ -190,3 +190,7 @@ ncnn_add_layer_test(UnaryOp)
 ncnn_add_layer_test(Unfold)
 ncnn_add_layer_test(YoloDetectionOutput)
 ncnn_add_layer_test(Yolov3DetectionOutput)
+
+if(WIN32)
+    ncnn_add_test(ncnn_cpu_cores)
+endif()
