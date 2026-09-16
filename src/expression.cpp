@@ -3,7 +3,8 @@
 
 #include "expression.h"
 
-#include <stdio.h> // sscanf
+#include <stdio.h>  // sscanf
+#include <string.h> // memcpy
 
 namespace ncnn {
 
@@ -84,20 +85,11 @@ struct typed_value
     }
 };
 
-static unsigned int float32_as_uint(float v)
-{
-    union
-    {
-        float f;
-        unsigned int i;
-    } u;
-    u.f = v;
-    return u.i;
-}
-
 static bool float32_is_nan(float v)
 {
-    return (float32_as_uint(v) & 0x7fffffffu) > 0x7f800000u;
+    unsigned int bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return (bits & 0x7fffffffu) > 0x7f800000u;
 }
 
 int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist)
@@ -507,7 +499,11 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                 else if (a == b)
                     r = a + 0.6931471805599453f; // log(2), including equal infinities
                 else
-                    r = std::max(a, b) + log1pf(expf(std::min(a, b) - std::max(a, b)));
+                {
+                    const float max_ab = std::max(a, b);
+                    const float min_ab = std::min(a, b);
+                    r = max_ab + log1pf(expf(min_ab - max_ab));
+                }
             }
             exprstack.push(r);
         }
