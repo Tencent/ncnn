@@ -1427,7 +1427,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
                     if (binding_type == 2)
                         image_binding_count++;
-                    else // if (binding_type == 3)
+                    else if (binding_type == 3)
                         sampler_binding_count++;
                 }
 
