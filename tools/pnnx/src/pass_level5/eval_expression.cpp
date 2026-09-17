@@ -6,6 +6,7 @@
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
+#include <string.h>
 
 #include <iostream>
 #include <sstream>
@@ -17,6 +18,13 @@
 #include "utils.h"
 
 namespace pnnx {
+
+static bool float32_is_nan(float v)
+{
+    unsigned int bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return (bits & 0x7fffffffu) > 0x7f800000u;
+}
 
 static bool token_is_argument(const std::string& t)
 {
@@ -628,7 +636,18 @@ static std::string eval_expression(const Operator* op)
                 }
                 if (t == "logaddexp")
                 {
-                    r = log(exp(af) + exp(bf));
+                    if (float32_is_nan(af))
+                        r = af;
+                    else if (float32_is_nan(bf))
+                        r = bf;
+                    else if (af == bf)
+                        r = af + 0.6931471805599453f; // log(2), including equal infinities
+                    else
+                    {
+                        const float max_ab = std::max(af, bf);
+                        const float min_ab = std::min(af, bf);
+                        r = max_ab + log1pf(expf(min_ab - max_ab));
+                    }
                 }
                 exprstack.push(r);
             }

@@ -365,7 +365,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 
         return m;
     }
-    else if (type == 4 || type == 6 || type == 8)
+    else if (type == 3 || type == 4 || type == 6 || type == 8)
     {
         size_t align_data_size = alignSize(w, 4);
 
