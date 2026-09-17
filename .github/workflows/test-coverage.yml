@@ -75,8 +75,8 @@ jobs:
           - { name: 'sse2',       SSE2: ON,  AVX: OFF, F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
           - { name: 'avx',        SSE2: ON,  AVX: ON,  F16C: OFF, FMA: OFF, AVX2: OFF, AVX512: OFF, AVX512VNNI: OFF }
           - { name: 'avx2',       SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: OFF, AVX512VNNI: OFF }
-          - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: OFF }
-          - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: ON  }
+          - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON, AVX512VNNI: OFF }
+          - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON, AVX512VNNI: ON  }
     steps:
     - uses: actions/checkout@v7
     - name: build
@@ -395,7 +395,7 @@ jobs:
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 930d46d31b5d637f313fd5ef55da2bbf053c26c1
+        ref: 1e80438d2b93ef36a7c05f8d2b81233bac0e3d16
     - name: swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
