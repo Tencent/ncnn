@@ -2471,6 +2471,41 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_xlm_mask_attention_2 : public fuse_transformers_xlm_mask_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+24 23
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 mask
+nn.Linear               op_0        1 1 query 5 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 8 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 9 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.reshape          op_3        1 1 5 6 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 8 10 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 9 11 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 6 7 dim0=1 dim1=2
+torch.transpose         op_7        1 1 11 12 dim0=1 dim1=2
+Tensor.permute          op_8        1 1 10 14 dims=(0,2,3,1)
+pnnx.Expression         op_9        1 1 7 13 expr=div(@0,%sqrt_feat_per_head)
+torch.matmul            op_10       2 1 13 14 15
+Tensor.reshape          op_11       1 1 mask 17 shape=(%batch,1,1,%kvsize)
+Tensor.expand_as        op_12       2 1 17 15 18
+Tensor.masked_fill      op_13       2 1 15 18 19 value=-3.40282347e38
+F.softmax               softmax     1 1 19 20 dim=%softmax_dim
+torch.matmul            op_15       2 1 20 12 21
+torch.transpose         op_16       1 1 21 22 dim0=1 dim1=2
+Tensor.reshape          op_17       1 1 22 23 shape=(%batch,%qsize,%embed_dim)
+nn.Linear               out_proj    1 1 23 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 void fuse_transformers_multiheadattention(Graph& graph)
 {
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
@@ -2525,6 +2560,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     fuse_transformers_prophet_mask_attention me;
     fuse_transformers_prophet_mask_attention_onnx me2;
     fuse_transformers_xlm_mask_attention mf;
+    fuse_transformers_xlm_mask_attention_2 mf2;
 
     int opindex = 0;
 
@@ -2567,6 +2603,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &me, opindex);
     pnnx_graph_rewrite(graph, &me2, opindex);
     pnnx_graph_rewrite(graph, &mf, opindex);
+    pnnx_graph_rewrite(graph, &mf2, opindex);
 
     pnnx_graph_rewrite(graph, &my0, opindex);
     pnnx_graph_rewrite(graph, &my, opindex);
