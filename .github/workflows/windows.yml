@@ -123,7 +123,7 @@ jobs:
       uses: actions/cache@v6
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20260901
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20260917
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v7
@@ -136,6 +136,8 @@ jobs:
       run: |
         cd swiftshader
         git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/nihui/ncnn-assets/master/swiftshader-patches/bf28d31.diff -OutFile bf28d31.diff
+        git apply bf28d31.diff
     - name: swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
