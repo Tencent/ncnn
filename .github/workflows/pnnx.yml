@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 env:
-  LIBTORCH_VERSION: 2.12.1
-  TORCHVISION_VERSION: 0.27.1
-  PROTOBUF_VERSION: 21.12
-  ONNXRUNTIME_VERSION: 1.27.0
-  CACHE_DATE: 20260703
+  LIBTORCH_VERSION: 2.14.0
+  TORCHVISION_VERSION: 0.29.0
+  PROTOBUF_VERSION: 33.6
+  ONNXRUNTIME_VERSION: 1.30.0
+  CACHE_DATE: 20260916
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
 jobs:
@@ -128,7 +128,9 @@ jobs:
         cd pytorch-v${{ env.LIBTORCH_VERSION }}
         pip3 install -r requirements.txt --break-system-packages
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-stable-abi.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-set-python-executable.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-eigen-build.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-link-local-sleef.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-revert-nativert-api.patch
@@ -183,11 +185,16 @@ jobs:
         wget -q https://github.com/protocolbuffers/protobuf/archive/v${{ env.PROTOBUF_VERSION }}.zip -O protobuf-${{ env.PROTOBUF_VERSION }}.zip
         unzip -q protobuf-${{ env.PROTOBUF_VERSION }}.zip
         cd protobuf-${{ env.PROTOBUF_VERSION }}
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/protobuf-${{ env.PROTOBUF_VERSION }}-align-abseil.patch
         mkdir -p build2 && cd build2
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_BUILD_TESTS=OFF \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_CXX_STANDARD=20 \
+            -Dprotobuf_BUILD_SHARED_LIBS=OFF \
+            -Dprotobuf_WITH_ZLIB=OFF ..
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
 
@@ -209,6 +216,10 @@ jobs:
             -Donnxruntime_DISABLE_ML_OPS=ON \
             -Donnxruntime_DISABLE_SPARSE_TENSORS=ON \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install" \
+            -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON \
+            -DONNX_CUSTOM_PROTOC_EXECUTABLE="$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/bin/protoc" \
             --compile-no-warning-as-error ../cmake
         cmake --build . -j 8
         cmake --build . -j 8 --target install/strip
@@ -258,6 +269,8 @@ jobs:
           - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.10.0', torchvision: '0.25.0', torchaudio: '2.10.0+cpu', transformers: '4.56.2' }
           - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.11.0', torchvision: '0.26.0', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
           - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.12.1', torchvision: '0.27.1', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
+          - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.13.0', torchvision: '0.28.0', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
+          - { python: '3.15', numpy: '2.4.6',  opencv: '4.14.*', torch: '2.14.0', torchvision: '0.29.0', torchaudio: '2.11.0+cpu', transformers: '5.10.4' }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
