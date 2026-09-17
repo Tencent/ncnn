@@ -64,6 +64,33 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_mode, 140)
 
+class F_conv3d_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+prim::Constant          op_0        0 1 stride value=%stride
+prim::Constant          op_1        0 1 padding value=%padding
+prim::Constant          op_2        0 1 dilation value=%dilation
+prim::Constant          op_3        0 1 groups value=%groups
+aten::conv3d            op_4        7 1 input weight bias stride padding dilation groups out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv3d";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_1, 140)
+
 class F_conv3d_0 : public GraphRewriterPass
 {
 public:

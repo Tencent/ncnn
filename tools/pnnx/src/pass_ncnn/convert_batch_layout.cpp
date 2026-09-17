@@ -597,14 +597,21 @@ void convert_batch_layout(Graph& graph)
             {
                 int input_rank = op->inputs[0]->shape.size();
                 int output_rank = op->outputs[0]->shape.size();
-                int dim = op->params.at("dim").i;
-                if (dim < 0 && input_rank > 0)
-                    dim += input_rank + 1;
-                if (dim < 0 && input_rank == 0 && output_rank > 0)
-                    dim += output_rank;
-
-                if (dim >= 0 && dim <= batch_axis)
-                    batch_axis += 1;
+                std::vector<int> axes;
+                if (op->params.at("dim").type == 2)
+                    axes.push_back(op->params.at("dim").i);
+                else
+                    axes = op->params.at("dim").ai;
+                if (output_rank == 0)
+                    output_rank = input_rank + (int)axes.size();
+                for (size_t i = 0; i < axes.size(); i++)
+                    axes[i] = normalize_axis(axes[i], output_rank);
+                std::sort(axes.begin(), axes.end());
+                for (size_t i = 0; i < axes.size(); i++)
+                {
+                    if (axes[i] >= 0 && axes[i] <= batch_axis)
+                        batch_axis++;
+                }
             }
             for (Operand* r : op->outputs)
                 set_ncnn_batch_axis(r, batch_axis);

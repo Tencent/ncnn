@@ -173,6 +173,20 @@ static int normalize_axis(int axis, int rank)
     return axis;
 }
 
+static std::vector<int> get_unsqueeze_axes(const Operator* op, int output_rank)
+{
+    std::vector<int> axes;
+    if (op->params.at("dim").type == 2)
+        axes.push_back(op->params.at("dim").i);
+    else
+        axes = op->params.at("dim").ai;
+
+    for (size_t i = 0; i < axes.size(); i++)
+        axes[i] = normalize_axis(axes[i], output_rank);
+    std::sort(axes.begin(), axes.end());
+    return axes;
+}
+
 static int solve_select_batch_index_forward(const Operator* op, int batch_index, int input_rank)
 {
     int dim = normalize_axis(op->params.at("dim").i, input_rank);
@@ -733,12 +747,6 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "torch.unsqueeze")
         {
-            int dim = op->params.at("dim").i;
-            if (dim < 0 && input_rank0 > 0)
-                dim += input_rank0 + 1;
-            if (dim < 0 && input_rank0 == 0 && output_rank0 > 0)
-                dim += output_rank0;
-
             if (batch_index == 233)
             {
                 // give up
@@ -746,9 +754,14 @@ static void solve_batch_index_forward(Operand* operand)
             }
 
             int batch_index_unsqueezed = batch_index;
-            if (dim >= 0 && dim <= batch_index)
+            int output_rank = output_rank0;
+            if (output_rank == 0)
+                output_rank = input_rank0 + (op->params.at("dim").type == 2 ? 1 : (int)op->params.at("dim").ai.size());
+            const std::vector<int> axes = get_unsqueeze_axes(op, output_rank);
+            for (size_t i = 0; i < axes.size(); i++)
             {
-                batch_index_unsqueezed = batch_index + 1;
+                if (axes[i] >= 0 && axes[i] <= batch_index_unsqueezed)
+                    batch_index_unsqueezed++;
             }
 
             Operand* r = op->outputs[0];
@@ -1254,20 +1267,20 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "torch.unsqueeze")
     {
-        int dim = op->params.at("dim").i;
-        if (dim < 0 && input_rank0 > 0)
-            dim += input_rank0 + 1;
-        if (dim < 0 && input_rank0 == 0 && output_rank0 > 0)
-            dim += output_rank0;
-
         int batch_index_squeezed = batch_index;
-        if (dim >= 0 && dim == batch_index)
+        int output_rank = output_rank0;
+        if (output_rank == 0)
+            output_rank = input_rank0 + (op->params.at("dim").type == 2 ? 1 : (int)op->params.at("dim").ai.size());
+        const std::vector<int> axes = get_unsqueeze_axes(op, output_rank);
+        for (size_t i = 0; i < axes.size(); i++)
         {
-            batch_index_squeezed = 233;
-        }
-        else if (dim >= 0 && dim <= batch_index)
-        {
-            batch_index_squeezed = batch_index - 1;
+            if (axes[i] == batch_index)
+            {
+                batch_index_squeezed = 233;
+                break;
+            }
+            if (axes[i] >= 0 && axes[i] < batch_index)
+                batch_index_squeezed--;
         }
 
         Operand* r = op->inputs[0];

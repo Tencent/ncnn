@@ -188,10 +188,12 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_fill.cpp
+    pass_level2/Tensor_item.cpp
     pass_level2/Tensor_index.cpp
     pass_level2/Tensor_index_put.cpp
     pass_level2/Tensor_masked_fill.cpp
@@ -293,6 +295,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_view_as_complex.cpp
     pass_level2/torch_view_as_real.cpp
     pass_level2/torch_where.cpp
+    pass_level2/torchvision_DeformConv2d.cpp
+    pass_level2/torchvision_RoIAlign.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp
@@ -760,7 +764,14 @@ endif()
 set(pnnx_SRCS
     main.cpp
     ir.cpp
+    load_pt2.cpp
+    model_format.cpp
     model_stat.cpp
+    pt2_archive.cpp
+    pt2_graph_lowering.cpp
+    pt2_json.cpp
+    pt2_program.cpp
+    pt2_weights.cpp
     storezip.cpp
     utils.cpp
 
@@ -780,6 +791,10 @@ set(pnnx_SRCS
 )
 
 add_executable(pnnx ${pnnx_SRCS})
+
+if(WIN32 AND CMAKE_CONFIGURATION_TYPES)
+    add_custom_command(TARGET pnnx POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:pnnx> ${CMAKE_CURRENT_BINARY_DIR}/pnnx.exe)
+endif()
 
 set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
 target_link_libraries(pnnx PRIVATE torch2pnnx)
