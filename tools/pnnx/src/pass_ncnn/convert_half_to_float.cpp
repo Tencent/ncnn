@@ -2,12 +2,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_half_to_float.h"
+#include "utils.h"
 
 #include <string.h>
 
 namespace pnnx {
 
 namespace ncnn {
+
+static float bfloat16_to_float32(unsigned short value)
+{
+    unsigned int bits = (unsigned int)value << 16;
+    float value_fp32;
+    memcpy(&value_fp32, &bits, sizeof(value_fp32));
+    return value_fp32;
+}
 
 void convert_half_to_float(Graph& graph)
 {
@@ -20,19 +29,35 @@ void convert_half_to_float(Graph& graph)
             for (auto x : op->attrs)
             {
                 const Attribute& attr = x.second;
-                if (attr.type != 3)
+                if (attr.type != 3 && attr.type != 13)
                     continue;
 
                 matched = true;
 
-                // fp16 -> fp32
                 Attribute attr_new;
                 attr_new.type = 1;
                 attr_new.shape = attr.shape;
-                attr_new.data.resize(attr.elemcount() * 4);
+                const size_t elemcount = attr.shape.empty() ? 1 : attr.elemcount();
+                attr_new.data.resize(elemcount * 4);
 
-                auto p = attr.get_float32_data();
-                memcpy((void*)attr_new.data.data(), (const void*)p.data(), attr_new.data.size());
+                if (attr.type == 3)
+                {
+                    const unsigned short* p = (const unsigned short*)attr.data.data();
+                    float* p_new = (float*)attr_new.data.data();
+                    for (size_t i = 0; i < elemcount; i++)
+                    {
+                        p_new[i] = float16_to_float32(p[i]);
+                    }
+                }
+                else
+                {
+                    const unsigned short* p = (const unsigned short*)attr.data.data();
+                    float* p_new = (float*)attr_new.data.data();
+                    for (size_t i = 0; i < elemcount; i++)
+                    {
+                        p_new[i] = bfloat16_to_float32(p[i]);
+                    }
+                }
 
                 op->attrs[x.first] = attr_new;
 

@@ -189,6 +189,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_copy.cpp
+    pass_level2/Tensor_alias.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_fill.cpp
@@ -628,7 +629,7 @@ set(pnnx_pass_ncnn_SRCS
 )
 
 if(PROTOBUF_FOUND)
-    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22 AND CMAKE_CXX_STANDARD LESS 17)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 
@@ -764,12 +765,16 @@ set(pnnx_SRCS
     storezip.cpp
     utils.cpp
 
+    load_pt2.cpp
+    pt2_schema.cpp
+
     pass_level2.cpp
     pass_level3.cpp
     pass_level4.cpp
     pass_level5.cpp
 
     ${pnnx_pass_level2_SRCS}
+    pass_level2/F_pt2.cpp
     ${pnnx_pass_level3_SRCS}
     ${pnnx_pass_level4_SRCS}
     ${pnnx_pass_level5_SRCS}

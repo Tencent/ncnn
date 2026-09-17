@@ -1136,6 +1136,10 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
 void pass_level2(Graph& g)
 {
+    normalize_pt2_module_forms(g);
+
+    fold_pt2_window_functions(g);
+
     functionize(g);
 
     eliminate_contiguous(g);
@@ -1143,6 +1147,9 @@ void pass_level2(Graph& g)
     eliminate_size_numtotensor_int(g);
 
     fuse_constantlist(g);
+
+    // PT2 shared weight_norm parameters require imperative folding.
+    fold_pt2_weight_norm(g);
 
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
