@@ -2171,7 +2171,7 @@ torch.transpose         op_10       1 1 9 14 dim0=2 dim1=3
 torch.matmul            op_11       2 1 13 14 15
 Tensor.reshape          op_12       1 1 mask 17 shape=(%batch,1,%qsize,%kvsize)
 Tensor.expand_as        op_13       2 1 17 15 18
-Tensor.masked_fill      op_14       2 1 15 18 19 value=-3.402823e+38
+Tensor.masked_fill      op_14       2 1 15 18 19 value=%float_min
 F.softmax               softmax     1 1 19 20 dim=%softmax_dim
 torch.matmul            op_16       2 1 20 12 21
 torch.transpose         op_17       1 1 21 22 dim0=1 dim1=2
@@ -2211,6 +2211,15 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const float float_min = captured_params.at("float_min").f;
+        if (!NearlyEqual(float_min, -3.402823e+38, 0.001))
+            return false;
+
+        return fuse_transformers_cross_mask_attention::match(matched_operators, captured_params, captured_attrs);
+    }
+
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         fuse_transformers_cross_mask_attention::write(ops, captured_params, captured_attrs);
@@ -2226,6 +2235,41 @@ pnnx.Output             output      1 0 out
         // set attn_mask shape
         Operator* reshape = ops.at("attn_ht_2");
         reshape->params["shape"] = std::vector<int>{batch * num_heads, qsize, kvsize};
+    }
+};
+
+class fuse_transformers_flaubert_mask_attention_2 : public fuse_transformers_flaubert_mask_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+24 23
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+pnnx.Input              input_m     0 1 mask
+nn.Linear               op_0        1 1 query 4 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 7 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 8 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.reshape          op_3        1 1 4 5 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 7 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 8 10 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 5 6 dim0=1 dim1=2
+Tensor.permute          op_7        1 1 9 13 dims=(0,2,3,1)
+torch.transpose         op_8        1 1 10 11 dim0=1 dim1=2
+pnnx.Expression         op_9        1 1 6 12 expr=div(@0,%sqrt_feat_per_head)
+torch.matmul            op_10       2 1 12 13 14
+Tensor.reshape          op_11       1 1 mask 16 shape=(%batch,1,%qsize,%kvsize)
+Tensor.expand_as        op_12       2 1 16 14 17
+Tensor.masked_fill      op_13       2 1 14 17 18 value=%float_min
+F.softmax               softmax     1 1 18 19 dim=%softmax_dim
+torch.matmul            op_15       2 1 19 11 20
+torch.transpose         op_16       1 1 20 21 dim0=1 dim1=2
+Tensor.reshape          op_17       1 1 21 22 shape=(%batch,%qsize,%embed_dim)
+nn.Linear               out_proj    1 1 22 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -2251,7 +2295,7 @@ Tensor.permute          op_7        1 1 10 11 dims=(0,2,1,3)
 Tensor.permute          op_8        1 1 8 13 dims=(0,2,3,1)
 pnnx.Expression         op_9        1 1 6 12 expr=div(@0,%sqrt_feat_per_head)
 torch.matmul            op_10       2 1 12 13 14
-torch.where             op_11       2 1 mask 14 18 input=-3.402823e+38
+torch.where             op_11       2 1 mask 14 18 input=%float_min
 F.softmax               softmax     1 1 18 19 dim=%softmax_dim
 torch.matmul            op_13       2 1 19 11 20
 Tensor.permute          op_14       1 1 20 21 dims=(0,2,1,3)
@@ -2273,6 +2317,15 @@ Tensor.reshape          attn_ht_0   1 1 mask attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const float float_min = captured_params.at("float_min").f;
+        if (!NearlyEqual(float_min, -3.402823e+38, 0.001))
+            return false;
+
+        return fuse_transformers_cross_mask_attention::match(matched_operators, captured_params, captured_attrs);
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -2556,6 +2609,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     fuse_transformers_distilbert_mask_sdpa_attention myx;
     fuse_transformers_distilbert_mask_attention_onnx myx1;
     fuse_transformers_flaubert_mask_attention ma;
+    fuse_transformers_flaubert_mask_attention_2 ma1;
     fuse_transformers_flaubert_mask_attention_onnx ma2;
     fuse_transformers_prophet_mask_attention me;
     fuse_transformers_prophet_mask_attention_onnx me2;
@@ -2599,6 +2653,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &z2, opindex);
 
     pnnx_graph_rewrite(graph, &ma, opindex);
+    pnnx_graph_rewrite(graph, &ma1, opindex);
     pnnx_graph_rewrite(graph, &ma2, opindex);
     pnnx_graph_rewrite(graph, &me, opindex);
     pnnx_graph_rewrite(graph, &me2, opindex);
