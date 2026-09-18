@@ -25,65 +25,29 @@ static float reduction(float v0, const float* ptr, int size)
     const Op2 op2;
 #if __AVX__
 #if __AVX512F__
-    __m512 _sum16_0 = _mm512_set1_ps(v0);
-    __m512 _sum16_1 = _sum16_0;
-    __m512 _sum16_2 = _sum16_0;
-    __m512 _sum16_3 = _sum16_0;
-    for (; i + 63 < size; i += 64)
-    {
-        __m512 _p0 = _mm512_loadu_ps(ptr);
-        __m512 _p1 = _mm512_loadu_ps(ptr + 16);
-        __m512 _p2 = _mm512_loadu_ps(ptr + 32);
-        __m512 _p3 = _mm512_loadu_ps(ptr + 48);
-        _sum16_0 = op.func_pack16(_sum16_0, _p0);
-        _sum16_1 = op.func_pack16(_sum16_1, _p1);
-        _sum16_2 = op.func_pack16(_sum16_2, _p2);
-        _sum16_3 = op.func_pack16(_sum16_3, _p3);
-        ptr += 64;
-    }
-    __m512 _sum16 = op2.func_pack16(op2.func_pack16(_sum16_0, _sum16_1), op2.func_pack16(_sum16_2, _sum16_3));
-#endif // __AVX512F__
-    __m256 _sum8_0 = _mm256_set1_ps(v0);
-    __m256 _sum8_1 = _sum8_0;
-    __m256 _sum8_2 = _sum8_0;
-    __m256 _sum8_3 = _sum8_0;
-    for (; i + 31 < size; i += 32)
-    {
-        __m256 _p0 = _mm256_loadu_ps(ptr);
-        __m256 _p1 = _mm256_loadu_ps(ptr + 8);
-        __m256 _p2 = _mm256_loadu_ps(ptr + 16);
-        __m256 _p3 = _mm256_loadu_ps(ptr + 24);
-        _sum8_0 = op.func_pack8(_sum8_0, _p0);
-        _sum8_1 = op.func_pack8(_sum8_1, _p1);
-        _sum8_2 = op.func_pack8(_sum8_2, _p2);
-        _sum8_3 = op.func_pack8(_sum8_3, _p3);
-        ptr += 32;
-    }
-    __m256 _sum8 = op2.func_pack8(op2.func_pack8(_sum8_0, _sum8_1), op2.func_pack8(_sum8_2, _sum8_3));
-#endif // __AVX__
-    __m128 _sum4_0 = _mm_set1_ps(v0);
-    __m128 _sum4_1 = _sum4_0;
-    __m128 _sum4_2 = _sum4_0;
-    __m128 _sum4_3 = _sum4_0;
+    __m512 _sum16 = _mm512_set1_ps(v0);
     for (; i + 15 < size; i += 16)
     {
-        __m128 _p0 = _mm_loadu_ps(ptr);
-        __m128 _p1 = _mm_loadu_ps(ptr + 4);
-        __m128 _p2 = _mm_loadu_ps(ptr + 8);
-        __m128 _p3 = _mm_loadu_ps(ptr + 12);
-        _sum4_0 = op.func_pack4(_sum4_0, _p0);
-        _sum4_1 = op.func_pack4(_sum4_1, _p1);
-        _sum4_2 = op.func_pack4(_sum4_2, _p2);
-        _sum4_3 = op.func_pack4(_sum4_3, _p3);
+        __m512 _p = _mm512_loadu_ps(ptr);
+        _sum16 = op.func_pack16(_sum16, _p);
         ptr += 16;
     }
+#endif // __AVX512F__
+    __m256 _sum8 = _mm256_set1_ps(v0);
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        _sum8 = op.func_pack8(_sum8, _p);
+        ptr += 8;
+    }
+#endif // __AVX__
+    __m128 _sum4 = _mm_set1_ps(v0);
     for (; i + 3 < size; i += 4)
     {
         __m128 _p = _mm_loadu_ps(ptr);
-        _sum4_0 = op.func_pack4(_sum4_0, _p);
+        _sum4 = op.func_pack4(_sum4, _p);
         ptr += 4;
     }
-    __m128 _sum4 = op2.func_pack4(op2.func_pack4(_sum4_0, _sum4_1), op2.func_pack4(_sum4_2, _sum4_3));
 #if __AVX__
 #if __AVX512F__
     _sum8 = op2.func_pack8(_sum8, op2.func_pack8(_mm512_castps512_ps256(_sum16), _mm512_extractf32x8_ps(_sum16, 1)));
@@ -112,71 +76,26 @@ static void reduction_vector(const float* ptr, float* outptr, int size)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; i + 63 < size; i += 64)
-    {
-        __m512 _p0 = _mm512_loadu_ps(ptr);
-        __m512 _p1 = _mm512_loadu_ps(ptr + 16);
-        __m512 _p2 = _mm512_loadu_ps(ptr + 32);
-        __m512 _p3 = _mm512_loadu_ps(ptr + 48);
-        __m512 _outp0 = _mm512_loadu_ps(outptr);
-        __m512 _outp1 = _mm512_loadu_ps(outptr + 16);
-        __m512 _outp2 = _mm512_loadu_ps(outptr + 32);
-        __m512 _outp3 = _mm512_loadu_ps(outptr + 48);
-        _outp0 = op.func_pack16(_outp0, _p0);
-        _outp1 = op.func_pack16(_outp1, _p1);
-        _outp2 = op.func_pack16(_outp2, _p2);
-        _outp3 = op.func_pack16(_outp3, _p3);
-        _mm512_storeu_ps(outptr, _outp0);
-        _mm512_storeu_ps(outptr + 16, _outp1);
-        _mm512_storeu_ps(outptr + 32, _outp2);
-        _mm512_storeu_ps(outptr + 48, _outp3);
-        ptr += 64;
-        outptr += 64;
-    }
-#endif // __AVX512F__
-    for (; i + 31 < size; i += 32)
-    {
-        __m256 _p0 = _mm256_loadu_ps(ptr);
-        __m256 _p1 = _mm256_loadu_ps(ptr + 8);
-        __m256 _p2 = _mm256_loadu_ps(ptr + 16);
-        __m256 _p3 = _mm256_loadu_ps(ptr + 24);
-        __m256 _outp0 = _mm256_loadu_ps(outptr);
-        __m256 _outp1 = _mm256_loadu_ps(outptr + 8);
-        __m256 _outp2 = _mm256_loadu_ps(outptr + 16);
-        __m256 _outp3 = _mm256_loadu_ps(outptr + 24);
-        _outp0 = op.func_pack8(_outp0, _p0);
-        _outp1 = op.func_pack8(_outp1, _p1);
-        _outp2 = op.func_pack8(_outp2, _p2);
-        _outp3 = op.func_pack8(_outp3, _p3);
-        _mm256_storeu_ps(outptr, _outp0);
-        _mm256_storeu_ps(outptr + 8, _outp1);
-        _mm256_storeu_ps(outptr + 16, _outp2);
-        _mm256_storeu_ps(outptr + 24, _outp3);
-        ptr += 32;
-        outptr += 32;
-    }
-#endif // __AVX__
     for (; i + 15 < size; i += 16)
     {
-        __m128 _p0 = _mm_loadu_ps(ptr);
-        __m128 _p1 = _mm_loadu_ps(ptr + 4);
-        __m128 _p2 = _mm_loadu_ps(ptr + 8);
-        __m128 _p3 = _mm_loadu_ps(ptr + 12);
-        __m128 _outp0 = _mm_loadu_ps(outptr);
-        __m128 _outp1 = _mm_loadu_ps(outptr + 4);
-        __m128 _outp2 = _mm_loadu_ps(outptr + 8);
-        __m128 _outp3 = _mm_loadu_ps(outptr + 12);
-        _outp0 = op.func_pack4(_outp0, _p0);
-        _outp1 = op.func_pack4(_outp1, _p1);
-        _outp2 = op.func_pack4(_outp2, _p2);
-        _outp3 = op.func_pack4(_outp3, _p3);
-        _mm_storeu_ps(outptr, _outp0);
-        _mm_storeu_ps(outptr + 4, _outp1);
-        _mm_storeu_ps(outptr + 8, _outp2);
-        _mm_storeu_ps(outptr + 12, _outp3);
+        __m512 _p = _mm512_loadu_ps(ptr);
+        __m512 _outp = _mm512_loadu_ps(outptr);
+        _outp = op.func_pack16(_outp, _p);
+        _mm512_storeu_ps(outptr, _outp);
         ptr += 16;
         outptr += 16;
     }
+#endif // __AVX512F__
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        __m256 _outp = _mm256_loadu_ps(outptr);
+        _outp = op.func_pack8(_outp, _p);
+        _mm256_storeu_ps(outptr, _outp);
+        ptr += 8;
+        outptr += 8;
+    }
+#endif // __AVX__
     for (; i + 3 < size; i += 4)
     {
         __m128 _p = _mm_loadu_ps(ptr);
