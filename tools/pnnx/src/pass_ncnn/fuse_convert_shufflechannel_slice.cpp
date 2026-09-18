@@ -72,10 +72,14 @@ pnnx.Output             output      2 0 out0 out1
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
         const int batch_index = ops.at("shufflechannel")->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = ops.at("shufflechannel")->inputs[0]->params["__ncnn_batch_axis"].i;
 
         ops.at("slice")->inputs[0]->params["__batch_index"] = batch_index;
         ops.at("slice")->outputs[0]->params["__batch_index"] = batch_index;
         ops.at("slice")->outputs[1]->params["__batch_index"] = batch_index;
+        ops.at("slice")->inputs[0]->params["__ncnn_batch_axis"] = ncnn_batch_axis;
+        ops.at("slice")->outputs[0]->params["__ncnn_batch_axis"] = ncnn_batch_axis;
+        ops.at("slice")->outputs[1]->params["__ncnn_batch_axis"] = ncnn_batch_axis;
     }
 };
 
