@@ -24,8 +24,11 @@ namespace ncnn {
 
 #include "reduction_fp32.h"
 
-static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float v0, int op_type, int op2_type, const Option& opt)
+template<typename Op, typename Op2>
+static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float v0, const Option& opt)
 {
+    const Op2 op2;
+
     int w = a.w;
     int h = a.h;
     int d = a.d;
@@ -43,7 +46,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q).depth(z);
-                reduction_vector(ptr, out, w * h, op_type);
+                reduction_vector<Op>(ptr, out, w * h);
             }
         }
         return 0;
@@ -87,11 +90,11 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         {
             const float* ptr = a.channel(q);
             float* outptr = sums.dims >= 3 ? sums.channel(q) : (float*)sums + q;
-            outptr[0] = reduction(v0, ptr, w, op_type);
+            outptr[0] = reduction<Op, Op2>(v0, ptr, w);
         }
 
         if (reduce_c && channels > 1)
-            b[0] = reduction(v0, sums, channels, op2_type);
+            b[0] = reduction<Op2, Op2>(v0, sums, channels);
         return 0;
     }
 
@@ -107,7 +110,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
             const int y = i % rows;
             const float* ptr = (const float*)a + q * a.cstep + y * w;
             float* outptr = (float*)b + q * out_cstep;
-            outptr[y] = reduction(v0, ptr, w, op_type);
+            outptr[y] = reduction<Op, Op2>(v0, ptr, w);
         }
         return 0;
     }
@@ -142,8 +145,8 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
                     const float* ptr0 = ptr + qc * a.cstep + zd * w * h;
                     for (int yh = 0; yh < reduced_h; yh++)
                     {
-                        float v = reduction(v0, ptr0, w, op_type);
-                        sum = reduction(sum, v, op2_type);
+                        float v = reduction<Op, Op2>(v0, ptr0, w);
+                        sum = op2.func(sum, v);
                         ptr0 += w;
                     }
                 }
@@ -161,7 +164,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
                     const float* ptr0 = ptr + qc * a.cstep + zd * w * h;
                     for (int yh = 0; yh < reduced_h; yh++)
                     {
-                        reduction_vector(ptr0, outptr, outw, op_type);
+                        reduction_vector<Op>(ptr0, outptr, outw);
                         ptr0 += w;
                     }
                 }
@@ -170,6 +173,35 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
     }
 
     return 0;
+}
+
+static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, int operation, const Option& opt)
+{
+    using namespace reduction_x86_functor;
+
+    if (operation == Reduction::ReductionOp_SUM || operation == Reduction::ReductionOp_MEAN || operation == Reduction::ReductionOp_LogSum)
+        return reduction_op<reduction_op_add, reduction_op_add>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 0.f, opt);
+
+    if (operation == Reduction::ReductionOp_ASUM || operation == Reduction::ReductionOp_L1)
+        return reduction_op<reduction_op_asum, reduction_op_add>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 0.f, opt);
+
+    if (operation == Reduction::ReductionOp_SUMSQ || operation == Reduction::ReductionOp_L2)
+        return reduction_op<reduction_op_sumsq, reduction_op_add>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 0.f, opt);
+
+    if (operation == Reduction::ReductionOp_MAX)
+        return reduction_op<reduction_op_max, reduction_op_max>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, -FLT_MAX, opt);
+
+    if (operation == Reduction::ReductionOp_MIN)
+        return reduction_op<reduction_op_min, reduction_op_min>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, FLT_MAX, opt);
+
+    if (operation == Reduction::ReductionOp_PROD)
+        return reduction_op<reduction_op_mul, reduction_op_mul>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 1.f, opt);
+
+    if (operation == Reduction::ReductionOp_LogSumExp)
+        return reduction_op<reduction_op_sumexp, reduction_op_add>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 0.f, opt);
+
+    // should never reach here
+    return -1;
 }
 
 int Reduction_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -192,64 +224,7 @@ int Reduction_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (top_blob.empty())
         return -100;
 
-    int op_type = Reduction::ReductionOp_SUM;
-    int op2_type = Reduction::ReductionOp_SUM;
-    float v0 = 0.f;
-
-    switch (operation)
-    {
-    case Reduction::ReductionOp_SUM:
-    case Reduction::ReductionOp_MEAN:
-    case Reduction::ReductionOp_LogSum:
-    {
-        break;
-    }
-    case Reduction::ReductionOp_ASUM:
-    case Reduction::ReductionOp_L1:
-    {
-        op_type = Reduction::ReductionOp_ASUM;
-        break;
-    }
-    case Reduction::ReductionOp_SUMSQ:
-    case Reduction::ReductionOp_L2:
-    {
-        op_type = Reduction::ReductionOp_SUMSQ;
-        break;
-    }
-    case Reduction::ReductionOp_MAX:
-    {
-        op_type = Reduction::ReductionOp_MAX;
-        op2_type = Reduction::ReductionOp_MAX;
-        v0 = -FLT_MAX;
-        break;
-    }
-    case Reduction::ReductionOp_MIN:
-    {
-        op_type = Reduction::ReductionOp_MIN;
-        op2_type = Reduction::ReductionOp_MIN;
-        v0 = FLT_MAX;
-        break;
-    }
-    case Reduction::ReductionOp_PROD:
-    {
-        op_type = Reduction::ReductionOp_PROD;
-        op2_type = Reduction::ReductionOp_PROD;
-        v0 = 1.f;
-        break;
-    }
-    case Reduction::ReductionOp_LogSumExp:
-    {
-        op_type = Reduction::ReductionOp_LogSumExp;
-        break;
-    }
-    default:
-    {
-        // should never reach here
-        break;
-    }
-    }
-
-    int ret = reduction_op(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, v0, op_type, op2_type, opt);
+    int ret = reduction_op(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, operation, opt);
     if (ret != 0)
         return ret;
 
