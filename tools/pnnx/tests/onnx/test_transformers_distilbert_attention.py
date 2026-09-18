@@ -37,8 +37,8 @@ class Model(nn.Module):
             out0 = self.attn0(x, x, x, mask=mask0, head_mask=None, output_attentions=True)
             out1 = self.attn1(y, y, y, mask=mask1, head_mask=None, output_attentions=False)
         else:
-            out0 = self.attn0(x, mask=mask0, head_mask=None, output_attentions=True)
-            out1 = self.attn1(y, mask=mask1, head_mask=None, output_attentions=False)
+            out0 = self.attn0(x, attention_mask=mask0, output_attentions=True)
+            out1 = self.attn1(y, attention_mask=mask1, output_attentions=False)
         return out0[0], out1[0]
 
 def test():
@@ -49,8 +49,12 @@ def test():
     x = torch.rand(3, 16, 192)
     y = torch.rand(1, 5, 66)
 
-    mask0 = torch.rand(3, 16)
-    mask1 = torch.rand(1, 5)
+    if version.parse(transformers.__version__) < version.parse('5.0'):
+        mask0 = torch.rand(3, 16)
+        mask1 = torch.rand(1, 5)
+    else:
+        mask0 = torch.rand(3, 1, 16, 16)
+        mask1 = torch.rand(1, 1, 5, 5)
 
     a = net(x, y, mask0, mask1)
 
@@ -59,7 +63,10 @@ def test():
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_distilbert_attention.onnx inputshape=[3,16,192],[1,5,66],[3,16],[1,5]")
+    if version.parse(transformers.__version__) < version.parse('5.0'):
+        os.system("../../src/pnnx test_transformers_distilbert_attention.onnx inputshape=[3,16,192],[1,5,66],[3,16],[1,5]")
+    else:
+        os.system("../../src/pnnx test_transformers_distilbert_attention.onnx inputshape=[3,16,192],[1,5,66],[3,1,16,16],[1,1,5,5]")
 
     # pnnx inference
     import test_transformers_distilbert_attention_pnnx
