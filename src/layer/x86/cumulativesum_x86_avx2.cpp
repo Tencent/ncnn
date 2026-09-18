@@ -7,7 +7,7 @@
 
 namespace ncnn {
 
-#include "cumulativesum_x86_helper.h"
+#include "cumulativesum_fp32.h"
 
 void cumulative_sum_avx2(float* ptr, int w)
 {

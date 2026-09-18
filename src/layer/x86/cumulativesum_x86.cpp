@@ -9,7 +9,7 @@
 
 namespace ncnn {
 
-#include "cumulativesum_x86_helper.h"
+#include "cumulativesum_fp32.h"
 
 CumulativeSum_x86::CumulativeSum_x86()
 {
