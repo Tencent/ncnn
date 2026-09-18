@@ -1263,9 +1263,9 @@ nn.Linear               op_0        1 1 query 3 bias=%qbias in_features=%embed_d
 nn.Linear               op_1        1 1 key 5 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 8 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 3 4 expr=div(@0,%sqrt_feat_per_head)
-Tensor.reshape          op_4        1 1 5 6 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_6        1 1 4 11 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 5 6 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 Tensor.reshape          op_5        1 1 8 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_6        1 1 4 11 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.transpose         op_7        1 1 6 7 dim0=1 dim1=2
 torch.transpose         op_8        1 1 9 10 dim0=1 dim1=2
 torch.transpose         op_9        1 1 11 12 dim0=1 dim1=2
@@ -1326,9 +1326,9 @@ nn.Linear               op_0        1 1 query 3 bias=%qbias in_features=%embed_d
 nn.Linear               op_1        1 1 key 5 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 8 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 3 4 expr=div(@0,%sqrt_feat_per_head)
-Tensor.reshape          op_4        1 1 5 6 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_6        1 1 4 11 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 5 6 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 Tensor.reshape          op_5        1 1 8 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_6        1 1 4 11 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 Tensor.permute          op_7        1 1 6 7 dims=(0,2,1,3)
 Tensor.permute          op_8        1 1 9 10 dims=(0,2,1,3)
 Tensor.permute          op_9        1 1 11 12 dims=(0,2,1,3)
