@@ -22,7 +22,8 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     if (dims == 1)
     {
-        cumulative_sum_prefix_sum_row(bottom_top_blob, bottom_top_blob.w);
+        cumulative_sum(bottom_top_blob, bottom_top_blob.w);
+
         return 0;
     }
 
@@ -30,12 +31,15 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     {
         const int w = bottom_top_blob.w;
         const int h = bottom_top_blob.h;
+
         for (int i = 1; i < h; i++)
         {
             const float* prev_row = bottom_top_blob.row(i - 1);
             float* this_row = bottom_top_blob.row(i);
+
             cumulative_sum_add(prev_row, this_row, w);
         }
+
         return 0;
     }
 
@@ -43,11 +47,13 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     {
         const int w = bottom_top_blob.w;
         const int h = bottom_top_blob.h;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
-            cumulative_sum_prefix_sum_row(bottom_top_blob.row(i), w);
+            cumulative_sum(bottom_top_blob.row(i), w);
         }
+
         return 0;
     }
 
@@ -62,8 +68,10 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         {
             const float* prev = bottom_top_blob.channel(q - 1);
             float* cur = bottom_top_blob.channel(q);
+
             cumulative_sum_add(prev, cur, size);
         }
+
         return 0;
     }
 
@@ -77,13 +85,16 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         for (int q = 0; q < c; q++)
         {
             Mat this_channel = bottom_top_blob.channel(q);
+
             for (int i = 1; i < h; i++)
             {
                 const float* prev_row = this_channel.row(i - 1);
                 float* this_row = this_channel.row(i);
+
                 cumulative_sum_add(prev_row, this_row, w);
             }
         }
+
         return 0;
     }
 
@@ -92,13 +103,16 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         const int w = bottom_top_blob.w;
         const int h = bottom_top_blob.h;
         const int c = bottom_top_blob.c;
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int idx = 0; idx < c * h; idx++)
         {
             const int q = idx / h;
             const int i = idx - q * h;
-            cumulative_sum_prefix_sum_row(bottom_top_blob.channel(q).row(i), w);
+
+            cumulative_sum(bottom_top_blob.channel(q).row(i), w);
         }
+
         return 0;
     }
 
@@ -114,8 +128,10 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         {
             const float* prev = bottom_top_blob.channel(q - 1);
             float* cur = bottom_top_blob.channel(q);
+
             cumulative_sum_add(prev, cur, size);
         }
+
         return 0;
     }
 
@@ -136,9 +152,11 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             {
                 const float* prev = this_channel.depth(z - 1);
                 float* cur = this_channel.depth(z);
+
                 cumulative_sum_add(prev, cur, size);
             }
         }
+
         return 0;
     }
 
@@ -162,10 +180,12 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
                 {
                     const float* prev_row = this_depth.row(i - 1);
                     float* this_row = this_depth.row(i);
+
                     cumulative_sum_add(prev_row, this_row, w);
                 }
             }
         }
+
         return 0;
     }
 
@@ -187,10 +207,11 @@ int CumulativeSum_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
                 for (int i = 0; i < h; i++)
                 {
-                    cumulative_sum_prefix_sum_row(this_depth.row(i), w);
+                    cumulative_sum(this_depth.row(i), w);
                 }
             }
         }
+
         return 0;
     }
 
