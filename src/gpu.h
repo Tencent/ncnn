@@ -128,6 +128,7 @@ extern PFN_vkWaitForFences vkWaitForFences;
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
+extern int support_VK_KHR_device_group_creation;
 extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
@@ -140,6 +141,9 @@ extern int support_VK_KHR_android_surface;
 
 // VK_KHR_cooperative_matrix
 extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR;
+
+// VK_EXT_cooperative_matrix_maintenance1
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT;
 
 // VK_KHR_external_memory_capabilities
 extern PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
@@ -225,6 +229,12 @@ public:
     // 3 = cpu
     int type() const;
 
+    // performance score roughly evaluated based on parameters such as device type,
+    // supported extensions, video memory size etc.
+    // high-end device scores over 75
+    // low-end device scores below 10
+    uint32_t rough_score() const;
+
     // hardware limit
     uint32_t max_shared_memory_size() const;
     uint32_t max_workgroup_count_x() const;
@@ -252,6 +262,9 @@ public:
 
     // property
     bool unified_compute_transfer_queue() const;
+    bool resizable_bar_enabled() const;
+    bool support_image_storage() const;
+    bool prefer_shader_local_memory() const;
 
     // subgroup
     uint32_t subgroup_size() const;
@@ -270,7 +283,7 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
     bool support_fp16_uniform() const;
@@ -279,6 +292,14 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
+    bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
+
+    // bf16 feature
+    bool support_bf16_packed() const;
+    bool support_bf16_storage() const; // bf16s implies bf16u
 
     // r16f and r8s format in storage image
     bool support_fp16_image() const;
@@ -297,6 +318,12 @@ public:
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
 
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
+
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix() const;
+
     // extension capability
     int support_VK_KHR_8bit_storage() const;
     int support_VK_KHR_16bit_storage() const;
@@ -306,6 +333,7 @@ public:
     int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
+    int support_VK_KHR_device_group() const;
     int support_VK_KHR_driver_properties() const;
     int support_VK_KHR_external_memory() const;
     int support_VK_KHR_get_memory_requirements2() const;
@@ -330,7 +358,9 @@ public:
     int support_VK_KHR_vulkan_memory_model() const;
     int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
+    int support_VK_EXT_cooperative_matrix_maintenance1() const;
     int support_VK_EXT_descriptor_indexing() const;
+    int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
@@ -338,6 +368,7 @@ public:
     int support_VK_EXT_shader_atomic_float() const;
     int support_VK_EXT_shader_atomic_float2() const;
     int support_VK_EXT_shader_float8() const;
+    int support_VK_EXT_shader_ocp_microscaling_types() const;
     int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
@@ -354,15 +385,19 @@ public:
     const VkPhysicalDeviceFloat16Int8FeaturesKHR& queryFloat16Int8Features() const;
     const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& queryCooperativeMatrixMaintenance1Features() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
     const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
+    const VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT& queryShaderOCPMicroscalingTypesFeatures() const;
     const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
     const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& queryShaderSubgroupExtendedTypesFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
@@ -378,15 +413,17 @@ public:
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+    const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& queryExternalMemoryHostProperties() const;
 
     // extension sub properties
     const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixProperties2EXT>& queryCooperativeMatrixSubProperties2EXT() const;
     const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
     const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const;
     const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
     // some utility functions
-    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const;
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -424,11 +461,13 @@ public:
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
     int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
@@ -459,7 +498,7 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8  5=bf16
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2
@@ -503,6 +542,9 @@ public:
 
     // VK_EXT_buffer_device_address
     PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
+
+    // VK_EXT_external_memory_host
+    PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
 
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer

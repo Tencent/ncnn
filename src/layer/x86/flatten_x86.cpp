@@ -1,4 +1,4 @@
-// Copyright 2019 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "flatten_x86.h"
@@ -10,6 +10,7 @@
 #endif
 #endif // __SSE2__
 
+#include "cpu.h"
 #include "x86_usability.h"
 
 namespace ncnn {
@@ -19,6 +20,10 @@ Flatten_x86::Flatten_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+    support_fp16_storage = cpu_support_x86_f16c();
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -27,6 +32,9 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
+
+    if (elembits == 16)
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 
     int dims = bottom_blob.dims;
 
@@ -541,6 +549,319 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += 8;
                 }
 #endif
+                for (; i < size; i++)
+                {
+                    *outptr++ = *ptr++;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Flatten_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int d = bottom_blob.d;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h * d;
+
+    int total = size * channels * elempack;
+
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+#if __AVX512F__
+        out_elempack = total % 16 == 0 ? 16 : total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = total % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif // __SSE2__
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (out_elempack == 1)
+    {
+        return Flatten::forward(bottom_blob, top_blob, opt);
+    }
+
+    if (dims == 2 && elempack == 1) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_elempack;
+        top_blob.h = 1;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
+        top_blob.elemsize = out_elemsize;
+        top_blob.elempack = out_elempack;
+        return 0;
+    }
+
+    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (dims == 2)
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (elempack == 16) // out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 16;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 16 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 16 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 16 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + w * (i * 16 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + w * (i * 16 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 16 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 16 + 7);
+                unsigned short* outptr8 = (unsigned short*)top_blob + w * (i * 16 + 8);
+                unsigned short* outptr9 = (unsigned short*)top_blob + w * (i * 16 + 9);
+                unsigned short* outptra = (unsigned short*)top_blob + w * (i * 16 + 10);
+                unsigned short* outptrb = (unsigned short*)top_blob + w * (i * 16 + 11);
+                unsigned short* outptrc = (unsigned short*)top_blob + w * (i * 16 + 12);
+                unsigned short* outptrd = (unsigned short*)top_blob + w * (i * 16 + 13);
+                unsigned short* outptre = (unsigned short*)top_blob + w * (i * 16 + 14);
+                unsigned short* outptrf = (unsigned short*)top_blob + w * (i * 16 + 15);
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    *outptr8++ = ptr[8];
+                    *outptr9++ = ptr[9];
+                    *outptra++ = ptr[10];
+                    *outptrb++ = ptr[11];
+                    *outptrc++ = ptr[12];
+                    *outptrd++ = ptr[13];
+                    *outptre++ = ptr[14];
+                    *outptrf++ = ptr[15];
+
+                    ptr += 16;
+                }
+            }
+        }
+#endif // __AVX512F__
+
+        if (elempack == 8) // out_elempack == 8 || out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + w * (i * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + w * (i * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 8 + 7);
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __AVX__
+
+        if (elempack == 4) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 4 + 3);
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
+            }
+        }
+#endif // __SSE2__
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (elempack == 16) // out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 16;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 16 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 16 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 16 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + size * (q * 16 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + size * (q * 16 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 16 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 16 + 7);
+                unsigned short* outptr8 = (unsigned short*)top_blob + size * (q * 16 + 8);
+                unsigned short* outptr9 = (unsigned short*)top_blob + size * (q * 16 + 9);
+                unsigned short* outptra = (unsigned short*)top_blob + size * (q * 16 + 10);
+                unsigned short* outptrb = (unsigned short*)top_blob + size * (q * 16 + 11);
+                unsigned short* outptrc = (unsigned short*)top_blob + size * (q * 16 + 12);
+                unsigned short* outptrd = (unsigned short*)top_blob + size * (q * 16 + 13);
+                unsigned short* outptre = (unsigned short*)top_blob + size * (q * 16 + 14);
+                unsigned short* outptrf = (unsigned short*)top_blob + size * (q * 16 + 15);
+
+                for (int i = 0; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    *outptr8++ = ptr[8];
+                    *outptr9++ = ptr[9];
+                    *outptra++ = ptr[10];
+                    *outptrb++ = ptr[11];
+                    *outptrc++ = ptr[12];
+                    *outptrd++ = ptr[13];
+                    *outptre++ = ptr[14];
+                    *outptrf++ = ptr[15];
+
+                    ptr += 16;
+                }
+            }
+        }
+#endif // __AVX512F__
+
+        if (elempack == 8) // out_elempack == 8 || out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + size * (q * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + size * (q * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 8 + 7);
+
+                for (int i = 0; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __AVX__
+
+        if (elempack == 4) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 4 + 3);
+
+                for (int i = 0; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
+            }
+        }
+#endif // __SSE2__
+
+        if (elempack == 1) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr = (unsigned short*)top_blob + size * q;
+
+                int i = 0;
+#if __SSE2__
+#if __AVX__
+                for (; i + 15 < size; i += 16)
+                {
+                    __m256i _v = _mm256_loadu_si256((const __m256i*)ptr);
+                    _mm256_storeu_si256((__m256i*)outptr, _v);
+                    ptr += 16;
+                    outptr += 16;
+                }
+#endif
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _v = _mm_loadu_si128((const __m128i*)ptr);
+                    _mm_storeu_si128((__m128i*)outptr, _v);
+                    ptr += 8;
+                    outptr += 8;
+                }
+#endif // __SSE2__
                 for (; i < size; i++)
                 {
                     *outptr++ = *ptr++;

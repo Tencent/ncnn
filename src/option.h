@@ -43,6 +43,12 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
+    // kv cache memory allocator
+    Allocator* kvcache_allocator;
+
+    // maximum kv cache sequence length hint
+    int kvcache_max_seqlen_hint;
+
 #if NCNN_VULKAN
     // blob memory allocator
     VkAllocator* blob_vkallocator;
@@ -52,6 +58,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // kv cache memory allocator
+    VkAllocator* kvcache_vkallocator;
 
     // pipeline cache
     PipelineCache* pipeline_cache;
@@ -104,12 +113,13 @@ public:
     // the vulkan device
     int vulkan_device_index;
 
-    bool use_reserved_1;
+    // enable options for gpu inference
+    bool use_bf16_packed;
 
     bool use_tensor_storage;
 
     bool use_reserved_1p;
-    bool use_reserved_2;
+    bool use_weights_in_host_memory;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3
@@ -117,7 +127,11 @@ public:
     // 1 = DAZ ON , FTZ OFF
     // 2 = DAZ OFF, FTZ ON
     // 3 = DAZ ON,  FTZ ON
-    int flush_denormals;
+    unsigned char flush_denormals;
+
+    bool use_reserved_2f;
+    bool use_reserved_3f;
+    bool use_mapped_model_loading;
 
     bool use_local_pool_allocator;
 
@@ -140,8 +154,9 @@ public:
     bool use_fp16_uniform;
     bool use_int8_uniform;
 
-    bool use_reserved_9;
-    bool use_reserved_10;
+    // enable int16 layout options for vulkan int8 shader intermediate data
+    bool use_int16_packed;
+    bool use_int16_storage;
     bool use_reserved_11;
 };
 

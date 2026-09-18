@@ -33,6 +33,25 @@ static void resize_bilinear_image_pack8(const Mat& src, Mat& dst, float* alpha, 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
+#if __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 8;
+                int sx1 = xofs[dx + 1] * 8;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3]);
+
+                __m512 _S10 = combine8x2_ps(_mm256_load_ps(S1 + sx0), _mm256_load_ps(S1 + sx1));
+                __m512 _S11 = combine8x2_ps(_mm256_load_ps(S1 + sx0 + 8), _mm256_load_ps(S1 + sx1 + 8));
+
+                __m512 _rows1 = _mm512_mul_ps(_S10, _a0);
+                _rows1 = _mm512_fmadd_ps(_S11, _a1, _rows1);
+                _mm512_storeu_ps(rows1p + dx * 8, _rows1);
+
+                alphap += 4;
+            }
+#endif // __AVX512F__
             for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 8;
@@ -60,6 +79,30 @@ static void resize_bilinear_image_pack8(const Mat& src, Mat& dst, float* alpha, 
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
+#if __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 8;
+                int sx1 = xofs[dx + 1] * 8;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[0], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2], alphap[2]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[1], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3], alphap[3]);
+
+                __m512 _S00 = combine8x2_ps(_mm256_load_ps(S0 + sx0), _mm256_load_ps(S0 + sx1));
+                __m512 _S01 = combine8x2_ps(_mm256_load_ps(S0 + sx0 + 8), _mm256_load_ps(S0 + sx1 + 8));
+                __m512 _S10 = combine8x2_ps(_mm256_load_ps(S1 + sx0), _mm256_load_ps(S1 + sx1));
+                __m512 _S11 = combine8x2_ps(_mm256_load_ps(S1 + sx0 + 8), _mm256_load_ps(S1 + sx1 + 8));
+
+                __m512 _rows0 = _mm512_mul_ps(_S00, _a0);
+                __m512 _rows1 = _mm512_mul_ps(_S10, _a0);
+                _rows0 = _mm512_fmadd_ps(_S01, _a1, _rows0);
+                _rows1 = _mm512_fmadd_ps(_S11, _a1, _rows1);
+                _mm512_storeu_ps(rows0p + dx * 8, _rows0);
+                _mm512_storeu_ps(rows1p + dx * 8, _rows1);
+
+                alphap += 4;
+            }
+#endif // __AVX512F__
             for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 8;
@@ -87,25 +130,7 @@ static void resize_bilinear_image_pack8(const Mat& src, Mat& dst, float* alpha, 
         prev_sy1 = sy;
 
         // vresize
-        __m256 _b0 = _mm256_set1_ps(beta[0]);
-        __m256 _b1 = _mm256_set1_ps(beta[1]);
-
-        float* rows0p = rows0;
-        float* rows1p = rows1;
-        float* Dp = dst.row(dy);
-
-        for (int dx = 0; dx < w; dx++)
-        {
-            __m256 _rows0 = _mm256_load_ps(rows0p);
-            __m256 _rows1 = _mm256_load_ps(rows1p);
-            __m256 _Dp = _mm256_mul_ps(_rows0, _b0);
-            _Dp = _mm256_comp_fmadd_ps(_rows1, _b1, _Dp);
-            _mm256_store_ps(Dp, _Dp);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
-        }
+        vresize_bilinear(rows0, rows1, dst.row(dy), w * 8, beta[0], beta[1]);
 
         beta += 2;
     }

@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import OpenAIGPTConfig
 from transformers.models.openai.modeling_openai import Attention
 
+import transformers
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -23,8 +25,12 @@ class Model(nn.Module):
         self.attn1 = Attention(config1.n_embd, config1.n_positions, config1, scale=True)
 
     def forward(self, x, y, mask):
-        out0 = self.attn0(x, attention_mask=None, head_mask=None)
-        out1 = self.attn1(y, attention_mask=mask, head_mask=None)
+        if version.parse(transformers.__version__) < version.parse('5.0'):
+            out0 = self.attn0(x, attention_mask=None, head_mask=None)
+            out1 = self.attn1(y, attention_mask=mask, head_mask=None)
+        else:
+            out0 = self.attn0(x, attention_mask=None)
+            out1 = self.attn1(y, attention_mask=mask)
         return out0[0], out1[0]
 
 def test():

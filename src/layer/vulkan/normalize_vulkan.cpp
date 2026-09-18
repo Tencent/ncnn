@@ -29,26 +29,6 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
     {
         std::vector<vk_specialization_type> specializations(2);
         specializations[0].i = across_spatial;
@@ -57,7 +37,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         Mat local_size_xyz; // TODO select by across_channel / across_spatial
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
@@ -72,7 +52,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -96,14 +76,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
 
         Mat local_size_xyz; // TODO resolve sqsum_workspace shape
 
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_coeffs = new Pipeline(vkdev);
             pipeline_normalize_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs->create(LayerShaderType::normalize_coeffs, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -118,28 +98,28 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = channel_shared;
         specializations[3].i = (scale_data_size == 1 && scale_data[0] == 1.f) ? 0 : 1;
         specializations[4].f = channel_shared ? scale_data[0] : 1.f;
-        specializations[5 + 0].i = shape_packed.dims;
-        specializations[5 + 1].i = shape_packed.w;
-        specializations[5 + 2].i = shape_packed.h;
-        specializations[5 + 3].i = shape_packed.c;
-        specializations[5 + 4].i = shape_packed.cstep;
+        specializations[5 + 0].i = std::min(3, shape.dims);
+        specializations[5 + 1].i = shape.w;
+        specializations[5 + 2].i = shape.h * shape.d;
+        specializations[5 + 3].i = shape.c;
+        specializations[5 + 4].i = shape.cstep;
 
         Mat local_size_xyz;
-        if (shape_packed.dims != 0)
+        if (shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h * shape.d);
+            local_size_xyz.c = std::min(4, shape.c);
         }
 
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_norm = new Pipeline(vkdev);
             pipeline_normalize_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm->create(LayerShaderType::normalize_norm, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_norm_pack4 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -198,9 +178,9 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    // int w = bottom_top_blob.w;
-    // int h = bottom_top_blob.h;
-    // int size = w * h;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h * bottom_top_blob.d;
+    int size = w * h;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
@@ -214,19 +194,19 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             if (across_spatial && across_channel)
             {
-                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 1) / 2;
+                reduced_w = (size + 1) / 2;
                 reduced_h = 1;
                 reduced_c = (bottom_top_blob.c + 1) / 2;
             }
             else if (across_spatial && !across_channel)
             {
-                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
+                reduced_w = (size + 3) / 4;
                 reduced_h = 1;
                 reduced_c = bottom_top_blob.c;
             }
             else // if (!across_spatial && across_channel)
             {
-                reduced_w = bottom_top_blob.w * bottom_top_blob.h;
+                reduced_w = size;
                 reduced_h = 1;
                 reduced_c = (bottom_top_blob.c + 3) / 4;
             }
@@ -238,7 +218,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 bindings[1] = sqsum_workspace;
 
                 std::vector<vk_constant_type> constants(8);
-                constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
+                constants[0].i = size;
                 constants[1].i = 1;
                 constants[2].i = bottom_top_blob.c;
                 constants[3].i = bottom_top_blob.cstep;
@@ -335,9 +315,9 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         bindings[2] = scale_data_gpu;
 
         std::vector<vk_constant_type> constants(5);
-        constants[0].i = bottom_top_blob.dims;
+        constants[0].i = std::min(3, bottom_top_blob.dims);
         constants[1].i = bottom_top_blob.w;
-        constants[2].i = bottom_top_blob.h;
+        constants[2].i = h;
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
 

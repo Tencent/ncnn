@@ -3,7 +3,11 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 20
+#include "layer_type.h"
+
+#include <limits.h>
+
+#define OP_TYPE_MAX 28
 
 static int op_type = 0;
 
@@ -23,10 +27,25 @@ static int test_unaryop(const ncnn::Mat& _a)
         // value must be positive for sqrt rsqrt log
         Randomize(a, 0.001f, 2.f);
     }
+    if (op_type == 25)
+    {
+        // value must be >= 1 for acosh
+        Randomize(a, 1.001f, 2.f);
+    }
     if (op_type == 11 || op_type == 12 || op_type == 13)
     {
         // smaller range for tan asin acos
         Randomize(a, -1.f, 1.f);
+    }
+    if (op_type == 26)
+    {
+        // keep away from +/-1 so bf16 input casting does not round into the singularity
+        Randomize(a, -0.99f, 0.99f);
+    }
+    if (op_type == 27)
+    {
+        // leave margin above -1 for reduced precision log1p
+        Randomize(a, -0.99f, 2.f);
     }
 #if __powerpc__
     // nearbyintf produces wrong result in halfway cases, why ?
@@ -95,6 +114,30 @@ static int test_unaryop_3()
            || test_unaryop(RandomMat(15));
 }
 
+#if NCNN_VALIDATION
+static int test_unaryop_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 27; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 28, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -111,5 +154,9 @@ int main()
             return ret;
     }
 
-    return 0;
+    return 0
+#if NCNN_VALIDATION
+           || test_unaryop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

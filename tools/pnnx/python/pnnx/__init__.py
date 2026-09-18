@@ -20,7 +20,7 @@ from .utils.convert import convert
 try:
     import importlib.metadata
     __version__ = importlib.metadata.version("pnnx")
-except:
+except Exception:
     pass
 
 def pnnx():

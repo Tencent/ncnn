@@ -21,6 +21,8 @@ static int test_command_upload_download(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat c;
     {
@@ -60,6 +62,10 @@ static int test_command_clone(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
+
+    const bool support_image_storage = vkdev->info.support_image_storage();
 
     ncnn::Mat d;
     ncnn::Mat e;
@@ -73,13 +79,21 @@ static int test_command_clone(const ncnn::Mat& a)
         ncnn::VkImageMat c2;
         ncnn::VkMat c3;
         cmd.record_clone(a, b1, opt);
-        cmd.record_clone(a, c1, opt);
         cmd.record_clone(b1, b2, opt);
-        cmd.record_clone(c1, c2, opt);
-        cmd.record_clone(b2, b3, opt);
-        cmd.record_clone(c2, c3, opt);
-        cmd.record_clone(b3, d, opt);
-        cmd.record_clone(c3, e, opt);
+
+        if (support_image_storage)
+        {
+            cmd.record_clone(a, c1, opt);
+            cmd.record_clone(b2, b3, opt);
+            cmd.record_clone(c1, c2, opt);
+            cmd.record_clone(b3, d, opt);
+            cmd.record_clone(c2, c3, opt);
+            cmd.record_clone(c3, e, opt);
+        }
+        else
+        {
+            cmd.record_clone(b2, d, opt);
+        }
 
         cmd.submit_and_wait();
     }
@@ -93,7 +107,7 @@ static int test_command_clone(const ncnn::Mat& a)
         return -1;
     }
 
-    if (CompareMat(a, e, 0.001) != 0)
+    if (support_image_storage && CompareMat(a, e, 0.001) != 0)
     {
         fprintf(stderr, "test_command_clone image failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
         return -1;
@@ -117,6 +131,8 @@ static int test_command_transfer(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat c;
     {

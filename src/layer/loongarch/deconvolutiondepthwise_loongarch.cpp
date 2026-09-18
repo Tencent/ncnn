@@ -7,6 +7,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
@@ -19,6 +22,9 @@ DeconvolutionDepthWise_loongarch::DeconvolutionDepthWise_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int DeconvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
@@ -36,7 +42,16 @@ int DeconvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
-            elempack = channels % 4 == 0 ? 4 : 1;
+#if __loongarch_asx
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+#else
+#if NCNN_BF16
+            if (opt.use_bf16_storage)
+                elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            else
+#endif
+                elempack = channels % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
@@ -57,7 +72,53 @@ int DeconvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
             }
         }
 
+#if NCNN_BF16
+        if (opt.use_bf16_storage)
+        {
 #if __loongarch_sx
+            // pack8
+            if (elempack == 8)
+            {
+                Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+
+            // pack4
+            if (elempack == 4)
+            {
+                Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+#endif // __loongarch_sx
+
+            if (elempack == 1)
+            {
+                ncnn::cast_float32_to_bfloat16(weight_data_transposed, weight_data_tm, opt);
+            }
+
+            if (opt.lightmode)
+                weight_data.release();
+
+            return 0;
+        }
+#endif // NCNN_BF16
+
+#if __loongarch_sx
+        // pack8
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_tm, 8, opt);
+        }
+#endif // __loongarch_asx
+
         // pack4
         if (elempack == 4)
         {
@@ -170,6 +231,13 @@ int DeconvolutionDepthWise_loongarch::destroy_pipeline(const Option& opt)
 
 int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    int elembits = bottom_blob.elembits();
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     // convolv with NxN kernel
     // value = value + bias
 
@@ -188,7 +256,11 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -212,6 +284,69 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
     if (channels * elempack == group && group == num_output)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < channels; g++)
+                {
+                    float* outptr = top_blob_bordered.channel(g);
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 8;
+                    const Mat m = bottom_blob.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            __m256 _sum = (__m256)__lasx_xvreplgr2vr_w(0);
+
+                            if (bias_term)
+                            {
+                                _sum = (__m256)__lasx_xvld((const float*)bias_data + g * 8, 0);
+                            }
+
+                            for (int y = 0; y < kernel_h; y++)
+                            {
+                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                                if (sys < 0 || sys % stride_h != 0)
+                                    continue;
+
+                                int sy = sys / stride_h;
+                                if (sy >= h)
+                                    continue;
+
+                                for (int x = 0; x < kernel_w; x++)
+                                {
+                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                    if (sxs < 0 || sxs % stride_w != 0)
+                                        continue;
+
+                                    int sx = sxs / stride_w;
+                                    if (sx >= w)
+                                        continue;
+
+                                    const float* sptr = m.row(sy) + sx * 8;
+
+                                    int k = y * kernel_w + x;
+
+                                    __m256 _val = (__m256)__lasx_xvld(sptr, 0);
+                                    __m256 _w = (__m256)__lasx_xvld(kptr + k * 8, 0);
+                                    _sum = __lasx_xvfmadd_s(_w, _val, _sum);
+                                }
+                            }
+
+                            _sum = activation_lasx(_sum, activation_type, activation_params);
+
+                            __lasx_xvst((__m256i)_sum, outptr, 0);
+                            outptr += 8;
+                        }
+                    }
+                }
+            }
+        }
+#endif // __loongarch_asx
+
         if (elempack == 4)
         {
             {
@@ -263,7 +398,7 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_lsx(_sum, activation_type, activation_params);
 
                             __lsx_vst(_sum, outptr + j * 4, 0);
                         }
@@ -348,8 +483,13 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
+#if __loongarch_asx
+            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+            out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+#else
             g_elempack = channels_g % 4 == 0 ? 4 : 1;
             out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
@@ -359,13 +499,15 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
         {
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
         if (out_g_elempack < out_elempack)
         {
-            top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+            top_blob_bordered_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
             if (top_blob_bordered_unpacked.empty())
                 return -100;
         }
@@ -381,13 +523,17 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
-            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -417,6 +563,15 @@ int DeconvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blo
     flatten(_weight_data, weight_data_flattened, opt);
     if (weight_data_flattened.empty())
         return -100;
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif
 
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
@@ -459,6 +614,15 @@ int DeconvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blo
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -508,5 +672,311 @@ int DeconvolutionDepthWise_loongarch::forward(const std::vector<Mat>& bottom_blo
 
     return 0;
 }
+
+#if NCNN_BF16
+int DeconvolutionDepthWise_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    const int maxk = kernel_w * kernel_h;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+#if __loongarch_sx
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob_bordered.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 8;
+                const Mat m = bottom_blob.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                        __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+
+                        if (bias_term)
+                        {
+                            _sum0 = (__m128)__lsx_vld((const float*)bias_data + g * 8, 0);
+                            _sum1 = (__m128)__lsx_vld((const float*)bias_data + g * 8 + 4, 0);
+                        }
+
+                        for (int y = 0; y < kernel_h; y++)
+                        {
+                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                            if (sys < 0 || sys % stride_h != 0)
+                                continue;
+
+                            int sy = sys / stride_h;
+                            if (sy >= h)
+                                continue;
+
+                            for (int x = 0; x < kernel_w; x++)
+                            {
+                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                if (sxs < 0 || sxs % stride_w != 0)
+                                    continue;
+
+                                int sx = sxs / stride_w;
+                                if (sx >= w)
+                                    continue;
+
+                                const unsigned short* sptr = m.row<const unsigned short>(sy) + sx * 8;
+
+                                int k = y * kernel_w + x;
+
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _val01_bf16 = __lsx_vld(sptr, 0);
+                                __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
+                                __m128 _val1 = (__m128)__lsx_vilvh_h(_val01_bf16, _zero_bf16);
+                                __m128i _w01_bf16 = __lsx_vld(kptr + k * 8, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                                _sum1 = __lsx_vfmadd_s(_w1, _val1, _sum1);
+                            }
+                        }
+
+                        _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                        _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob_bordered.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 4;
+                const Mat m = bottom_blob.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
+
+                        if (bias_term)
+                        {
+                            _sum = (__m128)__lsx_vld((const float*)bias_data + g * 4, 0);
+                        }
+
+                        for (int y = 0; y < kernel_h; y++)
+                        {
+                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                            if (sys < 0 || sys % stride_h != 0)
+                                continue;
+
+                            int sy = sys / stride_h;
+                            if (sy >= h)
+                                continue;
+
+                            for (int x = 0; x < kernel_w; x++)
+                            {
+                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                if (sxs < 0 || sxs % stride_w != 0)
+                                    continue;
+
+                                int sx = sxs / stride_w;
+                                if (sx >= w)
+                                    continue;
+
+                                const unsigned short* sptr = m.row<const unsigned short>(sy) + sx * 4;
+
+                                int k = y * kernel_w + x;
+
+                                __m128 _val = bfloat2float_lsx(sptr);
+                                __m128 _w = bfloat2float_lsx(kptr + k * 4);
+                                _sum = __lsx_vfmadd_s(_w, _val, _sum);
+                            }
+                        }
+
+                        _sum = activation_lsx(_sum, activation_type, activation_params);
+
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum), outptr + j * 4, 0, 0);
+                    }
+
+                    outptr += outw * 4;
+                }
+            }
+        }
+#endif // __loongarch_sx
+
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob_bordered.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g;
+                const Mat m = bottom_blob.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                        {
+                            sum = bias_data[g];
+                        }
+
+                        for (int y = 0; y < kernel_h; y++)
+                        {
+                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                            if (sys < 0 || sys % stride_h != 0)
+                                continue;
+
+                            int sy = sys / stride_h;
+                            if (sy >= h)
+                                continue;
+
+                            const unsigned short* sptr = m.row<const unsigned short>(sy);
+
+                            for (int x = 0; x < kernel_w; x++)
+                            {
+                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                if (sxs < 0 || sxs % stride_w != 0)
+                                    continue;
+
+                                int sx = sxs / stride_w;
+                                if (sx >= w)
+                                    continue;
+
+                                float val = bfloat16_to_float32(sptr[sx]);
+
+                                int k = y * kernel_w + x;
+
+                                float w = bfloat16_to_float32(kptr[k]);
+
+                                sum += val * w;
+                            }
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = float32_to_bfloat16(sum);
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
+    }
+    else
+    {
+        // group deconvolution
+        const int channels_g = channels * elempack / group;
+        const int num_output_g = num_output / group;
+
+        int g_elempack = 1;
+        int out_g_elempack = 1;
+#if __loongarch_sx
+        if (opt.use_packing_layout)
+        {
+            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+            out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+        }
+#endif
+
+        // unpacking
+        Mat bottom_blob_unpacked = bottom_blob;
+        if (elempack > g_elempack)
+        {
+            Option opt_p = opt;
+            opt_p.blob_allocator = opt.workspace_allocator;
+            convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        Mat top_blob_bordered_unpacked = top_blob_bordered;
+        if (out_g_elempack < out_elempack)
+        {
+            top_blob_bordered_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
+            if (top_blob_bordered_unpacked.empty())
+                return -100;
+        }
+
+        for (int g = 0; g < group; g++)
+        {
+            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+            const ncnn::Layer* op = group_ops[g];
+
+            Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
+
+            // forward
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
+        }
+
+        // packing
+        if (out_g_elempack < out_elempack)
+        {
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
+        }
+        else
+        {
+            top_blob_bordered = top_blob_bordered_unpacked;
+        }
+    }
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

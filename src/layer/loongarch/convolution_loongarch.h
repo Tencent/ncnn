@@ -25,6 +25,10 @@ protected:
     int create_pipeline_int8_loongarch(const Option& opt);
     int forward_int8_loongarch(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     Layer* activation;
@@ -34,6 +38,8 @@ public:
     Mat weight_winograd23_data;
     Mat weight_winograd43_data;
     Mat weight_winograd63_data;
+
+    int nT;
 
 #if NCNN_INT8
     Mat scale_in_data;

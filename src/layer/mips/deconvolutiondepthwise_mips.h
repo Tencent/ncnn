@@ -22,6 +22,9 @@ public:
 
 protected:
     int create_group_ops(const Option& opt);
+#if NCNN_BF16
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     std::vector<ncnn::Layer*> group_ops;

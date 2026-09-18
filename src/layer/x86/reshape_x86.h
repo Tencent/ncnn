@@ -1,4 +1,4 @@
-// Copyright 2019 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_RESHAPE_X86_H
@@ -14,6 +14,12 @@ public:
     Reshape_x86();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+protected:
+    int forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#if NCNN_BATCH
+    int forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

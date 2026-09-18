@@ -8,10 +8,15 @@
 #include "c_api.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "allocator.h"
 #include "blob.h"
 #include "datareader.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#include "pipelinecache.h"
+#endif
 #include "layer.h"
 #include "mat.h"
 #include "modelbin.h"
@@ -29,6 +34,9 @@ using ncnn::ModelBin;
 using ncnn::Net;
 using ncnn::Option;
 using ncnn::ParamDict;
+#if NCNN_VULKAN
+using ncnn::PipelineCache;
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -138,6 +146,103 @@ void ncnn_allocator_destroy(ncnn_allocator_t allocator)
     }
 }
 
+#if NCNN_VULKAN
+/* pipelinecache api */
+ncnn_pipelinecache_t ncnn_pipelinecache_create(int device_index)
+{
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(device_index);
+    if (!vkdev)
+        return 0;
+
+    return (ncnn_pipelinecache_t)(new PipelineCache(vkdev));
+}
+
+void ncnn_pipelinecache_destroy(ncnn_pipelinecache_t pipelinecache)
+{
+    delete (PipelineCache*)pipelinecache;
+}
+
+void ncnn_pipelinecache_clear(ncnn_pipelinecache_t pipelinecache)
+{
+    if (pipelinecache)
+        ((PipelineCache*)pipelinecache)->clear();
+}
+
+size_t ncnn_pipelinecache_get_size(const ncnn_pipelinecache_t pipelinecache)
+{
+    if (!pipelinecache)
+        return 0;
+
+    return ((const PipelineCache*)pipelinecache)->size();
+}
+
+int ncnn_pipelinecache_load_memory(ncnn_pipelinecache_t pipelinecache, const unsigned char* data, size_t size)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(data, size);
+}
+
+int ncnn_pipelinecache_save_memory(const ncnn_pipelinecache_t pipelinecache, unsigned char* data, size_t* size)
+{
+    if (!pipelinecache || !size)
+        return -1;
+
+    std::vector<unsigned char> cache_data;
+    int ret = ((const PipelineCache*)pipelinecache)->save_cache(cache_data);
+    if (ret != 0)
+        return ret;
+
+    if (!data || *size < cache_data.size())
+    {
+        *size = cache_data.size();
+        return -1;
+    }
+
+    memcpy(data, cache_data.data(), cache_data.size());
+    *size = cache_data.size();
+
+    return 0;
+}
+
+#if NCNN_STDIO
+int ncnn_pipelinecache_load(ncnn_pipelinecache_t pipelinecache, const char* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(path);
+}
+
+int ncnn_pipelinecache_save(const ncnn_pipelinecache_t pipelinecache, const char* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((const PipelineCache*)pipelinecache)->save_cache(path);
+}
+
+#if _WIN32
+int ncnn_pipelinecache_load_w(ncnn_pipelinecache_t pipelinecache, const wchar_t* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((PipelineCache*)pipelinecache)->load_cache(path);
+}
+
+int ncnn_pipelinecache_save_w(const ncnn_pipelinecache_t pipelinecache, const wchar_t* path)
+{
+    if (!pipelinecache)
+        return -1;
+
+    return ((const PipelineCache*)pipelinecache)->save_cache(path);
+}
+#endif /* _WIN32 */
+#endif /* NCNN_STDIO */
+#endif /* NCNN_VULKAN */
+
 /* option api */
 ncnn_option_t ncnn_option_create()
 {
@@ -159,16 +264,6 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
     ((Option*)opt)->num_threads = num_threads;
 }
 
-int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
-{
-    return ((Option*)opt)->use_local_pool_allocator;
-}
-
-void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator)
-{
-    ((Option*)opt)->use_local_pool_allocator = use_local_pool_allocator;
-}
-
 void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
     ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
@@ -177,6 +272,16 @@ void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocato
 void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
     ((Option*)opt)->workspace_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
+}
+
+void ncnn_option_set_kvcache_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
+{
+    ((Option*)opt)->kvcache_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
+}
+
+void ncnn_option_set_kvcache_max_seqlen_hint(ncnn_option_t opt, int max_seqlen_hint)
+{
+    ((Option*)opt)->kvcache_max_seqlen_hint = max_seqlen_hint;
 }
 
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
@@ -189,15 +294,202 @@ int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 #endif
 }
 
-void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
+int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_local_pool_allocator;
+}
+
+int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_winograd_convolution;
+}
+
+int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_sgemm_convolution;
+}
+
+int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_packing_layout;
+}
+
+int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_packed;
+}
+
+int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_storage;
+}
+
+int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_arithmetic;
+}
+
+int ncnn_option_get_use_int8_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_packed;
+}
+
+int ncnn_option_get_use_int8_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_storage;
+}
+
+int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_arithmetic;
+}
+
+int ncnn_option_get_use_int16_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int16_packed;
+}
+
+int ncnn_option_get_use_int16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int16_storage;
+}
+
+int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_bf16_packed;
+}
+
+int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_bf16_storage;
+}
+
+int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 {
 #if NCNN_VULKAN
-    ((Option*)opt)->use_vulkan_compute = use_vulkan_compute;
+    return ((const Option*)opt)->use_shader_local_memory;
 #else
     (void)opt;
-    (void)use_vulkan_compute;
+    return 0;
 #endif
 }
+
+int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
+{
+#if NCNN_VULKAN
+    return ((const Option*)opt)->use_cooperative_matrix;
+#else
+    (void)opt;
+    return 0;
+#endif
+}
+
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_vulkan_compute = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
+}
+
+void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_local_pool_allocator = enable;
+}
+
+void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_winograd_convolution = enable;
+}
+
+void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_sgemm_convolution = enable;
+}
+
+void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_packing_layout = enable;
+}
+
+void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_packed = enable;
+}
+
+void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_storage = enable;
+}
+
+void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_arithmetic = enable;
+}
+
+void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_packed = enable;
+}
+
+void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_storage = enable;
+}
+
+void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_arithmetic = enable;
+}
+
+void ncnn_option_set_use_int16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int16_packed = enable;
+}
+
+void ncnn_option_set_use_int16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int16_storage = enable;
+}
+
+void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_packed = enable;
+}
+
+void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_storage = enable;
+}
+
+void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_shader_local_memory = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
+}
+
+void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_cooperative_matrix = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
+}
+
+#if NCNN_VULKAN
+void ncnn_option_set_pipeline_cache(ncnn_option_t opt, ncnn_pipelinecache_t pipelinecache)
+{
+    ((Option*)opt)->pipeline_cache = (PipelineCache*)pipelinecache;
+}
+#endif
 
 /* mat api */
 ncnn_mat_t ncnn_mat_create()
@@ -224,6 +516,28 @@ ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t alloc
 {
     return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
+
+#if NCNN_BATCH
+ncnn_mat_t ncnn_mat_create_1d_batch(int w, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, 1, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+#endif // NCNN_BATCH
 
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
@@ -264,6 +578,28 @@ ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, 
 {
     return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
+
+#if NCNN_BATCH
+ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+
+ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, n, allocator ? (Allocator*)allocator->pthis : NULL));
+}
+#endif // NCNN_BATCH
 
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
@@ -345,6 +681,11 @@ int ncnn_mat_get_c(const ncnn_mat_t mat)
     return ((const Mat*)mat)->c;
 }
 
+int ncnn_mat_get_n(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->n;
+}
+
 size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->elemsize;
@@ -360,10 +701,24 @@ size_t ncnn_mat_get_cstep(const ncnn_mat_t mat)
     return ((const Mat*)mat)->cstep;
 }
 
+#if NCNN_BATCH
+size_t ncnn_mat_get_nstep(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->nstep;
+}
+#endif // NCNN_BATCH
+
 void* ncnn_mat_get_data(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->data;
 }
+
+#if NCNN_BATCH
+void* ncnn_mat_get_batch_data(const ncnn_mat_t mat, int b)
+{
+    return ((const Mat*)mat)->batch(b).data;
+}
+#endif // NCNN_BATCH
 
 void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
 {
@@ -1105,7 +1460,12 @@ int ncnn_layer_get_support_inplace(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 int ncnn_layer_get_support_packing(const ncnn_layer_t layer)
@@ -1125,7 +1485,12 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
@@ -1135,7 +1500,12 @@ int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_any_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
@@ -1150,7 +1520,12 @@ void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable)
@@ -1170,7 +1545,12 @@ void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
@@ -1180,7 +1560,12 @@ void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_any_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
@@ -1331,6 +1716,25 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 {
     return ((Net*)net->pthis)->load_model(path);
 }
+
+#if _WIN32
+#if NCNN_STRING
+int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param(path);
+}
+#endif /* NCNN_STRING */
+
+int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param_bin(path);
+}
+
+int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_model(path);
+}
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO
@@ -1342,12 +1746,12 @@ int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem)
 #endif /* NCNN_STRING */
 #endif /* NCNN_STDIO */
 
-int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem)
+size_t ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem)
 {
     return ((Net*)net->pthis)->load_param(mem);
 }
 
-int ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem)
+size_t ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem)
 {
     return ((Net*)net->pthis)->load_model(mem);
 }

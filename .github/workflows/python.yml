@@ -11,6 +11,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'python/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'python/**'
+    - 'glslang'
 concurrency:
   group: python-${{ github.ref }}
   cancel-in-progress: true
@@ -46,24 +48,24 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
     - name: cache-swiftshader
       if: matrix.os == 'ubuntu-latest'
       id: cache-swiftshader
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20240622
+        key: swiftshader-linux-install-20260917
     - name: checkout-swiftshader
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
+        ref: 1e80438d2b93ef36a7c05f8d2b81233bac0e3d16
     - name: checkout-swiftshader-submodules
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -80,7 +82,7 @@ jobs:
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
 
     - name: setup-python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - name: install-deps

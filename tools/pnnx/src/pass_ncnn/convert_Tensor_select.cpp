@@ -20,34 +20,55 @@ void convert_Tensor_select(Graph& graph)
             if (op->type != "Tensor.select")
                 continue;
 
-            matched = true;
-
-            op->type = "Crop";
-            op->name = std::string("select_") + std::to_string(op_index++);
-
-            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int batch_index = op->inputs[0]->params.at("__batch_index").i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             int axis = op->params.at("dim").i;
-            if (axis == batch_index)
-            {
-                fprintf(stderr, "select along batch axis %d is not supported\n", batch_index);
-                continue;
-            }
-
             if (axis < 0)
             {
                 int input_rank = op->inputs[0]->shape.size();
-                axis = input_rank + axis;
+                if (input_rank == 0 && !op->outputs.empty())
+                    input_rank = op->outputs[0]->shape.size() + 1;
+                if (input_rank > 0)
+                    axis = input_rank + axis;
+                else if (ncnn_batch_axis != 233)
+                    fprintf(stderr, "select axis around batch axis %d is unknown\n", ncnn_batch_axis);
             }
 
-            if (axis > batch_index)
+            bool axis_is_batch = false;
+            if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
+            {
+                fprintf(stderr, "select along batch axis %d is not supported\n", ncnn_batch_axis);
+                axis_is_batch = true;
+            }
+
+            const int axis_in_shape = axis;
+
+            if (axis_is_batch)
+            {
+                matched = true;
+
+                op->type = "Crop";
+                op->name = std::string("select_") + std::to_string(op_index++);
+                // ignore batch-axis select for now
+                op->params["9"] = std::vector<int> {0};
+                op->params["10"] = std::vector<int> {-233};
+                op->params["11"] = std::vector<int> {0};
+
+                op->params.erase("dim");
+                op->params.erase("index");
+
+                break;
+            }
+
+            if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
                 axis -= 1;
 
             int dim;
             int index;
             if (op->has_param("dim"))
             {
-                dim = op->params.at("dim").i;
+                dim = axis_in_shape;
             }
             else
             {
@@ -64,6 +85,11 @@ void convert_Tensor_select(Graph& graph)
                 fprintf(stderr, "select with dynamic index is not supported\n");
                 continue;
             }
+
+            matched = true;
+
+            op->type = "Crop";
+            op->name = std::string("select_") + std::to_string(op_index++);
 
             op->params["9"] = std::vector<int> {index};
             op->params["10"] = std::vector<int> {index + 1};
@@ -92,6 +118,7 @@ void convert_Tensor_select(Graph& graph)
                 squeeze->params["dim"] = dim;
 
                 squeeze_in->params["__batch_index"] = batch_index;
+                squeeze_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
             }
 
             break;

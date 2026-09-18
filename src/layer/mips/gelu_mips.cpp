@@ -1,0 +1,221 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "gelu_mips.h"
+
+#if __mips_msa
+#include <msa.h>
+#include "mips_usability.h"
+#include "msa_mathfun.h"
+#endif // __mips_msa
+
+namespace ncnn {
+
+GELU_mips::GELU_mips()
+{
+#if __mips_msa
+    support_packing = true;
+    support_any_packing = true;
+#endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+}
+
+int GELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        float* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        if (fast_gelu)
+        {
+            v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
+            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+
+                v4f32 _cube = __msa_fmul_w(_p, _p);
+                _cube = __msa_fmul_w(_p, _cube);
+                v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
+                _blob = __ncnn_msa_fmadd_w(_blob, _fast1c, _p);
+                _blob = tanh_ps(_blob);
+                _blob = __msa_fadd_w(_one, _blob);
+                _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
+                __msa_st_w((v4i32)_blob, ptr, 0);
+
+                ptr += 4;
+            }
+        }
+        else
+        {
+            v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+
+                v4f32 _blob = __msa_fmul_w(_inv_sqrt2, _p);
+                _blob = erf_ps(_blob);
+                _blob = __msa_fadd_w(_one, _blob);
+                _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
+                __msa_st_w((v4i32)_blob, ptr, 0);
+
+                ptr += 4;
+            }
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            if (fast_gelu)
+            {
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+            }
+            else
+            {
+                *ptr = 0.5f * *ptr * (1.0f + erff(0.70710678f * *ptr));
+            }
+
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+
+#if NCNN_BF16
+int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        if (fast_gelu)
+        {
+            v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
+            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _cube0 = __msa_fmul_w(_p0, _p0);
+                v4f32 _cube1 = __msa_fmul_w(_p1, _p1);
+                _cube0 = __msa_fmul_w(_p0, _cube0);
+                _cube1 = __msa_fmul_w(_p1, _cube1);
+                v4f32 _blob0 = __msa_fmul_w(_fast2c, _cube0);
+                v4f32 _blob1 = __msa_fmul_w(_fast2c, _cube1);
+                _blob0 = __ncnn_msa_fmadd_w(_blob0, _fast1c, _p0);
+                _blob1 = __ncnn_msa_fmadd_w(_blob1, _fast1c, _p1);
+                _blob0 = tanh_ps(_blob0);
+                _blob1 = tanh_ps(_blob1);
+                _blob0 = __msa_fadd_w(_one, _blob0);
+                _blob1 = __msa_fadd_w(_one, _blob1);
+                _blob0 = __msa_fmul_w(_half, __msa_fmul_w(_blob0, _p0));
+                _blob1 = __msa_fmul_w(_half, __msa_fmul_w(_blob1, _p1));
+                __msa_st_w(float2bfloat_msa(_blob0, _blob1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr);
+                v4f32 _cube = __msa_fmul_w(_p, _p);
+                _cube = __msa_fmul_w(_p, _cube);
+                v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
+                _blob = __ncnn_msa_fmadd_w(_blob, _fast1c, _p);
+                _blob = tanh_ps(_blob);
+                _blob = __msa_fadd_w(_one, _blob);
+                _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_blob), 0);
+                ptr += 4;
+            }
+        }
+        else
+        {
+            v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _blob0 = __msa_fmul_w(_inv_sqrt2, _p0);
+                v4f32 _blob1 = __msa_fmul_w(_inv_sqrt2, _p1);
+                _blob0 = erf_ps(_blob0);
+                _blob1 = erf_ps(_blob1);
+                _blob0 = __msa_fadd_w(_one, _blob0);
+                _blob1 = __msa_fadd_w(_one, _blob1);
+                _blob0 = __msa_fmul_w(_half, __msa_fmul_w(_blob0, _p0));
+                _blob1 = __msa_fmul_w(_half, __msa_fmul_w(_blob1, _p1));
+                __msa_st_w(float2bfloat_msa(_blob0, _blob1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr);
+                v4f32 _blob = __msa_fmul_w(_inv_sqrt2, _p);
+                _blob = erf_ps(_blob);
+                _blob = __msa_fadd_w(_one, _blob);
+                _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_blob), 0);
+                ptr += 4;
+            }
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            if (fast_gelu)
+            {
+                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+            }
+            else
+            {
+                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+            }
+            *ptr = float32_to_bfloat16(v);
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
+
+} // namespace ncnn

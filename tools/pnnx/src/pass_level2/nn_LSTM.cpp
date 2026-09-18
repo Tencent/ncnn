@@ -32,7 +32,7 @@ pnnx.Output             output      1 0 out1
         return "lstm";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         if (captured_params.find("lstm.hidden_size") == captured_params.end())
             return false;
@@ -236,9 +236,9 @@ pnnx.Output             output      1 0 out1
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        if (!nn_LSTM_onnx::match(captured_params, captured_attrs))
+        if (!nn_LSTM_onnx::match(matched_operators, captured_params, captured_attrs))
             return false;
 
         const int hidden_size = captured_params.at("lstm.hidden_size").i;
@@ -482,15 +482,30 @@ pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        if (!nn_LSTM_onnx::match(captured_params, captured_attrs))
+        if (!nn_LSTM_onnx::match(matched_operators, captured_params, captured_attrs))
             return false;
 
-        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
-            return false;
+        if (captured_params.at("reshape.shape").ai == std::vector<int>{0, 0, -1})
+            return true;
 
-        return true;
+        const Operator* op_reshape = matched_operators.at("reshape");
+        const std::vector<int>& out1_shape = op_reshape->inputs[0]->shape;
+        const std::vector<int>& out2_shape = op_reshape->outputs[0]->shape;
+        if (out2_shape.size() == 3 && captured_params.at("reshape.shape").ai.size() == 3 && out1_shape.size() >= out2_shape.size())
+        {
+            if (out1_shape[0] != out2_shape[0])
+                return false;
+            if (out1_shape[1] != out2_shape[1])
+                return false;
+            if (captured_params.at("reshape.shape").ai[2] != out2_shape[2])
+                return false;
+
+            return true;
+        }
+
+        return false;
     }
 };
 
@@ -514,15 +529,30 @@ pnnx.Output             output      1 0 out2
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        if (!nn_LSTM_onnx_B::match(captured_params, captured_attrs))
+        if (!nn_LSTM_onnx_B::match(matched_operators, captured_params, captured_attrs))
             return false;
 
-        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
-            return false;
+        if (captured_params.at("reshape.shape").ai == std::vector<int>{0, 0, -1})
+            return true;
 
-        return true;
+        const Operator* op_reshape = matched_operators.at("reshape");
+        const std::vector<int>& out1_shape = op_reshape->inputs[0]->shape;
+        const std::vector<int>& out2_shape = op_reshape->outputs[0]->shape;
+        if (out2_shape.size() == 3 && captured_params.at("reshape.shape").ai.size() == 3 && out1_shape.size() >= out2_shape.size())
+        {
+            if (out1_shape[0] != out2_shape[0])
+                return false;
+            if (out1_shape[1] != out2_shape[1])
+                return false;
+            if (captured_params.at("reshape.shape").ai[2] != out2_shape[2])
+                return false;
+
+            return true;
+        }
+
+        return false;
     }
 };
 

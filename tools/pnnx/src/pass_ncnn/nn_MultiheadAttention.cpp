@@ -49,36 +49,49 @@ pnnx.Output             output      1 0 out
 
         // split in_proj_weight and in_proj_bias into q k v
         std::vector<float> q_weight(embed_dim * embed_dim);
-        std::vector<float> q_bias(embed_dim);
+        std::vector<float> q_bias(embed_dim, 0.f);
         std::vector<float> k_weight(embed_dim * embed_dim);
-        std::vector<float> k_bias(embed_dim);
+        std::vector<float> k_bias(embed_dim, 0.f);
         std::vector<float> v_weight(embed_dim * embed_dim);
-        std::vector<float> v_bias(embed_dim);
+        std::vector<float> v_bias(embed_dim, 0.f);
         {
             // qkv - embed_dim - embed_dim
             auto w = captured_attrs.at("op_0.in_proj_weight").get_float32_data();
-            // qkv - embed_dim
-            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
 
             const float* wptr = (const float*)w.data();
-            const float* bptr = (const float*)b.data();
 
             {
                 memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
-                memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
                 wptr += embed_dim * embed_dim;
-                bptr += embed_dim;
             }
 
             {
                 memcpy(k_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
-                memcpy(k_bias.data(), bptr, embed_dim * sizeof(float));
                 wptr += embed_dim * embed_dim;
-                bptr += embed_dim;
             }
 
             {
                 memcpy(v_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
+            }
+        }
+        if (captured_params.at("bias").b)
+        {
+            // qkv - embed_dim
+            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
+
+            const float* bptr = (const float*)b.data();
+
+            {
+                memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
+                bptr += embed_dim;
+            }
+
+            {
+                memcpy(k_bias.data(), bptr, embed_dim * sizeof(float));
+                bptr += embed_dim;
+            }
+
+            {
                 memcpy(v_bias.data(), bptr, embed_dim * sizeof(float));
             }
         }
@@ -102,7 +115,15 @@ pnnx.Output             output      1 0 out
         op->attrs["9"] = Attribute();
         op->attrs["9"].data = {0, 0, 0, 0};
         op->attrs["a"] = captured_attrs.at("op_0.out_proj.weight");
-        op->attrs["b"] = captured_attrs.at("op_0.out_proj.bias");
+        if (captured_params.at("bias").b)
+        {
+            op->attrs["b"] = captured_attrs.at("op_0.out_proj.bias");
+        }
+        else
+        {
+            std::vector<float> out_bias(embed_dim, 0.f);
+            op->attrs["b"] = Attribute({embed_dim}, out_bias);
+        }
     }
 };
 

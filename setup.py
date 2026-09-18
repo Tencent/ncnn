@@ -38,6 +38,7 @@ OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
 ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
 ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+EXTRA_CMAKE_ARGS = os.getenv("EXTRA_CMAKE_ARGS", "").split()
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -86,13 +87,17 @@ class CMakeBuild(build_ext):
         # Can be set with Conda-Build, for example.
         cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
 
-        # Set Python_EXECUTABLE instead if you use PYBIND11_FINDPYTHON
+        # pybind11 v3 defaults to CMake's FindPython, which honors Python_EXECUTABLE
+        # (not the legacy PYTHON_EXECUTABLE). Pass both so the right interpreter
+        # is picked up regardless of which finder pybind11 ends up using.
         # EXAMPLE_VERSION_INFO shows you how to pass a value into the C++ code
         # from Python.
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
+            "-DPython_EXECUTABLE={}".format(sys.executable),
+            "-DPython3_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
             "-DNCNN_VULKAN=ON",
@@ -128,6 +133,8 @@ class CMakeBuild(build_ext):
             cmake_args.append("-DENABLE_ARC=" + ENABLE_ARC)
         if ENABLE_VISIBILITY != "":
             cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
+
+        cmake_args += EXTRA_CMAKE_ARGS
 
         build_args = []
 
@@ -210,6 +217,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",

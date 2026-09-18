@@ -58,7 +58,7 @@ sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler lib
 ```
 On Redhat or Centos, you can install all required dependencies using:
 ```shell
-sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libopencv-dev
+sudo dnf install gcc-c++ git cmake protobuf-devel protobuf-compiler opencv-devel
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -382,6 +382,7 @@ mkdir -p build-arm-linux-gnueabi
 cd build-arm-linux-gnueabi
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch32 target with hard float (arm-linux-gnueabihf)
@@ -391,6 +392,7 @@ mkdir -p build-arm-linux-gnueabihf
 cd build-arm-linux-gnueabihf
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch64 GNU/Linux target (aarch64-linux-gnu)
@@ -400,6 +402,7 @@ mkdir -p build-aarch64-linux-gnu
 cd build-aarch64-linux-gnu
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 ***
@@ -754,40 +757,6 @@ You can upload binary inside `build-c906/examples` folder and run on D1 board fo
 
 ### Build for Loongson 2K1000
 
-For gcc version < 8.5, you need to fix msa.h header for workaround msa fmadd/fmsub/maddv/msubv bug.
-
-Open ```/usr/lib/gcc/mips64el-linux-gnuabi64/8/include/msa.h```, find ```__msa_fmadd``` and ```__msa_fmsub``` and apply changes as the following
-```c
-// #define __msa_fmadd_w __builtin_msa_fmadd_w
-// #define __msa_fmadd_d __builtin_msa_fmadd_d
-// #define __msa_fmsub_w __builtin_msa_fmsub_w
-// #define __msa_fmsub_d __builtin_msa_fmsub_d
-#define __msa_fmadd_w(a, b, c) __builtin_msa_fmadd_w(c, b, a)
-#define __msa_fmadd_d(a, b, c) __builtin_msa_fmadd_d(c, b, a)
-#define __msa_fmsub_w(a, b, c) __builtin_msa_fmsub_w(c, b, a)
-#define __msa_fmsub_d(a, b, c) __builtin_msa_fmsub_d(c, b, a)
-```
-
-find ```__msa_maddv``` and ```__msa_msubv``` and apply changes as the following
-```c
-// #define __msa_maddv_b __builtin_msa_maddv_b
-// #define __msa_maddv_h __builtin_msa_maddv_h
-// #define __msa_maddv_w __builtin_msa_maddv_w
-// #define __msa_maddv_d __builtin_msa_maddv_d
-// #define __msa_msubv_b __builtin_msa_msubv_b
-// #define __msa_msubv_h __builtin_msa_msubv_h
-// #define __msa_msubv_w __builtin_msa_msubv_w
-// #define __msa_msubv_d __builtin_msa_msubv_d
-#define __msa_maddv_b(a, b, c) __builtin_msa_maddv_b(c, b, a)
-#define __msa_maddv_h(a, b, c) __builtin_msa_maddv_h(c, b, a)
-#define __msa_maddv_w(a, b, c) __builtin_msa_maddv_w(c, b, a)
-#define __msa_maddv_d(a, b, c) __builtin_msa_maddv_d(c, b, a)
-#define __msa_msubv_b(a, b, c) __builtin_msa_msubv_b(c, b, a)
-#define __msa_msubv_h(a, b, c) __builtin_msa_msubv_h(c, b, a)
-#define __msa_msubv_w(a, b, c) __builtin_msa_msubv_w(c, b, a)
-#define __msa_msubv_d(a, b, c) __builtin_msa_msubv_d(c, b, a)
-```
-
 Build ncnn with mips msa and simpleocv enabled:
 ```shell
 mkdir -p build
@@ -945,10 +914,8 @@ cd build
 export HM_SDK=/opt/ohos-sdk/linux
 
 # Choose HarmonyOS sdk cmake toolchain file.
-# If you want to enable vulkan, set -DNCNN_VULKAN=ON
-# The HarmonyOS sdk does not support openmp, use ncnn simpleomp instead.
 # Cross-compiling with CMake must use the one provided by the HarmonyOS SDK; otherwise, it won't recognize parameters like OHOS_PLATFORM, leading to compilation errors.
-${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_STL=c++_static -DOHOS_ARCH=arm64-v8a -DOHOS_PLATFORM=OHOS -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEOMP=ON ..
+${HM_SDK}/native/build-tools/cmake/bin/cmake -DOHOS_ARCH=arm64-v8a -DCMAKE_TOOLCHAIN_FILE=${HM_SDK}/native/build/cmake/ohos.toolchain.cmake -DNCNN_VULKAN=ON ..
 
 make -j$(nproc)
 make install

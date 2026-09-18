@@ -22,8 +22,8 @@ afpvec4 erf(afpvec4 x)
     afpvec4 p = afpvec4(0.3275911f);
     afpvec4 s = sign(x);
     afpvec4 x_abs = abs(x);
-    afpvec4 t = 1.0f / (1.0f + p * x_abs);
-    afpvec4 y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x_abs * x_abs);
+    afpvec4 t = afpvec4(1.0f) / (afpvec4(1.0f) + p * x_abs);
+    afpvec4 y = afpvec4(1.0f) - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x_abs * x_abs);
     return s * y;
 }
 

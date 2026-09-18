@@ -1,4 +1,4 @@
-// Copyright 2019 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_CROP_X86_H

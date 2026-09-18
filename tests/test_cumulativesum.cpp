@@ -13,10 +13,23 @@ static int test_cumulativesum(const ncnn::Mat& a, int axis)
     int ret = test_layer("CumulativeSum", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_cumulativesum failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
+        fprintf(stderr, "test_cumulativesum failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
     }
 
     return ret;
+}
+
+static int test_cumulativesum_4d()
+{
+    return 0
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), 0)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), 1)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), 2)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), 3)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), -4)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), -3)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), -2)
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), -1);
 }
 
 static int test_cumulativesum_1d()
@@ -54,6 +67,7 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_cumulativesum_4d()
            || test_cumulativesum_1d()
            || test_cumulativesum_2d()
            || test_cumulativesum_3d();

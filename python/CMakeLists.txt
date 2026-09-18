@@ -8,20 +8,29 @@ add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
-if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
-    option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
+option(NCNN_SYSTEM_PYBIND11 "use system pybind11" OFF)
 
-    set(PYTHON_PREFIX "$ENV{LOCALAPPDATA}/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.$ENV{PYTHON_VERSION}/tools")
-    if(NOT DEFINED $ENV{CIBUILDWHEEL})
-        message(WARNING
-            " This is hack for cibuildwheel on github action\n"
-            " Use the right way to cross-compile python module for windows arm64 like follows\n"
-            " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")\n"
-        )
+# pybind11 v3 defaults to CMake's FindPython module. Opt-in explicitly so the
+# Python_EXECUTABLE / Python3_EXECUTABLE hints passed by setup.py are honored
+# (the legacy PYTHON_EXECUTABLE / PYTHON_PREFIX / PYBIND11_PYTHONLIBS_OVERWRITE
+# variables are no longer effective in pybind11 v3).
+set(PYBIND11_FINDPYTHON NEW)
+
+if(NCNN_SYSTEM_PYBIND11)
+    find_package(pybind11)
+    if(NOT pybind11_FOUND)
+        message(WARNING "pybind11 package not found! NCNN_SYSTEM_PYBIND11 will be turned off.")
+        set(NCNN_SYSTEM_PYBIND11 OFF)
     endif()
 endif()
 
-add_subdirectory(pybind11)
+if(NOT NCNN_SYSTEM_PYBIND11)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11/CMakeLists.txt")
+        message(FATAL_ERROR "The submodules were not downloaded! Please update submodules with \"git submodule update --init\" and try again.")
+    else()
+        add_subdirectory(pybind11)
+    endif()
+endif()
 
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
     if(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
