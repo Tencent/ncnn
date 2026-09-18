@@ -10,67 +10,140 @@ int normalize_fp32_fma4(Mat& bottom_top_blob, const Mat& scale_data, int across_
 
 static void normalize_coeffs(float* square_sum, int size, float eps, int eps_mode)
 {
-    float* ptr = square_sum;
-    int i = 0;
+    if (eps_mode == 0) // caffe/mxnet
+    {
+        float* ptr = square_sum;
+        int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; i + 15 < size; i += 16)
-    {
-        __m512 _ssum = _mm512_loadu_ps(ptr);
-        __m512 _eps = _mm512_set1_ps(eps);
-        __m512 _one = _mm512_set1_ps(1.f);
-        if (eps_mode == 0) // caffe/mxnet
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _ssum = _mm512_loadu_ps(ptr);
+            __m512 _eps = _mm512_set1_ps(eps);
+            __m512 _one = _mm512_set1_ps(1.f);
             _ssum = _mm512_div_ps(_one, _mm512_sqrt_ps(_mm512_add_ps(_ssum, _eps)));
-        else if (eps_mode == 1) // pytorch
-            _ssum = _mm512_div_ps(_one, _mm512_max_ps(_eps, _mm512_sqrt_ps(_ssum)));
-        else // if (eps_mode == 2) // tensorflow
-            _ssum = _mm512_div_ps(_one, _mm512_sqrt_ps(_mm512_max_ps(_eps, _ssum)));
-        _mm512_storeu_ps(ptr, _ssum);
-        ptr += 16;
-    }
+            _mm512_storeu_ps(ptr, _ssum);
+            ptr += 16;
+        }
 #endif // __AVX512F__
-    for (; i + 7 < size; i += 8)
-    {
-        __m256 _ssum = _mm256_loadu_ps(ptr);
-        __m256 _eps = _mm256_set1_ps(eps);
-        __m256 _one = _mm256_set1_ps(1.f);
-        if (eps_mode == 0) // caffe/mxnet
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _ssum = _mm256_loadu_ps(ptr);
+            __m256 _eps = _mm256_set1_ps(eps);
+            __m256 _one = _mm256_set1_ps(1.f);
             _ssum = _mm256_div_ps(_one, _mm256_sqrt_ps(_mm256_add_ps(_ssum, _eps)));
-        else if (eps_mode == 1) // pytorch
-            _ssum = _mm256_div_ps(_one, _mm256_max_ps(_eps, _mm256_sqrt_ps(_ssum)));
-        else // if (eps_mode == 2) // tensorflow
-            _ssum = _mm256_div_ps(_one, _mm256_sqrt_ps(_mm256_max_ps(_eps, _ssum)));
-        _mm256_storeu_ps(ptr, _ssum);
-        ptr += 8;
-    }
+            _mm256_storeu_ps(ptr, _ssum);
+            ptr += 8;
+        }
 #endif // __AVX__
-    for (; i + 3 < size; i += 4)
-    {
-        __m128 _ssum = _mm_loadu_ps(ptr);
-        __m128 _eps = _mm_set1_ps(eps);
-        __m128 _one = _mm_set1_ps(1.f);
-        if (eps_mode == 0) // caffe/mxnet
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _ssum = _mm_loadu_ps(ptr);
+            __m128 _eps = _mm_set1_ps(eps);
+            __m128 _one = _mm_set1_ps(1.f);
             _ssum = _mm_div_ps(_one, _mm_sqrt_ps(_mm_add_ps(_ssum, _eps)));
-        else if (eps_mode == 1) // pytorch
-            _ssum = _mm_div_ps(_one, _mm_max_ps(_eps, _mm_sqrt_ps(_ssum)));
-        else // if (eps_mode == 2) // tensorflow
-            _ssum = _mm_div_ps(_one, _mm_sqrt_ps(_mm_max_ps(_eps, _ssum)));
-        _mm_storeu_ps(ptr, _ssum);
-        ptr += 4;
-    }
+            _mm_storeu_ps(ptr, _ssum);
+            ptr += 4;
+        }
 #endif // __SSE2__
-    for (; i < size; i++)
-    {
-        float ssum = ptr[0];
-        if (eps_mode == 0) // caffe/mxnet
+        for (; i < size; i++)
+        {
+            float ssum = ptr[0];
             ssum = 1.f / sqrtf(ssum + eps);
-        else if (eps_mode == 1) // pytorch
+            ptr[0] = ssum;
+            ptr++;
+        }
+    }
+    else if (eps_mode == 1) // pytorch
+    {
+        float* ptr = square_sum;
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _ssum = _mm512_loadu_ps(ptr);
+            __m512 _eps = _mm512_set1_ps(eps);
+            __m512 _one = _mm512_set1_ps(1.f);
+            _ssum = _mm512_div_ps(_one, _mm512_max_ps(_eps, _mm512_sqrt_ps(_ssum)));
+            _mm512_storeu_ps(ptr, _ssum);
+            ptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _ssum = _mm256_loadu_ps(ptr);
+            __m256 _eps = _mm256_set1_ps(eps);
+            __m256 _one = _mm256_set1_ps(1.f);
+            _ssum = _mm256_div_ps(_one, _mm256_max_ps(_eps, _mm256_sqrt_ps(_ssum)));
+            _mm256_storeu_ps(ptr, _ssum);
+            ptr += 8;
+        }
+#endif // __AVX__
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _ssum = _mm_loadu_ps(ptr);
+            __m128 _eps = _mm_set1_ps(eps);
+            __m128 _one = _mm_set1_ps(1.f);
+            _ssum = _mm_div_ps(_one, _mm_max_ps(_eps, _mm_sqrt_ps(_ssum)));
+            _mm_storeu_ps(ptr, _ssum);
+            ptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
+        {
+            float ssum = ptr[0];
             ssum = 1.f / std::max(sqrtf(ssum), eps);
-        else // if (eps_mode == 2) // tensorflow
+            ptr[0] = ssum;
+            ptr++;
+        }
+    }
+    else // if (eps_mode == 2) // tensorflow
+    {
+        float* ptr = square_sum;
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _ssum = _mm512_loadu_ps(ptr);
+            __m512 _eps = _mm512_set1_ps(eps);
+            __m512 _one = _mm512_set1_ps(1.f);
+            _ssum = _mm512_div_ps(_one, _mm512_sqrt_ps(_mm512_max_ps(_eps, _ssum)));
+            _mm512_storeu_ps(ptr, _ssum);
+            ptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _ssum = _mm256_loadu_ps(ptr);
+            __m256 _eps = _mm256_set1_ps(eps);
+            __m256 _one = _mm256_set1_ps(1.f);
+            _ssum = _mm256_div_ps(_one, _mm256_sqrt_ps(_mm256_max_ps(_eps, _ssum)));
+            _mm256_storeu_ps(ptr, _ssum);
+            ptr += 8;
+        }
+#endif // __AVX__
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _ssum = _mm_loadu_ps(ptr);
+            __m128 _eps = _mm_set1_ps(eps);
+            __m128 _one = _mm_set1_ps(1.f);
+            _ssum = _mm_div_ps(_one, _mm_sqrt_ps(_mm_max_ps(_eps, _ssum)));
+            _mm_storeu_ps(ptr, _ssum);
+            ptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
+        {
+            float ssum = ptr[0];
             ssum = 1.f / sqrtf(std::max(ssum, eps));
-        ptr[0] = ssum;
-        ptr++;
+            ptr[0] = ssum;
+            ptr++;
+        }
     }
 }
 
