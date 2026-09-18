@@ -31,7 +31,7 @@ static void cumulative_sum(float* ptr, int w)
 
 #if __AVX2__
     __m256 _sum = _mm256_setzero_ps();
-    for (; j + 8 <= w; j += 8)
+    for (; j + 7 < w; j += 8)
     {
         __m256 _p = _mm256_loadu_ps(ptr + j);
         __m256 _t = _mm256_castsi256_ps(_mm256_slli_si256(_mm256_castps_si256(_p), 4));
@@ -49,7 +49,7 @@ static void cumulative_sum(float* ptr, int w)
     if (j > 0)
         sum = ptr[j - 1];
 #elif __AVX__
-    for (; j + 8 <= w; j += 8)
+    for (; j + 7 < w; j += 8)
     {
         __m256 _p = _mm256_loadu_ps(ptr + j);
         __m128 _p0 = cumulative_sum4_ps(_mm256_castps256_ps128(_p));
@@ -63,7 +63,7 @@ static void cumulative_sum(float* ptr, int w)
         sum = ptr[j + 7];
     }
 #elif __SSE2__
-    for (; j + 4 <= w; j += 4)
+    for (; j + 3 < w; j += 4)
     {
         __m128 _p = cumulative_sum4_ps(_mm_loadu_ps(ptr + j));
         _p = _mm_add_ps(_p, _mm_set1_ps(sum));
