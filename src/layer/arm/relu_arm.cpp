@@ -284,10 +284,10 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "fmax   v1.4s, v1.4s, %2.4s     \n"
                     "fmax   v2.4s, v2.4s, %2.4s     \n"
                     "fmax   v3.4s, v3.4s, %2.4s     \n"
-                    "shrn   v0.4h, v0.4s, #16       \n"
-                    "shrn   v1.4h, v1.4s, #16       \n"
-                    "shrn   v2.4h, v2.4s, #16       \n"
-                    "shrn   v3.4h, v3.4s, #16       \n"
+                    "rshrn  v0.4h, v0.4s, #16       \n"
+                    "rshrn  v1.4h, v1.4s, #16       \n"
+                    "rshrn  v2.4h, v2.4s, #16       \n"
+                    "rshrn  v3.4h, v3.4s, #16       \n"
                     "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
@@ -305,10 +305,10 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "vmax.f32   q1, q1, %q2     \n"
                     "vmax.f32   q2, q2, %q2     \n"
                     "vmax.f32   q3, q3, %q2     \n"
-                    "vshrn.u32  d0, q0, #16     \n"
-                    "vshrn.u32  d1, q1, #16     \n"
-                    "vshrn.u32  d2, q2, #16     \n"
-                    "vshrn.u32  d3, q3, #16     \n"
+                    "vrshrn.u32 d0, q0, #16     \n"
+                    "vrshrn.u32 d1, q1, #16     \n"
+                    "vrshrn.u32 d2, q2, #16     \n"
+                    "vrshrn.u32 d3, q3, #16     \n"
                     "vst1.u16   {d0-d3}, [%0]!  \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
@@ -395,10 +395,10 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "bit    v1.16b, v9.16b, v5.16b  \n"
                     "bit    v2.16b, v10.16b, v6.16b \n"
                     "bit    v3.16b, v11.16b, v7.16b \n"
-                    "shrn   v0.4h, v0.4s, #16       \n"
-                    "shrn   v1.4h, v1.4s, #16       \n"
-                    "shrn   v2.4h, v2.4s, #16       \n"
-                    "shrn   v3.4h, v3.4s, #16       \n"
+                    "rshrn  v0.4h, v0.4s, #16       \n"
+                    "rshrn  v1.4h, v1.4s, #16       \n"
+                    "rshrn  v2.4h, v2.4s, #16       \n"
+                    "rshrn  v3.4h, v3.4s, #16       \n"
                     "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
@@ -424,10 +424,10 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "vbit.32    q1, q9, q5      \n"
                     "vbit.32    q2, q10, q6     \n"
                     "vbit.32    q3, q11, q7     \n"
-                    "vshrn.u32  d0, q0, #16     \n"
-                    "vshrn.u32  d1, q1, #16     \n"
-                    "vshrn.u32  d2, q2, #16     \n"
-                    "vshrn.u32  d3, q3, #16     \n"
+                    "vrshrn.u32 d0, q0, #16     \n"
+                    "vrshrn.u32 d1, q1, #16     \n"
+                    "vrshrn.u32 d2, q2, #16     \n"
+                    "vrshrn.u32 d3, q3, #16     \n"
                     "vst1.u16   {d0-d3}, [%0]!  \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),

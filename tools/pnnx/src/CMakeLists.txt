@@ -413,6 +413,7 @@ set(pnnx_pass_level5_SRCS
 
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_attribute.cpp
+    pass_ncnn/convert_batch_layout.cpp
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
@@ -450,10 +451,11 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_padding_convolutiondepthwise.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
     pass_ncnn/fuse_binaryop_eltwise.cpp
+    pass_ncnn/eliminate_reshape_binaryop_broadcast.cpp
     pass_ncnn/insert_reshape_numpy_binaryop_broadcast.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
-    pass_ncnn/insert_reshape_global_pooling.cpp
+    pass_ncnn/legalize_global_pooling_layout.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
@@ -627,7 +629,7 @@ set(pnnx_pass_ncnn_SRCS
 )
 
 if(PROTOBUF_FOUND)
-    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22 AND CMAKE_CXX_STANDARD LESS 17)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 

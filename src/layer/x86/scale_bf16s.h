@@ -2,18 +2,71 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void scale_bf16s_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
-void scale_bf16s_no_bias_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int elempack);
-void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
-void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
+void scale_bf16s_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_no_bias_avx512bf16(unsigned short* ptr, const float* scale, int size, int elempack);
+void scale_bf16s_per_element_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
 #endif
 
-static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void scale_bf16s_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_no_bias_avxneconvert(unsigned short* ptr, const float* scale, int size, int elempack);
+void scale_bf16s_per_element_avxneconvert(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_avxneconvert(unsigned short* ptr, const float* scale, int size, int num_threads);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void scale_bf16s_avx2(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_no_bias_avx2(unsigned short* ptr, const float* scale, int size, int elempack);
+void scale_bf16s_per_element_avx2(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_avx2(unsigned short* ptr, const float* scale, int size, int num_threads);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void scale_bf16s_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_per_element_fma(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void scale_bf16s_fma4(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
+void scale_bf16s_per_element_fma4(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+#endif
+
+static void scale_bf16s(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_sse_avx512bf16(ptr, scale, bias, size, elempack);
+        scale_bf16s_avx512bf16(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_avxneconvert(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_avx2(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        scale_bf16s_fma(ptr, scale, bias, size, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        scale_bf16s_fma4(ptr, scale, bias, size, elempack);
         return;
     }
 #endif
@@ -57,7 +110,7 @@ static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_comp_fmadd_ps(_p, _s128, _b128);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -68,12 +121,28 @@ static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float
     }
 }
 
-static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int size, int elempack)
+static void scale_bf16s_no_bias(unsigned short* ptr, const float* scale, int size, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_no_bias_sse_avx512bf16(ptr, scale, size, elempack);
+        scale_bf16s_no_bias_avx512bf16(ptr, scale, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_no_bias_avxneconvert(ptr, scale, size, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_no_bias_avx2(ptr, scale, size, elempack);
         return;
     }
 #endif
@@ -113,7 +182,7 @@ static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _p = _mm_mul_ps(_p, _s128);
-        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
         ptr += 4;
     }
 #endif // __SSE2__
@@ -124,12 +193,42 @@ static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int
     }
 }
 
-static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
+static void scale_bf16s_per_element(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_per_element_sse_avx512bf16(ptr, scale, bias, size, num_threads);
+        scale_bf16s_per_element_avx512bf16(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_per_element_avxneconvert(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_per_element_avx2(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        scale_bf16s_per_element_fma(ptr, scale, bias, size, num_threads);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        scale_bf16s_per_element_fma4(ptr, scale, bias, size, num_threads);
         return;
     }
 #endif
@@ -174,7 +273,7 @@ static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale,
         __m128 _s = _mm_loadu_ps(scale + i);
         __m128 _bias = _mm_loadu_ps(bias + i);
         _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__
@@ -185,12 +284,28 @@ static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale,
     }
 }
 
-static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float* scale, int size, int num_threads)
+static void scale_bf16s_no_bias_per_element(unsigned short* ptr, const float* scale, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_no_bias_per_element_sse_avx512bf16(ptr, scale, size, num_threads);
+        scale_bf16s_no_bias_per_element_avx512bf16(ptr, scale, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        scale_bf16s_no_bias_per_element_avxneconvert(ptr, scale, size, num_threads);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        scale_bf16s_no_bias_per_element_avx2(ptr, scale, size, num_threads);
         return;
     }
 #endif
@@ -232,7 +347,7 @@ static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _s = _mm_loadu_ps(scale + i);
         _p = _mm_mul_ps(_p, _s);
-        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p));
     }
     remain_size_start += nn_size * 4;
 #endif // __SSE2__

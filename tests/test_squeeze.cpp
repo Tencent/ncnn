@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_squeeze(const ncnn::Mat& a, int squeeze_w, int squeeze_h, int squeeze_d, int squeeze_c)
 {
     ncnn::ParamDict pd;
@@ -178,9 +182,49 @@ static int test_squeeze_3()
            || test_squeeze_all_params(RandomMat(1));
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_squeeze_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(3, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::Squeeze, base, 0)
+            || test_layer_param(ncnn::LayerType::Squeeze, base, 3, ncnn::Mat(0), 0))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Squeeze, base, 3, param_int_array(1, INT_MIN), -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_squeeze_0() || test_squeeze_1() || test_squeeze_2() || test_squeeze_3();
+    return 0
+           || test_squeeze_0()
+           || test_squeeze_1()
+           || test_squeeze_2()
+           || test_squeeze_3()
+#if NCNN_VALIDATION
+           || test_squeeze_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

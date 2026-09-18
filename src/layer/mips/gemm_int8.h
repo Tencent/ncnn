@@ -1148,9 +1148,9 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         }
     }
 #endif // __mips_msa
-    if (elempack == 1)
+    for (; ii + 1 < max_ii; ii += 2)
     {
-        for (; ii + 1 < max_ii; ii += 2)
+        // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
             const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
@@ -1181,7 +1181,10 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
                 p1++;
             }
         }
-        for (; ii < max_ii; ii++)
+    }
+    for (; ii < max_ii; ii++)
+    {
+        // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
             const float scale0 = scales[i + ii];
@@ -1755,9 +1758,9 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         }
     }
 #endif // __mips_msa
-    if (elempack == 1)
+    for (; jj + 1 < max_jj; jj += 2)
     {
-        for (; jj + 1 < max_jj; jj += 2)
+        // if (elempack == 1)
         {
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
             const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
@@ -1786,7 +1789,10 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
                 p1++;
             }
         }
-        for (; jj < max_jj; jj++)
+    }
+    for (; jj < max_jj; jj++)
+    {
+        // if (elempack == 1)
         {
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 

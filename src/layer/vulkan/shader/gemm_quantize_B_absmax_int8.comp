@@ -1,0 +1,52 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+layout(binding = 0) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 1) writeonly buffer B_absmax_blob { float B_absmax_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int N;
+    int K;
+    int B_hstep;
+} p;
+
+shared float absmax_shared[128];
+
+void main()
+{
+    const int lid = int(gl_LocalInvocationID.x);
+    const int size = p.N * p.K;
+    const int block_offset = int(gl_WorkGroupID.x) * 1024;
+    const int block_end = min(block_offset + 1024, size);
+
+    float absmax = 0.f;
+
+    for (int i = block_offset + lid; i < block_end; i += 128)
+    {
+        const int j = i / p.K;
+        const int k = i - j * p.K;
+        const int bi = transB == 1 ? j * p.B_hstep + k : k * p.B_hstep + j;
+        const float v = float(buffer_ld1(B_blob_data, bi));
+        absmax = max(absmax, abs(v));
+    }
+
+    absmax_shared[lid] = absmax;
+
+    barrier();
+
+    for (int stride = 64; stride > 0; stride >>= 1)
+    {
+        if (lid < stride)
+            absmax_shared[lid] = max(absmax_shared[lid], absmax_shared[lid + stride]);
+
+        barrier();
+    }
+
+    if (lid == 0)
+        B_absmax_data[int(gl_WorkGroupID.x)] = absmax_shared[0];
+}

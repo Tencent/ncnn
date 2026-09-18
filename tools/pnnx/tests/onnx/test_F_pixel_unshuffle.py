@@ -12,6 +12,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = F.pixel_unshuffle(x, 4)
+        x = F.relu(x)
         x = F.pixel_unshuffle(x, 2)
         return x
 

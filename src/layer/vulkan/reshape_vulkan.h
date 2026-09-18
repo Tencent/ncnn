@@ -25,6 +25,12 @@ public:
     Pipeline* pipeline_reshape_pack4;
     Pipeline* pipeline_reshape_pack1to4;
     Pipeline* pipeline_reshape_pack4to1;
+#if NCNN_BATCH
+    Pipeline* pipeline_reshape_batch_reorder;
+    Pipeline* pipeline_reshape_batch_reorder_pack4;
+    Pipeline* pipeline_reshape_batch_reorder_pack1to4;
+    Pipeline* pipeline_reshape_batch_reorder_pack4to1;
+#endif
 };
 
 } // namespace ncnn
