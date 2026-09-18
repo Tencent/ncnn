@@ -45,6 +45,30 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                 __fp16* outptr = out_head.row<__fp16>(i);
 
                 int j = 0;
+                for (; j + 7 < half; j += 8)
+                {
+                    float16x8x2_t _p = vld2q_f16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
+                    float32x4_t _x0l = vcvt_f32_f16(vget_low_f16(_p.val[0]));
+                    float32x4_t _x0h = vcvt_f32_f16(vget_high_f16(_p.val[0]));
+                    float32x4_t _x1l = vcvt_f32_f16(vget_low_f16(_p.val[1]));
+                    float32x4_t _x1h = vcvt_f32_f16(vget_high_f16(_p.val[1]));
+                    float16x8_t _c8 = vld1q_f16(cos_ptr);
+                    float16x8_t _s8 = vld1q_f16(sin_ptr);
+                    float32x4_t _cl = vcvt_f32_f16(vget_low_f16(_c8));
+                    float32x4_t _ch = vcvt_f32_f16(vget_high_f16(_c8));
+                    float32x4_t _sl = vcvt_f32_f16(vget_low_f16(_s8));
+                    float32x4_t _sh = vcvt_f32_f16(vget_high_f16(_s8));
+
+                    float16x8x2_t _out;
+                    _out.val[0] = vcombine_f16(vcvt_f16_f32(vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl)), vcvt_f16_f32(vmlsq_f32(vmulq_f32(_x0h, _ch), _x1h, _sh))); // x0*c - x1*s
+                    _out.val[1] = vcombine_f16(vcvt_f16_f32(vmlaq_f32(vmulq_f32(_x1l, _cl), _x0l, _sl)), vcvt_f16_f32(vmlaq_f32(vmulq_f32(_x1h, _ch), _x0h, _sh))); // x0*s + x1*c
+                    vst2q_f16(outptr, _out);
+
+                    ptr += 16;
+                    outptr += 16;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                }
                 for (; j + 3 < half; j += 4)
                 {
                     float16x4x2_t _p = vld2_f16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
@@ -83,6 +107,37 @@ int RotaryEmbed_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
                 __fp16* outptr1 = outptr0 + half;
 
                 int j = 0;
+                for (; j + 7 < half; j += 8)
+                {
+                    float16x8_t _x08 = vld1q_f16(ptr0);
+                    float16x8_t _x18 = vld1q_f16(ptr1);
+                    float16x8_t _c8 = vld1q_f16(cos_ptr);
+                    float16x8_t _s8 = vld1q_f16(sin_ptr);
+
+                    float32x4_t _x0l = vcvt_f32_f16(vget_low_f16(_x08));
+                    float32x4_t _x0h = vcvt_f32_f16(vget_high_f16(_x08));
+                    float32x4_t _x1l = vcvt_f32_f16(vget_low_f16(_x18));
+                    float32x4_t _x1h = vcvt_f32_f16(vget_high_f16(_x18));
+                    float32x4_t _cl = vcvt_f32_f16(vget_low_f16(_c8));
+                    float32x4_t _ch = vcvt_f32_f16(vget_high_f16(_c8));
+                    float32x4_t _sl = vcvt_f32_f16(vget_low_f16(_s8));
+                    float32x4_t _sh = vcvt_f32_f16(vget_high_f16(_s8));
+
+                    float32x4_t _y0l = vmlsq_f32(vmulq_f32(_x0l, _cl), _x1l, _sl); // x0*c - x1*s
+                    float32x4_t _y0h = vmlsq_f32(vmulq_f32(_x0h, _ch), _x1h, _sh);
+                    float32x4_t _y1l = vmlaq_f32(vmulq_f32(_x1l, _cl), _x0l, _sl); // x1*c + x0*s
+                    float32x4_t _y1h = vmlaq_f32(vmulq_f32(_x1h, _ch), _x0h, _sh);
+
+                    vst1q_f16(outptr0, vcombine_f16(vcvt_f16_f32(_y0l), vcvt_f16_f32(_y0h)));
+                    vst1q_f16(outptr1, vcombine_f16(vcvt_f16_f32(_y1l), vcvt_f16_f32(_y1h)));
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                }
                 for (; j + 3 < half; j += 4)
                 {
                     float32x4_t _x0 = vcvt_f32_f16(vld1_f16(ptr0));

@@ -13,13 +13,15 @@ class Model(nn.Module):
         self.b2 = nn.Parameter(torch.rand(12))
         self.w3 = nn.Parameter(torch.rand(12, 2, 3))
 
-    def forward(self, x, w0, w1, b1, y):
+    def forward(self, x, w0, w1, b1, y, q):
         x = F.conv_transpose1d(x, w0, None, stride=2, padding=1, output_padding=1)
         x = F.conv_transpose1d(x, w1, b1, stride=1, padding=2, dilation=2, groups=2)
 
         y = F.conv_transpose1d(y, self.w2, self.b2, stride=2, padding=1, output_padding=1)
         y = F.conv_transpose1d(y, self.w3, None, stride=1, padding=2, dilation=2, groups=3)
-        return x, y
+        q = F.conv_transpose1d(q, w0, None, stride=2, padding=1, output_padding=1)
+        q = F.conv_transpose1d(q, w1, b1, stride=1, padding=2, dilation=2, groups=2)
+        return x, y, q
 
 def test():
     net = Model().half().float()
@@ -31,22 +33,23 @@ def test():
     w1 = torch.rand(16, 8, 5)
     b1 = torch.rand(16)
     y = torch.rand(1, 6, 5)
+    q = torch.rand(2, 12, 22)
 
-    a0, a1 = net(x, w0, w1, b1, y)
+    a0, a1, a2 = net(x, w0, w1, b1, y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, w0, w1, b1, y))
+    mod = torch.jit.trace(net, (x, w0, w1, b1, y, q))
     mod.save("test_F_conv_transpose1d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_conv_transpose1d.pt inputshape=[1,12,22],[12,16,3],[16,8,5],[16],[1,6,5]")
+    os.system("../../src/pnnx test_F_conv_transpose1d.pt inputshape=[1,12,22],[12,16,3],[16,8,5],[16],[1,6,5],[2,12,22]")
 
     # ncnn inference
     import test_F_conv_transpose1d_ncnn
-    b0, b1 = test_F_conv_transpose1d_ncnn.test_inference()
+    b0, b1, b2 = test_F_conv_transpose1d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

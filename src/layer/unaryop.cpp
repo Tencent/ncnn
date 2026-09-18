@@ -18,6 +18,11 @@ int UnaryOp::load_param(const ParamDict& pd)
 {
     op_type = pd.get(0, 0);
 
+#if NCNN_VALIDATION
+    if (op_type < Operation_ABS || op_type > Operation_LOG1P)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 

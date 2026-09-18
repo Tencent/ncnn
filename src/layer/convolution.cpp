@@ -3,6 +3,8 @@
 
 #include "convolution.h"
 
+#include <limits.h>
+
 #include "layer_type.h"
 
 #include "fused_activation.h"
@@ -36,6 +38,47 @@ int Convolution::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
 
     dynamic_weight = pd.get(19, 0);
+
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (dilation_w <= 0 || stride_w <= 0 || dilation_h <= 0 || stride_h <= 0)
+        return -1;
+
+    if (!dynamic_weight)
+    {
+        if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_w > INT_MAX / kernel_h)
+            return -1;
+
+        if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h) != 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
 
     if (dynamic_weight)
     {
@@ -188,6 +231,12 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
+        if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+        {
+            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+            NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+        }
+
         return forward_int8(bottom_blob, top_blob, opt);
     }
 #endif
@@ -195,6 +244,9 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         int num_input = weight_data_size / num_output;
         if (bottom_blob.w * bottom_blob.elempack == num_input)
         {

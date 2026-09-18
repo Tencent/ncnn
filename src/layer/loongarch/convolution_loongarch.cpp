@@ -444,6 +444,12 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
+        if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+        {
+            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+            NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+        }
+
 #if NCNN_BF16
         if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
         {
@@ -469,6 +475,9 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         Mat bottom_blob_3d;
         if (bottom_blob.elemsize % 16 == 0)
         {
@@ -1085,6 +1094,9 @@ int Convolution_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         Mat bottom_blob_3d;
         if (bottom_blob.elemsize % 16 == 0)
         {

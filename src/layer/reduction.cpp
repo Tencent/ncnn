@@ -4,7 +4,6 @@
 #include "reduction.h"
 
 #include <float.h>
-#include <limits.h>
 
 namespace ncnn {
 
@@ -25,11 +24,37 @@ int Reduction::load_param(const ParamDict& pd)
     // the original reduction handle axes as blob with batch dimension
     // ask user to regenerate param instead of producing wrong result
     int fixbug0 = pd.get(5, 0);
+
+#if NCNN_VALIDATION
+    if (operation < ReductionOp_SUM || operation > ReductionOp_LogSumExp)
+        return -1;
+
+    {
+        const int axes_type = pd.type(3);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
+            return -1;
+    }
+#endif // NCNN_VALIDATION
     if (fixbug0 == 0 && !axes.empty())
     {
         NCNN_LOGE("param is too old, please regenerate!");
         return -1;
     }
+
+#if NCNN_VALIDATION
+    if (axes.w > 4)
+        return -1;
+
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

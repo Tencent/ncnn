@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
 static int test_einsum(const std::vector<ncnn::Mat>& a, const std::string& equation)
 {
     ncnn::Mat equation_mat(equation.size());
@@ -149,6 +151,121 @@ static int test_einsum_11()
     return test_einsum(a, "imnj,kmln->ijkl");
 }
 
+static ncnn::ParamDict equation_params(const char* equation)
+{
+    ncnn::Mat m((int)strlen(equation));
+    int* p = m;
+    for (int i = 0; i < m.w; i++)
+        p[i] = equation[i];
+
+    ncnn::ParamDict pd;
+    pd.set(0, m);
+    return pd;
+}
+
+static int test_einsum_reload_case(ncnn::Layer* layer, const char* equation, const std::vector<ncnn::Mat>& a, const ncnn::Mat& expected)
+{
+    int ret = layer->load_param(equation_params(equation));
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload load_param failed equation=%s ret=%d\n", equation, ret);
+        return ret;
+    }
+
+    std::vector<ncnn::Mat> b(1);
+    ncnn::Option opt;
+    ret = layer->forward(a, b, opt);
+    if (ret == 0)
+        ret = CompareMat(expected, b[0], 0.f);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload failed equation=%s ret=%d\n", equation, ret);
+    }
+
+    return ret;
+}
+
+static int test_einsum_reload()
+{
+    std::vector<ncnn::Mat> a(1);
+    a[0].create(2, 2);
+    for (int i = 0; i < 4; i++)
+        a[0][i] = (float)(i + 1);
+
+    ncnn::Mat trace(1);
+    trace[0] = 5.f;
+    ncnn::Mat sum(2);
+    sum[0] = 3.f;
+    sum[1] = 7.f;
+
+    // reuse one layer to check that loading replaces the previous equation
+    ncnn::Layer* layer = ncnn::create_layer_naive(ncnn::LayerType::Einsum);
+    if (!layer)
+        return -1;
+
+    int ret = layer->load_param(equation_params("ij,j->i"));
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_reload initial load failed ret=%d\n", ret);
+        delete layer;
+        return ret;
+    }
+
+    ret = 0
+          || test_einsum_reload_case(layer, "ii", a, trace)
+          || test_einsum_reload_case(layer, "ij->i", a, sum);
+    delete layer;
+
+    return ret;
+}
+
+#if NCNN_VALIDATION
+static int test_einsum_load_param_equation(const char* equation, int expected_ret)
+{
+    int ret = test_layer_param(ncnn::LayerType::Einsum, equation_params(equation), expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_load_param failed equation=%s\n", equation);
+    }
+
+    return ret;
+}
+
+static int test_einsum_load_param()
+{
+    return 0
+           || test_einsum_load_param_equation("ij->ji", -1)
+           || test_einsum_load_param_equation("ji->ij", 0)
+           || test_einsum_load_param_equation("", -1)
+           || test_einsum_load_param_equation("->i", -1)
+           || test_einsum_load_param_equation("i,->i", -1)
+           || test_einsum_load_param_equation(",i->i", -1)
+           || test_einsum_load_param_equation("i,,j->ij", -1)
+           || test_einsum_load_param_equation("i->", -1)
+           || test_einsum_load_param_equation("i->ij", -1)
+           || test_einsum_load_param_equation("i->ii", -1)
+           || test_einsum_load_param_equation("i->j", -1)
+           || test_einsum_load_param_equation("ijklm->i", -1)
+           || test_einsum_load_param_equation("i->i->i", -1);
+}
+
+static int test_einsum_load_param_char()
+{
+    ncnn::ParamDict pd = equation_params("ij->i");
+    ncnn::Mat m = pd.get(0, ncnn::Mat());
+    int* p = m;
+    p[0] = 'i' + 256;
+
+    int ret = test_layer_param(ncnn::LayerType::Einsum, pd, -1);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_einsum_load_param_char failed value=%d\n", p[0]);
+    }
+
+    return ret;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -165,5 +282,11 @@ int main()
            || test_einsum_8()
            || test_einsum_9()
            || test_einsum_10()
-           || test_einsum_11();
+           || test_einsum_11()
+           || test_einsum_reload()
+#if NCNN_VALIDATION
+           || test_einsum_load_param()
+           || test_einsum_load_param_char()
+#endif // NCNN_VALIDATION
+           ;
 }
