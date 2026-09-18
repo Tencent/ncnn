@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -48,17 +50,21 @@ def test():
     mod.save("test_F_scaled_dot_product_attention.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
+    converted = torchscript_to_pnnx("test_F_scaled_dot_product_attention", "[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77],[3,1,128,48]")
 
     # pnnx inference
-    import test_F_scaled_dot_product_attention_pnnx
-    b = test_F_scaled_dot_product_attention_pnnx.test_inference()
+    inputs = (q, k, v, m, k2, v2, m2)
+    b = converted(*inputs)
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    if not has_torch_export():
+        return True
+
+    converted = exported_program_to_pnnx(net, inputs, "test_F_scaled_dot_product_attention_pt2")
+    c = converted(*inputs)
+    return all(torch.equal(a0, c0) for a0, c0 in zip(a, c))
 
 if __name__ == "__main__":
     if test():

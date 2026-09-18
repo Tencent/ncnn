@@ -31,7 +31,7 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 9. [Model optimization](#pnnx-model-optimization)
 10. [Custom operator support](#pnnx-custom-operator)
 
-# Build TorchScript to PNNX converter
+# Build PyTorch model to PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
 2. Build PNNX with cmake
@@ -56,11 +56,38 @@ mod = torch.jit.trace(net, x)
 mod.save("resnet18.pt")
 ```
 
-2. Convert TorchScript to PNNX
+Alternatively, with PyTorch 2.2 or later, export an `ExportedProgram`:
+
+```python
+import torch
+import torchvision.models as models
+
+net = models.resnet18(weights="DEFAULT").eval()
+x = torch.rand(1, 3, 224, 224)
+
+exported_program = torch.export.export(net, (x,))
+torch.export.save(exported_program, "resnet18.pt2")
+```
+
+2. Convert TorchScript or ExportedProgram to PNNX
 
 ```shell
 pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
+
+or
+
+```shell
+pnnx resnet18.pt2
+```
+
+The ExportedProgram archive already contains input tensor metadata, so
+`inputshape` is normally not required for `.pt2` input.
+
+The generated `*_pnnx.py` also provides `export_exported_program(example_inputs=None)`.
+It returns a new `torch.export.ExportedProgram` and saves it as `*_pnnx.pt2`.
+Pass a tuple of example inputs to override the generated inputs; positional
+tuple/list input and output structures are preserved.
 
 Normally, you will get seven files
 
@@ -85,7 +112,7 @@ Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
 4. PNNX command line options
 
 ```
-Usage: pnnx [model.pt] [(key=value)...]
+Usage: pnnx [model.pt | model.pt2] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
@@ -101,6 +128,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...
   moduleop=models.common.Focus,models.yolo.Detect,...
 Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
+              pnnx exported_model.pt2
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 
