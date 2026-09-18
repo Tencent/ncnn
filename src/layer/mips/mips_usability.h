@@ -153,6 +153,24 @@ static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
     return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_comp_rsqrt1_w(const v4f32& _x)
+{
+    v4f32 _y = __msa_frsqrt_w(_x);
+    v4f32 _t = __msa_fmul_w(_x, _y);
+    _t = __msa_fsub_w(__msa_fill_w_f32(3.f), __msa_fmul_w(_t, _y));
+    _y = __msa_fmul_w(_y, __msa_fmul_w(_t, __msa_fill_w_f32(0.5f)));
+    return _y;
+}
+
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_comp_rsqrt_w(const v4f32& _x)
+{
+    v4f32 _y = __ncnn_msa_comp_rsqrt1_w(_x);
+    v4f32 _t = __msa_fmul_w(_x, _y);
+    _t = __msa_fsub_w(__msa_fill_w_f32(3.f), __msa_fmul_w(_t, _y));
+    _y = __msa_fmul_w(_y, __msa_fmul_w(_t, __msa_fill_w_f32(0.5f)));
+    return _y;
+}
+
 static NCNN_FORCEINLINE v4i32 __msa_set_w(int v0, int v1, int v2, int v3)
 {
     v4i32 _v = __msa_fill_w(v0);
@@ -309,7 +327,7 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
     v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
-    return _v8[0];
+    return __msa_copy_s_d(_v8, 0);
 }
 
 static NCNN_FORCEINLINE v16i8 float2int8relu(v4f32 _v)
@@ -614,7 +632,7 @@ static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const unsigned short* ptr)
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0)
 {
     v4i32 _a = (v4i32)v0;
-    _a = __msa_srli_w(_a, 16);
+    _a = __msa_srlri_w(_a, 16);
     v8i16 _v = __msa_pckev_h((v8i16)__msa_fill_w(0), (v8i16)_a);
     return (v4i32)_v;
 }
@@ -623,8 +641,8 @@ static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0, const v4f32& v1)
 {
     v4i32 _a = (v4i32)v0;
     v4i32 _b = (v4i32)v1;
-    _a = __msa_srli_w(_a, 16);
-    _b = __msa_srli_w(_b, 16);
+    _a = __msa_srlri_w(_a, 16);
+    _b = __msa_srlri_w(_b, 16);
     v8i16 _v = __msa_pckev_h((v8i16)_b, (v8i16)_a);
     return (v4i32)_v;
 }

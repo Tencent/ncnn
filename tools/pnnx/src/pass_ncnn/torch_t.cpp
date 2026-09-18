@@ -30,9 +30,25 @@ pnnx.Output             output      1 0 out
         return "t";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["0"] = 1;
+
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        if (ncnn_batch_axis == 233)
+            return;
+
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
+
+        if (input_rank > 2)
+        {
+            fprintf(stderr, "t %d-rank tensor is not supported yet!\n", input_rank);
+            return;
+        }
+
+        op->type = "Noop";
     }
 };
 
