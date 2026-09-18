@@ -366,98 +366,141 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             return -100;
 
         float* square_sum = square_sum_blob;
+        const int n = size * elempack;
+        int nn_size = 0;
+        int remain_size_start = 0;
+        int spatial_start = 0;
+        int spatial_step = 0;
 
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        if (elempack == 16)
+        // retain the first lane of each spatial position after the packed reduction
+        const __mmask16 _mask = elempack == 8 ? 0x0101 : elempack == 4 ? 0x1111
+                                : 0xffff;
+
+        nn_size = (n - remain_size_start) / 16;
+        spatial_step = 16 / elempack;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++)
+            int i = remain_size_start + ii * 16;
+            __m512 _ssum = _mm512_setzero_ps();
+            for (int q = 0; q < channels; q++)
             {
-                __m512 _ssum = _mm512_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i * 16;
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
-                }
-                float ssum = _mm512_comp_reduce_add_ps(_ssum);
-                if (eps_mode == 0) // caffe/mxnet
-                    ssum = 1.f / sqrtf(ssum + eps);
-                else if (eps_mode == 1) // pytorch
-                    ssum = 1.f / std::max(sqrtf(ssum), eps);
-                else // if (eps_mode == 2) // tensorflow
-                    ssum = 1.f / sqrtf(std::max(ssum, eps));
-                square_sum[i] = ssum;
+                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                __m512 _p = _mm512_loadu_ps(ptr);
+                _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
             }
+
+            float* outptr = square_sum + spatial_start + ii * spatial_step;
+            if (elempack == 16)
+            {
+                outptr[0] = _mm512_comp_reduce_add_ps(_ssum);
+                continue;
+            }
+
+            // sum within each pack, keeping adjacent spatial positions independent
+            if (elempack >= 4)
+            {
+                _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
+                _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
+            }
+            if (elempack >= 8)
+                _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_f32x4(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
+            _mm512_mask_compressstoreu_ps(outptr, _mask, _ssum);
         }
+        remain_size_start += nn_size * 16;
+        spatial_start += nn_size * spatial_step;
 #endif // __AVX512F__
-        if (elempack == 8)
+        nn_size = (n - remain_size_start) / 8;
+        spatial_step = 8 / elempack;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++)
+            int i = remain_size_start + ii * 8;
+            __m256 _ssum = _mm256_setzero_ps();
+            for (int q = 0; q < channels; q++)
             {
-                __m256 _ssum = _mm256_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i * 8;
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
-                }
-                float ssum = _mm256_reduce_add_ps(_ssum);
-                if (eps_mode == 0) // caffe/mxnet
-                    ssum = 1.f / sqrtf(ssum + eps);
-                else if (eps_mode == 1) // pytorch
-                    ssum = 1.f / std::max(sqrtf(ssum), eps);
-                else // if (eps_mode == 2) // tensorflow
-                    ssum = 1.f / sqrtf(std::max(ssum, eps));
-                square_sum[i] = ssum;
+                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                __m256 _p = _mm256_loadu_ps(ptr);
+                _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
+            }
+
+            // sum within each pack, keeping adjacent spatial positions independent
+            if (elempack >= 4)
+            {
+                _ssum = _mm256_add_ps(_ssum, _mm256_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
+                _ssum = _mm256_add_ps(_ssum, _mm256_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
+            }
+            if (elempack >= 8)
+                _ssum = _mm256_add_ps(_ssum, _mm256_permute2f128_ps(_ssum, _ssum, 1));
+            float* outptr = square_sum + spatial_start + ii * spatial_step;
+            if (elempack == 1)
+            {
+                _mm256_storeu_ps(outptr, _ssum);
+            }
+            else
+            {
+                _mm_store_ss(outptr, _mm256_castps256_ps128(_ssum));
+                if (elempack == 4)
+                    _mm_store_ss(outptr + 1, _mm256_extractf128_ps(_ssum, 1));
             }
         }
+        remain_size_start += nn_size * 8;
+        spatial_start += nn_size * spatial_step;
 #endif // __AVX__
-        if (elempack == 4)
+        nn_size = (n - remain_size_start) / 4;
+        spatial_step = 4 / elempack;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++)
+            int i = remain_size_start + ii * 4;
+            __m128 _ssum = _mm_setzero_ps();
+            for (int q = 0; q < channels; q++)
             {
-                __m128 _ssum = _mm_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i * 4;
-                    __m128 _p = _mm_loadu_ps(ptr);
-                    _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
-                }
-                float ssum = _mm_reduce_add_ps(_ssum);
-                if (eps_mode == 0) // caffe/mxnet
-                    ssum = 1.f / sqrtf(ssum + eps);
-                else if (eps_mode == 1) // pytorch
-                    ssum = 1.f / std::max(sqrtf(ssum), eps);
-                else // if (eps_mode == 2) // tensorflow
-                    ssum = 1.f / sqrtf(std::max(ssum, eps));
-                square_sum[i] = ssum;
+                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                __m128 _p = _mm_loadu_ps(ptr);
+                _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
             }
+
+            // sum within each pack, keeping adjacent spatial positions independent
+            if (elempack >= 4)
+            {
+                _ssum = _mm_add_ps(_ssum, _mm_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
+                _ssum = _mm_add_ps(_ssum, _mm_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
+            }
+            float* outptr = square_sum + spatial_start + ii * spatial_step;
+            if (elempack == 1)
+                _mm_storeu_ps(outptr, _ssum);
+            else
+                _mm_store_ss(outptr, _ssum);
         }
+        remain_size_start += nn_size * 4;
+        spatial_start += nn_size * spatial_step;
 #endif // __SSE2__
-        if (elempack == 1)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = remain_size_start; i < n; i++)
         {
-            int nn_size = 0;
-            int remain_size_start = 0;
+            float ssum = 0.f;
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_top_blob.channel(q);
+                ssum += ptr[i] * ptr[i];
+            }
+            square_sum[i] = ssum;
+        }
+
+        // compute one normalization coefficient per spatial position
+        {
+            float* ptr = square_sum;
+            int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-            nn_size = (size - remain_size_start) / 16;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
+            for (; i + 15 < size; i += 16)
             {
-                int i = remain_size_start + ii * 16;
-                __m512 _ssum = _mm512_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
-                }
+                __m512 _ssum = _mm512_loadu_ps(ptr);
                 __m512 _eps = _mm512_set1_ps(eps);
                 __m512 _one = _mm512_set1_ps(1.f);
                 if (eps_mode == 0) // caffe/mxnet
@@ -466,22 +509,13 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     _ssum = _mm512_div_ps(_one, _mm512_max_ps(_eps, _mm512_sqrt_ps(_ssum)));
                 else // if (eps_mode == 2) // tensorflow
                     _ssum = _mm512_div_ps(_one, _mm512_sqrt_ps(_mm512_max_ps(_eps, _ssum)));
-                _mm512_storeu_ps(square_sum + i, _ssum);
+                _mm512_storeu_ps(ptr, _ssum);
+                ptr += 16;
             }
-            remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-            nn_size = (size - remain_size_start) / 8;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
+            for (; i + 7 < size; i += 8)
             {
-                int i = remain_size_start + ii * 8;
-                __m256 _ssum = _mm256_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
-                }
+                __m256 _ssum = _mm256_loadu_ps(ptr);
                 __m256 _eps = _mm256_set1_ps(eps);
                 __m256 _one = _mm256_set1_ps(1.f);
                 if (eps_mode == 0) // caffe/mxnet
@@ -490,22 +524,13 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     _ssum = _mm256_div_ps(_one, _mm256_max_ps(_eps, _mm256_sqrt_ps(_ssum)));
                 else // if (eps_mode == 2) // tensorflow
                     _ssum = _mm256_div_ps(_one, _mm256_sqrt_ps(_mm256_max_ps(_eps, _ssum)));
-                _mm256_storeu_ps(square_sum + i, _ssum);
+                _mm256_storeu_ps(ptr, _ssum);
+                ptr += 8;
             }
-            remain_size_start += nn_size * 8;
 #endif // __AVX__
-            nn_size = (size - remain_size_start) / 4;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
+            for (; i + 3 < size; i += 4)
             {
-                int i = remain_size_start + ii * 4;
-                __m128 _ssum = _mm_setzero_ps();
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                    __m128 _p = _mm_loadu_ps(ptr);
-                    _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
-                }
+                __m128 _ssum = _mm_loadu_ps(ptr);
                 __m128 _eps = _mm_set1_ps(eps);
                 __m128 _one = _mm_set1_ps(1.f);
                 if (eps_mode == 0) // caffe/mxnet
@@ -514,26 +539,21 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     _ssum = _mm_div_ps(_one, _mm_max_ps(_eps, _mm_sqrt_ps(_ssum)));
                 else // if (eps_mode == 2) // tensorflow
                     _ssum = _mm_div_ps(_one, _mm_sqrt_ps(_mm_max_ps(_eps, _ssum)));
-                _mm_storeu_ps(square_sum + i, _ssum);
+                _mm_storeu_ps(ptr, _ssum);
+                ptr += 4;
             }
-            remain_size_start += nn_size * 4;
 #endif // __SSE2__
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = remain_size_start; i < size; i++)
+            for (; i < size; i++)
             {
-                float ssum = 0.f;
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = bottom_top_blob.channel(q);
-                    ssum += ptr[i] * ptr[i];
-                }
+                float ssum = ptr[0];
                 if (eps_mode == 0) // caffe/mxnet
                     ssum = 1.f / sqrtf(ssum + eps);
                 else if (eps_mode == 1) // pytorch
                     ssum = 1.f / std::max(sqrtf(ssum), eps);
                 else // if (eps_mode == 2) // tensorflow
                     ssum = 1.f / sqrtf(std::max(ssum, eps));
-                square_sum[i] = ssum;
+                ptr[0] = ssum;
+                ptr++;
             }
         }
 
@@ -543,105 +563,95 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             float* ptr = bottom_top_blob.channel(q);
             const float* scale_ptr = (const float*)scale_data + (channel_shared ? 0 : q * elempack);
             const float* square_sum_ptr = square_sum;
-            const int n = size * elempack;
+            const float scale = scale_ptr[0];
+
+#if __SSE2__
+            __m128 _scale = _mm_set1_ps(scale);
+            if (!channel_shared && elempack == 4)
+                _scale = _mm_loadu_ps(scale_ptr);
+#if __AVX__
+            __m256 _scale_avx = combine4x2_ps(_scale, _scale);
+            if (!channel_shared && elempack == 8)
+                _scale_avx = _mm256_loadu_ps(scale_ptr);
+#if __AVX512F__
+            __m512 _scale_avx512 = combine8x2_ps(_scale_avx, _scale_avx);
+            if (!channel_shared && elempack == 16)
+                _scale_avx512 = _mm512_loadu_ps(scale_ptr);
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
             int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-            if (elempack == 16)
+            const int step_avx512 = 16 / elempack;
+            for (; i + 15 < n; i += 16)
             {
-                __m512 _scale = channel_shared ? _mm512_set1_ps(scale_ptr[0]) : _mm512_loadu_ps(scale_ptr);
-                for (; i + 15 < n; i += 16)
+                __m512 _ssum = _mm512_set1_ps(square_sum_ptr[0]);
+                if (elempack == 8)
                 {
-                    __m512 _ssum = _mm512_set1_ps(square_sum_ptr[0]);
-                    _ssum = _mm512_mul_ps(_ssum, _scale);
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    _p = _mm512_mul_ps(_p, _ssum);
-                    _mm512_storeu_ps(ptr, _p);
-                    ptr += 16;
-                    square_sum_ptr++;
+                    __m256 _ssum0 = _mm256_set1_ps(square_sum_ptr[0]);
+                    __m256 _ssum1 = _mm256_set1_ps(square_sum_ptr[1]);
+                    _ssum = combine8x2_ps(_ssum0, _ssum1);
                 }
+                if (elempack == 4)
+                {
+                    __m128 _ssum0 = _mm_set1_ps(square_sum_ptr[0]);
+                    __m128 _ssum1 = _mm_set1_ps(square_sum_ptr[1]);
+                    __m128 _ssum2 = _mm_set1_ps(square_sum_ptr[2]);
+                    __m128 _ssum3 = _mm_set1_ps(square_sum_ptr[3]);
+                    _ssum = combine4x4_ps(_ssum0, _ssum1, _ssum2, _ssum3);
+                }
+                if (elempack == 1)
+                    _ssum = _mm512_loadu_ps(square_sum_ptr);
+                _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
+                __m512 _p = _mm512_loadu_ps(ptr);
+                _p = _mm512_mul_ps(_p, _ssum);
+                _mm512_storeu_ps(ptr, _p);
+                ptr += 16;
+                square_sum_ptr += step_avx512;
             }
 #endif // __AVX512F__
-            if (elempack == 8)
+            const int step_avx = 8 / elempack;
+            for (; i + 7 < n; i += 8)
             {
-                __m256 _scale = channel_shared ? _mm256_set1_ps(scale_ptr[0]) : _mm256_loadu_ps(scale_ptr);
-                for (; i + 7 < n; i += 8)
+                __m256 _ssum = _mm256_set1_ps(square_sum_ptr[0]);
+                if (elempack == 4)
                 {
-                    __m256 _ssum = _mm256_set1_ps(square_sum_ptr[0]);
-                    _ssum = _mm256_mul_ps(_ssum, _scale);
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_mul_ps(_p, _ssum);
-                    _mm256_storeu_ps(ptr, _p);
-                    ptr += 8;
-                    square_sum_ptr++;
+                    __m128 _ssum0 = _mm_set1_ps(square_sum_ptr[0]);
+                    __m128 _ssum1 = _mm_set1_ps(square_sum_ptr[1]);
+                    _ssum = combine4x2_ps(_ssum0, _ssum1);
                 }
+                if (elempack == 1)
+                    _ssum = _mm256_loadu_ps(square_sum_ptr);
+                _ssum = _mm256_mul_ps(_ssum, _scale_avx);
+                __m256 _p = _mm256_loadu_ps(ptr);
+                _p = _mm256_mul_ps(_p, _ssum);
+                _mm256_storeu_ps(ptr, _p);
+                ptr += 8;
+                square_sum_ptr += step_avx;
             }
 #endif // __AVX__
-            if (elempack == 4)
+            const int step = 4 / elempack;
+            for (; i + 3 < n; i += 4)
             {
-                __m128 _scale = channel_shared ? _mm_set1_ps(scale_ptr[0]) : _mm_loadu_ps(scale_ptr);
-                for (; i + 3 < n; i += 4)
-                {
-                    __m128 _ssum = _mm_set1_ps(square_sum_ptr[0]);
-                    _ssum = _mm_mul_ps(_ssum, _scale);
-                    __m128 _p = _mm_loadu_ps(ptr);
-                    _p = _mm_mul_ps(_p, _ssum);
-                    _mm_storeu_ps(ptr, _p);
-                    ptr += 4;
-                    square_sum_ptr++;
-                }
+                __m128 _ssum = _mm_set1_ps(square_sum_ptr[0]);
+                if (elempack == 1)
+                    _ssum = _mm_loadu_ps(square_sum_ptr);
+                _ssum = _mm_mul_ps(_ssum, _scale);
+                __m128 _p = _mm_loadu_ps(ptr);
+                _p = _mm_mul_ps(_p, _ssum);
+                _mm_storeu_ps(ptr, _p);
+                ptr += 4;
+                square_sum_ptr += step;
             }
 #endif // __SSE2__
-            if (elempack == 1)
+            for (; i < n; i++)
             {
-                const float scale = scale_ptr[0];
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                __m512 _scale_avx512 = _mm512_set1_ps(scale);
-                for (; i + 15 < n; i += 16)
-                {
-                    __m512 _ssum = _mm512_loadu_ps(square_sum_ptr);
-                    _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    _p = _mm512_mul_ps(_p, _ssum);
-                    _mm512_storeu_ps(ptr, _p);
-                    ptr += 16;
-                    square_sum_ptr += 16;
-                }
-#endif // __AVX512F__
-                __m256 _scale_avx = _mm256_set1_ps(scale);
-                for (; i + 7 < n; i += 8)
-                {
-                    __m256 _ssum = _mm256_loadu_ps(square_sum_ptr);
-                    _ssum = _mm256_mul_ps(_ssum, _scale_avx);
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_mul_ps(_p, _ssum);
-                    _mm256_storeu_ps(ptr, _p);
-                    ptr += 8;
-                    square_sum_ptr += 8;
-                }
-#endif // __AVX__
-                __m128 _scale = _mm_set1_ps(scale);
-                for (; i + 3 < n; i += 4)
-                {
-                    __m128 _ssum = _mm_loadu_ps(square_sum_ptr);
-                    _ssum = _mm_mul_ps(_ssum, _scale);
-                    __m128 _p = _mm_loadu_ps(ptr);
-                    _p = _mm_mul_ps(_p, _ssum);
-                    _mm_storeu_ps(ptr, _p);
-                    ptr += 4;
-                    square_sum_ptr += 4;
-                }
-#endif // __SSE2__
-                for (; i < n; i++)
-                {
-                    ptr[0] *= square_sum_ptr[0] * scale;
-                    ptr++;
-                    square_sum_ptr++;
-                }
+                ptr[0] *= square_sum_ptr[0] * scale;
+                ptr++;
+                square_sum_ptr++;
             }
         }
 
