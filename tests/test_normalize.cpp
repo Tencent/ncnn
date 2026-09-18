@@ -133,8 +133,7 @@ static int test_normalize_5()
 
 static int test_normalize_6()
 {
-    const ncnn::Mat inputs[] =
-    {
+    const ncnn::Mat inputs[] = {
         RandomMat(1),
         RandomMat(7),
         RandomMat(12),
