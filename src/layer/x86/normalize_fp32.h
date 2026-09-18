@@ -432,6 +432,9 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             return -100;
 
         float* square_sum = square_sum_blob;
+
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
         if (elempack == 16)
         {
@@ -479,7 +482,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         }
 #endif // __AVX512F__
 
-#if __AVX__
         if (elempack == 8)
         {
             const int n = size * 8;
@@ -568,12 +570,12 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         }
 #endif // __AVX__
 
-#if __SSE2__
         if (elempack == 4)
         {
             const int n = size * 4;
             int nn_size = 0;
             int remain_size_start = 0;
+#if __AVX__
 #if __AVX512F__
             nn_size = (size - remain_size_start) / 4;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -595,7 +597,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             }
             remain_size_start += nn_size * 4;
 #endif // __AVX512F__
-#if __AVX__
             nn_size = (size - remain_size_start) / 2;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int ii = 0; ii < nn_size; ii++)
@@ -645,12 +646,13 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                 __m128 _scale = channel_shared ? _mm_set1_ps(scale_ptr[0]) : _mm_loadu_ps(scale_ptr);
 #if __AVX__
                 __m256 _scale_avx = combine4x2_ps(_scale, _scale);
-#endif // __AVX__
 #if __AVX512F__
                 __m512 _scale_avx512 = combine8x2_ps(_scale_avx, _scale_avx);
 #endif // __AVX512F__
+#endif // __AVX__
 
                 int i = 0;
+#if __AVX__
 #if __AVX512F__
                 for (; i + 15 < n; i += 16)
                 {
@@ -667,7 +669,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     square_sum_ptr += 4;
                 }
 #endif // __AVX512F__
-#if __AVX__
                 for (; i + 7 < n; i += 8)
                 {
                     __m128 _ssum0 = _mm_set1_ps(square_sum_ptr[0]);
@@ -702,6 +703,8 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             const int n = size;
             int nn_size = 0;
             int remain_size_start = 0;
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
             nn_size = (size - remain_size_start) / 16;
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -721,7 +724,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             }
             remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-#if __AVX__
             nn_size = (size - remain_size_start) / 8;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int ii = 0; ii < nn_size; ii++)
@@ -740,7 +742,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
             }
             remain_size_start += nn_size * 8;
 #endif // __AVX__
-#if __SSE2__
             nn_size = (size - remain_size_start) / 4;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int ii = 0; ii < nn_size; ii++)
@@ -782,15 +783,17 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                 const float scale = scale_ptr[0];
 #if __SSE2__
                 __m128 _scale = _mm_set1_ps(scale);
-#endif // __SSE2__
 #if __AVX__
                 __m256 _scale_avx = combine4x2_ps(_scale, _scale);
-#endif // __AVX__
 #if __AVX512F__
                 __m512 _scale_avx512 = combine8x2_ps(_scale_avx, _scale_avx);
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
                 int i = 0;
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
                 for (; i + 15 < n; i += 16)
                 {
@@ -803,7 +806,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     square_sum_ptr += 16;
                 }
 #endif // __AVX512F__
-#if __AVX__
                 for (; i + 7 < n; i += 8)
                 {
                     __m256 _ssum = _mm256_loadu_ps(square_sum_ptr);
@@ -815,7 +817,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                     square_sum_ptr += 8;
                 }
 #endif // __AVX__
-#if __SSE2__
                 for (; i + 3 < n; i += 4)
                 {
                     __m128 _ssum = _mm_loadu_ps(square_sum_ptr);
