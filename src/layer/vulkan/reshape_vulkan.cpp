@@ -3,6 +3,7 @@
 
 #include "reshape_vulkan.h"
 
+#include "expression.h"
 #include "layer_type.h"
 #include "layer_shader_type.h"
 
@@ -17,118 +18,116 @@ Reshape_vulkan::Reshape_vulkan()
     pipeline_reshape_pack4 = 0;
     pipeline_reshape_pack1to4 = 0;
     pipeline_reshape_pack4to1 = 0;
+#if NCNN_BATCH
+    pipeline_reshape_batch_reorder = 0;
+    pipeline_reshape_batch_reorder_pack4 = 0;
+    pipeline_reshape_batch_reorder_pack1to4 = 0;
+    pipeline_reshape_batch_reorder_pack4to1 = 0;
+#endif
 }
 
-int Reshape_vulkan::create_pipeline(const Option& _opt)
+int Reshape_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+#if NCNN_BATCH
+    if (input_batch_axis != 233 || output_batch_axis != 233)
     {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
+        std::vector<vk_specialization_type> specializations(2);
+        specializations[0].i = input_batch_axis;
+        specializations[1].i = output_batch_axis;
 
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+        // batch reshape may choose output packing at runtime
+        pipeline_reshape_batch_reorder = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder->create(LayerShaderType::reshape_batch_reorder, opt, specializations);
 
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+        pipeline_reshape_batch_reorder_pack4 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack4->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack4->create(LayerShaderType::reshape_batch_reorder_pack4, opt, specializations);
+
+        pipeline_reshape_batch_reorder_pack1to4 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack1to4->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack1to4->create(LayerShaderType::reshape_batch_reorder_pack1to4, opt, specializations);
+
+        pipeline_reshape_batch_reorder_pack4to1 = new Pipeline(vkdev);
+        pipeline_reshape_batch_reorder_pack4to1->set_optimal_local_size_xyz(Mat(4, 4, 4, (void*)0));
+        pipeline_reshape_batch_reorder_pack4to1->create(LayerShaderType::reshape_batch_reorder_pack4to1, opt, specializations);
+
+        return 0;
+    }
+#endif
 
     std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = ndim;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.d;
-    specializations[1 + 4].i = shape_packed.c;
-    specializations[1 + 5].i = shape_packed.cstep;
-    specializations[1 + 6].i = out_shape_packed.dims;
-    specializations[1 + 7].i = out_shape_packed.w;
-    specializations[1 + 8].i = out_shape_packed.h;
-    specializations[1 + 9].i = out_shape_packed.d;
-    specializations[1 + 10].i = out_shape_packed.c;
-    specializations[1 + 11].i = out_shape_packed.cstep;
+    specializations[1 + 0].i = shape.dims;
+    specializations[1 + 1].i = shape.w;
+    specializations[1 + 2].i = shape.h;
+    specializations[1 + 3].i = shape.d;
+    specializations[1 + 4].i = shape.c;
+    specializations[1 + 5].i = shape.cstep;
+    specializations[1 + 6].i = out_shape.dims;
+    specializations[1 + 7].i = out_shape.w;
+    specializations[1 + 8].i = out_shape.h;
+    specializations[1 + 9].i = out_shape.d;
+    specializations[1 + 10].i = out_shape.c;
+    specializations[1 + 11].i = out_shape.cstep;
 
     Mat local_size_xyz_bottom; // pack4to1
-    if (shape_packed.dims == 1)
+    if (shape.dims == 1)
     {
-        local_size_xyz_bottom.w = std::min(64, shape_packed.w);
+        local_size_xyz_bottom.w = std::min(64, shape.w);
         local_size_xyz_bottom.h = 1;
         local_size_xyz_bottom.c = 1;
     }
-    if (shape_packed.dims == 2)
+    if (shape.dims == 2)
     {
-        local_size_xyz_bottom.w = std::min(8, shape_packed.w);
-        local_size_xyz_bottom.h = std::min(8, shape_packed.h);
+        local_size_xyz_bottom.w = std::min(8, shape.w);
+        local_size_xyz_bottom.h = std::min(8, shape.h);
         local_size_xyz_bottom.c = 1;
     }
-    if (shape_packed.dims == 3)
+    if (shape.dims == 3)
     {
-        local_size_xyz_bottom.w = std::min(4, shape_packed.w);
-        local_size_xyz_bottom.h = std::min(4, shape_packed.h);
-        local_size_xyz_bottom.c = std::min(4, shape_packed.c);
+        local_size_xyz_bottom.w = std::min(4, shape.w);
+        local_size_xyz_bottom.h = std::min(4, shape.h);
+        local_size_xyz_bottom.c = std::min(4, shape.c);
     }
-    if (shape_packed.dims == 4)
+    if (shape.dims == 4)
     {
-        local_size_xyz_bottom.w = std::min(4, shape_packed.w);
-        local_size_xyz_bottom.h = std::min(4, shape_packed.h * shape_packed.d);
-        local_size_xyz_bottom.c = std::min(4, shape_packed.c);
+        local_size_xyz_bottom.w = std::min(4, shape.w);
+        local_size_xyz_bottom.h = std::min(4, shape.h * shape.d);
+        local_size_xyz_bottom.c = std::min(4, shape.c);
     }
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims == 1)
+    if (out_shape.dims == 1)
     {
-        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.w = std::min(64, out_shape.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 2)
+    if (out_shape.dims == 2)
     {
-        local_size_xyz.w = std::min(8, out_shape_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.w = std::min(8, out_shape.w);
+        local_size_xyz.h = std::min(8, out_shape.h);
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 3)
+    if (out_shape.dims == 3)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
-    if (out_shape_packed.dims == 4)
+    if (out_shape.dims == 4)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
 
     // pack1
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
+    if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_reshape = new Pipeline(vkdev);
         pipeline_reshape->set_optimal_local_size_xyz(local_size_xyz);
@@ -136,7 +135,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
+    if (shape.dims == 0 || (shape.elempack == 4 && out_shape.elempack == 4))
     {
         pipeline_reshape_pack4 = new Pipeline(vkdev);
         pipeline_reshape_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -144,7 +143,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to4
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
+    if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 4))
     {
         pipeline_reshape_pack1to4 = new Pipeline(vkdev);
         pipeline_reshape_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -152,7 +151,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to1
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
+    if (shape.dims == 0 || (shape.elempack == 4 && out_shape.elempack == 1))
     {
         pipeline_reshape_pack4to1 = new Pipeline(vkdev);
         pipeline_reshape_pack4to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
@@ -176,6 +175,20 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_reshape_pack4to1;
     pipeline_reshape_pack4to1 = 0;
 
+#if NCNN_BATCH
+    delete pipeline_reshape_batch_reorder;
+    pipeline_reshape_batch_reorder = 0;
+
+    delete pipeline_reshape_batch_reorder_pack4;
+    pipeline_reshape_batch_reorder_pack4 = 0;
+
+    delete pipeline_reshape_batch_reorder_pack1to4;
+    pipeline_reshape_batch_reorder_pack1to4 = 0;
+
+    delete pipeline_reshape_batch_reorder_pack4to1;
+    pipeline_reshape_batch_reorder_pack4to1 = 0;
+#endif
+
     return 0;
 }
 
@@ -198,6 +211,126 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int out_elempack = 0;
+
+#if NCNN_BATCH
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+    {
+        std::vector<Mat> bottom_blob_mats(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+            bottom_blob_mats[i] = bottom_blobs[i].shape();
+        Mat input_shape;
+        Mat output_shape;
+        int input_axis = 233;
+        int output_axis = 233;
+        size_t input_total = 0;
+        if (resolve_batch_shape(bottom_blob_mats, input_shape, output_shape, input_axis, output_axis, input_total) != 0)
+            return -1;
+
+        out_elempack = 1;
+        if (opt.use_packing_layout)
+            out_elempack = (output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c) % 4 == 0 ? 4 : 1;
+
+        const size_t scalar_elemsize = elemsize / elempack;
+        const size_t out_elemsize = scalar_elemsize * out_elempack;
+
+        bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && elempack == out_elempack;
+        if (reshape_zero_copy && elempack != 1)
+        {
+            const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * elempack : bottom_blob.dims == 2 ? bottom_blob.h * elempack : bottom_blob.c * elempack;
+            const int out_pack_axis_size = output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c;
+            reshape_zero_copy = pack_axis_size == out_pack_axis_size;
+        }
+
+        if (reshape_zero_copy)
+        {
+            int outw2 = output_shape.w;
+            int outh2 = output_shape.h;
+            int outd2 = output_shape.d;
+            int outc2 = output_shape.c;
+            if (output_shape.dims == 1)
+                outw2 = output_shape.w / out_elempack;
+            if (output_shape.dims == 2)
+                outh2 = output_shape.h / out_elempack;
+            if (output_shape.dims == 3 || output_shape.dims == 4)
+                outc2 = output_shape.c / out_elempack;
+
+            size_t outcstep = 0;
+            if (output_shape.dims == 1)
+                outcstep = alignSize((size_t)outw2 * out_elemsize, 16) / out_elemsize;
+            if (output_shape.dims == 2)
+                outcstep = alignSize((size_t)outw2 * outh2 * out_elemsize, 16) / out_elemsize;
+            if (output_shape.dims == 3)
+                outcstep = alignSize((size_t)outw2 * outh2 * out_elemsize, 16) / out_elemsize;
+            if (output_shape.dims == 4)
+                outcstep = alignSize((size_t)outw2 * outh2 * outd2 * out_elemsize, 16) / out_elemsize;
+
+            const size_t batch_total = input_total / bottom_blob.n / elempack;
+            if (bottom_blob.total() == batch_total && outcstep * outc2 == batch_total)
+            {
+                top_blob = bottom_blob;
+                top_blob.dims = output_shape.dims;
+                top_blob.w = outw2;
+                top_blob.h = outh2;
+                top_blob.d = outd2;
+                top_blob.c = outc2;
+                top_blob.cstep = outcstep;
+
+                return 0;
+            }
+        }
+
+        if (output_shape.dims == 1)
+            top_blob.create(output_shape.w / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_vkallocator);
+        if (output_shape.dims == 2)
+            top_blob.create(output_shape.w, output_shape.h / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_vkallocator);
+        if (output_shape.dims == 3)
+            top_blob.create(output_shape.w, output_shape.h, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_vkallocator);
+        if (output_shape.dims == 4)
+            top_blob.create(output_shape.w, output_shape.h, output_shape.d, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_vkallocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(16);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.d;
+        constants[4].i = bottom_blob.c;
+        constants[5].i = bottom_blob.cstep;
+        constants[6].i = bottom_blob.n;
+        constants[7].i = bottom_blob.nstep;
+        constants[8].i = top_blob.dims;
+        constants[9].i = top_blob.w;
+        constants[10].i = top_blob.h;
+        constants[11].i = top_blob.d;
+        constants[12].i = top_blob.c;
+        constants[13].i = top_blob.cstep;
+        constants[14].i = top_blob.n;
+        constants[15].i = top_blob.nstep;
+
+        const Pipeline* pipeline = 0;
+        if (elempack == 1 && out_elempack == 1)
+            pipeline = pipeline_reshape_batch_reorder;
+        else if (elempack == 4 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack4;
+        else if (elempack == 1 && out_elempack == 4)
+            pipeline = pipeline_reshape_batch_reorder_pack1to4;
+        else if (elempack == 4 && out_elempack == 1)
+            pipeline = pipeline_reshape_batch_reorder_pack4to1;
+        else
+            return -1;
+
+        Mat dispatcher(top_blob.w, top_blob.h, top_blob.d, top_blob.c * top_blob.n, (void*)0);
+        cmd.record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
+
+        return 0;
+    }
+#endif // NCNN_BATCH
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 

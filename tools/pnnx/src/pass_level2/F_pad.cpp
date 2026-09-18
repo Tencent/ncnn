@@ -205,6 +205,21 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class F_pad_reflect_3 : public F_pad_reflect
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 pad value=%pad
+aten::reflection_pad3d  op_1        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class F_pad_reflect_dynamic : public GraphRewriterPass
 {
 public:
@@ -246,10 +261,27 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class F_pad_reflect_dynamic_3 : public F_pad_reflect_dynamic
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+aten::reflection_pad3d  op_0        2 1 input pad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect_2, 110)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect_3, 110)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect_dynamic, 111)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect_dynamic_2, 111)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_reflect_dynamic_3, 111)
 
 class F_pad_replicate : public GraphRewriterPass
 {

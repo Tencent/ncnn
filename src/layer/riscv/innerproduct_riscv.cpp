@@ -130,6 +130,8 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
@@ -139,6 +141,8 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
             cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
+            if (bottom_blob_unpacked_fp32.empty())
+                return -100;
         }
 
         Option opt_unpacked = opt;
@@ -340,6 +344,8 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;

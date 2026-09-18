@@ -14,6 +14,9 @@ public:
     AbsVal_loongarch();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+    int forward_inplace_bf16s_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

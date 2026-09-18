@@ -18,12 +18,12 @@ void convert_torch_einsum(Graph& graph)
 
         std::string equation = op->params.at("equation").s;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
-        if (batch_index != 233)
+        if (ncnn_batch_axis != 233)
         {
             // drop batch index in equation
-            char batch_x = 'i' + batch_index;
+            char batch_x = 'i' + ncnn_batch_axis;
 
             std::string new_equation;
             for (size_t i = 0; i < equation.size(); i++)

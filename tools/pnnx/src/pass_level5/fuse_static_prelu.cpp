@@ -35,12 +35,50 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class convert_prelu_to_leakyrelu : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.PReLU                op_0        1 1 input out num_parameters=1 @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.LeakyReLU";
+    }
+
+    const char* name_str() const
+    {
+        return "leakyrelu";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const auto weight = captured_attrs.find("op_0.weight");
+        return weight != captured_attrs.end() && weight->second.elemcount() == 1;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const Attribute& weight = captured_attrs.at("op_0.weight");
+        op->params["negative_slope"] = weight.get_float32_data()[0];
+    }
+};
+
 void fuse_static_prelu(Graph& graph)
 {
     fuse_static_Fprelu_pass a;
+    convert_prelu_to_leakyrelu b;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
+    pnnx_graph_rewrite(graph, &b, opindex);
 }
 
 } // namespace pnnx

@@ -16,6 +16,7 @@ Requantize_mips::Requantize_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif
 }
 
@@ -134,8 +135,8 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
-            _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
-            _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
+            _v0 = __ncnn_msa_fmadd_w(_bias0, _v0, _scale0);
+            _v1 = __ncnn_msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8relu(_v0, _v1);
             intptr += 8;
             ptr += 8;
@@ -143,7 +144,7 @@ static void requantize_relu(const int* intptr, signed char* ptr, const Mat& scal
         for (; i + 3 < size; i += 4)
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias0, _v, _scale0);
+            _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale0);
             v16i8 v = float2int8relu(_v);
             ptr[0] = v[0];
             ptr[1] = v[1];
@@ -280,8 +281,8 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
-            _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
-            _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
+            _v0 = __ncnn_msa_fmadd_w(_bias0, _v0, _scale0);
+            _v1 = __ncnn_msa_fmadd_w(_bias1, _v1, _scale1);
             *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
             intptr += 8;
             ptr += 8;
@@ -289,7 +290,7 @@ static void requantize_leakyrelu(const int* intptr, signed char* ptr, const Mat&
         for (; i + 3 < size; i += 4)
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias0, _v, _scale0);
+            _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale0);
             v16i8 v = float2int8leakyrelu(_v, _slope);
             ptr[0] = v[0];
             ptr[1] = v[1];
@@ -371,8 +372,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmul_w(_v0, _scale_in0);
             _v1 = __msa_fmul_w(_v1, _scale_in1);
-            _v0 = activation_ps(_v0, activation_type, activation_params);
-            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = activation_msa(_v0, activation_type, activation_params);
+            _v1 = activation_msa(_v1, activation_type, activation_params);
             _v0 = __msa_fmul_w(_v0, _scale_out0);
             _v1 = __msa_fmul_w(_v1, _scale_out1);
             *((int64_t*)ptr) = float2int8(_v0, _v1);
@@ -383,7 +384,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale_in0);
-            _v = activation_ps(_v, activation_type, activation_params);
+            _v = activation_msa(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
             v16i8 v = float2int8(_v);
             ptr[0] = v[0];
@@ -426,10 +427,10 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
-            _v0 = __msa_fmadd_w(_bias0, _v0, _scale_in0);
-            _v1 = __msa_fmadd_w(_bias1, _v1, _scale_in1);
-            _v0 = activation_ps(_v0, activation_type, activation_params);
-            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = __ncnn_msa_fmadd_w(_bias0, _v0, _scale_in0);
+            _v1 = __ncnn_msa_fmadd_w(_bias1, _v1, _scale_in1);
+            _v0 = activation_msa(_v0, activation_type, activation_params);
+            _v1 = activation_msa(_v1, activation_type, activation_params);
             _v0 = __msa_fmul_w(_v0, _scale_out0);
             _v1 = __msa_fmul_w(_v1, _scale_out1);
             *((int64_t*)ptr) = float2int8(_v0, _v1);
@@ -439,8 +440,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         for (; i + 3 < size; i += 4)
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias0, _v, _scale_in0);
-            _v = activation_ps(_v, activation_type, activation_params);
+            _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale_in0);
+            _v = activation_msa(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
             v16i8 v = float2int8(_v);
             ptr[0] = v[0];
@@ -467,6 +468,7 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const size_t out_elemsize = elempack * 1u;
@@ -518,9 +520,12 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -534,7 +539,7 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             const Mat bias_data_q = bias_data_size > 1 ? bias_data.range(q * elempack, elempack) : bias_data;
             const Mat scale_out_data_q = scale_out_data_size > 1 ? scale_out_data.range(q * elempack, elempack) : scale_out_data;
 
-            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h, elempack);
+            requantize(intptr, ptr, scale_in_data_q, bias_data_q, scale_out_data_q, activation_type, activation_params, w * h * d, elempack);
         }
     }
 

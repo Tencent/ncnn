@@ -32,15 +32,21 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int input_rank = op->inputs[0]->shape.size();
+        const std::vector<int>& input_shape = op->inputs[0]->shape;
+        const std::vector<int>& output_shape = op->outputs[0]->shape;
+        int input_rank = input_shape.size();
 
-        if (input_rank <= 2)
+        int channels = -1;
+        if (input_rank > 2)
+            channels = input_shape[1];
+        else if (output_shape.size() > 2)
+            channels = output_shape[1];
+        else
         {
-            fprintf(stderr, "instance_norm not possible for %d-rank tensor\n", input_rank);
-            return;
+            fprintf(stderr, "instance_norm unknown channel size is not supported yet\n");
         }
 
-        op->params["0"] = op->inputs[0]->shape[1];
+        op->params["0"] = channels;
         op->params["1"] = captured_params.at("eps");
         op->params["2"] = 0;
     }

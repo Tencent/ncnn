@@ -3,9 +3,12 @@
 
 #include "flatten_mips.h"
 
+#include <string.h>
+
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -14,7 +17,11 @@ Flatten_mips::Flatten_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -23,6 +30,9 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
+
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 
     int dims = bottom_blob.dims;
 
@@ -89,6 +99,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 int j = 0;
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
@@ -146,6 +158,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
@@ -197,6 +211,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
+
                     __msa_st_w(__msa_ld_w(ptr, 0), outptr, 0);
                     ptr += 4;
                     outptr += 4;
@@ -206,6 +222,263 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     *outptr++ = *ptr++;
                 }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int d = bottom_blob.d;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h * d;
+
+    int total = size * channels * elempack;
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (out_elempack == 1)
+    {
+        return Flatten::forward(bottom_blob, top_blob, opt);
+    }
+
+    if (dims == 2 && elempack == 1)
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_elempack;
+        top_blob.h = 1;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
+        top_blob.elemsize = out_elemsize;
+        top_blob.elempack = out_elempack;
+        return 0;
+    }
+
+    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (dims == 2)
+    {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + w * (i * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + w * (i * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 8 + 7);
+
+                int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __builtin_prefetch(ptr + 128);
+
+                    v8i16 _r0 = (v8i16)__msa_ld_h(ptr, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(ptr + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(ptr + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(ptr + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(ptr + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(ptr + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(ptr + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(ptr + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; j < w; j++)
+                {
+                    __builtin_prefetch(ptr + 64);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __mips_msa
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 4 + 3);
+
+                for (int j = 0; j < w; j++)
+                {
+                    __builtin_prefetch(ptr + 32);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    ptr += 4;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + size * (q * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + size * (q * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 8 + 7);
+
+                int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __builtin_prefetch(ptr + 128);
+
+                    v8i16 _r0 = (v8i16)__msa_ld_h(ptr, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(ptr + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(ptr + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(ptr + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(ptr + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(ptr + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(ptr + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(ptr + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; i < size; i++)
+                {
+                    __builtin_prefetch(ptr + 64);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __mips_msa
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 4 + 3);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __builtin_prefetch(ptr + 32);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    ptr += 4;
+                }
+            }
+        }
+
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr = (unsigned short*)top_blob + size * q;
+
+                memcpy(outptr, ptr, (size_t)size * sizeof(unsigned short));
             }
         }
     }
@@ -284,6 +557,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int j = 0;
                 for (; j < w; j++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -321,6 +596,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -347,6 +624,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr++ = *ptr++;
                 }
             }

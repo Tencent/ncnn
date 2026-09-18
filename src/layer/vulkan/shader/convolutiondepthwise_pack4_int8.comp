@@ -1,0 +1,161 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int group = 1;
+layout(constant_id = 8) const int activation_type = 0;
+layout(constant_id = 9) const float activation_param_0 = 0;
+layout(constant_id = 10) const float activation_param_1 = 0;
+layout(constant_id = 11) const int use_int8_requantize = 0;
+
+#define shape_constant_id_offset 12
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { ivec4 weight_data[]; };
+layout(binding = 3) readonly buffer bias_blob { vec4 bias_data[]; };
+layout(binding = 4) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 5) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
+layout(binding = 6) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+    const int maxk = kernel_w * kernel_h;
+    const int maxk4 = (maxk + 3) / 4 * 4;
+
+    ivec4 sum = ivec4(0);
+
+    int k = 0;
+    for (; k + 3 < maxk; k += 4)
+    {
+        const ivec4 k4 = k + ivec4(0, 1, 2, 3);
+        const ivec4 ky4 = k4 / kernel_w;
+        const ivec4 kx4 = k4 - ky4 * kernel_w;
+        const ivec4 x4 = gx * stride_w + kx4 * dilation_w;
+        const ivec4 y4 = gy * stride_h + ky4 * dilation_h;
+
+        const int v0p = i8buffer_sm4(bottom_blob_int8_data, gz * psc(cstep) + y4.r * psc(w) + x4.r);
+        const int v1p = i8buffer_sm4(bottom_blob_int8_data, gz * psc(cstep) + y4.g * psc(w) + x4.g);
+        const int v2p = i8buffer_sm4(bottom_blob_int8_data, gz * psc(cstep) + y4.b * psc(w) + x4.b);
+        const int v3p = i8buffer_sm4(bottom_blob_int8_data, gz * psc(cstep) + y4.a * psc(w) + x4.a);
+
+        const ivec4 kp = weight_data[gz * maxk4 / 4 + k / 4];
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        const uint v0u = uint(v0p);
+        const uint v1u = uint(v1p);
+        const uint v2u = uint(v2p);
+        const uint v3u = uint(v3p);
+
+        const int vp0 = int((v0u & 0x000000ffu) | ((v1u & 0x000000ffu) << 8) | ((v2u & 0x000000ffu) << 16) | ((v3u & 0x000000ffu) << 24));
+        const int vp1 = int(((v0u & 0x0000ff00u) >> 8) | (v1u & 0x0000ff00u) | ((v2u & 0x0000ff00u) << 8) | ((v3u & 0x0000ff00u) << 16));
+        const int vp2 = int(((v0u & 0x00ff0000u) >> 16) | ((v1u & 0x00ff0000u) >> 8) | (v2u & 0x00ff0000u) | ((v3u & 0x00ff0000u) << 8));
+        const int vp3 = int(((v0u & 0xff000000u) >> 24) | ((v1u & 0xff000000u) >> 16) | ((v2u & 0xff000000u) >> 8) | (v3u & 0xff000000u));
+
+        sum.r += dotPacked4x8EXT(vp0, kp.r);
+        sum.g += dotPacked4x8EXT(vp1, kp.g);
+        sum.b += dotPacked4x8EXT(vp2, kp.b);
+        sum.a += dotPacked4x8EXT(vp3, kp.a);
+#else
+        const ivec4 v0 = unpackInt4x8(v0p);
+        const ivec4 v1 = unpackInt4x8(v1p);
+        const ivec4 v2 = unpackInt4x8(v2p);
+        const ivec4 v3 = unpackInt4x8(v3p);
+
+        const ivec4 k0 = unpackInt4x8(kp.r);
+        const ivec4 k1 = unpackInt4x8(kp.g);
+        const ivec4 k2 = unpackInt4x8(kp.b);
+        const ivec4 k3 = unpackInt4x8(kp.a);
+
+        sum.r += v0.r * k0.r + v1.r * k0.g + v2.r * k0.b + v3.r * k0.a;
+        sum.g += v0.g * k1.r + v1.g * k1.g + v2.g * k1.b + v3.g * k1.a;
+        sum.b += v0.b * k2.r + v1.b * k2.g + v2.b * k2.b + v3.b * k2.a;
+        sum.a += v0.a * k3.r + v1.a * k3.g + v2.a * k3.b + v3.a * k3.a;
+#endif
+    }
+
+    for (; k < maxk; k++)
+    {
+        const int ky = k / kernel_w;
+        const int kx = k - ky * kernel_w;
+        const int x = gx * stride_w + kx * dilation_w;
+        const int y = gy * stride_h + ky * dilation_h;
+
+        const ivec4 v = i8buffer_ld4(bottom_blob_int8_data, gz * psc(cstep) + y * psc(w) + x);
+        const ivec4 kp = weight_data[gz * maxk4 / 4 + k / 4];
+        const int ktail = k - k / 4 * 4;
+        const ivec4 kv = (kp << ivec4(24 - ktail * 8)) >> ivec4(24);
+
+        sum += v * kv;
+    }
+
+    vec4 sumfp32 = vec4(sum) * weight_descales_data[gz];
+
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[gz];
+    }
+
+    sumfp32 = vec4(activation_afpvec4(afpvec4(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    if (use_int8_requantize == 1)
+    {
+        sumfp32 *= vec4(buffer_ld4(top_scales_data, gz));
+        const ivec4 v = float2int8vec4(sumfp32);
+        i8buffer_st4(top_blob_int8_data, gi, v);
+    }
+    else
+    {
+        buffer_st4(top_blob_data, gi, afpvec4(sumfp32));
+    }
+}

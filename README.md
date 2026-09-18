@@ -6,21 +6,110 @@
 [![Download Total Count](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg?style=for-the-badge)](https://github.com/Tencent/ncnn/releases)
 [![codecov](https://img.shields.io/codecov/c/github/Tencent/ncnn/master?style=for-the-badge)](https://codecov.io/gh/Tencent/ncnn)
 
-ncnn is a high-performance neural network inference computing framework optimized for mobile platforms.
-ncnn is deeply considerate about deployment and uses on mobile phones from the beginning of design.
-ncnn does not have third-party dependencies.
-It is cross-platform and runs faster than all known open-source frameworks on mobile phone cpu.
-Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, creating intelligent APPs, and bringing artificial intelligence to your fingertips.
+ncnn is a high-performance neural network inference framework optimized for mobile, embedded, and desktop deployment.
+It has no third-party runtime dependencies, runs across CPU and Vulkan GPU backends, and provides tools such as pnnx for converting PyTorch and ONNX models to ncnn.
+Developers can deploy deep learning models efficiently on phones, PCs, browsers, and edge devices.
 ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu, and so on.
 
-ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架。
-ncnn 从设计之初深刻考虑手机端的部署和使用。
-无第三方依赖，跨平台，手机端 cpu 的速度快于目前所有已知的开源框架。
-基于 ncnn，开发者能够将深度学习算法轻松移植到手机端高效执行，
-开发出人工智能 APP，将 AI 带到你的指尖。
+ncnn 是一个面向移动端、嵌入式和桌面端部署优化的高性能神经网络推理框架。
+ncnn 无第三方运行时依赖，支持 CPU 和 Vulkan GPU 后端，并提供 pnnx 等工具将 PyTorch 和 ONNX 模型转换为 ncnn 模型。
+基于 ncnn，开发者可以将深度学习模型高效部署到手机、PC、浏览器和边缘设备上。
 ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天天 P 图等。
 
 ---
+
+## Quick Start
+
+The recommended beginner path is PyTorch -> pnnx -> ncnn.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Install pnnx in a PyTorch environment**
+
+```shell
+pip3 install pnnx
+```
+
+**Export a PyTorch model to ncnn**
+
+```python
+import torch
+import torch.nn as nn
+import pnnx
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(3, 8, 1)
+        self.relu = nn.ReLU()
+        self.fc = nn.Linear(8, 4)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu(x)
+        x = x.mean((2, 3))
+        return self.fc(x)
+
+model = Model().eval()
+
+x = torch.rand(1, 3, 224, 224)
+pnnx.export(model, "model.pt", (x,))
+```
+
+This generates `model.ncnn.param` and `model.ncnn.bin`.
+
+</td>
+<td width="50%" valign="top">
+
+**Run with ncnn C++ API**
+
+```cpp
+#include "net.h"
+
+ncnn::Net net;
+net.load_param("model.ncnn.param");
+net.load_model("model.ncnn.bin");
+
+ncnn::Mat in(224, 224, 3);
+
+auto ex = net.create_extractor();
+ex.input("in0", in);
+
+ncnn::Mat out;
+ex.extract("out0", out);
+```
+
+**Or use Python**
+
+```python
+import numpy as np
+import ncnn
+
+net = ncnn.Net()
+net.load_param("model.ncnn.param")
+net.load_model("model.ncnn.bin")
+
+x = np.zeros((3, 224, 224), np.float32)
+mat = ncnn.Mat(x)
+
+ex = net.create_extractor()
+ex.input("in0", mat)
+
+ret, out = ex.extract("out0")
+print(np.array(out).shape)
+```
+
+</td>
+</tr>
+</table>
+
+See [pnnx](tools/pnnx), [use ncnn with PyTorch or ONNX](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx), [Python API](python), and [examples](examples) for complete workflows.
+
+---
+
+## Community
 
 <table>
 <tr>
@@ -77,7 +166,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Source</td>
 <td colspan=2>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-full-source.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-full-source.zip)
 
 </td>
 </tr>
@@ -97,8 +186,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Android</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-android-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-android.zip)
 
 </td>
 <td rowspan=2>
@@ -111,15 +200,15 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Android shared</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan-shared.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-android-vulkan-shared.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-android-shared.zip)
 
 </td>
 </tr>
 
 <tr>
 <td rowspan=3>
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/HMOS_Logo_Icon.svg/240px-HMOS_Logo_Icon.svg.png" width="120" height="auto">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/3/37/HMOS_Logo_Icon.svg" width="120" height="auto">
 </td>
 <td colspan=3>
 
@@ -131,6 +220,9 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>HarmonyOS</td>
 <td>
 
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-harmonyos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-harmonyos.zip)
+
 </td>
 <td rowspan=2>
 
@@ -141,6 +233,9 @@ https://github.com/Tencent/ncnn/releases/latest
 <tr>
 <td>HarmonyOS shared</td>
 <td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-harmonyos-vulkan-shared.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-harmonyos-shared.zip)
 
 </td>
 </tr>
@@ -159,8 +254,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>iOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ios-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ios.zip)
 
 </td>
 <td rowspan=2>
@@ -173,8 +268,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>iOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ios-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ios-simulator.zip)
 
 </td>
 </tr>
@@ -193,8 +288,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>macOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-macos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-macos.zip)
 
 </td>
 <td rowspan=1>
@@ -207,8 +302,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Mac-Catalyst</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-mac-catalyst-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-mac-catalyst.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-mac-catalyst-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-mac-catalyst.zip)
 
 </td>
 <td rowspan=1>
@@ -221,7 +316,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>watchOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-watchos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-watchos.zip)
 
 </td>
 <td rowspan=2>
@@ -234,7 +329,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>watchOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-watchos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-watchos-simulator.zip)
 
 </td>
 </tr>
@@ -242,8 +337,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>tvOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-tvos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-tvos.zip)
 
 </td>
 <td rowspan=2>
@@ -256,8 +351,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>tvOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-tvos-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-tvos-simulator.zip)
 
 </td>
 </tr>
@@ -265,8 +360,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>visionOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-visionos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-visionos.zip)
 
 </td>
 <td rowspan=2>
@@ -279,8 +374,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>visionOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-visionos-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-visionos-simulator.zip)
 
 </td>
 </tr>
@@ -288,8 +383,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Apple xcframework</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-apple-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-apple.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-apple-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-apple.zip)
 
 </td>
 <td rowspan=1>
@@ -311,8 +406,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Ubuntu 22.04</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ubuntu-2204.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ubuntu-2204-shared.zip)
 
 </td>
 <td rowspan=2>
@@ -325,8 +420,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Ubuntu 24.04</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ubuntu-2404.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-ubuntu-2404-shared.zip)
 
 </td>
 </tr>
@@ -346,8 +441,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2015</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2015.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2015-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2015.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2015-shared.zip)
 
 </td>
 <td rowspan=4>
@@ -360,8 +455,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2017</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2017.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2017-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2017.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2017-shared.zip)
 
 </td>
 </tr>
@@ -369,8 +464,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2019</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2019.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2019-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2019.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2019-shared.zip)
 
 </td>
 </tr>
@@ -378,8 +473,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2022</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2022.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-windows-vs2022-shared.zip)
 
 </td>
 </tr>
@@ -398,7 +493,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>WebAssembly</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-webassembly.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260526-webassembly.zip)
 
 </td>
 <td>
@@ -488,180 +583,92 @@ https://github.com/Tencent/ncnn/releases/latest
 
 </table>
 
+---
+
+## Build
+
+Use the prebuilt packages above when possible. To build from source, see the full [how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) guide for Linux, Windows, macOS, Android, iOS, WebAssembly, HarmonyOS, Raspberry Pi, Jetson, and embedded targets.
+
+Common Linux build:
+
+```bash
+git clone --recursive https://github.com/Tencent/ncnn.git
+cd ncnn
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+cmake --build . -j$(nproc)
+```
 
 ---
 
-## Support most commonly used CNN network
+## Model Conversion
 
-## 支持大部分常用的 CNN 网络
+| Source model | Recommended path | Docs |
+| --- | --- | --- |
+| PyTorch | `pnnx.export(model, "model.pt", (input_tensor,))` or `pnnx model.pt inputshape=[...]` | [pnnx](tools/pnnx), [PyTorch / ONNX guide](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx) |
+| ONNX | `pnnx model.onnx` | [pnnx](tools/pnnx), [onnx tools](tools/onnx) |
+| ncnn model optimization | `ncnnoptimize model.param model.bin new.param new.bin flag` | [quantization](tools/quantize), [model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure) |
+| Legacy Caffe / MXNet / Darknet | Use compatibility converters when maintaining older models | [caffe](tools/caffe), [mxnet](tools/mxnet), [darknet](tools/darknet), [AlexNet legacy tutorial](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) |
 
-- Classical CNN:
-  [VGG](https://github.com/BVLC/caffe/wiki/Model-Zoo#models-used-by-the-vgg-team-in-ilsvrc-2014)
-  [AlexNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_alexnet)
-  [GoogleNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_googlenet)
-  Inception
-  ...
-- Practical CNN:
-  [ResNet](https://github.com/tornadomeet/ResNet)
-  [DenseNet](https://github.com/liuzhuang13/DenseNet)
-  [SENet](https://github.com/hujie-frank/SENet)
-  [FPN](https://github.com/unsky/FPN)
-  ...
-- Light-weight CNN:
-  [SqueezeNet](https://github.com/forresti/SqueezeNet)
-  [MobileNetV1](https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.md)
-  [MobileNetV2/V3](https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/README.md)
-  [ShuffleNetV1](https://github.com/farmingyard/ShuffleNet)
-  [ShuffleNetV2](https://github.com/opconty/keras-shufflenetV2)
-  [MNasNet](https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet)
-  ...
-- Face Detection:
-  [MTCNN](https://github.com/ipazc/mtcnn)
-  [RetinaFace](https://github.com/biubug6/Pytorch_Retinaface)
-  [scrfd](https://github.com/nihui/ncnn-android-scrfd)
-  ...
-- Detection:
-  [VGG-SSD](https://github.com/lzx1413/CAFFE_SSD)
-  [MobileNet-SSD](https://github.com/chuanqi305/MobileNet-SSD)
-  [SqueezeNet-SSD](https://github.com/chuanqi305/SqueezeNet-SSD)
-  [MobileNetV2-SSDLite](https://github.com/chuanqi305/MobileNetv2-SSDLite)
-  [MobileNetV3-SSDLite](https://github.com/XiaoyuHuang96/MobilenetV3SSDLite-tfkeras)
-  ...
-- Detection:
-  [Faster-RCNN](https://github.com/rbgirshick/py-faster-rcnn)
-  [R-FCN](https://github.com/daijifeng001/R-FCN)
-  ...
-- Detection:
-  [YOLOv2](https://github.com/longcw/yolo2-pytorch)
-  [YOLOv3](https://github.com/ultralytics/yolov3)
-  [MobileNet-YOLOv3](https://github.com/eric612/MobileNet-YOLO)
-  [YOLOv4](https://github.com/Tianxiaomo/pytorch-YOLOv4)
-  [YOLOv5](https://github.com/ultralytics/yolov5)
-  [YOLOv7](https://github.com/WongKinYiu/yolov7)
-  [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
-  [YOLOv8](https://github.com/nihui/ncnn-android-yolov8)
-  ...
-- Detection:
-  [NanoDet](https://github.com/RangiLyu/nanodet)
-- Segmentation:
-  [FCN](https://github.com/unsky/FPN)
-  [PSPNet](https://github.com/hszhao/PSPNet)
-  [UNet](https://github.com/zhixuhao/unet)
-  [YOLACT](https://github.com/dbolya/yolact)
-  ...
-- Pose Estimation:
-  [SimplePose](https://github.com/dog-qiuqiu/Ultralight-SimplePose)
-  ...
-
----
-
-## HowTo
-
-**[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
-
-**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
-
-**[use netron for ncnn model visualization](https://netron.app)**
-
-**[use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)**
-
-[ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
-
-[ncnn param and model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure)
-
-[ncnn operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
-
-[how to implement custom layer step by step](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step)
-
----
-
-## FAQ
-
-**[ncnn deepwiki](https://deepwiki.com/Tencent/ncnn) LLM Answering Questions ;)** 
-
-**[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)**
-
-**[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)**
-
-**[ncnn vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan)**
+Use [Netron](https://netron.app) to inspect `.param`, `.onnx`, and `.pnnx.param` graphs.
 
 ---
 
 ## Features
 
-- Supports convolutional neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
-- No third-party library dependencies, does not rely on BLAS / NNPACK or any other computing framework
-- Pure C++ implementation, cross-platform, supports Android, iOS and so on
-- ARM NEON assembly level of careful optimization, calculation speed is extremely high
-- Sophisticated memory management and data structure design, very low memory footprint
-- Supports multi-core parallel computing acceleration, ARM big.LITTLE CPU scheduling optimization
-- Supports GPU acceleration via the next-generation low-overhead Vulkan API
-- Extensible model design, supports 8bit [quantization](https://github.com/Tencent/ncnn/wiki/quantized-int8-inference) and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
-- Support direct memory zero copy reference load network model
-- Can be registered with custom layer implementation and extended
-- Well, it is strong, not afraid of being stuffed with 卷 QvQ
-
-## 功能概述
-
-- 支持卷积神经网络，支持多输入和多分支结构，可计算部分分支
-- 无任何第三方库依赖，不依赖 BLAS/NNPACK 等计算框架
-- 纯 C++ 实现，跨平台，支持 Android / iOS 等
-- ARM Neon 汇编级良心优化，计算速度极快
-- 精细的内存管理和数据结构设计，内存占用极低
-- 支持多核并行计算加速，ARM big.LITTLE CPU 调度优化
-- 支持基于全新低消耗的 Vulkan API GPU 加速
-- 可扩展的模型设计，支持 8bit [量化](tools/quantize) 和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
-- 支持直接内存零拷贝引用加载网络模型
-- 可注册自定义层实现并扩展
-- 恩，很强就是了，不怕被塞卷 QvQ
+- No third-party runtime dependencies and no BLAS / NNPACK requirement.
+- Pure C++ implementation with C API and Python binding.
+- Optimized CPU inference for mobile and embedded processors, including ARM NEON and multi-core scheduling.
+- Vulkan GPU acceleration for supported platforms.
+- Low memory footprint with explicit blob/workspace allocator design.
+- Supports multi-input, multi-output, and multi-branch graphs.
+- PyTorch and ONNX conversion through pnnx, plus legacy converter support for older model formats.
+- Supports fp16 storage/arithmetic paths, int8 quantized inference, model optimization, and custom layers.
+- Direct memory reference loading for `.param` and `.bin` models.
 
 ---
 
-## supported platform matrix
+## Model and Workload Coverage
 
-- ✅ = known work and runs fast with good optimization
-- ✔️ = known work, but speed may not be fast enough
-- ❔ = shall work, not confirmed
-- / = not applied
+ncnn is still strong for classic and mobile CNN workloads, but current usage is broader than CNN-only deployment.
 
-|            | Windows | Linux | Android | macOS | iOS |
-| ---------- | ------- | ----- | ------- | ----- | --- |
-| intel-cpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| intel-gpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| amd-cpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| amd-gpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| nvidia-gpu | ✔️      | ✔️    | ✔️      | ✔️    | /   |
-| qcom-cpu   | ✅      | ✅    | ✅      | /     | /   |
-| qcom-gpu   | ✔️      | ✔️    | ✔️      | /     | /   |
-| arm-cpu    | ✅      | ✅    | ✅      | /     | /   |
-| arm-gpu    | ❔      | ✔️    | ✔️      | /     | /   |
-| apple-cpu  | /       | /     | /       | ✔️    | ✅  |
-| apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
-| ibm-cpu    | /       | ✔️     | /       | /    | /  |
+- Classification and backbones: [VGG](https://github.com/BVLC/caffe/wiki/Model-Zoo#models-used-by-the-vgg-team-in-ilsvrc-2014), [AlexNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_alexnet), [GoogleNet](https://github.com/BVLC/caffe/tree/9b891540183ddc834a02b2bd81b31afae71b2153/models/bvlc_googlenet), Inception, [ResNet](https://github.com/tornadomeet/ResNet), [DenseNet](https://github.com/liuzhuang13/DenseNet), [SENet](https://github.com/hujie-frank/SENet), [SqueezeNet](https://github.com/forresti/SqueezeNet), MobileNet, ShuffleNet, MNasNet.
+- Detection and face: SSD, Faster R-CNN, R-FCN, [MTCNN](https://github.com/ipazc/mtcnn), [RetinaFace](https://github.com/biubug6/Pytorch_Retinaface), [scrfd](https://github.com/nihui/ncnn-android-scrfd), [YOLOv2](https://github.com/longcw/yolo2-pytorch), [YOLOv3](https://github.com/ultralytics/yolov3), [YOLOv4](https://github.com/Tianxiaomo/pytorch-YOLOv4), [YOLOv5](https://github.com/ultralytics/yolov5), [YOLOv7](https://github.com/WongKinYiu/yolov7), [YOLOv8](https://github.com/nihui/ncnn-android-yolov8), [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), [NanoDet](https://github.com/RangiLyu/nanodet).
+- Segmentation, pose, and OCR: FCN, [PSPNet](https://github.com/hszhao/PSPNet), [UNet](https://github.com/zhixuhao/unet), [YOLACT](https://github.com/dbolya/yolact), [SimplePose](https://github.com/dog-qiuqiu/Ultralight-SimplePose), PP-OCR examples.
+- Audio, generation, and language workloads are represented by community projects and examples where the model operators are supported.
+
+For operator-level detail, see [supported PyTorch operator status](tools/pnnx#supported-pytorch-operator-status), [supported ONNX operator status](tools/pnnx#supported-onnx-operator-status), and [operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table).
 
 ---
 
-## Project examples
+## Project Examples
 
-- <https://github.com/nihui/ncnn-android-squeezenet>
-- <https://github.com/nihui/ncnn-android-styletransfer>
-- <https://github.com/nihui/ncnn-android-mobilenetssd>
-- <https://github.com/moli232777144/mtcnn_ncnn>
-- <https://github.com/nihui/ncnn-android-yolov5>
-- <https://github.com/xiang-wuu/ncnn-android-yolov7>
-- <https://github.com/nihui/ncnn-android-scrfd> 🤩
-- <https://github.com/shaoshengsong/qt_android_ncnn_lib_encrypt_example>
+| Area | Project |
+| --- | --- |
+| Image generation | [zimage-ncnn-vulkan](https://github.com/nihui/zimage-ncnn-vulkan) - Z-Image generation with ncnn and Vulkan |
+| LLM / embedding / vision-language | [ncnn_llm](https://github.com/futz12/ncnn_llm) - LLM, embedding, and vision-language examples with ncnn |
+| Android classification | [ncnn-android-squeezenet](https://github.com/nihui/ncnn-android-squeezenet) |
+| Android style transfer | [ncnn-android-styletransfer](https://github.com/nihui/ncnn-android-styletransfer) |
+| Android detection | [ncnn-android-mobilenetssd](https://github.com/nihui/ncnn-android-mobilenetssd), [ncnn-android-yolov5](https://github.com/nihui/ncnn-android-yolov5), [ncnn-android-yolov7](https://github.com/xiang-wuu/ncnn-android-yolov7), [ncnn-android-scrfd](https://github.com/nihui/ncnn-android-scrfd) |
+| Face detection | [mtcnn_ncnn](https://github.com/moli232777144/mtcnn_ncnn) |
+| Qt / Android integration | [qt_android_ncnn_lib_encrypt_example](https://github.com/shaoshengsong/qt_android_ncnn_lib_encrypt_example) |
+| Colorization | [ncnn-colorization-siggraph17](https://github.com/magicse/ncnn-colorization-siggraph17) |
+| Fortran binding | [ncnn-fortran](https://github.com/mizu-bai/ncnn-fortran) |
+| Speech recognition | [sherpa](https://github.com/k2-fsa/sherpa) - real-time speech recognition on embedded and mobile devices |
 
-<img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png" height ="230"/><img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" height ="230"/><br>
+---
 
-- <https://github.com/magicse/ncnn-colorization-siggraph17><br>
-<img src="https://user-images.githubusercontent.com/13585785/189326958-f5a8d6f8-caef-49bf-88da-ae494371195d.jpg" width ="700"/>
+## Documentation And FAQ
 
-- <https://github.com/mizu-bai/ncnn-fortran> Call ncnn from Fortran
-
-- <https://github.com/k2-fsa/sherpa> Use ncnn for real-time speech
-  recognition (i.e., speech-to-text); also support embedded devices and provide
-  mobile Apps (e.g., Android App)
+| Topic | Links |
+| --- | --- |
+| Build | [how to build](https://github.com/Tencent/ncnn/wiki/how-to-build) |
+| PyTorch / ONNX conversion | [use ncnn with PyTorch or ONNX](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx), [pnnx](tools/pnnx), [PyTorch converter notes](tools/pytorch) |
+| API and examples | [C++ examples](examples), [Python API](python), [low-level operation API](https://github.com/Tencent/ncnn/wiki/low-level-operation-api) |
+| Model format | [param and model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure), [operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table) |
+| Extension | [custom layer guide](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step), [plugin tools](tools/plugin) |
+| FAQ | [deepwiki](https://deepwiki.com/Tencent/ncnn), [throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error), [wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result), [Vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan) |
+| Legacy beginner material | [use ncnn with AlexNet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet), [AlexNet Chinese tutorial](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) |
 
 ---
 

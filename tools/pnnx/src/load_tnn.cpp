@@ -141,6 +141,26 @@ static int get_tnn_tensor_type(int dt)
     return 0; // unknown type
 }
 
+static int input_type_to_pnnx_type(const std::string& t)
+{
+    if (t == "f32") return 1;
+    if (t == "f64") return 2;
+    if (t == "f16") return 3;
+    if (t == "i32") return 4;
+    if (t == "i64") return 5;
+    if (t == "i16") return 6;
+    if (t == "i8") return 7;
+    if (t == "u8") return 8;
+    if (t == "bool") return 9;
+    if (t == "c64") return 10;
+    if (t == "c128") return 11;
+    if (t == "c32") return 12;
+    if (t == "bf16") return 13;
+
+    fprintf(stderr, "unsupported input type %s\n", t.c_str());
+    return 0;
+}
+
 Attribute::Attribute(FILE* bp)
 {
     unsigned int magic;
@@ -178,7 +198,9 @@ Attribute::Attribute(FILE* bp)
     fread((void*)data.data(), 1, length, bp);
 }
 
-int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
+int load_tnn(const std::string& tnnpath, Graph& pnnx_graph,
+             const std::vector<std::vector<int64_t> >& input_shapes,
+             const std::vector<std::string>& input_types)
 {
     fprintf(stderr, "############# pass_level0 tnn\n");
 
@@ -244,6 +266,45 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         int datatype = 0;
         sscanf(pline, "%d%n", &datatype, &ncomsumed);
 
+        int tensor_type = get_tnn_tensor_type(datatype);
+
+        if (!input_shapes.empty())
+        {
+            if (input_shapes.size() != 1)
+            {
+                fprintf(stderr, "tnn input expect 1 tensor but got %d\n", (int)input_shapes.size());
+                return -1;
+            }
+            if (input_types.size() != input_shapes.size())
+            {
+                fprintf(stderr, "tnn input type count mismatch, expect %d but got %d\n", (int)input_shapes.size(), (int)input_types.size());
+                return -1;
+            }
+
+            shape.clear();
+            const std::vector<int64_t>& input_shape = input_shapes[0];
+            for (size_t i = 0; i < input_shape.size(); i++)
+            {
+                if (input_shape[i] < 0 || input_shape[i] > INT_MAX)
+                {
+                    fprintf(stderr, "invalid tnn input shape dimension %ld\n", input_shape[i]);
+                    return -1;
+                }
+                shape.push_back((int)input_shape[i]);
+            }
+
+            const int input_tensor_type = input_type_to_pnnx_type(input_types[0]);
+            if (input_tensor_type == 0)
+                return -1;
+            if (tensor_type != 0 && tensor_type != input_tensor_type)
+            {
+                fprintf(stderr, "tnn input type mismatch, model type %d but got %s\n", tensor_type, input_types[0].c_str());
+                return -1;
+            }
+
+            tensor_type = input_tensor_type;
+        }
+
         Operator* op = pnnx_graph.new_operator("pnnx.Input", "input0");
 
         Operand* r = pnnx_graph.new_operand(blob_name);
@@ -251,7 +312,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
         r->producer = op;
 
         r->shape = shape;
-        r->type = get_tnn_tensor_type(datatype);
+        r->type = tensor_type;
 
         op->outputs.push_back(r);
     }

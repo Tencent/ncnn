@@ -1,0 +1,152 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int use_int8_requantize = 0;
+layout(constant_id = 5) const int outc = 0;
+
+#define shape_constant_id_offset 6
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 1) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int block_y = 0;
+
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer top_tm_blob { ivec4 top_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { vec4 bias_data[]; };
+layout(binding = 3) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 4) readonly buffer top_scales_blob { sfp top_scales_data[]; };
+layout(binding = 5) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+    int outc;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    const int outc4 = (psc(outc) + 3) / 4;
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= outc4)
+        return;
+
+    // load 16
+    int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
+    int v_tm_step = psc(cstep) * outc4;
+
+    ivec4 v00 = top_tm_blob_data[v_tm_offset + 0 * v_tm_step];
+    ivec4 v01 = top_tm_blob_data[v_tm_offset + 1 * v_tm_step];
+    ivec4 v02 = top_tm_blob_data[v_tm_offset + 2 * v_tm_step];
+    ivec4 v03 = top_tm_blob_data[v_tm_offset + 3 * v_tm_step];
+    ivec4 v10 = top_tm_blob_data[v_tm_offset + 4 * v_tm_step];
+    ivec4 v11 = top_tm_blob_data[v_tm_offset + 5 * v_tm_step];
+    ivec4 v12 = top_tm_blob_data[v_tm_offset + 6 * v_tm_step];
+    ivec4 v13 = top_tm_blob_data[v_tm_offset + 7 * v_tm_step];
+    ivec4 v20 = top_tm_blob_data[v_tm_offset + 8 * v_tm_step];
+    ivec4 v21 = top_tm_blob_data[v_tm_offset + 9 * v_tm_step];
+    ivec4 v22 = top_tm_blob_data[v_tm_offset + 10 * v_tm_step];
+    ivec4 v23 = top_tm_blob_data[v_tm_offset + 11 * v_tm_step];
+    ivec4 v30 = top_tm_blob_data[v_tm_offset + 12 * v_tm_step];
+    ivec4 v31 = top_tm_blob_data[v_tm_offset + 13 * v_tm_step];
+    ivec4 v32 = top_tm_blob_data[v_tm_offset + 14 * v_tm_step];
+    ivec4 v33 = top_tm_blob_data[v_tm_offset + 15 * v_tm_step];
+
+    // implicit transpose
+    ivec4 m00 = v00 + v01 + v02;
+    ivec4 m01 = v10 + v11 + v12;
+    ivec4 m02 = v20 + v21 + v22;
+    ivec4 m03 = v30 + v31 + v32;
+
+    ivec4 m10 = v01 - v02 + v03;
+    ivec4 m11 = v11 - v12 + v13;
+    ivec4 m12 = v21 - v22 + v23;
+    ivec4 m13 = v31 - v32 + v33;
+
+    const vec4 descale = vec4(0.25f) * weight_descales_data[gz];
+
+    vec4 out00 = vec4(m00 + m01 + m02) * descale;
+    vec4 out01 = vec4(m01 - m02 + m03) * descale;
+    vec4 out10 = vec4(m10 + m11 + m12) * descale;
+    vec4 out11 = vec4(m11 - m12 + m13) * descale;
+
+    if (bias_term == 1)
+    {
+        const vec4 bias_value = bias_data[gz];
+
+        out00 += bias_value;
+        out01 += bias_value;
+        out10 += bias_value;
+        out11 += bias_value;
+    }
+
+    out00 = vec4(activation_afpvec4(afpvec4(out00), activation_type, activation_param_0, activation_param_1));
+    out01 = vec4(activation_afpvec4(afpvec4(out01), activation_type, activation_param_0, activation_param_1));
+    out10 = vec4(activation_afpvec4(afpvec4(out10), activation_type, activation_param_0, activation_param_1));
+    out11 = vec4(activation_afpvec4(afpvec4(out11), activation_type, activation_param_0, activation_param_1));
+
+    // store 2x2
+    int x = gx * 2;
+    int y = gy * 2;
+
+    int v_offset_0 = gz * psc(outcstep) + y * psc(outw) + x;
+    int v_offset_1 = v_offset_0 + psc(outw);
+
+    if (use_int8_requantize == 1)
+    {
+        const float top_scale = buffer_ld1(top_scales_data, 0);
+
+        out00 *= top_scale;
+        out01 *= top_scale;
+        out10 *= top_scale;
+        out11 *= top_scale;
+
+        ivec4 out00_int8 = float2int8vec4(out00);
+        ivec4 out01_int8 = float2int8vec4(out01);
+        ivec4 out10_int8 = float2int8vec4(out10);
+        ivec4 out11_int8 = float2int8vec4(out11);
+
+        i8buffer_st4(top_blob_int8_data, v_offset_0 + 0, out00_int8);
+        if (x + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data, v_offset_0 + 1, out01_int8);
+
+        if (y + 1 < psc(outh))
+        {
+            i8buffer_st4(top_blob_int8_data, v_offset_1 + 0, out10_int8);
+            if (x + 1 < psc(outw)) i8buffer_st4(top_blob_int8_data, v_offset_1 + 1, out11_int8);
+        }
+    }
+    else
+    {
+        buffer_st4(top_blob_data, v_offset_0 + 0, afpvec4(out00));
+        if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_0 + 1, afpvec4(out01));
+
+        if (y + 1 < psc(outh))
+        {
+            buffer_st4(top_blob_data, v_offset_1 + 0, afpvec4(out10));
+            if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_1 + 1, afpvec4(out11));
+        }
+    }
+}

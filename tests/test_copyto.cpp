@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset, int hoffset, int doffset, int coffset)
 {
     ncnn::ParamDict pd;
@@ -189,6 +193,51 @@ static int test_copyto_4()
            || test_copyto(RandomMat(3, 4, 5, 16), RandomMat(3, 4, 5, 16), 0, 0, 0, 0);
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_copyto_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(9, param_int_array(1, 0));
+    base.set(11, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::CopyTo, base, 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(0), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(0), 0))
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(11, ncnn::Mat(0));
+        pd.set(9, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::CopyTo, pd, 0) != 0)
+            return -1;
+    }
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(1, INT_MIN), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, param_int_array(2, 0), -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(776757);
@@ -198,5 +247,9 @@ int main()
            || test_copyto_1()
            || test_copyto_2()
            || test_copyto_3()
-           || test_copyto_4();
+           || test_copyto_4()
+#if NCNN_VALIDATION
+           || test_copyto_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

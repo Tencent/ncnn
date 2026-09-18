@@ -106,12 +106,13 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             if (bias_term)
             {
@@ -156,13 +157,14 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     }
 #endif // __ARM_NEON
 
-    if (dims != 3)
+    if (dims != 3 && dims != 4)
         return Scale::forward_inplace(bottom_top_blobs, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     if (bias_term)
     {

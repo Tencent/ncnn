@@ -1,0 +1,377 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int activation_type = 0;
+layout(constant_id = 8) const float activation_param_0 = 0;
+layout(constant_id = 9) const float activation_param_1 = 0;
+layout(constant_id = 10) const int elempack = 1;
+layout(constant_id = 11) const int out_elempack = 1;
+
+#define shape_constant_id_offset 12
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int num_input = 0;
+
+// scalar view (for pack1 input/output access)
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+
+// vec4 view (for pack4 input/output access, weight/bias always vec4)
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 5) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+    int num_output;
+    int num_input;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
+
+    const int outsize = psc(outw) * psc(outh);
+
+#if !NCNN_shader_local_memory
+    if (gx >= outsize || gy >= psc(outc))
+        return;
+#endif
+
+    afpvec4 sum0;
+    afpvec4 sum1;
+    afpvec4 sum2;
+    afpvec4 sum3;
+
+    if (bias_term == 1)
+    {
+        afpvec4 b = buffer_ld4(bias_data, gy);
+        sum0 = b;
+        sum1 = b;
+        sum2 = b;
+        sum3 = b;
+    }
+    else
+    {
+        sum0 = afpvec4(0.f);
+        sum1 = afpvec4(0.f);
+        sum2 = afpvec4(0.f);
+        sum3 = afpvec4(0.f);
+    }
+
+    // c = number of input channel groups (pack4 channels when elempack=4, groups of 4 when elempack=1)
+    // N = c * maxk = total inner loop iterations
+    // weight layout: (maxk, c, outc_pack4), each element is mat4 (4x4 = 4 vec4)
+    const int maxk = kernel_w * kernel_h;
+    const int N = psc(c) * maxk;
+
+    const ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
+
+    const ivec4 sy4 = gx4 / psc(outw);
+    const ivec4 sx4 = gx4 % psc(outw);
+
+    const ivec4 sxs4 = sx4 * stride_w;
+    const ivec4 sys4 = sy4 * stride_h;
+
+    int w_offset = gy * N * 4;
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int z = 0;
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < N; z += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                const int sz = (z + z4) / maxk;
+                const int k = (z + z4) % maxk;
+
+                const int ky = k / kernel_w;
+                const int kx = k % kernel_w;
+
+                if (elempack == 4)
+                {
+                    const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
+                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset);
+                }
+                else // elempack == 1
+                {
+                    // sz is a group of 4 scalar channels, read 4 scalar values and pack into vec4
+                    const int base_spatial = (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
+                    const int ch0 = sz * 4;
+
+                    afp a0 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial);
+                    afp a1 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial) : afp(0.f);
+                    afp a2 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial) : afp(0.f);
+                    afp a3 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial) : afp(0.f);
+
+                    tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
+                }
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_k[ly][z4][lx] = buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 k0 = lfp2afpvec4(tmp_k[ly][z4][0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[ly][z4][1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[ly][z4][2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[ly][z4][3]);
+
+            afpmat4 k = afpmat4(k0, k1, k2, k3);
+
+            sum0 += v0 * k;
+            sum1 += v1 * k;
+            sum2 += v2 * k;
+            sum3 += v3 * k;
+        }
+
+        w_offset += LOCAL_MEMORY_UNROLL_INCH * 4;
+
+        barrier();
+    }
+
+    if (z < N)
+    {
+        const int remain = N - z;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                const int sz = (z + z4) / maxk;
+                const int k = (z + z4) % maxk;
+
+                const int ky = k / kernel_w;
+                const int kx = k % kernel_w;
+
+                if (elempack == 4)
+                {
+                    const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
+                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data_4, v_offset);
+                }
+                else // elempack == 1
+                {
+                    const int base_spatial = (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
+                    const int ch0 = sz * 4;
+
+                    afp a0 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial);
+                    afp a1 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial) : afp(0.f);
+                    afp a2 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial) : afp(0.f);
+                    afp a3 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial) : afp(0.f);
+
+                    tmp_v[lx][z4][ly] = afp2lfpvec4(afpvec4(a0, a1, a2, a3));
+                }
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_k[ly][z4][lx] = buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 k0 = lfp2afpvec4(tmp_k[ly][z4][0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[ly][z4][1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[ly][z4][2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[ly][z4][3]);
+
+            afpmat4 k = afpmat4(k0, k1, k2, k3);
+
+            sum0 += v0 * k;
+            sum1 += v1 * k;
+            sum2 += v2 * k;
+            sum3 += v3 * k;
+        }
+    }
+#else
+    for (int z = 0; z < N; z++)
+    {
+        const int sz = z / maxk;
+        const int kk = z % maxk;
+
+        const int ky = kk / kernel_w;
+        const int kx = kk % kernel_w;
+
+        afpvec4 v0, v1, v2, v3;
+
+        if (elempack == 4)
+        {
+            const ivec4 v_offset = sz * psc(cstep) + (sys4 + ky * dilation_h) * psc(w) + sxs4 + kx * dilation_w;
+
+            v0 = buffer_ld4(bottom_blob_data_4, v_offset.r);
+            v1 = buffer_ld4(bottom_blob_data_4, v_offset.g);
+            v2 = buffer_ld4(bottom_blob_data_4, v_offset.b);
+            v3 = buffer_ld4(bottom_blob_data_4, v_offset.a);
+        }
+        else // elempack == 1
+        {
+            // sz is group index for 4 scalar channels
+            const int ch0 = sz * 4;
+            const ivec4 base_spatial = (sys4 + ky * dilation_h) * psc(w) + sxs4 + kx * dilation_w;
+
+            // read 4 input channels for each of 4 spatial positions
+            afp v00 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial.r);
+            afp v01 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial.r) : afp(0.f);
+            afp v02 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial.r) : afp(0.f);
+            afp v03 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial.r) : afp(0.f);
+
+            afp v10 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial.g);
+            afp v11 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial.g) : afp(0.f);
+            afp v12 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial.g) : afp(0.f);
+            afp v13 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial.g) : afp(0.f);
+
+            afp v20 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial.b);
+            afp v21 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial.b) : afp(0.f);
+            afp v22 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial.b) : afp(0.f);
+            afp v23 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial.b) : afp(0.f);
+
+            afp v30 = buffer_ld1(bottom_blob_data_1, ch0 * psc(cstep) + base_spatial.a);
+            afp v31 = (ch0 + 1 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 1) * psc(cstep) + base_spatial.a) : afp(0.f);
+            afp v32 = (ch0 + 2 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 2) * psc(cstep) + base_spatial.a) : afp(0.f);
+            afp v33 = (ch0 + 3 < psc(num_input)) ? buffer_ld1(bottom_blob_data_1, (ch0 + 3) * psc(cstep) + base_spatial.a) : afp(0.f);
+
+            v0 = afpvec4(v00, v01, v02, v03);
+            v1 = afpvec4(v10, v11, v12, v13);
+            v2 = afpvec4(v20, v21, v22, v23);
+            v3 = afpvec4(v30, v31, v32, v33);
+        }
+
+        // weight is always mat4 (4 output channels x 4 input channels)
+        afpmat4 k = afpmat4(
+            buffer_ld4(weight_data, w_offset + 0),
+            buffer_ld4(weight_data, w_offset + 1),
+            buffer_ld4(weight_data, w_offset + 2),
+            buffer_ld4(weight_data, w_offset + 3));
+
+        sum0 += v0 * k;
+        sum1 += v1 * k;
+        sum2 += v2 * k;
+        sum3 += v3 * k;
+
+        w_offset += 4;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= outsize || gy >= psc(outc))
+        return;
+#endif
+
+    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
+
+    if (out_elempack == 4)
+    {
+        const int gi = gy * psc(outcstep) + gx;
+
+        buffer_st4(top_blob_data_4, gi, sum0);
+        if (gx + 1 < outsize) buffer_st4(top_blob_data_4, gi + 1, sum1);
+        if (gx + 2 < outsize) buffer_st4(top_blob_data_4, gi + 2, sum2);
+        if (gx + 3 < outsize) buffer_st4(top_blob_data_4, gi + 3, sum3);
+    }
+    else // out_elempack == 1
+    {
+        // sum[spatial].rgba = 4 output channels
+        // need to scatter to separate scalar channels
+        const int base_ch = gy * 4;
+        const int nout = psc(num_output);
+        const int channel_step = psc(outcstep);
+        const int gi = base_ch * channel_step + gx;
+
+        buffer_st1(top_blob_data_1, gi, sum0.r);
+        if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + channel_step, sum0.g);
+        if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + channel_step * 2, sum0.b);
+        if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + channel_step * 3, sum0.a);
+
+        if (gx + 1 < outsize)
+        {
+            buffer_st1(top_blob_data_1, gi + 1, sum1.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 1 + channel_step, sum1.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 1 + channel_step * 2, sum1.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 1 + channel_step * 3, sum1.a);
+        }
+        if (gx + 2 < outsize)
+        {
+            buffer_st1(top_blob_data_1, gi + 2, sum2.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 2 + channel_step, sum2.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 2 + channel_step * 2, sum2.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 2 + channel_step * 3, sum2.a);
+        }
+        if (gx + 3 < outsize)
+        {
+            buffer_st1(top_blob_data_1, gi + 3, sum3.r);
+            if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + 3 + channel_step, sum3.g);
+            if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + 3 + channel_step * 2, sum3.b);
+            if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + 3 + channel_step * 3, sum3.a);
+        }
+    }
+}

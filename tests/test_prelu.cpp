@@ -14,7 +14,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     int ret = test_layer("PReLU", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.c, num_slope);
+        fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.d, a.c, num_slope);
     }
 
     return ret;
@@ -59,11 +59,21 @@ static int test_prelu_2()
            || test_prelu(RandomMat(127), 1);
 }
 
+static int test_prelu_3()
+{
+    return 0
+           || test_prelu(RandomMat(5, 3, 2, 24), 24)
+           || test_prelu(RandomMat(5, 3, 2, 24), 1)
+           || test_prelu(RandomMat(3, 5, 3, 13), 13)
+           || test_prelu(RandomMat(3, 5, 3, 13), 1);
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
+           || test_prelu_3()
            || test_prelu_0()
            || test_prelu_1()
            || test_prelu_2();

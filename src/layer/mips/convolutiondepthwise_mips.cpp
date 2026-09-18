@@ -26,6 +26,9 @@ ConvolutionDepthWise_mips::ConvolutionDepthWise_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 
     activation = 0;
 }
@@ -54,9 +57,51 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
 #if __mips_msa
         if (opt.use_packing_layout)
         {
-            elempack = channels % 4 == 0 ? 4 : 1;
+#if NCNN_BF16
+            if (opt.use_bf16_storage)
+                elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+            else
+#endif
+                elempack = channels % 4 == 0 ? 4 : 1;
         }
 #endif
+
+#if NCNN_BF16
+        if (opt.use_bf16_storage)
+        {
+#if __mips_msa
+            // pack8
+            if (elempack == 8)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+
+            // pack4
+            if (elempack == 4)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_r2_packed;
+                convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
+
+                ncnn::cast_float32_to_bfloat16(weight_data_r2_packed, weight_data_tm, opt);
+            }
+#endif // __mips_msa
+
+            if (elempack == 1)
+            {
+                ncnn::cast_float32_to_bfloat16(weight_data, weight_data_tm, opt);
+            }
+
+            if (opt.lightmode)
+                weight_data.release();
+
+            return 0;
+        }
+#endif // NCNN_BF16
 
 #if __mips_msa
         // pack4
@@ -205,11 +250,18 @@ int ConvolutionDepthWise_mips::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    int elembits = bottom_blob.elembits();
+
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
         return forward_int8_mips(bottom_blob, top_blob, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
     int w = bottom_blob.w;
@@ -333,10 +385,10 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 v4f32 _val = (v4f32)__msa_ld_w(sptr + space_ofs[k] * 4, 0);
                                 v4f32 _w = (v4f32)__msa_ld_w(kptr + k * 4, 0);
-                                _sum = __msa_fmadd_w(_sum, _val, _w);
+                                _sum = __ncnn_msa_fmadd_w(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_msa(_sum, activation_type, activation_params);
 
                             __msa_st_w((v4i32)_sum, outptr + j * 4, 0);
                         }
@@ -450,13 +502,15 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
     {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
     if (out_g_elempack < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -472,13 +526,17 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {
@@ -503,6 +561,15 @@ int ConvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, std
     if (weight_data_flattened.empty())
         return -100;
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif
+
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
     weight_data_flattened.elemsize /= weight_data_flattened.elempack;
@@ -515,6 +582,15 @@ int ConvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, std
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -562,6 +638,541 @@ int ConvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, std
 
     return 0;
 }
+
+#if NCNN_BF16
+int ConvolutionDepthWise_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // depth-wise
+    if (channels * elempack == group && group == num_output)
+    {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 8;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+
+                v4f32 _bias0 = (v4f32)__msa_fill_w(0);
+                v4f32 _bias1 = (v4f32)__msa_fill_w(0);
+                if (bias_term)
+                {
+                    _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8, 0);
+                    _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8 + 4, 0);
+                }
+
+                const int stride_w_elempack = stride_w * 8;
+
+                int i = 0;
+                for (; i + 1 < outh; i += 2)
+                {
+                    unsigned short* outptr0 = outptr;
+                    unsigned short* outptr1 = outptr + outw * 8;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+                    const unsigned short* r1 = m.row<const unsigned short>((i + 1) * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
+                    {
+                        v4f32 _sum00_0 = _bias0;
+                        v4f32 _sum00_1 = _bias1;
+                        v4f32 _sum01_0 = _bias0;
+                        v4f32 _sum01_1 = _bias1;
+                        v4f32 _sum02_0 = _bias0;
+                        v4f32 _sum02_1 = _bias1;
+                        v4f32 _sum03_0 = _bias0;
+                        v4f32 _sum03_1 = _bias1;
+                        v4f32 _sum10_0 = _bias0;
+                        v4f32 _sum10_1 = _bias1;
+                        v4f32 _sum11_0 = _bias0;
+                        v4f32 _sum11_1 = _bias1;
+                        v4f32 _sum12_0 = _bias0;
+                        v4f32 _sum12_1 = _bias1;
+                        v4f32 _sum13_0 = _bias0;
+                        v4f32 _sum13_1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __ncnn_msa_fmadd_w(_sum00_0, _val0, _w0);
+                            _sum00_1 = __ncnn_msa_fmadd_w(_sum00_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __ncnn_msa_fmadd_w(_sum01_0, _val0, _w0);
+                            _sum01_1 = __ncnn_msa_fmadd_w(_sum01_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __ncnn_msa_fmadd_w(_sum02_0, _val0, _w0);
+                            _sum02_1 = __ncnn_msa_fmadd_w(_sum02_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __ncnn_msa_fmadd_w(_sum03_0, _val0, _w0);
+                            _sum03_1 = __ncnn_msa_fmadd_w(_sum03_1, _val1, _w1);
+
+                            sptr = sptr1 + space_ofs[k] * 8;
+
+                            _val01_bf16 = __msa_ld_h(sptr, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum10_0 = __ncnn_msa_fmadd_w(_sum10_0, _val0, _w0);
+                            _sum10_1 = __ncnn_msa_fmadd_w(_sum10_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum11_0 = __ncnn_msa_fmadd_w(_sum11_0, _val0, _w0);
+                            _sum11_1 = __ncnn_msa_fmadd_w(_sum11_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum12_0 = __ncnn_msa_fmadd_w(_sum12_0, _val0, _w0);
+                            _sum12_1 = __ncnn_msa_fmadd_w(_sum12_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum13_0 = __ncnn_msa_fmadd_w(_sum13_0, _val0, _w0);
+                            _sum13_1 = __ncnn_msa_fmadd_w(_sum13_1, _val1, _w1);
+                        }
+
+                        _sum00_0 = activation_msa(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_msa(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_msa(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_msa(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_msa(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_msa(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_msa(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_msa(_sum03_1, activation_type, activation_params);
+                        _sum10_0 = activation_msa(_sum10_0, activation_type, activation_params);
+                        _sum10_1 = activation_msa(_sum10_1, activation_type, activation_params);
+                        _sum11_0 = activation_msa(_sum11_0, activation_type, activation_params);
+                        _sum11_1 = activation_msa(_sum11_1, activation_type, activation_params);
+                        _sum12_0 = activation_msa(_sum12_0, activation_type, activation_params);
+                        _sum12_1 = activation_msa(_sum12_1, activation_type, activation_params);
+                        _sum13_0 = activation_msa(_sum13_0, activation_type, activation_params);
+                        _sum13_1 = activation_msa(_sum13_1, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum00_0, _sum00_1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+                        __msa_st_w(float2bfloat_msa(_sum10_0, _sum10_1), outptr1, 0);
+                        __msa_st_w(float2bfloat_msa(_sum11_0, _sum11_1), outptr1 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum12_0, _sum12_1), outptr1 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum13_0, _sum13_1), outptr1 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                        outptr1 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        v4f32 _sum0 = _bias0;
+                        v4f32 _sum1 = _bias1;
+                        v4f32 _sum2 = _bias0;
+                        v4f32 _sum3 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr0 + space_ofs[k] * 8, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr1 + space_ofs[k] * 8, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _val0, _w0);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _val1, _w1);
+                        }
+
+                        _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                        _sum1 = activation_msa(_sum1, activation_type, activation_params);
+                        _sum2 = activation_msa(_sum2, activation_type, activation_params);
+                        _sum3 = activation_msa(_sum3, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum2, _sum3), outptr1, 0);
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                    }
+
+                    outptr += outw * 8 * 2;
+                }
+                for (; i < outh; i++)
+                {
+                    unsigned short* outptr0 = outptr;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
+                    {
+                        v4f32 _sum00_0 = _bias0;
+                        v4f32 _sum00_1 = _bias1;
+                        v4f32 _sum01_0 = _bias0;
+                        v4f32 _sum01_1 = _bias1;
+                        v4f32 _sum02_0 = _bias0;
+                        v4f32 _sum02_1 = _bias1;
+                        v4f32 _sum03_0 = _bias0;
+                        v4f32 _sum03_1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __ncnn_msa_fmadd_w(_sum00_0, _val0, _w0);
+                            _sum00_1 = __ncnn_msa_fmadd_w(_sum00_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __ncnn_msa_fmadd_w(_sum01_0, _val0, _w0);
+                            _sum01_1 = __ncnn_msa_fmadd_w(_sum01_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __ncnn_msa_fmadd_w(_sum02_0, _val0, _w0);
+                            _sum02_1 = __ncnn_msa_fmadd_w(_sum02_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __ncnn_msa_fmadd_w(_sum03_0, _val0, _w0);
+                            _sum03_1 = __ncnn_msa_fmadd_w(_sum03_1, _val1, _w1);
+                        }
+
+                        _sum00_0 = activation_msa(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_msa(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_msa(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_msa(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_msa(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_msa(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_msa(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_msa(_sum03_1, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum00_0, _sum00_1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        v4f32 _sum0 = _bias0;
+                        v4f32 _sum1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr0 + space_ofs[k] * 8, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+                        }
+
+                        _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                        _sum1 = activation_msa(_sum1, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+
+                        outptr0 += 8;
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return 0;
+        }
+
+        if (elempack == 4)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < channels; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 4;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        v4f32 _sum = (v4f32)__msa_fill_w(0);
+
+                        if (bias_term)
+                        {
+                            _sum = (v4f32)__msa_ld_w((const float*)bias_data + g * 4, 0);
+                        }
+
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v4f32 _val = bfloat2float_msa(sptr + space_ofs[k] * 4);
+                            v4f32 _w = bfloat2float_msa(kptr + k * 4);
+                            _sum = __ncnn_msa_fmadd_w(_sum, _val, _w);
+                        }
+
+                        _sum = activation_msa(_sum, activation_type, activation_params);
+
+                        *(int64_t*)(outptr + j * 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum), 0);
+                    }
+
+                    outptr += outw * 4;
+                }
+            }
+
+            return 0;
+        }
+#endif // __mips_msa
+
+        if (elempack == 1)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < group; g++)
+            {
+                unsigned short* outptr = top_blob.channel(g);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g;
+                const Mat m = bottom_blob_bordered.channel(g);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                            sum = bias_data[g];
+
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float val = bfloat16_to_float32(sptr[space_ofs[k]]);
+                            float w = bfloat16_to_float32(kptr[k]);
+                            sum += val * w;
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = float32_to_bfloat16(sum);
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    // group convolution
+    const int channels_g = channels * elempack / group;
+    const int num_output_g = num_output / group;
+
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+    }
+#endif
+
+    // unpacking
+    Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (elempack > g_elempack)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
+    }
+
+    Mat top_blob_unpacked = top_blob;
+    if (out_g_elempack < out_elempack)
+    {
+        top_blob_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
+
+    for (int g = 0; g < group; g++)
+    {
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+        Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+        const ncnn::Layer* op = group_ops[g];
+
+        Option opt_g = opt;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
+
+        // forward
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
+    }
+
+    // packing
+    if (out_g_elempack < out_elempack)
+    {
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob = top_blob_unpacked;
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int ConvolutionDepthWise_mips::create_pipeline_int8_mips(const Option& opt)
@@ -639,6 +1250,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;
@@ -666,6 +1279,10 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
 #endif // __mips_msa
         bool use_int8_requantize = int8_scale_term > 100;
         size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+        if (opt.use_bf16_storage)
+            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -700,6 +1317,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                 for (int g = 0; g < channels; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
+                    unsigned short* outptr_bf16 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
                     const signed char* kptr = (const signed char*)weight_data_tm + maxk * g * 8;
                     const Mat m = bottom_blob_bordered.channel(g);
@@ -757,8 +1375,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                                 _sumfp32_1 = __msa_fadd_w(_sumfp32_1, _bias1);
                             }
 
-                            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                            _sumfp32_0 = activation_msa(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_msa(_sumfp32_1, activation_type, activation_params);
 
                             if (use_int8_requantize)
                             {
@@ -775,9 +1393,19 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                             else
                             {
                                 // dequantize and relu
-                                __msa_st_w((v4i32)_sumfp32_0, outptr_f32, 0);
-                                __msa_st_w((v4i32)_sumfp32_1, outptr_f32 + 4, 0);
-                                outptr_f32 += 8;
+#if NCNN_BF16
+                                if (opt.use_bf16_storage)
+                                {
+                                    __msa_st_w(float2bfloat_msa(_sumfp32_0, _sumfp32_1), outptr_bf16, 0);
+                                    outptr_bf16 += 8;
+                                }
+                                else
+#endif
+                                {
+                                    __msa_st_w((v4i32)_sumfp32_0, outptr_f32, 0);
+                                    __msa_st_w((v4i32)_sumfp32_1, outptr_f32 + 4, 0);
+                                    outptr_f32 += 8;
+                                }
                             }
                         }
                     }
@@ -814,6 +1442,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                 for (int g = 0; g < group; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
+                    unsigned short* outptr_bf16 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
                     const signed char* kptr = (const signed char*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
@@ -857,8 +1486,18 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                             else
                             {
                                 // dequantize
-                                outptr_f32[0] = sumfp32;
-                                outptr_f32 += 1;
+#if NCNN_BF16
+                                if (opt.use_bf16_storage)
+                                {
+                                    outptr_bf16[0] = float32_to_bfloat16(sumfp32);
+                                    outptr_bf16 += 1;
+                                }
+                                else
+#endif
+                                {
+                                    outptr_f32[0] = sumfp32;
+                                    outptr_f32 += 1;
+                                }
                             }
                         }
                     }
@@ -881,6 +1520,10 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
     }
 #endif // __mips_msa
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
@@ -910,6 +1553,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, g_elempack, opt_p);
+        if (bottom_blob_bordered_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -920,7 +1565,6 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
             return -100;
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
@@ -932,13 +1576,17 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
         opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        int ret = op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        if (ret != 0)
+            return ret;
     }
 
     // packing
     if (out_g_elempack < out_elempack)
     {
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
     }
     else
     {

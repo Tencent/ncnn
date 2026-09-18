@@ -14,6 +14,12 @@ public:
     Dropout_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_ZFH
+    int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
+    int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

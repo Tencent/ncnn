@@ -1,0 +1,60 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfp src_blob_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfp dst_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int src_w;
+    int src_h;
+    int channels;
+    int outw;
+    int outh;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int src_cstep;
+    int pad_left;
+    int pad_top;
+    float pad_value;
+} p;
+
+void main()
+{
+    int t = int(gl_GlobalInvocationID.x);
+    int r = int(gl_GlobalInvocationID.y);
+
+    int size = p.outw * p.outh;
+    int maxk = p.kernel_w * p.kernel_h;
+
+    if (t >= size || r >= maxk * p.channels)
+        return;
+
+    int pch = r / maxk;
+    int k = r - pch * maxk;
+
+    int u = k / p.kernel_w;
+    int v = k - u * p.kernel_w;
+
+    int i = t / p.outw;
+    int j = t - i * p.outw;
+
+    int sy = u * p.dilation_h + i * p.stride_h - p.pad_top;
+    int sx = v * p.dilation_w + j * p.stride_w - p.pad_left;
+
+    afp val = afp(p.pad_value);
+    if (uint(sx) < uint(p.src_w) && uint(sy) < uint(p.src_h))
+    {
+        int si = pch * p.src_cstep + sy * p.src_w + sx;
+        val = buffer_ld1(src_blob_data, si);
+    }
+
+    int di = r * size + t;
+    buffer_st1(dst_blob_data, di, val);
+}

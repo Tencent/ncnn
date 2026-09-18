@@ -3,6 +3,8 @@
 
 #include "convolution3d.h"
 
+#include <limits.h>
+
 #include "fused_activation.h"
 
 namespace ncnn {
@@ -36,6 +38,41 @@ int Convolution3D::load_param(const ParamDict& pd)
     weight_data_size = pd.get(6, 0);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
+
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (kernel_w <= 0 || dilation_w <= 0 || stride_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || dilation_h <= 0 || stride_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_d <= 0 || dilation_d <= 0 || stride_d <= 0 || kernel_d - 1 > (INT_MAX - 1) / dilation_d || kernel_w > INT_MAX / kernel_h || kernel_w * kernel_h > INT_MAX / kernel_d)
+        return -1;
+
+    if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h * kernel_d) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
 
     return 0;
 }

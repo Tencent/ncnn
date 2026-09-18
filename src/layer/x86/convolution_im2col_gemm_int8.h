@@ -5,11 +5,11 @@
 void convolution_im2col_input_tile_int8_avx512vnni(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
 void convolution_im2col_input_tile_int8_avxvnniint8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 void convolution_im2col_input_tile_int8_avxvnni(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h);
 #endif
 
@@ -18,14 +18,9 @@ void convolution_im2col_input_tile_int8_avx2(const Mat& bottom_blob, Mat& B, int
 void unpack_output_tile_int32_avx2(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
-#endif
-
 // gemm_x86.h
 #if NCNN_RUNTIME_CPU && __AVX512F__
 namespace Gemm_x86_avx512_utility {
-#elif NCNN_RUNTIME_CPU && __FMA__
-namespace Gemm_x86_fma_utility {
 #elif NCNN_RUNTIME_CPU && __AVX__
 namespace Gemm_x86_avx_utility {
 #else
@@ -41,8 +36,6 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #else
@@ -56,8 +49,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
 #if NCNN_RUNTIME_CPU && __AVX512F__
     Gemm_x86_avx512_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-#elif NCNN_RUNTIME_CPU && __FMA__
-    Gemm_x86_fma_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #elif NCNN_RUNTIME_CPU && __AVX__
     Gemm_x86_avx_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #else
@@ -1086,9 +1077,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m512i _vindex0 = _mm512_add_epi32(_dxy_offset, _mm512_set1_epi32(puv_offset0));
 
-                    __m128i _p0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
-
-                    _mm_store_si128((__m128i*)pp, _p0);
+                    _mm512_mask_cvtepi32_storeu_epi8(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
 
                     pp += 16;
                 }
@@ -1570,14 +1559,20 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex2 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset1));
                     __m128i _vindex3 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset1));
 
-                    int offsets0[4];
-                    int offsets1[4];
-                    int offsets2[4];
-                    int offsets3[4];
-                    _mm_storeu_si128((__m128i*)offsets0, _vindex0);
-                    _mm_storeu_si128((__m128i*)offsets1, _vindex1);
-                    _mm_storeu_si128((__m128i*)offsets2, _vindex2);
-                    _mm_storeu_si128((__m128i*)offsets3, _vindex3);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int offsetsbuf[16];
+                    int* offsets0 = offsetsbuf;
+                    int* offsets1 = offsetsbuf + 4;
+                    int* offsets2 = offsetsbuf + 8;
+                    int* offsets3 = offsetsbuf + 12;
+                    _mm_store_si128((__m128i*)offsets0, _vindex0);
+                    _mm_store_si128((__m128i*)offsets1, _vindex1);
+                    _mm_store_si128((__m128i*)offsets2, _vindex2);
+                    _mm_store_si128((__m128i*)offsets3, _vindex3);
 
                     pp[0] = ((const signed char*)bottom_blob)[offsets0[0]];
                     pp[1] = ((const signed char*)bottom_blob)[offsets2[0]];
@@ -1612,19 +1607,29 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __AVX2__
                     __m256i _vindex0 = _mm256_add_epi32(_dxy_offset, _mm256_set1_epi32(puv_offset0));
 
+#if __AVX512F__
+                    _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_storel_epi64((__m128i*)pp, _p0);
+#endif
 
 #else // __AVX2__
 
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset0));
                     __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset0));
 
-                    int offsets0[4];
-                    int offsets1[4];
-                    _mm_storeu_si128((__m128i*)offsets0, _vindex0);
-                    _mm_storeu_si128((__m128i*)offsets1, _vindex1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int offsetsbuf[8];
+                    int* offsets0 = offsetsbuf;
+                    int* offsets1 = offsetsbuf + 4;
+                    _mm_store_si128((__m128i*)offsets0, _vindex0);
+                    _mm_store_si128((__m128i*)offsets1, _vindex1);
 
                     pp[0] = ((const signed char*)bottom_blob)[offsets0[0]];
                     pp[1] = ((const signed char*)bottom_blob)[offsets0[1]];
@@ -1717,7 +1722,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r0);
                     _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
-#else  // __AVX2__
+#else // __AVX2__
 
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset));
                     __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset));
@@ -1725,10 +1730,16 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _vindex0 = _mm_comp_mullo_epi32(_vindex0, _mm_set1_epi32(8));
                     _vindex1 = _mm_comp_mullo_epi32(_vindex1, _mm_set1_epi32(8));
 
-                    int offsets0[4];
-                    int offsets1[4];
-                    _mm_storeu_si128((__m128i*)offsets0, _vindex0);
-                    _mm_storeu_si128((__m128i*)offsets1, _vindex1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int offsetsbuf[8];
+                    int* offsets0 = offsetsbuf;
+                    int* offsets1 = offsetsbuf + 4;
+                    _mm_store_si128((__m128i*)offsets0, _vindex0);
+                    _mm_store_si128((__m128i*)offsets1, _vindex1);
 
                     __m128i _r0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[0]));
                     __m128i _r1 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets0[1]));
@@ -2007,10 +2018,16 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm_storel_epi64((__m128i*)pp, _p01);
 #else
-                    int offsets0[4];
-                    int offsets1[4];
-                    _mm_storeu_si128((__m128i*)offsets0, _vindex0);
-                    _mm_storeu_si128((__m128i*)offsets1, _vindex1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int offsetsbuf[8];
+                    int* offsets0 = offsetsbuf;
+                    int* offsets1 = offsetsbuf + 4;
+                    _mm_store_si128((__m128i*)offsets0, _vindex0);
+                    _mm_store_si128((__m128i*)offsets1, _vindex1);
 
                     pp[0] = ((const signed char*)bottom_blob)[offsets0[0]];
                     pp[1] = ((const signed char*)bottom_blob)[offsets1[0]];
@@ -2036,12 +2053,21 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset, _mm_set1_epi32(puv_offset));
 
 #if __AVX2__
+#if __AVX512F__
+                    _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_store_ss((float*)pp, _mm_castsi128_ps(_p0));
+#endif
 #else
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     int offsets[4];
-                    _mm_storeu_si128((__m128i*)offsets, _vindex0);
+                    _mm_store_si128((__m128i*)offsets, _vindex0);
 
                     pp[0] = ((const signed char*)bottom_blob)[offsets[0]];
                     pp[1] = ((const signed char*)bottom_blob)[offsets[1]];
@@ -2100,10 +2126,15 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r01);
 
-#else  // __AVX2__
+#else // __AVX2__
 
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     int offsets[4];
-                    _mm_storeu_si128((__m128i*)offsets, _vindex);
+                    _mm_store_si128((__m128i*)offsets, _vindex);
 
                     __m128i _r0 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets[0]));
                     __m128i _r1 = _mm_loadl_epi64((const __m128i*)((const signed char*)bottom_blob + offsets[1]));
@@ -2293,8 +2324,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
                     }
 
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     int puv_offset[4];
-                    _mm_storeu_si128((__m128i*)puv_offset, _puv_offset);
+                    _mm_store_si128((__m128i*)puv_offset, _puv_offset);
 
                     int offset00 = dxy_offset0 + puv_offset[0];
                     int offset01 = dxy_offset1 + puv_offset[0];
@@ -2453,8 +2489,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
                 }
 
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
                 int puv_offset[4];
-                _mm_storeu_si128((__m128i*)puv_offset, _puv_offset);
+                _mm_store_si128((__m128i*)puv_offset, _puv_offset);
 
                 int offset0 = dxy_offset + puv_offset[0];
                 int offset1 = dxy_offset + puv_offset[1];
@@ -2557,7 +2598,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNIINT8 && __AVX__ && !__AVX512F__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni_int8())
     {
         convolution_im2col_input_tile_int8_avxvnniint8(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
@@ -2565,7 +2606,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX__ && !__AVX512F__ && !__AVXVNNI__ && !__AVXVNNIINT8__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         convolution_im2col_input_tile_int8_avxvnni(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
@@ -2648,11 +2689,19 @@ static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat
     bool has_w_shift = false;
     if (TILE_K >= 4)
     {
-        has_w_shift = ncnn::cpu_support_x86_avx512_vnni() || ncnn::cpu_support_x86_avx_vnni();
+#if __AVX512F__
+#if NCNN_AVX512VNNI
+        has_w_shift = ncnn::cpu_support_x86_avx512_vnni();
+#endif // NCNN_AVX512VNNI
+#else
+#if NCNN_AVXVNNI
+        has_w_shift = ncnn::cpu_support_x86_avx_vnni();
 #if NCNN_AVXVNNIINT8
         if (ncnn::cpu_support_x86_avx_vnni_int8())
             has_w_shift = false;
 #endif // NCNN_AVXVNNIINT8
+#endif // NCNN_AVXVNNI
+#endif // __AVX512F__
     }
     if (has_w_shift)
     {
@@ -3894,10 +3943,16 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     _mm256_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
                     _mm256_i32scatter_epi32(p0 + 1, _vindex, _f1, sizeof(int));
 #else
-                    int sum0[8];
-                    int sum1[8];
-                    _mm256_storeu_si256((__m256i*)sum0, _f0);
-                    _mm256_storeu_si256((__m256i*)sum1, _f1);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    int sumbuf[16];
+                    int* sum0 = sumbuf;
+                    int* sum1 = sumbuf + 8;
+                    _mm256_store_si256((__m256i*)sum0, _f0);
+                    _mm256_store_si256((__m256i*)sum1, _f1);
 
                     p0[0] = sum0[0];
                     p0[1] = sum1[0];
@@ -3951,8 +4006,13 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
                     _mm256_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
                     int sum0[8];
-                    _mm256_storeu_si256((__m256i*)sum0, _f0);
+                    _mm256_store_si256((__m256i*)sum0, _f0);
                     p0[0] = sum0[0];
                     p0[out_hstep] = sum0[1];
                     p0[out_hstep * 2] = sum0[2];
@@ -4227,10 +4287,16 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     _mm_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
                     _mm_i32scatter_epi32(p0 + 1, _vindex, _f1, sizeof(int));
 #else
-                    int sum0[4];
-                    int sum1[4];
-                    _mm_storeu_si128((__m128i*)sum0, _f0);
-                    _mm_storeu_si128((__m128i*)sum1, _f1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    int sumbuf[8];
+                    int* sum0 = sumbuf;
+                    int* sum1 = sumbuf + 4;
+                    _mm_store_si128((__m128i*)sum0, _f0);
+                    _mm_store_si128((__m128i*)sum1, _f1);
 
                     p0[0] = sum0[0];
                     p0[1] = sum1[0];
@@ -4263,8 +4329,13 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(out_hstep));
                     _mm_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     int sum0[4];
-                    _mm_storeu_si128((__m128i*)sum0, _f0);
+                    _mm_store_si128((__m128i*)sum0, _f0);
                     p0[0] = sum0[0];
                     p0[out_hstep] = sum0[1];
                     p0[out_hstep * 2] = sum0[2];

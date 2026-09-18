@@ -24,36 +24,16 @@ int LRN_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat workspace_shape_packed;
+    Mat workspace_shape;
     if (shape.dims != 0)
     {
         if (region_type == NormRegion_ACROSS_CHANNELS)
         {
-            workspace_shape_packed = Mat(shape.w, shape.h, shape.c + local_size - 1, (void*)0);
+            workspace_shape = Mat(shape.w, shape.h, shape.c * shape.elempack + local_size - 1, (void*)0);
         }
         else if (region_type == NormRegion_WITHIN_CHANNEL)
         {
-            workspace_shape_packed = Mat(shape.w + local_size - 1, shape.h + local_size - 1, shape.c / elempack, (void*)0, elempack * 4u, elempack);
+            workspace_shape = Mat(shape.w + local_size - 1, shape.h + local_size - 1, shape.c, (void*)0, shape.elempack * 4u, shape.elempack);
         }
     }
 
@@ -64,27 +44,27 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = region_type;
         specializations[1].i = pad;
         specializations[2].i = local_size - pad - 1;
-        specializations[3 + 0].i = shape_packed.dims;
-        specializations[3 + 1].i = shape_packed.w;
-        specializations[3 + 2].i = shape_packed.h;
-        specializations[3 + 3].i = shape_packed.c;
-        specializations[3 + 4].i = shape_packed.cstep;
-        specializations[3 + 5].i = workspace_shape_packed.dims;
-        specializations[3 + 6].i = workspace_shape_packed.w;
-        specializations[3 + 7].i = workspace_shape_packed.h;
-        specializations[3 + 8].i = workspace_shape_packed.c;
-        specializations[3 + 9].i = workspace_shape_packed.cstep;
+        specializations[3 + 0].i = shape.dims;
+        specializations[3 + 1].i = shape.w;
+        specializations[3 + 2].i = shape.h;
+        specializations[3 + 3].i = shape.c;
+        specializations[3 + 4].i = shape.cstep;
+        specializations[3 + 5].i = workspace_shape.dims;
+        specializations[3 + 6].i = workspace_shape.w;
+        specializations[3 + 7].i = workspace_shape.h;
+        specializations[3 + 8].i = workspace_shape.c;
+        specializations[3 + 9].i = workspace_shape.cstep;
 
         Mat local_size_xyz;
-        if (workspace_shape_packed.dims != 0)
+        if (workspace_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, workspace_shape_packed.w);
-            local_size_xyz.h = std::min(4, workspace_shape_packed.h);
-            local_size_xyz.c = std::min(4, workspace_shape_packed.c);
+            local_size_xyz.w = std::min(4, workspace_shape.w);
+            local_size_xyz.h = std::min(4, workspace_shape.h);
+            local_size_xyz.c = std::min(4, workspace_shape.c);
         }
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_lrn_square_pad = new Pipeline(vkdev);
             pipeline_lrn_square_pad->set_optimal_local_size_xyz(local_size_xyz);
@@ -92,13 +72,13 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (region_type == 0 && (shape.dims == 0 || elempack == 4))
+        if (region_type == 0 && (shape.dims == 0 || shape.elempack == 4))
         {
             pipeline_lrn_square_pad_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_across_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_across_channel_pack4->create(LayerShaderType::lrn_square_pad_across_channel_pack4, opt, specializations);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 4))
+        if (region_type == 1 && (shape.dims == 0 || shape.elempack == 4))
         {
             pipeline_lrn_square_pad_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_within_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -113,27 +93,27 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         specializations[2].f = alpha;
         specializations[3].f = beta;
         specializations[4].f = bias;
-        specializations[5 + 0].i = workspace_shape_packed.dims;
-        specializations[5 + 1].i = workspace_shape_packed.w;
-        specializations[5 + 2].i = workspace_shape_packed.h;
-        specializations[5 + 3].i = workspace_shape_packed.c;
-        specializations[5 + 4].i = workspace_shape_packed.cstep;
-        specializations[5 + 5].i = shape_packed.dims;
-        specializations[5 + 6].i = shape_packed.w;
-        specializations[5 + 7].i = shape_packed.h;
-        specializations[5 + 8].i = shape_packed.c;
-        specializations[5 + 9].i = shape_packed.cstep;
+        specializations[5 + 0].i = workspace_shape.dims;
+        specializations[5 + 1].i = workspace_shape.w;
+        specializations[5 + 2].i = workspace_shape.h;
+        specializations[5 + 3].i = workspace_shape.c;
+        specializations[5 + 4].i = workspace_shape.cstep;
+        specializations[5 + 5].i = shape.dims;
+        specializations[5 + 6].i = shape.w;
+        specializations[5 + 7].i = shape.h;
+        specializations[5 + 8].i = shape.c;
+        specializations[5 + 9].i = shape.cstep;
 
         Mat local_size_xyz;
-        if (shape_packed.dims != 0)
+        if (shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h);
+            local_size_xyz.c = std::min(4, shape.c);
         }
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_lrn_norm = new Pipeline(vkdev);
             pipeline_lrn_norm->set_optimal_local_size_xyz(local_size_xyz);
@@ -141,13 +121,13 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (region_type == 0 && (shape.dims == 0 || elempack == 4))
+        if (region_type == 0 && (shape.dims == 0 || shape.elempack == 4))
         {
             pipeline_lrn_norm_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_across_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_across_channel_pack4->create(LayerShaderType::lrn_norm_across_channel_pack4, opt, specializations);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 4))
+        if (region_type == 1 && (shape.dims == 0 || shape.elempack == 4))
         {
             pipeline_lrn_norm_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_within_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);

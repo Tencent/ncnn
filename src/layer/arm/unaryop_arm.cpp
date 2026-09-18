@@ -171,14 +171,7 @@ struct unary_op_sqrt
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-#if __aarch64__
-        return vsqrtq_f32(x);
-#else
-        float32x4_t _reciprocal = vrsqrteq_f32(x);
-        _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        // _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        return vmulq_f32(x, _reciprocal);
-#endif
+        return sqrt_ps(x);
     }
 #endif // __ARM_NEON
 };
@@ -460,6 +453,122 @@ struct unary_op_trunc
 #endif // __ARM_NEON
 };
 
+struct unary_op_sign
+{
+    float func(const float& x) const
+    {
+        return x > 0.f ? 1.f : x < 0.f ? -1.f : 0.f;
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float32x4_t zero = vdupq_n_f32(0.f);
+        float32x4_t one = vdupq_n_f32(1.f);
+        uint32x4_t pos = vcgtq_f32(x, zero);
+        uint32x4_t neg = vcltq_f32(x, zero);
+        return vsubq_f32(vreinterpretq_f32_u32(vandq_u32(pos, vreinterpretq_u32_f32(one))), vreinterpretq_f32_u32(vandq_u32(neg, vreinterpretq_u32_f32(one))));
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_expm1
+{
+    float func(const float& x) const
+    {
+        return (float)expm1f(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return expm1_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_sinh
+{
+    float func(const float& x) const
+    {
+        return (float)sinhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return sinh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_asinh
+{
+    float func(const float& x) const
+    {
+        return (float)asinhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return asinh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_cosh
+{
+    float func(const float& x) const
+    {
+        return (float)coshf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return cosh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_acosh
+{
+    float func(const float& x) const
+    {
+        return (float)acoshf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return acosh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_atanh
+{
+    float func(const float& x) const
+    {
+        return (float)atanhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return atanh_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_log1p
+{
+    float func(const float& x) const
+    {
+        return (float)log1pf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return log1p_ps(x);
+    }
+#endif // __ARM_NEON
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -537,6 +646,30 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }
@@ -673,6 +806,30 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }
