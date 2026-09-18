@@ -29,24 +29,24 @@ static void cumulative_sum(float* ptr, int w)
 
         // prefix within each 128-bit quarter
         __m512 _t = _mm512_maskz_shuffle_ps(
-            (__mmask16)0xeeee, _p, _p, _MM_SHUFFLE(2, 1, 0, 0));
+                        (__mmask16)0xeeee, _p, _p, _MM_SHUFFLE(2, 1, 0, 0));
         _p = _mm512_add_ps(_p, _t);
 
         _t = _mm512_maskz_shuffle_ps(
-            (__mmask16)0xcccc, _p, _p, _MM_SHUFFLE(1, 0, 0, 0));
+                 (__mmask16)0xcccc, _p, _p, _MM_SHUFFLE(1, 0, 0, 0));
         _p = _mm512_add_ps(_p, _t);
 
         // propagate quarter prefix
         __m512 _qsum = _mm512_shuffle_ps(_p, _p, _MM_SHUFFLE(3, 3, 3, 3));
 
         _t = _mm512_maskz_shuffle_f32x4(
-            (__mmask16)0xfff0, _qsum, _qsum, _MM_SHUFFLE(2, 1, 0, 0));
+                 (__mmask16)0xfff0, _qsum, _qsum, _MM_SHUFFLE(2, 1, 0, 0));
         _p = _mm512_add_ps(_p, _t);
 
         _qsum = _mm512_shuffle_ps(_p, _p, _MM_SHUFFLE(3, 3, 3, 3));
 
         _t = _mm512_maskz_shuffle_f32x4(
-            (__mmask16)0xff00, _qsum, _qsum, _MM_SHUFFLE(1, 0, 0, 0));
+                 (__mmask16)0xff00, _qsum, _qsum, _MM_SHUFFLE(1, 0, 0, 0));
         _p = _mm512_add_ps(_p, _t);
 
         _p = _mm512_add_ps(_p, _sum_avx512);
@@ -68,11 +68,11 @@ static void cumulative_sum(float* ptr, int w)
 
 #if __AVX2__
         __m256 _t = _mm256_castsi256_ps(
-            _mm256_slli_si256(_mm256_castps_si256(_p), 4));
+                        _mm256_slli_si256(_mm256_castps_si256(_p), 4));
         _p = _mm256_add_ps(_p, _t);
 
         _t = _mm256_castsi256_ps(
-            _mm256_slli_si256(_mm256_castps_si256(_p), 8));
+                 _mm256_slli_si256(_mm256_castps_si256(_p), 8));
         _p = _mm256_add_ps(_p, _t);
 
         __m256 _lo = _mm256_permute2f128_ps(_p, _p, 0x08);
