@@ -10,18 +10,11 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
 option(NCNN_SYSTEM_PYBIND11 "use system pybind11" OFF)
 
-if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
-    option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
-
-    set(PYTHON_PREFIX "$ENV{LOCALAPPDATA}/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.$ENV{PYTHON_VERSION}/tools")
-    if(NOT DEFINED $ENV{CIBUILDWHEEL})
-        message(WARNING
-            " This is hack for cibuildwheel on github action\n"
-            " Use the right way to cross-compile python module for windows arm64 like follows\n"
-            " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")\n"
-        )
-    endif()
-endif()
+# pybind11 v3 defaults to CMake's FindPython module. Opt-in explicitly so the
+# Python_EXECUTABLE / Python3_EXECUTABLE hints passed by setup.py are honored
+# (the legacy PYTHON_EXECUTABLE / PYTHON_PREFIX / PYBIND11_PYTHONLIBS_OVERWRITE
+# variables are no longer effective in pybind11 v3).
+set(PYBIND11_FINDPYTHON NEW)
 
 if(NCNN_SYSTEM_PYBIND11)
     find_package(pybind11)

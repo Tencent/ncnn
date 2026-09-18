@@ -218,7 +218,16 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
         RandomizeB(a[a.size() - 1], 10.f);
     }
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_int8 failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
@@ -227,7 +236,7 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
     return ret;
 }
 
-static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int constantC)
+static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int constantC, bool use_bf16 = false, int output_N1M = 0)
 {
     int broadcast_type_C = 0;
     if (C.dims == 1 && C.w == 1)
@@ -274,6 +283,7 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, broadcast_type_C);
+    pd.set(11, output_N1M);
     // pd.set(12, 1);                  // output_elempack
     pd.set(13, output_elemtype);
     pd.set(14, output_transpose);
@@ -289,20 +299,29 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
     std::vector<ncnn::Mat> a;
     if (!constantA)
     {
-        a.push_back(transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M));
+        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
         RandomizeA(a[a.size() - 1], transA, 10.f);
     }
     if (!constantB)
     {
-        a.push_back(transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K));
+        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
         RandomizeB(a[a.size() - 1], 10.f);
     }
     if (!constantC) a.push_back(C);
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = use_bf16;
+    opt.use_bf16_storage = use_bf16;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_int8_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_elemtype, output_transpose, constantA, constantB, constantC);
+        fprintf(stderr, "test_gemm_int8_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d constantC=%d use_bf16=%d output_N1M=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_elemtype, output_transpose, constantA, constantB, constantC, use_bf16, output_N1M);
     }
 
     return ret;
@@ -366,6 +385,64 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     return 0;
 }
 
+static int test_gemm_int8_bf16s(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+    pd.set(4, constantA);
+    pd.set(5, constantB);
+    pd.set(6, 1);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+    pd.set(10, -1);
+    pd.set(11, output_N1M);
+    pd.set(13, output_elemtype);
+    pd.set(14, output_transpose);
+    pd.set(18, 2); // int8_scale_term
+
+    std::vector<ncnn::Mat> weights;
+    if (constantA) weights.push_back(transA ? RandomS8Mat(M, K) : RandomS8Mat(K, M));
+    if (constantB) weights.push_back(transB ? RandomS8Mat(K, N) : RandomS8Mat(N, K));
+    if (constantA) weights.push_back(RandomMat(M, 10.f, 20.f));
+    if (constantB) weights.push_back(RandomMat(1, 10.f, 20.f));
+
+    std::vector<ncnn::Mat> a;
+    if (!constantA)
+    {
+        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
+        RandomizeA(a[a.size() - 1], transA, 10.f);
+    }
+    if (!constantB)
+    {
+        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
+        RandomizeB(a[a.size() - 1], 10.f);
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = true;
+    opt.use_bf16_storage = true;
+
+    float epsilon = 0.001;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, epsilon);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_int8_bf16s failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
+        return ret;
+    }
+
+    return 0;
+}
+
 static int test_gemm_0(int M, int N, int K)
 {
     return 0
@@ -422,6 +499,9 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 2, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 3, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1), 1.7f, -0.4f, 0, 0, 0, 0, 0, 0, 0, false, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(M), -1.3f, 0.6f, 1, 0, 0, 1, 0, 0, 0, false, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 0.8f, 0.5f, 0, 1, 0, 0, 0, 0, 0, false, 1)
 
            || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 0, 0, 1, 1, 1)
            || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 1, 1, 1, 1, 1)
@@ -503,6 +583,13 @@ int main()
             if (ret != 0)
                 return ret;
         }
+    }
+
+    if (test_gemm_int8_bf16s(12, 23, 12, 1.f, 0, 1, 0, 0, 0, 0, 0)
+            || test_gemm_int8_bf16s(12, 23, 12, 1.f, 1, 0, 0, 1, 0, 0, 0)
+            || test_gemm_int8_bias(12, 23, 12, RandomMat(23), 1.7f, -0.4f, 0, 1, 0, 1, 0, 0, 0, true))
+    {
+        return -1;
     }
 #else
     // test nothing for non-int8 build

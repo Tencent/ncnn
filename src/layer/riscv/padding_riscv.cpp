@@ -233,13 +233,18 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked;
     int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
 
     if (ret != 0)
+    {
+        top_blob.release();
         return ret;
+    }
 
     int out_elempack = 1;
 #if __riscv_vector
@@ -250,6 +255,8 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 #endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+    if (top_blob.empty())
+        return -100;
 
     return 0;
 }
@@ -484,12 +491,17 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked;
     int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
     if (ret != 0)
+    {
+        top_blob.release();
         return ret;
+    }
 
     int out_elempack = 1;
 #if __riscv_vector
@@ -500,6 +512,8 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+    if (top_blob.empty())
+        return -100;
 
     return 0;
 }
@@ -658,12 +672,17 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     Mat top_blob_unpacked;
     int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
     if (ret != 0)
+    {
+        top_blob.release();
         return ret;
+    }
 
     int out_elempack = 1;
 #if __riscv_vector
@@ -674,6 +693,8 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 #endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+    if (top_blob.empty())
+        return -100;
 
     return 0;
 }

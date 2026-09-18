@@ -13,14 +13,20 @@ class Model(nn.Module):
         self.conv_1 = nn.Conv2d(in_channels=12, out_channels=12, kernel_size=5, groups=12)
         self.conv_2 = nn.Conv2d(in_channels=12, out_channels=4, kernel_size=3, padding=2, groups=2)
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = F.pad(x, (2,0), mode='constant', value=0)
         x = self.conv_0(x)
         x = F.pad(x, (3,4), mode='constant', value=2.3)
         x = self.conv_1(x)
         x = F.pad(x, (0,1), mode='constant', value=1)
         x = self.conv_2(x)
-        return x
+        y = F.pad(y, (2,0), mode='constant', value=0)
+        y = self.conv_0(y)
+        y = F.pad(y, (3,4), mode='constant', value=2.3)
+        y = self.conv_1(y)
+        y = F.pad(y, (0,1), mode='constant', value=1)
+        y = self.conv_2(y)
+        return x, y
 
 def test():
     net = Model().half().float()
@@ -28,16 +34,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 3, 30, 30)
+    y = torch.rand(2, 3, 30, 30)
 
-    a = net(x)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, ))
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_ncnn_fuse_pad_conv.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_fuse_pad_conv.pt inputshape=[1,3,30,30]")
+    os.system("../../src/pnnx test_ncnn_fuse_pad_conv.pt inputshape=[1,3,30,30],[2,3,30,30]")
 
     # ncnn inference
     import test_ncnn_fuse_pad_conv_ncnn

@@ -132,6 +132,9 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_mips(bottom_blob_fp32, top_blob, opt);
         }
 #endif
@@ -382,6 +385,8 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -906,6 +911,8 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         opt_flatten.blob_allocator = opt.workspace_allocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
     }
 
     size_t elemsize = bottom_blob_flattened.elemsize;
@@ -1180,6 +1187,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
@@ -1189,6 +1198,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         Option opt_unpack = opt;
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+        if (bottom_blob_int8_unpacked.empty())
+            return -100;
 
         int h = bottom_blob_int8_unpacked.h;
 
@@ -1528,6 +1539,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
         flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+        if (bottom_blob_int8_flattened.empty())
+            return -100;
     }
 
     //     int elempack = bottom_blob_int8_flattened.elempack;

@@ -12,16 +12,19 @@ class Model(nn.Module):
         self.act_0 = nn.Softshrink()
         self.act_1 = nn.Softshrink(0.2)
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = x * 2 - 1
         y = y * 2 - 1
         z = z * 2 - 1
         w = w * 2 - 1
+        q = q * 2 - 1
+        q = F.max_pool2d(q, 1)
         x = self.act_0(x)
         y = self.act_0(y)
         z = self.act_1(z)
         w = self.act_1(w)
-        return x, y, z, w
+        q = self.act_1(q)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -32,16 +35,17 @@ def test():
     y = torch.rand(12, 64)
     z = torch.rand(12, 24, 64)
     w = torch.rand(12, 24, 32, 64)
+    q = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_nn_Softshrink.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Softshrink.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64]")
+    os.system("../../src/pnnx test_nn_Softshrink.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64],[2,3,5,7]")
 
     # ncnn inference
     import test_nn_Softshrink_ncnn

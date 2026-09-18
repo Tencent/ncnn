@@ -14,7 +14,7 @@ class Model(nn.Module):
         self.b2 = nn.Parameter(torch.rand(12))
         self.w3 = nn.Parameter(torch.rand(6, 4, 3, 3))
 
-    def forward(self, x, w0, w1, b1, y):
+    def forward(self, x, w0, w1, b1, y, q):
         x = F.conv2d(x, w0, None, stride=(2,2), padding=(1,1))
         if version.parse(torch.__version__) < version.parse('1.9'):
             x = F.conv2d(x, w1, b1, stride=(1,1), padding=(1,1), dilation=(2,1), groups=2)
@@ -23,7 +23,12 @@ class Model(nn.Module):
 
         y = F.conv2d(y, self.w2, self.b2, stride=(2,2), padding=(2,2))
         y = F.conv2d(y, self.w3, None, stride=(2,2), padding=(1,1), groups=3)
-        return x, y
+        q = F.conv2d(q, w0, None, stride=(2,2), padding=(1,1))
+        if version.parse(torch.__version__) < version.parse('1.9'):
+            q = F.conv2d(q, w1, b1, stride=(1,1), padding=(1,1), dilation=(2,1), groups=2)
+        else:
+            q = F.conv2d(q, w1, b1, stride=(1,1), padding='same', dilation=(2,1), groups=2)
+        return x, y, q
 
 def test():
     net = Model().half().float()
@@ -35,22 +40,23 @@ def test():
     w1 = torch.rand(16, 8, 5, 5)
     b1 = torch.rand(16)
     y = torch.rand(1, 6, 32, 25)
+    q = torch.rand(2, 12, 52, 64)
 
-    a0, a1 = net(x, w0, w1, b1, y)
+    a0, a1, a2 = net(x, w0, w1, b1, y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, w0, w1, b1, y))
+    mod = torch.jit.trace(net, (x, w0, w1, b1, y, q))
     mod.save("test_F_conv2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_conv2d.pt inputshape=[1,12,52,64],[16,12,3,3],[16,8,5,5],[16],[1,6,32,25]")
+    os.system("../../src/pnnx test_F_conv2d.pt inputshape=[1,12,52,64],[16,12,3,3],[16,8,5,5],[16],[1,6,32,25],[2,12,52,64]")
 
     # ncnn inference
     import test_F_conv2d_ncnn
-    b0, b1 = test_F_conv2d_ncnn.test_inference()
+    b0, b1, b2 = test_F_conv2d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

@@ -103,7 +103,7 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
         v4f32 _eps = __msa_fill_w_f32(eps);
         _var = __msa_fdiv_w(_var, _elemcount);
         _var = __msa_fadd_w(_var, _eps);
-        _var = __msa_frsqrt_w(_var);
+        _var = __ncnn_msa_comp_rsqrt_w(_var);
         _mean = __msa_fmul_w(_mean, _var);
         _mean = __msa_fsub_w((v4f32)__msa_fill_w(0), _mean);
     }
@@ -412,8 +412,8 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         _var1 = __msa_fdiv_w(_var1, _elemcount);
         _var0 = __msa_fadd_w(_var0, _eps);
         _var1 = __msa_fadd_w(_var1, _eps);
-        _var0 = __msa_frsqrt_w(_var0);
-        _var1 = __msa_frsqrt_w(_var1);
+        _var0 = __ncnn_msa_comp_rsqrt_w(_var0);
+        _var1 = __ncnn_msa_comp_rsqrt_w(_var1);
         _mean0 = __msa_fmul_w(_mean0, _var0);
         _mean1 = __msa_fmul_w(_mean1, _var1);
         v4f32 _zero = (v4f32)__msa_fill_w(0);
@@ -428,7 +428,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         v4f32 _eps = __msa_fill_w_f32(eps);
         _var0 = __msa_fdiv_w(_var0, _elemcount);
         _var0 = __msa_fadd_w(_var0, _eps);
-        _var0 = __msa_frsqrt_w(_var0);
+        _var0 = __ncnn_msa_comp_rsqrt_w(_var0);
         _mean0 = __msa_fmul_w(_mean0, _var0);
         _mean0 = __msa_fsub_w((v4f32)__msa_fill_w(0), _mean0);
         _var1 = _var0;

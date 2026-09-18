@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1):
+    def forward(self, a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, q0, q1):
         a = torch.matmul(a0, a1.transpose(-2, -1))
         b = torch.matmul(b0, b1.transpose(-2, -1))
         c = torch.matmul(c0, c1.transpose(-2, -1))
@@ -22,7 +22,10 @@ class Model(nn.Module):
         j = torch.matmul(j0, j1.transpose(-2, -1))
         k = torch.matmul(k0, k1.transpose(-2, -1))
         l = torch.matmul(l0, l1.transpose(-2, -1))
-        return a, b, c, d, e, f, g, h, i, j, k, l
+        q0 = F.max_pool2d(q0, 1)
+        q1 = F.max_pool2d(q1, 1)
+        q = torch.matmul(q0, q1.transpose(-2, -1))
+        return a, b, c, d, e, f, g, h, i, j, k, l, q
 
 def test():
     net = Model()
@@ -53,16 +56,18 @@ def test():
     k1 = torch.rand(8, 1, 9, 11)
     l0 = torch.rand(6, 9, 13, 14)
     l1 = torch.rand(6, 9, 15, 14)
+    q0 = torch.rand(2, 3, 5, 7)
+    q1 = torch.rand(2, 3, 4, 7)
 
-    a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1)
+    a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, q0, q1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1))
+    mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, q0, q1))
     mod.save("test_ncnn_fuse_transpose_matmul.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_fuse_transpose_matmul.pt inputshape=[14],[6,14],[13],[7,4,13],[15],[5,7,9,15],[23,14],[25,14],[4,5],[10,40,5],[14,6],[2,4,20,6],[10,23,14],[5,14],[7,8,13,14],[35,14],[10,23,14],[10,5,14],[10,13,18],[3,1,8,18],[1,5,23,11],[8,1,9,11],[6,9,13,14],[6,9,15,14]")
+    os.system("../../src/pnnx test_ncnn_fuse_transpose_matmul.pt inputshape=[14],[6,14],[13],[7,4,13],[15],[5,7,9,15],[23,14],[25,14],[4,5],[10,40,5],[14,6],[2,4,20,6],[10,23,14],[5,14],[7,8,13,14],[35,14],[10,23,14],[10,5,14],[10,13,18],[3,1,8,18],[1,5,23,11],[8,1,9,11],[6,9,13,14],[6,9,15,14],[2,3,5,7],[2,3,4,7]")
 
     # ncnn inference
     import test_ncnn_fuse_transpose_matmul_ncnn

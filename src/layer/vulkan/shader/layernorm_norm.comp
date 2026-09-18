@@ -7,7 +7,7 @@ layout(constant_id = 0) const int affine = 0;
 layout(constant_id = 1) const int affine_size = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout(binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer coeffs_blob { float coeffs_blob_data[]; };
 layout(binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
 layout(binding = 3) readonly buffer beta_blob { sfp beta_data[]; };
 
@@ -33,20 +33,20 @@ void main()
     const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
     const int inner_id = q % affine_size;
 
-    afp a = buffer_ld1(coeffs_blob_data, group_id * 2);
-    afp b = buffer_ld1(coeffs_blob_data, group_id * 2 + 1);
+    float a = coeffs_blob_data[group_id * 2];
+    float b = coeffs_blob_data[group_id * 2 + 1];
 
-    afp v = buffer_ld1(bottom_top_blob_data, gi);
+    float v = float(buffer_ld1(bottom_top_blob_data, gi));
 
     // (x - mean) / sqrt(var + eps)
     v = v * a + b;
 
     if (affine == 1)
     {
-        afp gamma = buffer_ld1(gamma_data, inner_id);
-        afp beta = buffer_ld1(beta_data, inner_id);
+        float gamma = float(buffer_ld1(gamma_data, inner_id));
+        float beta = float(buffer_ld1(beta_data, inner_id));
         v = v * gamma + beta;
     }
 
-    buffer_st1(bottom_top_blob_data, gi, v);
+    buffer_st1(bottom_top_blob_data, gi, afp(v));
 }
