@@ -45,6 +45,7 @@ jobs:
     - name: test
       env:
         LD_LIBRARY_PATH: /data/action/install/lib64
+        NCNN_VULKAN_DRIVER: /usr/lib64/libEGL_nvidia.so.0
       run: cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
