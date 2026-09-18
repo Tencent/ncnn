@@ -103,6 +103,9 @@ int main()
     perf_reduction(PerfMat(1024, 1024), 0, 0, 1);
     perf_reduction(PerfMat(1024, 1024), 0, 0, 0);
 
+    perf_reduction(PerfMat(1024, 1024), 10, 0, 1);
+    perf_reduction(PerfMat(1024, 1024), 10, 0, 0);
+
     perf_reduction(PerfMat(56, 56, 64), 3, 1, 1, 2);
     perf_reduction(PerfMat(56, 56, 64), 4, 0, 0);
 
