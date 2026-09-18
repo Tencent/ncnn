@@ -32,8 +32,6 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         // packing is along the spatial dimensions, not channels
         size *= elempack;
         elempack = 1;
-        if (across_spatial)
-            across_channel = 0;
     }
 
     if (across_spatial && across_channel)
@@ -230,7 +228,7 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         return 0;
     }
 
-    if (across_spatial)
+    if (across_spatial && !across_channel)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -470,7 +468,7 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         return 0;
     }
 
-    if (across_channel)
+    if (!across_spatial && across_channel)
     {
         Mat square_sum_blob;
         square_sum_blob.create(size, 4u, opt.workspace_allocator);
@@ -756,6 +754,8 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
                 }
             }
         }
+
+        return 0;
     }
 
     return 0;
