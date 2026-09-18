@@ -351,6 +351,10 @@ Attribute::Attribute(const at::Tensor& t)
             float f = t.item<float>();
             memcpy((void*)data.data(), (const void*)&f, data.size());
         }
+        else if (t.scalar_type() == c10::ScalarType::Bool)
+        {
+            data[0] = t.item<bool>() ? 1 : 0;
+        }
         else
         {
             fprintf(stderr, "unknown Attribute tensor scalar type %d\n", type);

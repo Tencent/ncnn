@@ -32,22 +32,28 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int axis = captured_params.at("dim").i;
-        if (axis == batch_index)
-        {
-            fprintf(stderr, "normalize along batch axis %d is not supported\n", batch_index);
-            return;
-        }
-
         if (axis < 0)
         {
             int input_rank = op->inputs[0]->shape.size();
-            axis = input_rank + axis;
+            if (input_rank == 0)
+                input_rank = op->outputs[0]->shape.size();
+            if (input_rank > 0)
+                axis = input_rank + axis;
+            else if (ncnn_batch_axis != 233)
+                fprintf(stderr, "normalize axis around batch axis %d is unknown\n", ncnn_batch_axis);
         }
 
-        if (axis > batch_index)
+        bool axis_is_batch = false;
+        if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
+        {
+            fprintf(stderr, "normalize along batch axis %d is not supported\n", ncnn_batch_axis);
+            axis_is_batch = true;
+        }
+
+        if (!axis_is_batch && ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         float p = 0.f;
@@ -59,18 +65,18 @@ pnnx.Output             output      1 0 out
         if (p != 2.f)
         {
             fprintf(stderr, "unsupported normalize p=%f\n", p);
-            return;
         }
 
         int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
 
-        if (batch_index >= 0 && batch_index < input_rank)
+        if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
             input_rank -= 1;
 
         if (input_rank == 2 || input_rank > 4 || axis != 0)
         {
             fprintf(stderr, "unsupported normalize for %d-rank tensor with axis %d\n", input_rank, axis);
-            return;
         }
 
         if (input_rank == 1 && axis == 0)
@@ -83,6 +89,11 @@ pnnx.Output             output      1 0 out
         {
             op->params["0"] = 0; // across_spatial
             op->params["4"] = 1; // across_channel
+        }
+        if (!op->has_param("0"))
+        {
+            op->params["0"] = 0;
+            op->params["4"] = 1;
         }
 
         op->params["1"] = 1; // channel_shared

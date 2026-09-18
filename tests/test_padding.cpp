@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int right, int front, int behind, int type, float value, int per_channel_pad_data_size)
 {
     ncnn::ParamDict pd;
@@ -237,7 +241,7 @@ static int test_padding_int8(const ncnn::Mat& a, int top, int bottom, int left, 
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
 
-    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
     int ret = test_layer("Padding", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
@@ -435,16 +439,45 @@ static int test_padding_7()
            || test_padding_int8(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
 }
 
+#if NCNN_VALIDATION
+static int test_padding_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Padding, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Padding, base, 4, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Padding, base, 4, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_padding_0()
+    return 0
+           || test_padding_0()
            || test_padding_1()
            || test_padding_2()
            || test_padding_3()
            || test_padding_4()
            || test_padding_5()
            || test_padding_6()
-           || test_padding_7();
+           || test_padding_7()
+#if NCNN_VALIDATION
+           || test_padding_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, int outw, int outh, int outd, int outc, int woffset2, int hoffset2, int doffset2, int coffset2)
 {
     ncnn::ParamDict pd;
@@ -248,6 +252,52 @@ static int test_crop_9(const ncnn::Mat& a)
            || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12);
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_crop_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(9, param_int_array(1, 0));
+    base.set(10, param_int_array(1, 1));
+    base.set(11, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::Crop, base, 0)
+            || test_layer_param(ncnn::LayerType::Crop, base, 11, ncnn::Mat(0), 0))
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(11, ncnn::Mat(0));
+        pd.set(9, ncnn::Mat(0));
+        pd.set(10, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::Crop, pd, 0) != 0)
+            return -1;
+    }
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Crop, base, 9, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 10, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 11, param_int_array(1, INT_MIN), -1)
+           || test_layer_param(ncnn::LayerType::Crop, base, 9, param_int_array(2, 0), -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(776757);
@@ -264,5 +314,9 @@ int main()
            || test_crop_6(RandomMat(16, 16, 33))
            || test_crop_9(RandomMat(20, 20, 20, 48))
            || test_crop_9(RandomMat(15, 15, 15, 36))
-           || test_crop_9(RandomMat(16, 16, 16, 33));
+           || test_crop_9(RandomMat(16, 16, 16, 33))
+#if NCNN_VALIDATION
+           || test_crop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

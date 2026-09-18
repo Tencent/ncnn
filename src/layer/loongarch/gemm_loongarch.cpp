@@ -169,20 +169,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __builtin_prefetch(p0 + 32);
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 8;
-            }
-        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -242,23 +228,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     for (; ii + 1 < max_ii; ii += 2)
     {
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp += 2;
-                p0 += 8;
-            }
-
-            continue;
-        }
-
         // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -277,22 +246,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     for (; ii < max_ii; ii += 1)
     {
-        if (elempack == 8)
-        {
-            const int i_pack = (i + ii) / 8;
-            const int i_lane = (i + ii) % 8;
-            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 8;
-            }
-
-            continue;
-        }
-
         // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -2228,19 +2181,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        transpose8x4_ps(_sum0, _sum1, _sum2, _sum3);
-                        float* p1f = p0f;
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum0), p1f, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum0), p1f + 8, 0);
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum1), p1f + 16, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum1), p1f + 24, 0);
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum2), p1f + 32, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum2), p1f + 40, 0);
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum3), p1f + 48, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum3), p1f + 56, 0);
-                    }
                     if (out_elempack == 4)
                     {
                         transpose8x4_ps(_sum0, _sum1, _sum2, _sum3);
@@ -2305,19 +2245,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
-                        unsigned short* p1 = p0;
-                        __lsx_vstelm_d(_bf0, p1, 0, 0);
-                        __lsx_vstelm_d(_bf0, p1 + 8, 0, 1);
-                        __lsx_vstelm_d(_bf1, p1 + 16, 0, 0);
-                        __lsx_vstelm_d(_bf1, p1 + 24, 0, 1);
-                        __lsx_vstelm_d(_bf2, p1 + 32, 0, 0);
-                        __lsx_vstelm_d(_bf2, p1 + 40, 0, 1);
-                        __lsx_vstelm_d(_bf3, p1 + 48, 0, 0);
-                        __lsx_vstelm_d(_bf3, p1 + 56, 0, 1);
-                    }
                     if (out_elempack == 4)
                     {
                         transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -2432,19 +2359,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lasx_xvst(_sum0, p0f, 0);
-                        __lasx_xvst(_sum1, p0f + 8, 0);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum0), p0f, 0);
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum1), p0f + 4, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum0), p0f + out_hstep * 4, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum1), p0f + out_hstep * 4 + 4, 0);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lasx_xvst(_sum0, p0f, 0);
                         __lasx_xvst(_sum1, p0f + out_hstep, 0);
@@ -2491,19 +2406,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vst(_bf0, p0, 0);
-                        __lsx_vst(_bf1, p0 + 8, 0);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_d(_bf0, p0, 0, 0);
-                        __lsx_vstelm_d(_bf1, p0 + 4, 0, 0);
-                        __lsx_vstelm_d(_bf0, p0 + out_hstep * 4, 0, 1);
-                        __lsx_vstelm_d(_bf1, p0 + out_hstep * 4 + 4, 0, 1);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst(_bf0, p0, 0);
                         __lsx_vst(_bf1, p0 + out_hstep, 0);
@@ -2585,16 +2488,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lasx_xvst(_sum, p0f, 0);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vst(__lasx_extract_128_lo((__m256i)_sum), p0f, 0);
-                        __lsx_vst(__lasx_extract_128_hi((__m256i)_sum), p0f + out_hstep * 4, 0);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lasx_xvst(_sum, p0f, 0);
                     }
@@ -2632,16 +2526,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 __m128i _bf = float2bfloat_lasx(_sum);
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vst(_bf, p0, 0);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_d(_bf, p0, 0, 0);
-                        __lsx_vstelm_d(_bf, p0 + out_hstep * 4, 0, 1);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst(_bf, p0, 0);
                     }
@@ -3330,22 +3215,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __m128i _bf0 = float2bfloat_lsx(_sum00, _sum01);
-                        __m128i _bf1 = float2bfloat_lsx(_sum10, _sum11);
-                        __m128i _bf2 = float2bfloat_lsx(_sum20, _sum21);
-                        __m128i _bf3 = float2bfloat_lsx(_sum30, _sum31);
-                        transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
-                        __lsx_vstelm_d(_bf0, p0, 0, 0);
-                        __lsx_vstelm_d(_bf0, p0 + 8, 0, 1);
-                        __lsx_vstelm_d(_bf1, p0 + 16, 0, 0);
-                        __lsx_vstelm_d(_bf1, p0 + 24, 0, 1);
-                        __lsx_vstelm_d(_bf2, p0 + 32, 0, 0);
-                        __lsx_vstelm_d(_bf2, p0 + 40, 0, 1);
-                        __lsx_vstelm_d(_bf3, p0 + 48, 0, 0);
-                        __lsx_vstelm_d(_bf3, p0 + 56, 0, 1);
-                    }
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
@@ -3498,26 +3367,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_w((__m128i)_sum00, p0f, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum10, p0f + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum00, p0f + 4, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum10, p0f + 5, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum00, p0f + 8, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum10, p0f + 9, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum00, p0f + 12, 0, 3);
-                        __lsx_vstelm_w((__m128i)_sum10, p0f + 13, 0, 3);
-                        __lsx_vstelm_w((__m128i)_sum01, p0f + 16, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum11, p0f + 17, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum01, p0f + 20, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum11, p0f + 21, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum01, p0f + 24, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum11, p0f + 25, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum01, p0f + 28, 0, 3);
-                        __lsx_vstelm_w((__m128i)_sum11, p0f + 29, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst((__m128i)_sum00, p0f, 0);
                         __lsx_vst((__m128i)_sum01, p0f + 4, 0);
@@ -3564,45 +3414,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_h(_bf00, p0, 0, 0);
-                        __lsx_vstelm_h(_bf10, p0 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf00, p0 + 8, 0, 1);
-                        __lsx_vstelm_h(_bf10, p0 + 9, 0, 1);
-                        __lsx_vstelm_h(_bf00, p0 + 16, 0, 2);
-                        __lsx_vstelm_h(_bf10, p0 + 17, 0, 2);
-                        __lsx_vstelm_h(_bf00, p0 + 24, 0, 3);
-                        __lsx_vstelm_h(_bf10, p0 + 25, 0, 3);
-                        __lsx_vstelm_h(_bf01, p0 + 32, 0, 0);
-                        __lsx_vstelm_h(_bf11, p0 + 33, 0, 0);
-                        __lsx_vstelm_h(_bf01, p0 + 40, 0, 1);
-                        __lsx_vstelm_h(_bf11, p0 + 41, 0, 1);
-                        __lsx_vstelm_h(_bf01, p0 + 48, 0, 2);
-                        __lsx_vstelm_h(_bf11, p0 + 49, 0, 2);
-                        __lsx_vstelm_h(_bf01, p0 + 56, 0, 3);
-                        __lsx_vstelm_h(_bf11, p0 + 57, 0, 3);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_h(_bf00, p0, 0, 0);
-                        __lsx_vstelm_h(_bf10, p0 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf00, p0 + 4, 0, 1);
-                        __lsx_vstelm_h(_bf10, p0 + 5, 0, 1);
-                        __lsx_vstelm_h(_bf00, p0 + 8, 0, 2);
-                        __lsx_vstelm_h(_bf10, p0 + 9, 0, 2);
-                        __lsx_vstelm_h(_bf00, p0 + 12, 0, 3);
-                        __lsx_vstelm_h(_bf10, p0 + 13, 0, 3);
-                        __lsx_vstelm_h(_bf01, p0 + 16, 0, 0);
-                        __lsx_vstelm_h(_bf11, p0 + 17, 0, 0);
-                        __lsx_vstelm_h(_bf01, p0 + 20, 0, 1);
-                        __lsx_vstelm_h(_bf11, p0 + 21, 0, 1);
-                        __lsx_vstelm_h(_bf01, p0 + 24, 0, 2);
-                        __lsx_vstelm_h(_bf11, p0 + 25, 0, 2);
-                        __lsx_vstelm_h(_bf01, p0 + 28, 0, 3);
-                        __lsx_vstelm_h(_bf11, p0 + 29, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vstelm_d(_bf00, p0, 0, 0);
                         __lsx_vstelm_d(_bf01, p0 + 4, 0, 0);
@@ -3690,18 +3502,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_w((__m128i)_sum0, p0f, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 4, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 8, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 12, 0, 3);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 16, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 20, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 24, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 28, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst((__m128i)_sum0, p0f, 0);
                         __lsx_vst((__m128i)_sum1, p0f + 4, 0);
@@ -3738,29 +3539,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_h(_bf0, p0, 0, 0);
-                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 1);
-                        __lsx_vstelm_h(_bf0, p0 + 16, 0, 2);
-                        __lsx_vstelm_h(_bf0, p0 + 24, 0, 3);
-                        __lsx_vstelm_h(_bf1, p0 + 32, 0, 0);
-                        __lsx_vstelm_h(_bf1, p0 + 40, 0, 1);
-                        __lsx_vstelm_h(_bf1, p0 + 48, 0, 2);
-                        __lsx_vstelm_h(_bf1, p0 + 56, 0, 3);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_h(_bf0, p0, 0, 0);
-                        __lsx_vstelm_h(_bf0, p0 + 4, 0, 1);
-                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 2);
-                        __lsx_vstelm_h(_bf0, p0 + 12, 0, 3);
-                        __lsx_vstelm_h(_bf1, p0 + 16, 0, 0);
-                        __lsx_vstelm_h(_bf1, p0 + 20, 0, 1);
-                        __lsx_vstelm_h(_bf1, p0 + 24, 0, 2);
-                        __lsx_vstelm_h(_bf1, p0 + 28, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vstelm_d(_bf0, p0, 0, 0);
                         __lsx_vstelm_d(_bf1, p0 + 4, 0, 0);
@@ -4164,18 +3943,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 32, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 40, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 48, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 56, 0, 0);
-                        p0 += 64;
-                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
@@ -4438,14 +4205,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
-                        p0 += 32;
-                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
@@ -4544,14 +4303,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                        __lsx_vst((__m128i)_sum0, p0f, 0);
-                        __lsx_vst((__m128i)_sum1, p0f + 8, 0);
-                        __lsx_vst((__m128i)_sum2, p0f + 16, 0);
-                        __lsx_vst((__m128i)_sum3, p0f + 24, 0);
-                    }
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
@@ -4594,14 +4345,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
-                    }
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
@@ -4691,18 +4434,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_w((__m128i)_sum0, p0f, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 4, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 5, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 8, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 9, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 12, 0, 3);
-                        __lsx_vstelm_w((__m128i)_sum1, p0f + 13, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst((__m128i)_sum0, p0f, 0);
                         __lsx_vst((__m128i)_sum1, p0f + out_hstep, 0);
@@ -4736,29 +4468,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_h(_bf0, p0, 0, 0);
-                        __lsx_vstelm_h(_bf1, p0 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 1);
-                        __lsx_vstelm_h(_bf1, p0 + 9, 0, 1);
-                        __lsx_vstelm_h(_bf0, p0 + 16, 0, 2);
-                        __lsx_vstelm_h(_bf1, p0 + 17, 0, 2);
-                        __lsx_vstelm_h(_bf0, p0 + 24, 0, 3);
-                        __lsx_vstelm_h(_bf1, p0 + 25, 0, 3);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_h(_bf0, p0, 0, 0);
-                        __lsx_vstelm_h(_bf1, p0 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf0, p0 + 4, 0, 1);
-                        __lsx_vstelm_h(_bf1, p0 + 5, 0, 1);
-                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 2);
-                        __lsx_vstelm_h(_bf1, p0 + 9, 0, 2);
-                        __lsx_vstelm_h(_bf0, p0 + 12, 0, 3);
-                        __lsx_vstelm_h(_bf1, p0 + 13, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vstelm_d(_bf0, p0, 0, 0);
                         __lsx_vstelm_d(_bf1, p0 + out_hstep, 0, 0);
@@ -4767,12 +4477,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_d(_bf0, p0, 0, 0);
-                        __lsx_vstelm_d(_bf1, p0 + 8, 0, 0);
-                        p0 += 16;
-                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(_bf0, p0, 0, 0);
@@ -4828,14 +4532,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_w((__m128i)_sum0, p0f, 0, 0);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 4, 0, 1);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 8, 0, 2);
-                        __lsx_vstelm_w((__m128i)_sum0, p0f + 12, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vst((__m128i)_sum0, p0f, 0);
                     }
@@ -4864,21 +4561,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_h(_bf, p0, 0, 0);
-                        __lsx_vstelm_h(_bf, p0 + 8, 0, 1);
-                        __lsx_vstelm_h(_bf, p0 + 16, 0, 2);
-                        __lsx_vstelm_h(_bf, p0 + 24, 0, 3);
-                    }
-                    if (out_elempack == 4)
-                    {
-                        __lsx_vstelm_h(_bf, p0, 0, 0);
-                        __lsx_vstelm_h(_bf, p0 + 4, 0, 1);
-                        __lsx_vstelm_h(_bf, p0 + 8, 0, 2);
-                        __lsx_vstelm_h(_bf, p0 + 12, 0, 3);
-                    }
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __lsx_vstelm_d(_bf, p0, 0, 0);
                     }
@@ -4886,11 +4569,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
-                    if (out_elempack == 8)
-                    {
-                        __lsx_vstelm_d(_bf, p0, 0, 0);
-                        p0 += 8;
-                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(_bf, p0, 0, 0);
@@ -5172,7 +4850,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_elemtype == 1)
                 {
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __m128 _r0 = (__m128)__lsx_vpickev_w((__m128i)_f2, (__m128i)_f0);
                         __m128 _r1 = (__m128)__lsx_vpickev_w((__m128i)_f6, (__m128i)_f4);
@@ -5192,55 +4870,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vst((__m128i)_r7, p0f + out_hstep + 12, 0);
                         p0f += 16;
                     }
-                    if (out_elempack == 4 || out_elempack == 8)
-                    {
-                        __lsx_vstelm_w((__m128i)_f0, p0f, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f2, p0f + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f0, p0f + out_elempack, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f2, p0f + out_elempack + 1, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f0, p0f + out_elempack * 2, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f2, p0f + out_elempack * 2 + 1, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f0, p0f + out_elempack * 3, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f2, p0f + out_elempack * 3 + 1, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f1, p0f + out_elempack * 4, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f3, p0f + out_elempack * 4 + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f1, p0f + out_elempack * 5, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f3, p0f + out_elempack * 5 + 1, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f1, p0f + out_elempack * 6, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f3, p0f + out_elempack * 6 + 1, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f1, p0f + out_elempack * 7, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f3, p0f + out_elempack * 7 + 1, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f4, p0f + out_elempack * 8, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f6, p0f + out_elempack * 8 + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f4, p0f + out_elempack * 9, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f6, p0f + out_elempack * 9 + 1, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f4, p0f + out_elempack * 10, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f6, p0f + out_elempack * 10 + 1, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f4, p0f + out_elempack * 11, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f6, p0f + out_elempack * 11 + 1, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f5, p0f + out_elempack * 12, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f7, p0f + out_elempack * 12 + 1, 0, 0);
-                        __lsx_vstelm_w((__m128i)_f5, p0f + out_elempack * 13, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f7, p0f + out_elempack * 13 + 1, 0, 1);
-                        __lsx_vstelm_w((__m128i)_f5, p0f + out_elempack * 14, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f7, p0f + out_elempack * 14 + 1, 0, 2);
-                        __lsx_vstelm_w((__m128i)_f5, p0f + out_elempack * 15, 0, 3);
-                        __lsx_vstelm_w((__m128i)_f7, p0f + out_elempack * 15 + 1, 0, 3);
-                        p0f += 16 * out_elempack;
-                    }
                 }
                 else
                 {
-                    __m128i _bf0 = float2bfloat_lsx(_f0);
-                    __m128i _bf1 = float2bfloat_lsx(_f1);
-                    __m128i _bf2 = float2bfloat_lsx(_f2);
-                    __m128i _bf3 = float2bfloat_lsx(_f3);
-                    __m128i _bf4 = float2bfloat_lsx(_f4);
-                    __m128i _bf5 = float2bfloat_lsx(_f5);
-                    __m128i _bf6 = float2bfloat_lsx(_f6);
-                    __m128i _bf7 = float2bfloat_lsx(_f7);
-
-                    if (out_elempack == 1)
+                    // if (out_elempack == 1)
                     {
                         __m128 _r0 = (__m128)__lsx_vpickev_w((__m128i)_f2, (__m128i)_f0);
                         __m128 _r1 = (__m128)__lsx_vpickev_w((__m128i)_f6, (__m128i)_f4);
@@ -5259,42 +4892,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vstelm_d(float2bfloat_lsx(_r6), p0 + out_hstep + 8, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_r7), p0 + out_hstep + 12, 0, 0);
                         p0 += 16;
-                    }
-                    if (out_elempack == 4 || out_elempack == 8)
-                    {
-                        __lsx_vstelm_h(_bf0, p0, 0, 0);
-                        __lsx_vstelm_h(_bf2, p0 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf0, p0 + out_elempack, 0, 1);
-                        __lsx_vstelm_h(_bf2, p0 + out_elempack + 1, 0, 1);
-                        __lsx_vstelm_h(_bf0, p0 + out_elempack * 2, 0, 2);
-                        __lsx_vstelm_h(_bf2, p0 + out_elempack * 2 + 1, 0, 2);
-                        __lsx_vstelm_h(_bf0, p0 + out_elempack * 3, 0, 3);
-                        __lsx_vstelm_h(_bf2, p0 + out_elempack * 3 + 1, 0, 3);
-                        __lsx_vstelm_h(_bf1, p0 + out_elempack * 4, 0, 0);
-                        __lsx_vstelm_h(_bf3, p0 + out_elempack * 4 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf1, p0 + out_elempack * 5, 0, 1);
-                        __lsx_vstelm_h(_bf3, p0 + out_elempack * 5 + 1, 0, 1);
-                        __lsx_vstelm_h(_bf1, p0 + out_elempack * 6, 0, 2);
-                        __lsx_vstelm_h(_bf3, p0 + out_elempack * 6 + 1, 0, 2);
-                        __lsx_vstelm_h(_bf1, p0 + out_elempack * 7, 0, 3);
-                        __lsx_vstelm_h(_bf3, p0 + out_elempack * 7 + 1, 0, 3);
-                        __lsx_vstelm_h(_bf4, p0 + out_elempack * 8, 0, 0);
-                        __lsx_vstelm_h(_bf6, p0 + out_elempack * 8 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf4, p0 + out_elempack * 9, 0, 1);
-                        __lsx_vstelm_h(_bf6, p0 + out_elempack * 9 + 1, 0, 1);
-                        __lsx_vstelm_h(_bf4, p0 + out_elempack * 10, 0, 2);
-                        __lsx_vstelm_h(_bf6, p0 + out_elempack * 10 + 1, 0, 2);
-                        __lsx_vstelm_h(_bf4, p0 + out_elempack * 11, 0, 3);
-                        __lsx_vstelm_h(_bf6, p0 + out_elempack * 11 + 1, 0, 3);
-                        __lsx_vstelm_h(_bf5, p0 + out_elempack * 12, 0, 0);
-                        __lsx_vstelm_h(_bf7, p0 + out_elempack * 12 + 1, 0, 0);
-                        __lsx_vstelm_h(_bf5, p0 + out_elempack * 13, 0, 1);
-                        __lsx_vstelm_h(_bf7, p0 + out_elempack * 13 + 1, 0, 1);
-                        __lsx_vstelm_h(_bf5, p0 + out_elempack * 14, 0, 2);
-                        __lsx_vstelm_h(_bf7, p0 + out_elempack * 14 + 1, 0, 2);
-                        __lsx_vstelm_h(_bf5, p0 + out_elempack * 15, 0, 3);
-                        __lsx_vstelm_h(_bf7, p0 + out_elempack * 15 + 1, 0, 3);
-                        p0 += 16 * out_elempack;
                     }
                 }
             }
@@ -5361,17 +4958,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[0] = sum0;
-                            p0f[out_hstep] = sum1;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0f[0] = sum0;
-                            p0f[out_hstep] = sum1;
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0f[0] = sum0;
                             p0f[out_hstep] = sum1;
@@ -5400,17 +4987,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0[0] = float32_to_bfloat16(sum0);
-                            p0[out_hstep] = float32_to_bfloat16(sum1);
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0[0] = float32_to_bfloat16(sum0);
-                            p0[out_hstep] = float32_to_bfloat16(sum1);
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0[0] = float32_to_bfloat16(sum0);
                             p0[out_hstep] = float32_to_bfloat16(sum1);
@@ -5532,15 +5109,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0f[0] = sum;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0f[0] = sum;
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0f[0] = sum;
                         }
@@ -5565,15 +5134,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
-                        if (out_elempack == 8)
-                        {
-                            p0[0] = float32_to_bfloat16(sum);
-                        }
-                        if (out_elempack == 4)
-                        {
-                            p0[0] = float32_to_bfloat16(sum);
-                        }
-                        if (out_elempack == 1)
+                        // if (out_elempack == 1)
                         {
                             p0[0] = float32_to_bfloat16(sum);
                         }
@@ -7806,13 +7367,22 @@ static int gemm_AT_BT_loongarch(const Mat& AT, const Mat& BT, const Mat& C, Mat&
 
 int Gemm_loongarch::create_pipeline(const Option& opt)
 {
+    if (weight_block_quantize)
+    {
+#if NCNN_WEIGHT_QUANT
+        if (weight_block_quantize_bits == 8)
+            return create_pipeline_wq_int8(opt);
+#endif
+        return 0;
+    }
+
     AT_data.release();
     BT_data.release();
     CT_data.release();
     nT = 0;
 
 #if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return create_pipeline_int8(opt);
     }
@@ -7961,13 +7531,20 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 
 int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (weight_block_quantize)
+    {
+#if NCNN_WEIGHT_QUANT
+        if (weight_block_quantize_bits == 8)
+            return forward_wq_int8(bottom_blobs, top_blobs, opt);
+#endif
+        return Gemm::forward(bottom_blobs, top_blobs, opt);
+    }
+
 #if NCNN_INT8
-#if NCNN_INT8
-    if (int8_scale_term)
+    if (quantize_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
-#endif
 #endif
 
     const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];
@@ -9046,21 +8623,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     {
         C = !CT_data.empty() ? CT_data : C_data;
         broadcast_type_C = constant_broadcast_type_C;
-
-        if (!C.empty())
-        {
-            if (C.elembits() == 16)
-            {
-                Option opt_cast = opt;
-                opt_cast.blob_allocator = opt.workspace_allocator;
-
-                Mat C_fp32;
-                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
-                if (C_fp32.empty())
-                    return -100;
-                C = C_fp32;
-            }
-        }
     }
     else
     {
@@ -9153,5 +8715,310 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     return 0;
 }
 #endif
+
+#if NCNN_WEIGHT_QUANT
+#if NCNN_BF16
+#include "gemm_wq_int8_bf16s.h"
+#endif
+#include "gemm_wq_int8.h"
+
+struct gemm_loongarch_wq_int8_omp_args
+{
+    int TILE_M;
+    int TILE_N;
+    int TILE_K;
+    int block_size;
+    int broadcast_type_C;
+    int transA;
+    int output_transpose;
+    float alpha;
+    float beta;
+    int output_elemtype;
+};
+
+static int gemm_BT_loongarch_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_descales, const Mat& input_scales, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int block_size, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int block_count = (K + block_size - 1) / block_size;
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(M, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int mr = std::min(M, TILE_M);
+    const int nr = std::min(N, TILE_N);
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+    Mat topT(nr * mr, 1, nT, (size_t)4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    const struct gemm_loongarch_wq_int8_omp_args args = {TILE_M, TILE_N, TILE_K, block_size, broadcast_type_C, transA, output_transpose, alpha, beta, output_elemtype};
+
+    if (nT > nn_M)
+    {
+        Mat AT(mr, K, nn_M, (size_t)1u, opt.workspace_allocator);
+        Mat AT_descales(mr, block_count, nn_M, (size_t)4u, opt.workspace_allocator);
+        if (AT.empty() || AT_descales.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            // shadowed variable for less openmp task args
+            const int TILE_M = args.TILE_M;
+            const int TILE_K = args.TILE_K;
+            const int block_size = args.block_size;
+            const int transA = args.transA;
+
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+            const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+            Mat AT_channel = AT.channel(i / TILE_M);
+            Mat AT_descales_channel = AT_descales.channel(i / TILE_M);
+            Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+            Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
+
+            if (transA)
+                transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+            else
+                quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            // shadowed variable for less openmp task args
+            const int TILE_M = args.TILE_M;
+            const int TILE_N = args.TILE_N;
+            const int TILE_K = args.TILE_K;
+            const int block_size = args.block_size;
+            const int broadcast_type_C = args.broadcast_type_C;
+            const int output_transpose = args.output_transpose;
+            const float alpha = args.alpha;
+            const float beta = args.beta;
+            const int output_elemtype = args.output_elemtype;
+
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_jj = std::min(N - j, TILE_N);
+            Mat BT_tile = BT.row_range(j, max_jj);
+            Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+            Mat AT_channel = AT.channel(i / TILE_M);
+            Mat AT_descales_channel = AT_descales.channel(i / TILE_M);
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+                const int local_block_count = (max_kk + block_size - 1) / block_size;
+                Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+                Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
+
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+            }
+            unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
+        }
+    }
+    else
+    {
+        Mat ATX(mr, K, nT, (size_t)1u, opt.workspace_allocator);
+        Mat ATX_descales(mr, block_count, nT, (size_t)4u, opt.workspace_allocator);
+        if (ATX.empty() || ATX_descales.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            // shadowed variable for less openmp task args
+            const int TILE_M = args.TILE_M;
+            const int TILE_N = args.TILE_N;
+            const int TILE_K = args.TILE_K;
+            const int block_size = args.block_size;
+            const int broadcast_type_C = args.broadcast_type_C;
+            const int transA = args.transA;
+            const int output_transpose = args.output_transpose;
+            const float alpha = args.alpha;
+            const float beta = args.beta;
+            const int output_elemtype = args.output_elemtype;
+
+            const int i = ppi * TILE_M;
+            const int max_ii = std::min(M - i, TILE_M);
+
+            Mat AT_channel = ATX.channel(get_omp_thread_num());
+            Mat AT_descales_channel = ATX_descales.channel(get_omp_thread_num());
+            Mat topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min(N - j, TILE_N);
+                Mat BT_tile = BT.row_range(j, max_jj);
+                Mat BT_descales_tile = BT_descales.row_range(j, max_jj);
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min(K - k, TILE_K);
+                    const int local_block_count = (max_kk + block_size - 1) / block_size;
+                    Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
+                    Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                            transpose_quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                        else
+                            quantize_A_tile_wq_int8(A, AT_tile, AT_descales_tile, i, max_ii, k, max_kk, block_size, input_scales);
+                    }
+
+                    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+                }
+                unpack_output_tile_wq_int8(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Gemm_loongarch::create_pipeline_wq_int8(const Option& opt)
+{
+    const int N = constantN;
+    const int K = constantK;
+    const int block_size = weight_block_quantize_block_size;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    BT_data_wq_int8.create(K, N, (size_t)1u, (Allocator*)0);
+    if (BT_data_wq_int8.empty())
+        return -100;
+
+    BT_data_wq_int8_descales.create(block_count, N, (size_t)4u, (Allocator*)0);
+    if (BT_data_wq_int8_descales.empty())
+        return -100;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_wq_int8(0, N, K, block_size, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+        const int max_jj = std::min(N - j, TILE_N);
+
+        Mat BT_tile = BT_data_wq_int8.row_range(j, max_jj);
+        Mat BT_descales_tile = BT_data_wq_int8_descales.row_range(j, max_jj);
+        pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
+    }
+
+    if (opt.lightmode)
+    {
+        B_data.release();
+        B_data_quantize_scales.release();
+    }
+
+    return 0;
+}
+
+int Gemm_loongarch::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+    const bool use_bf16_storage = support_bf16_storage && opt.use_bf16_storage;
+
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+    const int block_size = weight_block_quantize_block_size;
+
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (bottom_blobs.size() == 2)
+            C = bottom_blobs[1];
+
+        if (!C.empty())
+            broadcast_type_C = resolve_broadcast_type_C(C, M, N);
+    }
+
+    Mat C_fp32;
+    if (!constantC && !C.empty() && C.elembits() == 16)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
+
+#if __loongarch_sx
+#if !__loongarch_asx
+        if (C.elempack == 8)
+        {
+            Mat C_packed;
+            convert_packing(C, C_packed, 4, opt_cast);
+            if (C_packed.empty())
+                return -100;
+
+            C = C_packed;
+        }
+#endif // !__loongarch_asx
+#endif // __loongarch_sx
+
+        cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+        if (C_fp32.empty())
+            return -100;
+
+        C = C_fp32;
+    }
+
+    const int output_elemtype = this->output_elemtype == 1 || !use_bf16_storage ? 1 : 3;
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        const int outh = output_transpose ? N : M;
+#if __loongarch_asx
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = output_elemtype == 3 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#endif // __loongarch_asx
+    }
+#endif // __loongarch_sx
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    const size_t out_elemsize = (output_elemtype == 1 ? 4u : 2u) * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    return gemm_BT_loongarch_wq_int8(A, BT_data_wq_int8, BT_data_wq_int8_descales, B_data_input_scales, C, top_blob, broadcast_type_C, N, K, block_size, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, opt.num_threads, output_elemtype, opt);
+}
+#endif // NCNN_WEIGHT_QUANT
 
 } // namespace ncnn

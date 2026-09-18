@@ -878,6 +878,19 @@ typedef void(VKAPI_PTR* PFN_vkGetDescriptorSetLayoutSupport)(VkDevice device, co
 typedef PFN_vkGetDescriptorSetLayoutSupport PFN_vkGetDescriptorSetLayoutSupportKHR;
 #endif // VK_KHR_maintenance3
 
+#ifndef VK_KHR_maintenance4
+#define VK_KHR_maintenance4                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES     (VkStructureType)1000413000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES
+typedef struct VkPhysicalDeviceMaintenance4Features
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 maintenance4;
+} VkPhysicalDeviceMaintenance4Features;
+typedef VkPhysicalDeviceMaintenance4Features VkPhysicalDeviceMaintenance4FeaturesKHR;
+#endif // VK_KHR_maintenance4
+
 #ifndef VK_KHR_8bit_storage
 #define VK_KHR_8bit_storage                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES     (VkStructureType)1000177000
@@ -1208,6 +1221,51 @@ typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesKHR
 typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesKHR* pProperties);
 #endif // VK_KHR_cooperative_matrix
 
+#ifndef VK_EXT_cooperative_matrix_maintenance1
+#define VK_EXT_cooperative_matrix_maintenance1                                          1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_MAINTENANCE_1_FEATURES_EXT (VkStructureType)1000659000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_INFO_2_EXT                 (VkStructureType)1000659001
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT                           (VkStructureType)1000659002
+typedef enum VkCooperativeMatrixFlagBitsEXT
+{
+    VK_COOPERATIVE_MATRIX_SATURATING_ACCUMULATION_BIT_EXT = 0x00000001,
+    VK_COOPERATIVE_MATRIX_FLAG_BITS_MAX_ENUM_EXT = 0x7FFFFFFF
+} VkCooperativeMatrixFlagBitsEXT;
+typedef VkFlags VkCooperativeMatrixFlagsEXT;
+typedef struct VkCooperativeMatrixProperties2EXT
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MGranularity;
+    uint32_t NGranularity;
+    uint32_t KGranularity;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+} VkCooperativeMatrixProperties2EXT;
+typedef struct VkPhysicalDeviceCooperativeMatrixInfo2EXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkScopeKHR scope;
+    uint32_t invocations;
+    uint32_t subgroupSize;
+    VkCooperativeMatrixFlagsEXT flags;
+} VkPhysicalDeviceCooperativeMatrixInfo2EXT;
+typedef struct VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixProperties2;
+    VkBool32 cooperativeMatrixReductions;
+    VkBool32 cooperativeMatrixConversions;
+    VkBool32 cooperativeMatrixPerElementOperations;
+    VkBool32 cooperativeMatrixGetCoordinate;
+} VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceCooperativeMatrixInfo2EXT* pCooperativeMatrixInfo, uint32_t* pPropertyCount, VkCooperativeMatrixProperties2EXT* pProperties);
+#endif // VK_EXT_cooperative_matrix_maintenance1
+
 #ifndef VK_KHR_driver_properties
 #define VK_KHR_driver_properties                                1
 #define VK_MAX_DRIVER_NAME_SIZE                                 256U
@@ -1310,6 +1368,19 @@ typedef VkPhysicalDeviceSubgroupSizeControlFeatures VkPhysicalDeviceSubgroupSize
 typedef VkPhysicalDeviceSubgroupSizeControlProperties VkPhysicalDeviceSubgroupSizeControlPropertiesEXT;
 typedef VkPipelineShaderStageRequiredSubgroupSizeCreateInfo VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT;
 #endif // VK_EXT_subgroup_size_control
+
+#ifndef VK_KHR_shader_subgroup_extended_types
+#define VK_KHR_shader_subgroup_extended_types                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES     (VkStructureType)1000175000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES
+typedef struct VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderSubgroupExtendedTypes;
+} VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures;
+typedef VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR;
+#endif // VK_KHR_shader_subgroup_extended_types
 
 #ifndef VK_KHR_shader_subgroup_rotate
 #define VK_KHR_shader_subgroup_rotate                                         1
@@ -1655,6 +1726,25 @@ typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
     VkBool32 shaderFloat8CooperativeMatrix;
 } VkPhysicalDeviceShaderFloat8FeaturesEXT;
 #endif // VK_EXT_shader_float8
+
+#ifndef VK_EXT_shader_ocp_microscaling_types
+#define VK_EXT_shader_ocp_microscaling_types                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OCP_MICROSCALING_TYPES_FEATURES_EXT (VkStructureType)1000672000
+#define VK_COMPONENT_TYPE_FLOAT6_E2M3_EXT                                            (VkComponentTypeKHR)1000672000
+#define VK_COMPONENT_TYPE_FLOAT6_E3M2_EXT                                            (VkComponentTypeKHR)1000672001
+#define VK_COMPONENT_TYPE_FLOAT4_E2M1_EXT                                            (VkComponentTypeKHR)1000672002
+#define VK_COMPONENT_TYPE_FLOAT8_UNSIGNED_E8M0_EXT                                   (VkComponentTypeKHR)1000672003
+#define VK_COMPONENT_TYPE_MXINT8_EXT                                                 (VkComponentTypeKHR)1000672004
+typedef struct VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloat4;
+    VkBool32 shaderFloat6;
+    VkBool32 shaderFloat8UnsignedE8M0;
+    VkBool32 shaderMXInt8;
+} VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT;
+#endif // VK_EXT_shader_ocp_microscaling_types
 
 #ifndef VK_KHR_vulkan_memory_model
 #define VK_KHR_vulkan_memory_model                                         1

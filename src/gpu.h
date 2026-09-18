@@ -142,6 +142,9 @@ extern int support_VK_KHR_android_surface;
 // VK_KHR_cooperative_matrix
 extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR;
 
+// VK_EXT_cooperative_matrix_maintenance1
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT;
+
 // VK_KHR_external_memory_capabilities
 extern PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
 
@@ -260,6 +263,8 @@ public:
     // property
     bool unified_compute_transfer_queue() const;
     bool resizable_bar_enabled() const;
+    bool support_image_storage() const;
+    bool prefer_shader_local_memory() const;
 
     // subgroup
     uint32_t subgroup_size() const;
@@ -278,7 +283,7 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
     bool support_fp16_uniform() const;
@@ -287,6 +292,10 @@ public:
     bool support_int8_storage() const;
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
+    bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
 
     // bf16 feature
     bool support_bf16_packed() const;
@@ -308,6 +317,9 @@ public:
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
+
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
 
     // bf16 cooperative matrix feature
     bool support_bf16_cooperative_matrix() const;
@@ -346,6 +358,7 @@ public:
     int support_VK_KHR_vulkan_memory_model() const;
     int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
+    int support_VK_EXT_cooperative_matrix_maintenance1() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
@@ -355,6 +368,7 @@ public:
     int support_VK_EXT_shader_atomic_float() const;
     int support_VK_EXT_shader_atomic_float2() const;
     int support_VK_EXT_shader_float8() const;
+    int support_VK_EXT_shader_ocp_microscaling_types() const;
     int support_VK_EXT_subgroup_size_control() const;
     int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
@@ -371,15 +385,19 @@ public:
     const VkPhysicalDeviceFloat16Int8FeaturesKHR& queryFloat16Int8Features() const;
     const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& queryCooperativeMatrixMaintenance1Features() const;
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
     const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
+    const VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT& queryShaderOCPMicroscalingTypesFeatures() const;
     const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
     const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& queryShaderSubgroupExtendedTypesFeatures() const;
     const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
     const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
@@ -399,6 +417,7 @@ public:
 
     // extension sub properties
     const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixProperties2EXT>& queryCooperativeMatrixSubProperties2EXT() const;
     const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
     const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const;
     const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
