@@ -34,7 +34,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int _channels = channels;
-    if (shape.dims == 3) _channels = shape.c * shape.elempack;
+    if (shape.dims == 3 || shape.dims == 4) _channels = shape.c * shape.elempack;
 
     int elempack = 1;
     if (_channels != 0) elempack = _channels % 4 == 0 ? 4 : 1;
@@ -127,15 +127,29 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     Mat square_workspace;
-    if (shape.dims == 3) square_workspace = Mat(shape.w, shape.h, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
+    if (shape.dims == 3 || shape.dims == 4) square_workspace = Mat(shape.w, shape.h * shape.d, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
+
+    int shape_dims = std::min(3, shape.dims);
+    int shape_w = shape.w;
+    int shape_h = shape.h * shape.d;
+    int shape_c = shape.c * shape.elempack / elempack;
+    int shape_cstep = shape.cstep;
+    if (shape.dims == 0)
+    {
+        shape_dims = 0;
+        shape_w = 0;
+        shape_h = 0;
+        shape_c = 0;
+        shape_cstep = 0;
+    }
 
     {
         std::vector<vk_specialization_type> specializations(0 + 10);
-        specializations[0 + 0].i = shape.dims;
-        specializations[0 + 1].i = shape.w;
-        specializations[0 + 2].i = shape.h;
-        specializations[0 + 3].i = shape.c;
-        specializations[0 + 4].i = shape.cstep;
+        specializations[0 + 0].i = shape_dims;
+        specializations[0 + 1].i = shape_w;
+        specializations[0 + 2].i = shape_h;
+        specializations[0 + 3].i = shape_c;
+        specializations[0 + 4].i = shape_cstep;
         specializations[0 + 5].i = square_workspace.dims;
         specializations[0 + 6].i = square_workspace.w;
         specializations[0 + 7].i = square_workspace.h;
@@ -196,18 +210,18 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 
     {
         std::vector<vk_specialization_type> specializations(0 + 5);
-        specializations[0 + 0].i = shape.dims;
-        specializations[0 + 1].i = shape.w;
-        specializations[0 + 2].i = shape.h;
-        specializations[0 + 3].i = shape.c;
-        specializations[0 + 4].i = shape.cstep;
+        specializations[0 + 0].i = shape_dims;
+        specializations[0 + 1].i = shape_w;
+        specializations[0 + 2].i = shape_h;
+        specializations[0 + 3].i = shape_c;
+        specializations[0 + 4].i = shape_cstep;
 
         Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-        if (shape.dims != 0)
+        if (shape_dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape.w);
-            local_size_xyz.h = std::min(4, shape.h);
-            local_size_xyz.c = std::min(4, shape.c);
+            local_size_xyz.w = std::min(4, shape_w);
+            local_size_xyz.h = std::min(4, shape_h);
+            local_size_xyz.c = std::min(4, shape_c);
         }
 
         if (elempack == 1 || _channels == 0)
@@ -288,7 +302,7 @@ int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
+    int h = bottom_top_blob.h * bottom_top_blob.d;
     int c = bottom_top_blob.c;
     int size = w * h;
     size_t elemsize = bottom_top_blob.elemsize;
@@ -300,7 +314,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         // reduce sum
         VkMat sum_workspace;
         {
-            int reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
+            int reduced_w = (size + 3) / 4;
             int reduced_h = 1;
             int reduced_c = bottom_top_blob.c;
 
@@ -311,7 +325,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
                 bindings[1] = sum_workspace;
 
                 std::vector<vk_constant_type> constants(8);
-                constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
+                constants[0].i = size;
                 constants[1].i = 1;
                 constants[2].i = bottom_top_blob.c;
                 constants[3].i = bottom_top_blob.cstep;
@@ -392,9 +406,9 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
             bindings[2] = square_workspace;
 
             std::vector<vk_constant_type> constants(10);
-            constants[0].i = bottom_top_blob.dims;
+            constants[0].i = std::min(3, bottom_top_blob.dims);
             constants[1].i = bottom_top_blob.w;
-            constants[2].i = bottom_top_blob.h;
+            constants[2].i = h;
             constants[3].i = bottom_top_blob.c;
             constants[4].i = bottom_top_blob.cstep;
             constants[5].i = square_workspace.dims;
@@ -409,11 +423,36 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         }
 
         // reduce square
-        VkMat sqsum_workspace = square_workspace;
-        sqsum_workspace.w = sqsum_workspace.w * sqsum_workspace.h;
-        sqsum_workspace.h = 1;
+        VkMat sqsum_workspace;
+        {
+            int reduced_w = (size + 3) / 4;
+            int reduced_h = 1;
+            int reduced_c = square_workspace.c;
 
-        int pb = 0;
+            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+            {
+                std::vector<VkMat> bindings(2);
+                bindings[0] = square_workspace;
+                bindings[1] = sqsum_workspace;
+
+                std::vector<vk_constant_type> constants(8);
+                constants[0].i = size;
+                constants[1].i = 1;
+                constants[2].i = square_workspace.c;
+                constants[3].i = square_workspace.cstep;
+                constants[4].i = sqsum_workspace.w;
+                constants[5].i = 1;
+                constants[6].i = sqsum_workspace.c;
+                constants[7].i = sqsum_workspace.cstep;
+
+                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[0] : pipeline_instancenorm_reduce_sum4_fp32[0];
+
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+            }
+        }
+
+        int pb = 1;
         while (sqsum_workspace.w > 4)
         {
             int reduced_w = (sqsum_workspace.w + 3) / 4;
@@ -492,9 +531,9 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         bindings[1] = coeffs_workspace;
 
         std::vector<vk_constant_type> constants(5);
-        constants[0].i = bottom_top_blob.dims;
+        constants[0].i = std::min(3, bottom_top_blob.dims);
         constants[1].i = bottom_top_blob.w;
-        constants[2].i = bottom_top_blob.h;
+        constants[2].i = h;
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
 

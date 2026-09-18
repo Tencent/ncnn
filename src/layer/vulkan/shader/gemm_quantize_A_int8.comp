@@ -1,0 +1,101 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transA = 0;
+layout(constant_id = 1) const int CM_M = 1;
+layout(constant_id = 2) const int CM_K = 1;
+layout(constant_id = 3) const int UNROLL_SG_M = 1;
+layout(constant_id = 4) const int UNROLL_SG_K = 1;
+layout(constant_id = 5) const int UNROLL_WG_M = 1;
+
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) writeonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
+layout(binding = 2) writeonly buffer A_descales_blob { float A_descales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int K;
+    int A_hstep;
+} p;
+
+#if ncnn_VK_KHR_cooperative_matrix
+#define PAD 1
+#else
+#define PAD 0
+#endif
+
+void main()
+{
+    const int i = int(gl_GlobalInvocationID.x);
+
+    const int block_m = CM_M * UNROLL_SG_M * UNROLL_WG_M;
+    const int bm = i / block_m;
+    const int im0 = i - bm * block_m;
+    const int wm = im0 / (CM_M * UNROLL_SG_M);
+    const int im1 = im0 - wm * CM_M * UNROLL_SG_M;
+    const int zm = im1 / CM_M;
+    const int mi = im1 - zm * CM_M;
+
+    float absmax = 0.f;
+    if (i < p.M)
+    {
+        for (int k = 0; k < p.K; k++)
+        {
+            const int ai = transA == 1 ? k * p.A_hstep + i : i * p.A_hstep + k;
+            const float v = float(buffer_ld1(A_blob_data, ai));
+            absmax = max(absmax, abs(v));
+        }
+    }
+
+    const float scale = absmax == 0.f ? 1.f : 127.f / absmax;
+    A_descales_data[i] = absmax == 0.f ? 0.f : absmax * (1.f / 127.f);
+
+    const int Kd4 = CM_K / 4;
+    const int Kd4p = Kd4 + PAD;
+    const int kk = (p.K + CM_K - 1) / CM_K;
+    const int kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
+    const int M_Kd4p_USGM = CM_M * Kd4p * UNROLL_SG_M;
+    const int M_Kd4p_USGM_USGK = M_Kd4p_USGM * UNROLL_SG_K;
+
+    for (int kg = 0; kg < kkg; kg++)
+    {
+        for (int zk = 0; zk < UNROLL_SG_K; zk++)
+        {
+            const int kt = kg * UNROLL_SG_K + zk;
+            for (int k4 = 0; k4 < Kd4p; k4++)
+            {
+                ivec4 v = ivec4(0);
+                if (i < p.M && kt < kk && k4 < Kd4)
+                {
+                    const int gk = kt * CM_K + k4 * 4;
+                    if (gk + 0 < p.K)
+                    {
+                        const int ai = transA == 1 ? (gk + 0) * p.A_hstep + i : i * p.A_hstep + gk + 0;
+                        v.r = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+                    }
+                    if (gk + 1 < p.K)
+                    {
+                        const int ai = transA == 1 ? (gk + 1) * p.A_hstep + i : i * p.A_hstep + gk + 1;
+                        v.g = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+                    }
+                    if (gk + 2 < p.K)
+                    {
+                        const int ai = transA == 1 ? (gk + 2) * p.A_hstep + i : i * p.A_hstep + gk + 2;
+                        v.b = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+                    }
+                    if (gk + 3 < p.K)
+                    {
+                        const int ai = transA == 1 ? (gk + 3) * p.A_hstep + i : i * p.A_hstep + gk + 3;
+                        v.a = float2int8(float(buffer_ld1(A_blob_data, ai)) * scale);
+                    }
+                }
+
+                const int offset = (bm * kkg * UNROLL_WG_M) * M_Kd4p_USGM_USGK + (kg * UNROLL_WG_M + wm) * M_Kd4p_USGM_USGK + ((zk * UNROLL_SG_M + zm) * CM_M + mi) * Kd4p + k4;
+                i8buffer_st4(A_int8_data, offset, v);
+            }
+        }
+    }
+}

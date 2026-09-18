@@ -23,9 +23,9 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = num_slope;
     specializations[1].f = num_slope == 1 ? slope_data[0] : 1.f;
-    specializations[2 + 0].i = shape.dims;
+    specializations[2 + 0].i = std::min(3, shape.dims);
     specializations[2 + 1].i = shape.w;
-    specializations[2 + 2].i = shape.h;
+    specializations[2 + 2].i = shape.h * shape.d;
     specializations[2 + 3].i = shape.c;
     specializations[2 + 4].i = shape.cstep;
 
@@ -49,6 +49,12 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, shape.w);
         local_size_xyz.h = std::min(4, shape.h);
+        local_size_xyz.c = std::min(4, shape.c);
+    }
+    if (shape.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, shape.w);
+        local_size_xyz.h = std::min(4, shape.h * shape.d);
         local_size_xyz.c = std::min(4, shape.c);
     }
 
@@ -106,9 +112,9 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     bindings[1] = slope_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
+    constants[0].i = std::min(3, bottom_top_blob.dims);
     constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
+    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 

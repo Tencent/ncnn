@@ -19,6 +19,10 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 #if NCNN_F16C && __AVX__
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

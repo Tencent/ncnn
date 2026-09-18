@@ -13,10 +13,23 @@ static int test_glu(const ncnn::Mat& a, int axis)
     int ret = test_layer("GLU", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_glu failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
+        fprintf(stderr, "test_glu failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
     }
 
     return ret;
+}
+
+static int test_glu_4d()
+{
+    return 0
+           || test_glu(RandomMat(5, 7, 3, 8), 0)
+           || test_glu(RandomMat(5, 7, 6, 3), 1)
+           || test_glu(RandomMat(5, 8, 3, 3), 2)
+           || test_glu(RandomMat(10, 7, 3, 3), 3)
+           || test_glu(RandomMat(5, 7, 3, 8), -4)
+           || test_glu(RandomMat(5, 7, 6, 3), -3)
+           || test_glu(RandomMat(5, 8, 3, 3), -2)
+           || test_glu(RandomMat(10, 7, 3, 3), -1);
 }
 
 static int test_glu_0()
@@ -53,6 +66,7 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_glu_4d()
            || test_glu_0()
            || test_glu_1()
            || test_glu_2();

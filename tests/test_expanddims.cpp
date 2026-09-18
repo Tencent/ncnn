@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static std::vector<int> IntArray(int a0)
 {
     std::vector<int> m(1);
@@ -122,9 +126,68 @@ static int test_expanddims_2()
            || test_expanddims_all_params(RandomMat(1));
 }
 
+static int test_expanddims_3()
+{
+    ncnn::Mat a = RandomMat(3, 4, 5);
+    ncnn::Mat b = RandomMat(3, 4);
+
+    return 0
+           || test_expanddims_axes(a, IntArray(-4))
+           || test_expanddims_axes(a, IntArray(-3))
+           || test_expanddims_axes(a, IntArray(-2))
+           || test_expanddims_axes(a, IntArray(-1))
+           || test_expanddims_axes(b, IntArray(0, 1))
+           || test_expanddims_axes(b, IntArray(0, 3))
+           || test_expanddims_axes(b, IntArray(2, 3));
+}
+
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_expanddims_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(3, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::ExpandDims, base, 0)
+            || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, ncnn::Mat(0), 0))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, -4), 0)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, 3), 0)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, -5), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, 4), -1)
+           || test_layer_param(ncnn::LayerType::ExpandDims, base, 3, param_int_array(1, INT_MIN), -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_expanddims_0() || test_expanddims_1() || test_expanddims_2();
+    return 0
+           || test_expanddims_0()
+           || test_expanddims_1()
+           || test_expanddims_2()
+           || test_expanddims_3()
+#if NCNN_VALIDATION
+           || test_expanddims_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

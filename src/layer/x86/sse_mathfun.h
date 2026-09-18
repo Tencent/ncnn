@@ -331,6 +331,54 @@ static inline v4sf tanh_ps(const v4sf& x)
     return dst;
 }
 
+_PS_CONST(erf_threshold, 0.927734375f);
+
+_PS_CONST(erf_c0, -1.72853470e-5f);
+_PS_CONST(erf_c1, 3.83197126e-4f);
+_PS_CONST(erf_c2, -3.88396438e-3f);
+_PS_CONST(erf_c3, 2.42546219e-2f);
+_PS_CONST(erf_c4, -1.06777877e-1f);
+_PS_CONST(erf_c5, -6.34846687e-1f);
+_PS_CONST(erf_c6, -1.28717512e-1f);
+
+_PS_CONST(erf_p0, -5.96761703e-4f);
+_PS_CONST(erf_p1, 4.99119423e-3f);
+_PS_CONST(erf_p2, -2.67681349e-2f);
+_PS_CONST(erf_p3, 1.12819925e-1f);
+_PS_CONST(erf_p4, -3.76125336e-1f);
+_PS_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE v4sf erf_ps(const v4sf& a)
+{
+    v4sf t = _mm_and_ps(a, *(v4sf*)_ps_inv_sign_mask);
+    v4sf s = _mm_mul_ps(a, a);
+
+    v4sf mask = _mm_cmpgt_ps(t, *(v4sf*)_ps_erf_threshold);
+
+    v4sf r_large = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c0, t, *(v4sf*)_ps_erf_c1);
+    v4sf u = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c2, t, *(v4sf*)_ps_erf_c3);
+    r_large = _mm_comp_fmadd_ps(r_large, s, u);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c4);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c5);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c6);
+    r_large = _mm_comp_fmadd_ps(r_large, t, _mm_sub_ps(_mm_setzero_ps(), t));
+    r_large = _mm_sub_ps(*(v4sf*)_ps_1, exp_ps(r_large));
+
+    v4sf sign_mask = _mm_and_ps(a, *(v4sf*)_ps_sign_mask);
+    r_large = _mm_xor_ps(r_large, sign_mask);
+
+    v4sf r_small = *(v4sf*)_ps_erf_p0;
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p1);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p2);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p3);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p4);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p5);
+    r_small = _mm_comp_fmadd_ps(r_small, a, a);
+
+    v4sf r = _mm_or_ps(_mm_and_ps(mask, r_large), _mm_andnot_ps(mask, r_small));
+    return r;
+}
+
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
 _PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
@@ -1215,6 +1263,65 @@ static NCNN_FORCEINLINE __m128 logaddexp_ps(const __m128& x, const __m128& y)
     __m128 one_plus_exp = _mm_add_ps(magic_one, exp_diff);
     __m128 log_result = log_ps(one_plus_exp);
     return _mm_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 expm1_ps(const __m128& x)
+{
+    __m128 x2 = _mm_mul_ps(x, x);
+    __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 6.0f)))));
+    __m128 y = _mm_sub_ps(exp_ps(x), _mm_set1_ps(1.f));
+    __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
+    return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 log1p_ps(const __m128& x)
+{
+    __m128 x2 = _mm_mul_ps(x, x);
+    __m128 poly = _mm_add_ps(x, _mm_mul_ps(x2, _mm_add_ps(_mm_set1_ps(-0.5f), _mm_mul_ps(x, _mm_set1_ps(1.0f / 3.0f)))));
+    __m128 y = log_ps(_mm_add_ps(_mm_set1_ps(1.f), x));
+    __m128 mask = _mm_cmplt_ps(abs_ps(x), _mm_set1_ps(1e-4f));
+    return _mm_or_ps(_mm_and_ps(mask, poly), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 sinh_ps(const __m128& x)
+{
+    __m128 expm1_x = expm1_ps(x);
+    __m128 expm1_neg_x = expm1_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_sub_ps(expm1_x, expm1_neg_x), _mm_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 asinh_ps(const __m128& x)
+{
+    __m128 ax = abs_ps(x);
+    __m128 x2 = _mm_mul_ps(ax, ax);
+    __m128 y = log_ps(_mm_add_ps(ax, _mm_sqrt_ps(_mm_add_ps(x2, _mm_set1_ps(1.f)))));
+    __m128 y_large = _mm_add_ps(log_ps(ax), _mm_set1_ps(0.6931471805599453f));
+    __m128 mask = _mm_cmpgt_ps(ax, _mm_set1_ps(1e19f));
+    y = _mm_or_ps(_mm_and_ps(mask, y_large), _mm_andnot_ps(mask, y));
+    return _mm_or_ps(y, _mm_and_ps(x, _mm_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m128 cosh_ps(const __m128& x)
+{
+    __m128 exp_x = exp_ps(x);
+    __m128 exp_neg_x = exp_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_add_ps(exp_x, exp_neg_x), _mm_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m128 acosh_ps(const __m128& x)
+{
+    __m128 one = _mm_set1_ps(1.f);
+    __m128 y = log_ps(_mm_add_ps(x, _mm_mul_ps(_mm_sqrt_ps(_mm_sub_ps(x, one)), _mm_sqrt_ps(_mm_add_ps(x, one)))));
+    __m128 y_large = _mm_add_ps(log_ps(x), _mm_set1_ps(0.6931471805599453f));
+    __m128 mask = _mm_cmpgt_ps(x, _mm_set1_ps(1e19f));
+    return _mm_or_ps(_mm_and_ps(mask, y_large), _mm_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m128 atanh_ps(const __m128& x)
+{
+    __m128 log_pos = log1p_ps(x);
+    __m128 log_neg = log1p_ps(_mm_sub_ps(_mm_setzero_ps(), x));
+    return _mm_mul_ps(_mm_sub_ps(log_pos, log_neg), _mm_set1_ps(0.5f));
 }
 
 static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)

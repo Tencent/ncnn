@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int embed_dim, int num_heads, int attn_mask)
 {
     const int qdim = q.w;
@@ -152,6 +156,74 @@ static int test_multiheadattention_2()
            || test_multiheadattention_sameqkv(RandomMat(48, 127), 64, 8);
 }
 
+#if NCNN_VALIDATION
+static int test_multiheadattention_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 2);
+    base.set(2, 64);
+    if (test_layer_param(ncnn::LayerType::MultiHeadAttention, base, 0) != 0)
+        return -1;
+
+    // explicit scale must not bypass dimension validation
+    ncnn::ParamDict scaled = base;
+    scaled.set(6, 1.f);
+
+    const int invalid[] = {0, -1, INT_MIN, 3, 16};
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
+    {
+        if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 1, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    const int invalid_dims[] = {0, -1, INT_MIN};
+    for (int id = 2; id <= 4; id++)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, id, invalid_dims[i], -1) != 0)
+                return -1;
+        }
+    }
+
+    for (int id = 3; id <= 4; id++)
+    {
+        if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, id, 1, 0)
+                || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, id, INT_MAX / 8, 0)
+                || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, id, INT_MAX / 8 + 1, -1)
+                || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, id, INT_MAX, -1))
+            return -1;
+    }
+
+    const int invalid_quantize[] = {4, 5, 6, 403, 420, 500, 700, 813, INT_MAX};
+    for (size_t i = 0; i < sizeof(invalid_quantize) / sizeof(invalid_quantize[0]); i++)
+    {
+        if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 18, invalid_quantize[i], -1) != 0)
+            return -1;
+    }
+
+    const int valid_quantize[] = {400, 412, 600, 612, 800, 812};
+    for (size_t i = 0; i < sizeof(valid_quantize) / sizeof(valid_quantize[0]); i++)
+    {
+#if NCNN_WEIGHT_QUANT
+        const int expected_ret = 0;
+#else
+        const int expected_ret = -1;
+#endif
+        if (test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 18, valid_quantize[i], expected_ret) != 0)
+            return -1;
+    }
+
+    return 0
+           || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 0, 0, -1)
+           || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, 8, 0)
+           || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, INT_MAX / 8 * 8, 0)
+           || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, 65, -1)
+           || test_layer_param(ncnn::LayerType::MultiHeadAttention, scaled, 2, INT_MAX, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -159,5 +231,9 @@ int main()
     return 0
            || test_multiheadattention_0()
            || test_multiheadattention_1()
-           || test_multiheadattention_2();
+           || test_multiheadattention_2()
+#if NCNN_VALIDATION
+           || test_multiheadattention_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

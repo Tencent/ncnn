@@ -33,13 +33,20 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int dim = captured_params.at("dim").i;
-        if (dim == batch_index)
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
+        if (dim < 0 && input_rank > 0)
+            dim += input_rank;
+
+        bool axis_is_batch = false;
+        if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
         {
-            fprintf(stderr, "slice_scatter batch dim %d is not supported yet!\n", batch_index);
-            return;
+            fprintf(stderr, "slice_scatter batch dim %d is not supported yet!\n", ncnn_batch_axis);
+            axis_is_batch = true;
         }
 
         int start = captured_params.at("start").type == 2 ? captured_params.at("start").i : 0;
@@ -50,20 +57,18 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "slice_scatter step %d is not supported yet!\n", step);
         }
 
-        int input_rank = op->inputs[0]->shape.size();
-
         if (input_rank > 5)
         {
             fprintf(stderr, "slice_scatter %d-rank tensor is not supported yet!\n", input_rank);
-            return;
         }
 
-        if (dim > batch_index)
+        if (!axis_is_batch && ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
             dim -= 1;
 
         op->params["9"] = std::vector<int>{start};
         // op->params["10"] = ends; // ncnn always resolve ends from src blob
-        op->params["11"] = std::vector<int>{dim};
+        if (!axis_is_batch)
+            op->params["11"] = std::vector<int>{dim};
     }
 };
 

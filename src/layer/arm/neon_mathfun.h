@@ -141,6 +141,9 @@ static inline float32x4_t exp_ps(float32x4_t x)
     fx = VFMAQ_F32(vdupq_n_f32(0.5f), x, vdupq_n_f32(c_cephes_LOG2EF));
 
     /* perform a floorf */
+#if defined(__aarch64__)
+    fx = vrndmq_f32(fx);
+#else
     tmp = vcvtq_f32_s32(vcvtq_s32_f32(fx));
 
     /* if greater, substract 1 */
@@ -148,6 +151,7 @@ static inline float32x4_t exp_ps(float32x4_t x)
     mask = vandq_u32(mask, vreinterpretq_u32_f32(one));
 
     fx = vsubq_f32(tmp, vreinterpretq_f32_u32(mask));
+#endif
 
     tmp = vmulq_f32(fx, vdupq_n_f32(c_cephes_exp_C1));
     float32x4_t z = vmulq_f32(fx, vdupq_n_f32(c_cephes_exp_C2));
@@ -460,6 +464,78 @@ static inline float32x4_t logaddexp_ps(const float32x4_t& x, const float32x4_t& 
     return vaddq_f32(max_xy, log_result);
 }
 
+static inline float32x4_t sqrt_ps(const float32x4_t& x)
+{
+#if __aarch64__
+    return vsqrtq_f32(x);
+#else
+    uint32x4_t zero_mask = vceqq_f32(x, vdupq_n_f32(0.f));
+    float32x4_t _reciprocal = vrsqrteq_f32(x);
+    _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
+    float32x4_t y = vmulq_f32(x, _reciprocal);
+    return vbslq_f32(zero_mask, x, y);
+#endif
+}
+
+static inline float32x4_t expm1_ps(const float32x4_t& x)
+{
+    float32x4_t x2 = vmulq_f32(x, x);
+    float32x4_t poly = vmlaq_f32(x, x2, vmlaq_f32(vdupq_n_f32(0.5f), x, vdupq_n_f32(1.0f / 6.0f)));
+    float32x4_t y = vsubq_f32(exp_ps(x), vdupq_n_f32(1.f));
+    uint32x4_t mask = vcltq_f32(vabsq_f32(x), vdupq_n_f32(1e-4f));
+    return vbslq_f32(mask, poly, y);
+}
+
+static inline float32x4_t log1p_ps(const float32x4_t& x)
+{
+    float32x4_t x2 = vmulq_f32(x, x);
+    float32x4_t poly = vmlaq_f32(x, x2, vmlaq_f32(vdupq_n_f32(-0.5f), x, vdupq_n_f32(1.0f / 3.0f)));
+    float32x4_t y = log_ps(vaddq_f32(vdupq_n_f32(1.f), x));
+    uint32x4_t mask = vcltq_f32(vabsq_f32(x), vdupq_n_f32(1e-4f));
+    return vbslq_f32(mask, poly, y);
+}
+
+static inline float32x4_t sinh_ps(const float32x4_t& x)
+{
+    float32x4_t expm1_x = expm1_ps(x);
+    float32x4_t expm1_neg_x = expm1_ps(vnegq_f32(x));
+    return vmulq_f32(vsubq_f32(expm1_x, expm1_neg_x), vdupq_n_f32(0.5f));
+}
+
+static inline float32x4_t asinh_ps(const float32x4_t& x)
+{
+    float32x4_t ax = vabsq_f32(x);
+    float32x4_t x2 = vmulq_f32(ax, ax);
+    float32x4_t y = log_ps(vaddq_f32(ax, sqrt_ps(vaddq_f32(x2, vdupq_n_f32(1.f)))));
+    float32x4_t y_large = vaddq_f32(log_ps(ax), vdupq_n_f32(0.6931471805599453f));
+    uint32x4_t mask = vcgtq_f32(ax, vdupq_n_f32(1e19f));
+    y = vbslq_f32(mask, y_large, y);
+    return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(y), vandq_u32(vreinterpretq_u32_f32(x), vdupq_n_u32(0x80000000))));
+}
+
+static inline float32x4_t cosh_ps(const float32x4_t& x)
+{
+    float32x4_t exp_x = exp_ps(x);
+    float32x4_t exp_neg_x = exp_ps(vnegq_f32(x));
+    return vmulq_f32(vaddq_f32(exp_x, exp_neg_x), vdupq_n_f32(0.5f));
+}
+
+static inline float32x4_t acosh_ps(const float32x4_t& x)
+{
+    float32x4_t one = vdupq_n_f32(1.f);
+    float32x4_t y = log_ps(vaddq_f32(x, vmulq_f32(sqrt_ps(vsubq_f32(x, one)), sqrt_ps(vaddq_f32(x, one)))));
+    float32x4_t y_large = vaddq_f32(log_ps(x), vdupq_n_f32(0.6931471805599453f));
+    uint32x4_t mask = vcgtq_f32(x, vdupq_n_f32(1e19f));
+    return vbslq_f32(mask, y_large, y);
+}
+
+static inline float32x4_t atanh_ps(const float32x4_t& x)
+{
+    float32x4_t log_pos = log1p_ps(x);
+    float32x4_t log_neg = log1p_ps(vnegq_f32(x));
+    return vmulq_f32(vsubq_f32(log_pos, log_neg), vdupq_n_f32(0.5f));
+}
+
 static inline float32x4_t floor_ps(const float32x4_t& x)
 {
 #if __aarch64__
@@ -494,6 +570,149 @@ static inline float32x4_t remainder_ps(const float32x4_t& x, const float32x4_t& 
 }
 
 #include "neon_mathfun_tanh.h"
+
+#ifndef c_erf_threshold
+#define c_erf_threshold 0.927734375f
+#endif
+
+#ifndef c_erf_a0
+#define c_erf_a0 -1.72853470e-5f
+#define c_erf_a1 3.83197126e-4f
+#define c_erf_a2 -3.88396438e-3f
+#define c_erf_a3 2.42546219e-2f
+#define c_erf_a4 -1.06777877e-1f
+#define c_erf_a5 -6.34846687e-1f
+#define c_erf_a6 -1.28717512e-1f
+#endif
+
+#ifndef c_erf_b0
+#define c_erf_b0 -5.96761703e-4f
+#define c_erf_b1 4.99119423e-3f
+#define c_erf_b2 -2.67681349e-2f
+#define c_erf_b3 1.12819925e-1f
+#define c_erf_b4 -3.76125336e-1f
+#define c_erf_b5 1.28379166e-1f
+#endif
+
+static inline float32x4_t erf_ps(float32x4_t a)
+{
+    float32x4_t t = vabsq_f32(a);
+    float32x4_t s = vmulq_f32(a, a);
+
+    uint32x4_t large_mask = vcgtq_f32(t, vdupq_n_f32(c_erf_threshold));
+
+    float32x4_t r_large, r_small;
+
+    {
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a1), vdupq_n_f32(c_erf_a0), t);
+        float32x4_t u = VFMAQ_F32(vdupq_n_f32(c_erf_a3), vdupq_n_f32(c_erf_a2), t);
+        r_large = VFMAQ_F32(u, r_large, s);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a4), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a5), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a6), r_large, t);
+        r_large = VFMAQ_F32(vnegq_f32(t), r_large, t);
+        r_large = vsubq_f32(vdupq_n_f32(1.0f), exp_ps(r_large));
+        uint32x4_t sign_mask = vdupq_n_u32(0x80000000u);
+        r_large = vreinterpretq_f32_u32(vbslq_u32(sign_mask, vreinterpretq_u32_f32(a), vreinterpretq_u32_f32(r_large)));
+    }
+
+    {
+        r_small = vdupq_n_f32(c_erf_b0);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b1), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b2), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b3), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b4), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b5), r_small, s);
+        r_small = VFMAQ_F32(a, r_small, a);
+    }
+
+    float32x4_t r = vbslq_f32(large_mask, r_large, r_small);
+
+    return r;
+}
+
+static inline float32x4_t erfc_ps(float32x4_t a)
+{
+    float32x4_t t = vabsq_f32(a);
+    float32x4_t s = vmulq_f32(a, a);
+
+    float32x4_t _one = vdupq_n_f32(1.f);
+    uint32x4_t large_mask = vcgtq_f32(t, vdupq_n_f32(c_erf_threshold));
+
+    float32x4_t r_large, r_small;
+
+    {
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a1), vdupq_n_f32(c_erf_a0), t);
+        float32x4_t u = VFMAQ_F32(vdupq_n_f32(c_erf_a3), vdupq_n_f32(c_erf_a2), t);
+        r_large = VFMAQ_F32(u, r_large, s);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a4), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a5), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(c_erf_a6), r_large, t);
+        r_large = VFMAQ_F32(vnegq_f32(t), r_large, t);
+        r_large = exp_ps(r_large);
+
+        uint32x4_t negative_mask = vcltq_f32(a, vdupq_n_f32(0.f));
+        r_large = vbslq_f32(negative_mask, vsubq_f32(vdupq_n_f32(2.f), r_large), r_large);
+    }
+
+    {
+        r_small = vdupq_n_f32(c_erf_b0);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b1), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b2), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b3), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b4), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(c_erf_b5), r_small, s);
+        r_small = VFMAQ_F32(a, r_small, a);
+        r_small = vsubq_f32(_one, r_small);
+    }
+
+    float32x4_t r = vbslq_f32(large_mask, r_large, r_small);
+
+    return r;
+}
+
+static inline float32x4_t elu_ps(float32x4_t x, float32x4_t alpha)
+{
+    float32x4_t _zero = vdupq_n_f32(0.f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _pos = vmaxq_f32(x, _zero);
+    float32x4_t _neg = vminq_f32(x, _zero);
+    _neg = vsubq_f32(exp_ps(_neg), _one);
+    return vaddq_f32(_pos, vmulq_f32(alpha, _neg));
+}
+
+static inline float32x4_t gelu_ps(float32x4_t x)
+{
+    float32x4_t _half = vdupq_n_f32(0.5f);
+    float32x4_t _blob = vmulq_f32(vdupq_n_f32(-0.70710678f), x);
+    _blob = erfc_ps(_blob);
+    return vmulq_f32(_half, vmulq_f32(_blob, x));
+}
+
+static inline float32x4_t fast_gelu_ps(float32x4_t x)
+{
+    float32x4_t _half = vdupq_n_f32(0.5f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _blob = vmulq_f32(x, x);
+    _blob = vmulq_f32(x, _blob);
+    _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
+    _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), x);
+    _blob = tanh_ps(_blob);
+    _blob = vaddq_f32(_one, _blob);
+    return vmulq_f32(_half, vmulq_f32(_blob, x));
+}
+
+static inline float32x4_t selu_ps(float32x4_t x, float32x4_t alphaxlambda, float32x4_t lambda)
+{
+    float32x4_t _zero = vdupq_n_f32(0.f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    uint32x4_t _lemask = vcleq_f32(x, _zero);
+    float32x4_t _neg = vminq_f32(x, _zero);
+    float32x4_t _nps = vsubq_f32(exp_ps(_neg), _one);
+    _nps = vmulq_f32(_nps, alphaxlambda);
+    float32x4_t _pps = vmulq_f32(x, lambda);
+    return vbslq_f32(_lemask, _nps, _pps);
+}
 
 // Clean up macros
 #undef VFMAQ_F32

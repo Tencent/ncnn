@@ -98,9 +98,9 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = channel_shared;
         specializations[3].i = (scale_data_size == 1 && scale_data[0] == 1.f) ? 0 : 1;
         specializations[4].f = channel_shared ? scale_data[0] : 1.f;
-        specializations[5 + 0].i = shape.dims;
+        specializations[5 + 0].i = std::min(3, shape.dims);
         specializations[5 + 1].i = shape.w;
-        specializations[5 + 2].i = shape.h;
+        specializations[5 + 2].i = shape.h * shape.d;
         specializations[5 + 3].i = shape.c;
         specializations[5 + 4].i = shape.cstep;
 
@@ -108,7 +108,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         if (shape.dims != 0)
         {
             local_size_xyz.w = std::min(4, shape.w);
-            local_size_xyz.h = std::min(4, shape.h);
+            local_size_xyz.h = std::min(4, shape.h * shape.d);
             local_size_xyz.c = std::min(4, shape.c);
         }
 
@@ -178,9 +178,9 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    // int w = bottom_top_blob.w;
-    // int h = bottom_top_blob.h;
-    // int size = w * h;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h * bottom_top_blob.d;
+    int size = w * h;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
@@ -194,19 +194,19 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             if (across_spatial && across_channel)
             {
-                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 1) / 2;
+                reduced_w = (size + 1) / 2;
                 reduced_h = 1;
                 reduced_c = (bottom_top_blob.c + 1) / 2;
             }
             else if (across_spatial && !across_channel)
             {
-                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
+                reduced_w = (size + 3) / 4;
                 reduced_h = 1;
                 reduced_c = bottom_top_blob.c;
             }
             else // if (!across_spatial && across_channel)
             {
-                reduced_w = bottom_top_blob.w * bottom_top_blob.h;
+                reduced_w = size;
                 reduced_h = 1;
                 reduced_c = (bottom_top_blob.c + 3) / 4;
             }
@@ -218,7 +218,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 bindings[1] = sqsum_workspace;
 
                 std::vector<vk_constant_type> constants(8);
-                constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
+                constants[0].i = size;
                 constants[1].i = 1;
                 constants[2].i = bottom_top_blob.c;
                 constants[3].i = bottom_top_blob.cstep;
@@ -315,9 +315,9 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         bindings[2] = scale_data_gpu;
 
         std::vector<vk_constant_type> constants(5);
-        constants[0].i = bottom_top_blob.dims;
+        constants[0].i = std::min(3, bottom_top_blob.dims);
         constants[1].i = bottom_top_blob.w;
-        constants[2].i = bottom_top_blob.h;
+        constants[2].i = h;
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
 

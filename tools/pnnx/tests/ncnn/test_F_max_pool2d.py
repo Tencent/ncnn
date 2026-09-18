@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x):
+    def forward(self, x, q):
         y = x.reshape(12, 128, 127)
 
         x = F.max_pool2d(x, kernel_size=3)
@@ -25,7 +25,10 @@ class Model(nn.Module):
         y = F.max_pool2d(y, kernel_size=(4,5), stride=(1,2), padding=(1,2), dilation=1, return_indices=False, ceil_mode=True)
         y = F.max_pool2d(y, kernel_size=(2,3), stride=1, padding=1, dilation=(1,1), return_indices=False, ceil_mode=False)
         y = F.max_pool2d(y, kernel_size=2, stride=1, padding=0, dilation=1, return_indices=False, ceil_mode=True)
-        return x, y
+
+        q = F.max_pool2d(q, kernel_size=3)
+        q = F.max_pool2d(q, kernel_size=(2,3), stride=1, padding=1, dilation=(1,1), return_indices=False, ceil_mode=False)
+        return x, y, q
         #x, indices1 = F.max_pool2d(x, kernel_size=2, padding=1, dilation=1, return_indices=True, ceil_mode=False)
         #x, indices2 = F.max_pool2d(x, kernel_size=(5,4), stride=1, padding=2, dilation=1, return_indices=True, ceil_mode=False)
         #return x, indices1, indices2
@@ -36,16 +39,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 128, 127)
+    q = torch.rand(2, 3, 16, 18)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_F_max_pool2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_max_pool2d.pt inputshape=[1,12,128,127]")
+    os.system("../../src/pnnx test_F_max_pool2d.pt inputshape=[1,12,128,127],[2,3,16,18]")
 
     # ncnn inference
     import test_F_max_pool2d_ncnn

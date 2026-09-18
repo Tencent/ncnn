@@ -6,9 +6,8 @@
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
-#define __HI(X)       *(1 + (short*)&x)
-#define __LO(X)       *(short*)&x
-#define INFINITY      (1.0 / 0)
+#define __HI(X)       *(1 + (short*)&(X))
+#define __LO(X)       *(short*)&(X)
 #define FE_TONEAREST  0
 #define FE_DOWNWARD   1024
 #define FE_UPWARD     2048
@@ -23,16 +22,18 @@ static const float PI = 3.14159265358979323846;
 static const float PI_2 = 1.57079632679489661923; /* PI/2 */
 static const float E = 2.71828182845904523536;
 
-/* re-interpret the bit pattern of a uint32 as an IEEE-754 float */
-static float uint32_as_float(uint32_t a)
+typedef char simplemath_unsigned_int_must_be_32bit[sizeof(unsigned int) == 4 ? 1 : -1];
+
+/* re-interpret the bit pattern of an unsigned int as an IEEE-754 float */
+static float uint32_as_float(unsigned int a)
 {
-    float r;
-    float* rp = &r;
-    uint32_t* ap = &a;
-
-    *rp = *(float*)ap;
-
-    return r;
+    union
+    {
+        unsigned int i;
+        float f;
+    } u;
+    u.i = a;
+    return u.f;
 }
 
 #ifdef __cplusplus
@@ -486,11 +487,11 @@ float expf(float a)
     r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
 
     float s, t;
-    uint32_t ia;
+    unsigned int ia;
     // exp(a) = 2**i * r
     ia = (i > 0) ? 0 : 0x83000000u;
     s = uint32_as_float(0x7f000000u + ia);
-    t = uint32_as_float(((uint32_t)i << 23) - ia);
+    t = uint32_as_float(((unsigned int)i << 23) - ia);
     r = r * s;
     r = r * t;
 
@@ -498,6 +499,20 @@ float expf(float a)
     if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
 
     return r;
+}
+
+float expm1f(float x)
+{
+    if (x == 0.0f)
+    {
+        return x;
+    }
+    if (fabsf(x) < 1e-4f)
+    {
+        float x2 = x * x;
+        return fmaf(x2, fmaf(x, 1.0f / 6.0f, 0.5f), x);
+    }
+    return expf(x) - 1.0f;
 }
 
 float frexp(float x, int* y)
@@ -687,6 +702,8 @@ float nearbyintf(float x)
             return round(x);
         }
     }
+
+    return x;
 }
 
 #ifdef __cplusplus

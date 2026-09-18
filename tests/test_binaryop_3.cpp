@@ -106,6 +106,55 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
     return ret;
 }
 
+static int test_binaryop_atan2_special()
+{
+    ncnn::Mat a(16);
+    ncnn::Mat b(16);
+
+    const float va[16] = {
+        1.f, -1.f, 0.f, 0.f, 1.f, -1.f, 0.f, 0.f,
+        1.f, -1.f, 0.f, 0.f, 1.f, -1.f, 0.f, 0.f
+    };
+    const float vb[16] = {
+        0.f, 0.f, -1.f, 1.f, -1.f, -1.f, 0.f, 1.f,
+        0.f, 0.f, -1.f, 1.f, -1.f, -1.f, 0.f, 1.f
+    };
+
+    for (int i = 0; i < 16; i++)
+    {
+        a[i] = va[i];
+        b[i] = vb[i];
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, op_type);
+    pd.set(1, 0);   // with_scalar
+    pd.set(2, 0.f); // b
+
+    std::vector<ncnn::Mat> weights(0);
+
+    std::vector<ncnn::Mat> ab(2);
+    ab[0] = a;
+    ab[1] = b;
+
+    int ret = test_layer("BinaryOp", pd, weights, ab);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_binaryop_atan2_special failed op_type=%d\n", op_type);
+        return ret;
+    }
+
+    pd.set(1, 1); // with_scalar
+    ret = test_layer("BinaryOp", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_binaryop_atan2_special scalar failed op_type=%d\n", op_type);
+        return ret;
+    }
+
+    return 0;
+}
+
 static int test_binaryop_1()
 {
     const int ws[] = {31, 28, 24, 32};
@@ -373,6 +422,7 @@ int main()
     for (op_type = 9; op_type < 12; op_type++)
     {
         int ret = 0
+                  || ((op_type == 10 || op_type == 11) ? test_binaryop_atan2_special() : 0)
                   || test_binaryop_1()
                   || test_binaryop_2()
                   || test_binaryop_3()

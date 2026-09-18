@@ -5,7 +5,7 @@
 void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
 void convolution_packed_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
@@ -280,11 +280,8 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex01), _vindex23, 1);
             for (int k = 0; k < maxk; k++)
             {
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
-                __m128i _w1 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr8 + k), 1));
-
-                _mm_storeu_si128((__m128i*)g00, _w0);
-                _mm_storeu_si128((__m128i*)(g00 + 16), _w1);
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
+                _mm512_mask_cvtepi32_storeu_epi8(g00 + 16, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr8 + k), 1));
                 g00 += 32;
             }
 
@@ -297,8 +294,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(inch * maxk));
             for (int k = 0; k < maxk; k++)
             {
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
-                _mm_storeu_si128((__m128i*)g00, _w0);
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
                 g00 += 16;
             }
         }
@@ -430,15 +426,15 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
 #else
                 __m256i _w01 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, 1), _sindex88);
                 __m256i _w23 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex01, 1), _sindex88);
                 __m128i _w01xx = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
                 __m128i _w23xx = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w23, 0), _mm256_extracti128_si256(_w23, 1));
                 __m128i _w0 = _mm_unpacklo_epi64(_w01xx, _w23xx);
-#endif
                 _mm_storeu_si128((__m128i*)g00, _w0);
+#endif
                 g00 += 16;
             }
 
@@ -457,12 +453,12 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             {
                 __m256i _w32 = _mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1);
 #if __AVX512F__
-                __m128i _w0 = _mm256_cvtepi32_epi8(_w32);
+                _mm256_mask_cvtepi32_storeu_epi8(g00, (__mmask8)-1, _w32);
 #else
                 __m256i _w01 = _mm256_shuffle_epi8(_w32, _sindex88);
                 __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
-#endif
                 _mm_storel_epi64((__m128i*)g00, _w0);
+#endif
                 g00 += 8;
             }
         }
@@ -567,8 +563,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, 1));
-                _mm_storel_epi64((__m128i*)g00, _w0);
+                _mm256_mask_cvtepi32_storeu_epi8(g00, (__mmask8)-1, _mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, 1));
 #elif __AVX2__
                 __m256i _w01 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, 1), _sindex88);
                 __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
@@ -608,8 +603,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1));
-                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
+                _mm_mask_cvtepi32_storeu_epi8(g00, (__mmask8)-1, _mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1));
 #elif __AVX2__
                 __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1), _sindex8);
                 _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
@@ -654,11 +648,8 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 
             for (int k = 0; k < maxk; k++)
             {
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
-                __m128i _w1 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr1 + k), 1));
-
-                _mm_storeu_si128((__m128i*)g00, _w0);
-                _mm_storeu_si128((__m128i*)(g00 + 16), _w1);
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
+                _mm512_mask_cvtepi32_storeu_epi8(g00 + 16, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr1 + k), 1));
                 g00 += 32;
             }
 
@@ -683,8 +674,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
-                _mm_storeu_si128((__m128i*)g00, _w0);
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr0 + k), 1));
 #elif __AVX2__
                 __m256i _w00 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex0, 1), _sindex88);
                 __m256i _w11 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex0, 1), _sindex88);
@@ -732,8 +722,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1));
-                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
+                _mm_mask_cvtepi32_storeu_epi8(g00, (__mmask8)-1, _mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1));
 #elif __AVX2__
                 __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, 1), _sindex8);
                 _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
@@ -789,9 +778,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 
             for (int k = 0; k < maxk; k++)
             {
-                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(kptr + k), 1));
-
-                _mm_storeu_si128((__m128i*)g00, _w0);
+                _mm512_mask_cvtepi32_storeu_epi8(g00, (__mmask16)-1, _mm512_i32gather_epi32(_vindex, (const int*)(kptr + k), 1));
                 g00 += 16;
             }
 
@@ -811,9 +798,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr + k), _vindex, 1));
-
-                _mm_storel_epi64((__m128i*)g00, _w0);
+                _mm256_mask_cvtepi32_storeu_epi8(g00, (__mmask8)-1, _mm256_i32gather_epi32((const int*)(kptr + k), _vindex, 1));
                 g00 += 8;
 #elif __AVX2__
                 __m256i _w00 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr + k), _vindex, 1), _sindex88);
@@ -872,7 +857,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVX512F__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         convolution_packed_int8_avxvnni(bottom_blob, top_blob, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -2036,14 +2021,20 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm256_i32scatter_epi32(outptr + 2, _vindex, _sum2, sizeof(int));
                 _mm256_i32scatter_epi32(outptr + 3, _vindex, _sum3, sizeof(int));
 #else
-                int sum0[8];
-                int sum1[8];
-                int sum2[8];
-                int sum3[8];
-                _mm256_storeu_si256((__m256i*)sum0, _sum0);
-                _mm256_storeu_si256((__m256i*)sum1, _sum1);
-                _mm256_storeu_si256((__m256i*)sum2, _sum2);
-                _mm256_storeu_si256((__m256i*)sum3, _sum3);
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
+                int sumbuf[32];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 8;
+                int* sum2 = sumbuf + 16;
+                int* sum3 = sumbuf + 24;
+                _mm256_store_si256((__m256i*)sum0, _sum0);
+                _mm256_store_si256((__m256i*)sum1, _sum1);
+                _mm256_store_si256((__m256i*)sum2, _sum2);
+                _mm256_store_si256((__m256i*)sum3, _sum3);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -2325,10 +2316,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm256_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
                 _mm256_i32scatter_epi32(outptr + 1, _vindex, _sum1, sizeof(int));
 #else
-                int sum0[8];
-                int sum1[8];
-                _mm256_storeu_si256((__m256i*)sum0, _sum0);
-                _mm256_storeu_si256((__m256i*)sum1, _sum1);
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
+                int sumbuf[16];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 8;
+                _mm256_store_si256((__m256i*)sum0, _sum0);
+                _mm256_store_si256((__m256i*)sum1, _sum1);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -2546,8 +2543,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(M));
                 _mm256_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
                 int sum[8];
-                _mm256_storeu_si256((__m256i*)sum, _sum0);
+                _mm256_store_si256((__m256i*)sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
@@ -2972,14 +2974,20 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm_i32scatter_epi32(outptr + 2, _vindex, _sum2, sizeof(int));
                 _mm_i32scatter_epi32(outptr + 3, _vindex, _sum3, sizeof(int));
 #else
-                int sum0[4];
-                int sum1[4];
-                int sum2[4];
-                int sum3[4];
-                _mm_storeu_si128((__m128i*)sum0, _sum0);
-                _mm_storeu_si128((__m128i*)sum1, _sum1);
-                _mm_storeu_si128((__m128i*)sum2, _sum2);
-                _mm_storeu_si128((__m128i*)sum3, _sum3);
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
+                int sumbuf[16];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 4;
+                int* sum2 = sumbuf + 8;
+                int* sum3 = sumbuf + 12;
+                _mm_store_si128((__m128i*)sum0, _sum0);
+                _mm_store_si128((__m128i*)sum1, _sum1);
+                _mm_store_si128((__m128i*)sum2, _sum2);
+                _mm_store_si128((__m128i*)sum3, _sum3);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -3297,10 +3305,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
                 _mm_i32scatter_epi32(outptr + 1, _vindex, _sum1, sizeof(int));
 #else
-                int sum0[4];
-                int sum1[4];
-                _mm_storeu_si128((__m128i*)sum0, _sum0);
-                _mm_storeu_si128((__m128i*)sum1, _sum1);
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
+                int sumbuf[8];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 4;
+                _mm_store_si128((__m128i*)sum0, _sum0);
+                _mm_store_si128((__m128i*)sum1, _sum1);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -3546,8 +3560,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(M));
                 _mm_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
                 int sum[4];
-                _mm_storeu_si128((__m128i*)sum, _sum0);
+                _mm_store_si128((__m128i*)sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
