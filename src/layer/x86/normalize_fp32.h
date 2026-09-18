@@ -370,114 +370,191 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
         int nn_size = 0;
         int remain_size_start = 0;
         int spatial_start = 0;
-        int spatial_step = 0;
 
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
-        // retain the first lane of each spatial position after the packed reduction
-        const __mmask16 _mask = elempack == 8 ? 0x0101 : elempack == 4 ? 0x1111
-                                : 0xffff;
-
         nn_size = (n - remain_size_start) / 16;
-        spatial_step = 16 / elempack;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
+        if (elempack == 16)
         {
-            int i = remain_size_start + ii * 16;
-            __m512 _ssum = _mm512_setzero_ps();
-            for (int q = 0; q < channels; q++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
             {
-                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                __m512 _p = _mm512_loadu_ps(ptr);
-                _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
-            }
+                int i = remain_size_start + ii * 16;
+                __m512 _ssum = _mm512_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
+                }
 
-            float* outptr = square_sum + spatial_start + ii * spatial_step;
-            if (elempack == 16)
-            {
+                float* outptr = square_sum + spatial_start + ii;
                 outptr[0] = _mm512_comp_reduce_add_ps(_ssum);
-                continue;
             }
-
-            // sum within each pack, keeping adjacent spatial positions independent
-            if (elempack >= 4)
+        }
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
             {
+                int i = remain_size_start + ii * 16;
+                __m512 _ssum = _mm512_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 2;
                 _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
                 _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
-            }
-            if (elempack >= 8)
                 _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_f32x4(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
-            _mm512_mask_compressstoreu_ps(outptr, _mask, _ssum);
+                _mm512_mask_compressstoreu_ps(outptr, 0x0101, _ssum);
+            }
+        }
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
+            {
+                int i = remain_size_start + ii * 16;
+                __m512 _ssum = _mm512_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 4;
+                _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
+                _ssum = _mm512_add_ps(_ssum, _mm512_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
+                _mm512_mask_compressstoreu_ps(outptr, 0x1111, _ssum);
+            }
+        }
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
+            {
+                int i = remain_size_start + ii * 16;
+                __m512 _ssum = _mm512_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _ssum = _mm512_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 16;
+                _mm512_storeu_ps(outptr, _ssum);
+            }
         }
         remain_size_start += nn_size * 16;
-        spatial_start += nn_size * spatial_step;
+        spatial_start += nn_size * (16 / elempack);
 #endif // __AVX512F__
+#if __AVX__
         nn_size = (n - remain_size_start) / 8;
-        spatial_step = 8 / elempack;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
+        if (elempack == 8)
         {
-            int i = remain_size_start + ii * 8;
-            __m256 _ssum = _mm256_setzero_ps();
-            for (int q = 0; q < channels; q++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
             {
-                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                __m256 _p = _mm256_loadu_ps(ptr);
-                _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
-            }
+                int i = remain_size_start + ii * 8;
+                __m256 _ssum = _mm256_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
+                }
 
-            // sum within each pack, keeping adjacent spatial positions independent
-            if (elempack >= 4)
+                float* outptr = square_sum + spatial_start + ii;
+                outptr[0] = _mm256_reduce_add_ps(_ssum);
+            }
+        }
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
             {
+                int i = remain_size_start + ii * 8;
+                __m256 _ssum = _mm256_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 2;
                 _ssum = _mm256_add_ps(_ssum, _mm256_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
                 _ssum = _mm256_add_ps(_ssum, _mm256_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
-            }
-            if (elempack >= 8)
-                _ssum = _mm256_add_ps(_ssum, _mm256_permute2f128_ps(_ssum, _ssum, 1));
-            float* outptr = square_sum + spatial_start + ii * spatial_step;
-            if (elempack == 1)
-            {
-                _mm256_storeu_ps(outptr, _ssum);
-            }
-            else
-            {
                 _mm_store_ss(outptr, _mm256_castps256_ps128(_ssum));
-                if (elempack == 4)
-                    _mm_store_ss(outptr + 1, _mm256_extractf128_ps(_ssum, 1));
+                _mm_store_ss(outptr + 1, _mm256_extractf128_ps(_ssum, 1));
+            }
+        }
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
+            {
+                int i = remain_size_start + ii * 8;
+                __m256 _ssum = _mm256_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _ssum = _mm256_comp_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 8;
+                _mm256_storeu_ps(outptr, _ssum);
             }
         }
         remain_size_start += nn_size * 8;
-        spatial_start += nn_size * spatial_step;
+        spatial_start += nn_size * (8 / elempack);
 #endif // __AVX__
+#if __SSE2__
         nn_size = (n - remain_size_start) / 4;
-        spatial_step = 4 / elempack;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
+        if (elempack == 4)
         {
-            int i = remain_size_start + ii * 4;
-            __m128 _ssum = _mm_setzero_ps();
-            for (int q = 0; q < channels; q++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
             {
-                const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
-                __m128 _p = _mm_loadu_ps(ptr);
-                _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
-            }
+                int i = remain_size_start + ii * 4;
+                __m128 _ssum = _mm_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
+                }
 
-            // sum within each pack, keeping adjacent spatial positions independent
-            if (elempack >= 4)
-            {
-                _ssum = _mm_add_ps(_ssum, _mm_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(2, 3, 0, 1)));
-                _ssum = _mm_add_ps(_ssum, _mm_shuffle_ps(_ssum, _ssum, _MM_SHUFFLE(1, 0, 3, 2)));
+                float* outptr = square_sum + spatial_start + ii;
+                outptr[0] = _mm_reduce_add_ps(_ssum);
             }
-            float* outptr = square_sum + spatial_start + ii * spatial_step;
-            if (elempack == 1)
+        }
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int ii = 0; ii < nn_size; ii++)
+            {
+                int i = remain_size_start + ii * 4;
+                __m128 _ssum = _mm_setzero_ps();
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = (const float*)bottom_top_blob.channel(q) + i;
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _ssum = _mm_comp_fmadd_ps(_p, _p, _ssum);
+                }
+
+                float* outptr = square_sum + spatial_start + ii * 4;
                 _mm_storeu_ps(outptr, _ssum);
-            else
-                _mm_store_ss(outptr, _ssum);
+            }
         }
         remain_size_start += nn_size * 4;
-        spatial_start += nn_size * spatial_step;
+        spatial_start += nn_size * (4 / elempack);
 #endif // __SSE2__
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < n; i++)
@@ -582,69 +659,135 @@ static int normalize_fp32(Mat& bottom_top_blob, const Mat& scale_data, int acros
 #endif // __SSE2__
 
             int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
-            const int step_avx512 = 16 / elempack;
-            for (; i + 15 < n; i += 16)
+            if (elempack == 16)
             {
-                __m512 _ssum = _mm512_set1_ps(square_sum_ptr[0]);
-                if (elempack == 8)
+                for (; i + 15 < n; i += 16)
+                {
+                    __m512 _ssum = _mm512_set1_ps(square_sum_ptr[0]);
+                    _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_mul_ps(_p, _ssum);
+                    _mm512_storeu_ps(ptr, _p);
+                    ptr += 16;
+                    square_sum_ptr += 1;
+                }
+            }
+            if (elempack == 8)
+            {
+                for (; i + 15 < n; i += 16)
                 {
                     __m256 _ssum0 = _mm256_set1_ps(square_sum_ptr[0]);
                     __m256 _ssum1 = _mm256_set1_ps(square_sum_ptr[1]);
-                    _ssum = combine8x2_ps(_ssum0, _ssum1);
+                    __m512 _ssum = combine8x2_ps(_ssum0, _ssum1);
+                    _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_mul_ps(_p, _ssum);
+                    _mm512_storeu_ps(ptr, _p);
+                    ptr += 16;
+                    square_sum_ptr += 2;
                 }
-                if (elempack == 4)
+            }
+            if (elempack == 4)
+            {
+                for (; i + 15 < n; i += 16)
                 {
                     __m128 _ssum0 = _mm_set1_ps(square_sum_ptr[0]);
                     __m128 _ssum1 = _mm_set1_ps(square_sum_ptr[1]);
                     __m128 _ssum2 = _mm_set1_ps(square_sum_ptr[2]);
                     __m128 _ssum3 = _mm_set1_ps(square_sum_ptr[3]);
-                    _ssum = combine4x4_ps(_ssum0, _ssum1, _ssum2, _ssum3);
+                    __m512 _ssum = combine4x4_ps(_ssum0, _ssum1, _ssum2, _ssum3);
+                    _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_mul_ps(_p, _ssum);
+                    _mm512_storeu_ps(ptr, _p);
+                    ptr += 16;
+                    square_sum_ptr += 4;
                 }
-                if (elempack == 1)
-                    _ssum = _mm512_loadu_ps(square_sum_ptr);
-                _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
-                __m512 _p = _mm512_loadu_ps(ptr);
-                _p = _mm512_mul_ps(_p, _ssum);
-                _mm512_storeu_ps(ptr, _p);
-                ptr += 16;
-                square_sum_ptr += step_avx512;
+            }
+            if (elempack == 1)
+            {
+                for (; i + 15 < n; i += 16)
+                {
+                    __m512 _ssum = _mm512_loadu_ps(square_sum_ptr);
+                    _ssum = _mm512_mul_ps(_ssum, _scale_avx512);
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_mul_ps(_p, _ssum);
+                    _mm512_storeu_ps(ptr, _p);
+                    ptr += 16;
+                    square_sum_ptr += 16;
+                }
             }
 #endif // __AVX512F__
-            const int step_avx = 8 / elempack;
-            for (; i + 7 < n; i += 8)
+#if __AVX__
+            if (elempack == 8)
             {
-                __m256 _ssum = _mm256_set1_ps(square_sum_ptr[0]);
-                if (elempack == 4)
+                for (; i + 7 < n; i += 8)
+                {
+                    __m256 _ssum = _mm256_set1_ps(square_sum_ptr[0]);
+                    _ssum = _mm256_mul_ps(_ssum, _scale_avx);
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _p = _mm256_mul_ps(_p, _ssum);
+                    _mm256_storeu_ps(ptr, _p);
+                    ptr += 8;
+                    square_sum_ptr += 1;
+                }
+            }
+            if (elempack == 4)
+            {
+                for (; i + 7 < n; i += 8)
                 {
                     __m128 _ssum0 = _mm_set1_ps(square_sum_ptr[0]);
                     __m128 _ssum1 = _mm_set1_ps(square_sum_ptr[1]);
-                    _ssum = combine4x2_ps(_ssum0, _ssum1);
+                    __m256 _ssum = combine4x2_ps(_ssum0, _ssum1);
+                    _ssum = _mm256_mul_ps(_ssum, _scale_avx);
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _p = _mm256_mul_ps(_p, _ssum);
+                    _mm256_storeu_ps(ptr, _p);
+                    ptr += 8;
+                    square_sum_ptr += 2;
                 }
-                if (elempack == 1)
-                    _ssum = _mm256_loadu_ps(square_sum_ptr);
-                _ssum = _mm256_mul_ps(_ssum, _scale_avx);
-                __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_mul_ps(_p, _ssum);
-                _mm256_storeu_ps(ptr, _p);
-                ptr += 8;
-                square_sum_ptr += step_avx;
+            }
+            if (elempack == 1)
+            {
+                for (; i + 7 < n; i += 8)
+                {
+                    __m256 _ssum = _mm256_loadu_ps(square_sum_ptr);
+                    _ssum = _mm256_mul_ps(_ssum, _scale_avx);
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _p = _mm256_mul_ps(_p, _ssum);
+                    _mm256_storeu_ps(ptr, _p);
+                    ptr += 8;
+                    square_sum_ptr += 8;
+                }
             }
 #endif // __AVX__
-            const int step = 4 / elempack;
-            for (; i + 3 < n; i += 4)
+#if __SSE2__
+            if (elempack == 4)
             {
-                __m128 _ssum = _mm_set1_ps(square_sum_ptr[0]);
-                if (elempack == 1)
-                    _ssum = _mm_loadu_ps(square_sum_ptr);
-                _ssum = _mm_mul_ps(_ssum, _scale);
-                __m128 _p = _mm_loadu_ps(ptr);
-                _p = _mm_mul_ps(_p, _ssum);
-                _mm_storeu_ps(ptr, _p);
-                ptr += 4;
-                square_sum_ptr += step;
+                for (; i + 3 < n; i += 4)
+                {
+                    __m128 _ssum = _mm_set1_ps(square_sum_ptr[0]);
+                    _ssum = _mm_mul_ps(_ssum, _scale);
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _p = _mm_mul_ps(_p, _ssum);
+                    _mm_storeu_ps(ptr, _p);
+                    ptr += 4;
+                    square_sum_ptr += 1;
+                }
+            }
+            if (elempack == 1)
+            {
+                for (; i + 3 < n; i += 4)
+                {
+                    __m128 _ssum = _mm_loadu_ps(square_sum_ptr);
+                    _ssum = _mm_mul_ps(_ssum, _scale);
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _p = _mm_mul_ps(_p, _ssum);
+                    _mm_storeu_ps(ptr, _p);
+                    ptr += 4;
+                    square_sum_ptr += 4;
+                }
             }
 #endif // __SSE2__
             for (; i < n; i++)
