@@ -225,6 +225,19 @@ static int test_reduction_3()
            || test_reduction_nd(c);
 }
 
+static int test_reduction_simd_tail()
+{
+    const int sizes[] = {15, 16, 17, 31, 32, 33, 63, 64, 65};
+    for (int i = 0; i < 9; i++)
+    {
+        int ret = test_reduction_nd(RandomMat(sizes[i])) || test_reduction_nd(RandomMat(sizes[i], 3));
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
 static int test_reduction_singleton_axes()
 {
     return 0
@@ -320,7 +333,8 @@ int main()
                   || test_reduction_1()
                   || test_reduction_2()
                   || test_reduction_3()
-                  || test_reduction_singleton_axes();
+                  || test_reduction_singleton_axes()
+                  || test_reduction_simd_tail();
 
         if (ret != 0)
             return ret;
