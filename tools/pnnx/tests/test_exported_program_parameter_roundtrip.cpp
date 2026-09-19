@@ -398,6 +398,13 @@ static int test_real_scalar_state_roundtrip(const char* param_path, const char* 
 
 int main(int argc, char** argv)
 {
+    if (argc == 4 && strcmp(argv[1], "--python-paths") == 0)
+    {
+        pnnx::Graph graph;
+        if (graph.parse("7767517\n2 1\npnnx.Input input 0 1 x #x=(1)f32\npnnx.Output output 1 0 x\n") != 0)
+            return 1;
+        return graph.python(argv[2], argv[3], {}, pnnx::get_model_stat(graph), true);
+    }
     if (argc == 4)
     {
         pnnx::Graph graph;

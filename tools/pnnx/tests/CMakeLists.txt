@@ -473,3 +473,10 @@ add_subdirectory(ncnn)
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
+
+# Path spelling must survive both Windows and POSIX Python code generation.
+add_test(
+    NAME test_python_codegen_paths
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_python_codegen_paths.py $<TARGET_FILE:pnnx_test_exported_program_parameter_roundtrip>
+)
+set_tests_properties(test_python_codegen_paths PROPERTIES LABELS "pt2;pt2_frontend")
