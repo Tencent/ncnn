@@ -1,0 +1,44 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer hidden_h_blob { sfp hidden_h_data[]; };
+layout(binding = 1) readonly buffer weight_hr_blob { sfp weight_hr_data[]; };
+layout(binding = 2) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int hidden_size;
+    int num_output;
+    int ti;
+    int outw;
+    int out_offset;
+    int dir;
+    int hr_dir_stride;
+} p;
+
+void main()
+{
+    int q = int(gl_GlobalInvocationID.x);
+
+    if (q >= p.num_output)
+        return;
+
+    int hr_base = p.dir * p.hr_dir_stride;
+    int hr_row = hr_base + q * p.hidden_size;
+
+    afp sum = afp(0.f);
+    for (int i = 0; i < p.hidden_size; i++)
+    {
+        afp hi = buffer_ld1(hidden_h_data, i);
+        afp wi = buffer_ld1(weight_hr_data, hr_row + i);
+        sum += hi * wi;
+    }
+
+    buffer_st1(hidden_next_data, q, sum);
+
+    int out_index = p.ti * p.outw + p.out_offset + q;
+    buffer_st1(top_blob_data, out_index, sum);
+}
