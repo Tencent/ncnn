@@ -104,6 +104,25 @@ def _remove_generated_artifacts(output_basename, archive_suffix):
         _remove_if_present(Path(output_basename + suffix))
 
 
+class _NcnnTestRuntime:
+    # fp16=0 controls saved weights, not runtime storage or arithmetic. Scope
+    # FP32 validation to this generated test module, leaving ncnn.Net and the
+    # generated deployment script's default options unchanged.
+    def __init__(self, binding):
+        self._binding = binding
+
+    def __getattr__(self, name):
+        return getattr(self._binding, name)
+
+    def Net(self, *args, **kwargs):
+        net = self._binding.Net(*args, **kwargs)
+        net.opt.use_fp16_packed = False
+        net.opt.use_fp16_storage = False
+        net.opt.use_fp16_arithmetic = False
+        net.opt.use_bf16_storage = False
+        return net
+
+
 def _import_generated_module(path, basename):
     module_name = "_pnnx_test_%s" % re.sub(r"[^0-9A-Za-z_]", "_", basename)
     sys.modules.pop(module_name, None)
@@ -113,6 +132,8 @@ def _import_generated_module(path, basename):
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
+    if Path(path).name.endswith("_ncnn.py"):
+        module.ncnn = _NcnnTestRuntime(module.ncnn)
     return module
 
 

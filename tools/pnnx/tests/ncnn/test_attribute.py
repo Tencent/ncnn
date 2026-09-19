@@ -21,6 +21,7 @@ from pnnx_test_utils import SUPPORTED
 from pnnx_test_utils import PT2_SKIP_RETURN_CODE
 from pnnx_test_utils import pt2_producer_status
 from pnnx_test_utils import _import_generated_module
+from pnnx_test_utils import _NcnnTestRuntime
 
 
 class Model(nn.Module):
@@ -103,7 +104,7 @@ def test_attribute(dtype, fp16):
         finally:
             os.chdir(previous_dir)
 
-        with ncnn.Net() as ncnn_net:
+        with _NcnnTestRuntime(ncnn).Net() as ncnn_net:
             if ncnn_net.load_param(str(work_dir / "attribute.ncnn.param")) != 0:
                 return False
             if ncnn_net.load_model(str(work_dir / "attribute.ncnn.bin")) != 0:
