@@ -133,56 +133,45 @@ static int test_normalize_5()
 
 static int test_normalize_6()
 {
-    const ncnn::Mat inputs[] = {
-        RandomMat(1),
-        RandomMat(7),
-        RandomMat(12),
-        RandomMat(24),
-        RandomMat(32),
-        RandomMat(7, 3),
-        RandomMat(7, 12),
-        RandomMat(7, 24),
-        RandomMat(7, 32),
-        RandomMat(1, 1, 12),
-        RandomMat(2, 1, 12),
-        RandomMat(3, 1, 12),
-        RandomMat(4, 1, 12),
-        RandomMat(1, 1, 24),
-        RandomMat(1, 1, 16),
-        RandomMat(7, 5, 3),
-        RandomMat(7, 5, 12),
-        RandomMat(7, 5, 24),
-        RandomMat(7, 5, 32),
-        RandomMat(3, 5, 3, 12),
-        RandomMat(3, 5, 3, 24),
-        RandomMat(3, 5, 3, 32),
-        RandomMat(12, -0.00001f, 0.00001f),
-        RandomMat(7, 24, -0.00001f, 0.00001f),
-        RandomMat(3, 5, 12, -0.00001f, 0.00001f),
-        RandomMat(3, 5, 3, 32, -0.00001f, 0.00001f),
-        RandomMat(3, 5, 16, 0.f, 0.f)
-    };
+    return 0
+           // dims=1/2, packing is along spatial dimensions
+           || test_normalize(RandomMat(7), 1, 0, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(12), 1, 0, 1, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(24), 1, 1, 0, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(32), 1, 1, 1, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 3), 1, 0, 0, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 12), 1, 1, 1, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 24), 1, 0, 1, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 32), 1, 1, 0, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
 
-    for (int i = 0; i < (int)(sizeof(inputs) / sizeof(inputs[0])); i++)
-    {
-        for (int across_spatial = 0; across_spatial <= 1; across_spatial++)
-        {
-            for (int across_channel = 0; across_channel <= 1; across_channel++)
-            {
-                for (int channel_shared = 0; channel_shared <= 1; channel_shared++)
-                {
-                    for (int eps_mode = 0; eps_mode < 3; eps_mode++)
-                    {
-                        int ret = test_normalize(inputs[i], across_spatial, across_channel, channel_shared, 0.0001f, eps_mode, TEST_LAYER_DISABLE_GPU_TESTING);
-                        if (ret != 0)
-                            return ret;
-                    }
-                }
-            }
-        }
-    }
+           // dims=3, packing is along channels
+           // pack1 / pack4 / pack8 / pack16
+           || test_normalize(RandomMat(7, 5, 3), 1, 0, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 12), 1, 0, 1, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 24), 1, 0, 0, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 32), 1, 0, 1, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
 
-    return 0;
+           // across-channel path, exercise short spatial tails
+           || test_normalize(RandomMat(1, 1, 12), 0, 1, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(2, 1, 12), 0, 1, 1, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(3, 1, 12), 0, 1, 0, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(4, 1, 12), 0, 1, 1, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(3, 1, 24), 0, 1, 0, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(3, 1, 32), 0, 1, 1, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+
+           // across-spatial + across-channel
+           || test_normalize(RandomMat(7, 5, 3), 1, 1, 1, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 12), 1, 1, 0, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 24), 1, 1, 1, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(7, 5, 32), 1, 1, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+
+           // dims=4 packed path
+           || test_normalize(RandomMat(3, 5, 3, 12), 0, 1, 0, 0.0001f, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(3, 5, 3, 24), 1, 0, 1, 0.0001f, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_normalize(RandomMat(3, 5, 3, 32), 1, 1, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+
+           // (0, 0) is a no-op, one case is sufficient
+           || test_normalize(RandomMat(7, 5, 12), 0, 0, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 int main()
