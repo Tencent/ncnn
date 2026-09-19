@@ -35,5 +35,12 @@ PT2_EXPECTED_FAILURES = {
 }
 
 
-def pt2_expectation(basename):
+def pt2_expectation(basename, torch_version):
+    # Torch 2.9.0 fails during export, before the frontend sees Funnel's
+    # unsupported derived dimensions. Keep other producers' boundary strict.
+    if basename == "test_transformers_funnel_attention" and torch_version == (2, 9, 0):
+        return (
+            EXPORT_UNSUPPORTED,
+            "GuardOnDataDependentSymNode: Could not guard on data-dependent expression",
+        )
     return PT2_EXPECTED_FAILURES.get(basename, (PASS, ""))

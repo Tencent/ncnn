@@ -90,7 +90,29 @@ class Pt2ProducerStatusTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "conversion now passes"):
             pnnx_test_utils._handle_pt2_conversion_success(name)
 
-        self.assertEqual(pnnx_test_utils.pt2_expectation("ordinary_test"), (PASS, ""))
+        self.assertEqual(pnnx_test_utils.pt2_expectation("ordinary_test", (2, 9, 0)), (PASS, ""))
+
+    def test_funnel_failure_boundary_is_producer_specific(self):
+        name = "test_transformers_funnel_attention"
+        export_diagnostic = "GuardOnDataDependentSymNode: Could not guard on data-dependent expression"
+        for version in ("2.9.0+cpu", "2.9.1", "2.10.0", "2.13.0+cpu", "unknown"):
+            with self.subTest(version=version), mock.patch.object(torch, "__version__", version):
+                category, diagnostic = PT2_EXPECTED_FAILURES[name]
+                if version == "2.9.0+cpu":
+                    category, diagnostic = EXPORT_UNSUPPORTED, export_diagnostic
+                with self.assertRaises(SystemExit) as raised:
+                    pnnx_test_utils._handle_pt2_failure(name, category, diagnostic)
+                self.assertEqual(raised.exception.code, 77)
+                wrong_category = (PT2_FRONTEND_UNSUPPORTED if category == EXPORT_UNSUPPORTED
+                                  else EXPORT_UNSUPPORTED)
+                with self.assertRaisesRegex(AssertionError, "failure category changed"):
+                    pnnx_test_utils._handle_pt2_failure(name, wrong_category, diagnostic)
+                with self.assertRaisesRegex(AssertionError, "diagnostic changed"):
+                    pnnx_test_utils._handle_pt2_failure(name, category, "unrelated failure")
+                with self.assertRaisesRegex(AssertionError, "conversion now passes"):
+                    pnnx_test_utils._handle_pt2_conversion_success(name)
+                with self.assertRaisesRegex(AssertionError, "failure category changed"):
+                    pnnx_test_utils._handle_pt2_failure("ordinary_test", category, diagnostic)
 
 
 class Pt2RunnerTest(unittest.TestCase):

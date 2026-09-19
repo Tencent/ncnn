@@ -53,7 +53,7 @@ def _selected_format():
 
 
 def _handle_pt2_failure(basename, category, detail):
-    expected_category, expected_substring = pt2_expectation(basename)
+    expected_category, expected_substring = pt2_expectation(basename, _torch_version_tuple())
 
     if expected_category != category:
         raise AssertionError(
@@ -75,7 +75,7 @@ def _handle_pt2_failure(basename, category, detail):
 
 
 def _handle_pt2_conversion_success(basename):
-    expected_category, _ = pt2_expectation(basename)
+    expected_category, _ = pt2_expectation(basename, _torch_version_tuple())
     if expected_category != PASS:
         raise AssertionError(
             "%s pt2 conversion now passes; update its expectation from %s to PASS"
