@@ -795,11 +795,9 @@ int Graph::load(const std::string& parampath, const std::string& binpath)
         }
 
         // key=value
-        while (!iss.eof())
+        std::string param;
+        while (iss >> param)
         {
-            std::string param;
-            iss >> param;
-
             std::string key;
             std::string value;
             std::istringstream pss(param);
@@ -3073,11 +3071,9 @@ int Graph::parse(const std::string& param)
         }
 
         // key=value
-        while (!iss.eof())
+        std::string param;
+        while (iss >> param)
         {
-            std::string param;
-            iss >> param;
-
             std::string key;
             std::string value;
             std::istringstream pss(param);

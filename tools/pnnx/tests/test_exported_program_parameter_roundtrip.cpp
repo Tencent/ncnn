@@ -249,6 +249,30 @@ static int test_attribute_file_roundtrip()
     return failures;
 }
 
+static int test_trailing_parameter_whitespace()
+{
+    const std::string param = "7767517\n"
+                              "2 2\n"
+                              "pnnx.Input input 0 1 x #x=(1)f32\n"
+                              "prim::ListConstruct construct 1 1 x values    \n";
+
+    pnnx::Graph graph;
+    if (graph.parse(param) != 0 || graph.ops.size() != 2)
+    {
+        fprintf(stderr, "failed to parse graph with trailing parameter whitespace\n");
+        return 1;
+    }
+
+    const pnnx::Operator* construct = graph.ops[1];
+    if (!construct->params.empty())
+    {
+        fprintf(stderr, "trailing parameter whitespace created %lu synthetic parameters\n", (unsigned long)construct->params.size());
+        return 1;
+    }
+
+    return 0;
+}
+
 static int test_explicit_scalar_parse()
 {
     const std::string param = "7767517\n"
@@ -429,5 +453,6 @@ int main(int argc, char** argv)
     failures += test_storezip_writer_lifecycle();
     failures += test_attribute_file_roundtrip();
     failures += test_explicit_scalar_parse();
+    failures += test_trailing_parameter_whitespace();
     return failures ? 1 : 0;
 }
