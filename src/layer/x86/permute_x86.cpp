@@ -40,6 +40,15 @@ static int permute_block_size(int size, size_t bytes_per_element, int groups, in
     return std::min(block, size);
 }
 
+// align record boundaries to cache lines
+static int permute_record_alignment(size_t size, size_t elemsize)
+{
+    int alignment = 1;
+    while (size * elemsize * alignment % 64 != 0)
+        alignment *= 2;
+    return alignment;
+}
+
 // complete matrix traversal
 // each output row contains rows contiguous blocks
 // serial tile kernels never create OpenMP teams
@@ -71,8 +80,8 @@ static void permute_transpose_matrix(const float* ptr, size_t stride, float* out
         return;
     }
 
-    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(float), 1, num_threads, 4);
-    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(float), (cols + col_block - 1) / col_block, num_threads, 4);
+    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(float), 1, num_threads, permute_record_alignment(outstride, sizeof(float)));
+    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(float), (cols + col_block - 1) / col_block, num_threads, permute_record_alignment(size, sizeof(float)));
     #pragma omp parallel for collapse(2) num_threads(num_threads)
     for (int j = 0; j < cols; j += col_block)
     {
@@ -114,8 +123,8 @@ static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 
-    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), 1, num_threads, 4);
-    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), (cols + col_block - 1) / col_block, num_threads, 4);
+    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), 1, num_threads, permute_record_alignment(outstride, sizeof(unsigned short)));
+    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), (cols + col_block - 1) / col_block, num_threads, permute_record_alignment(size, sizeof(unsigned short)));
     #pragma omp parallel for collapse(2) num_threads(num_threads)
     for (int j = 0; j < cols; j += col_block)
     {
@@ -644,8 +653,30 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)d * (w * elempack) * sizeof(float), channels, num_threads, 4);
-                    const int row_block = permute_block_size(d, (size_t)col_block * (w * elempack) * sizeof(float), channels * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(float));
+                    if ((size_t)channels * (d) * (h) < (size_t)num_threads && (size_t)(w * elempack) * sizeof(float) >= 16384)
+                    {
+                        const int block = permute_block_size(w * elempack, sizeof(float), channels * (d) * (h), num_threads, 64 / sizeof(float));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < d; i++)
+                                {
+                                    for (int x = 0; x < w * elempack; x += block)
+                                    {
+                                        const float* ptr = (const float*)bottom_blob.channel(q) + i * ((size_t)w * h * elempack) + (size_t)j * (w * elempack);
+                                        float* outptr = (float*)top_blob.channel(q) + j * ((size_t)w * d * elempack) + (size_t)i * (w * elempack);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w * elempack - x) * sizeof(float));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)d * (w * elempack) * sizeof(float), channels, num_threads, permute_record_alignment((size_t)w * d * elempack, sizeof(float)));
+                    const int row_block = permute_block_size(d, (size_t)col_block * (w * elempack) * sizeof(float), channels * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w * elempack, sizeof(float)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int q = 0; q < channels; q++)
                     {
@@ -1034,8 +1065,30 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(float), d, num_threads, 4);
-                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(float), d * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(float));
+                    if ((size_t)d * (channels) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(float) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(float), d * (channels) * (h), num_threads, 64 / sizeof(float));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < channels; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const float* ptr = (const float*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
+                                        float* outptr = (float*)top_blob + z * top_blob.cstep + j * ((size_t)channels * w) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(float));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(float), d, num_threads, permute_record_alignment((size_t)channels * w, sizeof(float)));
+                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(float), d * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(float)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int z = 0; z < d; z++)
                     {
@@ -1340,8 +1393,30 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)d * (w) * sizeof(float), channels, num_threads, 4);
-                    const int row_block = permute_block_size(d, (size_t)col_block * (w) * sizeof(float), channels * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(float));
+                    if ((size_t)channels * (d) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(float) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(float), channels * (d) * (h), num_threads, 64 / sizeof(float));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < d; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + i * ((size_t)w * h) + (size_t)j * (w);
+                                        float* outptr = (float*)top_blob + (size_t)q * d * w + j * (top_blob.cstep) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(float));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)d * (w) * sizeof(float), channels, num_threads, permute_record_alignment(top_blob.cstep, sizeof(float)));
+                    const int row_block = permute_block_size(d, (size_t)col_block * (w) * sizeof(float), channels * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(float)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int q = 0; q < channels; q++)
                     {
@@ -1517,8 +1592,30 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(float), d, num_threads, 4);
-                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(float), d * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(float));
+                    if ((size_t)d * (channels) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(float) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(float), d * (channels) * (h), num_threads, 64 / sizeof(float));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < channels; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const float* ptr = (const float*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
+                                        float* outptr = (float*)top_blob + (size_t)z * channels * w + j * (top_blob.cstep) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(float));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(float), d, num_threads, permute_record_alignment(top_blob.cstep, sizeof(float)));
+                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(float), d * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(float)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int z = 0; z < d; z++)
                     {
@@ -2720,8 +2817,30 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)d * (w * elempack) * sizeof(unsigned short), channels, num_threads, 4);
-                    const int row_block = permute_block_size(d, (size_t)col_block * (w * elempack) * sizeof(unsigned short), channels * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(unsigned short));
+                    if ((size_t)channels * (d) * (h) < (size_t)num_threads && (size_t)(w * elempack) * sizeof(unsigned short) >= 16384)
+                    {
+                        const int block = permute_block_size(w * elempack, sizeof(unsigned short), channels * (d) * (h), num_threads, 64 / sizeof(unsigned short));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < d; i++)
+                                {
+                                    for (int x = 0; x < w * elempack; x += block)
+                                    {
+                                        const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + i * ((size_t)w * h * elempack) + (size_t)j * (w * elempack);
+                                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + j * ((size_t)w * d * elempack) + (size_t)i * (w * elempack);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w * elempack - x) * sizeof(unsigned short));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)d * (w * elempack) * sizeof(unsigned short), channels, num_threads, permute_record_alignment((size_t)w * d * elempack, sizeof(unsigned short)));
+                    const int row_block = permute_block_size(d, (size_t)col_block * (w * elempack) * sizeof(unsigned short), channels * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w * elempack, sizeof(unsigned short)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int q = 0; q < channels; q++)
                     {
@@ -3110,8 +3229,30 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(unsigned short), d, num_threads, 4);
-                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(unsigned short), d * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(unsigned short));
+                    if ((size_t)d * (channels) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(unsigned short) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(unsigned short), d * (channels) * (h), num_threads, 64 / sizeof(unsigned short));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < channels; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
+                                        unsigned short* outptr = (unsigned short*)top_blob + z * top_blob.cstep + j * ((size_t)channels * w) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(unsigned short));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(unsigned short), d, num_threads, permute_record_alignment((size_t)channels * w, sizeof(unsigned short)));
+                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(unsigned short), d * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(unsigned short)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int z = 0; z < d; z++)
                     {
@@ -3416,8 +3557,30 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)d * (w) * sizeof(unsigned short), channels, num_threads, 4);
-                    const int row_block = permute_block_size(d, (size_t)col_block * (w) * sizeof(unsigned short), channels * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(unsigned short));
+                    if ((size_t)channels * (d) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(unsigned short) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(unsigned short), channels * (d) * (h), num_threads, 64 / sizeof(unsigned short));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < d; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + i * ((size_t)w * h) + (size_t)j * (w);
+                                        unsigned short* outptr = (unsigned short*)top_blob + (size_t)q * d * w + j * (top_blob.cstep) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(unsigned short));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)d * (w) * sizeof(unsigned short), channels, num_threads, permute_record_alignment(top_blob.cstep, sizeof(unsigned short)));
+                    const int row_block = permute_block_size(d, (size_t)col_block * (w) * sizeof(unsigned short), channels * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(unsigned short)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int q = 0; q < channels; q++)
                     {
@@ -3593,8 +3756,30 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
                 else
                 {
-                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(unsigned short), d, num_threads, 4);
-                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(unsigned short), d * ((h + col_block - 1) / col_block), num_threads, 64 / sizeof(unsigned short));
+                    if ((size_t)d * (channels) * (h) < (size_t)num_threads && (size_t)(w) * sizeof(unsigned short) >= 16384)
+                    {
+                        const int block = permute_block_size(w, sizeof(unsigned short), d * (channels) * (h), num_threads, 64 / sizeof(unsigned short));
+                        #pragma omp parallel for collapse(4) num_threads(num_threads)
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int j = 0; j < h; j++)
+                            {
+                                for (int i = 0; i < channels; i++)
+                                {
+                                    for (int x = 0; x < w; x += block)
+                                    {
+                                        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
+                                        unsigned short* outptr = (unsigned short*)top_blob + (size_t)z * channels * w + j * (top_blob.cstep) + (size_t)i * (w);
+                                        memcpy(outptr + x, ptr + x, (size_t)std::min(block, w - x) * sizeof(unsigned short));
+                                    }
+                                }
+                            }
+                        }
+                        return 0;
+                    }
+
+                    const int col_block = permute_block_size(h, (size_t)channels * (w) * sizeof(unsigned short), d, num_threads, permute_record_alignment(top_blob.cstep, sizeof(unsigned short)));
+                    const int row_block = permute_block_size(channels, (size_t)col_block * (w) * sizeof(unsigned short), d * ((h + col_block - 1) / col_block), num_threads, permute_record_alignment(w, sizeof(unsigned short)));
                     #pragma omp parallel for collapse(3) num_threads(num_threads)
                     for (int z = 0; z < d; z++)
                     {
