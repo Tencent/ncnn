@@ -295,6 +295,45 @@ int main()
               || test_permute_packing(op, 3, 512, 512, 1, 1, 1, bits, true, 1, true)
               || test_permute_packing(op, 3, 257, 256, 1, 1, 1, bits, true, 1, true);
     }
+    // Degenerate axes and coalesced matrices, with and without channel padding.
+    // A physical channel group of one is not a scalar channel when packed.
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int threads = 1; threads <= 4 && !ret; threads *= 2)
+        {
+            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+            {
+                for (int packing = 0; packing < 2 && !ret; packing++)
+                {
+                    ret = test_permute_packing(op, 3, 1, 257, 1, 33, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 3, 65, 1, 1, 33, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 3, 32, 33, 1, 16, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 3, 33, 33, 1, 17, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 4, 1, 33, 17, 3, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 4, 33, 1, 17, 3, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 4, 33, 17, 1, 3, packs[p], bits, packing, threads, true)
+                          || test_permute_packing(op, 4, 33, 17, 3, 1, packs[p], bits, packing, threads, true);
+                }
+            }
+        }
+    }
+    // The contiguous-block length is independent of elempack. Check overlapping
+    // head/tail vector copies against exact external buffers at every boundary.
+    const int widths[] = {2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 19, 31, 32, 33, 63, 64, 65};
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int threads = 1; threads <= 4 && !ret; threads *= 4)
+        {
+            for (int i = 0; i < (int)(sizeof(widths) / sizeof(widths[0])) && !ret; i++)
+            {
+                ret = test_permute_packing(op, 3, widths[i], 33, 1, 65, 1, bits, false, threads, true)
+                      || test_permute_packing(op, 4, widths[i], 33, 3, 7, 1, bits, false, threads, true);
+            }
+        }
+    }
+    // A few long continuous records exercise partitioning within a record.
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+        ret = test_permute_packing(op, 4, 16385, 1, 1, 2, 1, bits, false, 4, true);
     // A one-dimensional permutation always aliases the input, including packing disabled.
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {

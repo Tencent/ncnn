@@ -532,6 +532,96 @@ static NCNN_FORCEINLINE void permute_transpose1x4_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 // Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
+#if __SSE2__
+// Fixed input width; callers select the packing before traversing the rows.
+static void permute_unpack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows)
+{
+    int i = 0;
+#if __AVX512F__
+    for (; i + 15 < rows; i += 16)
+    {
+        permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+#endif // __AVX512F__
+#if __AVX__
+    for (; i + 7 < rows; i += 8)
+    {
+        permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+#endif // __AVX__
+    for (; i + 3 < rows; i += 4)
+    {
+        permute_transpose4x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i < rows; i++)
+    {
+        permute_transpose1x4_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+    }
+}
+#endif // __SSE2__
+
+#if __AVX__
+// Fixed input width; callers select the packing before traversing the rows.
+static void permute_unpack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows)
+{
+    int i = 0;
+#if __AVX512F__
+    for (; i + 15 < rows; i += 16)
+    {
+        permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+#endif // __AVX512F__
+    for (; i + 7 < rows; i += 8)
+    {
+        permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 3 < rows; i += 4)
+    {
+        permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i < rows; i++)
+    {
+        permute_transpose1x8_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+    }
+}
+#endif // __AVX__
+
+#if __AVX512F__
+// Fixed input width; callers select the packing before traversing the rows.
+static void permute_unpack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows)
+{
+    int i = 0;
+    for (; i + 15 < rows; i += 16)
+    {
+        permute_transpose16x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 7 < rows; i += 8)
+    {
+        permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 3 < rows; i += 4)
+    {
+        permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+    }
+    for (; i < rows; i++)
+    {
+        permute_transpose1x16_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+    }
+}
+#endif // __AVX512F__
+
 static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
@@ -687,6 +777,21 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
 // Small task blocks and narrow pack/unpack matrices use the direct kernel.
 static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
+    if (cols == 1)
+    {
+        if (stride == 1)
+            memcpy(outptr, ptr, (size_t)rows * sizeof(unsigned short));
+        else
+            for (int i = 0; i < rows; i++)
+                outptr[i] = ptr[i * stride];
+        return;
+    }
+    if (rows == 1 && outstride == 1)
+    {
+        memcpy(outptr, ptr, (size_t)cols * sizeof(unsigned short));
+        return;
+    }
+
 #if __SSE2__
     if (rows >= 256 && rows <= 512 && cols >= 256 && cols <= 512 && stride <= 1024 && outstride <= 1024
         && stride % 256 == 0 && outstride % 256 == 0)
@@ -1160,7 +1265,7 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
     }
 #else
     for (int x = 0; x < cols; x++)
-        permute_transpose_pack1_block_bf16s_fp16s(ptr + x * 4, stride, outptr + x * outstride, outcstep, rows, 4);
+        permute_unpack4_stride_bf16s_fp16s(ptr + x * 4, stride, outptr + x * outstride, outcstep, rows);
 #endif // __AVX512F__
 }
 #endif // __SSE2__
@@ -1225,7 +1330,7 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
     if (rows >= 128 && stride >= 8 * 512 && outstride >= 512)
     {
         for (int x = 0; x < cols; x++)
-            permute_transpose_pack1_block_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows, 8);
+            permute_unpack8_stride_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows);
         return;
     }
 
@@ -1273,7 +1378,7 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
     }
 #else
     for (int x = 0; x < cols; x++)
-        permute_transpose_pack1_block_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows, 8);
+        permute_unpack8_stride_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows);
 #endif // __AVX512F__
 }
 #endif // __AVX__
@@ -1326,7 +1431,7 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
     if (rows >= 128 && stride >= 16 * 512 && outstride >= 512)
     {
         for (int x = 0; x < cols; x++)
-            permute_transpose_pack1_block_bf16s_fp16s(ptr + x * 16, stride, outptr + x * outstride, outcstep, rows, 16);
+            permute_unpack16_stride_bf16s_fp16s(ptr + x * 16, stride, outptr + x * outstride, outcstep, rows);
         return;
     }
 
@@ -1422,6 +1527,221 @@ static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, siz
 #endif // __AVX512F__
 }
 
+#if __SSE2__
+static void permute_transpose_blocks2_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
+{
+    int j = 0;
+    for (; j + 1 < cols; j += 2)
+    {
+        const unsigned short* p = ptr + (size_t)j * 2;
+        unsigned short* out0 = outptr + j * outstride;
+        unsigned short* out1 = out0 + outstride;
+        int i = 0;
+        for (; i + 1 < rows; i += 2)
+        {
+            __m128i _a = _mm_loadl_epi64((const __m128i*)p);
+            __m128i _b = _mm_loadl_epi64((const __m128i*)(p + stride));
+            __m128i _v = _mm_unpacklo_epi32(_a, _b);
+            _mm_storel_epi64((__m128i*)out0, _v);
+            _mm_storel_epi64((__m128i*)out1, _mm_srli_si128(_v, 8));
+            p += stride * 2;
+            out0 += 4;
+            out1 += 4;
+        }
+        for (; i < rows; i++)
+        {
+            memcpy(out0, p, 2 * sizeof(unsigned short));
+            memcpy(out1, p + 2, 2 * sizeof(unsigned short));
+            p += stride;
+            out0 += 2;
+            out1 += 2;
+        }
+    }
+    for (; j < cols; j++)
+    {
+        const unsigned short* p = ptr + (size_t)j * 2;
+        unsigned short* out = outptr + j * outstride;
+        for (int i = 0; i < rows; i++)
+        {
+            memcpy(out, p, 2 * sizeof(unsigned short));
+            p += stride;
+            out += 2;
+        }
+    }
+}
+#endif // __SSE2__
+
+// Transpose rows of contiguous blocks. size is independent of elempack.
+// Strides include padding; the block contents keep their original order.
+static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size)
+{
+    if (size == 1)
+    {
+        // Large planes keep an output stripe resident while scanning the input.
+        if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
+        {
+            for (int j = 0; j < cols; j += 32)
+                permute_transpose_pack1_block_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
+        }
+        else if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
+        {
+            // Coalesced axes can form long rectangles. Bound the tile payload
+            // to 16 KiB on each side, allowing wider tiles for fewer input rows.
+            const int row_block = std::min(rows, 64);
+            const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(unsigned short)));
+            for (int j = 0; j < cols; j += col_block)
+            {
+                for (int i = 0; i < rows; i += row_block)
+                    permute_transpose_pack1_block_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
+            }
+        }
+        else
+        {
+            permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
+        }
+        return;
+    }
+#if __SSE2__
+    if (size == 2)
+    {
+        permute_transpose_blocks2_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
+        return;
+    }
+    if (size == 4)
+    {
+        permute_spatial_pack4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
+        return;
+    }
+#endif // __SSE2__
+#if __AVX__
+    if (size == 8)
+    {
+        permute_spatial_pack8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
+        return;
+    }
+#endif // __AVX__
+#if __AVX512F__
+    if (size == 16)
+    {
+        permute_spatial_pack16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
+        return;
+    }
+#endif // __AVX512F__
+#if __SSE2__
+    if (size >= 2 && size < 4)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            const unsigned short* p = ptr + (size_t)j * size;
+            unsigned short* out = outptr + j * outstride;
+            for (int i = 0; i < rows; i++)
+            {
+                int a;
+                int b;
+                memcpy(&a, p, 4);
+                memcpy(&b, p + size - 2, 4);
+                memcpy(out, &a, 4);
+                memcpy(out + size - 2, &b, 4);
+                p += stride;
+                out += size;
+            }
+        }
+        return;
+    }
+#endif // __SSE2__
+#if __SSE2__
+    if (size >= 4 && size < 8)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            const unsigned short* p = ptr + (size_t)j * size;
+            unsigned short* out = outptr + j * outstride;
+            for (int i = 0; i < rows; i++)
+            {
+                __m128i _a = _mm_loadl_epi64((const __m128i*)p);
+                __m128i _b = _mm_loadl_epi64((const __m128i*)(p + size - 4));
+                _mm_storel_epi64((__m128i*)out, _a);
+                _mm_storel_epi64((__m128i*)(out + size - 4), _b);
+                p += stride;
+                out += size;
+            }
+        }
+        return;
+    }
+#endif // __SSE2__
+#if __SSE2__
+    if (size >= 8 && size < 16)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            const unsigned short* p = ptr + (size_t)j * size;
+            unsigned short* out = outptr + j * outstride;
+            for (int i = 0; i < rows; i++)
+            {
+                __m128i _a = _mm_loadu_si128((const __m128i*)p);
+                __m128i _b = _mm_loadu_si128((const __m128i*)(p + size - 8));
+                _mm_storeu_si128((__m128i*)out, _a);
+                _mm_storeu_si128((__m128i*)(out + size - 8), _b);
+                p += stride;
+                out += size;
+            }
+        }
+        return;
+    }
+#endif // __SSE2__
+#if __AVX__
+    if (size >= 16 && size < 32)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            const unsigned short* p = ptr + (size_t)j * size;
+            unsigned short* out = outptr + j * outstride;
+            for (int i = 0; i < rows; i++)
+            {
+                __m256i _a = _mm256_loadu_si256((const __m256i*)p);
+                __m256i _b = _mm256_loadu_si256((const __m256i*)(p + size - 16));
+                _mm256_storeu_si256((__m256i*)out, _a);
+                _mm256_storeu_si256((__m256i*)(out + size - 16), _b);
+                p += stride;
+                out += size;
+            }
+        }
+        return;
+    }
+#endif // __AVX__
+#if __AVX512F__
+    if (size >= 32 && size < 64)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            const unsigned short* p = ptr + (size_t)j * size;
+            unsigned short* out = outptr + j * outstride;
+            for (int i = 0; i < rows; i++)
+            {
+                __m512i _a = _mm512_loadu_si512((const void*)p);
+                __m512i _b = _mm512_loadu_si512((const void*)(p + size - 32));
+                _mm512_storeu_si512((void*)out, _a);
+                _mm512_storeu_si512((void*)(out + size - 32), _b);
+                p += stride;
+                out += size;
+            }
+        }
+        return;
+    }
+#endif // __AVX512F__
+    for (int j = 0; j < cols; j++)
+    {
+        const unsigned short* p = ptr + (size_t)j * size;
+        unsigned short* out = outptr + j * outstride;
+        for (int i = 0; i < rows; i++)
+        {
+            memcpy(out, p, (size_t)size * sizeof(unsigned short));
+            p += stride;
+            out += size;
+        }
+    }
+}
+
 static void permute_copy_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outcstep, int size, int elempack, int out_elempack)
 {
     if (elempack == out_elempack)
@@ -1432,7 +1752,7 @@ static void permute_copy_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned
 #if __SSE2__
     if (elempack == 4)
     {
-        permute_transpose_pack1_block_bf16s_fp16s(ptr, 4, outptr, outcstep, size, 4);
+        permute_unpack4_stride_bf16s_fp16s(ptr, 4, outptr, outcstep, size);
         return;
     }
 #endif // __SSE2__
@@ -1440,7 +1760,7 @@ static void permute_copy_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned
 #if __AVX__
     if (elempack == 8)
     {
-        permute_transpose_pack1_block_bf16s_fp16s(ptr, 8, outptr, outcstep, size, 8);
+        permute_unpack8_stride_bf16s_fp16s(ptr, 8, outptr, outcstep, size);
         return;
     }
 #endif // __AVX__
@@ -1448,7 +1768,7 @@ static void permute_copy_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned
 #if __AVX512F__
     if (elempack == 16)
     {
-        permute_transpose_pack1_block_bf16s_fp16s(ptr, 16, outptr, outcstep, size, 16);
+        permute_unpack16_stride_bf16s_fp16s(ptr, 16, outptr, outcstep, size);
         return;
     }
 #endif // __AVX512F__
@@ -1567,7 +1887,7 @@ static void permute3d_pack4to1_stride_bf16s_fp16s(const unsigned short* ptr, uns
     {
         const unsigned short* p = ptr + c * cstep;
         unsigned short* out = outptr + c * 4 * outcstep;
-        permute_transpose_pack1_block_bf16s_fp16s(p, wstep, out, outcstep, w, 4);
+        permute_unpack4_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
 #endif // __SSE2__
@@ -1677,7 +1997,7 @@ static void permute3d_pack8to1_stride_bf16s_fp16s(const unsigned short* ptr, uns
     {
         const unsigned short* p = ptr + c * cstep;
         unsigned short* out = outptr + c * 8 * outcstep;
-        permute_transpose_pack1_block_bf16s_fp16s(p, wstep, out, outcstep, w, 8);
+        permute_unpack8_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
 #endif // __AVX__
@@ -1772,7 +2092,7 @@ static void permute3d_pack16to1_stride_bf16s_fp16s(const unsigned short* ptr, un
     {
         const unsigned short* p = ptr + c * cstep;
         unsigned short* out = outptr + c * 16 * outcstep;
-        permute_transpose_pack1_block_bf16s_fp16s(p, wstep, out, outcstep, w, 16);
+        permute_unpack16_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
 #endif // __AVX512F__

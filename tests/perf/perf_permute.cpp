@@ -37,12 +37,15 @@ static void perf_permute(const ncnn::Mat& a, int order_type)
 
 // Keep the requested input pack: perf_layer's automatic input packing would
 // otherwise replace a smaller input pack before the timed forward calls.
-static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads, int h = 64, bool packing = true, int d = 1, int c = 4, int buffers = 1)
+static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads, int h = 64, bool packing = true, int d = 1, int c = 4, int buffers = 1, bool naive = false)
 {
-    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Permute);
+    if (naive && (elempack != 1 || bits != 32 || packing))
+        return -1;
+
+    ncnn::Layer* op = naive ? ncnn::create_layer_naive(ncnn::LayerType::Permute) : ncnn::create_layer_cpu(ncnn::LayerType::Permute);
     if (!op)
         return -1;
-    if (!op->support_any_packing)
+    if (!naive && !op->support_any_packing)
     {
         delete op;
         return 0;
@@ -102,7 +105,7 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
         times[trial] = (ncnn::get_current_time() - start) / iterations;
     }
     std::sort(times, times + 7);
-    fprintf(stderr, "Permute dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d median=%.6f min=%.6f max=%.6f ms\n", dims, w, h, d, c, bits, elempack, outputs[0].elempack, order_type, threads, buffers, times[3], times[0], times[6]);
+    fprintf(stderr, "Permute%s dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d median=%.6f min=%.6f max=%.6f ms\n", naive ? " naive" : "", dims, w, h, d, c, bits, elempack, outputs[0].elempack, order_type, threads, buffers, times[3], times[0], times[6]);
     op->destroy_pipeline(opt);
     delete op;
     return 0;
@@ -139,11 +142,11 @@ static int perf_permute_net(int threads)
 
 int main(int argc, char** argv)
 {
-    if (argc > 1 && strcmp(argv[1], "--case") == 0)
+    if (argc > 1 && (strcmp(argv[1], "--case") == 0 || strcmp(argv[1], "--naive-case") == 0))
     {
         if (argc != 12 && argc != 13)
         {
-            fprintf(stderr, "usage: %s --case dims w h d c pack bits order threads packing [buffers]\n", argv[0]);
+            fprintf(stderr, "usage: %s --case|--naive-case dims w h d c pack bits order threads packing [buffers]\n", argv[0]);
             return -1;
         }
         const int dims = atoi(argv[2]);
@@ -162,7 +165,7 @@ int main(int argc, char** argv)
             || (bits != 16 && bits != 32) || order < 0 || order >= (dims == 2 ? 2 : dims == 3 ? 6 : 24)
             || (packing != 0 && packing != 1))
             return -1;
-        return perf_permute_packing(dims, w, pack, bits, order, threads, h, packing != 0, d, c, buffers);
+        return perf_permute_packing(dims, w, pack, bits, order, threads, h, packing != 0, d, c, buffers, strcmp(argv[1], "--naive-case") == 0);
     }
     if (argc > 1 && strcmp(argv[1], "--spatial") == 0)
     {
