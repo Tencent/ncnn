@@ -225,11 +225,11 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             return ret;
 
         if (dilation_w == 1 && dilation_h == 1 && stride_w == kernel_w && stride_h == kernel_h
-            && output_pad_right >= 0 && output_pad_bottom >= 0 && out_elempack <= 8)
+                && output_pad_right >= 0 && output_pad_bottom >= 0 && out_elempack <= 8)
         {
             const int plane_size = w * h * out_elempack;
             const int h_tiles = std::min(h, (opt.num_threads + out_channels - 1) / out_channels);
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int task = 0; task < out_channels * h_tiles; task++)
             {
                 const int p = task / h_tiles;

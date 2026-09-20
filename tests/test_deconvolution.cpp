@@ -456,7 +456,8 @@ static int test_deconvolution_nonoverlap()
         {3, 3, 16, 5},
         {4, 4, 16, 7},
         {1, 5, 3, 9},
-        {5, 1, 4, 3}};
+        {5, 1, 4, 3}
+    };
     for (int i = 0; i < 8; i++)
     {
         const int kw = shapes[i][0];
@@ -513,5 +514,5 @@ int main()
            || test_deconvolution_load_param()
            || test_deconvolution_load_param_text()
 #endif // NCNN_VALIDATION
-        ;
+           ;
 }
