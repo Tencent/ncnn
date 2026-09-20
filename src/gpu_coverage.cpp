@@ -139,7 +139,7 @@ int instrument_shader_coverage(std::vector<uint32_t>& spirv)
         return 0;
 
     const uint32_t storage = spirv[1] < 0x00010300 || buffer_block ? (uint32_t)spv::StorageClass::Uniform : (uint32_t)spv::StorageClass::StorageBuffer;
-    for (size_t i = types_begin; i<functions_begin; i += spirv[i]> > 16)
+    for (size_t i = types_begin; i < functions_begin; i += (spirv[i] >> 16))
     {
         const uint32_t* p = &spirv[i];
         if ((spv::Op)(p[0] & 0xffff) == spv::Op::OpTypePointer && p[2] == storage && p[3] == uint_type)
