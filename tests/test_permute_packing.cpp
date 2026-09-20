@@ -106,12 +106,27 @@ static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, 
                 return -1;
             }
         }
-        if (o == 0 && (out.data != a.data || out.elempack != a.elempack))
+        int expected_pack = elempack;
+        if (o != 0)
+        {
+            if (!packing)
+                expected_pack = 1;
+            else if (order[dims - 1] != dims - 1)
+            {
+                const int axis = shape[order[dims - 1]];
+                expected_pack = 1;
+                for (int p = 4; p <= permute_max_elempack(); p *= 2)
+                {
+                    if (axis % p == 0)
+                        expected_pack = p;
+                }
+            }
+        }
+        if (out.elempack != expected_pack || (o == 0 && out.data != a.data))
+        {
+            fprintf(stderr, "permute packing failed dims=%d order=%d pack=%d expected=%d actual=%d\n", dims, o, elempack, expected_pack, out.elempack);
             return -1;
-        if (o != 0 && !packing && out.elempack != 1)
-            return -1;
-        if (packing && order[dims - 1] == dims - 1 && out.elempack != elempack)
-            return -1;
+        }
         size_t total = 1;
         for (int i = 0; i < dims; i++) total *= actual[i];
         for (size_t i = 0; i < total; i++)
@@ -253,7 +268,11 @@ int main()
             ret = test_permute_packing(op, 4, 16, 16, 16, 2, packs[p], bits, true, 2, true)
                   || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true)
                   || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, true, 1, true)
-                  || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, false, 1, true);
+                  || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, false, 1, true)
+                  || test_permute_packing(op, 3, 65, 33, 1, 1, packs[p], bits, true, 4, true)
+                  || test_permute_packing(op, 3, 65, 33, 1, 1, packs[p], bits, false, 4, true)
+                  || test_permute_packing(op, 4, 9, 5, 3, 1, packs[p], bits, true, 4, true)
+                  || test_permute_packing(op, 4, 9, 5, 3, 1, packs[p], bits, false, 4, true);
         }
     }
     // Exercise every rectangular tile transition and scalar edge with pack1 output.
