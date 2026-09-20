@@ -245,6 +245,15 @@ int main()
             }
         }
     }
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        {
+            // Exercise pack16 on each output packing axis and unpacked spatial permutations.
+            ret = test_permute_packing(op, 4, 16, 16, 16, 2, packs[p], bits, true, 2, true)
+                  || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true);
+        }
+    }
     if (!ret) ret = test_permute_allocation(op);
     for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
         ret = test_permute_packing(op, 4, 17, 9, 5, 3, packs[p], 32, true, 2, true);
