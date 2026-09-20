@@ -295,6 +295,28 @@ int main()
               || test_permute_packing(op, 3, 512, 512, 1, 1, 1, bits, true, 1, true)
               || test_permute_packing(op, 3, 257, 256, 1, 1, 1, bits, true, 1, true);
     }
+    // A one-dimensional permutation always aliases the input, including packing disabled.
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        {
+            ncnn::Mat a(7, (size_t)(bits / 8 * packs[p]), packs[p]);
+            for (int packing = 0; packing < 2; packing++)
+            {
+                for (int order = 0; order < 24; order++)
+                {
+                    ncnn::ParamDict pd;
+                    pd.set(0, order);
+                    op->load_param(pd);
+                    ncnn::Option opt;
+                    opt.use_packing_layout = packing != 0;
+                    ncnn::Mat out;
+                    if (op->forward(a, out, opt) != 0 || out.data != a.data || out.dims != 1 || out.w != a.w || out.elempack != a.elempack || out.elemsize != a.elemsize)
+                        ret = -1;
+                }
+            }
+        }
+    }
     // Exercise every rectangular tile transition and scalar edge with pack1 output.
     const int edges[] = {1, 2, 3, 4, 6, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33};
     const int edge_count = sizeof(edges) / sizeof(edges[0]);

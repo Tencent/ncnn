@@ -1264,7 +1264,6 @@ static void permute_spatial_pack16(const float* ptr, size_t stride, float* outpt
 
 static void permute_spatial_pack16to1(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
-#if __AVX512F__
     // Keep adjacent input records and output rows in the same cache block.
     for (int x = 0; x < cols; x += 8)
     {
@@ -1307,10 +1306,6 @@ static void permute_spatial_pack16to1(const float* ptr, size_t stride, float* ou
             }
         }
     }
-#else
-    for (int x = 0; x < cols; x++)
-        permute_transpose_pack1_block(ptr + x * 16, stride, outptr + x * outstride, outcstep, rows, 16);
-#endif // __AVX512F__
 }
 #endif // __AVX512F__
 
@@ -1484,12 +1479,12 @@ static void permute3d_pack1to16_stride(const float* ptr, float* outptr, int w, i
 
 #if __SSE2__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack4to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack4to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const float* p = ptr + c * cstep;
-        float* out = outptr + c * 4 * outcstep;
+        float* out = outptr + c * 4;
         for (int x = 0; x < w; x++)
         {
             __m128i _v = _mm_loadu_si128((const __m128i*)p);
@@ -1594,12 +1589,12 @@ static void permute3d_pack4to16_stride(const float* ptr, float* outptr, int w, i
 
 #if __AVX__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack8to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack8to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const float* p = ptr + c * cstep;
-        float* out = outptr + c * 8 * outcstep;
+        float* out = outptr + c * 8;
         for (int x = 0; x < w; x++)
         {
             __m256 _v = _mm256_loadu_ps((const float*)p);
@@ -1689,12 +1684,12 @@ static void permute3d_pack8to16_stride(const float* ptr, float* outptr, int w, i
 
 #if __AVX512F__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack16to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack16to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const float* p = ptr + c * cstep;
-        float* out = outptr + c * 16 * outcstep;
+        float* out = outptr + c * 16;
         for (int x = 0; x < w; x++)
         {
             __m512 _v = _mm512_loadu_ps(p);
@@ -1822,7 +1817,7 @@ static void permute3d(const float* ptr, float* outptr, int w, int channels, size
     if (elempack == 4 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack4to1(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack4to1(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack4to1_stride(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;
@@ -1863,7 +1858,7 @@ static void permute3d(const float* ptr, float* outptr, int w, int channels, size
     if (elempack == 8 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack8to1(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack8to1(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack8to1_stride(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;
@@ -1901,7 +1896,7 @@ static void permute3d(const float* ptr, float* outptr, int w, int channels, size
     if (elempack == 16 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack16to1(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack16to1(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack16to1_stride(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;

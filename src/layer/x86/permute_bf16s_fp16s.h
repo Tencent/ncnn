@@ -1281,21 +1281,10 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_spatial2x2_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-#if __AVX512F__
     __m512 _a = _mm512_loadu_ps((const float*)ptr);
     __m512 _b = _mm512_loadu_ps((const float*)(ptr + stride));
     _mm512_storeu_ps((float*)(outptr), _mm512_shuffle_f32x4(_a, _b, 0x44));
     _mm512_storeu_ps((float*)(outptr + outstride), _mm512_shuffle_f32x4(_a, _b, 0xee));
-#else
-    __m256 _v0 = _mm256_loadu_ps((const float*)(ptr));
-    _mm256_storeu_ps((float*)(outptr), _v0);
-    __m256 _v1 = _mm256_loadu_ps((const float*)(ptr + stride));
-    _mm256_storeu_ps((float*)(outptr + 16), _v1);
-    __m256 _v2 = _mm256_loadu_ps((const float*)(ptr + 16));
-    _mm256_storeu_ps((float*)(outptr + outstride), _v2);
-    __m256 _v3 = _mm256_loadu_ps((const float*)(ptr + stride + 16));
-    _mm256_storeu_ps((float*)(outptr + outstride + 16), _v3);
-#endif
 }
 
 static void permute_spatial_pack16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -1333,7 +1322,6 @@ static void permute_spatial_pack16_bf16s_fp16s(const unsigned short* ptr, size_t
 
 static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
-#if __AVX512F__
     // Limit the number of output streams for large channel planes.
     if (rows >= 128 && stride >= 16 * 512 && outstride >= 512)
     {
@@ -1384,10 +1372,6 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
             }
         }
     }
-#else
-    for (int x = 0; x < cols; x++)
-        permute_transpose_pack1_block_bf16s_fp16s(ptr + x * 16, stride, outptr + x * outstride, outcstep, rows, 16);
-#endif // __AVX512F__
 }
 #endif // __AVX512F__
 
@@ -1561,12 +1545,12 @@ static void permute3d_pack1to16_stride_bf16s_fp16s(const unsigned short* ptr, un
 
 #if __SSE2__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack4to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack4to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const unsigned short* p = ptr + c * cstep;
-        unsigned short* out = outptr + c * 4 * outcstep;
+        unsigned short* out = outptr + c * 4;
         for (int x = 0; x < w; x++)
         {
             __m128i _v = _mm_loadl_epi64((const __m128i*)p);
@@ -1671,12 +1655,12 @@ static void permute3d_pack4to16_stride_bf16s_fp16s(const unsigned short* ptr, un
 
 #if __AVX__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack8to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack8to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const unsigned short* p = ptr + c * cstep;
-        unsigned short* out = outptr + c * 8 * outcstep;
+        unsigned short* out = outptr + c * 8;
         for (int x = 0; x < w; x++)
         {
             __m128i _v = _mm_loadu_si128((const __m128i*)p);
@@ -1766,12 +1750,12 @@ static void permute3d_pack8to16_stride_bf16s_fp16s(const unsigned short* ptr, un
 
 #if __AVX512F__
 // Output channels are contiguous; the stride variant has contiguous spatial output.
-static void permute3d_pack16to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
+static void permute3d_pack16to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
     {
         const unsigned short* p = ptr + c * cstep;
-        unsigned short* out = outptr + c * 16 * outcstep;
+        unsigned short* out = outptr + c * 16;
         for (int x = 0; x < w; x++)
         {
             __m256 _v = _mm256_loadu_ps((const float*)p);
@@ -1884,7 +1868,7 @@ static void permute3d_bf16s_fp16s(const unsigned short* ptr, unsigned short* out
     if (elempack == 4 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack4to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack4to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack4to1_stride_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;
@@ -1925,7 +1909,7 @@ static void permute3d_bf16s_fp16s(const unsigned short* ptr, unsigned short* out
     if (elempack == 8 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack8to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack8to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack8to1_stride_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;
@@ -1963,7 +1947,7 @@ static void permute3d_bf16s_fp16s(const unsigned short* ptr, unsigned short* out
     if (elempack == 16 && out_elempack == 1)
     {
         if (outcstep == 1)
-            permute3d_pack16to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep, outcstep);
+            permute3d_pack16to1_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outwstep);
         else
             permute3d_pack16to1_stride_bf16s_fp16s(ptr, outptr, w, channels, wstep, cstep, outcstep);
         return;
