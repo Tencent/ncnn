@@ -1,8 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Full register tiles have no size or packing branches. Bounds checks are
-// confined to permute_transpose_tail_bf16s_fp16s.
+// Full register tiles have no size or packing branches.
 
 // Contiguous tiles take only pointers; stride variants use scalar-element strides.
 
@@ -58,6 +57,9 @@ static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned sho
 #endif // __AVX512BW__
 }
 
+#endif // __AVX__
+
+#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)(ptr));
@@ -78,7 +80,7 @@ static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsig
     _mm_storel_epi64((__m128i*)(outptr + 6 * outstride), _r6);
     _mm_storel_epi64((__m128i*)(outptr + 7 * outstride), _r7);
 }
-#endif // __AVX__
+#endif // __SSE2__
 
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose4x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
@@ -120,6 +122,9 @@ static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned sho
 #endif // __AVX512BW__
 }
 
+#endif // __AVX__
+
+#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)(ptr));
@@ -136,7 +141,7 @@ static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsig
     _mm_storeu_si128((__m128i*)(outptr + 2 * outstride), _r2);
     _mm_storeu_si128((__m128i*)(outptr + 3 * outstride), _r3);
 }
-#endif // __AVX__
+#endif // __SSE2__
 
 #if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
@@ -224,92 +229,96 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride_bf16s_fp16s(const uns
 }
 #endif // __AVX512F__
 
-static void permute_transpose_tail_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
-{
-    for (int i = 0; i < rows; i += 8)
-    {
-        const int nr = std::min(8, rows - i);
-        for (int j = 0; j < cols; j += 8)
-        {
-            const int nc = std::min(8, cols - j);
-#if __SSE2__
-            __m128i _r0 = nr > 0 ? permute_load(ptr + (i)*stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r1 = nr > 1 ? permute_load(ptr + (i + 1) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r2 = nr > 2 ? permute_load(ptr + (i + 2) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r3 = nr > 3 ? permute_load(ptr + (i + 3) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r4 = nr > 4 ? permute_load(ptr + (i + 4) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r5 = nr > 5 ? permute_load(ptr + (i + 5) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r6 = nr > 6 ? permute_load(ptr + (i + 6) * stride + j, nc * 2) : _mm_setzero_si128();
-            __m128i _r7 = nr > 7 ? permute_load(ptr + (i + 7) * stride + j, nc * 2) : _mm_setzero_si128();
-            transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-            if (nc > 0) permute_store(outptr + (j)*outstride + i, _r0, nr * 2);
-            if (nc > 1) permute_store(outptr + (j + 1) * outstride + i, _r1, nr * 2);
-            if (nc > 2) permute_store(outptr + (j + 2) * outstride + i, _r2, nr * 2);
-            if (nc > 3) permute_store(outptr + (j + 3) * outstride + i, _r3, nr * 2);
-            if (nc > 4) permute_store(outptr + (j + 4) * outstride + i, _r4, nr * 2);
-            if (nc > 5) permute_store(outptr + (j + 5) * outstride + i, _r5, nr * 2);
-            if (nc > 6) permute_store(outptr + (j + 6) * outstride + i, _r6, nr * 2);
-            if (nc > 7) permute_store(outptr + (j + 7) * outstride + i, _r7, nr * 2);
-#else
-            for (int y = 0; y < nr; y++)
-                for (int x = 0; x < nc; x++)
-                    memcpy(outptr + (j + x) * outstride + (i + y), ptr + (i + y) * stride + (j + x), 2);
-#endif // __SSE2__
-        }
-    }
-}
-
 // Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
 static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
 #if __AVX512F__
-    if (cols >= 16)
+    for (; i + 15 < rows; i += 16)
     {
-        for (; i + 15 < rows; i += 16)
+        int j = 0;
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 15 < cols; j += 16)
+            permute_transpose16x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 16; k++)
             {
-                permute_transpose16x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 16, cols - j);
         }
     }
 #endif // __AVX512F__
 #if __SSE2__
-    if (cols >= 8)
+    for (; i + 7 < rows; i += 8)
     {
-        for (; i + 7 < rows; i += 8)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 7 < cols; j += 8)
+            permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 8; k++)
             {
-                permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 8, cols - j);
         }
     }
 #endif // __SSE2__
 #if __SSE2__
-    if (cols >= 4)
+    for (; i + 3 < rows; i += 4)
     {
-        for (; i + 3 < rows; i += 4)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 3 < cols; j += 4)
+            permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose4x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 4; k++)
             {
-                permute_transpose4x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 4, cols - j);
         }
     }
 #endif // __SSE2__
-    if (i < rows)
-        permute_transpose_tail_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride, rows - i, cols);
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            outptr[j * outstride + i] = ptr[i * stride + j];
+        }
+    }
 }
 
 // 2d: packed rows become packed output rows after transposing w and h.

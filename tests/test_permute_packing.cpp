@@ -254,6 +254,16 @@ int main()
                   || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true);
         }
     }
+    // Exercise every rectangular tile transition and scalar edge with pack1 output.
+    const int edges[] = {1, 3, 4, 7, 8, 15, 16, 17, 23, 24, 28, 31, 32, 33};
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int i = 0; i < 14 && !ret; i++)
+        {
+            for (int j = 0; j < 14 && !ret; j++)
+                ret = test_permute_packing(op, 2, edges[i], edges[j], 1, 1, 1, bits, false, 1, true);
+        }
+    }
     if (!ret) ret = test_permute_allocation(op);
     for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
         ret = test_permute_packing(op, 4, 17, 9, 5, 3, packs[p], 32, true, 2, true);

@@ -1,8 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Full register tiles have no size or packing branches. Bounds checks are
-// confined to permute_transpose_tail.
+// Full register tiles have no size or packing branches.
 
 // Contiguous tiles take only pointers; stride variants use scalar-element strides.
 
@@ -242,84 +241,98 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride(const float* ptr, siz
 }
 #endif // __AVX512F__
 
-static void permute_transpose_tail(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
-{
-    for (int i = 0; i < rows; i += 4)
-    {
-        const int nr = std::min(4, rows - i);
-        for (int j = 0; j < cols; j += 4)
-        {
-            const int nc = std::min(4, cols - j);
-#if __SSE2__
-            __m128 _r0 = _mm_castsi128_ps(permute_load(ptr + i * stride + j, nc * 4));
-            __m128 _r1 = nr > 1 ? _mm_castsi128_ps(permute_load(ptr + (i + 1) * stride + j, nc * 4)) : _mm_setzero_ps();
-            __m128 _r2 = nr > 2 ? _mm_castsi128_ps(permute_load(ptr + (i + 2) * stride + j, nc * 4)) : _mm_setzero_ps();
-            __m128 _r3 = nr > 3 ? _mm_castsi128_ps(permute_load(ptr + (i + 3) * stride + j, nc * 4)) : _mm_setzero_ps();
-            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-            permute_store(outptr + j * outstride + i, _mm_castps_si128(_r0), nr * 4);
-            if (nc > 1) permute_store(outptr + (j + 1) * outstride + i, _mm_castps_si128(_r1), nr * 4);
-            if (nc > 2) permute_store(outptr + (j + 2) * outstride + i, _mm_castps_si128(_r2), nr * 4);
-            if (nc > 3) permute_store(outptr + (j + 3) * outstride + i, _mm_castps_si128(_r3), nr * 4);
-#else
-            for (int y = 0; y < nr; y++)
-                for (int x = 0; x < nc; x++)
-                    memcpy(outptr + (j + x) * outstride + (i + y), ptr + (i + y) * stride + (j + x), 4);
-#endif // __SSE2__
-        }
-    }
-}
-
 // Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
 static void permute_transpose_pack1(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
 #if __AVX512F__
-    if (cols >= 16)
+    for (; i + 15 < rows; i += 16)
     {
-        for (; i + 15 < rows; i += 16)
+        int j = 0;
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 15 < cols; j += 16)
+            permute_transpose16x16_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose16x8_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose16x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 16; k++)
             {
-                permute_transpose16x16_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 16, cols - j);
         }
     }
 #endif // __AVX512F__
 #if __AVX__
-    if (cols >= 8)
+    for (; i + 7 < rows; i += 8)
     {
-        for (; i + 7 < rows; i += 8)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 7 < cols; j += 8)
+            permute_transpose8x16_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose8x8_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose8x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 8; k++)
             {
-                permute_transpose8x8_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 8, cols - j);
         }
     }
 #endif // __AVX__
 #if __SSE2__
-    if (cols >= 4)
+    for (; i + 3 < rows; i += 4)
     {
-        for (; i + 3 < rows; i += 4)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
         {
-            int j = 0;
-            for (; j + 3 < cols; j += 4)
+            permute_transpose4x16_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+#if __AVX__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose4x8_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX__
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose4x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j < cols; j++)
+        {
+            for (int k = 0; k < 4; k++)
             {
-                permute_transpose4x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+                outptr[j * outstride + i + k] = ptr[(i + k) * stride + j];
             }
-            if (j < cols)
-                permute_transpose_tail(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, 4, cols - j);
         }
     }
 #endif // __SSE2__
-    if (i < rows)
-        permute_transpose_tail(ptr + i * stride, stride, outptr + i, outstride, rows - i, cols);
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            outptr[j * outstride + i] = ptr[i * stride + j];
+        }
+    }
 }
 
 // 2d: packed rows become packed output rows after transposing w and h.
