@@ -452,6 +452,11 @@ public:
     VkDevice vkdevice() const;
     bool is_valid() const;
 
+#if NCNN_COVERAGE
+    void bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const;
+    void record_shader_coverage_barrier(VkCommandBuffer command_buffer) const;
+#endif
+
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
     // with fixed workgroup size

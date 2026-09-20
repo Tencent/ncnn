@@ -182,6 +182,14 @@ endif()
 
 add_custom_target(ncnn-generate-spirv DEPENDS ${NCNN_SHADER_SPV_HEX_FILES})
 
+if(NCNN_COVERAGE AND NCNN_VULKAN)
+    list(APPEND ncnn_SRCS gpu_coverage.cpp)
+    string(SHA256 shader_coverage_source_hash "ncnn-shader-coverage-v1\n${shader_coverage_identity}")
+    string(REPLACE "\\" "\\\\" shader_coverage_source_root "${PROJECT_SOURCE_DIR}")
+    string(REPLACE "\"" "\\\"" shader_coverage_source_root "${shader_coverage_source_root}")
+    configure_file(shader_coverage_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/shader_coverage_data.h @ONLY)
+endif()
+
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
