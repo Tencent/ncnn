@@ -4,231 +4,134 @@
 // Full register tiles have no size or packing branches. Bounds checks are
 // confined to permute_transpose_tail_fp32.
 
+#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x4_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __SSE2__
-    {
-        __m128 _r0 = _mm_loadu_ps(ptr);
-        __m128 _r1 = _mm_loadu_ps(ptr + stride);
-        __m128 _r2 = _mm_loadu_ps(ptr + 2 * stride);
-        __m128 _r3 = _mm_loadu_ps(ptr + 3 * stride);
-        _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-        _mm_storeu_ps(outptr, _r0);
-        _mm_storeu_ps(outptr + outstride, _r1);
-        _mm_storeu_ps(outptr + 2 * outstride, _r2);
-        _mm_storeu_ps(outptr + 3 * outstride, _r3);
-    }
-#else
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
+    __m128 _r0 = _mm_loadu_ps(ptr);
+    __m128 _r1 = _mm_loadu_ps(ptr + stride);
+    __m128 _r2 = _mm_loadu_ps(ptr + 2 * stride);
+    __m128 _r3 = _mm_loadu_ps(ptr + 3 * stride);
+    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+    _mm_storeu_ps(outptr, _r0);
+    _mm_storeu_ps(outptr + outstride, _r1);
+    _mm_storeu_ps(outptr + 2 * outstride, _r2);
+    _mm_storeu_ps(outptr + 3 * outstride, _r3);
 }
+#endif // __SSE2__
 
+#if __AVX__
 static NCNN_FORCEINLINE void permute_transpose4x8_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __SSE2__
     permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
     permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
-#else
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 8; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
 }
+#endif // __AVX__
 
+#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose4x16_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __SSE2__
     permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
     permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
     permute_transpose4x4_fp32(ptr + 8, stride, outptr + 8 * outstride, outstride);
     permute_transpose4x4_fp32(ptr + 12, stride, outptr + 12 * outstride, outstride);
-#else
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 16; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
 }
+#endif // __AVX512F__
 
+#if __AVX__
 static NCNN_FORCEINLINE void permute_transpose8x4_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __SSE2__
     permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
     permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
-#else
-    for (int i = 0; i < 8; i++)
-        for (int j = 0; j < 4; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
 }
+#endif // __AVX__
 
+#if __AVX__
 static NCNN_FORCEINLINE void permute_transpose8x8_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __AVX__
-    {
-        __m256 _r0 = _mm256_loadu_ps(ptr);
-        __m256 _r1 = _mm256_loadu_ps(ptr + stride);
-        __m256 _r2 = _mm256_loadu_ps(ptr + 2 * stride);
-        __m256 _r3 = _mm256_loadu_ps(ptr + 3 * stride);
-        __m256 _r4 = _mm256_loadu_ps(ptr + 4 * stride);
-        __m256 _r5 = _mm256_loadu_ps(ptr + 5 * stride);
-        __m256 _r6 = _mm256_loadu_ps(ptr + 6 * stride);
-        __m256 _r7 = _mm256_loadu_ps(ptr + 7 * stride);
-        transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-        _mm256_storeu_ps(outptr, _r0);
-        _mm256_storeu_ps(outptr + outstride, _r1);
-        _mm256_storeu_ps(outptr + 2 * outstride, _r2);
-        _mm256_storeu_ps(outptr + 3 * outstride, _r3);
-        _mm256_storeu_ps(outptr + 4 * outstride, _r4);
-        _mm256_storeu_ps(outptr + 5 * outstride, _r5);
-        _mm256_storeu_ps(outptr + 6 * outstride, _r6);
-        _mm256_storeu_ps(outptr + 7 * outstride, _r7);
-    }
-#else
-#if __SSE2__
-    permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
-    permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 4, stride, outptr + 4 * outstride + 4, outstride);
-#else
-    for (int i = 0; i < 8; i++)
-        for (int j = 0; j < 8; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
-#endif // __AVX__
+    __m256 _r0 = _mm256_loadu_ps(ptr);
+    __m256 _r1 = _mm256_loadu_ps(ptr + stride);
+    __m256 _r2 = _mm256_loadu_ps(ptr + 2 * stride);
+    __m256 _r3 = _mm256_loadu_ps(ptr + 3 * stride);
+    __m256 _r4 = _mm256_loadu_ps(ptr + 4 * stride);
+    __m256 _r5 = _mm256_loadu_ps(ptr + 5 * stride);
+    __m256 _r6 = _mm256_loadu_ps(ptr + 6 * stride);
+    __m256 _r7 = _mm256_loadu_ps(ptr + 7 * stride);
+    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+    _mm256_storeu_ps(outptr, _r0);
+    _mm256_storeu_ps(outptr + outstride, _r1);
+    _mm256_storeu_ps(outptr + 2 * outstride, _r2);
+    _mm256_storeu_ps(outptr + 3 * outstride, _r3);
+    _mm256_storeu_ps(outptr + 4 * outstride, _r4);
+    _mm256_storeu_ps(outptr + 5 * outstride, _r5);
+    _mm256_storeu_ps(outptr + 6 * outstride, _r6);
+    _mm256_storeu_ps(outptr + 7 * outstride, _r7);
 }
+#endif // __AVX__
 
+#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose8x16_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __AVX__
     permute_transpose8x8_fp32(ptr, stride, outptr, outstride);
     permute_transpose8x8_fp32(ptr + 8, stride, outptr + 8 * outstride, outstride);
-#else
-#if __SSE2__
-    permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
-    permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 8, stride, outptr + 8 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 12, stride, outptr + 12 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 4, stride, outptr + 4 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 8, stride, outptr + 8 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 12, stride, outptr + 12 * outstride + 4, outstride);
-#else
-    for (int i = 0; i < 8; i++)
-        for (int j = 0; j < 16; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
-#endif // __AVX__
 }
+#endif // __AVX512F__
 
+#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x4_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __SSE2__
     permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
     permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
     permute_transpose4x4_fp32(ptr + 8 * stride, stride, outptr + 8, outstride);
     permute_transpose4x4_fp32(ptr + 12 * stride, stride, outptr + 12, outstride);
-#else
-    for (int i = 0; i < 16; i++)
-        for (int j = 0; j < 4; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
 }
+#endif // __AVX512F__
 
+#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x8_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __AVX__
     permute_transpose8x8_fp32(ptr, stride, outptr, outstride);
     permute_transpose8x8_fp32(ptr + 8 * stride, stride, outptr + 8, outstride);
-#else
-#if __SSE2__
-    permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
-    permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 4, stride, outptr + 4 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride, stride, outptr + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride + 4, stride, outptr + 4 * outstride + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride, stride, outptr + 12, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride + 4, stride, outptr + 4 * outstride + 12, outstride);
-#else
-    for (int i = 0; i < 16; i++)
-        for (int j = 0; j < 8; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
-#endif // __AVX__
 }
+#endif // __AVX512F__
 
+#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x16_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
-#if __AVX512F__
-    {
-        __m512 _r0 = _mm512_loadu_ps(ptr);
-        __m512 _r1 = _mm512_loadu_ps(ptr + stride);
-        __m512 _r2 = _mm512_loadu_ps(ptr + 2 * stride);
-        __m512 _r3 = _mm512_loadu_ps(ptr + 3 * stride);
-        __m512 _r4 = _mm512_loadu_ps(ptr + 4 * stride);
-        __m512 _r5 = _mm512_loadu_ps(ptr + 5 * stride);
-        __m512 _r6 = _mm512_loadu_ps(ptr + 6 * stride);
-        __m512 _r7 = _mm512_loadu_ps(ptr + 7 * stride);
-        __m512 _r8 = _mm512_loadu_ps(ptr + 8 * stride);
-        __m512 _r9 = _mm512_loadu_ps(ptr + 9 * stride);
-        __m512 _ra = _mm512_loadu_ps(ptr + 10 * stride);
-        __m512 _rb = _mm512_loadu_ps(ptr + 11 * stride);
-        __m512 _rc = _mm512_loadu_ps(ptr + 12 * stride);
-        __m512 _rd = _mm512_loadu_ps(ptr + 13 * stride);
-        __m512 _re = _mm512_loadu_ps(ptr + 14 * stride);
-        __m512 _rf = _mm512_loadu_ps(ptr + 15 * stride);
-        transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-        _mm512_storeu_ps(outptr, _r0);
-        _mm512_storeu_ps(outptr + outstride, _r1);
-        _mm512_storeu_ps(outptr + 2 * outstride, _r2);
-        _mm512_storeu_ps(outptr + 3 * outstride, _r3);
-        _mm512_storeu_ps(outptr + 4 * outstride, _r4);
-        _mm512_storeu_ps(outptr + 5 * outstride, _r5);
-        _mm512_storeu_ps(outptr + 6 * outstride, _r6);
-        _mm512_storeu_ps(outptr + 7 * outstride, _r7);
-        _mm512_storeu_ps(outptr + 8 * outstride, _r8);
-        _mm512_storeu_ps(outptr + 9 * outstride, _r9);
-        _mm512_storeu_ps(outptr + 10 * outstride, _ra);
-        _mm512_storeu_ps(outptr + 11 * outstride, _rb);
-        _mm512_storeu_ps(outptr + 12 * outstride, _rc);
-        _mm512_storeu_ps(outptr + 13 * outstride, _rd);
-        _mm512_storeu_ps(outptr + 14 * outstride, _re);
-        _mm512_storeu_ps(outptr + 15 * outstride, _rf);
-    }
-#else
-#if __AVX__
-    permute_transpose8x8_fp32(ptr, stride, outptr, outstride);
-    permute_transpose8x8_fp32(ptr + 8, stride, outptr + 8 * outstride, outstride);
-    permute_transpose8x8_fp32(ptr + 8 * stride, stride, outptr + 8, outstride);
-    permute_transpose8x8_fp32(ptr + 8 * stride + 8, stride, outptr + 8 * outstride + 8, outstride);
-#else
-#if __SSE2__
-    permute_transpose4x4_fp32(ptr, stride, outptr, outstride);
-    permute_transpose4x4_fp32(ptr + 4, stride, outptr + 4 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 8, stride, outptr + 8 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 12, stride, outptr + 12 * outstride, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride, stride, outptr + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 4, stride, outptr + 4 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 8, stride, outptr + 8 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 4 * stride + 12, stride, outptr + 12 * outstride + 4, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride, stride, outptr + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride + 4, stride, outptr + 4 * outstride + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride + 8, stride, outptr + 8 * outstride + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 8 * stride + 12, stride, outptr + 12 * outstride + 8, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride, stride, outptr + 12, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride + 4, stride, outptr + 4 * outstride + 12, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride + 8, stride, outptr + 8 * outstride + 12, outstride);
-    permute_transpose4x4_fp32(ptr + 12 * stride + 12, stride, outptr + 12 * outstride + 12, outstride);
-#else
-    for (int i = 0; i < 16; i++)
-        for (int j = 0; j < 16; j++)
-            memcpy(outptr + j * outstride + i, ptr + i * stride + j, 4);
-#endif // __SSE2__
-#endif // __AVX__
-#endif // __AVX512F__
+    __m512 _r0 = _mm512_loadu_ps(ptr);
+    __m512 _r1 = _mm512_loadu_ps(ptr + stride);
+    __m512 _r2 = _mm512_loadu_ps(ptr + 2 * stride);
+    __m512 _r3 = _mm512_loadu_ps(ptr + 3 * stride);
+    __m512 _r4 = _mm512_loadu_ps(ptr + 4 * stride);
+    __m512 _r5 = _mm512_loadu_ps(ptr + 5 * stride);
+    __m512 _r6 = _mm512_loadu_ps(ptr + 6 * stride);
+    __m512 _r7 = _mm512_loadu_ps(ptr + 7 * stride);
+    __m512 _r8 = _mm512_loadu_ps(ptr + 8 * stride);
+    __m512 _r9 = _mm512_loadu_ps(ptr + 9 * stride);
+    __m512 _ra = _mm512_loadu_ps(ptr + 10 * stride);
+    __m512 _rb = _mm512_loadu_ps(ptr + 11 * stride);
+    __m512 _rc = _mm512_loadu_ps(ptr + 12 * stride);
+    __m512 _rd = _mm512_loadu_ps(ptr + 13 * stride);
+    __m512 _re = _mm512_loadu_ps(ptr + 14 * stride);
+    __m512 _rf = _mm512_loadu_ps(ptr + 15 * stride);
+    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+    _mm512_storeu_ps(outptr, _r0);
+    _mm512_storeu_ps(outptr + outstride, _r1);
+    _mm512_storeu_ps(outptr + 2 * outstride, _r2);
+    _mm512_storeu_ps(outptr + 3 * outstride, _r3);
+    _mm512_storeu_ps(outptr + 4 * outstride, _r4);
+    _mm512_storeu_ps(outptr + 5 * outstride, _r5);
+    _mm512_storeu_ps(outptr + 6 * outstride, _r6);
+    _mm512_storeu_ps(outptr + 7 * outstride, _r7);
+    _mm512_storeu_ps(outptr + 8 * outstride, _r8);
+    _mm512_storeu_ps(outptr + 9 * outstride, _r9);
+    _mm512_storeu_ps(outptr + 10 * outstride, _ra);
+    _mm512_storeu_ps(outptr + 11 * outstride, _rb);
+    _mm512_storeu_ps(outptr + 12 * outstride, _rc);
+    _mm512_storeu_ps(outptr + 13 * outstride, _rd);
+    _mm512_storeu_ps(outptr + 14 * outstride, _re);
+    _mm512_storeu_ps(outptr + 15 * outstride, _rf);
 }
+#endif // __AVX512F__
 
 static void permute_transpose_tail_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
