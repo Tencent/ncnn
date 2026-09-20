@@ -5,12 +5,58 @@
 void relu_bf16s_avx512bf16(Mat& a, float slope, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void relu_bf16s_avxneconvert(Mat& a, float slope, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void relu_bf16s_avx2(Mat& a, float slope, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void relu_bf16s_fma(Mat& a, float slope, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void relu_bf16s_fma4(Mat& a, float slope, const Option& opt);
+#endif
+
 static void relu_bf16s(Mat& a, float slope, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         relu_bf16s_avx512bf16(a, slope, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        relu_bf16s_avxneconvert(a, slope, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        relu_bf16s_avx2(a, slope, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        relu_bf16s_fma(a, slope, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        relu_bf16s_fma4(a, slope, opt);
         return;
     }
 #endif
@@ -64,7 +110,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 _p = _mm_max_ps(_p, _zero);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
             }
 #endif // __AVX512F__
@@ -74,7 +120,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
             {
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 _p = _mm_max_ps(_p, _zero);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
             }
 #endif // __AVX__
@@ -127,7 +173,7 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                 __m256 _pos = _mm256_max_ps(_zero_avx, _p);
                 __m256 _neg = _mm256_min_ps(_zero_avx, _p);
-                _p = _mm256_add_ps(_pos, _mm256_mul_ps(_slope_avx, _neg));
+                _p = _mm256_comp_fmadd_ps(_slope_avx, _neg, _pos);
                 _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(_p));
                 ptr += 8;
             }
@@ -138,8 +184,8 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _pos = _mm_max_ps(_zero, _p);
                 __m128 _neg = _mm_min_ps(_zero, _p);
-                _p = _mm_add_ps(_pos, _mm_mul_ps(_slope, _neg));
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
             }
 #endif // __AVX512F__
@@ -151,8 +197,8 @@ static void relu_bf16s(Mat& a, float slope, const Option& opt)
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _pos = _mm_max_ps(_zero, _p);
                 __m128 _neg = _mm_min_ps(_zero, _p);
-                _p = _mm_add_ps(_pos, _mm_mul_ps(_slope, _neg));
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _p = _mm_comp_fmadd_ps(_slope, _neg, _pos);
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
             }
 #endif // __AVX__

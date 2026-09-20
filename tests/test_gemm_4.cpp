@@ -204,7 +204,16 @@ static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_
     RandomizeA(a[0], transA, 10.f);
     RandomizeB(a[1], 10.f);
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_int8 failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);

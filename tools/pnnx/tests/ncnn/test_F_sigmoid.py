@@ -9,16 +9,19 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = x * 2 - 1
         y = y * 2 - 1
         z = z * 2 - 1
         w = w * 2 - 1
+        q = q * 2 - 1
+        q = F.max_pool2d(q, 1)
         x = F.sigmoid(x)
         y = F.sigmoid(y)
         z = F.sigmoid(z)
         w = F.sigmoid(w)
-        return x, y, z, w
+        q = F.sigmoid(q)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -29,16 +32,17 @@ def test():
     y = torch.rand(2, 16)
     z = torch.rand(3, 12, 16)
     w = torch.rand(5, 7, 9, 11)
+    q = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_sigmoid.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_sigmoid.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../../src/pnnx test_F_sigmoid.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11],[2,3,5,7]")
 
     # ncnn inference
     import test_F_sigmoid_ncnn

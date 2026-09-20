@@ -22,10 +22,18 @@ class Model(nn.Module):
         config1 = ProphetNetConfig(vocab_size=30522, hidden_size=66, num_encoder_attention_heads=11, num_decoder_attention_heads=11)
         self.attn1 = ProphetNetAttention(config1, num_attn_heads=config1.num_decoder_attention_heads)
 
-    def forward(self, x, y, mask):
+        # cross attention
+        self.attn2 = ProphetNetAttention(config1, num_attn_heads=config1.num_decoder_attention_heads)
+        self.attn3 = ProphetNetAttention(config1, num_attn_heads=config1.num_decoder_attention_heads)
+
+    def forward(self, x, y, z, mask, cross_mask):
         out0 = self.attn0(x, key_value_states=None, attention_mask=None, layer_head_mask=None, past_key_value=None)
         out1 = self.attn1(y, key_value_states=None, attention_mask=mask, layer_head_mask=None, past_key_value=None)
-        return out0[0], out1[0]
+
+        out2 = self.attn2(y, key_value_states=z, attention_mask=None, layer_head_mask=None, past_key_value=None)
+        out3 = self.attn3(y, key_value_states=z, attention_mask=cross_mask, layer_head_mask=None, past_key_value=None)
+
+        return out0[0], out1[0], out2[0], out3[0]
 
 def test():
     net = Model()
@@ -34,16 +42,18 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16, 192)
     y = torch.rand(2, 5, 66)
+    z = torch.rand(2, 7, 66)
     mask = torch.rand(2, 11, 1, 5)
+    cross_mask = torch.rand(2, 11, 1, 7)
 
-    a = net(x, y, mask)
+    a = net(x, y, z, mask, cross_mask)
 
     # export onnx
-    torch.onnx.export(net, (x, y, mask), "test_transformers_prophetnet_attention.onnx")
+    torch.onnx.export(net, (x, y, z, mask, cross_mask), "test_transformers_prophetnet_attention.onnx")
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_transformers_prophetnet_attention.onnx inputshape=[3,16,192],[2,5,66],[2,11,1,5]")
+    os.system("../../src/pnnx test_transformers_prophetnet_attention.onnx inputshape=[3,16,192],[2,5,66],[2,7,66],[2,11,1,5],[2,11,1,7]")
 
     # pnnx inference
     import test_transformers_prophetnet_attention_pnnx

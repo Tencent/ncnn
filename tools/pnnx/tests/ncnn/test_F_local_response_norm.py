@@ -9,10 +9,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = F.local_response_norm(x, 4)
         x = F.local_response_norm(x, size=4, alpha=0.001, beta=0.2, k=1.9)
-        return x
+        y = F.local_response_norm(y, 4)
+        y = F.local_response_norm(y, size=4, alpha=0.001, beta=0.2, k=1.9)
+        return x, y
 
 def test():
     net = Model()
@@ -20,22 +22,26 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 3, 12, 16)
+    y = torch.rand(2, 3, 12, 16)
 
-    a = net(x)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_F_local_response_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_local_response_norm.pt inputshape=[1,3,12,16]")
+    os.system("../../src/pnnx test_F_local_response_norm.pt inputshape=[1,3,12,16],[2,3,12,16]")
 
     # ncnn inference
     import test_F_local_response_norm_ncnn
     b = test_F_local_response_norm_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
