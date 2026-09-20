@@ -287,6 +287,14 @@ int main()
     }
     for (int threads = 1; threads <= 4 && !ret; threads *= 2)
         ret = test_permute_packing(op, 3, 256, 128, 1, 1, 4, 32, true, threads, true);
+    // Exercise the cache-blocked pack1 path and its direct-path boundaries.
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        ret = test_permute_packing(op, 3, 256, 256, 1, 1, 1, bits, true, 1, true)
+              || test_permute_packing(op, 3, 512, 256, 1, 1, 1, bits, true, 1, true)
+              || test_permute_packing(op, 3, 512, 512, 1, 1, 1, bits, true, 1, true)
+              || test_permute_packing(op, 3, 257, 256, 1, 1, 1, bits, true, 1, true);
+    }
     // Exercise every rectangular tile transition and scalar edge with pack1 output.
     const int edges[] = {1, 2, 3, 4, 6, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33};
     const int edge_count = sizeof(edges) / sizeof(edges[0]);
