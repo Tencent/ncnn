@@ -42,7 +42,7 @@ concurrency:
   group: macos-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
   MAC_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
