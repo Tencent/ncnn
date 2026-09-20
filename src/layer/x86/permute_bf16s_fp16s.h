@@ -792,6 +792,27 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
         return;
     }
 
+    // large planes keep an output stripe resident while scanning the input
+    if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
+    {
+        for (int j = 0; j < cols; j += 32)
+            permute_transpose_pack1_block_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
+        return;
+    }
+    if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
+    {
+        // coalesced axes can form long rectangles
+        // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
+        const int row_block = std::min(rows, 64);
+        const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(unsigned short)));
+        for (int j = 0; j < cols; j += col_block)
+        {
+            for (int i = 0; i < rows; i += row_block)
+                permute_transpose_pack1_block_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
+        }
+        return;
+    }
+
 #if __SSE2__
     if (rows >= 256 && rows <= 512 && cols >= 256 && cols <= 512 && stride <= 1024 && outstride <= 1024
         && stride % 256 == 0 && outstride % 256 == 0)
@@ -1274,21 +1295,10 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
 #if __AVX__
 static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-#if __AVX__
     __m256 _a = _mm256_loadu_ps((const float*)ptr);
     __m256 _b = _mm256_loadu_ps((const float*)(ptr + stride));
     _mm256_storeu_ps((float*)(outptr), _mm256_permute2f128_ps(_a, _b, 0x20));
     _mm256_storeu_ps((float*)(outptr + outstride), _mm256_permute2f128_ps(_a, _b, 0x31));
-#else
-    __m128i _v0 = _mm_loadu_si128((const __m128i*)ptr);
-    _mm_storeu_si128((__m128i*)outptr, _v0);
-    __m128i _v1 = _mm_loadu_si128((const __m128i*)(ptr + stride));
-    _mm_storeu_si128((__m128i*)(outptr + 8), _v1);
-    __m128i _v2 = _mm_loadu_si128((const __m128i*)(ptr + 8));
-    _mm_storeu_si128((__m128i*)(outptr + outstride), _v2);
-    __m128i _v3 = _mm_loadu_si128((const __m128i*)(ptr + stride + 8));
-    _mm_storeu_si128((__m128i*)(outptr + outstride + 8), _v3);
-#endif
 }
 
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -1483,6 +1493,20 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
 
 static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols, int elempack, int out_elempack)
 {
+    if (elempack == out_elempack)
+    {
+        if (rows == 1 && outstride == (size_t)elempack)
+        {
+            memcpy(outptr, ptr, (size_t)cols * elempack * sizeof(unsigned short));
+            return;
+        }
+        if (cols == 1 && stride == (size_t)elempack)
+        {
+            memcpy(outptr, ptr, (size_t)rows * elempack * sizeof(unsigned short));
+            return;
+        }
+    }
+
     if (elempack == 1)
     {
         permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
@@ -1577,30 +1601,20 @@ static void permute_transpose_blocks2_bf16s_fp16s(const unsigned short* ptr, siz
 // strides include padding; the block contents keep their original order
 static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size)
 {
+    if (rows == 1 && outstride == (size_t)size)
+    {
+        memcpy(outptr, ptr, (size_t)cols * size * sizeof(unsigned short));
+        return;
+    }
+    if (cols == 1 && stride == (size_t)size)
+    {
+        memcpy(outptr, ptr, (size_t)rows * size * sizeof(unsigned short));
+        return;
+    }
+
     if (size == 1)
     {
-        // large planes keep an output stripe resident while scanning the input
-        if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
-        {
-            for (int j = 0; j < cols; j += 32)
-                permute_transpose_pack1_block_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
-        }
-        else if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
-        {
-            // coalesced axes can form long rectangles
-            // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
-            const int row_block = std::min(rows, 64);
-            const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(unsigned short)));
-            for (int j = 0; j < cols; j += col_block)
-            {
-                for (int i = 0; i < rows; i += row_block)
-                    permute_transpose_pack1_block_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
-            }
-        }
-        else
-        {
-            permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
-        }
+        permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #if __SSE2__
@@ -1744,13 +1758,8 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
     }
 }
 
-static void permute_copy_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outcstep, int size, int elempack, int out_elempack)
+static void permute_unpack_spatial_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outcstep, int size, int elempack)
 {
-    if (elempack == out_elempack)
-    {
-        memcpy(outptr, ptr, (size_t)size * elempack * sizeof(unsigned short));
-        return;
-    }
 #if __SSE2__
     if (elempack == 4)
     {

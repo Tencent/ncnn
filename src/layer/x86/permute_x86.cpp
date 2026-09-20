@@ -675,7 +675,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack + i * elempack;
                             float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w + i) * out_elempack;
-                            permute_copy_spatial(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack, out_elempack);
+                            permute_unpack_spatial(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack);
                         }
                     }
                 }
@@ -2751,7 +2751,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w + i) * out_elempack;
-                            permute_copy_spatial_bf16s_fp16s(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack, out_elempack);
+                            permute_unpack_spatial_bf16s_fp16s(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack);
                         }
                     }
                 }

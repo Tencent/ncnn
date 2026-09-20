@@ -723,6 +723,27 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
         return;
     }
 
+    // large planes keep an output stripe resident while scanning the input
+    if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
+    {
+        for (int j = 0; j < cols; j += 32)
+            permute_transpose_pack1_block(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
+        return;
+    }
+    if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
+    {
+        // coalesced axes can form long rectangles
+        // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
+        const int row_block = std::min(rows, 64);
+        const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(float)));
+        for (int j = 0; j < cols; j += col_block)
+        {
+            for (int i = 0; i < rows; i += row_block)
+                permute_transpose_pack1_block(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
+        }
+        return;
+    }
+
 #if __SSE2__
     if (rows >= 256 && rows <= 512 && cols >= 256 && cols <= 512 && stride <= 1024 && outstride <= 1024
         && stride % 256 == 0 && outstride % 256 == 0)
@@ -1417,6 +1438,20 @@ static void permute_spatial_pack16to1(const float* ptr, size_t stride, float* ou
 
 static void permute_transpose_spatial(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols, int elempack, int out_elempack)
 {
+    if (elempack == out_elempack)
+    {
+        if (rows == 1 && outstride == (size_t)elempack)
+        {
+            memcpy(outptr, ptr, (size_t)cols * elempack * sizeof(float));
+            return;
+        }
+        if (cols == 1 && stride == (size_t)elempack)
+        {
+            memcpy(outptr, ptr, (size_t)rows * elempack * sizeof(float));
+            return;
+        }
+    }
+
     if (elempack == 1)
     {
         permute_transpose_pack1(ptr, stride, outptr, outstride, rows, cols);
@@ -1510,30 +1545,20 @@ static void permute_transpose_blocks2(const float* ptr, size_t stride, float* ou
 // strides include padding; the block contents keep their original order
 static void permute_transpose_blocks(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size)
 {
+    if (rows == 1 && outstride == (size_t)size)
+    {
+        memcpy(outptr, ptr, (size_t)cols * size * sizeof(float));
+        return;
+    }
+    if (cols == 1 && stride == (size_t)size)
+    {
+        memcpy(outptr, ptr, (size_t)rows * size * sizeof(float));
+        return;
+    }
+
     if (size == 1)
     {
-        // large planes keep an output stripe resident while scanning the input
-        if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
-        {
-            for (int j = 0; j < cols; j += 32)
-                permute_transpose_pack1_block(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
-        }
-        else if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
-        {
-            // coalesced axes can form long rectangles
-            // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
-            const int row_block = std::min(rows, 64);
-            const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(float)));
-            for (int j = 0; j < cols; j += col_block)
-            {
-                for (int i = 0; i < rows; i += row_block)
-                    permute_transpose_pack1_block(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
-            }
-        }
-        else
-        {
-            permute_transpose_pack1(ptr, stride, outptr, outstride, rows, cols);
-        }
+        permute_transpose_pack1(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #if __SSE2__
@@ -1655,13 +1680,8 @@ static void permute_transpose_blocks(const float* ptr, size_t stride, float* out
     }
 }
 
-static void permute_copy_spatial(const float* ptr, float* outptr, size_t outcstep, int size, int elempack, int out_elempack)
+static void permute_unpack_spatial(const float* ptr, float* outptr, size_t outcstep, int size, int elempack)
 {
-    if (elempack == out_elempack)
-    {
-        memcpy(outptr, ptr, (size_t)size * elempack * sizeof(float));
-        return;
-    }
 #if __SSE2__
     if (elempack == 4)
     {

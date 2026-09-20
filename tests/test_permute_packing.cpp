@@ -334,6 +334,16 @@ int main()
     // a few long continuous records exercise partitioning within a record
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
         ret = test_permute_packing(op, 4, 16385, 1, 1, 2, 1, bits, false, 4, true);
+    // degenerate packed planes and a few long records with multiple slices
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        {
+            ret = test_permute_packing(op, 3, 4097, 1, 1, 2, packs[p], bits, true, 1, true)
+                  || test_permute_packing(op, 3, 1, 4097, 1, 2, packs[p], bits, true, 1, true);
+        }
+        ret = ret || test_permute_packing(op, 4, 4097, 2, 2, 2, 1, bits, false, 8, true);
+    }
     // a one-dimensional permutation always aliases the input, including packing disabled
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
