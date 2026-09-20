@@ -584,7 +584,14 @@ static void solve_batch_index_forward(Operand* operand)
 
             int batch_index_unflattened = batch_index;
             if (dim == batch_index)
-                batch_index_unflattened = 233;
+            {
+                // Splitting the batch axis is ambiguous until a consumer
+                // tells us which of the new axes NCNN should carry as n.
+                // Leave the output unresolved so a known batch consumer can
+                // propagate its requirement backwards.  If no such consumer
+                // exists, the final fallback below keeps the result ordinary.
+                continue;
+            }
             else if (dim < batch_index)
                 batch_index_unflattened = batch_index + sizes_rank - 1;
 
