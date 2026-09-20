@@ -52,13 +52,16 @@ static unsigned char* permute_element(const ncnn::Mat& m, const int* pos)
     return (unsigned char*)m.channel(pos[3] / p).depth(pos[2]).row<unsigned char>(pos[1]) + pos[0] * m.elemsize + pos[3] % p * size;
 }
 
-static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, int c, int elempack, int bits, bool packing, int threads, bool unaligned)
+static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, int c, int elempack, int bits, bool packing, int threads, bool unaligned, int cstep_padding = 0)
 {
     const size_t elemsize = (size_t)(bits / 8) * elempack;
     ncnn::Mat a;
     if (dims == 2) a.create(w, h, elemsize, elempack);
     if (dims == 3) a.create(w, h, c, elemsize, elempack);
     if (dims == 4) a.create(w, h, d, c, elemsize, elempack);
+
+    const size_t cstep = a.cstep + cstep_padding;
+    if (dims >= 3) a.cstep = cstep;
 
     // the external buffer ends at the last valid lane, without allocator overread padding
     // also exercise a row base not aligned to the SIMD register width
@@ -68,6 +71,7 @@ static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, 
     if (dims == 2) a = ncnn::Mat(w, h, storage.data() + offset, elemsize, elempack);
     if (dims == 3) a = ncnn::Mat(w, h, c, storage.data() + offset, elemsize, elempack);
     if (dims == 4) a = ncnn::Mat(w, h, d, c, storage.data() + offset, elemsize, elempack);
+    if (dims >= 3) a.cstep = cstep;
     unsigned int seed = 7767517;
     for (size_t i = 0; i < count * elemsize; i++)
     {
@@ -184,6 +188,57 @@ static int test_permute_allocation(ncnn::Layer* op)
                 {
                     fprintf(stderr, "permute allocation failure was not propagated\n");
                     return -1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int test_permute_long_records(ncnn::Layer* op)
+{
+    const int shapes[][5] = {{1048577, 1, 1, 2, 2}, {262145, 2, 2, 2, 8}};
+    for (int bits = 16; bits <= 32; bits *= 2)
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            const int w = shapes[i][0];
+            const int h = shapes[i][1];
+            const int d = shapes[i][2];
+            const int c = shapes[i][3];
+            const int order = shapes[i][4];
+            const size_t elemsize = bits / 8;
+            ncnn::Mat a(w, h, d, c, elemsize);
+            if (a.empty())
+                return -1;
+            for (size_t j = 0; j < a.total() * elemsize; j++)
+                ((unsigned char*)a)[j] = (unsigned char)(j * 131 + j / 13);
+
+            ncnn::Option opt;
+            opt.num_threads = 8;
+            opt.use_packing_layout = false;
+            ncnn::ParamDict pd;
+            pd.set(0, order);
+            ncnn::Mat out;
+            if (op->load_param(pd) != 0 || op->forward(a, out, opt) != 0)
+                return -1;
+            if (out.dims != 4 || out.w != w || out.h != (order == 2 ? d : c) || out.d != h || out.c != (order == 2 ? c : d) || out.elempack != 1 || out.elembits() != bits)
+                return -1;
+
+            for (int q = 0; q < c; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        const unsigned char* ptr = a.channel(q).depth(z).row<unsigned char>(y);
+                        const unsigned char* outptr = order == 2 ? out.channel(q).depth(y).row<unsigned char>(z) : out.channel(z).depth(y).row<unsigned char>(q);
+                        if (memcmp(ptr, outptr, (size_t)w * elemsize) != 0)
+                        {
+                            fprintf(stderr, "permute long record failed order=%d bits=%d\n", order, bits);
+                            return -1;
+                        }
+                    }
                 }
             }
         }
@@ -344,6 +399,17 @@ int main()
         }
         ret = ret || test_permute_packing(op, 4, 4097, 2, 2, 2, 1, bits, false, 8, true);
     }
+    // explicit channel strides must survive every slice and output-group traversal
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        {
+            ret = test_permute_packing(op, 4, 8, 16, 4, 17, packs[p], bits, true, 1, true, 5)
+                  || test_permute_packing(op, 4, 8, 16, 4, 17, packs[p], bits, true, 8, true, 5)
+                  || test_permute_packing(op, 4, 17, 9, 5, 3, packs[p], bits, false, 8, true, 5);
+        }
+    }
+    if (!ret) ret = test_permute_long_records(op);
     // a one-dimensional permutation always aliases the input, including packing disabled
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
