@@ -1137,6 +1137,14 @@ static void permute_spatial_pack8(const float* ptr, size_t stride, float* outptr
 static void permute_spatial_pack8to1(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
+    // Limit the number of output streams for large channel planes.
+    if (rows >= 128 && stride >= 8 * 512 && outstride >= 512)
+    {
+        for (int x = 0; x < cols; x++)
+            permute_transpose_pack1(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows, 8);
+        return;
+    }
+
     // Keep adjacent input records and output rows in the same cache block.
     for (int x = 0; x < cols; x += 8)
     {

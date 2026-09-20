@@ -1195,6 +1195,14 @@ static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t 
 static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
+    // Limit the number of output streams for large channel planes.
+    if (rows >= 128 && stride >= 8 * 512 && outstride >= 512)
+    {
+        for (int x = 0; x < cols; x++)
+            permute_transpose_pack1_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows, 8);
+        return;
+    }
+
     // Keep adjacent input records and output rows in the same cache block.
     for (int x = 0; x < cols; x += 8)
     {
@@ -1300,6 +1308,14 @@ static void permute_spatial_pack16_bf16s_fp16s(const unsigned short* ptr, size_t
 static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
+    // Limit the number of output streams for large channel planes.
+    if (rows >= 128 && stride >= 16 * 512 && outstride >= 512)
+    {
+        for (int x = 0; x < cols; x++)
+            permute_transpose_pack1_bf16s_fp16s(ptr + x * 16, stride, outptr + x * outstride, outcstep, rows, 16);
+        return;
+    }
+
     // Keep adjacent input records and output rows in the same cache block.
     for (int x = 0; x < cols; x += 8)
     {
