@@ -241,6 +241,135 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride(const float* ptr, siz
 }
 #endif // __AVX512F__
 
+// Final two or one rows: load complete vectors and write only the valid output lanes.
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose2x16_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m512 _r0 = _mm512_loadu_ps(ptr);
+    __m512 _r1 = _mm512_loadu_ps(ptr + stride);
+    __m512 _t0 = _mm512_unpacklo_ps(_r0, _r1);
+    __m512 _t1 = _mm512_unpackhi_ps(_r0, _r1);
+    __m128 _v0 = _mm512_extractf32x4_ps(_t0, 0);
+    _mm_storel_epi64((__m128i*)(outptr), _mm_castps_si128(_v0));
+    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_mm_castps_si128(_v0), 8));
+    __m128 _v1 = _mm512_extractf32x4_ps(_t1, 0);
+    _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _mm_castps_si128(_v1));
+    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_mm_castps_si128(_v1), 8));
+    __m128 _v2 = _mm512_extractf32x4_ps(_t0, 1);
+    _mm_storel_epi64((__m128i*)(outptr + 4 * outstride), _mm_castps_si128(_v2));
+    _mm_storel_epi64((__m128i*)(outptr + 5 * outstride), _mm_srli_si128(_mm_castps_si128(_v2), 8));
+    __m128 _v3 = _mm512_extractf32x4_ps(_t1, 1);
+    _mm_storel_epi64((__m128i*)(outptr + 6 * outstride), _mm_castps_si128(_v3));
+    _mm_storel_epi64((__m128i*)(outptr + 7 * outstride), _mm_srli_si128(_mm_castps_si128(_v3), 8));
+    __m128 _v4 = _mm512_extractf32x4_ps(_t0, 2);
+    _mm_storel_epi64((__m128i*)(outptr + 8 * outstride), _mm_castps_si128(_v4));
+    _mm_storel_epi64((__m128i*)(outptr + 9 * outstride), _mm_srli_si128(_mm_castps_si128(_v4), 8));
+    __m128 _v5 = _mm512_extractf32x4_ps(_t1, 2);
+    _mm_storel_epi64((__m128i*)(outptr + 10 * outstride), _mm_castps_si128(_v5));
+    _mm_storel_epi64((__m128i*)(outptr + 11 * outstride), _mm_srli_si128(_mm_castps_si128(_v5), 8));
+    __m128 _v6 = _mm512_extractf32x4_ps(_t0, 3);
+    _mm_storel_epi64((__m128i*)(outptr + 12 * outstride), _mm_castps_si128(_v6));
+    _mm_storel_epi64((__m128i*)(outptr + 13 * outstride), _mm_srli_si128(_mm_castps_si128(_v6), 8));
+    __m128 _v7 = _mm512_extractf32x4_ps(_t1, 3);
+    _mm_storel_epi64((__m128i*)(outptr + 14 * outstride), _mm_castps_si128(_v7));
+    _mm_storel_epi64((__m128i*)(outptr + 15 * outstride), _mm_srli_si128(_mm_castps_si128(_v7), 8));
+}
+#endif // __AVX512F__
+
+#if __AVX__
+static NCNN_FORCEINLINE void permute_transpose2x8_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m256 _r0 = _mm256_loadu_ps(ptr);
+    __m256 _r1 = _mm256_loadu_ps(ptr + stride);
+    __m256 _t0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _t1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m128 _v0 = _mm256_castps256_ps128(_t0);
+    _mm_storel_epi64((__m128i*)(outptr), _mm_castps_si128(_v0));
+    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_mm_castps_si128(_v0), 8));
+    __m128 _v1 = _mm256_castps256_ps128(_t1);
+    _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _mm_castps_si128(_v1));
+    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_mm_castps_si128(_v1), 8));
+    __m128 _v2 = _mm256_extractf128_ps(_t0, 1);
+    _mm_storel_epi64((__m128i*)(outptr + 4 * outstride), _mm_castps_si128(_v2));
+    _mm_storel_epi64((__m128i*)(outptr + 5 * outstride), _mm_srli_si128(_mm_castps_si128(_v2), 8));
+    __m128 _v3 = _mm256_extractf128_ps(_t1, 1);
+    _mm_storel_epi64((__m128i*)(outptr + 6 * outstride), _mm_castps_si128(_v3));
+    _mm_storel_epi64((__m128i*)(outptr + 7 * outstride), _mm_srli_si128(_mm_castps_si128(_v3), 8));
+}
+#endif // __AVX__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose2x4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m128 _r0 = _mm_loadu_ps(ptr);
+    __m128 _r1 = _mm_loadu_ps(ptr + stride);
+    __m128 _t0 = _mm_unpacklo_ps(_r0, _r1);
+    __m128 _t1 = _mm_unpackhi_ps(_r0, _r1);
+    __m128 _v0 = _t0;
+    _mm_storel_epi64((__m128i*)(outptr), _mm_castps_si128(_v0));
+    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_mm_castps_si128(_v0), 8));
+    __m128 _v1 = _t1;
+    _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _mm_castps_si128(_v1));
+    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_mm_castps_si128(_v1), 8));
+}
+#endif // __SSE2__
+
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose1x16_stride(const float* ptr, float* outptr, size_t outstride)
+{
+    __m512 _r0 = _mm512_loadu_ps(ptr);
+    __m128 _v0 = _mm512_extractf32x4_ps(_r0, 0);
+    _mm_store_ss(outptr, _v0);
+    _mm_store_ss(outptr + outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 2 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 3 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(3, 3, 3, 3)));
+    __m128 _v1 = _mm512_extractf32x4_ps(_r0, 1);
+    _mm_store_ss(outptr + 4 * outstride, _v1);
+    _mm_store_ss(outptr + 5 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 6 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 7 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(3, 3, 3, 3)));
+    __m128 _v2 = _mm512_extractf32x4_ps(_r0, 2);
+    _mm_store_ss(outptr + 8 * outstride, _v2);
+    _mm_store_ss(outptr + 9 * outstride, _mm_shuffle_ps(_v2, _v2, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 10 * outstride, _mm_shuffle_ps(_v2, _v2, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 11 * outstride, _mm_shuffle_ps(_v2, _v2, _MM_SHUFFLE(3, 3, 3, 3)));
+    __m128 _v3 = _mm512_extractf32x4_ps(_r0, 3);
+    _mm_store_ss(outptr + 12 * outstride, _v3);
+    _mm_store_ss(outptr + 13 * outstride, _mm_shuffle_ps(_v3, _v3, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 14 * outstride, _mm_shuffle_ps(_v3, _v3, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 15 * outstride, _mm_shuffle_ps(_v3, _v3, _MM_SHUFFLE(3, 3, 3, 3)));
+}
+#endif // __AVX512F__
+
+#if __AVX__
+static NCNN_FORCEINLINE void permute_transpose1x8_stride(const float* ptr, float* outptr, size_t outstride)
+{
+    __m256 _r0 = _mm256_loadu_ps(ptr);
+    __m128 _v0 = _mm256_castps256_ps128(_r0);
+    _mm_store_ss(outptr, _v0);
+    _mm_store_ss(outptr + outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 2 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 3 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(3, 3, 3, 3)));
+    __m128 _v1 = _mm256_extractf128_ps(_r0, 1);
+    _mm_store_ss(outptr + 4 * outstride, _v1);
+    _mm_store_ss(outptr + 5 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 6 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 7 * outstride, _mm_shuffle_ps(_v1, _v1, _MM_SHUFFLE(3, 3, 3, 3)));
+}
+#endif // __AVX__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose1x4_stride(const float* ptr, float* outptr, size_t outstride)
+{
+    __m128 _r0 = _mm_loadu_ps(ptr);
+    __m128 _v0 = _r0;
+    _mm_store_ss(outptr, _v0);
+    _mm_store_ss(outptr + outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(1, 1, 1, 1)));
+    _mm_store_ss(outptr + 2 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(2, 2, 2, 2)));
+    _mm_store_ss(outptr + 3 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(3, 3, 3, 3)));
+}
+#endif // __SSE2__
+
 // Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
 static void permute_transpose_pack1(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
@@ -326,9 +455,57 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
         }
     }
 #endif // __SSE2__
+#if __SSE2__
+    for (; i + 1 < rows; i += 2)
+    {
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
+        {
+            permute_transpose2x16_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+#if __AVX__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose2x8_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX__
+#if __SSE2__
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose2x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+        for (; j < cols; j++)
+        {
+            outptr[j * outstride + i] = ptr[i * stride + j];
+            outptr[j * outstride + i + 1] = ptr[(i + 1) * stride + j];
+        }
+    }
+#endif // __SSE2__
     for (; i < rows; i++)
     {
-        for (int j = 0; j < cols; j++)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
+        {
+            permute_transpose1x16_stride(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+#if __AVX__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose1x8_stride(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX__
+#if __SSE2__
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose1x4_stride(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+        for (; j < cols; j++)
         {
             outptr[j * outstride + i] = ptr[i * stride + j];
         }

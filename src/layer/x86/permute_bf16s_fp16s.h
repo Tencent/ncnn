@@ -229,6 +229,152 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride_bf16s_fp16s(const uns
 }
 #endif // __AVX512F__
 
+// Final two or one rows: load complete vectors and write only the valid output lanes.
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+{
+    __m256i _r0 = _mm256_loadu_si256((const __m256i*)ptr);
+    __m256i _r1 = _mm256_loadu_si256((const __m256i*)(ptr + stride));
+    __m256i _t0 = _mm256_unpacklo_epi16(_r0, _r1);
+    __m256i _t1 = _mm256_unpackhi_epi16(_r0, _r1);
+    __m128i _v0 = _mm256_castsi256_si128(_t0);
+    int _p0 = _mm_cvtsi128_si32(_v0);
+    memcpy(outptr, &_p0, 4);
+    int _p1 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 4));
+    memcpy(outptr + outstride, &_p1, 4);
+    int _p2 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 8));
+    memcpy(outptr + 2 * outstride, &_p2, 4);
+    int _p3 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 12));
+    memcpy(outptr + 3 * outstride, &_p3, 4);
+    __m128i _v1 = _mm256_castsi256_si128(_t1);
+    int _p4 = _mm_cvtsi128_si32(_v1);
+    memcpy(outptr + 4 * outstride, &_p4, 4);
+    int _p5 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 4));
+    memcpy(outptr + 5 * outstride, &_p5, 4);
+    int _p6 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 8));
+    memcpy(outptr + 6 * outstride, &_p6, 4);
+    int _p7 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 12));
+    memcpy(outptr + 7 * outstride, &_p7, 4);
+    __m128i _v2 = _mm256_extractf128_si256(_t0, 1);
+    int _p8 = _mm_cvtsi128_si32(_v2);
+    memcpy(outptr + 8 * outstride, &_p8, 4);
+    int _p9 = _mm_cvtsi128_si32(_mm_srli_si128(_v2, 4));
+    memcpy(outptr + 9 * outstride, &_p9, 4);
+    int _p10 = _mm_cvtsi128_si32(_mm_srli_si128(_v2, 8));
+    memcpy(outptr + 10 * outstride, &_p10, 4);
+    int _p11 = _mm_cvtsi128_si32(_mm_srli_si128(_v2, 12));
+    memcpy(outptr + 11 * outstride, &_p11, 4);
+    __m128i _v3 = _mm256_extractf128_si256(_t1, 1);
+    int _p12 = _mm_cvtsi128_si32(_v3);
+    memcpy(outptr + 12 * outstride, &_p12, 4);
+    int _p13 = _mm_cvtsi128_si32(_mm_srli_si128(_v3, 4));
+    memcpy(outptr + 13 * outstride, &_p13, 4);
+    int _p14 = _mm_cvtsi128_si32(_mm_srli_si128(_v3, 8));
+    memcpy(outptr + 14 * outstride, &_p14, 4);
+    int _p15 = _mm_cvtsi128_si32(_mm_srli_si128(_v3, 12));
+    memcpy(outptr + 15 * outstride, &_p15, 4);
+}
+#endif // __AVX512F__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+{
+    __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
+    __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + stride));
+    __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
+    __m128i _t1 = _mm_unpackhi_epi16(_r0, _r1);
+    __m128i _v0 = _t0;
+    int _p0 = _mm_cvtsi128_si32(_v0);
+    memcpy(outptr, &_p0, 4);
+    int _p1 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 4));
+    memcpy(outptr + outstride, &_p1, 4);
+    int _p2 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 8));
+    memcpy(outptr + 2 * outstride, &_p2, 4);
+    int _p3 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 12));
+    memcpy(outptr + 3 * outstride, &_p3, 4);
+    __m128i _v1 = _t1;
+    int _p4 = _mm_cvtsi128_si32(_v1);
+    memcpy(outptr + 4 * outstride, &_p4, 4);
+    int _p5 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 4));
+    memcpy(outptr + 5 * outstride, &_p5, 4);
+    int _p6 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 8));
+    memcpy(outptr + 6 * outstride, &_p6, 4);
+    int _p7 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 12));
+    memcpy(outptr + 7 * outstride, &_p7, 4);
+}
+#endif // __SSE2__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+{
+    __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
+    __m128i _r1 = _mm_loadl_epi64((const __m128i*)(ptr + stride));
+    __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
+    __m128i _v0 = _t0;
+    int _p0 = _mm_cvtsi128_si32(_v0);
+    memcpy(outptr, &_p0, 4);
+    int _p1 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 4));
+    memcpy(outptr + outstride, &_p1, 4);
+    int _p2 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 8));
+    memcpy(outptr + 2 * outstride, &_p2, 4);
+    int _p3 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 12));
+    memcpy(outptr + 3 * outstride, &_p3, 4);
+}
+#endif // __SSE2__
+
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose1x16_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+{
+    __m256i _r0 = _mm256_loadu_si256((const __m256i*)ptr);
+    __m128i _v0 = _mm256_castsi256_si128(_r0);
+    outptr[0] = (unsigned short)_mm_extract_epi16(_v0, 0);
+    outptr[1 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 1);
+    outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
+    outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
+    outptr[4 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 4);
+    outptr[5 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 5);
+    outptr[6 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 6);
+    outptr[7 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 7);
+    __m128i _v1 = _mm256_extractf128_si256(_r0, 1);
+    outptr[8 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 0);
+    outptr[9 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 1);
+    outptr[10 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 2);
+    outptr[11 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 3);
+    outptr[12 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 4);
+    outptr[13 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 5);
+    outptr[14 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 6);
+    outptr[15 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 7);
+}
+#endif // __AVX512F__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose1x8_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+{
+    __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
+    __m128i _v0 = _r0;
+    outptr[0] = (unsigned short)_mm_extract_epi16(_v0, 0);
+    outptr[1 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 1);
+    outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
+    outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
+    outptr[4 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 4);
+    outptr[5 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 5);
+    outptr[6 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 6);
+    outptr[7 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 7);
+}
+#endif // __SSE2__
+
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose1x4_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+{
+    __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
+    __m128i _v0 = _r0;
+    outptr[0] = (unsigned short)_mm_extract_epi16(_v0, 0);
+    outptr[1 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 1);
+    outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
+    outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
+}
+#endif // __SSE2__
+
 // Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
 static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
@@ -312,9 +458,57 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
         }
     }
 #endif // __SSE2__
+#if __SSE2__
+    for (; i + 1 < rows; i += 2)
+    {
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
+        {
+            permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+#if __SSE2__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+#if __SSE2__
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+        for (; j < cols; j++)
+        {
+            outptr[j * outstride + i] = ptr[i * stride + j];
+            outptr[j * outstride + i + 1] = ptr[(i + 1) * stride + j];
+        }
+    }
+#endif // __SSE2__
     for (; i < rows; i++)
     {
-        for (int j = 0; j < cols; j++)
+        int j = 0;
+#if __AVX512F__
+        for (; j + 15 < cols; j += 16)
+        {
+            permute_transpose1x16_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __AVX512F__
+#if __SSE2__
+        for (; j + 7 < cols; j += 8)
+        {
+            permute_transpose1x8_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+#if __SSE2__
+        for (; j + 3 < cols; j += 4)
+        {
+            permute_transpose1x4_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+        }
+#endif // __SSE2__
+        for (; j < cols; j++)
         {
             outptr[j * outstride + i] = ptr[i * stride + j];
         }
