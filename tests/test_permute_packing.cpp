@@ -251,7 +251,9 @@ int main()
         {
             // Exercise pack16 on each output packing axis and unpacked spatial permutations.
             ret = test_permute_packing(op, 4, 16, 16, 16, 2, packs[p], bits, true, 2, true)
-                  || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true);
+                  || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true)
+                  || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, true, 1, true)
+                  || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, false, 1, true);
         }
     }
     // Exercise every rectangular tile transition and scalar edge with pack1 output.

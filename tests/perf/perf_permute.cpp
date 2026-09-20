@@ -35,7 +35,7 @@ static void perf_permute(const ncnn::Mat& a, int order_type)
 
 // Keep the requested input pack: perf_layer's automatic input packing would
 // otherwise replace a smaller input pack before the timed forward calls.
-static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads)
+static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads, int h = 64, bool packing = true)
 {
     ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Permute);
     if (!op)
@@ -48,15 +48,16 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
 
     ncnn::Option opt;
     opt.num_threads = threads;
+    opt.use_packing_layout = packing;
     ncnn::ParamDict pd;
     pd.set(0, order_type);
     op->load_param(pd);
     op->create_pipeline(opt);
     ncnn::Mat a;
     if (dims == 2)
-        a.create(w, 64, (size_t)(bits / 8 * elempack), elempack);
+        a.create(w, h, (size_t)(bits / 8 * elempack), elempack);
     else
-        a.create(w, 64, 4, (size_t)(bits / 8 * elempack), elempack);
+        a.create(w, h, 4, (size_t)(bits / 8 * elempack), elempack);
     memset(a.data, 0, a.total() * a.elemsize);
     ncnn::Mat out;
     for (int i = 0; i < 4; i++)
@@ -72,7 +73,7 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
     for (int i = 0; i < 32; i++)
         op->forward(a, out, opt);
     const double elapsed = (ncnn::get_current_time() - start) / 32;
-    fprintf(stderr, "Permute dims=%d w=%d h=64 c=%d bits=%d pack=%d->%d order=%d threads=%d %.4f ms\n", dims, w, a.c, bits, elempack, out.elempack, order_type, threads, elapsed);
+    fprintf(stderr, "Permute dims=%d w=%d h=%d c=%d bits=%d pack=%d->%d order=%d threads=%d %.4f ms\n", dims, w, h, a.c, bits, elempack, out.elempack, order_type, threads, elapsed);
     op->destroy_pipeline(opt);
     delete op;
     return 0;
@@ -109,6 +110,25 @@ static int perf_permute_net(int threads)
 
 int main(int argc, char** argv)
 {
+    if (argc > 1 && strcmp(argv[1], "--spatial") == 0)
+    {
+        const int sizes[] = {7, 32, 64, 257};
+        for (int bits = 16; bits <= 32; bits *= 2)
+        {
+            for (int pack = 4; pack <= permute_max_elempack(); pack *= 2)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int packing = 0; packing < 2; packing++)
+                    {
+                        if (perf_permute_packing(3, sizes[i], pack, bits, 1, 1, sizes[i], packing != 0) != 0)
+                            return -1;
+                    }
+                }
+            }
+        }
+        return 0;
+    }
     const bool packed_only = argc > 1 && strcmp(argv[1], "--packed") == 0;
     if (!packed_only)
     {
