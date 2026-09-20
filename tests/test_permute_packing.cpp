@@ -255,7 +255,7 @@ int main()
         }
     }
     // Exercise every rectangular tile transition and scalar edge with pack1 output.
-    const int edges[] = {1, 2, 3, 4, 7, 8, 15, 16, 17, 18, 19, 23, 24, 28, 31, 32, 33};
+    const int edges[] = {1, 2, 3, 4, 6, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33};
     const int edge_count = sizeof(edges) / sizeof(edges[0]);
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {

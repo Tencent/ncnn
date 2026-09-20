@@ -6,6 +6,22 @@
 // Contiguous tiles take only pointers; stride variants use scalar-element strides.
 
 #if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose4x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m128 _r0 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr)));
+    __m128 _r1 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + stride)));
+    __m128 _r2 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 2 * stride)));
+    __m128 _r3 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 3 * stride)));
+    __m128 _t0 = _mm_movelh_ps(_r0, _r1);
+    __m128 _t1 = _mm_movelh_ps(_r2, _r3);
+    __m128 _a0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(3, 1, 3, 1));
+    _mm_storeu_ps(outptr, _a0);
+    _mm_storeu_ps(outptr + outstride, _b0);
+}
+#endif // __SSE2__
+
+#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x4(const float* ptr, float* outptr)
 {
 #if __AVX512F__
@@ -109,6 +125,32 @@ static NCNN_FORCEINLINE void permute_transpose4x16_stride(const float* ptr, size
 #endif // __AVX512F__
 
 #if __AVX__
+static NCNN_FORCEINLINE void permute_transpose8x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m128 _r0 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr)));
+    __m128 _r1 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + stride)));
+    __m128 _r2 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 2 * stride)));
+    __m128 _r3 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 3 * stride)));
+    __m128 _t0 = _mm_movelh_ps(_r0, _r1);
+    __m128 _t1 = _mm_movelh_ps(_r2, _r3);
+    __m128 _a0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(3, 1, 3, 1));
+    __m128 _r4 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 4 * stride)));
+    __m128 _r5 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 5 * stride)));
+    __m128 _r6 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 6 * stride)));
+    __m128 _r7 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 7 * stride)));
+    __m128 _t2 = _mm_movelh_ps(_r4, _r5);
+    __m128 _t3 = _mm_movelh_ps(_r6, _r7);
+    __m128 _a1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(3, 1, 3, 1));
+    __m256 _a = _mm256_insertf128_ps(_mm256_castps128_ps256(_a0), _a1, 1);
+    __m256 _b = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
+    _mm256_storeu_ps(outptr, _a);
+    _mm256_storeu_ps(outptr + outstride, _b);
+}
+#endif // __AVX__
+
+#if __AVX__
 static NCNN_FORCEINLINE void permute_transpose8x4(const float* ptr, float* outptr)
 {
 #if __AVX512F__
@@ -181,6 +223,54 @@ static NCNN_FORCEINLINE void permute_transpose8x16_stride(const float* ptr, size
 {
     permute_transpose8x8_stride(ptr, stride, outptr, outstride);
     permute_transpose8x8_stride(ptr + 8, stride, outptr + 8 * outstride, outstride);
+}
+#endif // __AVX512F__
+
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose16x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+{
+    __m128 _r0 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr)));
+    __m128 _r1 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + stride)));
+    __m128 _r2 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 2 * stride)));
+    __m128 _r3 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 3 * stride)));
+    __m128 _t0 = _mm_movelh_ps(_r0, _r1);
+    __m128 _t1 = _mm_movelh_ps(_r2, _r3);
+    __m128 _a0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b0 = _mm_shuffle_ps(_t0, _t1, _MM_SHUFFLE(3, 1, 3, 1));
+    __m128 _r4 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 4 * stride)));
+    __m128 _r5 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 5 * stride)));
+    __m128 _r6 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 6 * stride)));
+    __m128 _r7 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 7 * stride)));
+    __m128 _t2 = _mm_movelh_ps(_r4, _r5);
+    __m128 _t3 = _mm_movelh_ps(_r6, _r7);
+    __m128 _a1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(3, 1, 3, 1));
+    __m128 _r8 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 8 * stride)));
+    __m128 _r9 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 9 * stride)));
+    __m128 _r10 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 10 * stride)));
+    __m128 _r11 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 11 * stride)));
+    __m128 _t4 = _mm_movelh_ps(_r8, _r9);
+    __m128 _t5 = _mm_movelh_ps(_r10, _r11);
+    __m128 _a2 = _mm_shuffle_ps(_t4, _t5, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b2 = _mm_shuffle_ps(_t4, _t5, _MM_SHUFFLE(3, 1, 3, 1));
+    __m128 _r12 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 12 * stride)));
+    __m128 _r13 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 13 * stride)));
+    __m128 _r14 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 14 * stride)));
+    __m128 _r15 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)(ptr + 15 * stride)));
+    __m128 _t6 = _mm_movelh_ps(_r12, _r13);
+    __m128 _t7 = _mm_movelh_ps(_r14, _r15);
+    __m128 _a3 = _mm_shuffle_ps(_t6, _t7, _MM_SHUFFLE(2, 0, 2, 0));
+    __m128 _b3 = _mm_shuffle_ps(_t6, _t7, _MM_SHUFFLE(3, 1, 3, 1));
+    __m512 _a = _mm512_castps128_ps512(_a0);
+    _a = _mm512_insertf32x4(_a, _a1, 1);
+    _a = _mm512_insertf32x4(_a, _a2, 2);
+    _a = _mm512_insertf32x4(_a, _a3, 3);
+    __m512 _b = _mm512_castps128_ps512(_b0);
+    _b = _mm512_insertf32x4(_b, _b1, 1);
+    _b = _mm512_insertf32x4(_b, _b2, 2);
+    _b = _mm512_insertf32x4(_b, _b3, 3);
+    _mm512_storeu_ps(outptr, _a);
+    _mm512_storeu_ps(outptr + outstride, _b);
 }
 #endif // __AVX512F__
 
@@ -390,6 +480,10 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
         {
             permute_transpose16x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
+        for (; j + 1 < cols; j += 2)
+        {
+            permute_transpose16x2_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
         for (; j < cols; j++)
         {
             for (int k = 0; k < 16; k++)
@@ -416,6 +510,10 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
         for (; j + 3 < cols; j += 4)
         {
             permute_transpose8x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 1 < cols; j += 2)
+        {
+            permute_transpose8x2_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j < cols; j++)
         {
@@ -445,6 +543,10 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
         for (; j + 3 < cols; j += 4)
         {
             permute_transpose4x4_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+        }
+        for (; j + 1 < cols; j += 2)
+        {
+            permute_transpose4x2_stride(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j < cols; j++)
         {
