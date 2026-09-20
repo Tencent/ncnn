@@ -446,6 +446,60 @@ static int test_deconvolution_load_param_text()
 }
 #endif // NCNN_VALIDATION
 
+static int test_deconvolution_nonoverlap()
+{
+    const int shapes[][4] = {
+        {1, 1, 1, 1},
+        {2, 2, 8, 3},
+        {2, 3, 4, 1},
+        {3, 2, 8, 3},
+        {3, 3, 16, 5},
+        {4, 4, 16, 7},
+        {1, 5, 3, 9},
+        {5, 1, 4, 3}};
+    for (int i = 0; i < 8; i++)
+    {
+        const int kw = shapes[i][0];
+        const int kh = shapes[i][1];
+        const int outch = shapes[i][2];
+        ncnn::Mat a = RandomMat(7, shapes[i][3], 8);
+        ncnn::ParamDict pd;
+        pd.set(0, outch);
+        pd.set(1, kw);
+        pd.set(11, kh);
+        pd.set(3, kw);
+        pd.set(13, kh);
+        pd.set(5, i % 2);
+        pd.set(6, outch * 8 * kw * kh);
+        pd.set(18, i % 2);
+        pd.set(19, (i / 2) % 2);
+        std::vector<ncnn::Mat> weights(2);
+        weights[0] = RandomMat(outch * 8 * kw * kh);
+        weights[1] = RandomMat(outch);
+        for (int threads = 1; threads <= 4; threads *= 4)
+        {
+            for (int packed = 0; packed < 2; packed++)
+            {
+                ncnn::Option opt;
+                opt.num_threads = threads;
+                opt.use_packing_layout = packed;
+                opt.use_sgemm_convolution = true;
+                opt.use_fp16_packed = false;
+                opt.use_fp16_storage = false;
+                opt.use_fp16_arithmetic = false;
+                opt.use_bf16_packed = false;
+                opt.use_bf16_storage = false;
+                if (test_layer_opt("Deconvolution", pd, weights, opt, a) != 0)
+                {
+                    fprintf(stderr, "test_deconvolution_nonoverlap failed case=%d threads=%d packed=%d\n", i, threads, packed);
+                    return -1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -453,10 +507,11 @@ int main()
     return 0
            || test_deconvolution_0()
            || test_deconvolution_1()
+           || test_deconvolution_nonoverlap()
            || test_deconvolution_activation_params_text()
 #if NCNN_VALIDATION
            || test_deconvolution_load_param()
            || test_deconvolution_load_param_text()
 #endif // NCNN_VALIDATION
-           ;
+        ;
 }

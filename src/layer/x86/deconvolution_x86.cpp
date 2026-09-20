@@ -224,6 +224,121 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (ret != 0)
             return ret;
 
+        if (dilation_w == 1 && dilation_h == 1 && stride_w == kernel_w && stride_h == kernel_h
+            && output_pad_right >= 0 && output_pad_bottom >= 0 && out_elempack <= 8)
+        {
+            const int plane_size = w * h * out_elempack;
+            const int h_tiles = std::min(h, (opt.num_threads + out_channels - 1) / out_channels);
+#pragma omp parallel for num_threads(opt.num_threads)
+            for (int task = 0; task < out_channels * h_tiles; task++)
+            {
+                const int p = task / h_tiles;
+                const int tile = task % h_tiles;
+                const int begin = h * tile / h_tiles;
+                const int end = h * (tile + 1) / h_tiles;
+                const float* src = top_col2im.row(p * maxk);
+                Mat outm = top_blob_bordered.channel(p);
+#if __AVX__
+                if (out_elempack == 8)
+                {
+                    const __m256 bias = bias_data.empty() ? _mm256_setzero_ps() : _mm256_loadu_ps((const float*)bias_data + p * 8);
+                    for (int i = begin; i < end; i++)
+                    {
+                        for (int u = 0; u < kernel_h; u++)
+                        {
+                            const float* s = src + u * kernel_w * plane_size + i * w * 8;
+                            float* dst = outm.row(i * kernel_h + u);
+                            if (kernel_w == 2)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    _mm256_store_ps(dst + j * 16, _mm256_add_ps(bias, _mm256_load_ps(s + j * 8)));
+                                    _mm256_store_ps(dst + j * 16 + 8, _mm256_add_ps(bias, _mm256_load_ps(s + plane_size + j * 8)));
+                                }
+                            }
+                            else
+                            {
+                                for (int j = 0; j < w; j++)
+                                    for (int v = 0; v < kernel_w; v++)
+                                        _mm256_store_ps(dst + (j * kernel_w + v) * 8, _mm256_add_ps(bias, _mm256_load_ps(s + v * plane_size + j * 8)));
+                            }
+                            for (int j = w * kernel_w; j < outw; j++)
+                                _mm256_store_ps(dst + j * 8, bias);
+                        }
+                    }
+                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
+                        for (int j = 0; j < outw; j++)
+                            _mm256_store_ps(outm.row(i) + j * 8, bias);
+                    continue;
+                }
+#endif
+#if __SSE2__
+                if (out_elempack == 4)
+                {
+                    const __m128 bias = bias_data.empty() ? _mm_setzero_ps() : _mm_loadu_ps((const float*)bias_data + p * 4);
+                    for (int i = begin; i < end; i++)
+                    {
+                        for (int u = 0; u < kernel_h; u++)
+                        {
+                            const float* s = src + u * kernel_w * plane_size + i * w * 4;
+                            float* dst = outm.row(i * kernel_h + u);
+                            if (kernel_w == 2)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    _mm_store_ps(dst + j * 8, _mm_add_ps(bias, _mm_load_ps(s + j * 4)));
+                                    _mm_store_ps(dst + j * 8 + 4, _mm_add_ps(bias, _mm_load_ps(s + plane_size + j * 4)));
+                                }
+                            }
+                            else
+                            {
+                                for (int j = 0; j < w; j++)
+                                    for (int v = 0; v < kernel_w; v++)
+                                        _mm_store_ps(dst + (j * kernel_w + v) * 4, _mm_add_ps(bias, _mm_load_ps(s + v * plane_size + j * 4)));
+                            }
+                            for (int j = w * kernel_w; j < outw; j++)
+                                _mm_store_ps(dst + j * 4, bias);
+                        }
+                    }
+                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
+                        for (int j = 0; j < outw; j++)
+                            _mm_store_ps(outm.row(i) + j * 4, bias);
+                    continue;
+                }
+#endif
+                {
+                    const float bias = bias_data.empty() ? 0.f : bias_data[p];
+                    for (int i = begin; i < end; i++)
+                    {
+                        for (int u = 0; u < kernel_h; u++)
+                        {
+                            const float* s = src + u * kernel_w * plane_size + i * w;
+                            float* dst = outm.row(i * kernel_h + u);
+                            if (kernel_w == 2)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    dst[j * 2] = bias + s[j];
+                                    dst[j * 2 + 1] = bias + s[plane_size + j];
+                                }
+                            }
+                            else
+                            {
+                                for (int j = 0; j < w; j++)
+                                    for (int v = 0; v < kernel_w; v++)
+                                        dst[j * kernel_w + v] = bias + s[v * plane_size + j];
+                            }
+                            for (int j = w * kernel_w; j < outw; j++)
+                                dst[j] = bias;
+                        }
+                    }
+                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
+                        for (int j = 0; j < outw; j++)
+                            outm.row(i)[j] = bias;
+                }
+            }
+        }
+        else
         {
             // col2im
             const int gap = (outw * stride_h - w * stride_w) * out_elempack;
