@@ -283,14 +283,14 @@ jobs:
       uses: actions/cache@v5
       with:
         path: swiftshader-install
-        key: swiftshader-macos-arm64-install-20251004
+        key: swiftshader-macos-arm64-install-20260917
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
+        ref: 1e80438d2b93ef36a7c05f8d2b81233bac0e3d16
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
