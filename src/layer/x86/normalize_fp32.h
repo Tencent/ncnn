@@ -63,8 +63,7 @@ static void normalize_coeffs(float* square_sum, int size, float eps, int eps_mod
         {
             __m512 _ssum = _mm512_loadu_ps(ptr);
             __m512 _eps = _mm512_set1_ps(eps);
-            __m512 _one = _mm512_set1_ps(1.f);
-            _ssum = _mm512_div_ps(_one, _mm512_max_ps(_eps, _mm512_sqrt_ps(_ssum)));
+            _ssum = _mm512_rcp_nr_ps(_mm512_max_ps(_eps, _mm512_sqrt_ps(_ssum)));
             _mm512_storeu_ps(ptr, _ssum);
             ptr += 16;
         }
@@ -73,8 +72,7 @@ static void normalize_coeffs(float* square_sum, int size, float eps, int eps_mod
         {
             __m256 _ssum = _mm256_loadu_ps(ptr);
             __m256 _eps = _mm256_set1_ps(eps);
-            __m256 _one = _mm256_set1_ps(1.f);
-            _ssum = _mm256_div_ps(_one, _mm256_max_ps(_eps, _mm256_sqrt_ps(_ssum)));
+            _ssum = _mm256_rcp_nr_ps(_mm256_max_ps(_eps, _mm256_sqrt_ps(_ssum)));
             _mm256_storeu_ps(ptr, _ssum);
             ptr += 8;
         }
@@ -83,8 +81,7 @@ static void normalize_coeffs(float* square_sum, int size, float eps, int eps_mod
         {
             __m128 _ssum = _mm_loadu_ps(ptr);
             __m128 _eps = _mm_set1_ps(eps);
-            __m128 _one = _mm_set1_ps(1.f);
-            _ssum = _mm_div_ps(_one, _mm_max_ps(_eps, _mm_sqrt_ps(_ssum)));
+            _ssum = _mm_rcp_nr_ps(_mm_max_ps(_eps, _mm_sqrt_ps(_ssum)));
             _mm_storeu_ps(ptr, _ssum);
             ptr += 4;
         }
