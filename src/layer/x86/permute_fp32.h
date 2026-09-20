@@ -133,6 +133,122 @@ static NCNN_FORCEINLINE void permute_transpose16x16_fp32(const float* ptr, size_
 }
 #endif // __AVX512F__
 
+// Both matrices are contiguous: input row stride is cols, output row stride is rows.
+#if __SSE2__
+static NCNN_FORCEINLINE void permute_transpose4x4_contiguous_fp32(const float* ptr, float* outptr)
+{
+#if __AVX512F__
+    const __m512i _index = _mm512_setr_epi32(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
+    __m512i _v = _mm512_loadu_si512(ptr);
+    _v = _mm512_permutexvar_epi32(_index, _v);
+    _mm512_storeu_si512(outptr, _v);
+#else
+    __m128 _r0 = _mm_loadu_ps(ptr);
+    __m128 _r1 = _mm_loadu_ps(ptr + 4);
+    __m128 _r2 = _mm_loadu_ps(ptr + 8);
+    __m128 _r3 = _mm_loadu_ps(ptr + 12);
+    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+    _mm_storeu_ps(outptr, _r0);
+    _mm_storeu_ps(outptr + 4, _r1);
+    _mm_storeu_ps(outptr + 8, _r2);
+    _mm_storeu_ps(outptr + 12, _r3);
+#endif // __AVX512F__
+}
+#endif // __SSE2__
+
+#if __AVX__
+static NCNN_FORCEINLINE void permute_transpose4x8_contiguous_fp32(const float* ptr, float* outptr)
+{
+#if __AVX512F__
+    __m512i _r0 = _mm512_loadu_si512(ptr);
+    __m512i _r1 = _mm512_loadu_si512(ptr + 16);
+    const __m512i _index0 = _mm512_setr_epi32(0, 8, 16, 24, 1, 9, 17, 25, 2, 10, 18, 26, 3, 11, 19, 27);
+    const __m512i _index1 = _mm512_setr_epi32(4, 12, 20, 28, 5, 13, 21, 29, 6, 14, 22, 30, 7, 15, 23, 31);
+    _mm512_storeu_si512(outptr, _mm512_permutex2var_epi32(_r0, _index0, _r1));
+    _mm512_storeu_si512(outptr + 16, _mm512_permutex2var_epi32(_r0, _index1, _r1));
+#else
+    __m256 _r0 = _mm256_loadu_ps(ptr);
+    __m256 _r1 = _mm256_loadu_ps(ptr + 8);
+    __m256 _r2 = _mm256_loadu_ps(ptr + 16);
+    __m256 _r3 = _mm256_loadu_ps(ptr + 24);
+    __m256 _t0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _t1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _t2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _t3 = _mm256_unpackhi_ps(_r2, _r3);
+    _r0 = _mm256_shuffle_ps(_t0, _t2, _MM_SHUFFLE(1, 0, 1, 0));
+    _r1 = _mm256_shuffle_ps(_t0, _t2, _MM_SHUFFLE(3, 2, 3, 2));
+    _r2 = _mm256_shuffle_ps(_t1, _t3, _MM_SHUFFLE(1, 0, 1, 0));
+    _r3 = _mm256_shuffle_ps(_t1, _t3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 _a = _mm256_permute2f128_ps(_r0, _r1, 0x20);
+    __m256 _b = _mm256_permute2f128_ps(_r2, _r3, 0x20);
+    __m256 _c = _mm256_permute2f128_ps(_r0, _r1, 0x31);
+    __m256 _d = _mm256_permute2f128_ps(_r2, _r3, 0x31);
+    _r0 = _a;
+    _r1 = _b;
+    _r2 = _c;
+    _r3 = _d;
+    _mm256_storeu_ps(outptr, _r0);
+    _mm256_storeu_ps(outptr + 8, _r1);
+    _mm256_storeu_ps(outptr + 16, _r2);
+    _mm256_storeu_ps(outptr + 24, _r3);
+#endif // __AVX512F__
+}
+#endif // __AVX__
+
+#if __AVX__
+static NCNN_FORCEINLINE void permute_transpose8x4_contiguous_fp32(const float* ptr, float* outptr)
+{
+#if __AVX512F__
+    __m512i _r0 = _mm512_loadu_si512(ptr);
+    __m512i _r1 = _mm512_loadu_si512(ptr + 16);
+    const __m512i _index0 = _mm512_setr_epi32(0, 4, 8, 12, 16, 20, 24, 28, 1, 5, 9, 13, 17, 21, 25, 29);
+    const __m512i _index1 = _mm512_setr_epi32(2, 6, 10, 14, 18, 22, 26, 30, 3, 7, 11, 15, 19, 23, 27, 31);
+    _mm512_storeu_si512(outptr, _mm512_permutex2var_epi32(_r0, _index0, _r1));
+    _mm512_storeu_si512(outptr + 16, _mm512_permutex2var_epi32(_r0, _index1, _r1));
+#else
+    __m256 _r0 = _mm256_loadu_ps(ptr);
+    __m256 _r1 = _mm256_loadu_ps(ptr + 8);
+    __m256 _r2 = _mm256_loadu_ps(ptr + 16);
+    __m256 _r3 = _mm256_loadu_ps(ptr + 24);
+    __m256 _a = _mm256_permute2f128_ps(_r0, _r2, 0x20);
+    __m256 _b = _mm256_permute2f128_ps(_r0, _r2, 0x31);
+    __m256 _c = _mm256_permute2f128_ps(_r1, _r3, 0x20);
+    __m256 _d = _mm256_permute2f128_ps(_r1, _r3, 0x31);
+    _r0 = _a;
+    _r1 = _b;
+    _r2 = _c;
+    _r3 = _d;
+    __m256 _t0 = _mm256_unpacklo_ps(_r0, _r1);
+    __m256 _t1 = _mm256_unpackhi_ps(_r0, _r1);
+    __m256 _t2 = _mm256_unpacklo_ps(_r2, _r3);
+    __m256 _t3 = _mm256_unpackhi_ps(_r2, _r3);
+    _r0 = _mm256_shuffle_ps(_t0, _t2, _MM_SHUFFLE(1, 0, 1, 0));
+    _r1 = _mm256_shuffle_ps(_t0, _t2, _MM_SHUFFLE(3, 2, 3, 2));
+    _r2 = _mm256_shuffle_ps(_t1, _t3, _MM_SHUFFLE(1, 0, 1, 0));
+    _r3 = _mm256_shuffle_ps(_t1, _t3, _MM_SHUFFLE(3, 2, 3, 2));
+    _mm256_storeu_ps(outptr, _r0);
+    _mm256_storeu_ps(outptr + 8, _r1);
+    _mm256_storeu_ps(outptr + 16, _r2);
+    _mm256_storeu_ps(outptr + 24, _r3);
+#endif // __AVX512F__
+}
+#endif // __AVX__
+
+#if __AVX512F__
+static NCNN_FORCEINLINE void permute_transpose4x16_contiguous_fp32(const float* ptr, float* outptr)
+{
+    __m512 _r0 = _mm512_loadu_ps(ptr);
+    __m512 _r1 = _mm512_loadu_ps(ptr + 16);
+    __m512 _r2 = _mm512_loadu_ps(ptr + 32);
+    __m512 _r3 = _mm512_loadu_ps(ptr + 48);
+    transpose16x4_ps(_r0, _r1, _r2, _r3);
+    _mm512_storeu_ps(outptr, _r0);
+    _mm512_storeu_ps(outptr + 16, _r1);
+    _mm512_storeu_ps(outptr + 32, _r2);
+    _mm512_storeu_ps(outptr + 48, _r3);
+}
+#endif // __AVX512F__
+
 static void permute_transpose_tail_fp32(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
     for (int i = 0; i < rows; i += 4)
@@ -287,7 +403,7 @@ static void permute_transpose_pack4to4_fp32(const float* ptr, size_t stride, flo
         {
             const float* p = ptr + (y / 4) * stride + x * 4;
             float* out = outptr + (x / 4) * outstride + y * 4;
-            permute_transpose4x4_fp32(p, 4, out, 4);
+            permute_transpose4x4_contiguous_fp32(p, out);
         }
     }
 }
@@ -302,7 +418,7 @@ static void permute_transpose_pack4to8_fp32(const float* ptr, size_t stride, flo
         {
             const float* p = ptr + (y / 4) * stride + x * 4;
             float* out = outptr + (x / 8) * outstride + y * 8;
-            permute_transpose8x4_fp32(p, 4, out, 8);
+            permute_transpose8x4_contiguous_fp32(p, out);
         }
     }
 }
@@ -348,7 +464,7 @@ static void permute_transpose_pack8to4_fp32(const float* ptr, size_t stride, flo
         {
             const float* p = ptr + (y / 8) * stride + x * 8;
             float* out = outptr + (x / 4) * outstride + y * 4;
-            permute_transpose4x8_fp32(p, 8, out, 4);
+            permute_transpose4x8_contiguous_fp32(p, out);
         }
     }
 }
@@ -409,7 +525,7 @@ static void permute_transpose_pack16to4_fp32(const float* ptr, size_t stride, fl
         {
             const float* p = ptr + (y / 16) * stride + x * 16;
             float* out = outptr + (x / 4) * outstride + y * 4;
-            permute_transpose4x16_fp32(p, 16, out, 4);
+            permute_transpose4x16_contiguous_fp32(p, out);
         }
     }
 }
@@ -877,6 +993,25 @@ static void permute3d_pack4to1_fp32(const float* ptr, float* outptr, int w, int 
 #if __SSE2__
 static void permute3d_pack4to4_fp32(const float* ptr, float* outptr, int w, int h, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep, size_t outhstep)
 {
+    if (hstep == 4 && outcstep == 4)
+    {
+        for (int q = 0; q < h / 4; q++)
+        {
+            for (int c = 0; c < channels; c++)
+            {
+                const float* p = ptr + c * cstep + q * 4 * hstep;
+                float* out = outptr + q * outhstep + c * 4 * outcstep;
+                for (int x = 0; x < w; x++)
+                {
+                    permute_transpose4x4_contiguous_fp32(p, out);
+                    p += wstep;
+                    out += outwstep;
+                }
+            }
+        }
+        return;
+    }
+
     for (int q = 0; q < h / 4; q++)
     {
         for (int c = 0; c < channels; c++)
@@ -897,6 +1032,25 @@ static void permute3d_pack4to4_fp32(const float* ptr, float* outptr, int w, int 
 #if __AVX__
 static void permute3d_pack4to8_fp32(const float* ptr, float* outptr, int w, int h, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep, size_t outhstep)
 {
+    if (hstep == 4 && outcstep == 8)
+    {
+        for (int q = 0; q < h / 8; q++)
+        {
+            for (int c = 0; c < channels; c++)
+            {
+                const float* p = ptr + c * cstep + q * 8 * hstep;
+                float* out = outptr + q * outhstep + c * 4 * outcstep;
+                for (int x = 0; x < w; x++)
+                {
+                    permute_transpose8x4_contiguous_fp32(p, out);
+                    p += wstep;
+                    out += outwstep;
+                }
+            }
+        }
+        return;
+    }
+
     for (int q = 0; q < h / 8; q++)
     {
         for (int c = 0; c < channels; c++)
@@ -971,6 +1125,25 @@ static void permute3d_pack8to1_fp32(const float* ptr, float* outptr, int w, int 
 #if __AVX__
 static void permute3d_pack8to4_fp32(const float* ptr, float* outptr, int w, int h, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep, size_t outhstep)
 {
+    if (hstep == 8 && outcstep == 4)
+    {
+        for (int q = 0; q < h / 4; q++)
+        {
+            for (int c = 0; c < channels; c++)
+            {
+                const float* p = ptr + c * cstep + q * 4 * hstep;
+                float* out = outptr + q * outhstep + c * 8 * outcstep;
+                for (int x = 0; x < w; x++)
+                {
+                    permute_transpose4x8_contiguous_fp32(p, out);
+                    p += wstep;
+                    out += outwstep;
+                }
+            }
+        }
+        return;
+    }
+
     for (int q = 0; q < h / 4; q++)
     {
         for (int c = 0; c < channels; c++)
@@ -1065,6 +1238,25 @@ static void permute3d_pack16to1_fp32(const float* ptr, float* outptr, int w, int
 #if __AVX512F__
 static void permute3d_pack16to4_fp32(const float* ptr, float* outptr, int w, int h, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep, size_t outhstep)
 {
+    if (hstep == 16 && outcstep == 4)
+    {
+        for (int q = 0; q < h / 4; q++)
+        {
+            for (int c = 0; c < channels; c++)
+            {
+                const float* p = ptr + c * cstep + q * 4 * hstep;
+                float* out = outptr + q * outhstep + c * 16 * outcstep;
+                for (int x = 0; x < w; x++)
+                {
+                    permute_transpose4x16_contiguous_fp32(p, out);
+                    p += wstep;
+                    out += outwstep;
+                }
+            }
+        }
+        return;
+    }
+
     for (int q = 0; q < h / 4; q++)
     {
         for (int c = 0; c < channels; c++)

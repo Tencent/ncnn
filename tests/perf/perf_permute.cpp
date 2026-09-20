@@ -35,7 +35,7 @@ static void perf_permute(const ncnn::Mat& a, int order_type)
 
 // Keep the requested input pack: perf_layer's automatic input packing would
 // otherwise replace a smaller input pack before the timed forward calls.
-static int perf_permute_packing(int elempack, int bits, int order_type, int threads)
+static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads)
 {
     ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Permute);
     if (!op)
@@ -52,7 +52,11 @@ static int perf_permute_packing(int elempack, int bits, int order_type, int thre
     pd.set(0, order_type);
     op->load_param(pd);
     op->create_pipeline(opt);
-    ncnn::Mat a(64, 64, 4, (size_t)(bits / 8 * elempack), elempack);
+    ncnn::Mat a;
+    if (dims == 2)
+        a.create(w, 64, (size_t)(bits / 8 * elempack), elempack);
+    else
+        a.create(w, 64, 4, (size_t)(bits / 8 * elempack), elempack);
     memset(a.data, 0, a.total() * a.elemsize);
     ncnn::Mat out;
     for (int i = 0; i < 4; i++)
@@ -68,7 +72,7 @@ static int perf_permute_packing(int elempack, int bits, int order_type, int thre
     for (int i = 0; i < 32; i++)
         op->forward(a, out, opt);
     const double elapsed = (ncnn::get_current_time() - start) / 32;
-    fprintf(stderr, "Permute (64,64,%d) bits=%d pack=%d->%d order=%d threads=%d %.4f ms\n", 4 * elempack, bits, elempack, out.elempack, order_type, threads, elapsed);
+    fprintf(stderr, "Permute dims=%d w=%d h=64 c=%d bits=%d pack=%d->%d order=%d threads=%d %.4f ms\n", dims, w, a.c, bits, elempack, out.elempack, order_type, threads, elapsed);
     op->destroy_pipeline(opt);
     delete op;
     return 0;
@@ -124,9 +128,15 @@ int main(int argc, char** argv)
         {
             for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(); p++)
             {
+                const int widths[] = {12, 24, 32};
+                for (int i = 0; i < 3; i++)
+                {
+                    if (perf_permute_packing(2, widths[i], packs[p], bits, 1, threads) != 0)
+                        return -1;
+                }
                 for (int order = 0; order < 6; order++)
                 {
-                    if (perf_permute_packing(packs[p], bits, order, threads) != 0)
+                    if (perf_permute_packing(3, 64, packs[p], bits, order, threads) != 0)
                         return -1;
                 }
             }
