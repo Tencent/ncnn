@@ -26,8 +26,8 @@ Permute_x86::Permute_x86()
 #endif
 }
 
-// Split only when the existing channel/slice tasks cannot occupy the threads.
-// Keep each task large enough to amortize scheduling and align output segments.
+// split only when the existing channel/slice tasks cannot occupy the threads
+// keep each task large enough to amortize scheduling and align output segments
 static int permute_block_size(int size, size_t bytes_per_element, int groups, int num_threads, int alignment)
 {
     if (num_threads <= 1 || groups >= num_threads)
@@ -40,8 +40,9 @@ static int permute_block_size(int size, size_t bytes_per_element, int groups, in
     return std::min(block, size);
 }
 
-// Complete matrix traversal. Each output row contains rows contiguous blocks.
-// Serial tile kernels never create OpenMP teams.
+// complete matrix traversal
+// each output row contains rows contiguous blocks
+// serial tile kernels never create OpenMP teams
 static void permute_transpose_matrix(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size, int num_threads)
 {
     if (num_threads == 1)
@@ -50,7 +51,7 @@ static void permute_transpose_matrix(const float* ptr, size_t stride, float* out
         return;
     }
 
-    // A few long contiguous blocks can be split without changing their order.
+    // a few long contiguous blocks can be split without changing their order
     if ((size_t)rows * cols <= (size_t)num_threads && size * sizeof(float) >= 16384)
     {
         const int block = permute_block_size(size, sizeof(float), rows * cols, num_threads, 64 / sizeof(float));
@@ -77,14 +78,14 @@ static void permute_transpose_matrix(const float* ptr, size_t stride, float* out
     {
         for (int i = 0; i < rows; i += row_block)
         {
-            permute_transpose_blocks(ptr + i * stride + (size_t)j * size, stride, outptr + j * outstride + (size_t)i * size, outstride,
-                                     std::min(row_block, rows - i), std::min(col_block, cols - j), size);
+            permute_transpose_blocks(ptr + i * stride + (size_t)j * size, stride, outptr + j * outstride + (size_t)i * size, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j), size);
         }
     }
 }
 
-// Complete matrix traversal. Each output row contains rows contiguous blocks.
-// Serial tile kernels never create OpenMP teams.
+// complete matrix traversal
+// each output row contains rows contiguous blocks
+// serial tile kernels never create OpenMP teams
 static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int num_threads)
 {
     if (num_threads == 1)
@@ -93,7 +94,7 @@ static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 
-    // A few long contiguous blocks can be split without changing their order.
+    // a few long contiguous blocks can be split without changing their order
     if ((size_t)rows * cols <= (size_t)num_threads && size * sizeof(unsigned short) >= 16384)
     {
         const int block = permute_block_size(size, sizeof(unsigned short), rows * cols, num_threads, 64 / sizeof(unsigned short));
@@ -120,8 +121,7 @@ static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size
     {
         for (int i = 0; i < rows; i += row_block)
         {
-            permute_transpose_blocks_bf16s_fp16s(ptr + i * stride + (size_t)j * size, stride, outptr + j * outstride + (size_t)i * size, outstride,
-                                                 std::min(row_block, rows - i), std::min(col_block, cols - j), size);
+            permute_transpose_blocks_bf16s_fp16s(ptr + i * stride + (size_t)j * size, stride, outptr + j * outstride + (size_t)i * size, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j), size);
         }
     }
 }
@@ -278,7 +278,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             {
                 if (w < 32)
                 {
-                    // Short blocks include the w == 1 matrix-transpose case.
+                    // short blocks include the w == 1 matrix-transpose case
                     permute_transpose_matrix(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, h, w, num_threads);
                     return 0;
                 }
@@ -312,7 +312,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     {
                         const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                         float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                        // Exchange c and h, keeping w as the inner spatial axis.
+                        // exchange c and h, keeping w as the inner spatial axis
                         permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                     }
@@ -341,7 +341,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // w and h stay adjacent in the output; retain input channel padding.
+                // w and h stay adjacent in the output; retain input channel padding
                 if (top_blob.cstep == (size_t)w * channels && (size_t)w * h <= INT_MAX)
                 {
                     permute_transpose_matrix(bottom_blob, bottom_blob.cstep, top_blob, channels, channels, w * h, 1, num_threads);
@@ -359,8 +359,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                             float* outptr = (float*)top_blob + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
-                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, std::min(row_block, channels - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -378,7 +377,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     {
                         const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                         float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                        // Exchange c and h, keeping w as the inner spatial axis.
+                        // exchange c and h, keeping w as the inner spatial axis
                         permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                     }
@@ -407,7 +406,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // c and h stay adjacent in the input; retain output channel padding.
+                // c and h stay adjacent in the input; retain output channel padding
                 if (bottom_blob.cstep == (size_t)w * h && (size_t)channels * h <= INT_MAX)
                 {
                     permute_transpose_matrix(bottom_blob, w, top_blob, top_blob.cstep, channels * h, w, 1, num_threads);
@@ -425,8 +424,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + (size_t)i * ((size_t)w) + j;
                             float* outptr = (float*)top_blob + q * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep,
-                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                            permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -444,7 +442,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     {
                         const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                         float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                        // Exchange c and w, keeping h as the inner spatial axis.
+                        // exchange c and w, keeping h as the inner spatial axis
                         permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                     }
@@ -473,7 +471,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // With w or h removed, the remaining operation is one c/spatial transpose.
+                // with w or h removed, the remaining operation is one c/spatial transpose
                 if (w == 1 || h == 1)
                 {
                     permute_transpose_matrix(bottom_blob, bottom_blob.cstep, top_blob, w == 1 ? (size_t)channels : top_blob.cstep, channels, w * h, 1, num_threads);
@@ -497,8 +495,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                             float* outptr = (float*)top_blob + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -516,7 +513,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     {
                         const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                         float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                        // Exchange c and w, keeping h as the inner spatial axis.
+                        // exchange c and w, keeping h as the inner spatial axis
                         permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                     }
@@ -658,8 +655,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob.channel(q) + i * ((size_t)w * h * elempack) + (size_t)j * (w * elempack);
                                 float* outptr = (float*)top_blob.channel(q) + j * ((size_t)w * d * elempack) + (size_t)i * (w * elempack);
-                                permute_transpose_blocks(ptr, (size_t)w * h * elempack, outptr, (size_t)w * d * elempack,
-                                                         std::min(row_block, d - i), std::min(col_block, h - j), w * elempack);
+                                permute_transpose_blocks(ptr, (size_t)w * h * elempack, outptr, (size_t)w * d * elempack, std::min(row_block, d - i), std::min(col_block, h - j), w * elempack);
                             }
                         }
                     }
@@ -878,12 +874,12 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // w and h stay adjacent on both sides.
+                // w and h stay adjacent on both sides
                 permute_transpose_matrix(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, d, w * h, num_threads);
                 return 0;
             }
 
-            // w and h stay adjacent on both sides.
+            // w and h stay adjacent on both sides
             const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -936,8 +932,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w,
-                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -960,7 +955,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                                 float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and d, keeping h as the inner spatial axis.
+                                // exchange c and d, keeping h as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                           (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -983,7 +978,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -1050,8 +1045,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
                                 float* outptr = (float*)top_blob + z * top_blob.cstep + j * ((size_t)channels * w) + (size_t)i * (w);
-                                permute_transpose_blocks(ptr, bottom_blob.cstep, outptr, (size_t)channels * w,
-                                                         std::min(row_block, channels - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks(ptr, bottom_blob.cstep, outptr, (size_t)channels * w, std::min(row_block, channels - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -1072,7 +1066,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -1113,15 +1107,14 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + (size_t)q * w * h + (size_t)i * (bottom_blob.cstep) + j;
                             float* outptr = (float*)top_blob.channel(q) + (size_t)j * (channels) + i;
-                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, channels,
-                                                    std::min(row_block, channels - i), std::min(col_block, w * h - j));
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, channels, std::min(row_block, channels - i), std::min(col_block, w * h - j));
                         }
                     }
                 }
                 return 0;
             }
 
-            // w and h stay adjacent on both sides.
+            // w and h stay adjacent on both sides
             const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -1174,8 +1167,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h,
-                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1198,7 +1190,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                                 float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and d, keeping h as the inner spatial axis.
+                                // exchange c and d, keeping h as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                           (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -1221,7 +1213,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -1264,8 +1256,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 float* outptr = (float*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
-                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1286,7 +1277,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -1316,7 +1307,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // c and d have the same order on both sides; merge only without input padding.
+                // c and d have the same order on both sides; merge only without input padding
                 if (bottom_blob.cstep == (size_t)w * h * d && (size_t)channels * d <= INT_MAX)
                 {
                     permute_transpose_matrix(bottom_blob, (size_t)w * h, top_blob, top_blob.cstep, channels * d, h, w, num_threads);
@@ -1360,8 +1351,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + i * ((size_t)w * h) + (size_t)j * (w);
                                 float* outptr = (float*)top_blob + (size_t)q * d * w + j * (top_blob.cstep) + (size_t)i * (w);
-                                permute_transpose_blocks(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                         std::min(row_block, d - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -1382,7 +1372,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -1425,8 +1415,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w,
-                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1449,7 +1438,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and h, keeping d as the inner spatial axis.
+                                // exchange c and h, keeping d as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                           (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -1472,7 +1461,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -1539,8 +1528,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
                                 float* outptr = (float*)top_blob + (size_t)z * channels * w + j * (top_blob.cstep) + (size_t)i * (w);
-                                permute_transpose_blocks(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                         std::min(row_block, channels - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -1561,7 +1549,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -1604,8 +1592,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
-                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1626,7 +1613,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -1669,8 +1656,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h,
-                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1693,7 +1679,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and h, keeping d as the inner spatial axis.
+                                // exchange c and h, keeping d as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                           (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -1716,7 +1702,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -1759,8 +1745,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
-                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1781,7 +1766,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                       elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -1822,15 +1807,14 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)i * (w) + j;
                             float* outptr = (float*)top_blob + (size_t)q * h * d + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1(ptr, w, outptr, top_blob.cstep,
-                                                    std::min(row_block, h * d - i), std::min(col_block, w - j));
+                            permute_transpose_pack1(ptr, w, outptr, top_blob.cstep, std::min(row_block, h * d - i), std::min(col_block, w - j));
                         }
                     }
                 }
                 return 0;
             }
 
-// h and d stay adjacent on both sides.
+            // h and d stay adjacent on both sides
             const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -1883,8 +1867,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1907,7 +1890,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and w, keeping d as the inner spatial axis.
+                                // exchange c and w, keeping d as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                           (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -1930,7 +1913,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                       (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -1973,8 +1956,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep,
-                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -1995,7 +1977,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                       (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -2038,8 +2020,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -2047,7 +2028,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return 0;
             }
 
-// h and d stay adjacent on both sides.
+            // h and d stay adjacent on both sides
             const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -2100,8 +2081,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -2124,7 +2104,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and w, keeping d as the inner spatial axis.
+                                // exchange c and w, keeping d as the inner spatial axis
                                 permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                           (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -2147,7 +2127,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                       (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -2190,8 +2170,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                             {
                                 const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -2212,7 +2191,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         {
                             const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                       (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -2375,7 +2354,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             {
                 if (w < 64)
                 {
-                    // Short blocks include the w == 1 matrix-transpose case.
+                    // short blocks include the w == 1 matrix-transpose case
                     permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, h, w, num_threads);
                     return 0;
                 }
@@ -2409,7 +2388,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                         unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                        // Exchange c and h, keeping w as the inner spatial axis.
+                        // exchange c and h, keeping w as the inner spatial axis
                         permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                     }
@@ -2438,7 +2417,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // w and h stay adjacent in the output; retain input channel padding.
+                // w and h stay adjacent in the output; retain input channel padding
                 if (top_blob.cstep == (size_t)w * channels && (size_t)w * h <= INT_MAX)
                 {
                     permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, channels, channels, w * h, 1, num_threads);
@@ -2456,8 +2435,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                             unsigned short* outptr = (unsigned short*)top_blob + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
-                                                                std::min(row_block, channels - i), std::min(col_block, w - j));
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, std::min(row_block, channels - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -2475,7 +2453,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                         unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                        // Exchange c and h, keeping w as the inner spatial axis.
+                        // exchange c and h, keeping w as the inner spatial axis
                         permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                     }
@@ -2504,7 +2482,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // c and h stay adjacent in the input; retain output channel padding.
+                // c and h stay adjacent in the input; retain output channel padding
                 if (bottom_blob.cstep == (size_t)w * h && (size_t)channels * h <= INT_MAX)
                 {
                     permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, top_blob.cstep, channels * h, w, 1, num_threads);
@@ -2522,8 +2500,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + (size_t)i * ((size_t)w) + j;
                             unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep,
-                                                                std::min(row_block, h - i), std::min(col_block, w - j));
+                            permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -2541,7 +2518,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                         unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                        // Exchange c and w, keeping h as the inner spatial axis.
+                        // exchange c and w, keeping h as the inner spatial axis
                         permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                     }
@@ -2570,7 +2547,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // With w or h removed, the remaining operation is one c/spatial transpose.
+                // with w or h removed, the remaining operation is one c/spatial transpose
                 if (w == 1 || h == 1)
                 {
                     permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, w == 1 ? (size_t)channels : top_blob.cstep, channels, w * h, 1, num_threads);
@@ -2594,8 +2571,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                             unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                                std::min(row_block, channels - i), std::min(col_block, w - j));
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                         }
                     }
                 }
@@ -2613,7 +2589,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                         unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                        // Exchange c and w, keeping h as the inner spatial axis.
+                        // exchange c and w, keeping h as the inner spatial axis
                         permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                     }
@@ -2755,8 +2731,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + i * ((size_t)w * h * elempack) + (size_t)j * (w * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + j * ((size_t)w * d * elempack) + (size_t)i * (w * elempack);
-                                permute_transpose_blocks_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)w * d * elempack,
-                                                                     std::min(row_block, d - i), std::min(col_block, h - j), w * elempack);
+                                permute_transpose_blocks_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)w * d * elempack, std::min(row_block, d - i), std::min(col_block, h - j), w * elempack);
                             }
                         }
                     }
@@ -2975,12 +2950,12 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // w and h stay adjacent on both sides.
+                // w and h stay adjacent on both sides
                 permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, d, w * h, num_threads);
                 return 0;
             }
 
-            // w and h stay adjacent on both sides.
+            // w and h stay adjacent on both sides
             const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -3033,8 +3008,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w,
-                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3057,7 +3031,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and d, keeping h as the inner spatial axis.
+                                // exchange c and d, keeping h as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                       (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -3080,7 +3054,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -3147,8 +3121,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
                                 unsigned short* outptr = (unsigned short*)top_blob + z * top_blob.cstep + j * ((size_t)channels * w) + (size_t)i * (w);
-                                permute_transpose_blocks_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)channels * w,
-                                                                     std::min(row_block, channels - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)channels * w, std::min(row_block, channels - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -3169,7 +3142,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -3210,15 +3183,14 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * w * h + (size_t)i * (bottom_blob.cstep) + j;
                             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)j * (channels) + i;
-                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, channels,
-                                                                std::min(row_block, channels - i), std::min(col_block, w * h - j));
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, channels, std::min(row_block, channels - i), std::min(col_block, w * h - j));
                         }
                     }
                 }
                 return 0;
             }
 
-            // w and h stay adjacent on both sides.
+            // w and h stay adjacent on both sides
             const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -3271,8 +3243,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h,
-                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3295,7 +3266,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and d, keeping h as the inner spatial axis.
+                                // exchange c and d, keeping h as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                       (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -3318,7 +3289,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -3361,8 +3332,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
-                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3383,7 +3353,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and d, keeping w as the inner spatial axis.
+                            // exchange c and d, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -3413,7 +3383,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                // c and d have the same order on both sides; merge only without input padding.
+                // c and d have the same order on both sides; merge only without input padding
                 if (bottom_blob.cstep == (size_t)w * h * d && (size_t)channels * d <= INT_MAX)
                 {
                     permute_transpose_matrix_bf16s_fp16s(bottom_blob, (size_t)w * h, top_blob, top_blob.cstep, channels * d, h, w, num_threads);
@@ -3457,8 +3427,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + i * ((size_t)w * h) + (size_t)j * (w);
                                 unsigned short* outptr = (unsigned short*)top_blob + (size_t)q * d * w + j * (top_blob.cstep) + (size_t)i * (w);
-                                permute_transpose_blocks_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                                     std::min(row_block, d - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -3479,7 +3448,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -3522,8 +3491,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w,
-                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3546,7 +3514,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and h, keeping d as the inner spatial axis.
+                                // exchange c and h, keeping d as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                                       (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -3569,7 +3537,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -3636,8 +3604,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)z * w * h + i * (bottom_blob.cstep) + (size_t)j * (w);
                                 unsigned short* outptr = (unsigned short*)top_blob + (size_t)z * channels * w + j * (top_blob.cstep) + (size_t)i * (w);
-                                permute_transpose_blocks_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                                     std::min(row_block, channels - i), std::min(col_block, h - j), w);
+                                permute_transpose_blocks_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, h - j), w);
                             }
                         }
                     }
@@ -3658,7 +3625,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -3701,8 +3668,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
-                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3723,7 +3689,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -3766,8 +3732,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h,
-                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3790,7 +3755,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and h, keeping d as the inner spatial axis.
+                                // exchange c and h, keeping d as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                                       (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -3813,7 +3778,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -3856,8 +3821,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
-                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -3878,7 +3842,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and h, keeping w as the inner spatial axis.
+                            // exchange c and h, keeping w as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
                                                   elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }
@@ -3919,15 +3883,14 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)i * (w) + j;
                             unsigned short* outptr = (unsigned short*)top_blob + (size_t)q * h * d + (size_t)j * (top_blob.cstep) + i;
-                            permute_transpose_pack1_bf16s_fp16s(ptr, w, outptr, top_blob.cstep,
-                                                                std::min(row_block, h * d - i), std::min(col_block, w - j));
+                            permute_transpose_pack1_bf16s_fp16s(ptr, w, outptr, top_blob.cstep, std::min(row_block, h * d - i), std::min(col_block, w - j));
                         }
                     }
                 }
                 return 0;
             }
 
-// h and d stay adjacent on both sides.
+            // h and d stay adjacent on both sides
             const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -3980,8 +3943,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -4004,7 +3966,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
-                                // Exchange c and w, keeping d as the inner spatial axis.
+                                // exchange c and w, keeping d as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                                       (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                             }
@@ -4027,7 +3989,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
                         }
@@ -4070,8 +4032,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep,
-                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -4092,7 +4053,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -4135,8 +4096,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -4144,7 +4104,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 return 0;
             }
 
-// h and d stay adjacent on both sides.
+            // h and d stay adjacent on both sides
             const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
             const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
             #pragma omp parallel for collapse(3) num_threads(num_threads)
@@ -4197,8 +4157,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep,
-                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -4221,7 +4180,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
                                 unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
-                                // Exchange c and w, keeping d as the inner spatial axis.
+                                // exchange c and w, keeping d as the inner spatial axis
                                 permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
                                                       (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                             }
@@ -4244,7 +4203,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
                         }
@@ -4287,8 +4246,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             {
                                 const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
                                 unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
-                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
-                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, std::min(row_block, channels - i), std::min(col_block, w - j));
                             }
                         }
                     }
@@ -4309,7 +4267,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
                             unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
-                            // Exchange c and w, keeping h as the inner spatial axis.
+                            // exchange c and w, keeping h as the inner spatial axis
                             permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
                                                   (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
                         }

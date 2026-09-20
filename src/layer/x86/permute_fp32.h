@@ -1,9 +1,9 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Full register tiles have no size or packing branches.
+// full register tiles have no size or packing branches
 
-// Contiguous tiles take only pointers; stride variants use scalar-element strides.
+// contiguous tiles take only pointers; stride variants use scalar-element strides
 
 #if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
@@ -331,7 +331,7 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride(const float* ptr, siz
 }
 #endif // __AVX512F__
 
-// Final two or one rows: load complete vectors and write only the valid output lanes.
+// final two or one rows: load complete vectors and write only the valid output lanes
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose2x16_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
@@ -460,9 +460,9 @@ static NCNN_FORCEINLINE void permute_transpose1x4_stride(const float* ptr, float
 }
 #endif // __SSE2__
 
-// Unpacked matrix transpose, shared by 2d and channel/spatial permutations.
+// unpacked matrix transpose, shared by 2d and channel/spatial permutations
 #if __SSE2__
-// Fixed input width; callers select the packing before traversing the rows.
+// fixed input width; callers select the packing before traversing the rows
 static void permute_unpack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows)
 {
     int i = 0;
@@ -494,7 +494,7 @@ static void permute_unpack4_stride(const float* ptr, size_t stride, float* outpt
 #endif // __SSE2__
 
 #if __AVX__
-// Fixed input width; callers select the packing before traversing the rows.
+// fixed input width; callers select the packing before traversing the rows
 static void permute_unpack8_stride(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows)
 {
     int i = 0;
@@ -524,7 +524,7 @@ static void permute_unpack8_stride(const float* ptr, size_t stride, float* outpt
 #endif // __AVX__
 
 #if __AVX512F__
-// Fixed input width; callers select the packing before traversing the rows.
+// fixed input width; callers select the packing before traversing the rows
 static void permute_unpack16_stride(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows)
 {
     int i = 0;
@@ -704,8 +704,8 @@ static void permute_transpose_pack1_block(const float* ptr, size_t stride, float
     }
 }
 
-// Cache blocking is useful for medium planes with regularly spaced rows.
-// Small task blocks and narrow pack/unpack matrices use the direct kernel.
+// cache blocking is useful for medium planes with regularly spaced rows
+// small task blocks and narrow pack/unpack matrices use the direct kernel
 static void permute_transpose_pack1(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
     if (cols == 1)
@@ -741,7 +741,7 @@ static void permute_transpose_pack1(const float* ptr, size_t stride, float* outp
     permute_transpose_pack1_block(ptr, stride, outptr, outstride, rows, cols);
 }
 
-// 2d: packed rows become packed output rows after transposing w and h.
+// 2d: packed rows become packed output rows after transposing w and h
 #if __SSE2__
 static void permute_transpose_pack1to4(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
@@ -1102,7 +1102,8 @@ static void permute_transpose2d(const float* ptr, size_t stride, float* outptr, 
 #endif // __AVX512F__
 }
 
-// Spatial transpose within one input channel group. outcstep is used when unpacking.
+// spatial transpose within one input channel group
+// outcstep is used when unpacking
 #if __SSE2__
 static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
@@ -1125,7 +1126,7 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride(const float* ptr, s
 
 static void permute_spatial_pack4(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1159,7 +1160,7 @@ static void permute_spatial_pack4(const float* ptr, size_t stride, float* outptr
 static void permute_spatial_pack4to1(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1230,7 +1231,7 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride(const float* ptr, s
 
 static void permute_spatial_pack8(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1264,7 +1265,7 @@ static void permute_spatial_pack8(const float* ptr, size_t stride, float* outptr
 static void permute_spatial_pack8to1(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
-    // Limit the number of output streams for large channel planes.
+    // limit the number of output streams for large channel planes
     if (rows >= 128 && stride >= 8 * 512 && outstride >= 512)
     {
         for (int x = 0; x < cols; x++)
@@ -1272,7 +1273,7 @@ static void permute_spatial_pack8to1(const float* ptr, size_t stride, float* out
         return;
     }
 
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1336,7 +1337,7 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack16_stride(const float* ptr, 
 
 static void permute_spatial_pack16(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1369,7 +1370,7 @@ static void permute_spatial_pack16(const float* ptr, size_t stride, float* outpt
 
 static void permute_spatial_pack16to1(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
-    // Keep adjacent input records and output rows in the same cache block.
+    // keep adjacent input records and output rows in the same cache block
     for (int x = 0; x < cols; x += 8)
     {
         const int xmax = std::min(x + 8, cols);
@@ -1504,13 +1505,14 @@ static void permute_transpose_blocks2(const float* ptr, size_t stride, float* ou
 }
 #endif // __SSE2__
 
-// Transpose rows of contiguous blocks. size is independent of elempack.
-// Strides include padding; the block contents keep their original order.
+// transpose rows of contiguous blocks
+// size is independent of elempack
+// strides include padding; the block contents keep their original order
 static void permute_transpose_blocks(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size)
 {
     if (size == 1)
     {
-        // Large planes keep an output stripe resident while scanning the input.
+        // large planes keep an output stripe resident while scanning the input
         if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
         {
             for (int j = 0; j < cols; j += 32)
@@ -1518,8 +1520,8 @@ static void permute_transpose_blocks(const float* ptr, size_t stride, float* out
         }
         else if (rows >= 16 && cols >= 16 && (rows > 512 || cols > 512))
         {
-            // Coalesced axes can form long rectangles. Bound the tile payload
-            // to 16 KiB on each side, allowing wider tiles for fewer input rows.
+            // coalesced axes can form long rectangles
+            // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
             const int row_block = std::min(rows, 64);
             const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(float)));
             for (int j = 0; j < cols; j += col_block)
@@ -1685,10 +1687,10 @@ static void permute_copy_spatial(const float* ptr, float* outptr, size_t outcste
 #endif // __AVX512F__
 }
 
-// Exchange the input channel axis with one output channel group.
-// w is the remaining spatial extent; cstep includes input channel padding.
+// exchange the input channel axis with one output channel group
+// w is the remaining spatial extent; cstep includes input channel padding
 #if __SSE2__
-// The exchanged axis is contiguous; the stride variant has contiguous spatial input.
+// the exchanged axis is contiguous; the stride variant has contiguous spatial input
 static void permute3d_pack1to4(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1717,7 +1719,7 @@ static void permute3d_pack1to4_stride(const float* ptr, float* outptr, int w, in
 #endif // __SSE2__
 
 #if __AVX__
-// The exchanged axis is contiguous; the stride variant has contiguous spatial input.
+// the exchanged axis is contiguous; the stride variant has contiguous spatial input
 static void permute3d_pack1to8(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1746,7 +1748,7 @@ static void permute3d_pack1to8_stride(const float* ptr, float* outptr, int w, in
 #endif // __AVX__
 
 #if __AVX512F__
-// The exchanged axis is contiguous; the stride variant has contiguous spatial input.
+// the exchanged axis is contiguous; the stride variant has contiguous spatial input
 static void permute3d_pack1to16(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1775,7 +1777,7 @@ static void permute3d_pack1to16_stride(const float* ptr, float* outptr, int w, i
 #endif // __AVX512F__
 
 #if __SSE2__
-// Output channels are contiguous; the stride variant has contiguous spatial output.
+// output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack4to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1885,7 +1887,7 @@ static void permute3d_pack4to16_stride(const float* ptr, float* outptr, int w, i
 #endif // __AVX512F__
 
 #if __AVX__
-// Output channels are contiguous; the stride variant has contiguous spatial output.
+// output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack8to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1980,7 +1982,7 @@ static void permute3d_pack8to16_stride(const float* ptr, float* outptr, int w, i
 #endif // __AVX512F__
 
 #if __AVX512F__
-// Output channels are contiguous; the stride variant has contiguous spatial output.
+// output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack16to1(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2074,7 +2076,8 @@ static void permute3d_pack16to16_stride(const float* ptr, float* outptr, int w, 
 }
 #endif // __AVX512F__
 
-// Process one output channel group. All strides are in scalar elements.
+// process one output channel group
+// all strides are in scalar elements
 static void permute3d(const float* ptr, float* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep, int elempack, int out_elempack)
 {
 #if __SSE2__

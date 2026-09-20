@@ -35,8 +35,7 @@ static void perf_permute(const ncnn::Mat& a, int order_type)
     perf_layer("Permute", pd, weights, a, "order=%d", order_type);
 }
 
-// Keep the requested input pack: perf_layer's automatic input packing would
-// otherwise replace a smaller input pack before the timed forward calls.
+// keep the requested input pack: perf_layer's automatic input packing would otherwise replace a smaller input pack before the timed forward calls
 static int perf_permute_packing(int dims, int w, int elempack, int bits, int order_type, int threads, int h = 64, bool packing = true, int d = 1, int c = 4, int buffers = 1, bool naive = false)
 {
     if (naive && (elempack != 1 || bits != 32 || packing))

@@ -24,7 +24,7 @@ static int permute_max_elempack()
     return 4;
 }
 
-// Decode the permutation independently of the implementation's order table.
+// decode the permutation independently of the implementation's order table
 static void permute_order(int dims, int order_type, int* order)
 {
     int axes[4] = {0, 1, 2, 3};
@@ -60,8 +60,8 @@ static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, 
     if (dims == 3) a.create(w, h, c, elemsize, elempack);
     if (dims == 4) a.create(w, h, d, c, elemsize, elempack);
 
-    // The external buffer ends at the last valid lane, without allocator overread
-    // padding. Also exercise a row base not aligned to the SIMD register width.
+    // the external buffer ends at the last valid lane, without allocator overread padding
+    // also exercise a row base not aligned to the SIMD register width
     const size_t count = dims == 2 ? (size_t)w * h : a.cstep * (c - 1) + (size_t)w * h * (dims == 4 ? d : 1);
     const int offset = unaligned ? bits / 8 : 0;
     std::vector<unsigned char> storage(count * elemsize + offset);
@@ -264,7 +264,7 @@ int main()
     {
         for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
         {
-            // Exercise pack16 on each output packing axis and unpacked spatial permutations.
+            // exercise pack16 on each output packing axis and unpacked spatial permutations
             ret = test_permute_packing(op, 4, 16, 16, 16, 2, packs[p], bits, true, 2, true)
                   || test_permute_packing(op, 4, 9, 7, 5, 2, packs[p], bits, false, 2, true)
                   || test_permute_packing(op, 3, 17, 19, 1, 2, packs[p], bits, true, 1, true)
@@ -275,7 +275,7 @@ int main()
                   || test_permute_packing(op, 4, 9, 5, 3, 1, packs[p], bits, false, 4, true);
         }
     }
-    // Single channel groups must still cover the spatial and slice task boundaries.
+    // single channel groups must still cover the spatial and slice task boundaries
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
@@ -287,7 +287,7 @@ int main()
     }
     for (int threads = 1; threads <= 4 && !ret; threads *= 2)
         ret = test_permute_packing(op, 3, 256, 128, 1, 1, 4, 32, true, threads, true);
-    // Exercise the cache-blocked pack1 path and its direct-path boundaries.
+    // exercise the cache-blocked pack1 path and its direct-path boundaries
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         ret = test_permute_packing(op, 3, 256, 256, 1, 1, 1, bits, true, 1, true)
@@ -295,8 +295,8 @@ int main()
               || test_permute_packing(op, 3, 512, 512, 1, 1, 1, bits, true, 1, true)
               || test_permute_packing(op, 3, 257, 256, 1, 1, 1, bits, true, 1, true);
     }
-    // Degenerate axes and coalesced matrices, with and without channel padding.
-    // A physical channel group of one is not a scalar channel when packed.
+    // degenerate axes and coalesced matrices, with and without channel padding
+    // a physical channel group of one is not a scalar channel when packed
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         for (int threads = 1; threads <= 4 && !ret; threads *= 2)
@@ -317,8 +317,8 @@ int main()
             }
         }
     }
-    // The contiguous-block length is independent of elempack. Check overlapping
-    // head/tail vector copies against exact external buffers at every boundary.
+    // the contiguous-block length is independent of elempack
+    // check overlapping head/tail vector copies against exact external buffers at every boundary
     const int widths[] = {2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 19, 31, 32, 33, 63, 64, 65};
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
@@ -331,10 +331,10 @@ int main()
             }
         }
     }
-    // A few long continuous records exercise partitioning within a record.
+    // a few long continuous records exercise partitioning within a record
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
         ret = test_permute_packing(op, 4, 16385, 1, 1, 2, 1, bits, false, 4, true);
-    // A one-dimensional permutation always aliases the input, including packing disabled.
+    // a one-dimensional permutation always aliases the input, including packing disabled
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
@@ -356,7 +356,7 @@ int main()
             }
         }
     }
-    // Exercise every rectangular tile transition and scalar edge with pack1 output.
+    // exercise every rectangular tile transition and scalar edge with pack1 output
     const int edges[] = {1, 2, 3, 4, 6, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33};
     const int edge_count = sizeof(edges) / sizeof(edges[0]);
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
