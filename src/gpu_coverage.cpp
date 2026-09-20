@@ -8,7 +8,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <initializer_list>
 #include <map>
 #include <set>
 #include <stdio.h>
@@ -66,10 +65,49 @@ static ShaderCoverageState& coverage_state()
     return *state;
 }
 
-static void append_spirv_instruction(std::vector<uint32_t>& out, spv::Op op, std::initializer_list<uint32_t> args)
+static void append_spirv_instruction_2(std::vector<uint32_t>& out, spv::Op op, uint32_t a0, uint32_t a1)
 {
-    out.push_back(((uint32_t)args.size() + 1) << 16 | (uint32_t)op);
-    out.insert(out.end(), args.begin(), args.end());
+    out.push_back(3 << 16 | (uint32_t)op);
+    out.push_back(a0);
+    out.push_back(a1);
+}
+
+static void append_spirv_instruction_3(std::vector<uint32_t>& out, spv::Op op, uint32_t a0, uint32_t a1, uint32_t a2)
+{
+    out.push_back(4 << 16 | (uint32_t)op);
+    out.push_back(a0);
+    out.push_back(a1);
+    out.push_back(a2);
+}
+
+static void append_spirv_instruction_4(std::vector<uint32_t>& out, spv::Op op, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+{
+    out.push_back(5 << 16 | (uint32_t)op);
+    out.push_back(a0);
+    out.push_back(a1);
+    out.push_back(a2);
+    out.push_back(a3);
+}
+
+static void append_spirv_instruction_5(std::vector<uint32_t>& out, spv::Op op, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4)
+{
+    out.push_back(6 << 16 | (uint32_t)op);
+    out.push_back(a0);
+    out.push_back(a1);
+    out.push_back(a2);
+    out.push_back(a3);
+    out.push_back(a4);
+}
+
+static void append_spirv_instruction_6(std::vector<uint32_t>& out, spv::Op op, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+    out.push_back(7 << 16 | (uint32_t)op);
+    out.push_back(a0);
+    out.push_back(a1);
+    out.push_back(a2);
+    out.push_back(a3);
+    out.push_back(a4);
+    out.push_back(a5);
 }
 
 static uint32_t get_spirv_constant(std::vector<uint32_t>& definitions, std::map<uint32_t, uint32_t>& constants, uint32_t uint_type, uint32_t value, uint32_t& next_id)
@@ -80,7 +118,7 @@ static uint32_t get_spirv_constant(std::vector<uint32_t>& definitions, std::map<
 
     const uint32_t id = next_id++;
     constants[value] = id;
-    append_spirv_instruction(definitions, spv::Op::OpConstant, {uint_type, id, value});
+    append_spirv_instruction_3(definitions, spv::Op::OpConstant, uint_type, id, value);
 
     return id;
 }
@@ -151,28 +189,28 @@ int instrument_shader_coverage(std::vector<uint32_t>& spirv)
     if (!uint_type)
     {
         uint_type = next_id++;
-        append_spirv_instruction(definitions, spv::Op::OpTypeInt, {uint_type, 32, 0});
+        append_spirv_instruction_3(definitions, spv::Op::OpTypeInt, uint_type, 32, 0);
     }
     if (!uint_ptr)
     {
         uint_ptr = next_id++;
-        append_spirv_instruction(definitions, spv::Op::OpTypePointer, {uint_ptr, storage, uint_type});
+        append_spirv_instruction_3(definitions, spv::Op::OpTypePointer, uint_ptr, storage, uint_type);
     }
     const uint32_t array_type = next_id++;
     const uint32_t struct_type = next_id++;
     const uint32_t struct_ptr = next_id++;
     const uint32_t coverage_var = next_id++;
-    append_spirv_instruction(definitions, spv::Op::OpTypeRuntimeArray, {array_type, uint_type});
-    append_spirv_instruction(definitions, spv::Op::OpTypeStruct, {struct_type, array_type});
-    append_spirv_instruction(definitions, spv::Op::OpTypePointer, {struct_ptr, storage, struct_type});
-    append_spirv_instruction(definitions, spv::Op::OpVariable, {struct_ptr, coverage_var, storage});
+    append_spirv_instruction_2(definitions, spv::Op::OpTypeRuntimeArray, array_type, uint_type);
+    append_spirv_instruction_2(definitions, spv::Op::OpTypeStruct, struct_type, array_type);
+    append_spirv_instruction_3(definitions, spv::Op::OpTypePointer, struct_ptr, storage, struct_type);
+    append_spirv_instruction_3(definitions, spv::Op::OpVariable, struct_ptr, coverage_var, storage);
 
     std::vector<uint32_t> decorations;
-    append_spirv_instruction(decorations, spv::Op::OpDecorate, {array_type, (uint32_t)spv::Decoration::ArrayStride, 4});
-    append_spirv_instruction(decorations, spv::Op::OpDecorate, {struct_type, storage == (uint32_t)spv::StorageClass::Uniform ? (uint32_t)spv::Decoration::BufferBlock : (uint32_t)spv::Decoration::Block});
-    append_spirv_instruction(decorations, spv::Op::OpMemberDecorate, {struct_type, 0, (uint32_t)spv::Decoration::Offset, 0});
-    append_spirv_instruction(decorations, spv::Op::OpDecorate, {coverage_var, (uint32_t)spv::Decoration::DescriptorSet, 1});
-    append_spirv_instruction(decorations, spv::Op::OpDecorate, {coverage_var, (uint32_t)spv::Decoration::Binding, 0});
+    append_spirv_instruction_3(decorations, spv::Op::OpDecorate, array_type, (uint32_t)spv::Decoration::ArrayStride, 4);
+    append_spirv_instruction_2(decorations, spv::Op::OpDecorate, struct_type, storage == (uint32_t)spv::StorageClass::Uniform ? (uint32_t)spv::Decoration::BufferBlock : (uint32_t)spv::Decoration::Block);
+    append_spirv_instruction_4(decorations, spv::Op::OpMemberDecorate, struct_type, 0, (uint32_t)spv::Decoration::Offset, 0);
+    append_spirv_instruction_3(decorations, spv::Op::OpDecorate, coverage_var, (uint32_t)spv::Decoration::DescriptorSet, 1);
+    append_spirv_instruction_3(decorations, spv::Op::OpDecorate, coverage_var, (uint32_t)spv::Decoration::Binding, 0);
 
     std::map<uint32_t, uint32_t> constants;
     const uint32_t zero = get_spirv_constant(definitions, constants, uint_type, 0, next_id);
@@ -225,9 +263,9 @@ int instrument_shader_coverage(std::vector<uint32_t>& spirv)
                     const uint32_t ptr = next_id++;
                     const uint32_t result = next_id++;
                     const uint32_t word_index = get_spirv_constant(definitions, constants, uint_type, id >> 5, next_id);
-                    append_spirv_instruction(functions, spv::Op::OpAccessChain, {uint_ptr, ptr, coverage_var, zero, word_index});
+                    append_spirv_instruction_5(functions, spv::Op::OpAccessChain, uint_ptr, ptr, coverage_var, zero, word_index);
                     const uint32_t mask = get_spirv_constant(definitions, constants, uint_type, 1u << (id & 31), next_id);
-                    append_spirv_instruction(functions, spv::Op::OpAtomicOr, {uint_type, result, ptr, scope, zero, mask});
+                    append_spirv_instruction_6(functions, spv::Op::OpAtomicOr, uint_type, result, ptr, scope, zero, mask);
                     executable[id >> 5] |= 1u << (id & 31);
                 }
                 pending.clear();
