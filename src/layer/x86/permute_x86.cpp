@@ -25,6 +25,20 @@ Permute_x86::Permute_x86()
 #endif
 }
 
+// Split only when the existing channel/slice tasks cannot occupy the threads.
+// Keep each task large enough to amortize scheduling and align output segments.
+static int permute_block_size(int size, size_t bytes_per_element, int groups, int num_threads, int alignment)
+{
+    if (num_threads <= 1 || groups >= num_threads)
+        return size;
+
+    const int blocks = (num_threads + groups - 1) / groups;
+    const int min_block = (int)std::min((size_t)size, (16384 + bytes_per_element - 1) / bytes_per_element);
+    int block = std::max((size + blocks - 1) / blocks, min_block);
+    block = (block + alignment - 1) / alignment * alignment;
+    return std::min(block, size);
+}
+
 int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (bottom_blob.elembits() == 16)
@@ -37,6 +51,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
+    const int num_threads = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
 
     if (dims == 1 || order_type == 0)
     {
@@ -71,12 +86,16 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int x = 0; x < w; x += 32)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, (w + 31) / 32, num_threads, 32);
+            #pragma omp parallel for collapse(2) num_threads(num_threads)
+            for (int i = 0; i < h; i += row_block)
             {
-                const float* ptr = (const float*)bottom_blob + x * elempack;
-                float* outptr = top_blob.row<float>(x / out_elempack);
-                permute_transpose2d(ptr, (size_t)w * elempack, outptr, (size_t)top_blob.w * out_elempack, h * elempack, std::min(32, w - x), elempack, out_elempack);
+                for (int x = 0; x < w; x += 32)
+                {
+                    const float* ptr = (const float*)bottom_blob + (size_t)i * w * elempack + x * elempack;
+                    float* outptr = top_blob.row<float>(x / out_elempack) + (size_t)i * elempack * out_elempack;
+                    permute_transpose2d(ptr, (size_t)w * elempack, outptr, (size_t)top_blob.w * out_elempack, std::min(row_block, h - i) * elempack, std::min(32, w - x), elempack, out_elempack);
+                }
             }
             return 0;
         }
@@ -100,12 +119,20 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
-                permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
+                for (int i = 0; i < h; i += row_block)
+                {
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        const float* ptr = (const float*)bottom_blob.channel(q) + i * ((size_t)w * elempack) + j * elempack;
+                        float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + j * ((size_t)h * out_elempack) + i * out_elempack;
+                        permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -130,29 +157,40 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(float), (top_blob.c) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    float* outptr = top_blob.channel(q);
-                    for (int y = 0; y < top_blob.h; y++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * (size_t)w + y * bottom_blob.cstep;
-                        memcpy(outptr, ptr, (size_t)w * sizeof(float));
-                        outptr += w;
+
+                        for (int y = 0; y < top_blob.h; y++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + q * (size_t)w + y * bottom_blob.cstep;
+                            float* outptr = (float*)top_blob.channel(q) + (size_t)y * w;
+                            memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(float));
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, top_blob.c * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack;
-                float* outptr = top_blob.channel(q);
-                // Exchange c and h, keeping w as the inner spatial axis.
-                permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                        // Exchange c and h, keeping w as the inner spatial axis.
+                        permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -177,25 +215,41 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), h, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), h * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w;
-                    float* outptr = (float*)top_blob + y * top_blob.cstep;
-                    permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, channels, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int y = 0; y < h; y++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                            float* outptr = (float*)top_blob + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
+                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, top_blob.c * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack;
-                float* outptr = top_blob.channel(q);
-                // Exchange c and h, keeping w as the inner spatial axis.
-                permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                        // Exchange c and h, keeping w as the inner spatial axis.
+                        permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -220,25 +274,41 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(float), channels, num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(float), channels * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep;
-                    float* outptr = (float*)top_blob + q * (size_t)top_blob.w;
-                    permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep, h, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + (size_t)i * ((size_t)w) + j;
+                            float* outptr = (float*)top_blob + q * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep,
+                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, top_blob.c * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack;
-                float* outptr = top_blob.channel(q);
-                // Exchange c and w, keeping h as the inner spatial axis.
-                permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                        // Exchange c and w, keeping h as the inner spatial axis.
+                        permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -263,25 +333,41 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), h, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), h * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w;
-                    float* outptr = (float*)top_blob + y * (size_t)top_blob.w;
-                    permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int y = 0; y < h; y++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                            float* outptr = (float*)top_blob + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, top_blob.c * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack;
-                float* outptr = top_blob.channel(q);
-                // Exchange c and w, keeping h as the inner spatial axis.
-                permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                        // Exchange c and w, keeping h as the inner spatial axis.
+                        permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -323,16 +409,22 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels * d, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * d * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int z = 0; z < d; z++)
                 {
-                    permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
-                    ptr += (size_t)w * h * elempack;
-                    outptr += (size_t)w * h * out_elempack;
+                    for (int i = 0; i < h; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)z * w * h * elempack + i * ((size_t)w * elempack) + j * elempack;
+                            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (size_t)z * w * h * out_elempack + j * ((size_t)h * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -346,17 +438,20 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int block = permute_block_size(w, elemsize, channels * h * d, num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
                     for (int z = 0; z < d; z++)
                     {
-                        permute_copy_spatial(ptr + ((size_t)z * h + y) * w * elempack, outptr, top_blob.cstep, w, elempack, out_elempack);
-                        outptr += w * out_elempack;
+                        for (int i = 0; i < w; i += block)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack + i * elempack;
+                            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w + i) * out_elempack;
+                            permute_copy_spatial(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack, out_elempack);
+                        }
                     }
                 }
             }
@@ -371,16 +466,22 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(d, (size_t)w * elemsize, channels * h, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)d * elemsize, channels * h * ((d + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
-                    permute_transpose_spatial(ptr, (size_t)w * h * elempack, outptr, (size_t)d * out_elempack, top_blob.cstep, d, w, elempack, out_elempack);
-                    ptr += (size_t)w * elempack;
-                    outptr += (size_t)w * d * out_elempack;
+                    for (int i = 0; i < d; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)y * w * elempack + i * ((size_t)w * h * elempack) + j * elempack;
+                            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (size_t)y * w * d * out_elempack + j * ((size_t)d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial(ptr, (size_t)w * h * elempack, outptr, (size_t)d * out_elempack, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -394,16 +495,22 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels * d, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * d * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int z = 0; z < d; z++)
                 {
-                    permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
-                    ptr += (size_t)w * h * elempack;
-                    outptr += (size_t)h * out_elempack;
+                    for (int i = 0; i < h; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)z * w * h * elempack + i * ((size_t)w * elempack) + j * elempack;
+                            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (size_t)z * h * out_elempack + j * ((size_t)h * d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial(ptr, (size_t)w * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -417,16 +524,22 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(d, (size_t)w * elemsize, channels * h, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)d * elemsize, channels * h * ((d + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
-                    permute_transpose_spatial(ptr, (size_t)w * h * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, d, w, elempack, out_elempack);
-                    ptr += (size_t)w * elempack;
-                    outptr += (size_t)d * out_elempack;
+                    for (int i = 0; i < d; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)y * w * elempack + i * ((size_t)w * h * elempack) + j * elempack;
+                            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (size_t)y * d * out_elempack + j * ((size_t)h * d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial(ptr, (size_t)w * h * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -452,29 +565,40 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < d; q++)
+                const int block = permute_block_size(w * h, sizeof(float), (d) * (channels), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < w * h; i += block)
                 {
-                    float* outptr = top_blob.channel(q);
-                    for (int c = 0; c < channels; c++)
+                    for (int q = 0; q < d; q++)
                     {
-                        const float* ptr = bottom_blob.channel(c).depth(q);
-                        memcpy(outptr, ptr, (size_t)w * h * sizeof(float));
-                        outptr += (size_t)w * h;
+
+                        for (int c = 0; c < channels; c++)
+                        {
+                            const float* ptr = bottom_blob.channel(c).depth(q);
+                            float* outptr = (float*)top_blob.channel(q) + (size_t)c * w * h;
+                            memcpy(outptr + i, ptr + i, (size_t)std::min(block, w * h - i) * sizeof(float));
+                        }
                     }
                 }
                 return 0;
             }
 
-// w and h stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            // w and h stay adjacent on both sides.
+            const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w * h; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * h * elempack;
-                float* outptr = top_blob.channel(q);
-                permute3d(ptr, outptr, w * h, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)w * h * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)w * h * out_elempack) + i * out_elempack;
+                        permute3d(ptr, outptr, std::min(block, w * h - i), std::min(channel_block, channels - c),
+                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)w * h * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -499,14 +623,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(float), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(float), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep;
-                        permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w,
+                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -514,33 +647,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((w) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack;
-                        float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and d, keeping h as the inner spatial axis.
-                        permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                                float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and d, keeping h as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                          (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -566,34 +713,45 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(float), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    float* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const float* ptr = (const float*)bottom_blob + q * (size_t)w * h + z * (size_t)w + y * bottom_blob.cstep;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(float));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * (size_t)w * h + z * (size_t)w + y * bottom_blob.cstep;
+                                float* outptr = (float*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(float));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -619,25 +777,41 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < d; q++)
+                const int col_block = permute_block_size(w * h, (size_t)channels * sizeof(float), d, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)(w * h) * sizeof(float), d * ((w * h + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + (size_t)q * w * h;
-                    float* outptr = top_blob.channel(q);
-                    permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, channels, channels, w * h);
+                    for (int j = 0; j < w * h; j += col_block)
+                    {
+                        for (int q = 0; q < d; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + (size_t)q * w * h + (size_t)i * (bottom_blob.cstep) + j;
+                            float* outptr = (float*)top_blob.channel(q) + (size_t)j * (channels) + i;
+                            permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, channels,
+                                                    std::min(row_block, channels - i), std::min(col_block, w * h - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-// w and h stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            // w and h stay adjacent on both sides.
+            const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w * h; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * h * elempack;
-                float* outptr = top_blob.channel(q);
-                permute3d(ptr, outptr, w * h, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)channels * elempack * out_elempack);
+                        permute3d(ptr, outptr, std::min(block, w * h - i), std::min(channel_block, channels - c),
+                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -662,14 +836,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(float), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(float), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep;
-                        permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h,
+                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -677,33 +860,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((w) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack;
-                        float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and d, keeping h as the inner spatial axis.
-                        permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                                float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and d, keeping h as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                          (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -729,30 +926,46 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        float* outptr = (float*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w;
-                        permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                float* outptr = (float*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
+                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -778,34 +991,45 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(float), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    float* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const float* ptr = (const float*)bottom_blob + q * (size_t)w + z * bottom_blob.cstep + y * (size_t)w * h;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(float));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * (size_t)w + z * bottom_blob.cstep + y * (size_t)w * h;
+                                float* outptr = (float*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(float));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -831,14 +1055,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(float), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(float), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep;
-                        permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w,
+                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -846,33 +1079,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((w) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack;
-                        float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and h, keeping d as the inner spatial axis.
-                        permute3d(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                float* outptr = (float*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and h, keeping d as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                          (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -898,34 +1145,45 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(float), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    float* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const float* ptr = (const float*)bottom_blob + q * (size_t)w + z * (size_t)w * h + y * bottom_blob.cstep;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(float));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * (size_t)w + z * (size_t)w * h + y * bottom_blob.cstep;
+                                float* outptr = (float*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(float));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -951,30 +1209,46 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep;
-                        permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
+                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1000,14 +1274,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(float), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(float), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep;
-                        permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h,
+                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -1015,33 +1298,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((w) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack;
-                        float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and h, keeping d as the inner spatial axis.
-                        permute3d(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                float* outptr = (float*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and h, keeping d as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                          (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1067,30 +1364,46 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep;
-                        permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
+                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                      elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1116,25 +1429,41 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)(h * d) * sizeof(float), channels, num_threads, 32);
+                const int row_block = permute_block_size(h * d, (size_t)w * sizeof(float), channels * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < h * d; i += row_block)
                 {
-                    const float* ptr = bottom_blob.channel(q);
-                    float* outptr = (float*)top_blob + (size_t)q * h * d;
-                    permute_transpose_pack1(ptr, w, outptr, top_blob.cstep, h * d, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)i * (w) + j;
+                            float* outptr = (float*)top_blob + (size_t)q * h * d + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1(ptr, w, outptr, top_blob.cstep,
+                                                    std::min(row_block, h * d - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
 // h and d stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h * d; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack;
-                float* outptr = top_blob.channel(q);
-                permute3d(ptr, outptr, h * d, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)h * d * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)h * d * out_elempack) + i * out_elempack;
+                        permute3d(ptr, outptr, std::min(block, h * d - i), std::min(channel_block, channels - c),
+                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)h * d * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1159,14 +1488,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(float), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(float), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w;
-                        permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep,
+                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -1174,33 +1512,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((h) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack;
-                        float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and w, keeping d as the inner spatial axis.
-                        permute3d(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int y = 0; y < h; y++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                float* outptr = (float*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and w, keeping d as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                          (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                      (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1226,30 +1578,46 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(float), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(float), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1(ptr, (size_t)w, outptr, top_blob.cstep,
+                                                        std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                      (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1275,28 +1643,44 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w;
-                        permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                float* outptr = (float*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
 // h and d stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h * d; i += block)
             {
-                const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack;
-                float* outptr = top_blob.channel(q);
-                permute3d(ptr, outptr, h * d, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const float* ptr = (const float*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        float* outptr = (float*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)channels * elempack * out_elempack);
+                        permute3d(ptr, outptr, std::min(block, h * d - i), std::min(channel_block, channels - c),
+                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1321,14 +1705,23 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(float), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(float), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                float* outptr = (float*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1(ptr, (size_t)w * h, outptr, top_blob.cstep,
+                                                        std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -1336,33 +1729,47 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((h) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack;
-                        float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and w, keeping d as the inner spatial axis.
-                        permute3d(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int y = 0; y < h; y++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                float* outptr = (float*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and w, keeping d as the inner spatial axis.
+                                permute3d(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                          (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            float* outptr = (float*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                      (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1388,30 +1795,46 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(float), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(float), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                float* outptr = (float*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                        std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            float* outptr = (float*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                      (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1430,6 +1853,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
+    const int num_threads = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
 
     if (dims == 1 || order_type == 0)
     {
@@ -1464,12 +1888,16 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int x = 0; x < w; x += 32)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, (w + 31) / 32, num_threads, 32);
+            #pragma omp parallel for collapse(2) num_threads(num_threads)
+            for (int i = 0; i < h; i += row_block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack;
-                unsigned short* outptr = top_blob.row<unsigned short>(x / out_elempack);
-                permute_transpose2d_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)top_blob.w * out_elempack, h * elempack, std::min(32, w - x), elempack, out_elempack);
+                for (int x = 0; x < w; x += 32)
+                {
+                    const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)i * w * elempack + x * elempack;
+                    unsigned short* outptr = top_blob.row<unsigned short>(x / out_elempack) + (size_t)i * elempack * out_elempack;
+                    permute_transpose2d_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)top_blob.w * out_elempack, std::min(row_block, h - i) * elempack, std::min(32, w - x), elempack, out_elempack);
+                }
             }
             return 0;
         }
@@ -1493,12 +1921,20 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
-                permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
+                for (int i = 0; i < h; i += row_block)
+                {
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + i * ((size_t)w * elempack) + j * elempack;
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + j * ((size_t)h * out_elempack) + i * out_elempack;
+                        permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1523,29 +1959,40 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(unsigned short), (top_blob.c) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    unsigned short* outptr = top_blob.channel(q);
-                    for (int y = 0; y < top_blob.h; y++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + y * bottom_blob.cstep;
-                        memcpy(outptr, ptr, (size_t)w * sizeof(unsigned short));
-                        outptr += w;
+
+                        for (int y = 0; y < top_blob.h; y++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + y * bottom_blob.cstep;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)y * w;
+                            memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(unsigned short));
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, top_blob.c * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                // Exchange c and h, keeping w as the inner spatial axis.
-                permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                        // Exchange c and h, keeping w as the inner spatial axis.
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                              elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1570,25 +2017,41 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), h, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), h * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * top_blob.cstep;
-                    permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, channels, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int y = 0; y < h; y++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
+                                                                std::min(row_block, channels - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, top_blob.c * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                // Exchange c and h, keeping w as the inner spatial axis.
-                permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                        // Exchange c and h, keeping w as the inner spatial axis.
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                              elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1613,25 +2076,41 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), channels, num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), channels * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep;
-                    unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w;
-                    permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep, h, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + (size_t)i * ((size_t)w) + j;
+                            unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep,
+                                                                std::min(row_block, h - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, top_blob.c * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                // Exchange c and w, keeping h as the inner spatial axis.
-                permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                        // Exchange c and w, keeping h as the inner spatial axis.
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                              (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1656,25 +2135,41 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), h, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), h * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w;
-                    permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int y = 0; y < h; y++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                                std::min(row_block, channels - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, top_blob.c * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                // Exchange c and w, keeping h as the inner spatial axis.
-                permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                        // Exchange c and w, keeping h as the inner spatial axis.
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                              (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1716,16 +2211,22 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels * d, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * d * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int z = 0; z < d; z++)
                 {
-                    permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
-                    ptr += (size_t)w * h * elempack;
-                    outptr += (size_t)w * h * out_elempack;
+                    for (int i = 0; i < h; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)z * w * h * elempack + i * ((size_t)w * elempack) + j * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (size_t)z * w * h * out_elempack + j * ((size_t)h * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1739,17 +2240,20 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int block = permute_block_size(w, elemsize, channels * h * d, num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
                     for (int z = 0; z < d; z++)
                     {
-                        permute_copy_spatial_bf16s_fp16s(ptr + ((size_t)z * h + y) * w * elempack, outptr, top_blob.cstep, w, elempack, out_elempack);
-                        outptr += w * out_elempack;
+                        for (int i = 0; i < w; i += block)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w + i) * out_elempack;
+                            permute_copy_spatial_bf16s_fp16s(ptr, outptr, top_blob.cstep, std::min(block, w - i), elempack, out_elempack);
+                        }
                     }
                 }
             }
@@ -1764,16 +2268,22 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(d, (size_t)w * elemsize, channels * h, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)d * elemsize, channels * h * ((d + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
-                    permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)d * out_elempack, top_blob.cstep, d, w, elempack, out_elempack);
-                    ptr += (size_t)w * elempack;
-                    outptr += (size_t)w * d * out_elempack;
+                    for (int i = 0; i < d; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)y * w * elempack + i * ((size_t)w * h * elempack) + j * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (size_t)y * w * d * out_elempack + j * ((size_t)d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)d * out_elempack, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1787,16 +2297,22 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(h, (size_t)w * elemsize, channels * d, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)h * elemsize, channels * d * ((h + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int z = 0; z < d; z++)
                 {
-                    permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, h, w, elempack, out_elempack);
-                    ptr += (size_t)w * h * elempack;
-                    outptr += (size_t)h * out_elempack;
+                    for (int i = 0; i < h; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)z * w * h * elempack + i * ((size_t)w * elempack) + j * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (size_t)z * h * out_elempack + j * ((size_t)h * d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, std::min(row_block, h - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1810,16 +2326,22 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            const int row_block = permute_block_size(d, (size_t)w * elemsize, channels * h, num_threads, 32);
+            const int col_block = permute_block_size(w, (size_t)d * elemsize, channels * h * ((d + row_block - 1) / row_block), num_threads, 32);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const unsigned short* ptr = bottom_blob.channel(q);
-                unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
                 for (int y = 0; y < h; y++)
                 {
-                    permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, d, w, elempack, out_elempack);
-                    ptr += (size_t)w * elempack;
-                    outptr += (size_t)d * out_elempack;
+                    for (int i = 0; i < d; i += row_block)
+                    {
+                        for (int j = 0; j < w; j += col_block)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)y * w * elempack + i * ((size_t)w * h * elempack) + j * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (size_t)y * d * out_elempack + j * ((size_t)h * d * out_elempack) + i * out_elempack;
+                            permute_transpose_spatial_bf16s_fp16s(ptr, (size_t)w * h * elempack, outptr, (size_t)h * d * out_elempack, top_blob.cstep, std::min(row_block, d - i), std::min(col_block, w - j), elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1845,29 +2367,40 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < d; q++)
+                const int block = permute_block_size(w * h, sizeof(unsigned short), (d) * (channels), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < w * h; i += block)
                 {
-                    unsigned short* outptr = top_blob.channel(q);
-                    for (int c = 0; c < channels; c++)
+                    for (int q = 0; q < d; q++)
                     {
-                        const unsigned short* ptr = bottom_blob.channel(c).depth(q);
-                        memcpy(outptr, ptr, (size_t)w * h * sizeof(unsigned short));
-                        outptr += (size_t)w * h;
+
+                        for (int c = 0; c < channels; c++)
+                        {
+                            const unsigned short* ptr = bottom_blob.channel(c).depth(q);
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * w * h;
+                            memcpy(outptr + i, ptr + i, (size_t)std::min(block, w * h - i) * sizeof(unsigned short));
+                        }
                     }
                 }
                 return 0;
             }
 
-// w and h stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            // w and h stay adjacent on both sides.
+            const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w * h; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * h * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                permute3d_bf16s_fp16s(ptr, outptr, w * h, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)w * h * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)w * h * out_elempack) + i * out_elempack;
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w * h - i), std::min(channel_block, channels - c),
+                                              elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)w * h * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -1892,14 +2425,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w,
+                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -1907,33 +2449,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((w) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and d, keeping h as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and d, keeping h as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -1959,34 +2515,45 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(unsigned short), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    unsigned short* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w * h + z * (size_t)w + y * bottom_blob.cstep;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(unsigned short));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w * h + z * (size_t)w + y * bottom_blob.cstep;
+                                unsigned short* outptr = (unsigned short*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(unsigned short));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2012,25 +2579,41 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < d; q++)
+                const int col_block = permute_block_size(w * h, (size_t)channels * sizeof(unsigned short), d, num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)(w * h) * sizeof(unsigned short), d * ((w * h + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * w * h;
-                    unsigned short* outptr = top_blob.channel(q);
-                    permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, channels, channels, w * h);
+                    for (int j = 0; j < w * h; j += col_block)
+                    {
+                        for (int q = 0; q < d; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * w * h + (size_t)i * (bottom_blob.cstep) + j;
+                            unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)j * (channels) + i;
+                            permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, channels,
+                                                                std::min(row_block, channels - i), std::min(col_block, w * h - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
-// w and h stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            // w and h stay adjacent on both sides.
+            const int block = permute_block_size(w * h, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(w * h) * elempack * out_elemsize, top_blob.c * ((w * h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < w * h; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * h * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                permute3d_bf16s_fp16s(ptr, outptr, w * h, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)channels * elempack * out_elempack);
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w * h - i), std::min(channel_block, channels - c),
+                                              elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -2055,14 +2638,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, (size_t)top_blob.w * top_blob.h,
+                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -2070,33 +2662,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((w) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and d, keeping h as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and d, keeping h as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2122,30 +2728,46 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + z * top_blob.cstep + y * (size_t)top_blob.w + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
+                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int y = 0; y < h; y++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((h) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and d, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * (size_t)w * h * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and d, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * h * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2171,34 +2793,45 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(unsigned short), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    unsigned short* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + z * bottom_blob.cstep + y * (size_t)w * h;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(unsigned short));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + z * bottom_blob.cstep + y * (size_t)w * h;
+                                unsigned short* outptr = (unsigned short*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(unsigned short));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2224,14 +2857,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w,
+                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -2239,33 +2881,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((w) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and h, keeping d as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and h, keeping d as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2291,34 +2947,45 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < top_blob.c; q++)
+                const int block = permute_block_size(w, sizeof(unsigned short), (top_blob.c) * (top_blob.d) * (top_blob.h), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < w; i += block)
                 {
-                    unsigned short* outptr = top_blob.channel(q);
-                    for (int z = 0; z < top_blob.d; z++)
+                    for (int q = 0; q < top_blob.c; q++)
                     {
-                        for (int y = 0; y < top_blob.h; y++)
+
+                        for (int z = 0; z < top_blob.d; z++)
                         {
-                            const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + z * (size_t)w * h + y * bottom_blob.cstep;
-                            memcpy(outptr, ptr, (size_t)w * sizeof(unsigned short));
-                            outptr += w;
+                            for (int y = 0; y < top_blob.h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * (size_t)w + z * (size_t)w * h + y * bottom_blob.cstep;
+                                unsigned short* outptr = (unsigned short*)top_blob.channel(q) + ((size_t)z * top_blob.h + y) * w;
+                                memcpy(outptr + i, ptr + i, (size_t)std::min(block, w - i) * sizeof(unsigned short));
+                            }
                         }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2344,30 +3011,46 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w,
+                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2393,14 +3076,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, (size_t)top_blob.w * top_blob.h,
+                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -2408,33 +3100,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int x = 0; x < w; x++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (w) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((w) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and h, keeping d as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int x = 0; x < w; x++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + x * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and h, keeping d as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * h * elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2460,30 +3166,46 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * top_blob.cstep + (size_t)j * ((size_t)top_blob.w * top_blob.h) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, (size_t)top_blob.w * top_blob.h,
+                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize, ((d) * (top_blob.c)) * ((w + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < w; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and h, keeping w as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, w, channels,
-                               elempack, (size_t)w * elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * (size_t)w * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * elempack;
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and h, keeping w as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, w - i), std::min(channel_block, channels - c),
+                                                  elempack, (size_t)w * elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2509,25 +3231,41 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)(h * d) * sizeof(unsigned short), channels, num_threads, 32);
+                const int row_block = permute_block_size(h * d, (size_t)w * sizeof(unsigned short), channels * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(3) num_threads(num_threads)
+                for (int i = 0; i < h * d; i += row_block)
                 {
-                    const unsigned short* ptr = bottom_blob.channel(q);
-                    unsigned short* outptr = (unsigned short*)top_blob + (size_t)q * h * d;
-                    permute_transpose_pack1_bf16s_fp16s(ptr, w, outptr, top_blob.cstep, h * d, w);
+                    for (int j = 0; j < w; j += col_block)
+                    {
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + (size_t)i * (w) + j;
+                            unsigned short* outptr = (unsigned short*)top_blob + (size_t)q * h * d + (size_t)j * (top_blob.cstep) + i;
+                            permute_transpose_pack1_bf16s_fp16s(ptr, w, outptr, top_blob.cstep,
+                                                                std::min(row_block, h * d - i), std::min(col_block, w - j));
+                        }
+                    }
                 }
                 return 0;
             }
 
 // h and d stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h * d; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                permute3d_bf16s_fp16s(ptr, outptr, h * d, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)h * d * out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * ((size_t)h * d * out_elempack) + i * out_elempack;
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h * d - i), std::min(channel_block, channels - c),
+                                              (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)h * d * out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -2552,14 +3290,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep,
+                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -2567,33 +3314,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((h) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and w, keeping d as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        for (int y = 0; y < h; y++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * out_elempack;
+                                // Exchange c and w, keeping d as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * top_blob.h * out_elempack) + i * ((size_t)top_blob.w * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * out_elempack, (size_t)top_blob.w * top_blob.h * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2619,30 +3380,46 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), (channels) * (d), num_threads, 32);
+                const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), ((channels) * (d)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < h; i += row_block)
                 {
-                    for (int z = 0; z < d; z++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep, h, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int z = 0; z < d; z++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h + (size_t)i * ((size_t)w) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + z * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w, outptr, top_blob.cstep,
+                                                                    std::min(row_block, h - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2668,28 +3445,44 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * top_blob.h + y * (size_t)top_blob.w + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
 // h and d stay adjacent on both sides.
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < top_blob.c; q++)
+            const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize, top_blob.c, num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize, top_blob.c * ((h * d + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(3) num_threads(num_threads)
+            for (int i = 0; i < h * d; i += block)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack;
-                unsigned short* outptr = top_blob.channel(q);
-                permute3d_bf16s_fp16s(ptr, outptr, h * d, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                for (int c = 0; c < channels; c += channel_block)
+                {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
+                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                        unsigned short* outptr = (unsigned short*)top_blob.channel(q) + (size_t)c * elempack * out_elempack + i * ((size_t)channels * elempack * out_elempack);
+                        permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h * d - i), std::min(channel_block, channels - c),
+                                              (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)channels * elempack * out_elempack, out_elempack, elempack, out_elempack);
+                    }
+                }
             }
             return 0;
         }
@@ -2714,14 +3507,23 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), (channels) * (h), num_threads, 32);
+                const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), ((channels) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep, d, w);
+                        for (int q = 0; q < channels; q++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w + (size_t)i * ((size_t)w * h) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + q * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, (size_t)w * h, outptr, top_blob.cstep,
+                                                                    std::min(row_block, d - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
@@ -2729,33 +3531,47 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-                for (int y = 0; y < h; y++)
+                const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize, (h) * (top_blob.c), num_threads, 32);
+                const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize, ((h) * (top_blob.c)) * ((d + block - 1) / block), num_threads, 16);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < d; i += block)
                 {
-                    for (int q = 0; q < top_blob.c; q++)
+                    for (int c = 0; c < channels; c += channel_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack;
-                        unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack;
-                        // Exchange c and w, keeping d as the inner spatial axis.
-                        permute3d_bf16s_fp16s(ptr, outptr, d, channels,
-                               (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack,
-                               out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        for (int y = 0; y < h; y++)
+                        {
+                            for (int q = 0; q < top_blob.c; q++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * (size_t)w * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * h * elempack);
+                                unsigned short* outptr = (unsigned short*)top_blob + y * (size_t)top_blob.w * top_blob.h * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * out_elempack;
+                                // Exchange c and w, keeping d as the inner spatial axis.
+                                permute3d_bf16s_fp16s(ptr, outptr, std::min(block, d - i), std::min(channel_block, channels - c),
+                                                      (size_t)w * h * elempack, elempack, bottom_blob.cstep * elempack, out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            unsigned short* outptr = (unsigned short*)top_blob + z * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * ((size_t)top_blob.w * out_elempack) + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, (size_t)top_blob.w * out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;
@@ -2781,30 +3597,46 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
             if (elempack == 1 && out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int z = 0; z < d; z++)
+                const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), (d) * (h), num_threads, 32);
+                const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), ((d) * (h)) * ((w + col_block - 1) / col_block), num_threads, 32);
+                #pragma omp parallel for collapse(4) num_threads(num_threads)
+                for (int i = 0; i < channels; i += row_block)
                 {
-                    for (int y = 0; y < h; y++)
+                    for (int j = 0; j < w; j += col_block)
                     {
-                        const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                        unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h;
-                        permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep, channels, w);
+                        for (int z = 0; z < d; z++)
+                        {
+                            for (int y = 0; y < h; y++)
+                            {
+                                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w + (size_t)i * (bottom_blob.cstep) + j;
+                                unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w + y * (size_t)top_blob.w * top_blob.h + (size_t)j * (top_blob.cstep) + i;
+                                permute_transpose_pack1_bf16s_fp16s(ptr, bottom_blob.cstep, outptr, top_blob.cstep,
+                                                                    std::min(row_block, channels - i), std::min(col_block, w - j));
+                            }
+                        }
                     }
                 }
                 return 0;
             }
 
-            #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-            for (int z = 0; z < d; z++)
+            const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize, (d) * (top_blob.c), num_threads, 32);
+            const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize, ((d) * (top_blob.c)) * ((h + block - 1) / block), num_threads, 16);
+            #pragma omp parallel for collapse(4) num_threads(num_threads)
+            for (int i = 0; i < h; i += block)
             {
-                for (int q = 0; q < top_blob.c; q++)
+                for (int c = 0; c < channels; c += channel_block)
                 {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack;
-                    // Exchange c and w, keeping h as the inner spatial axis.
-                    permute3d_bf16s_fp16s(ptr, outptr, h, channels,
-                               (size_t)w * elempack, elempack, bottom_blob.cstep * elempack,
-                               (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                    for (int z = 0; z < d; z++)
+                    {
+                        for (int q = 0; q < top_blob.c; q++)
+                        {
+                            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h * elempack + q * out_elempack * elempack + (size_t)c * (bottom_blob.cstep * elempack) + i * ((size_t)w * elempack);
+                            unsigned short* outptr = (unsigned short*)top_blob + z * (size_t)top_blob.w * out_elempack + q * top_blob.cstep * out_elempack + (size_t)c * elempack * out_elempack + i * ((size_t)top_blob.w * top_blob.h * out_elempack);
+                            // Exchange c and w, keeping h as the inner spatial axis.
+                            permute3d_bf16s_fp16s(ptr, outptr, std::min(block, h - i), std::min(channel_block, channels - c),
+                                                  (size_t)w * elempack, elempack, bottom_blob.cstep * elempack, (size_t)top_blob.w * top_blob.h * out_elempack, out_elempack, elempack, out_elempack);
+                        }
+                    }
                 }
             }
             return 0;

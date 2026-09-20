@@ -275,6 +275,18 @@ int main()
                   || test_permute_packing(op, 4, 9, 5, 3, 1, packs[p], bits, false, 4, true);
         }
     }
+    // Single channel groups must still cover the spatial and slice task boundaries.
+    for (int bits = 16; bits <= 32 && !ret; bits *= 2)
+    {
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        {
+            ret = test_permute_packing(op, 3, 4096, 16, 1, 1, packs[p], bits, true, 4, true)
+                  || test_permute_packing(op, 4, 65, 1, 513, 1, packs[p], bits, true, 4, true)
+                  || test_permute_packing(op, 4, 65, 1, 513, 1, packs[p], bits, false, 4, true);
+        }
+    }
+    for (int threads = 1; threads <= 4 && !ret; threads *= 2)
+        ret = test_permute_packing(op, 3, 256, 128, 1, 1, 4, 32, true, threads, true);
     // Exercise every rectangular tile transition and scalar edge with pack1 output.
     const int edges[] = {1, 2, 3, 4, 6, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33};
     const int edge_count = sizeof(edges) / sizeof(edges[0]);
