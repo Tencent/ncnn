@@ -371,6 +371,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fold_constants.cpp
     pass_level5/fuse_adjacent_permute.cpp
     pass_level5/fuse_adjacent_reshape.cpp
+    pass_level5/fuse_reshape_activation_reshape.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
