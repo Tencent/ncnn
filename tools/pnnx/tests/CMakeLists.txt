@@ -341,6 +341,7 @@ pnnx_add_test(ir_complex)
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
 pnnx_add_test(pnnx_bool_attribute)
+pnnx_add_test(pnnx_shape_hint)
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_expand)
 pnnx_add_test(pnnx_eliminate_noop_math)
