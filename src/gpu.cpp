@@ -32,6 +32,20 @@
 
 namespace ncnn {
 
+#if NCNN_COVERAGE
+const char* shader_coverage_source_name(int shader_type_index);
+const char* shader_coverage_map_hash();
+int instrument_shader_coverage(std::vector<uint32_t>& spirv);
+void register_shader_coverage(const uint32_t* spirv, size_t spv_word_count);
+
+class VulkanShaderCoverage;
+VulkanShaderCoverage* create_shader_coverage(const VulkanDevice* vkdev);
+void destroy_shader_coverage(VulkanShaderCoverage* coverage);
+void get_shader_coverage_descriptorset_layouts(const VulkanShaderCoverage* coverage, VkDescriptorSetLayout descriptorset_layout, VkDescriptorSetLayout* layouts);
+void bind_shader_coverage_descriptorset(const VulkanShaderCoverage* coverage, VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout);
+void record_shader_coverage_barrier(const VulkanShaderCoverage* coverage, VkCommandBuffer command_buffer);
+#endif // NCNN_COVERAGE
+
 // global
 static Mutex g_instance_lock;
 
@@ -126,6 +140,9 @@ uint64_t get_shader_source_hash(int shader_type_index)
     h = fnv1a_64_update(h, (const unsigned char*)ncnn_glsl_ext_comp_data, ncnn_glsl_ext_comp_data_size);
     h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
     h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+#if NCNN_COVERAGE
+    h = fnv1a_64_update(h, (const unsigned char*)shader_coverage_map_hash(), 64);
+#endif
     return h;
 }
 
@@ -3756,6 +3773,10 @@ public:
     // device-wide pipeline cache
     PipelineCache* pipeline_cache;
 
+#if NCNN_COVERAGE
+    VulkanShaderCoverage* shader_coverage;
+#endif
+
     // utility operator
     // from fp32 | fp16
     // to fp32 | fp16
@@ -3781,6 +3802,9 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     texelfetch_sampler = 0;
     dummy_allocator = 0;
     pipeline_cache = 0;
+#if NCNN_COVERAGE
+    shader_coverage = 0;
+#endif
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
     memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
@@ -4205,6 +4229,15 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
+#if NCNN_COVERAGE
+    d->shader_coverage = create_shader_coverage(this);
+    if (!d->shader_coverage)
+    {
+        NCNN_LOGE("VulkanDevice create shader coverage buffer failed");
+        return;
+    }
+#endif
+
     d->free_compute_queue_count = 0;
     d->free_transfer_queue_count = 0;
 
@@ -4272,6 +4305,10 @@ VulkanDevice::VulkanDevice(int device_index)
 
 VulkanDevice::~VulkanDevice()
 {
+#if NCNN_COVERAGE
+    if (d->device)
+        vkDeviceWaitIdle(d->device);
+#endif
     d->destroy_utility_operator();
 
     d->destroy_dummy_buffer_image();
@@ -4299,6 +4336,9 @@ VulkanDevice::~VulkanDevice()
 
     if (d->device)
     {
+#if NCNN_COVERAGE
+        destroy_shader_coverage(d->shader_coverage);
+#endif
         vkDestroyDevice(d->device, 0);
     }
 
@@ -4327,6 +4367,9 @@ bool VulkanDevice::is_valid() const
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
 {
+#if NCNN_COVERAGE
+    register_shader_coverage(spv_data, spv_data_size / sizeof(uint32_t));
+#endif
     VkShaderModuleCreateInfo shaderModuleCreateInfo;
     shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shaderModuleCreateInfo.pNext = 0;
@@ -4606,6 +4649,12 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     pipelineLayoutCreateInfo.pNext = 0;
     pipelineLayoutCreateInfo.flags = 0;
 
+#if NCNN_COVERAGE
+    VkDescriptorSetLayout layouts[2];
+    get_shader_coverage_descriptorset_layouts(d->shader_coverage, descriptorset_layout, layouts);
+    pipelineLayoutCreateInfo.setLayoutCount = 2;
+    pipelineLayoutCreateInfo.pSetLayouts = layouts;
+#else
     if (descriptorset_layout)
     {
         pipelineLayoutCreateInfo.setLayoutCount = 1;
@@ -4616,6 +4665,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
         pipelineLayoutCreateInfo.setLayoutCount = 0;
         pipelineLayoutCreateInfo.pSetLayouts = 0;
     }
+#endif
 
     if (push_constant_count > 0)
     {
@@ -4637,6 +4687,18 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
 
     return 0;
 }
+
+#if NCNN_COVERAGE
+void VulkanDevice::bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const
+{
+    bind_shader_coverage_descriptorset(d->shader_coverage, command_buffer, pipeline_layout);
+}
+
+void VulkanDevice::record_shader_coverage_barrier(VkCommandBuffer command_buffer) const
+{
+    ncnn::record_shader_coverage_barrier(d->shader_coverage, command_buffer);
+}
+#endif
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
@@ -5437,6 +5499,9 @@ public:
         {
             const char* const headerData = vulkan_activation_comp_data;
             const size_t headerLength = sizeof(vulkan_activation_comp_data);
+#if NCNN_COVERAGE
+            headerName = "src/layer/vulkan/shader/vulkan_activation.comp";
+#endif
             glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
             return r;
         }
@@ -6260,7 +6325,34 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         const char* comp_datas[5] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), ncnn_glsl_ext_comp_data, comp_data_2};
         const int comp_data_sizes[5] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), sizeof(ncnn_glsl_ext_comp_data), comp_data_size_2};
 
+#if NCNN_COVERAGE
+        int shader_type_index = -1;
+        for (int i = 0; i < layer_shader_registry_entry_count; i++)
+        {
+            if (comp_data == layer_shader_registry[i].comp_data && comp_data_size == layer_shader_registry[i].comp_data_size)
+            {
+                shader_type_index = i;
+                break;
+            }
+        }
+        const char* source_name = shader_coverage_source_name(shader_type_index);
+        int source_line = 1;
+        for (int i = 0; i < version_end_pos; i++)
+            if (comp_data[i] == '\n' || (comp_data[i] == '\r' && (i + 1 == version_end_pos || comp_data[i + 1] != '\n')))
+                source_line++;
+        char line_directive[64];
+        snprintf(line_directive, sizeof(line_directive), "\n#line %d \"", source_line);
+        const std::string coverage_extensions = "#extension GL_GOOGLE_cpp_style_line_directive : enable\n#line 1 \"ncnn-generated-extensions\"\n" + custom_exts;
+        const std::string coverage_defines = "\n#line 1 \"ncnn-generated-options\"\n" + define_macro_data;
+        const std::string coverage_glsl_ext = std::string("\n#line 1 \"src/ncnn_glsl_ext.comp\"\n") + std::string(ncnn_glsl_ext_comp_data, sizeof(ncnn_glsl_ext_comp_data));
+        const std::string coverage_body = std::string(line_directive) + source_name + "\"\n" + std::string(comp_data_2, comp_data_size_2);
+        const char* coverage_datas[5] = {comp_data, coverage_extensions.c_str(), coverage_defines.c_str(), coverage_glsl_ext.c_str(), coverage_body.c_str()};
+        const int coverage_sizes[5] = {comp_data_size_1, (int)coverage_extensions.size(), (int)coverage_defines.size(), (int)coverage_glsl_ext.size(), (int)coverage_body.size()};
+        const char* coverage_names[5] = {source_name, "ncnn-generated-extensions", "ncnn-generated-options", "src/ncnn_glsl_ext.comp", source_name};
+        s.setStringsWithLengthsAndNames(coverage_datas, coverage_sizes, coverage_names, 5);
+#else
         s.setStringsWithLengths(comp_datas, comp_data_sizes, 5);
+#endif
 
         s.setEntryPoint("main");
         s.setSourceEntryPoint("main");
@@ -6289,7 +6381,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         VulkanShaderIncluder includer;
 
-        bool pr = s.parse(&resources, 100, ENoProfile, false, false, EShMsgDefault, includer);
+        EShMessages messages = EShMsgDefault;
+#if NCNN_COVERAGE
+        messages = (EShMessages)(messages | EShMsgDebugInfo);
+#endif
+        bool pr = s.parse(&resources, 100, ENoProfile, false, false, messages, includer);
         if (!pr)
         {
             NCNN_LOGE("compile spir-v module failed");
@@ -6320,7 +6416,18 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         else
         {
             glslang::TIntermediate* ir = s.getIntermediate();
+#if NCNN_COVERAGE
+            glslang::SpvOptions spv_options;
+            spv_options.generateDebugInfo = true;
+            glslang::GlslangToSpv(*ir, spirv, &spv_options);
+            if (shader_type_index >= 0 && instrument_shader_coverage(spirv) != 0)
+            {
+                NCNN_LOGE("shader coverage instrumentation failed for %s", source_name);
+                compile_success = false;
+            }
+#else
             glslang::GlslangToSpv(*ir, spirv);
+#endif
         }
     }
 
@@ -6364,6 +6471,21 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     int bound = p[3];
 
     id_types.resize(bound);
+
+#if NCNN_COVERAGE
+    // collect descriptor sets before bindings because decorations may appear in either order
+    std::vector<uint32_t> descriptor_sets(bound, 0);
+    for (size_t i = 5; i < spv_data_size / sizeof(uint32_t);)
+    {
+        const uint32_t* q = spv_data + i;
+        const uint32_t wordcount = q[0] >> 16;
+        if (!wordcount || wordcount > spv_data_size / sizeof(uint32_t) - i)
+            return -1;
+        if ((q[0] & 0xffff) == 71 && wordcount == 4 && q[2] == 34 && q[1] < (uint32_t)bound)
+            descriptor_sets[q[1]] = q[3];
+        i += wordcount;
+    }
+#endif
 
     // skip magic version generator bound schema
     p += 5;
@@ -6455,6 +6577,13 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             }
             else if (decoration == 33) // Binding
             {
+#if NCNN_COVERAGE
+                if (descriptor_sets[id] != 0)
+                {
+                    p += wordcount;
+                    continue;
+                }
+#endif
                 binding_count = std::max(binding_count, (int)binding_id + 1);
 
                 binding_types.resize(binding_count);
