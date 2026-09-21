@@ -8,7 +8,6 @@
 #include "testutil.h"
 
 #include <stdio.h>
-#include <vector>
 
 #if NCNN_STDIO
 #if defined(_WIN32)
