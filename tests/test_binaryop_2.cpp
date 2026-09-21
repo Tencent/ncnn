@@ -338,7 +338,6 @@ static int test_binaryop_5()
 
 static int test_binaryop_6(int w, int h, int d, int c, int flag = 0)
 {
-
     ncnn::Mat a[3] = {
         RandomMat(d, c),
         RandomMat(h, d, c),
