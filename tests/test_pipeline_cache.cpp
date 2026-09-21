@@ -99,6 +99,15 @@ static int test_pipeline_cache_memory()
         ex.extract("output0", output1);
 
         net.opt.pipeline_cache = 0;
+
+        // cover both populated and already-cleared caches without relying on layer test counts
+        pipeline_cache.clear();
+        if (pipeline_cache.size() != 0)
+        {
+            fprintf(stderr, "pipeline cache is not empty after clear\n");
+            return -1;
+        }
+        pipeline_cache.clear();
     }
 
     if (CompareMat(output0, output1, 0.001) != 0)

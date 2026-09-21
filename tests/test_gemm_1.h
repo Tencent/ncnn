@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
+static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -25,7 +25,7 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     Randomize(a[0]);
     Randomize(a[1]);
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    int ret = test_layer("Gemm", pd, weights, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);
@@ -34,15 +34,15 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     return ret;
 }
 
-static int test_gemm_0(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K)
+static int test_gemm_0(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, int flag = 0)
 {
     return 0
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1)
-           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1);
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1, flag)
+           || test_gemm(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1, flag);
 }

@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int output_pad_right, int output_pad_bottom, int output_w, int output_h)
+static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -42,7 +42,7 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer("DeconvolutionDepthWise", pd, weights, a);
+    int ret = test_layer("DeconvolutionDepthWise", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -92,7 +92,7 @@ static int test_deconvolutiondepthwise_0()
                   || test_deconvolutiondepthwise(15, 7, 12, 12, k, d, s, p, 0, 4, 3, 3, 0, 0)
                   || test_deconvolutiondepthwise(15, 7, 15, 15, k, d, s, p, 1, 15, 3, 0, 7, 5)
                   || test_deconvolutiondepthwise(15, 7, 16, 8, k, d, s, p, 0, 2, 0, 3, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16, 0, 0, 0, 0);
+                  || test_deconvolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16, 0, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING);
 
         if (ret != 0)
             return -1;

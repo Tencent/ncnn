@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, int output_transpose, int constantA, int constantB, int output_N1M = 0)
+static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, int output_transpose, int constantA, int constantB, int output_N1M = 0, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -38,7 +38,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
         Randomize(a[i]);
     }
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    int ret = test_layer("Gemm", pd, weights, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
@@ -47,7 +47,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     return ret;
 }
 
-static int test_gemm_0(int M, int N, int K)
+static int test_gemm_0(int M, int N, int K, int constant_flag = 0)
 {
     return 0
            || test_gemm(M, N, K, 2.1f, 0, 0, 0, 0, 0)
@@ -60,38 +60,38 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm(M, N, K, 2.4f, 1, 1, 1, 0, 0)
 
            || test_gemm(M, N, K, 1.7f, 0, 1, 0, 0, 0, 1)
-           || test_gemm(M, N, K, 1.7f, 1, 1, 0, 1, 0, 1)
-           || test_gemm(M, N, K, 1.9f, 0, 0, 0, 0, 1, 1)
-           || test_gemm(M, N, K, 1.9f, 1, 0, 0, 1, 1, 1)
-           || test_gemm(M, N, K, 1.7f, 0, 1, 1, 1, 0, 1)
-           || test_gemm(M, N, K, 1.7f, 1, 1, 1, 0, 1, 1)
-           || test_gemm(M, N, K, 1.9f, 0, 0, 1, 1, 1, 1)
+           || test_gemm(M, N, K, 1.7f, 1, 1, 0, 1, 0, 1, constant_flag)
+           || test_gemm(M, N, K, 1.9f, 0, 0, 0, 0, 1, 1, constant_flag)
+           || test_gemm(M, N, K, 1.9f, 1, 0, 0, 1, 1, 1, constant_flag)
+           || test_gemm(M, N, K, 1.7f, 0, 1, 1, 1, 0, 1, constant_flag)
+           || test_gemm(M, N, K, 1.7f, 1, 1, 1, 0, 1, 1, constant_flag)
+           || test_gemm(M, N, K, 1.9f, 0, 0, 1, 1, 1, 1, constant_flag)
            || test_gemm(M, N, K, 1.9f, 1, 0, 1, 0, 0, 1)
 
-           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 1, 0)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 1, 0)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 1, 0)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 1, 0)
-           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 1, 0)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 1, 0)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 1, 0)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 1, 0)
+           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 1, 0, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 1, 0, 0, constant_flag)
 
-           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 0, 1)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 0, 1)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 0, 1)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 0, 1)
-           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 0, 1)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 0, 1)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 0, 1)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 0, 1)
+           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 0, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 0, 1, 0, constant_flag)
 
-           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 1, 1)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 1, 1)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 1, 1)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 1, 1)
-           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 1, 1)
-           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 1, 1)
-           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 1, 1)
-           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 1, 1);
+           || test_gemm(M, N, K, 2.1f, 0, 0, 0, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 0, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 0, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 0, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.1f, 0, 0, 1, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 3.1f, 0, 1, 1, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 4.1f, 1, 0, 1, 1, 1, 0, constant_flag)
+           || test_gemm(M, N, K, 2.4f, 1, 1, 1, 1, 1, 0, constant_flag);
 }

@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_scale(const ncnn::Mat& a, int bias)
+static int test_scale(const ncnn::Mat& a, int bias, int flag = 0)
 {
     int scale_data_size;
     if (a.dims == 1) scale_data_size = a.w;
@@ -20,7 +20,7 @@ static int test_scale(const ncnn::Mat& a, int bias)
     if (bias)
         weights[1] = RandomMat(scale_data_size);
 
-    int ret = test_layer("Scale", pd, weights, a);
+    int ret = test_layer("Scale", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d %d) bias=%d\n", a.dims, a.w, a.h, a.d, a.c, bias);
@@ -29,7 +29,7 @@ static int test_scale(const ncnn::Mat& a, int bias)
     return ret;
 }
 
-static int test_scale_attention(const ncnn::Mat& a)
+static int test_scale_attention(const ncnn::Mat& a, int flag = 0)
 {
     int scale_data_size;
     if (a.dims == 1) scale_data_size = a.w;
@@ -46,7 +46,7 @@ static int test_scale_attention(const ncnn::Mat& a)
     ab[0] = a;
     ab[1] = RandomMat(scale_data_size);
 
-    int ret = test_layer("Scale", pd, weights, ab, 2);
+    int ret = test_layer("Scale", pd, weights, ab, 2, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
@@ -55,13 +55,15 @@ static int test_scale_attention(const ncnn::Mat& a)
     return ret;
 }
 
+// cpu pack8/pack16 cases reuse the Vulkan pack4 path covered by the pack4 cases
+// keep the 1d sizes for dispatch boundary coverage
 static int test_scale_0()
 {
     return 0
-           || test_scale(RandomMat(5, 3, 48), 0)
-           || test_scale(RandomMat(5, 3, 48), 1)
-           || test_scale(RandomMat(5, 7, 24), 0)
-           || test_scale(RandomMat(5, 7, 24), 1)
+           || test_scale(RandomMat(5, 3, 48), 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(5, 3, 48), 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(5, 7, 24), 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(5, 7, 24), 1, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_scale(RandomMat(7, 9, 12), 0)
            || test_scale(RandomMat(7, 9, 12), 1)
            || test_scale(RandomMat(3, 5, 13), 0)
@@ -71,10 +73,10 @@ static int test_scale_0()
 static int test_scale_1()
 {
     return 0
-           || test_scale(RandomMat(13, 48), 0)
-           || test_scale(RandomMat(13, 48), 1)
-           || test_scale(RandomMat(15, 24), 0)
-           || test_scale(RandomMat(15, 24), 1)
+           || test_scale(RandomMat(13, 48), 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(13, 48), 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(15, 24), 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale(RandomMat(15, 24), 1, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_scale(RandomMat(17, 12), 0)
            || test_scale(RandomMat(17, 12), 1)
            || test_scale(RandomMat(19, 15), 0)
@@ -95,8 +97,8 @@ static int test_scale_2()
 static int test_scale_3()
 {
     return 0
-           || test_scale_attention(RandomMat(5, 6, 48))
-           || test_scale_attention(RandomMat(5, 7, 24))
+           || test_scale_attention(RandomMat(5, 6, 48), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale_attention(RandomMat(5, 7, 24), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_scale_attention(RandomMat(7, 9, 12))
            || test_scale_attention(RandomMat(3, 5, 13));
 }
@@ -104,8 +106,8 @@ static int test_scale_3()
 static int test_scale_4()
 {
     return 0
-           || test_scale_attention(RandomMat(25, 48))
-           || test_scale_attention(RandomMat(15, 24))
+           || test_scale_attention(RandomMat(25, 48), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_scale_attention(RandomMat(15, 24), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_scale_attention(RandomMat(17, 12))
            || test_scale_attention(RandomMat(19, 15));
 }

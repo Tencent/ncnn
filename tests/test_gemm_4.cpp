@@ -181,7 +181,7 @@ static void RandomizeB(ncnn::Mat& m, float absmax)
     }
 }
 
-static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
+static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -213,7 +213,7 @@ static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_
     opt.use_bf16_packed = false;
     opt.use_bf16_storage = false;
 
-    int ret = test_layer_opt("Gemm", pd, weights, opt, a);
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_int8 failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);
@@ -222,17 +222,17 @@ static int test_gemm_int8(int M, int N, int K, int TILE_M, int TILE_N, int TILE_
     return ret;
 }
 
-static int test_gemm_0(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K)
+static int test_gemm_0(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, int flag = 0)
 {
     return 0
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1)
-           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1);
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 0, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 0, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 0, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 0, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 2.1f, 0, 0, 1, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 3.1f, 0, 1, 1, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 4.1f, 1, 0, 1, flag)
+           || test_gemm_int8(M, N, K, TILE_M, TILE_N, TILE_K, 5.1f, 1, 1, 1, flag);
 }
 #endif // NCNN_INT8
 
@@ -297,7 +297,8 @@ int main()
             if (TILE_M >= M && TILE_N >= N && TILE_K >= K)
                 continue;
 
-            int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K);
+            // tile sizes only affect cpu kernels; the no-tiling call below covers Vulkan
+            int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K, TEST_LAYER_DISABLE_GPU_TESTING);
             if (ret != 0)
                 return ret;
         }

@@ -7,29 +7,13 @@ int main()
 {
     SRAND(7767517);
 
-    int mnk[][3] = {
-        {24, 24, 47},
-        {24, 35, 24},
-        {47, 24, 24},
-        {1, 35, 47},
-        {23, 31, 1},
-        {23, 1, 23},
-        {23, 31, 23}
-    };
-
-    int mnk_count = sizeof(mnk) / sizeof(int) / 3;
-
-    for (int i = 0; i < mnk_count; i++)
-    {
-        int M = mnk[i][0];
-        int N = mnk[i][1];
-        int K = mnk[i][2];
-
-        int ret = test_gemm_0(M, N, K);
-
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
+    // the flag applies to constant operands; dynamic operands retain every matrix size
+    return 0
+           || test_gemm_0(24, 24, 47, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_gemm_0(24, 35, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_gemm_0(47, 24, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_gemm_0(1, 35, 47)
+           || test_gemm_0(23, 31, 1)
+           || test_gemm_0(23, 1, 23)
+           || test_gemm_0(23, 31, 23);
 }

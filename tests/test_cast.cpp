@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include <limits>
+
 static int test_float32_to_float16(float value, unsigned short expected)
 {
     unsigned short actual = ncnn::float32_to_float16(value);
@@ -60,6 +62,9 @@ static int test_cast_rounding()
            || test_float32_to_float16(1.99951171875f, 0x4000)
            || test_float32_to_float16(65504.f, 0x7bff)
            || test_float32_to_float16(65520.f, 0x7c00)
+           || test_float32_to_float16(std::numeric_limits<float>::infinity(), 0x7c00)
+           || test_float32_to_float16(-std::numeric_limits<float>::infinity(), 0xfc00)
+           || test_float32_to_float16(std::numeric_limits<float>::quiet_NaN(), 0x7e00)
            || test_float32_to_float16(0.00006103515625f, 0x0400)
            || test_float32_to_float16(0.000030517578125f, 0x0000)
            || test_float16_to_float8(0x3c40, 0x39)

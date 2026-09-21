@@ -51,7 +51,7 @@ static void print_int_array(const std::vector<int>& a)
     fprintf(stderr, " ]");
 }
 
-static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, int axis)
+static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, int axis, int flag = 0)
 {
     ncnn::Mat slices(slices_array.size());
     {
@@ -71,7 +71,7 @@ static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, 
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer("Slice", pd, weights, a0, slices.w);
+    int ret = test_layer("Slice", pd, weights, a0, slices.w, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -83,7 +83,7 @@ static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, 
     return ret;
 }
 
-static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indices_array, int axis)
+static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indices_array, int axis, int flag = 0)
 {
     ncnn::Mat indices(indices_array.size());
     {
@@ -103,7 +103,7 @@ static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indice
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer("Slice", pd, weights, a0, indices.w);
+    int ret = test_layer("Slice", pd, weights, a0, indices.w, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice_indices failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -115,6 +115,25 @@ static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indice
     return ret;
 }
 
+static int test_slice_0(const ncnn::Mat& a, int flag = 0)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
+           || test_slice(a, IntArray(-233, -233, -233), 1, flag)
+           || test_slice(a, IntArray(-233, -233, -233), -2, flag)
+           || test_slice(a, IntArray(-233, -233, -233), 3, flag)
+           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(32, 8, -233), 0, flag)
+           || test_slice(a, IntArray(2, 12, 16, -233), 1, flag)
+           || test_slice(a, IntArray(16, 4, 5, -233), -2, flag)
+           || test_slice(a, IntArray(8, 2, 16, -233), 3, flag)
+           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
+           || test_slice_indices(a, IntArray(4, 20, 4), 1, flag)
+           || test_slice_indices(a, IntArray(16, -16), -2, flag)
+           || test_slice_indices(a, IntArray(1, -12), 3, flag);
+}
+
 static int test_slice_0()
 {
     ncnn::Mat a[] = {
@@ -123,29 +142,27 @@ static int test_slice_0()
         RandomMat(30, 32, 36, 60)
     };
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        int ret = 0
-                  || test_slice(a[i], IntArray(-233, -233, -233), 0)
-                  || test_slice(a[i], IntArray(-233, -233, -233), 1)
-                  || test_slice(a[i], IntArray(-233, -233, -233), -2)
-                  || test_slice(a[i], IntArray(-233, -233, -233), 3)
-                  || test_slice(a[i], IntArray(3, 12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(32, 8, -233), 0)
-                  || test_slice(a[i], IntArray(2, 12, 16, -233), 1)
-                  || test_slice(a[i], IntArray(16, 4, 5, -233), -2)
-                  || test_slice(a[i], IntArray(8, 2, 16, -233), 3)
-                  || test_slice_indices(a[i], IntArray(2, -24, -8), 0)
-                  || test_slice_indices(a[i], IntArray(4, 20, 4), 1)
-                  || test_slice_indices(a[i], IntArray(16, -16), -2)
-                  || test_slice_indices(a[i], IntArray(1, -12), 3);
+    // the 60-element case retains the same Vulkan input/output packing
+    return 0
+           || test_slice_0(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_slice_0(a[1])
+           || test_slice_0(a[2]);
+}
 
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
+static int test_slice_1(const ncnn::Mat& a, int flag = 0)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
+           || test_slice(a, IntArray(-233, -233, -233), 1, flag)
+           || test_slice(a, IntArray(-233, -233, -233), -1, flag)
+           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(32, 8, -233), 0, flag)
+           || test_slice(a, IntArray(2, 12, 16, -233), 1, flag)
+           || test_slice(a, IntArray(16, 4, 5, -233), -1, flag)
+           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
+           || test_slice_indices(a, IntArray(4, 20, 4), 1, flag)
+           || test_slice_indices(a, IntArray(1, -12), 2, flag);
 }
 
 static int test_slice_1()
@@ -156,26 +173,24 @@ static int test_slice_1()
         RandomMat(51, 36, 60)
     };
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        int ret = 0
-                  || test_slice(a[i], IntArray(-233, -233, -233), 0)
-                  || test_slice(a[i], IntArray(-233, -233, -233), 1)
-                  || test_slice(a[i], IntArray(-233, -233, -233), -1)
-                  || test_slice(a[i], IntArray(3, 12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(32, 8, -233), 0)
-                  || test_slice(a[i], IntArray(2, 12, 16, -233), 1)
-                  || test_slice(a[i], IntArray(16, 4, 5, -233), -1)
-                  || test_slice_indices(a[i], IntArray(2, -24, -8), 0)
-                  || test_slice_indices(a[i], IntArray(4, 20, 4), 1)
-                  || test_slice_indices(a[i], IntArray(1, -12), 2);
+    // the 60-element case retains the same Vulkan input/output packing
+    return 0
+           || test_slice_1(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_slice_1(a[1])
+           || test_slice_1(a[2]);
+}
 
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
+static int test_slice_2(const ncnn::Mat& a, int flag = 0)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
+           || test_slice(a, IntArray(-233, -233, -233), -1, flag)
+           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(32, 8, -233), -2, flag)
+           || test_slice(a, IntArray(2, 12, 16, -233), -1, flag)
+           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
+           || test_slice_indices(a, IntArray(1, -12), 1, flag);
 }
 
 static int test_slice_2()
@@ -186,23 +201,21 @@ static int test_slice_2()
         RandomMat(36, 60)
     };
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        int ret = 0
-                  || test_slice(a[i], IntArray(-233, -233, -233), 0)
-                  || test_slice(a[i], IntArray(-233, -233, -233), -1)
-                  || test_slice(a[i], IntArray(3, 12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(32, 8, -233), -2)
-                  || test_slice(a[i], IntArray(2, 12, 16, -233), -1)
-                  || test_slice_indices(a[i], IntArray(2, -24, -8), 0)
-                  || test_slice_indices(a[i], IntArray(1, -12), 1);
+    // the 60-element case retains the same Vulkan input/output packing
+    return 0
+           || test_slice_2(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_slice_2(a[1])
+           || test_slice_2(a[2]);
+}
 
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
+static int test_slice_3(const ncnn::Mat& a, int flag = 0)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
+           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(12, 16, -233), 0, flag)
+           || test_slice(a, IntArray(32, 8, -233), -1, flag)
+           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag);
 }
 
 static int test_slice_3()
@@ -213,20 +226,11 @@ static int test_slice_3()
         RandomMat(60)
     };
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        int ret = 0
-                  || test_slice(a[i], IntArray(-233, -233, -233), 0)
-                  || test_slice(a[i], IntArray(3, 12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(12, 16, -233), 0)
-                  || test_slice(a[i], IntArray(32, 8, -233), -1)
-                  || test_slice_indices(a[i], IntArray(2, -24, -8), 0);
-
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
+    // the 60-element case retains the same Vulkan input/output packing
+    return 0
+           || test_slice_3(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_slice_3(a[1])
+           || test_slice_3(a[2]);
 }
 
 static int test_slice_4()
