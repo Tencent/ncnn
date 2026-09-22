@@ -1916,6 +1916,12 @@ void main()
             coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 #else
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+            [[unroll]] for (uint i = 0; i < sum[zn][zm].length(); i++)
+            {
+                sum[zn][zm][i] = roundBFloat16(sum[zn][zm][i]);
+            }
+#endif
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
