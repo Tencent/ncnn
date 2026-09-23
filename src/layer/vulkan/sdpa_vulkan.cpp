@@ -182,13 +182,16 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 FA_UNROLL_WG_M = 2;
 
                 int UNROLL_P_N = std::min(4, FA_coopmat_subgroup_size / FA_coopmat_N);
-                const int pad = vkdev->info.support_VK_KHR_cooperative_matrix() ? 1 : 0;
+                // match the float and uvec4 shared-memory row strides in sdpa_fa_cm
+                const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
+                const int Kd8p = use_khr_cooperative_matrix ? (FA_coopmat_K / 8) | 1 : FA_coopmat_K / 8;
+                const int Np = use_khr_cooperative_matrix ? (((FA_coopmat_N + 3) / 4) | 1) * 4 : FA_coopmat_N;
                 for (;;)
                 {
                     // K and V share storage in sdpa_fa_cm
                     const size_t rows = FA_UNROLL_SG_M * FA_UNROLL_WG_M * FA_coopmat_M;
-                    const size_t shared_bytes = 16 * (rows + UNROLL_P_N * FA_coopmat_N) * (FA_coopmat_K / 8 + pad)
-                                                + 4 * rows * ((UNROLL_P_N + 1) * (FA_coopmat_N + pad) + 3);
+                    const size_t shared_bytes = 16 * (rows + UNROLL_P_N * FA_coopmat_N) * Kd8p
+                                                + 4 * rows * ((UNROLL_P_N + 1) * Np + 3);
                     const uint32_t invocations = FA_coopmat_subgroup_size * FA_UNROLL_WG_M;
                     if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
                             && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)FA_UNROLL_WG_M <= vkdev->info.max_compute_workgroup_subgroups())

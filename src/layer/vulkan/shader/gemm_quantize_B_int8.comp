@@ -21,18 +21,17 @@ layout(push_constant) uniform parameter
     int B_hstep;
 } p;
 
-#if ncnn_VK_KHR_cooperative_matrix
-#define PAD 1
-#else
-#define PAD 0
-#endif
-
 void main()
 {
     const int gx = int(gl_GlobalInvocationID.x);
 
     const int Nd4 = CM_N / 4;
-    const int Nd4p = Nd4 + PAD;
+#if ncnn_VK_KHR_cooperative_matrix
+    // match the aligned shared-memory row stride in gemm_int8_cm
+    const int Nd4p = (((Nd4 + 3) / 4) | 1) * 4;
+#else
+    const int Nd4p = Nd4;
+#endif
     const int kk = (p.K + CM_K - 1) / CM_K;
     const int kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
     const int K_Nd4p_USGN = CM_K * Nd4p * UNROLL_SG_N;

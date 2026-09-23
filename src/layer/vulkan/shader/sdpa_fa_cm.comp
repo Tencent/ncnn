@@ -57,18 +57,18 @@ layout(push_constant) uniform parameter
 const uint Nd8 = N / 8;
 const uint Kd8 = K / 8;
 
-// avoid bank conflict
+// keep row strides aligned to 16 bytes (VUID-RuntimeSpirv-OpCooperativeMatrixLoadKHR-08986)
+// use odd multiples of 16 bytes for both float and uvec4 shared arrays
 #if ncnn_VK_KHR_cooperative_matrix
-#define PAD 1
+const uint Np = (((N + 3) / 4) | 1) * 4;
+const uint Nd8p = Nd8 | 1;
+const uint Kd8p = Kd8 | 1;
 #elif ncnn_VK_NV_cooperative_matrix
 // fixme: pad causes incorrect result on old driver
-#define PAD 0
+const uint Np = N;
+const uint Nd8p = Nd8;
+const uint Kd8p = Kd8;
 #endif
-
-const uint Np = N + PAD;
-
-const uint Nd8p = Nd8 + PAD;
-const uint Kd8p = Kd8 + PAD;
 
 shared uvec4 tmp_q[UNROLL_WG_M * UNROLL_SG_M * M * Kd8p];
 shared uvec4 tmp_k[UNROLL_P_N * N * Kd8p];
@@ -492,6 +492,12 @@ void main()
                 coopMatLoad(a, tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
 
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+                [[unroll]] for (uint i = 0; i < a.length(); i++)
+                {
+                    a[i] = roundBFloat16(a[i]);
+                }
+#endif
                 coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
@@ -892,6 +898,12 @@ void main()
             coopMatLoad(a, tmp_s, (sgi * UNROLL_SG_M + zm) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
 
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+            [[unroll]] for (uint i = 0; i < a.length(); i++)
+            {
+                a[i] = roundBFloat16(a[i]);
+            }
+#endif
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
