@@ -123,8 +123,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
         }
 
-        if (coopmat_M == 0)
+        const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
+        if (coopmat_M == 0 || (use_khr_cooperative_matrix && (coopmat_M % 8 || coopmat_N % 8 || coopmat_K % 8)))
         {
+            // fall back when an unpadded KHR row stride would violate the alignment requirement
             use_cooperative_matrix = false;
         }
         else
@@ -143,13 +145,12 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
             UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-            // match the aligned shared-memory row strides in gemm_cm
-            const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
-            const int Md4p = use_khr_cooperative_matrix ? (((coopmat_M + 7) / 8) | 1) * 2 : coopmat_M / 4;
-            const int Nd4p = use_khr_cooperative_matrix ? (((coopmat_N + 7) / 8) | 1) * 2 : coopmat_N / 4;
-            const int Kd4p = use_khr_cooperative_matrix ? (((coopmat_K + 7) / 8) | 1) * 2 : coopmat_K / 4;
-            const size_t shared_a = 8 * std::max(coopmat_M * Kd4p, coopmat_K * Md4p);
-            const size_t shared_b = 8 * std::max(coopmat_K * Nd4p, coopmat_N * Kd4p);
+            // match the shared-memory row strides in gemm_cm
+            const int Md4 = coopmat_M / 4;
+            const int Nd4 = coopmat_N / 4;
+            const int Kd4 = coopmat_K / 4;
+            const size_t shared_a = 8 * std::max(coopmat_M * Kd4, coopmat_K * Md4);
+            const size_t shared_b = 8 * std::max(coopmat_K * Nd4, coopmat_N * Kd4);
             const size_t shared_o = 2 * coopmat_M * coopmat_N;
 
             for (;;)
