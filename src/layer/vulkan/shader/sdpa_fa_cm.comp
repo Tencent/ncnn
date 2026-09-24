@@ -57,7 +57,6 @@ layout(push_constant) uniform parameter
 const uint Nd8 = N / 8;
 const uint Kd8 = K / 8;
 
-
 shared uvec4 tmp_q[UNROLL_WG_M * UNROLL_SG_M * M * Kd8];
 shared uvec4 tmp_k[UNROLL_P_N * N * Kd8];
 // shared uvec4 tmp_v[UNROLL_P_N * N * Kd8];

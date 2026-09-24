@@ -80,7 +80,6 @@ const uint Md4 = M / 4;
 const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 
-
 // cannot alias output with a and b
 // cm store may happen while another subgroup is loading
 #if ncnn_vendorID == 0x5143

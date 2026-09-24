@@ -70,7 +70,6 @@ const uint Md8 = M / 8;
 const uint Nd8 = N / 8;
 const uint Kd8 = K / 8;
 
-
 const uint tmp_a_size = UNROLL_WG_M * UNROLL_SG_K * UNROLL_SG_M * (M * Kd8);
 #if ncnn_vendorID == 0x5143
 // transB is 0 or 1; avoid specialization select in shared array lengths on adreno
