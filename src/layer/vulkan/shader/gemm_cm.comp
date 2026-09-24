@@ -98,6 +98,34 @@ shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * (K * Nd4 > N * Kd4 ?
 #endif
 shared uvec2 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
 
+// reorder k loads while preserving the cooperative matrix layout
+uint interleave_a_index(uint siq)
+{
+    if (UNROLL_SG_K == 1)
+        return siq;
+
+    const uint zk = siq / (Md4 * K * UNROLL_SG_M);
+    const uint zm = (siq / (Md4 * K)) % UNROLL_SG_M;
+    const uint i = (siq / Md4) % K;
+    const uint j = siq % Md4;
+    const uint ak = i * UNROLL_SG_K + zk;
+    return (((ak / K) * UNROLL_SG_M + zm) * K + ak % K) * Md4 + j;
+}
+
+// reorder k loads while preserving the cooperative matrix layout
+uint interleave_b_index(uint siq)
+{
+    if (UNROLL_SG_K == 1)
+        return siq;
+
+    const uint zk = siq / (Nd4 * K * UNROLL_SG_N);
+    const uint zn = (siq / (Nd4 * K)) % UNROLL_SG_N;
+    const uint j = (siq / Nd4) % K;
+    const uint i = siq % Nd4;
+    const uint bk = j * UNROLL_SG_K + zk;
+    return ((bk / K * UNROLL_SG_N + zn) * K + bk % K) * Nd4 + i;
+}
+
 void main()
 {
     // neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
@@ -513,7 +541,7 @@ void main()
 
                             uvec2 v = uvec2(0);
 
-                            const uint gk = ki + zk * K + i;
+                            const uint gk = ki + i * UNROLL_SG_K + zk;
                             const uint gm = (mi + zm) * Md4 + j;
 
                             if (gk < psc(GK))
@@ -913,7 +941,7 @@ void main()
 
                             uvec2 v = uvec2(0);
 
-                            const uint gk = ki + zk * K + j;
+                            const uint gk = ki + j * UNROLL_SG_K + zk;
                             const uint gn = (ni + zn) * Nd4 + i;
 
                             if (gk < psc(GK))
@@ -976,10 +1004,7 @@ void main()
                         {
                             if (psc(A_elempack) == 4)
                             {
-                                const uint i = siq / Md4;
-                                const uint j = siq % Md4;
-
-                                tmp_a[sgmi][i * Md4 + j] = prefetch_tmp_a[q];
+                                tmp_a[sgmi][interleave_a_index(siq)] = prefetch_tmp_a[q];
                             }
                             else
                             {
@@ -1080,10 +1105,7 @@ void main()
                         {
                             if (psc(B_elempack) == 4)
                             {
-                                const uint j = siq / Nd4;
-                                const uint i = siq % Nd4;
-
-                                tmp_b[sgni][j * Nd4 + i] = prefetch_tmp_b[q];
+                                tmp_b[sgni][interleave_b_index(siq)] = prefetch_tmp_b[q];
                             }
                             else
                             {
@@ -1228,7 +1250,7 @@ void main()
 
                                 uvec2 v = uvec2(0);
 
-                                const uint gk = ki + zk * K + i;
+                                const uint gk = ki + i * UNROLL_SG_K + zk;
                                 const uint gm = (mi + zm) * Md4 + j;
 
                                 if (gk < psc(GK))
@@ -1627,7 +1649,7 @@ void main()
 
                                 uvec2 v = uvec2(0);
 
-                                const uint gk = ki + zk * K + j;
+                                const uint gk = ki + j * UNROLL_SG_K + zk;
                                 const uint gn = (ni + zn) * Nd4 + i;
 
                                 if (gk < psc(GK))
@@ -1853,10 +1875,7 @@ void main()
                     {
                         if (psc(A_elempack) == 4)
                         {
-                            const uint i = siq / Md4;
-                            const uint j = siq % Md4;
-
-                            tmp_a[sgmi][i * Md4 + j] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][interleave_a_index(siq)] = prefetch_tmp_a[q];
                         }
                         else
                         {
@@ -1957,10 +1976,7 @@ void main()
                     {
                         if (psc(B_elempack) == 4)
                         {
-                            const uint j = siq / Nd4;
-                            const uint i = siq % Nd4;
-
-                            tmp_b[sgni][j * Nd4 + i] = prefetch_tmp_b[q];
+                            tmp_b[sgni][interleave_b_index(siq)] = prefetch_tmp_b[q];
                         }
                         else
                         {
@@ -2281,7 +2297,7 @@ void main()
 
                         uvec2 v = uvec2(0);
 
-                        const uint gk = ki + zk * K + i;
+                        const uint gk = ki + i * UNROLL_SG_K + zk;
                         const uint gm = (mi + zm) * Md4 + j;
 
                         if (gk < psc(GK))
@@ -2295,7 +2311,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * K + i) * Md4 + j] = v;
+                        tmp_a[sgmi][interleave_a_index(siq)] = v;
                     }
                 }
             }
@@ -2687,7 +2703,7 @@ void main()
 
                         uvec2 v = uvec2(0);
 
-                        const uint gk = ki + zk * K + j;
+                        const uint gk = ki + j * UNROLL_SG_K + zk;
                         const uint gn = (ni + zn) * Nd4 + i;
 
                         if (gk < psc(GK))
@@ -2701,7 +2717,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + j) * Nd4 + i] = v;
+                        tmp_b[sgni][interleave_b_index(siq)] = v;
                     }
                 }
             }
