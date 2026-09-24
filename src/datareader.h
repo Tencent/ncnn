@@ -69,6 +69,7 @@ class NCNN_EXPORT DataReaderFromMemory : public DataReader
 {
 public:
     explicit DataReaderFromMemory(const unsigned char*& mem);
+    DataReaderFromMemory(const unsigned char*& mem, size_t mem_size);
     virtual ~DataReaderFromMemory();
 
 #if NCNN_STRING

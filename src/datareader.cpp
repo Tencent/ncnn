@@ -81,15 +81,22 @@ class DataReaderFromMemoryPrivate
 {
 public:
     DataReaderFromMemoryPrivate(const unsigned char*& _mem)
-        : mem(_mem)
+        : mem(_mem), mem_end(0)
     {
     }
     const unsigned char*& mem;
+    const unsigned char* mem_end;
 };
 
 DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
     : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
 {
+}
+
+DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem, size_t mem_size)
+    : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
+{
+    d->mem_end = _mem + mem_size;
 }
 
 DataReaderFromMemory::~DataReaderFromMemory()
@@ -128,6 +135,12 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 
 size_t DataReaderFromMemory::read(void* buf, size_t size) const
 {
+    if (d->mem_end)
+    {
+        const size_t remaining = (size_t)(d->mem_end - d->mem);
+        if (size > remaining)
+            size = remaining;
+    }
     memcpy(buf, d->mem, size);
     d->mem += size;
     return size;
@@ -135,6 +148,9 @@ size_t DataReaderFromMemory::read(void* buf, size_t size) const
 
 size_t DataReaderFromMemory::reference(size_t size, const void** buf) const
 {
+    if (d->mem_end && size > (size_t)(d->mem_end - d->mem))
+        return 0;
+
     *buf = d->mem;
     d->mem += size;
     return size;

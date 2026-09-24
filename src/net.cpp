@@ -2564,12 +2564,19 @@ int Net::load_model(const char* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = (const unsigned char*)d->mapped_model_file.mapped_ptr();
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
-            if (consumed != size)
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
             {
-                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            if ((size_t)(mem - (const unsigned char*)d->mapped_model_file.mapped_ptr()) != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", (size_t)(mem - (const unsigned char*)d->mapped_model_file.mapped_ptr()), size);
                 d->mapped_model_file.close();
                 return -1;
             }
@@ -2602,12 +2609,19 @@ int Net::load_model(const wchar_t* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = (const unsigned char*)d->mapped_model_file.mapped_ptr();
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
-            if (consumed != size)
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
             {
-                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            if ((size_t)(mem - (const unsigned char*)d->mapped_model_file.mapped_ptr()) != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", (size_t)(mem - (const unsigned char*)d->mapped_model_file.mapped_ptr()), size);
                 d->mapped_model_file.close();
                 return -1;
             }
