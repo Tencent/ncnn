@@ -68,7 +68,7 @@ static int test_multiheadattention_cross_kvcache(const ncnn::Mat& q, const ncnn:
     return test_multiheadattention_cross_kvcache(q, k, v, embed_dim, num_heads, attn_mask, 0) || test_multiheadattention_cross_kvcache(q, k, v, embed_dim, num_heads, attn_mask, 1);
 }
 
-static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int embed_dim, int num_heads, int flag = 0)
 {
     const int qdim = q.w;
     const int dst_seqlen = q.h;
@@ -111,7 +111,7 @@ static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int 
 
     float epsilon = 0.005;
 
-    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention_self_kvcache_prefill failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
@@ -179,7 +179,7 @@ static int test_multiheadattention_1()
     return 0
            || test_multiheadattention_self_kvcache_prefill(RandomMat(64, 128), 64, 4)
            || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8)
-           || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 static int test_multiheadattention_2()

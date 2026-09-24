@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
+static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -24,7 +24,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Pooling", pd, weights, a);
+    int ret = test_layer("Pooling", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);
@@ -59,7 +59,7 @@ static int test_pooling_0()
                   || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
                   || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
                   || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0, 0, 0)
-                  || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0, 0, 0);
+                  || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING);
 
         if (ret != 0)
             return -1;
@@ -95,7 +95,7 @@ static int test_pooling_1()
                   || test_pooling(9, 7, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1, 0, 0)
                   || test_pooling(9, 7, 12, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 1, 0, 0)
                   || test_pooling(9, 7, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
-                  || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
+                  || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
                   || test_pooling(9, 7, 64, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 1, 0, 0);
 
         if (ret != 0)

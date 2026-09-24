@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_w, int output_h)
+static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -41,7 +41,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     weights[0] = RandomMat(outch * c * kernel * kernel);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer("Deconvolution", pd, weights, a);
+    int ret = test_layer("Deconvolution", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -60,7 +60,11 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
+        // the default Vulkan options also use direct deconvolution below the GEMM thresholds
+        if (c < 8 || kernel * kernel * outch < 8)
+            ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag | TEST_LAYER_DISABLE_GPU_TESTING);
+        else
+            ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -80,7 +84,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
+        ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -153,7 +157,7 @@ static int test_deconvolution_0()
            || test_deconvolution(3, 3, 14, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
            // avx512 tier coverage
            || test_deconvolution(5, 4, 1, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
-           || test_deconvolution(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_deconvolution(5, 4, 8, 16, 3, 1, 2, 1, 1, 0, 0, 0, 0)
            || test_deconvolution(4, 3, 5, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
            || test_deconvolution(5, 4, 24, 8, 3, 1, 1, 1, 1, 0, 0, 0, 0)

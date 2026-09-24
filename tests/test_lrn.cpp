@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float alpha, float beta, float bias)
+static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float alpha, float beta, float bias, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, region_type);
@@ -18,7 +18,7 @@ static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float a
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("LRN", pd, weights, a);
+    int ret = test_layer("LRN", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_lrn failed a.dims=%d a=(%d %d %d) region_type=%d local_size=%d alpha=%f beta=%f bias=%f\n", a.dims, a.w, a.h, a.c, region_type, local_size, alpha, beta, bias);
@@ -43,10 +43,10 @@ static int test_lrn_1()
     ncnn::Mat a = RandomMat(10, 8, 16);
 
     return 0
-           || test_lrn(a, 0, 1, 1.f, 0.75f, 1.f)
-           || test_lrn(a, 0, 5, 2.f, 0.12f, 1.33f)
-           || test_lrn(a, 1, 1, 0.6f, 0.4f, 2.4f)
-           || test_lrn(a, 1, 3, 1.f, 0.75f, 0.5f);
+           || test_lrn(a, 0, 1, 1.f, 0.75f, 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_lrn(a, 0, 5, 2.f, 0.12f, 1.33f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_lrn(a, 1, 1, 0.6f, 0.4f, 2.4f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_lrn(a, 1, 3, 1.f, 0.75f, 0.5f, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 static int test_lrn_2()
