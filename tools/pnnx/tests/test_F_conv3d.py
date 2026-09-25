@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -33,24 +35,31 @@ def test():
     x = torch.rand(1, 12, 20, 32, 40)
     w0 = torch.rand(16, 12, 3, 2, 3)
     w1 = torch.rand(16, 8, 5, 4, 5)
-    b1 = torch.rand(16)
+    bias1 = torch.rand(16)
     y = torch.rand(1, 6, 12, 11, 10)
 
-    a0, a1 = net(x, w0, w1, b1, y)
+    a0, a1 = net(x, w0, w1, bias1, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, w0, w1, b1, y))
+    mod = torch.jit.trace(net, (x, w0, w1, bias1, y))
     mod.save("test_F_conv3d.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_conv3d.pt inputshape=[1,12,20,32,40],[16,12,3,2,3],[16,8,5,4,5],[16],[1,6,12,11,10]")
+    converted = torchscript_to_pnnx("test_F_conv3d", "[1,12,20,32,40],[16,12,3,2,3],[16,8,5,4,5],[16],[1,6,12,11,10]")
 
     # pnnx inference
-    import test_F_conv3d_pnnx
-    b0, b1 = test_F_conv3d_pnnx.test_inference()
+    b0, b1 = converted(x, w0, w1, bias1, y)
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    if not (torch.equal(a0, b0) and torch.equal(a1, b1)):
+        return False
+
+    if not has_torch_export():
+        return True
+
+    converted = exported_program_to_pnnx(net, (x, w0, w1, bias1, y), "test_F_conv3d_pt2")
+    c0, c1 = converted(x, w0, w1, bias1, y)
+
+    return torch.equal(a0, c0) and torch.equal(a1, c1)
 
 if __name__ == "__main__":
     if test():
