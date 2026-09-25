@@ -38,6 +38,7 @@
 #include "layer/convolution.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/innerproduct.h"
+#include "layer/gemm.h"
 #include "layer/embed.h"
 #include "layer/multiheadattention.h"
 #include "layer/rnn.h"
@@ -51,12 +52,14 @@ public:
     {
         threshold = 0.f;
         absmax = 0.f;
+        percentile = 0.f;
         total = 0;
     }
 
 public:
     float threshold;
     float absmax;
+    float percentile;
 
     // ACIQ
     int total;
@@ -73,6 +76,18 @@ public:
     ncnn::Mat k_weight_scales;
     ncnn::Mat v_weight_scales;
     float out_weight_scale;
+};
+
+class QuantGemmStat
+{
+public:
+    QuantGemmStat()
+        : B_weight_scale(1.f)
+    {
+    }
+
+    ncnn::Mat A_weight_scales;
+    float B_weight_scale;
 };
 
 // rnn, gru, lstm
@@ -105,8 +120,10 @@ public:
     int init();
     void print_quant_info() const;
     int save_table(const char* tablepath);
-    void initialize_static_weight_scales();
+    void initialize_static_weight_scales(bool initialize_conv_weight_scales = false);
+    int build_activation_histogram(int num_histogram_bins);
     int quantize_KL();
+    int quantize_percentile(const std::vector<float>& percentiles);
     int quantize_ACIQ();
     int quantize_EQ();
 
@@ -116,6 +133,7 @@ public:
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
     std::vector<int> embed_layers;
+    std::vector<int> gemm_layers;
     std::vector<int> mha_layers;
     std::vector<int> rnn_layers;
     std::vector<int> lstm_layers;
@@ -126,6 +144,7 @@ public:
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blob_scales;
     std::vector<float> embed_weight_scales;
+    std::vector<QuantGemmStat> gemm_stats;
     std::vector<QuantMHAStat> mha_stats;
     std::vector<QuantRecurrentStat> rnn_stats;
     std::vector<QuantRecurrentStat> lstm_stats;
@@ -167,6 +186,10 @@ int QuantNet::init()
         {
             embed_layers.push_back(i);
         }
+        else if (layer->type == "Gemm")
+        {
+            gemm_layers.push_back(i);
+        }
 
         // find all mha layers
         else if (layer->type == "MultiHeadAttention")
@@ -190,6 +213,7 @@ int QuantNet::init()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
     const int mha_layer_count = (int)mha_layers.size();
     const int rnn_layer_count = (int)rnn_layers.size();
     const int lstm_layer_count = (int)lstm_layers.size();
@@ -199,6 +223,7 @@ int QuantNet::init()
     weight_scales.resize(conv_layer_count);
     bottom_blob_scales.resize(conv_bottom_blob_count);
     embed_weight_scales.resize(embed_layer_count);
+    gemm_stats.resize(gemm_layer_count);
     mha_stats.resize(mha_layer_count);
     rnn_stats.resize(rnn_layer_count);
     lstm_stats.resize(lstm_layer_count);
@@ -219,6 +244,7 @@ int QuantNet::save_table(const char* tablepath)
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
     const int mha_layer_count = (int)mha_layers.size();
     const int rnn_layer_count = (int)rnn_layers.size();
     const int lstm_layer_count = (int)lstm_layers.size();
@@ -256,6 +282,31 @@ int QuantNet::save_table(const char* tablepath)
         fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
         fprintf(fp, "%f ", embed_weight_scales[i]);
         fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", gemm_layer_count);
+    for (int i = 0; i < gemm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gemm_layers[i]];
+        const ncnn::Gemm* gemm = (const ncnn::Gemm*)layer;
+        const QuantGemmStat& stat = gemm_stats[i];
+
+        if (gemm->constantA)
+        {
+            fprintf(fp, "%s_param_0 ", layer->name.c_str());
+            for (int j = 0; j < stat.A_weight_scales.w; j++)
+            {
+                fprintf(fp, "%f ", stat.A_weight_scales[j]);
+            }
+            fprintf(fp, "\n");
+        }
+
+        if (gemm->constantB)
+        {
+            fprintf(fp, "%s_param_1 ", layer->name.c_str());
+            fprintf(fp, "%f ", stat.B_weight_scale);
+            fprintf(fp, "\n");
+        }
     }
 
     fprintf(stdout, "param:%d\n", mha_layer_count);
@@ -372,7 +423,10 @@ void QuantNet::print_quant_info() const
 
         float scale = 127 / stat.threshold;
 
-        fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+        if (stat.percentile == 0.f)
+            fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+        else
+            fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f  percentile = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale, stat.percentile);
     }
 }
 
@@ -465,13 +519,167 @@ inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std:
     return ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
 }
 
-void QuantNet::initialize_static_weight_scales()
+void QuantNet::initialize_static_weight_scales(bool initialize_conv_weight_scales)
 {
+    const int conv_layer_count = (int)conv_layers.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
     const int mha_layer_count = (int)mha_layers.size();
     const int rnn_layer_count = (int)rnn_layers.size();
     const int lstm_layer_count = (int)lstm_layers.size();
     const int gru_layer_count = (int)gru_layers.size();
+
+    if (initialize_conv_weight_scales && use_calibration_dataset)
+    {
+        // initialize conv weight scales
+        #pragma omp parallel for num_threads(quantize_num_threads)
+        for (int i = 0; i < conv_layer_count; i++)
+        {
+            const ncnn::Layer* layer = layers[conv_layers[i]];
+
+            if (layer->type == "Convolution")
+            {
+                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
+
+                const int num_output = convolution->num_output;
+                const int kernel_w = convolution->kernel_w;
+                const int kernel_h = convolution->kernel_h;
+                const int dilation_w = convolution->dilation_w;
+                const int dilation_h = convolution->dilation_h;
+                const int stride_w = convolution->stride_w;
+                const int stride_h = convolution->stride_h;
+
+                const int weight_data_size_output = convolution->weight_data_size / num_output;
+
+                // int8 winograd F43 needs weight data to use 6bit quantization
+                // TODO proper condition for winograd 3x3 int8
+                bool quant_6bit = false;
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                    quant_6bit = true;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    if (quant_6bit)
+                    {
+                        weight_scales[i][n] = 31 / absmax;
+                    }
+                    else
+                    {
+                        weight_scales[i][n] = 127 / absmax;
+                    }
+                }
+            }
+
+            if (layer->type == "ConvolutionDepthWise")
+            {
+                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
+
+                const int group = convolutiondepthwise->group;
+                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
+
+                std::vector<float> scales;
+
+                weight_scales[i].create(group);
+
+                for (int n = 0; n < group; n++)
+                {
+                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    weight_scales[i][n] = 127 / absmax;
+                }
+            }
+
+            if (layer->type == "InnerProduct")
+            {
+                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
+
+                const int num_output = innerproduct->num_output;
+                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    weight_scales[i][n] = 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize gemm weight scales
+    for (int i = 0; i < gemm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gemm_layers[i]];
+        const ncnn::Gemm* gemm = (const ncnn::Gemm*)layer;
+        QuantGemmStat& stat = gemm_stats[i];
+
+        if (gemm->constantA)
+        {
+            ncnn::Mat A_data = gemm->A_data;
+            int transA = gemm->transA;
+            if (transA == 1)
+            {
+                ncnn::Mat A_data_transposed(gemm->constantK * gemm->constantM);
+                for (int m = 0; m < gemm->constantM; m++)
+                {
+                    float* ptr = (float*)A_data_transposed + m * gemm->constantK;
+                    for (int k = 0; k < gemm->constantK; k++)
+                    {
+                        ptr[k] = gemm->A_data[k * gemm->constantM + m];
+                    }
+                }
+                A_data = A_data_transposed;
+            }
+
+            stat.A_weight_scales.create(gemm->constantM);
+            for (int m = 0; m < gemm->constantM; m++)
+            {
+                float absmax = 0.f;
+                const float* ptr = (const float*)A_data + m * gemm->constantK;
+                for (int k = 0; k < gemm->constantK; k++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[k]));
+                }
+                stat.A_weight_scales[m] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+        }
+
+        if (gemm->constantB)
+        {
+            const float* ptr = (const float*)gemm->B_data;
+            float absmax = 0.f;
+            for (int j = 0; j < gemm->B_data.w; j++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[j]));
+            }
+
+            stat.B_weight_scale = absmax == 0.f ? 1.f : 127 / absmax;
+        }
+    }
 
     // initialize embed weight scales
     for (int i = 0; i < embed_layer_count; i++)
@@ -676,124 +884,26 @@ static float compute_kl_divergence(const std::vector<float>& a, const std::vecto
     return result;
 }
 
-int QuantNet::quantize_KL()
+int QuantNet::build_activation_histogram(int num_histogram_bins)
 {
     const int input_blob_count = (int)input_blobs.size();
-    const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-
-    if (use_calibration_dataset)
-    {
-        // initialize conv weight scales
-        #pragma omp parallel for num_threads(quantize_num_threads)
-        for (int i = 0; i < conv_layer_count; i++)
-        {
-            const ncnn::Layer* layer = layers[conv_layers[i]];
-
-            if (layer->type == "Convolution")
-            {
-                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
-
-                const int num_output = convolution->num_output;
-                const int kernel_w = convolution->kernel_w;
-                const int kernel_h = convolution->kernel_h;
-                const int dilation_w = convolution->dilation_w;
-                const int dilation_h = convolution->dilation_h;
-                const int stride_w = convolution->stride_w;
-                const int stride_h = convolution->stride_h;
-
-                const int weight_data_size_output = convolution->weight_data_size / num_output;
-
-                // int8 winograd F43 needs weight data to use 6bit quantization
-                // TODO proper condition for winograd 3x3 int8
-                bool quant_6bit = false;
-                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-                    quant_6bit = true;
-
-                weight_scales[i].create(num_output);
-
-                for (int n = 0; n < num_output; n++)
-                {
-                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < weight_data_size_output; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                    }
-
-                    if (quant_6bit)
-                    {
-                        weight_scales[i][n] = 31 / absmax;
-                    }
-                    else
-                    {
-                        weight_scales[i][n] = 127 / absmax;
-                    }
-                }
-            }
-
-            if (layer->type == "ConvolutionDepthWise")
-            {
-                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
-
-                const int group = convolutiondepthwise->group;
-                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
-
-                std::vector<float> scales;
-
-                weight_scales[i].create(group);
-
-                for (int n = 0; n < group; n++)
-                {
-                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < weight_data_size_output; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                    }
-
-                    weight_scales[i][n] = 127 / absmax;
-                }
-            }
-
-            if (layer->type == "InnerProduct")
-            {
-                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
-
-                const int num_output = innerproduct->num_output;
-                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
-
-                weight_scales[i].create(num_output);
-
-                for (int n = 0; n < num_output; n++)
-                {
-                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                    float absmax = 0.f;
-                    for (int k = 0; k < weight_data_size_output; k++)
-                    {
-                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                    }
-
-                    weight_scales[i][n] = 127 / absmax;
-                }
-            }
-        }
-    }
-
-    initialize_static_weight_scales();
-
-    if (conv_layer_count == 0 || !use_calibration_dataset)
-        return 0;
-
     const int file_count = (int)listspaths[0].size();
-
-    const int num_histogram_bins = 2048;
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+
+    #pragma omp parallel for num_threads(quantize_num_threads)
+    for (int i = 0; i < conv_bottom_blob_count; i++)
+    {
+        QuantBlobStat& stat = quant_blob_stats[i];
+
+        stat.threshold = 0.f;
+        stat.absmax = 0.f;
+        stat.percentile = 0.f;
+        stat.histogram.clear();
+        stat.histogram_normed.clear();
+    }
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
@@ -957,6 +1067,23 @@ int QuantNet::quantize_KL()
             }
         }
     }
+
+    return 0;
+}
+
+int QuantNet::quantize_KL()
+{
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    initialize_static_weight_scales(true);
+
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
+    const int num_histogram_bins = 2048;
+
+    build_activation_histogram(num_histogram_bins);
 
     // using kld to find the best threshold value
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -1143,6 +1270,101 @@ int QuantNet::quantize_KL()
         }
 
         stat.threshold = (target_threshold + 0.5f) * stat.absmax / num_histogram_bins;
+        float scale = 127 / stat.threshold;
+
+        bottom_blob_scales[i].create(1);
+        bottom_blob_scales[i][0] = scale;
+    }
+
+    return 0;
+}
+
+int QuantNet::quantize_percentile(const std::vector<float>& percentiles)
+{
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    initialize_static_weight_scales(true);
+
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
+    const int num_histogram_bins = 2048;
+
+    build_activation_histogram(num_histogram_bins);
+
+    // using percentile to find the threshold value
+    #pragma omp parallel for num_threads(quantize_num_threads)
+    for (int i = 0; i < conv_bottom_blob_count; i++)
+    {
+        QuantBlobStat& stat = quant_blob_stats[i];
+
+        uint64_t sum = 0;
+        for (int j = 0; j < num_histogram_bins; j++)
+        {
+            sum += stat.histogram[j];
+        }
+
+        if (sum == 0 || stat.absmax == 0.f)
+        {
+            stat.threshold = 127.f;
+            stat.percentile = 1.f;
+            bottom_blob_scales[i].create(1);
+            bottom_blob_scales[i][0] = 1.f;
+            continue;
+        }
+
+        double min_error = DBL_MAX;
+        int target_threshold = num_histogram_bins - 1;
+        float target_percentile = 1.f;
+
+        for (int p = 0; p < (int)percentiles.size(); p++)
+        {
+            uint64_t target_count = (uint64_t)ceil(sum * (double)percentiles[p]);
+            if (target_count == 0)
+                target_count = 1;
+
+            uint64_t cumsum = 0;
+            int threshold = num_histogram_bins - 1;
+
+            for (int j = 0; j < num_histogram_bins; j++)
+            {
+                cumsum += stat.histogram[j];
+                if (cumsum >= target_count)
+                {
+                    threshold = j;
+                    break;
+                }
+            }
+
+            const double threshold_value = (threshold + 0.5) * stat.absmax / num_histogram_bins;
+            const double scale = 127 / threshold_value;
+            double error = 0.0;
+
+            for (int j = 0; j < num_histogram_bins; j++)
+            {
+                if (stat.histogram[j] == 0)
+                    continue;
+
+                const double v = (j + 0.5) * stat.absmax / num_histogram_bins;
+                const double v_clipped = std::min(v, threshold_value);
+                const int q = std::min((int)floor(v_clipped * scale + 0.5), 127);
+                const double v_dequant = q / scale;
+                const double diff = v - v_dequant;
+
+                error += stat.histogram[j] * diff * diff;
+            }
+
+            if (error < min_error)
+            {
+                min_error = error;
+                target_threshold = threshold;
+                target_percentile = percentiles[p];
+            }
+        }
+
+        stat.threshold = (target_threshold + 0.5f) * stat.absmax / num_histogram_bins;
+        stat.percentile = target_percentile;
         float scale = 127 / stat.threshold;
 
         bottom_blob_scales[i].create(1);
@@ -2067,7 +2289,8 @@ static void show_usage()
     fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
-    fprintf(stderr, "  method=kl/aciq/eq\n");
+    fprintf(stderr, "  method=kl/aciq/eq/percentile\n");
+    fprintf(stderr, "  percentile=[0.999,0.9995,0.9999,0.99995,0.99999,1]\n");
     fprintf(stderr, "  type=0/1, 0:image,1:npy\n");
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  ncnn2table squeezenet.param squeezenet.bin filelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
@@ -2136,6 +2359,13 @@ int main(int argc, char** argv)
     }
 
     std::string method = "kl";
+    std::vector<float> percentiles;
+    percentiles.push_back(0.999f);
+    percentiles.push_back(0.9995f);
+    percentiles.push_back(0.9999f);
+    percentiles.push_back(0.99995f);
+    percentiles.push_back(0.99999f);
+    percentiles.push_back(1.f);
     net.file_type = 0;
 
     for (int i = kv_start; i < argc; i++)
@@ -2168,6 +2398,20 @@ int main(int argc, char** argv)
             net.quantize_num_threads = atoi(value);
         if (memcmp(key, "method", 6) == 0)
             method = std::string(value);
+        if (memcmp(key, "percentile", 10) == 0)
+        {
+            percentiles.clear();
+            if (strchr(value, '['))
+            {
+                std::vector<std::vector<float> > percentile_list = parse_comma_float_array_list(value);
+                if (!percentile_list.empty())
+                    percentiles = percentile_list[0];
+            }
+            else
+            {
+                percentiles.push_back(vstr_to_float(value));
+            }
+        }
         if (memcmp(key, "type", 4) == 0)
             net.file_type = atoi(value);
     }
@@ -2204,6 +2448,19 @@ int main(int argc, char** argv)
         fprintf(stderr, "malformed thread %d\n", net.quantize_num_threads);
         return -1;
     }
+    if (percentiles.empty())
+    {
+        fprintf(stderr, "empty percentile candidates\n");
+        return -1;
+    }
+    for (int i = 0; i < (int)percentiles.size(); i++)
+    {
+        if (percentiles[i] <= 0.f || percentiles[i] > 1.f)
+        {
+            fprintf(stderr, "malformed percentile %f, expect (0, 1]\n", percentiles[i]);
+            return -1;
+        }
+    }
 
     // print quantnet config
     {
@@ -2221,6 +2478,17 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
         fprintf(stderr, "thread = %d\n", net.quantize_num_threads);
         fprintf(stderr, "method = %s\n", method.c_str());
+        if (method == "percentile")
+        {
+            fprintf(stderr, "percentile = [");
+            for (int i = 0; i < (int)percentiles.size(); i++)
+            {
+                fprintf(stderr, "%f", percentiles[i]);
+                if (i != (int)percentiles.size() - 1)
+                    fprintf(stderr, ",");
+            }
+            fprintf(stderr, "]\n");
+        }
         fprintf(stderr, "---------------------------------------\n");
     }
 
@@ -2232,6 +2500,10 @@ int main(int argc, char** argv)
     {
         net.quantize_ACIQ();
     }
+    else if (method == "percentile")
+    {
+        net.quantize_percentile(percentiles);
+    }
     else if (method == "eq")
     {
         net.quantize_EQ();
@@ -2239,7 +2511,7 @@ int main(int argc, char** argv)
     else
     {
         fprintf(stderr, "not implemented yet !\n");
-        fprintf(stderr, "unknown method %s, expect kl / aciq / eq\n", method.c_str());
+        fprintf(stderr, "unknown method %s, expect kl / aciq / eq / percentile\n", method.c_str());
         return -1;
     }
 
