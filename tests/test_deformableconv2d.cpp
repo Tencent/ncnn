@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
 {
     const int kernel_extent_w = dilation * (kernel - 1) + 1;
@@ -142,9 +146,94 @@ static int test_deformableconv2d_0()
            || test_deformableconv2d(7, 5, 32, 26, 4, 2, 2, 2, 1);
 }
 
+#if NCNN_VALIDATION
+static int test_deformableconv2d_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    return test_layer_param(ncnn::LayerType::DeformableConv2D, pd, expected_ret);
+}
+
+static int test_deformableconv2d_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 3);
+    base.set(6, 216);
+    if (test_layer_param(ncnn::LayerType::DeformableConv2D, base, 0) != 0)
+        return -1;
+
+    ncnn::Mat params(2);
+    params[0] = 0.1f;
+    params[1] = 0.5f;
+
+    int ret = 0
+              || test_deformableconv2d_load_param_activation(base, 0, ncnn::Mat(), 0)
+              || test_deformableconv2d_load_param_activation(base, 0, ncnn::Mat(0), 0)
+              || test_deformableconv2d_load_param_activation(base, 0, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 0, params.range(0, 1), 0)
+              || test_deformableconv2d_load_param_activation(base, 1, ncnn::Mat(), 0)
+              || test_deformableconv2d_load_param_activation(base, 1, ncnn::Mat(0), 0)
+              || test_deformableconv2d_load_param_activation(base, 1, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 1, params.range(0, 1), 0)
+              || test_deformableconv2d_load_param_activation(base, 2, ncnn::Mat(), -1)
+              || test_deformableconv2d_load_param_activation(base, 2, ncnn::Mat(0), -1)
+              || test_deformableconv2d_load_param_activation(base, 2, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 2, params.range(0, 1), 0)
+              || test_deformableconv2d_load_param_activation(base, 3, ncnn::Mat(), -1)
+              || test_deformableconv2d_load_param_activation(base, 3, ncnn::Mat(0), -1)
+              || test_deformableconv2d_load_param_activation(base, 3, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 3, params.range(0, 1), -1)
+              || test_deformableconv2d_load_param_activation(base, 4, ncnn::Mat(), 0)
+              || test_deformableconv2d_load_param_activation(base, 4, ncnn::Mat(0), 0)
+              || test_deformableconv2d_load_param_activation(base, 4, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 4, params.range(0, 1), 0)
+              || test_deformableconv2d_load_param_activation(base, 5, ncnn::Mat(), 0)
+              || test_deformableconv2d_load_param_activation(base, 5, ncnn::Mat(0), 0)
+              || test_deformableconv2d_load_param_activation(base, 5, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 5, params.range(0, 1), 0)
+              || test_deformableconv2d_load_param_activation(base, 6, ncnn::Mat(), -1)
+              || test_deformableconv2d_load_param_activation(base, 6, ncnn::Mat(0), -1)
+              || test_deformableconv2d_load_param_activation(base, 6, params, 0)
+              || test_deformableconv2d_load_param_activation(base, 6, params.range(0, 1), -1)
+              || test_deformableconv2d_load_param_activation(base, 7, ncnn::Mat(), -1);
+    if (ret != 0)
+        return ret;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
+    for (int i = 0; i < 5; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::DeformableConv2D, base, 10, bad[i], -1) != 0)
+            return -1;
+    }
+
+    ret = 0
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 0, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 1, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 2, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 3, 0, -1)
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 1, INT_MAX, -1)
+          || test_layer_param(ncnn::LayerType::DeformableConv2D, base, 6, 217, -1);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_deformableconv2d_0();
+    return 0
+           || test_deformableconv2d_0()
+#if NCNN_VALIDATION
+           || test_deformableconv2d_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

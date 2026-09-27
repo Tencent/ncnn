@@ -2,10 +2,25 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void interp_forward_bf16s_sse_avx512bf16(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
+void interp_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
 #endif
 
-static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr);
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void interp_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void interp_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void interp_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void interp_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+#endif
+
+static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
 
 static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsigned short* Dp, int n, float b0, float b1)
 {
@@ -43,7 +58,7 @@ static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsig
         __m128 _rows1 = _mm_loadu_ps(rows1 + nn);
         __m128 _Dp = _mm_mul_ps(_rows0, _b0_128);
         _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
-        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp, _Dp));
+        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp));
     }
 #endif // __SSE2__
     for (; nn < n; nn++)
@@ -106,7 +121,7 @@ static void vresize_bicubic_bf16s(const float* rows0, const float* rows1, const 
         _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
         _Dp = _mm_comp_fmadd_ps(_rows2, _b2_128, _Dp);
         _Dp = _mm_comp_fmadd_ps(_rows3, _b3_128, _Dp);
-        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp, _Dp));
+        _mm_storel_epi64((__m128i*)(Dp + nn), float2bfloat_sse(_Dp));
     }
 #endif // __SSE2__
     for (; nn < n; nn++)
@@ -1407,18 +1422,46 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
     }
 }
 
-static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr)
+static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        interp_forward_bf16s_sse_avx512bf16(bottom_blobs, top_blobs, opt, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr);
+        interp_bf16s_avx512bf16(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
         return;
     }
 #endif
 
-    const Mat& bottom_blob = bottom_blobs[0];
-    Mat& top_blob = top_blobs[0];
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        interp_bf16s_avxneconvert(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        interp_bf16s_avx2(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        interp_bf16s_fma(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        interp_bf16s_fma4(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        return;
+    }
+#endif
 
     int h = bottom_blob.h;
     int w = bottom_blob.w;
@@ -1531,7 +1574,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
                         __m128 _S1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(Sp + ep + elempack)));
                         __m128 _p = _mm_mul_ps(_S0, _a0);
                         _p = _mm_comp_fmadd_ps(_S1, _a1, _p);
-                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p));
                     }
 #endif // __SSE2__
                     for (; ep < elempack; ep++)
@@ -1624,7 +1667,7 @@ static void interp_forward_bf16s_sse(const std::vector<Mat>& bottom_blobs, std::
                         _p = _mm_comp_fmadd_ps(_S1, _a1, _p);
                         _p = _mm_comp_fmadd_ps(_S2, _a2, _p);
                         _p = _mm_comp_fmadd_ps(_S3, _a3, _p);
-                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)(outptr + ep), float2bfloat_sse(_p));
                     }
 #endif // __SSE2__
                     for (; ep < elempack; ep++)

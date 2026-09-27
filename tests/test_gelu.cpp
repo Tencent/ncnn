@@ -71,6 +71,22 @@ static int test_gelu_3()
            || test_gelu(RandomMat(120), true);
 }
 
+static int test_gelu_4()
+{
+    // large magnitude inputs, gelu(x) must be 0 for x << 0 and x for x >> 0
+    // fp16 arithmetic used to leak +0.022*|x| on the negative side (tanh_ps_f16 saturated at 1.044)
+    return 0
+           || test_gelu(RandomMat(6, 7, 9, 32, -100.f, 100.f), false)
+           || test_gelu(RandomMat(6, 7, 9, 32, -100.f, 100.f), true)
+           || test_gelu(RandomMat(9, 7, 32, -100.f, 100.f), false)
+           || test_gelu(RandomMat(9, 7, 32, -100.f, 100.f), true)
+           || test_gelu(RandomMat(13, 32, -100.f, 100.f), false)
+           || test_gelu(RandomMat(13, 32, -100.f, 100.f), true)
+           || test_gelu(RandomMat(128, -100.f, 100.f), false)
+           || test_gelu(RandomMat(128, -100.f, 100.f), true)
+           || test_gelu(RandomMat(128, -2000.f, 2000.f), true);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -79,5 +95,6 @@ int main()
            || test_gelu_0()
            || test_gelu_1()
            || test_gelu_2()
-           || test_gelu_3();
+           || test_gelu_3()
+           || test_gelu_4();
 }

@@ -5,6 +5,7 @@
 
 #if NCNN_VULKAN
 
+#include <ctype.h>
 #include <float.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -30,6 +31,20 @@
 #define ENABLE_VALIDATION_LAYER 0
 
 namespace ncnn {
+
+#if NCNN_COVERAGE
+const char* shader_coverage_source_name(int shader_type_index);
+const char* shader_coverage_map_hash();
+int instrument_shader_coverage(std::vector<uint32_t>& spirv);
+void register_shader_coverage(const uint32_t* spirv, size_t spv_word_count);
+
+class VulkanShaderCoverage;
+VulkanShaderCoverage* create_shader_coverage(const VulkanDevice* vkdev);
+void destroy_shader_coverage(VulkanShaderCoverage* coverage);
+void get_shader_coverage_descriptorset_layouts(const VulkanShaderCoverage* coverage, VkDescriptorSetLayout descriptorset_layout, VkDescriptorSetLayout* layouts);
+void bind_shader_coverage_descriptorset(const VulkanShaderCoverage* coverage, VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout);
+void record_shader_coverage_barrier(const VulkanShaderCoverage* coverage, VkCommandBuffer command_buffer);
+#endif // NCNN_COVERAGE
 
 // global
 static Mutex g_instance_lock;
@@ -120,8 +135,14 @@ uint64_t get_shader_source_hash(int shader_type_index)
 
     const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
     uint64_t h = 0xcbf29ce484222325ull;
+    const int ncnn_glsl_ext_comp_data_size = sizeof(ncnn_glsl_ext_comp_data);
+    h = fnv1a_64_update(h, (const unsigned char*)&ncnn_glsl_ext_comp_data_size, sizeof(ncnn_glsl_ext_comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)ncnn_glsl_ext_comp_data, ncnn_glsl_ext_comp_data_size);
     h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
     h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+#if NCNN_COVERAGE
+    h = fnv1a_64_update(h, (const unsigned char*)shader_coverage_map_hash(), 64);
+#endif
     return h;
 }
 
@@ -238,6 +259,9 @@ int support_VK_KHR_android_surface = 0;
 // VK_KHR_cooperative_matrix
 PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR = 0;
 
+// VK_EXT_cooperative_matrix_maintenance1
+PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT = 0;
+
 // VK_KHR_external_memory_capabilities
 PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR = 0;
 
@@ -285,6 +309,7 @@ public:
     void query_extension_features();
     void query_extension_properties();
     void evaluate_rough_score();
+    void resolve_prefer_shader_local_memory();
 
 public:
     int device_index;
@@ -323,6 +348,7 @@ public:
     bool unified_compute_transfer_queue;
     bool resizable_bar_enabled;
     bool support_image_storage;
+    bool prefer_shader_local_memory;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -378,6 +404,7 @@ public:
     int support_VK_KHR_vulkan_memory_model;
     int support_VK_KHR_zero_initialize_workgroup_memory;
     int support_VK_EXT_buffer_device_address;
+    int support_VK_EXT_cooperative_matrix_maintenance1;
     int support_VK_EXT_descriptor_indexing;
     int support_VK_EXT_external_memory_host;
     int support_VK_EXT_memory_budget;
@@ -387,6 +414,7 @@ public:
     int support_VK_EXT_shader_atomic_float;
     int support_VK_EXT_shader_atomic_float2;
     int support_VK_EXT_shader_float8;
+    int support_VK_EXT_shader_ocp_microscaling_types;
     int support_VK_EXT_subgroup_size_control;
     int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
@@ -403,12 +431,15 @@ public:
     VkPhysicalDeviceFloat16Int8FeaturesKHR queryFloat16Int8Features;
     VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR queryCooperativeMatrixFeatures;
+    VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT queryCooperativeMatrixMaintenance1Features;
     VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV queryCooperativeMatrix2FeaturesNV;
     VkPhysicalDeviceCooperativeVectorFeaturesNV queryCooperativeVectorFeaturesNV;
+    VkPhysicalDeviceMaintenance4FeaturesKHR queryMaintenance4Features;
     VkPhysicalDeviceRobustness2FeaturesKHR queryRobustness2Features;
     VkPhysicalDeviceShaderBfloat16FeaturesKHR queryShaderBfloat16Features;
     VkPhysicalDeviceShaderFloat8FeaturesEXT queryShaderFloat8Features;
+    VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT queryShaderOCPMicroscalingTypesFeatures;
     VkPhysicalDeviceShaderFloatControls2FeaturesKHR queryShaderFloatControls2Features;
     VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR queryShaderIntegerDotProductFeatures;
     VkPhysicalDeviceSubgroupSizeControlFeaturesEXT querySubgroupSizeControlFeatures;
@@ -432,6 +463,8 @@ public:
 
     // extension sub properties
     std::vector<VkCooperativeMatrixPropertiesKHR> queryCooperativeMatrixSubProperties;
+    std::vector<VkCooperativeMatrixProperties2EXT> queryCooperativeMatrixSubProperties2EXT;
+    std::vector<uint32_t> queryCooperativeMatrixSubProperties2EXTSubgroupSizes;
     std::vector<VkCooperativeMatrixPropertiesNV> queryCooperativeMatrixSubPropertiesNV;
     std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV> queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV;
     std::vector<VkCooperativeVectorPropertiesNV> queryCooperativeVectorSubPropertiesNV;
@@ -752,6 +785,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_vulkan_memory_model = 0;
     support_VK_KHR_zero_initialize_workgroup_memory = 0;
     support_VK_EXT_buffer_device_address = 0;
+    support_VK_EXT_cooperative_matrix_maintenance1 = 0;
     support_VK_EXT_descriptor_indexing = 0;
     support_VK_EXT_external_memory_host = 0;
     support_VK_EXT_memory_budget = 0;
@@ -761,6 +795,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_shader_atomic_float = 0;
     support_VK_EXT_shader_atomic_float2 = 0;
     support_VK_EXT_shader_float8 = 0;
+    support_VK_EXT_shader_ocp_microscaling_types = 0;
     support_VK_EXT_subgroup_size_control = 0;
     support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
@@ -840,6 +875,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_KHR_zero_initialize_workgroup_memory = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_buffer_device_address") == 0)
             support_VK_EXT_buffer_device_address = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_cooperative_matrix_maintenance1") == 0)
+            support_VK_EXT_cooperative_matrix_maintenance1 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_descriptor_indexing") == 0)
             support_VK_EXT_descriptor_indexing = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_external_memory_host") == 0)
@@ -858,6 +895,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_shader_atomic_float2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
             support_VK_EXT_shader_float8 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_ocp_microscaling_types") == 0)
+            support_VK_EXT_shader_ocp_microscaling_types = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_subgroup_size_control") == 0)
             support_VK_EXT_subgroup_size_control = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
@@ -893,6 +932,7 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_robustness2 = 0;
             support_VK_EXT_shader_atomic_float = 0;
             support_VK_EXT_shader_float8 = 0;
+            support_VK_EXT_shader_ocp_microscaling_types = 0;
             support_VK_KHR_cooperative_matrix = 0;
             support_VK_KHR_driver_properties = 0;
             support_VK_KHR_maintenance3 = 0;
@@ -945,7 +985,10 @@ int GpuInfoPrivate::query_extensions()
     if (!support_VK_EXT_shader_atomic_float)
         support_VK_EXT_shader_atomic_float2 = 0;
     if (!support_VK_KHR_cooperative_matrix)
+    {
+        support_VK_EXT_cooperative_matrix_maintenance1 = 0;
         support_VK_NV_cooperative_matrix2 = 0;
+    }
     if (!support_VK_KHR_surface)
         support_VK_KHR_swapchain = 0;
 
@@ -1031,6 +1074,16 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryCooperativeMatrixFeatures;
     }
 
+    // query cooperative matrix maintenance1
+    memset(&queryCooperativeMatrixMaintenance1Features, 0, sizeof(queryCooperativeMatrixMaintenance1Features));
+    queryCooperativeMatrixMaintenance1Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_MAINTENANCE_1_FEATURES_EXT;
+    queryCooperativeMatrixMaintenance1Features.pNext = 0;
+    if (support_VK_EXT_cooperative_matrix_maintenance1)
+    {
+        queryCooperativeMatrixMaintenance1Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryCooperativeMatrixMaintenance1Features;
+    }
+
     // query nv cooperative matrix
     memset(&queryCooperativeMatrixFeaturesNV, 0, sizeof(queryCooperativeMatrixFeaturesNV));
     queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
@@ -1061,6 +1114,18 @@ void GpuInfoPrivate::query_extension_features()
         queryExtensionFeatures = &queryCooperativeVectorFeaturesNV;
     }
 
+    // query maintenance4
+    memset(&queryMaintenance4Features, 0, sizeof(queryMaintenance4Features));
+    queryMaintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
+    queryMaintenance4Features.pNext = 0;
+    // expose core maintenance4 only when both the application and device support vulkan-1.3
+    // this shared feature gate controls device enablement, shader targets and subgroup workarounds
+    if (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 3, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
+    {
+        queryMaintenance4Features.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryMaintenance4Features;
+    }
+
     // query robustness2
     memset(&queryRobustness2Features, 0, sizeof(queryRobustness2Features));
     queryRobustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR;
@@ -1089,6 +1154,16 @@ void GpuInfoPrivate::query_extension_features()
     {
         queryShaderFloat8Features.pNext = queryExtensionFeatures;
         queryExtensionFeatures = &queryShaderFloat8Features;
+    }
+
+    // query ocp microscaling types
+    memset(&queryShaderOCPMicroscalingTypesFeatures, 0, sizeof(queryShaderOCPMicroscalingTypesFeatures));
+    queryShaderOCPMicroscalingTypesFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OCP_MICROSCALING_TYPES_FEATURES_EXT;
+    queryShaderOCPMicroscalingTypesFeatures.pNext = 0;
+    if (support_VK_EXT_shader_ocp_microscaling_types)
+    {
+        queryShaderOCPMicroscalingTypesFeatures.pNext = queryExtensionFeatures;
+        queryExtensionFeatures = &queryShaderOCPMicroscalingTypesFeatures;
     }
 
     // query float controls 2
@@ -1242,14 +1317,6 @@ void GpuInfoPrivate::query_extension_features()
             break;
         }
     }
-
-    if (physicalDeviceProperties.vendorID == 0x5143)
-    {
-        // adreno drivers break on the ncnn cm kernel tile unrolls, which exceed hardware limitations
-        // TODO special unroll strategy needs to be designed for adreno
-        queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
-        queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
-    }
 }
 
 void GpuInfoPrivate::evaluate_rough_score()
@@ -1298,6 +1365,27 @@ void GpuInfoPrivate::evaluate_rough_score()
         }
         uint32_t mem_gb = max_device_local / (1024 * 1024 * 1024);
         rough_score += mem_gb;
+    }
+}
+
+void GpuInfoPrivate::resolve_prefer_shader_local_memory()
+{
+    prefer_shader_local_memory = false;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+        return;
+
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        prefer_shader_local_memory = true;
+        return;
+    }
+
+    if (physicalDeviceProperties.vendorID == 0x106b)
+    {
+        // apple
+        prefer_shader_local_memory = true;
+        return;
     }
 }
 
@@ -1593,6 +1681,72 @@ void GpuInfoPrivate::query_extension_properties()
         }
     }
 
+    // query supported cooperative matrix maintenance1 types and operations
+    queryCooperativeMatrixSubProperties2EXT.clear();
+    queryCooperativeMatrixSubProperties2EXTSubgroupSizes.clear();
+    if (support_VK_EXT_cooperative_matrix_maintenance1
+            && queryCooperativeMatrixFeatures.cooperativeMatrix
+            && queryCooperativeMatrixMaintenance1Features.cooperativeMatrixProperties2
+            && vkGetPhysicalDeviceCooperativeMatrixProperties2EXT)
+    {
+        std::vector<uint32_t> subgroup_sizes;
+        subgroup_sizes.push_back(querySubgroupProperties.subgroupSize);
+
+        if (querySubgroupSizeControlFeatures.subgroupSizeControl
+                && (querySubgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT))
+        {
+            const uint32_t min_subgroup_size = querySubgroupSizeControlProperties.minSubgroupSize;
+            const uint32_t max_subgroup_size = querySubgroupSizeControlProperties.maxSubgroupSize;
+
+            for (uint32_t subgroup_size = min_subgroup_size; subgroup_size != 0 && subgroup_size <= max_subgroup_size; subgroup_size *= 2)
+            {
+                if (subgroup_size != querySubgroupProperties.subgroupSize)
+                    subgroup_sizes.push_back(subgroup_size);
+
+                if (subgroup_size >= max_subgroup_size)
+                    break;
+            }
+        }
+
+        for (size_t i = 0; i < subgroup_sizes.size(); i++)
+        {
+            VkPhysicalDeviceCooperativeMatrixInfo2EXT cooperativeMatrixInfo;
+            memset(&cooperativeMatrixInfo, 0, sizeof(cooperativeMatrixInfo));
+            cooperativeMatrixInfo.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_INFO_2_EXT;
+            cooperativeMatrixInfo.pNext = 0;
+            cooperativeMatrixInfo.scope = VK_SCOPE_SUBGROUP_KHR;
+            cooperativeMatrixInfo.invocations = 0;
+            cooperativeMatrixInfo.subgroupSize = subgroup_sizes[i];
+            cooperativeMatrixInfo.flags = 0;
+
+            uint32_t propertyCount = 0;
+            VkResult ret = vkGetPhysicalDeviceCooperativeMatrixProperties2EXT(physicalDevice, &cooperativeMatrixInfo, &propertyCount, 0);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixProperties2EXT subgroup=%u failed %d", subgroup_sizes[i], ret);
+            }
+
+            const size_t property_offset = queryCooperativeMatrixSubProperties2EXT.size();
+            queryCooperativeMatrixSubProperties2EXT.resize(property_offset + propertyCount);
+            for (uint32_t j = 0; j < propertyCount; j++)
+            {
+                VkCooperativeMatrixProperties2EXT& property = queryCooperativeMatrixSubProperties2EXT[property_offset + j];
+                memset(&property, 0, sizeof(property));
+                property.sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT;
+                property.pNext = 0;
+            }
+
+            VkCooperativeMatrixProperties2EXT* properties = propertyCount == 0 ? 0 : queryCooperativeMatrixSubProperties2EXT.data() + property_offset;
+            ret = vkGetPhysicalDeviceCooperativeMatrixProperties2EXT(physicalDevice, &cooperativeMatrixInfo, &propertyCount, properties);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetPhysicalDeviceCooperativeMatrixProperties2EXT subgroup=%u failed %d", subgroup_sizes[i], ret);
+            }
+
+            queryCooperativeMatrixSubProperties2EXTSubgroupSizes.resize(queryCooperativeMatrixSubProperties2EXT.size(), subgroup_sizes[i]);
+        }
+    }
+
     // query supported cooperative matrix2 types and operations
     queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV.clear();
     if (support_VK_NV_cooperative_matrix2 && queryCooperativeMatrix2FeaturesNV.cooperativeMatrixFlexibleDimensions)
@@ -1873,6 +2027,11 @@ bool GpuInfo::resizable_bar_enabled() const
 bool GpuInfo::support_image_storage() const
 {
     return d->support_image_storage;
+}
+
+bool GpuInfo::prefer_shader_local_memory() const
+{
+    return d->prefer_shader_local_memory;
 }
 
 uint32_t GpuInfo::subgroup_size() const
@@ -2215,6 +2374,11 @@ int GpuInfo::support_VK_EXT_buffer_device_address() const
     return d->support_VK_EXT_buffer_device_address;
 }
 
+int GpuInfo::support_VK_EXT_cooperative_matrix_maintenance1() const
+{
+    return d->support_VK_EXT_cooperative_matrix_maintenance1;
+}
+
 int GpuInfo::support_VK_EXT_descriptor_indexing() const
 {
     return d->support_VK_EXT_descriptor_indexing;
@@ -2258,6 +2422,11 @@ int GpuInfo::support_VK_EXT_shader_atomic_float2() const
 int GpuInfo::support_VK_EXT_shader_float8() const
 {
     return d->support_VK_EXT_shader_float8;
+}
+
+int GpuInfo::support_VK_EXT_shader_ocp_microscaling_types() const
+{
+    return d->support_VK_EXT_shader_ocp_microscaling_types;
 }
 
 int GpuInfo::support_VK_EXT_subgroup_size_control() const
@@ -2322,6 +2491,11 @@ const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& GpuInfo::queryCooperativeMat
     return d->queryCooperativeMatrixFeatures;
 }
 
+const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& GpuInfo::queryCooperativeMatrixMaintenance1Features() const
+{
+    return d->queryCooperativeMatrixMaintenance1Features;
+}
+
 const VkPhysicalDeviceCooperativeMatrixFeaturesNV& GpuInfo::queryCooperativeMatrixFeaturesNV() const
 {
     return d->queryCooperativeMatrixFeaturesNV;
@@ -2335,6 +2509,11 @@ const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& GpuInfo::queryCooperativeMat
 const VkPhysicalDeviceCooperativeVectorFeaturesNV& GpuInfo::queryCooperativeVectorFeaturesNV() const
 {
     return d->queryCooperativeVectorFeaturesNV;
+}
+
+const VkPhysicalDeviceMaintenance4FeaturesKHR& GpuInfo::queryMaintenance4Features() const
+{
+    return d->queryMaintenance4Features;
 }
 
 const VkPhysicalDeviceRobustness2FeaturesKHR& GpuInfo::queryRobustness2Features() const
@@ -2355,6 +2534,11 @@ const VkPhysicalDeviceShaderBfloat16FeaturesKHR& GpuInfo::queryShaderBfloat16Fea
 const VkPhysicalDeviceShaderFloat8FeaturesEXT& GpuInfo::queryShaderFloat8Features() const
 {
     return d->queryShaderFloat8Features;
+}
+
+const VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT& GpuInfo::queryShaderOCPMicroscalingTypesFeatures() const
+{
+    return d->queryShaderOCPMicroscalingTypesFeatures;
 }
 
 const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& GpuInfo::queryShaderFloatControls2Features() const
@@ -2447,6 +2631,11 @@ const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMa
     return d->queryCooperativeMatrixSubProperties;
 }
 
+const std::vector<VkCooperativeMatrixProperties2EXT>& GpuInfo::queryCooperativeMatrixSubProperties2EXT() const
+{
+    return d->queryCooperativeMatrixSubProperties2EXT;
+}
+
 const std::vector<VkCooperativeMatrixPropertiesNV>& GpuInfo::queryCooperativeMatrixSubPropertiesNV() const
 {
     return d->queryCooperativeMatrixSubPropertiesNV;
@@ -2469,10 +2658,33 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
     coopmat_K = 0;
     coopmat_subgroup_size = d->querySubgroupProperties.subgroupSize;
 
-    // collect mnk candidates
+    // collect mnk and subgroup size candidates
     std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
+    std::vector<uint32_t> mnk_subgroup_sizes;
 
-    if (d->support_VK_KHR_cooperative_matrix && d->queryCooperativeMatrixFeatures.cooperativeMatrix)
+    if (d->support_VK_EXT_cooperative_matrix_maintenance1
+            && d->queryCooperativeMatrixFeatures.cooperativeMatrix
+            && d->queryCooperativeMatrixMaintenance1Features.cooperativeMatrixProperties2
+            && scope == VK_SCOPE_SUBGROUP_KHR)
+    {
+        for (size_t i = 0; i < d->queryCooperativeMatrixSubProperties2EXT.size(); i++)
+        {
+            const VkCooperativeMatrixProperties2EXT& cmp = d->queryCooperativeMatrixSubProperties2EXT[i];
+
+            if (cmp.AType == type && cmp.BType == type
+                    && cmp.CType == acctype && cmp.ResultType == acctype
+                    && cmp.MGranularity != 0 && cmp.NGranularity != 0 && cmp.KGranularity != 0)
+            {
+                VkCooperativeMatrixPropertiesKHR mnk_property;
+                mnk_property.MSize = cmp.MGranularity;
+                mnk_property.NSize = cmp.NGranularity;
+                mnk_property.KSize = cmp.KGranularity;
+                mnk_properties.push_back(mnk_property);
+                mnk_subgroup_sizes.push_back(d->queryCooperativeMatrixSubProperties2EXTSubgroupSizes[i]);
+            }
+        }
+    }
+    if (mnk_properties.empty() && d->support_VK_KHR_cooperative_matrix && d->queryCooperativeMatrixFeatures.cooperativeMatrix)
     {
         for (size_t i = 0; i < d->queryCooperativeMatrixSubProperties.size(); i++)
         {
@@ -2483,10 +2695,11 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
                     && cmp.scope == scope)
             {
                 mnk_properties.push_back(cmp);
+                mnk_subgroup_sizes.push_back(d->querySubgroupProperties.subgroupSize);
             }
         }
     }
-    else if (d->support_VK_NV_cooperative_matrix && d->queryCooperativeMatrixFeaturesNV.cooperativeMatrix)
+    else if (mnk_properties.empty() && d->support_VK_NV_cooperative_matrix && d->queryCooperativeMatrixFeaturesNV.cooperativeMatrix)
     {
         for (size_t i = 0; i < d->queryCooperativeMatrixSubPropertiesNV.size(); i++)
         {
@@ -2502,6 +2715,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
                 cmp_khr.KSize = cmp.KSize;
 
                 mnk_properties.push_back(cmp_khr);
+                mnk_subgroup_sizes.push_back(d->querySubgroupProperties.subgroupSize);
             }
         }
     }
@@ -2525,13 +2739,14 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
         const int N_pad = (N + cmp.NSize - 1) / cmp.NSize * cmp.NSize;
         const int K_pad = (K + cmp.KSize - 1) / cmp.KSize * cmp.KSize;
 
-        double cost = M_pad * N_pad * K_pad - M * N * K;
+        double cost = (double)M_pad * N_pad * K_pad - (double)M * N * K;
         if (cost < min_cost)
         {
             min_cost = cost;
             coopmat_M = cmp.MSize;
             coopmat_N = cmp.NSize;
             coopmat_K = cmp.KSize;
+            coopmat_subgroup_size = mnk_subgroup_sizes[i];
         }
     }
 }
@@ -2679,6 +2894,11 @@ static int init_instance_extension()
     // VK_KHR_cooperative_matrix
     {
         vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR = (PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR");
+    }
+
+    // VK_EXT_cooperative_matrix_maintenance1
+    {
+        vkGetPhysicalDeviceCooperativeMatrixProperties2EXT = (PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceCooperativeMatrixProperties2EXT");
     }
 
     // VK_NV_cooperative_matrix
@@ -3087,10 +3307,12 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_properties();
 
         gpu_info.d->evaluate_rough_score();
+        gpu_info.d->resolve_prefer_shader_local_memory();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  prefer-slm=%d  rebar=%d  r-score=%u", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(),
+                  gpu_info.prefer_shader_local_memory(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
 
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
@@ -3115,6 +3337,8 @@ int create_gpu_instance(const char* driver_path)
         std::vector<VkCooperativeMatrixPropertiesKHR> int8_matrix_properties;
         std::vector<VkCooperativeMatrixPropertiesKHR> bf16_matrix_properties;
         std::vector<VkCooperativeMatrixPropertiesKHR> fp8_matrix_properties;
+        std::vector<VkCooperativeMatrixProperties2EXT> fp6_matrix_properties;
+        std::vector<VkCooperativeMatrixProperties2EXT> fp4_matrix_properties;
         if (gpu_info.support_VK_KHR_cooperative_matrix())
         {
             const std::vector<VkCooperativeMatrixPropertiesKHR>& properties = gpu_info.queryCooperativeMatrixSubProperties();
@@ -3239,11 +3463,53 @@ int create_gpu_instance(const char* driver_path)
                 }
             }
         }
+        if (gpu_info.support_VK_EXT_cooperative_matrix_maintenance1())
+        {
+            const std::vector<VkCooperativeMatrixProperties2EXT>& properties = gpu_info.queryCooperativeMatrixSubProperties2EXT();
+            for (uint32_t j = 0; j < properties.size(); j++)
+            {
+                const VkCooperativeMatrixProperties2EXT& cmp = properties[j];
+
+                if ((cmp.AType == VK_COMPONENT_TYPE_FLOAT6_E2M3_EXT || cmp.AType == VK_COMPONENT_TYPE_FLOAT6_E3M2_EXT)
+                        && (cmp.BType == VK_COMPONENT_TYPE_FLOAT6_E2M3_EXT || cmp.BType == VK_COMPONENT_TYPE_FLOAT6_E3M2_EXT))
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp6_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixProperties2EXT& cmp0 = fp6_matrix_properties[k];
+                        if (cmp.MGranularity == cmp0.MGranularity && cmp.NGranularity == cmp0.NGranularity && cmp.KGranularity == cmp0.KGranularity)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        fp6_matrix_properties.push_back(cmp);
+                }
+                if (cmp.AType == VK_COMPONENT_TYPE_FLOAT4_E2M1_EXT && cmp.BType == VK_COMPONENT_TYPE_FLOAT4_E2M1_EXT)
+                {
+                    bool mnk_hit = false;
+                    for (size_t k = 0; k < fp4_matrix_properties.size(); k++)
+                    {
+                        const VkCooperativeMatrixProperties2EXT& cmp0 = fp4_matrix_properties[k];
+                        if (cmp.MGranularity == cmp0.MGranularity && cmp.NGranularity == cmp0.NGranularity && cmp.KGranularity == cmp0.KGranularity)
+                        {
+                            mnk_hit = true;
+                            break;
+                        }
+                    }
+                    if (!mnk_hit)
+                        fp4_matrix_properties.push_back(cmp);
+                }
+            }
+        }
 
         std::string fp16_matrix_info_str;
         std::string int8_matrix_info_str;
         std::string bf16_matrix_info_str;
         std::string fp8_matrix_info_str;
+        std::string fp6_matrix_info_str;
+        std::string fp4_matrix_info_str;
         {
             for (uint32_t j = 0; j < fp16_matrix_properties.size(); j++)
             {
@@ -3273,6 +3539,20 @@ int create_gpu_instance(const char* driver_path)
                 sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MSize, cmp.NSize, cmp.KSize);
                 fp8_matrix_info_str += tmp;
             }
+            for (uint32_t j = 0; j < fp6_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixProperties2EXT& cmp = fp6_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MGranularity, cmp.NGranularity, cmp.KGranularity);
+                fp6_matrix_info_str += tmp;
+            }
+            for (uint32_t j = 0; j < fp4_matrix_properties.size(); j++)
+            {
+                const VkCooperativeMatrixProperties2EXT& cmp = fp4_matrix_properties[j];
+                char tmp[64];
+                sprintf(tmp, j > 0 ? "/%ux%ux%u" : "%ux%ux%u", cmp.MGranularity, cmp.NGranularity, cmp.KGranularity);
+                fp4_matrix_info_str += tmp;
+            }
 
             if (fp16_matrix_info_str.empty())
                 fp16_matrix_info_str = "0";
@@ -3282,10 +3562,14 @@ int create_gpu_instance(const char* driver_path)
                 bf16_matrix_info_str = "0";
             if (fp8_matrix_info_str.empty())
                 fp8_matrix_info_str = "0";
+            if (fp6_matrix_info_str.empty())
+                fp6_matrix_info_str = "0";
+            if (fp4_matrix_info_str.empty())
+                fp4_matrix_info_str = "0";
         }
 
-        NCNN_LOGE("[%u %s]  fp16-cm=%s  int8-cm=%s  bf16-cm=%s  fp8-cm=%s", i, gpu_info.device_name(),
-                  fp16_matrix_info_str.c_str(), int8_matrix_info_str.c_str(), bf16_matrix_info_str.c_str(), fp8_matrix_info_str.c_str());
+        NCNN_LOGE("[%u %s]  fp16-cm=%s  int8-cm=%s  bf16-cm=%s  fp8-cm=%s  fp6-cm=%s  fp4-cm=%s", i, gpu_info.device_name(),
+                  fp16_matrix_info_str.c_str(), int8_matrix_info_str.c_str(), bf16_matrix_info_str.c_str(), fp8_matrix_info_str.c_str(), fp6_matrix_info_str.c_str(), fp4_matrix_info_str.c_str());
 
         gpu_info_index++;
     }
@@ -3489,6 +3773,10 @@ public:
     // device-wide pipeline cache
     PipelineCache* pipeline_cache;
 
+#if NCNN_COVERAGE
+    VulkanShaderCoverage* shader_coverage;
+#endif
+
     // utility operator
     // from fp32 | fp16
     // to fp32 | fp16
@@ -3514,6 +3802,9 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     texelfetch_sampler = 0;
     dummy_allocator = 0;
     pipeline_cache = 0;
+#if NCNN_COVERAGE
+    shader_coverage = 0;
+#endif
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
     memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
@@ -3846,6 +4137,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_zero_initialize_workgroup_memory");
     if (info.support_VK_EXT_buffer_device_address())
         enabledExtensions.push_back("VK_EXT_buffer_device_address");
+    if (info.support_VK_EXT_cooperative_matrix_maintenance1())
+        enabledExtensions.push_back("VK_EXT_cooperative_matrix_maintenance1");
     if (info.support_VK_EXT_descriptor_indexing())
         enabledExtensions.push_back("VK_EXT_descriptor_indexing");
     if (info.support_VK_EXT_external_memory_host())
@@ -3864,6 +4157,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_shader_atomic_float2");
     if (info.support_VK_EXT_shader_float8())
         enabledExtensions.push_back("VK_EXT_shader_float8");
+    if (info.support_VK_EXT_shader_ocp_microscaling_types())
+        enabledExtensions.push_back("VK_EXT_shader_ocp_microscaling_types");
     if (info.support_VK_EXT_subgroup_size_control())
         enabledExtensions.push_back("VK_EXT_subgroup_size_control");
     if (info.support_VK_AMD_device_coherent_memory())
@@ -3923,7 +4218,7 @@ VulkanDevice::VulkanDevice(int device_index)
     deviceCreateInfo.ppEnabledLayerNames = 0;
     deviceCreateInfo.enabledExtensionCount = enabledExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
-    deviceCreateInfo.pEnabledFeatures = 0; // VkPhysicalDeviceFeatures pointer
+    deviceCreateInfo.pEnabledFeatures = &info.physicalDevicefeatures();
 
     VkResult ret = vkCreateDevice(info.physicalDevice(), &deviceCreateInfo, 0, &d->device);
     if (ret != VK_SUCCESS)
@@ -3933,6 +4228,15 @@ VulkanDevice::VulkanDevice(int device_index)
     }
 
     init_device_extension();
+
+#if NCNN_COVERAGE
+    d->shader_coverage = create_shader_coverage(this);
+    if (!d->shader_coverage)
+    {
+        NCNN_LOGE("VulkanDevice create shader coverage buffer failed");
+        return;
+    }
+#endif
 
     d->free_compute_queue_count = 0;
     d->free_transfer_queue_count = 0;
@@ -4001,6 +4305,10 @@ VulkanDevice::VulkanDevice(int device_index)
 
 VulkanDevice::~VulkanDevice()
 {
+#if NCNN_COVERAGE
+    if (d->device)
+        vkDeviceWaitIdle(d->device);
+#endif
     d->destroy_utility_operator();
 
     d->destroy_dummy_buffer_image();
@@ -4028,6 +4336,9 @@ VulkanDevice::~VulkanDevice()
 
     if (d->device)
     {
+#if NCNN_COVERAGE
+        destroy_shader_coverage(d->shader_coverage);
+#endif
         vkDestroyDevice(d->device, 0);
     }
 
@@ -4056,6 +4367,9 @@ bool VulkanDevice::is_valid() const
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
 {
+#if NCNN_COVERAGE
+    register_shader_coverage(spv_data, spv_data_size / sizeof(uint32_t));
+#endif
     VkShaderModuleCreateInfo shaderModuleCreateInfo;
     shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shaderModuleCreateInfo.pNext = 0;
@@ -4080,6 +4394,12 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     uint32_t local_size_y_id = -1;
     uint32_t local_size_z_id = -1;
     uint32_t gl_WorkGroupSize_id = -1;
+    std::vector<std::pair<uint32_t, uint32_t> > local_size_ids;
+    const uint32_t local_size_xyz[3] = {local_size_x, local_size_y, local_size_z};
+    const bool use_local_size_id = code[1] >= 0x00010600;
+    uint32_t uint_type_id = -1;
+    bool inject_local_size_constants = false;
+    bool inject_local_size_decorations = false;
 
     const uint32_t* p = code;
     uint32_t* dp = dstcode;
@@ -4097,27 +4417,78 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         uint16_t wordcount = opcode >> 16;
         uint16_t op = opcode & 0xffff;
 
-        if (op == 16) // OpExecutionMode
+        // insert the local size SpecId decorations before the types
+        if (op >= 19 && op <= 39 && inject_local_size_decorations)
         {
-            uint32_t mode = p[2];
-            if (mode == 17) // LocalSize
+            for (int i = 0; i < 3; i++)
             {
-                memcpy(dp, p, wordcount * sizeof(uint32_t));
+                dp[0] = (4 << 16) | 71; // OpDecorate
+                dp[1] = code[3] + i;
+                dp[2] = 1; // SpecId
+                dp[3] = 233 + i;
+                dp += 4;
+            }
+            inject_local_size_decorations = false;
+        }
 
-                // set local_size_xyz
+        // OpExecutionMode LocalSize or OpExecutionModeId LocalSizeId
+        if ((op == 16 && p[2] == 17) || (op == 331 && p[2] == 38 && use_local_size_id))
+        {
+            memcpy(dp, p, wordcount * sizeof(uint32_t));
+
+            if (use_local_size_id)
+            {
+                dp[0] = (wordcount << 16) | 331; // OpExecutionModeId
+                dp[2] = 38;                      // LocalSizeId
+                dp[3] = code[3];
+                dp[4] = code[3] + 1;
+                dp[5] = code[3] + 2;
+                dstcode[3] = code[3] + 3;
+                inject_local_size_constants = true;
+                inject_local_size_decorations = true;
+            }
+            else
+            {
                 dp[3] = local_size_x;
                 dp[4] = local_size_y;
                 dp[5] = local_size_z;
-
-                p += wordcount;
-                dp += wordcount;
-                continue;
             }
+
+            p += wordcount;
+            dp += wordcount;
+            continue;
+        }
+        else if (op == 21) // OpTypeInt
+        {
+            if (p[2] == 32 && p[3] == 0)
+                uint_type_id = p[1];
         }
         else if (op == 50) // OpSpecConstant
         {
             uint32_t id = p[2];
-            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
+            if (use_local_size_id)
+            {
+                // replace reserved local size constants also used by gl_WorkGroupSize
+                bool local_size_constant = false;
+                for (size_t i = 0; i < local_size_ids.size(); i++)
+                {
+                    if (id != local_size_ids[i].first)
+                        continue;
+
+                    memcpy(dp, p, wordcount * sizeof(uint32_t));
+                    dp[0] = (wordcount << 16) | 43; // OpConstant
+                    dp[3] = local_size_ids[i].second;
+                    local_size_constant = true;
+                    break;
+                }
+                if (local_size_constant)
+                {
+                    p += wordcount;
+                    dp += wordcount;
+                    continue;
+                }
+            }
+            else if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
             {
                 p += wordcount;
                 continue;
@@ -4135,6 +4506,29 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 }
             }
         }
+        else if (op == 54 && inject_local_size_constants) // OpFunction
+        {
+            // adreno needs LocalSizeId to reference specialization constants
+            if (uint_type_id == (uint32_t)-1)
+            {
+                uint_type_id = dstcode[3]++;
+                dp[0] = (4 << 16) | 21; // OpTypeInt
+                dp[1] = uint_type_id;
+                dp[2] = 32;
+                dp[3] = 0;
+                dp += 4;
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                dp[0] = (4 << 16) | 50; // OpSpecConstant
+                dp[1] = uint_type_id;
+                dp[2] = code[3] + i;
+                dp[3] = local_size_xyz[i];
+                dp += 4;
+            }
+            inject_local_size_constants = false;
+        }
         else if (op == 71) // OpDecorate
         {
             uint32_t id = p[1];
@@ -4147,6 +4541,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 if (specid == 235) local_size_z_id = id;
                 if (specid == 233 || specid == 234 || specid == 235)
                 {
+                    if (use_local_size_id)
+                        local_size_ids.push_back(std::make_pair(id, local_size_xyz[specid - 233]));
                     p += wordcount;
                     continue;
                 }
@@ -4173,7 +4569,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
+    // reserve space for a uint type, three local size spec constants and their decorations
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 28 * sizeof(uint32_t));
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
@@ -4252,6 +4649,12 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     pipelineLayoutCreateInfo.pNext = 0;
     pipelineLayoutCreateInfo.flags = 0;
 
+#if NCNN_COVERAGE
+    VkDescriptorSetLayout layouts[2];
+    get_shader_coverage_descriptorset_layouts(d->shader_coverage, descriptorset_layout, layouts);
+    pipelineLayoutCreateInfo.setLayoutCount = 2;
+    pipelineLayoutCreateInfo.pSetLayouts = layouts;
+#else
     if (descriptorset_layout)
     {
         pipelineLayoutCreateInfo.setLayoutCount = 1;
@@ -4262,6 +4665,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
         pipelineLayoutCreateInfo.setLayoutCount = 0;
         pipelineLayoutCreateInfo.pSetLayouts = 0;
     }
+#endif
 
     if (push_constant_count > 0)
     {
@@ -4283,6 +4687,18 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
 
     return 0;
 }
+
+#if NCNN_COVERAGE
+void VulkanDevice::bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const
+{
+    bind_shader_coverage_descriptorset(d->shader_coverage, command_buffer, pipeline_layout);
+}
+
+void VulkanDevice::record_shader_coverage_barrier(VkCommandBuffer command_buffer) const
+{
+    ncnn::record_shader_coverage_barrier(d->shader_coverage, command_buffer);
+}
+#endif
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
@@ -5083,6 +5499,9 @@ public:
         {
             const char* const headerData = vulkan_activation_comp_data;
             const size_t headerLength = sizeof(vulkan_activation_comp_data);
+#if NCNN_COVERAGE
+            headerName = "src/layer/vulkan/shader/vulkan_activation.comp";
+#endif
             glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
             return r;
         }
@@ -5157,7 +5576,7 @@ int compile_spirv_module(const char* comp_string, const Option& opt, std::vector
 
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv)
 {
-    DefinitionCollector custom_defines;
+    DefinitionCollector option_defines;
     DefinitionCollector device_defines;
 
     int device_index = opt.vulkan_device_index;
@@ -5166,526 +5585,72 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     const GpuInfo& info = get_gpu_info(device_index);
     const bool support_fp16_storage = info.support_fp16_storage();
-    const bool support_fp16_uniform = info.support_fp16_uniform();
-    const bool support_int16_arithmetic = info.physicalDevicefeatures().shaderInt16;
+    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
+    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     if (opt.use_bf16_storage)
     {
-        custom_defines.append("sfp", "bfloat16_t");
-        custom_defines.append("sfpvec2", "bf16vec2");
-        custom_defines.append("sfpvec4", "bf16vec4");
-
-        // define pack and unpack macro for bf16s
-        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))");
-        custom_defines.append("packBFloat2x16(v)", "packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))");
+        option_defines.append("NCNN_bf16_storage", 1);
     }
     else if (opt.use_bf16_packed)
     {
-        if (support_fp16_storage)
-        {
-            custom_defines.append("sfp", "uint16_t");
-        }
-        else
-        {
-            custom_defines.append("sfp", "uint");
-        }
-        custom_defines.append("sfpvec2", "uint");
-        custom_defines.append("sfpvec4", "uvec2");
-
-        // define pack and unpack macro for bf16p
-        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))");
-        custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|(floatBitsToUint(v.y)&0xffff0000u))");
+        option_defines.append("NCNN_bf16_packed", 1);
     }
     else if (opt.use_fp16_storage)
     {
-        custom_defines.append("sfp", "float16_t");
-        custom_defines.append("sfpvec2", "f16vec2");
-        custom_defines.append("sfpvec4", "f16vec4");
-
-        if (opt.use_fp16_arithmetic)
-        {
-            custom_defines.append("sfpmat4", "f16mat4");
-        }
+        option_defines.append("NCNN_fp16_storage", 1);
     }
     else if (opt.use_fp16_packed)
     {
-        custom_defines.append("sfp", "uint");
-        custom_defines.append("sfpvec2", "uint");
-        custom_defines.append("sfpvec4", "uvec2");
-    }
-    else
-    {
-        custom_defines.append("sfp", "float");
-        custom_defines.append("sfpvec2", "vec2");
-        custom_defines.append("sfpvec4", "vec4");
-        custom_defines.append("sfpmat4", "mat4");
-    }
-
-    if (opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        // bf16 conflicts with fp16a
-        custom_defines.append("afp", "float");
-        custom_defines.append("afpvec2", "vec2");
-        custom_defines.append("afpvec4", "vec4");
-        custom_defines.append("afpmat4", "mat4");
-    }
-    else if (opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("afp", "float16_t");
-        custom_defines.append("afpvec2", "f16vec2");
-        custom_defines.append("afpvec4", "f16vec4");
-        custom_defines.append("afpmat4", "f16mat4");
-    }
-    else
-    {
-        custom_defines.append("afp", "float");
-        custom_defines.append("afpvec2", "vec2");
-        custom_defines.append("afpvec4", "vec4");
-        custom_defines.append("afpmat4", "mat4");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        // bf16s implies 16bit uniform
-        custom_defines.append("lfp", "bfloat16_t");
-        custom_defines.append("lfpvec4", "bf16vec4");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("lfp", "uint16_t");
-        }
-        else
-        {
-            custom_defines.append("lfp", "float");
-        }
-        custom_defines.append("lfpvec4", "uvec2");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("lfp", "float16_t");
-        custom_defines.append("lfpvec4", "f16vec4");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "uint64_t");
-    }
-    else if (opt.use_fp16_storage || opt.use_fp16_packed)
-    {
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "uvec2");
-    }
-    else
-    {
-        custom_defines.append("lfp", "float");
-        custom_defines.append("lfpvec4", "vec4");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "float(v)");
-        custom_defines.append("afp2lfp(v)", "bfloat16_t(v)");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(v)");
-        custom_defines.append("afp2lfpvec4(v)", "bf16vec4(v)");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        }
-        else if (support_fp16_storage)
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
-        }
-        else
-        {
-            custom_defines.append("buffer_sm1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
-        }
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        if (support_fp16_uniform)
-        {
-            custom_defines.append("lfp2afp(v)", "uintBitsToFloat(uint(v)<<16)");
-            custom_defines.append("afp2lfp(v)", "uint16_t(floatBitsToUint(v)>>16)");
-        }
-        else
-        {
-            custom_defines.append("lfp2afp(v)", "v");
-            custom_defines.append("afp2lfp(v)", "v");
-        }
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackBFloat2x16(v.x),unpackBFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba))");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "v");
-        custom_defines.append("afp2lfpvec4(v)", "v");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
-
-        custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
-        custom_defines.append("afp2lfpvec4(v)", "pack64(halfBitsToUint16(v))");
-    }
-    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "uvec2(packHalf2x16(vec4(buf[i]).rg),packHalf2x16(vec4(buf[i]).ba))");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "float(v)");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
-    }
-    else
-    {
-        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
-
-        custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("afp2lfp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "v");
-        custom_defines.append("afp2lfpvec4(v)", "v");
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=bfloat16_t(v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
-        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=bf16vec2(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=bf16vec4(v);}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-    }
-    else if (opt.use_bf16_packed)
-    {
-        if (support_fp16_storage)
-        {
-            custom_defines.append("buffer_ld1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
-            custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=uint16_t(floatBitsToUint(v)>>16);}");
-            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(pack32(u16vec2(sbuf[si4.r],sbuf[si4.g])),pack32(u16vec2(sbuf[si4.b],sbuf[si4.a])));}");
-            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=unpack16(sbuf[si].x).x;buf[i4.g]=unpack16(sbuf[si].x).y;buf[i4.b]=unpack16(sbuf[si].y).x;buf[i4.a]=unpack16(sbuf[si].y).y;}");
-        }
-        else
-        {
-            custom_defines.append("buffer_ld1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
-            custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=_vs;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackBFloat2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=v;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.r])[_si4m2.r],unpackBFloat2x16(sbuf[_si4d2.g])[_si4m2.g])),packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.b])[_si4m2.b],unpackBFloat2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackBFloat2x16(_v.x);vec2 _v1=unpackBFloat2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-        }
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackBFloat2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packBFloat2x16(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackBFloat2x16(buf[i].x),unpackBFloat2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    }
-    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=f16vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}");
-        custom_defines.append("buffer_ld2(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-        custom_defines.append("sfp2afpmat4(v)", "v");
-        custom_defines.append("afp2sfpmat4(v)", "v");
-    }
-    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackFloat2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packFloat2x16(v)}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "f16vec4(unpackFloat2x16(buf[i].x),unpackFloat2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float16_t(v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
-        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=f16vec2(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=f16vec4(v);}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
-
-        custom_defines.append("buffer_ld2(buf,i)", "unpackHalf2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v);}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
-    }
-    else
-    {
-        custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}");
-        custom_defines.append("buffer_ld2(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_ld4(buf,i)", "buf[i]");
-        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=v;}");
-        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{vec4 _v=sbuf[si]; buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}");
-        custom_defines.append("sfp2afpmat4(v)", "v");
-        custom_defines.append("afp2sfpmat4(v)", "v");
-    }
-
-    if (opt.use_int8_storage)
-    {
-        custom_defines.append("sint8", "int8_t");
-    }
-    else if (opt.use_int8_packed)
-    {
-        custom_defines.append("sint8", "int");
-    }
-    else
-    {
-        custom_defines.append("sint8", "int");
-    }
-
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("NCNN_int16_storage", 1);
-        custom_defines.append("sint16", "int16_t");
-        custom_defines.append("sint16vec4", "i16vec4");
-        custom_defines.append("lint16", "int16_t");
-        custom_defines.append("lint16vec4", "i16vec4");
-        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
-        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
-        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "v" : "int(v)");
-        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "v" : "ivec4(v)");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("NCNN_int16_packed", 1);
-        custom_defines.append("sint16", "int");
-        custom_defines.append("sint16vec4", "ivec2");
-        custom_defines.append("lint16", "int");
-        custom_defines.append("lint16vec4", "ivec2");
-        custom_defines.append("aint16", support_int16_arithmetic ? "int16_t" : "int");
-        custom_defines.append("aint16vec4", support_int16_arithmetic ? "i16vec4" : "ivec4");
-        custom_defines.append("lint162aint16(v)", support_int16_arithmetic ? "int16_t(v)" : "int(v)");
-        custom_defines.append("lint162aint16vec4(v)", support_int16_arithmetic ? "i16vec4(unpack16(v.r),unpack16(v.g))" : "ivec4(unpackInt2x16(v.r),unpackInt2x16(v.g))");
-    }
-    else
-    {
-        custom_defines.append("sint16", "int");
-        custom_defines.append("sint16vec4", "ivec4");
-        custom_defines.append("lint16", "int");
-        custom_defines.append("lint16vec4", "ivec4");
-        custom_defines.append("aint16", "int");
-        custom_defines.append("aint16vec4", "ivec4");
-        custom_defines.append("lint162aint16(v)", "v");
-        custom_defines.append("lint162aint16vec4(v)", "v");
-    }
-
-    custom_defines.append("sint8vec4", "int");
-
-    custom_defines.append("aint8", "int");
-    custom_defines.append("aint8vec4", "ivec4");
-
-    custom_defines.append("unpackInt4x8(v)", "ivec4((v<<24)>>24,(v<<16)>>24,(v<<8)>>24,v>>24)");
-    custom_defines.append("packInt4x8(v)", "int((uint(v.r)&0xFFu)|((uint(v.g)&0xFFu)<<8)|((uint(v.b)&0xFFu)<<16)|((uint(v.a)&0xFFu)<<24))");
-    custom_defines.append("unpackInt2x16(v)", "ivec2((int(v)<<16)>>16,int(v)>>16)");
-    custom_defines.append("packInt2x16(v)", "int((uint(v.r)&0xFFFFu)|((uint(v.g)&0xFFFFu)<<16))");
-    custom_defines.append("float2int8(v)", "int(clamp(float(v)+(float(v)>=0.f?0.5f:-0.5f),-127.f,127.f))");
-    custom_defines.append("float2int8vec4(v)", "ivec4(clamp(vec4(v)+mix(vec4(-0.5f),vec4(0.5f),greaterThanEqual(vec4(v),vec4(0.f))),vec4(-127.f),vec4(127.f)))");
-
-    if (opt.use_int8_storage)
-    {
-        custom_defines.append("i8buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i8buffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}");
-        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    }
-    else
-    {
-        custom_defines.append("i8buffer_ld1(buf,i)", "int(((buf[(i)/4])<<(24-((i)%4)*8))>>24)");
-        custom_defines.append("i8buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id4=_i/4;uint _im4=_i%4;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id4],0,0);ivec4 _v=unpackInt4x8(_old_v);_v[_im4]=_vs;_new_v=packInt4x8(_v);} while(atomicCompSwap(buf[_id4],_old_v,_new_v)!=_old_v);}");
-        custom_defines.append("i8buffer_cp1(buf,i,sbuf,si)", "{int _v=i8buffer_ld1(sbuf,si);i8buffer_st1(buf,i,_v);}");
-    }
-
-    custom_defines.append("i8buffer_ld4(buf,i)", "unpackInt4x8(buf[i])");
-    custom_defines.append("i8buffer_sm4(buf,i)", "buf[i]");
-    custom_defines.append("i8buffer_st4(buf,i,v)", "{buf[i]=packInt4x8(v);}");
-    custom_defines.append("i8buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
-    custom_defines.append("i8buffer_cp1to4(buf,i,sbuf,si)", "{ivec4 _v=ivec4(i8buffer_ld1(sbuf,si.r),i8buffer_ld1(sbuf,si.g),i8buffer_ld1(sbuf,si.b),i8buffer_ld1(sbuf,si.a));i8buffer_st4(buf,i,_v);}");
-    custom_defines.append("i8buffer_cp4to1(buf,i4,sbuf,si)", "{ivec4 _v=i8buffer_ld4(sbuf,si);i8buffer_st1(buf,i4.r,_v.r);i8buffer_st1(buf,i4.g,_v.g);i8buffer_st1(buf,i4.b,_v.b);i8buffer_st1(buf,i4.a,_v.a);}");
-
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int16_t(v);}");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "unpackInt2x16(buf[(i)/2])[(i)%2]");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;int _vs=int(v);int _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);ivec2 _v=unpackInt2x16(_old_v);_v[_im2]=_vs;_new_v=packInt2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-    }
-    else
-    {
-        custom_defines.append("i16buffer_ld1(buf,i)", "int(buf[i])");
-        custom_defines.append("i16buffer_st1(buf,i,v)", "{buf[i]=int(v);}");
-    }
-    custom_defines.append("i16buffer_ld2(buf,i)", "ivec2(i16buffer_ld1(buf,i),i16buffer_ld1(buf,(i)+1))");
-    if (opt.use_int16_storage)
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int16_t(_v.r);buf[(i)+1]=int16_t(_v.g);}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "buf[i]" : "ivec4(buf[i])");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=i16vec4(v);}");
-    }
-    else if (opt.use_int16_packed)
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", support_int16_arithmetic ? "i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))" : "ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{ivec4 _v=ivec4(v);buf[i]=ivec2(packInt2x16(ivec2(_v.r,_v.g)),packInt2x16(ivec2(_v.b,_v.a)));}");
-    }
-    else
-    {
-        custom_defines.append("i16buffer_st2(buf,i,v)", "{ivec2 _v=ivec2(v);buf[i]=int(_v.r);buf[(i)+1]=int(_v.g);}");
-        custom_defines.append("i16buffer_sm4(buf,i)", "buf[i]");
-        custom_defines.append("i16buffer_ld4(buf,i)", "ivec4(buf[i])");
-        custom_defines.append("i16buffer_st4(buf,i,v)", "{buf[i]=ivec4(v);}");
-    }
-
-    custom_defines.append("psc(x)", "(x==0?p.x:x)");
-
-    if (opt.use_bf16_storage)
-    {
-        custom_defines.append("NCNN_bf16_storage", 1);
-    }
-    else if (opt.use_bf16_packed)
-    {
-        custom_defines.append("NCNN_bf16_packed", 1);
-    }
-    else if (opt.use_fp16_storage)
-    {
-        custom_defines.append("NCNN_fp16_storage", 1);
-    }
-    else if (opt.use_fp16_packed)
-    {
-        custom_defines.append("NCNN_fp16_packed", 1);
+        option_defines.append("NCNN_fp16_packed", 1);
     }
 
     if (opt.use_fp16_uniform)
     {
-        custom_defines.append("NCNN_fp16_uniform", 1);
+        option_defines.append("NCNN_fp16_uniform", 1);
     }
 
     if (opt.use_fp16_arithmetic)
     {
-        custom_defines.append("NCNN_fp16_arithmetic", 1);
+        option_defines.append("NCNN_fp16_arithmetic", 1);
     }
 
     if (opt.use_int8_storage)
     {
-        custom_defines.append("NCNN_int8_storage", 1);
+        option_defines.append("NCNN_int8_storage", 1);
     }
     else if (opt.use_int8_packed)
     {
-        custom_defines.append("NCNN_int8_packed", 1);
+        option_defines.append("NCNN_int8_packed", 1);
     }
 
     if (opt.use_int8_uniform)
     {
-        custom_defines.append("NCNN_int8_uniform", 1);
+        option_defines.append("NCNN_int8_uniform", 1);
     }
 
     if (opt.use_int8_arithmetic)
     {
-        custom_defines.append("NCNN_int8_arithmetic", 1);
+        option_defines.append("NCNN_int8_arithmetic", 1);
+    }
+
+    if (opt.use_int16_storage)
+    {
+        option_defines.append("NCNN_int16_storage", 1);
+    }
+    else if (opt.use_int16_packed)
+    {
+        option_defines.append("NCNN_int16_packed", 1);
     }
 
     if (opt.use_shader_local_memory)
     {
-        custom_defines.append("NCNN_shader_local_memory", 1);
+        option_defines.append("NCNN_shader_local_memory", 1);
     }
 
 #if __APPLE__
-    custom_defines.append("NCNN_moltenvk", 1);
+    option_defines.append("NCNN_moltenvk", 1);
 #endif
-
-    custom_defines.append("ncnn_glsl_version", 1);
-
-    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
-    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
     {
@@ -5776,6 +5741,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_FEATURE(storagePushConstant16)
             DD_APPEND_FEATURE(storageInputOutput16)
         }
+        {
+            const VkPhysicalDeviceMaintenance4FeaturesKHR& features = info.queryMaintenance4Features();
+            DD_APPEND_FEATURE(maintenance4)
+        }
         if (info.support_VK_KHR_robustness2() || info.support_VK_EXT_robustness2())
         {
             const VkPhysicalDeviceRobustness2FeaturesKHR& features = info.queryRobustness2Features();
@@ -5805,6 +5774,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             const VkPhysicalDeviceCooperativeMatrixFeaturesNV& features = info.queryCooperativeMatrixFeaturesNV();
             DD_APPEND_FEATURE(cooperativeMatrix)
             DD_APPEND_FEATURE(cooperativeMatrixRobustBufferAccess)
+        }
+        if (info.support_VK_EXT_cooperative_matrix_maintenance1())
+        {
+            const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& features = info.queryCooperativeMatrixMaintenance1Features();
+            DD_APPEND_FEATURE(cooperativeMatrixProperties2)
+            DD_APPEND_FEATURE(cooperativeMatrixReductions)
+            DD_APPEND_FEATURE(cooperativeMatrixConversions)
+            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            DD_APPEND_FEATURE(cooperativeMatrixGetCoordinate)
         }
         if (info.support_VK_NV_cooperative_matrix2())
         {
@@ -5841,6 +5819,14 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             const VkPhysicalDeviceShaderFloat8FeaturesEXT& features = info.queryShaderFloat8Features();
             DD_APPEND_FEATURE(shaderFloat8)
             DD_APPEND_FEATURE(shaderFloat8CooperativeMatrix)
+        }
+        if (info.support_VK_EXT_shader_ocp_microscaling_types())
+        {
+            const VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT& features = info.queryShaderOCPMicroscalingTypesFeatures();
+            DD_APPEND_FEATURE(shaderFloat4)
+            DD_APPEND_FEATURE(shaderFloat6)
+            DD_APPEND_FEATURE(shaderFloat8UnsignedE8M0)
+            DD_APPEND_FEATURE(shaderMXInt8)
         }
         if (info.support_VK_KHR_shader_float_controls2())
         {
@@ -6148,7 +6134,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (info.support_VK_KHR_shader_non_semantic_info())
         {
             device_defines.append("enable_validation_layer", VK_TRUE);
-            custom_defines.append("NCNN_LOGE", "debugPrintfEXT");
         }
 #endif
 
@@ -6157,10 +6142,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     std::string define_macro_data;
 
-    for (size_t i = 0; i < custom_defines.definitions.size(); i++)
+    for (size_t i = 0; i < option_defines.definitions.size(); i++)
     {
-        const char* key = custom_defines.definitions[i].first;
-        const DefinitionCollector::typed_value& def = custom_defines.definitions[i].second;
+        const char* key = option_defines.definitions[i].first;
+        const DefinitionCollector::typed_value& def = option_defines.definitions[i].second;
 
         if (def.type == 0)
         {
@@ -6252,7 +6237,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
-    if (support_shader_int16 || (opt.use_bf16_packed && support_fp16_storage))
+    if (support_shader_int16)
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
@@ -6293,7 +6278,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         // split shader source by token "#version 450\n"
         int version_end_pos = -1;
         {
-            for (int i = 0; i < comp_data_size - 8; i++)
+            const int version_scan_end = comp_data_size > 8 ? comp_data_size - 8 : 0;
+            for (int i = 0; i < version_scan_end; i++)
             {
                 if (strncmp(comp_data + i, "#version", 8) != 0)
                     continue;
@@ -6302,12 +6288,24 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
                 if (i != 0 && comp_data[i - 1] != '\n')
                     continue;
 
-                int nversion = 0;
-                sscanf(comp_data + i, "#version %*d\n%n", &nversion);
-                if (nversion == 0)
+                int p = i + 8;
+                while (p < comp_data_size && isspace((unsigned char)comp_data[p]))
+                    p++;
+
+                if (p < comp_data_size && (comp_data[p] == '+' || comp_data[p] == '-'))
+                    p++;
+
+                const int version_start = p;
+                while (p < comp_data_size && comp_data[p] >= '0' && comp_data[p] <= '9')
+                    p++;
+
+                if (p == version_start)
                     continue;
 
-                version_end_pos = i + nversion;
+                while (p < comp_data_size && isspace((unsigned char)comp_data[p]))
+                    p++;
+
+                version_end_pos = p;
                 break;
             }
 
@@ -6324,17 +6322,50 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         int comp_data_size_1 = version_end_pos;
         int comp_data_size_2 = comp_data_size - comp_data_size_1;
 
-        const char* comp_datas[4] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), comp_data_2};
-        const int comp_data_sizes[4] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), comp_data_size_2};
+        const char* comp_datas[5] = {comp_data, custom_exts.c_str(), define_macro_data.c_str(), ncnn_glsl_ext_comp_data, comp_data_2};
+        const int comp_data_sizes[5] = {comp_data_size_1, (int)custom_exts.size(), (int)define_macro_data.size(), sizeof(ncnn_glsl_ext_comp_data), comp_data_size_2};
 
-        s.setStringsWithLengths(comp_datas, comp_data_sizes, 4);
+#if NCNN_COVERAGE
+        int shader_type_index = -1;
+        for (int i = 0; i < layer_shader_registry_entry_count; i++)
+        {
+            if (comp_data == layer_shader_registry[i].comp_data && comp_data_size == layer_shader_registry[i].comp_data_size)
+            {
+                shader_type_index = i;
+                break;
+            }
+        }
+        const char* source_name = shader_coverage_source_name(shader_type_index);
+        int source_line = 1;
+        for (int i = 0; i < version_end_pos; i++)
+            if (comp_data[i] == '\n' || (comp_data[i] == '\r' && (i + 1 == version_end_pos || comp_data[i + 1] != '\n')))
+                source_line++;
+        char line_directive[64];
+        snprintf(line_directive, sizeof(line_directive), "\n#line %d \"", source_line);
+        const std::string coverage_extensions = "#extension GL_GOOGLE_cpp_style_line_directive : enable\n#line 1 \"ncnn-generated-extensions\"\n" + custom_exts;
+        const std::string coverage_defines = "\n#line 1 \"ncnn-generated-options\"\n" + define_macro_data;
+        const std::string coverage_glsl_ext = std::string("\n#line 1 \"src/ncnn_glsl_ext.comp\"\n") + std::string(ncnn_glsl_ext_comp_data, sizeof(ncnn_glsl_ext_comp_data));
+        const std::string coverage_body = std::string(line_directive) + source_name + "\"\n" + std::string(comp_data_2, comp_data_size_2);
+        const char* coverage_datas[5] = {comp_data, coverage_extensions.c_str(), coverage_defines.c_str(), coverage_glsl_ext.c_str(), coverage_body.c_str()};
+        const int coverage_sizes[5] = {comp_data_size_1, (int)coverage_extensions.size(), (int)coverage_defines.size(), (int)coverage_glsl_ext.size(), (int)coverage_body.size()};
+        const char* coverage_names[5] = {source_name, "ncnn-generated-extensions", "ncnn-generated-options", "src/ncnn_glsl_ext.comp", source_name};
+        s.setStringsWithLengthsAndNames(coverage_datas, coverage_sizes, coverage_names, 5);
+#else
+        s.setStringsWithLengths(comp_datas, comp_data_sizes, 5);
+#endif
 
         s.setEntryPoint("main");
         s.setSourceEntryPoint("main");
 
         s.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientVulkan, 1);
 
-        if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
+        if (info.queryMaintenance4Features().maintenance4)
+        {
+            // enabled core maintenance4 permits spirv-1.6 and LocalSizeId for all shaders
+            s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+            s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_6);
+        }
+        else if (opt.use_subgroup_ops || opt.use_cooperative_matrix)
         {
             // subgroup / cooperative_matrix need vulkan-1.1 and spirv-1.3
             s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
@@ -6350,7 +6381,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         VulkanShaderIncluder includer;
 
-        bool pr = s.parse(&resources, 100, ENoProfile, false, false, EShMsgDefault, includer);
+        EShMessages messages = EShMsgDefault;
+#if NCNN_COVERAGE
+        messages = (EShMessages)(messages | EShMsgDebugInfo);
+#endif
+        bool pr = s.parse(&resources, 100, ENoProfile, false, false, messages, includer);
         if (!pr)
         {
             NCNN_LOGE("compile spir-v module failed");
@@ -6359,19 +6394,20 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
             // print as line_number: code
             {
-                const char* p = comp_datas[3];
+                const char* p = comp_datas[4];
+                const char* p_end = p + comp_data_sizes[4];
                 const char* line_end;
                 int line_number = 1;
 
-                while ((line_end = strchr(p, '\n')) != NULL)
+                while ((line_end = (const char*)memchr(p, '\n', p_end - p)) != NULL)
                 {
                     NCNN_LOGE("%d:\t%.*s", line_number++, (int)(line_end - p), p);
                     p = line_end + 1;
                 }
 
-                if (*p != '\0')
+                if (p != p_end)
                 {
-                    NCNN_LOGE("%d:\t%s", line_number, p);
+                    NCNN_LOGE("%d:\t%.*s", line_number, (int)(p_end - p), p);
                 }
             }
 
@@ -6380,7 +6416,18 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         else
         {
             glslang::TIntermediate* ir = s.getIntermediate();
+#if NCNN_COVERAGE
+            glslang::SpvOptions spv_options;
+            spv_options.generateDebugInfo = true;
+            glslang::GlslangToSpv(*ir, spirv, &spv_options);
+            if (shader_type_index >= 0 && instrument_shader_coverage(spirv) != 0)
+            {
+                NCNN_LOGE("shader coverage instrumentation failed for %s", source_name);
+                compile_success = false;
+            }
+#else
             glslang::GlslangToSpv(*ir, spirv);
+#endif
         }
     }
 
@@ -6424,6 +6471,21 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     int bound = p[3];
 
     id_types.resize(bound);
+
+#if NCNN_COVERAGE
+    // collect descriptor sets before bindings because decorations may appear in either order
+    std::vector<uint32_t> descriptor_sets(bound, 0);
+    for (size_t i = 5; i < spv_data_size / sizeof(uint32_t);)
+    {
+        const uint32_t* q = spv_data + i;
+        const uint32_t wordcount = q[0] >> 16;
+        if (!wordcount || wordcount > spv_data_size / sizeof(uint32_t) - i)
+            return -1;
+        if ((q[0] & 0xffff) == 71 && wordcount == 4 && q[2] == 34 && q[1] < (uint32_t)bound)
+            descriptor_sets[q[1]] = q[3];
+        i += wordcount;
+    }
+#endif
 
     // skip magic version generator bound schema
     p += 5;
@@ -6515,6 +6577,13 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             }
             else if (decoration == 33) // Binding
             {
+#if NCNN_COVERAGE
+                if (descriptor_sets[id] != 0)
+                {
+                    p += wordcount;
+                    continue;
+                }
+#endif
                 binding_count = std::max(binding_count, (int)binding_id + 1);
 
                 binding_types.resize(binding_count);

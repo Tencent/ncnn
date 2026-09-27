@@ -5,12 +5,57 @@
 void eltwise_bf16s_avx512bf16(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void eltwise_bf16s_avxneconvert(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void eltwise_bf16s_avx2(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void eltwise_bf16s_fma(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void eltwise_bf16s_fma4(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
+#endif
+
 static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         eltwise_bf16s_avx512bf16(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        eltwise_bf16s_avxneconvert(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        eltwise_bf16s_avx2(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        eltwise_bf16s_fma(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        eltwise_bf16s_fma4(bottom_blobs, top_blob, op_type, coeffs, opt);
         return;
     }
 #endif
@@ -67,7 +112,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_mul_ps(_p, _p1);
-                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -124,7 +169,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_mul_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     outptr += 4;
@@ -186,7 +231,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                     _p = _mm_add_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -243,7 +288,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                         __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                         _p = _mm_add_ps(_p, _p1);
-                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                         ptr += 4;
                         outptr += 4;
@@ -316,7 +361,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     _p = _mm_mul_ps(_p, _coeff0);
                     _p1 = _mm_mul_ps(_p1, _coeff1);
                     _p = _mm_add_ps(_p1, _p);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -379,7 +424,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                         _p1 = _mm_mul_ps(_p1, _coeff);
                         _p = _mm_add_ps(_p1, _p);
-                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                         ptr += 4;
                         outptr += 4;
@@ -440,7 +485,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                 __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_max_ps(_p, _p1);
-                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -497,7 +542,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                     __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_max_ps(_p, _p1);
-                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p));
 
                     ptr += 4;
                     outptr += 4;

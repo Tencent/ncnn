@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 #define OP_TYPE_MAX 14
 
 static int op_type = 0;
@@ -366,6 +370,30 @@ static int test_binaryop_6()
     return 0;
 }
 
+#if NCNN_VALIDATION
+static int test_binaryop_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::BinaryOp, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 18; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::BinaryOp, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 19, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::BinaryOp, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -384,5 +412,9 @@ int main()
             return ret;
     }
 
-    return 0;
+    return 0
+#if NCNN_VALIDATION
+           || test_binaryop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

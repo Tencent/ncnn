@@ -51,7 +51,6 @@ static int test_gemm_0(int M, int N, int K)
 }
 
 // Test with forced output_elempack, fp32 paths only.
-// Uses test_layer_opt to avoid running bf16 paths where this elempack may be invalid.
 static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_transpose, int output_N1M = 0)
 {
     ncnn::ParamDict pd;
@@ -101,7 +100,8 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
         opt.use_bf16_packed = options[i][1];
         opt.use_bf16_storage = options[i][1];
 
-        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, TEST_LAYER_DISABLE_GPU_TESTING);
+        int flags = output_elempack > 4 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
+        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flags);
         if (ret != 0)
         {
             fprintf(stderr, "test_gemm_ep failed M=%d N=%d K=%d output_elempack=%d output_transpose=%d output_N1M=%d\n", M, N, K, output_elempack, output_transpose, output_N1M);
@@ -113,7 +113,6 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
 }
 
 // Test with forced output_elempack, bf16 paths only.
-// Uses test_layer_opt to avoid running fp32 paths where this elempack may be invalid.
 static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int output_transpose)
 {
     ncnn::ParamDict pd;
@@ -161,7 +160,8 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
         opt.use_bf16_packed = options[i][1];
         opt.use_bf16_storage = options[i][1];
 
-        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, TEST_LAYER_DISABLE_GPU_TESTING);
+        int flags = output_elempack > 4 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
+        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flags);
         if (ret != 0)
         {
             fprintf(stderr, "test_gemm_ep_bf16 failed M=%d N=%d K=%d output_elempack=%d output_transpose=%d\n", M, N, K, output_elempack, output_transpose);

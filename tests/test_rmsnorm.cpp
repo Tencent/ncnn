@@ -13,7 +13,7 @@ static int test_rmsnorm(const ncnn::Mat& a, int affine_size, float eps, int affi
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(affine_size);
 
-    int ret = test_layer("RMSNorm", pd, weights, a);
+    int ret = test_layer("RMSNorm", pd, weights, a, 1e-4f);
     if (ret != 0)
     {
         fprintf(stderr, "test_rmsnorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);

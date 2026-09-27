@@ -3,8 +3,6 @@
 
 #include "roialign.h"
 
-#include <assert.h>
-
 namespace ncnn {
 
 ROIAlign::ROIAlign()
@@ -19,13 +17,16 @@ int ROIAlign::load_param(const ParamDict& pd)
     sampling_ratio = pd.get(3, 0);
     aligned = pd.get(4, false);
     version = pd.get(5, 0);
+#if NCNN_VALIDATION
     /*
      * version 0:
      *  the original version of ROIAlign in ncnn
      * version 1:
      *  the version in detectron2
      */
-    assert(version >= 0 && version <= 1);
+    if (version < 0 || version > 1 || pooled_width <= 0 || pooled_height <= 0)
+        return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

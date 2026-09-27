@@ -6,7 +6,7 @@ layout(constant_id = 0) const int affine = 0;
 layout(constant_id = 1) const int affine_size = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout(binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer coeffs_blob { vec4 coeffs_blob_data[]; };
 layout(binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
 
 layout(push_constant) uniform parameter
@@ -27,14 +27,14 @@ void main()
     const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
     const int inner_id = q % affine_size;
 
-    afpvec4 a = buffer_ld4(coeffs_blob_data, group_id);
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    vec4 a = coeffs_blob_data[group_id];
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, gi));
     v = v * a;
 
     if (affine == 1)
     {
-        afp gamma = buffer_ld1(gamma_data, inner_id);
-        v = v * afpvec4(gamma);
+        float gamma = float(buffer_ld1(gamma_data, inner_id));
+        v = v * vec4(gamma);
     }
-    buffer_st4(bottom_top_blob_data, gi, v);
+    buffer_st4(bottom_top_blob_data, gi, afpvec4(v));
 }

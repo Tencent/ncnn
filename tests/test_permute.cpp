@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_permute(const ncnn::Mat& a, int order_type)
 {
     ncnn::ParamDict pd;
@@ -103,6 +107,30 @@ static int test_permute_3()
     return 0;
 }
 
+#if NCNN_VALIDATION
+static int test_permute_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Permute, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 23; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Permute, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 24, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Permute, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -111,5 +139,9 @@ int main()
            || test_permute_0()
            || test_permute_1()
            || test_permute_2()
-           || test_permute_3();
+           || test_permute_3()
+#if NCNN_VALIDATION
+           || test_permute_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }
