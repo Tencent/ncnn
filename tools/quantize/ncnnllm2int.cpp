@@ -11,6 +11,8 @@
 #include <cstring>
 #include <map>
 #include <string>
+
+#include "../fileio.h"
 #include <vector>
 
 // ncnn public header
@@ -358,13 +360,16 @@ static int read_qweight_file(const char* key, const LLMWeightScale& scale, int K
         return -1;
     }
 
-    fseek(fp, 0, SEEK_END);
-    const long file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if (file_size != (long)qweight_bytes)
+    const int64_t file_size = ncnn_file_tell(fp);
+    if (file_size < 0 || ncnn_file_seek(fp, 0, SEEK_SET) != 0)
     {
-        fprintf(stderr, "%s qweight byte count mismatch expected=%zu got=%ld\n", key, qweight_bytes, file_size);
+        fclose(fp);
+        return -1;
+    }
+
+    if (file_size != (int64_t)qweight_bytes)
+    {
+        fprintf(stderr, "%s qweight byte count mismatch expected=%zu got=%lld\n", key, qweight_bytes, (long long)file_size);
         fclose(fp);
         return -1;
     }

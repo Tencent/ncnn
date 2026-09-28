@@ -3,6 +3,8 @@
 
 #include "load_onnx.h"
 
+#include "../../fileio.h"
+
 #include "onnx-ml.pb.h"
 
 #include <google/protobuf/io/coded_stream.h>
@@ -12,6 +14,7 @@
 
 #include <chrono>
 #include <fstream>
+#include <stdint.h>
 
 #include <onnxruntime_c_api.h>
 
@@ -670,9 +673,18 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         FILE* fp = fopen(onnx_extdata_path.c_str(), "rb");
         if (fp)
         {
-            fseek(fp, 0, SEEK_END);
-            size_t len = ftell(fp);
-            rewind(fp);
+            if (ncnn_file_seek(fp, 0, SEEK_END) != 0)
+            {
+                fclose(fp);
+                return -1;
+            }
+            const int64_t file_size = ncnn_file_tell(fp);
+            if (file_size < 0 || (uint64_t)file_size > (uint64_t)SIZE_MAX || ncnn_file_seek(fp, 0, SEEK_SET) != 0)
+            {
+                fclose(fp);
+                return -1;
+            }
+            size_t len = (size_t)file_size;
             external_data.resize(len);
             fread(external_data.data(), 1, len, fp);
             fclose(fp);
