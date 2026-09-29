@@ -3,6 +3,8 @@
 
 #include "allocator.h"
 
+#include <string.h>
+
 #include "gpu.h"
 #include "pipeline.h"
 
@@ -11,6 +13,15 @@
 #endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
+
+// fastMalloc() reserves NCNN_MALLOC_OVERREAD past |size| for SIMD loads.
+// Pool recycle must clear that tail too, or SGEMM edge tiles can pull stale
+// NaNs from a previous tenant (#6766).
+static void pool_clear_payload(void* ptr, size_t size)
+{
+    memset(ptr, 0, size + NCNN_MALLOC_OVERREAD);
+}
+
 
 Allocator::~Allocator()
 {
@@ -120,6 +131,7 @@ void* PoolAllocator::fastMalloc(size_t size)
 
             d->payouts_lock.unlock();
 
+            pool_clear_payload(ptr, bs);
             return ptr;
         }
 
@@ -157,6 +169,10 @@ void* PoolAllocator::fastMalloc(size_t size)
 
     // new
     void* ptr = ncnn::fastMalloc(size);
+    if (!ptr)
+        return 0;
+
+    pool_clear_payload(ptr, size);
 
     d->payouts_lock.lock();
 
@@ -289,6 +305,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 
             d->payouts.push_back(std::make_pair(bs, ptr));
 
+            pool_clear_payload(ptr, bs);
             return ptr;
         }
 
@@ -318,6 +335,10 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 
     // new
     void* ptr = ncnn::fastMalloc(size);
+    if (!ptr)
+        return 0;
+
+    pool_clear_payload(ptr, size);
 
     d->payouts.push_back(std::make_pair(size, ptr));
 
