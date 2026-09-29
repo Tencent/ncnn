@@ -22,7 +22,6 @@ static void pool_clear_payload(void* ptr, size_t size)
     memset(ptr, 0, size + NCNN_MALLOC_OVERREAD);
 }
 
-
 Allocator::~Allocator()
 {
 }
