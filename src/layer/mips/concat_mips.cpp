@@ -25,6 +25,10 @@ Concat_mips::Concat_mips()
 
 int Concat_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int ret_shape = check_shape(bottom_blobs);
+    if (ret_shape != 0)
+        return ret_shape;
+
     int elembits = bottom_blobs[0].elembits();
     if (elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);

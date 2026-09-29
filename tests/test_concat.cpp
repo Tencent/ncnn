@@ -307,6 +307,47 @@ static int test_concat_9()
     return 0;
 }
 
+// #7025: mismatched non-concat dims must fail cleanly instead of heap-overflow.
+static int test_concat_shape_mismatch()
+{
+    ncnn::Mat a = RandomMat(12, 7, 128);
+    ncnn::Mat b = RandomMat(7, 12, 128);
+
+    std::vector<ncnn::Mat> bottom_blobs(2);
+    bottom_blobs[0] = a;
+    bottom_blobs[1] = b;
+    std::vector<ncnn::Mat> top_blobs(1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, 0); // axis = channels
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    ncnn::Layer* op = ncnn::create_layer("Concat");
+    if (!op)
+    {
+        fprintf(stderr, "test_concat_shape_mismatch create_layer failed\n");
+        return -1;
+    }
+
+    op->load_param(pd);
+    op->create_pipeline(opt);
+
+    const int ret = op->forward(bottom_blobs, top_blobs, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret == 0)
+    {
+        fprintf(stderr, "test_concat_shape_mismatch expected failure, got success\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -321,5 +362,6 @@ int main()
            || test_concat_6()
            || test_concat_7()
            || test_concat_8()
-           || test_concat_9();
+           || test_concat_9()
+           || test_concat_shape_mismatch();
 }

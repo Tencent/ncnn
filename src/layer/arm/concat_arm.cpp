@@ -23,6 +23,10 @@ Concat_arm::Concat_arm()
 
 int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int ret_shape = check_shape(bottom_blobs);
+    if (ret_shape != 0)
+        return ret_shape;
+
     int elembits = bottom_blobs[0].elembits();
 
 #if NCNN_ARM82
