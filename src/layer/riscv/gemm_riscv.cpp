@@ -1912,7 +1912,7 @@ int Gemm_riscv::create_pipeline(const Option& opt)
                 {
                     if (opt.lightmode)
                         B_data.release();
-                    return 0;   // IME2 完全接管
+                    return 0; // IME2 完全接管
                 }
             }
             else
