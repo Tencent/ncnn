@@ -25,6 +25,16 @@ static int permute_block_size(int size, size_t bytes_per_element, int groups, in
     return std::min(block, size);
 }
 
+// split spatial elements and input/output channel groups
+// pair_bytes includes both input and output packs
+static void permute_get_block_sizes(int size, int inchannels, int outchannels, size_t pair_bytes, int groups, int& block, int& channel_block, int& out_channel_block, int nT)
+{
+    out_channel_block = permute_block_size(outchannels, (size_t)size * inchannels * pair_bytes, groups, nT, 1);
+    const int out_channel_blocks = (outchannels + out_channel_block - 1) / out_channel_block;
+    block = permute_block_size(size, (size_t)inchannels * pair_bytes * out_channel_block, groups * out_channel_blocks, nT, 32);
+    channel_block = permute_block_size(inchannels, (size_t)size * pair_bytes * out_channel_block, groups * out_channel_blocks * ((size + block - 1) / block), nT, 16);
+}
+
 // align record boundaries to cache lines
 static int permute_record_alignment(size_t size, size_t elemsize)
 {

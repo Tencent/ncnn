@@ -3118,10 +3118,8 @@ static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, 1, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3192,10 +3190,8 @@ static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, 1, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3266,10 +3262,8 @@ static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, 1, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < h; i += block)
@@ -3346,10 +3340,8 @@ static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, 1, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < h; i += block)
@@ -3577,10 +3569,8 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, w, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < h; i += block)
@@ -3608,10 +3598,8 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3687,10 +3675,8 @@ static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3803,10 +3789,8 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, w, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < h; i += block)
@@ -3834,10 +3818,8 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3909,10 +3891,8 @@ static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -3988,10 +3968,8 @@ static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4085,10 +4063,8 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(d, channels, top_blob.c, (size_t)elempack * out_elemsize, w, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
@@ -4116,10 +4092,8 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4195,10 +4169,8 @@ static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4270,10 +4242,8 @@ static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4367,10 +4337,8 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(d, channels, top_blob.c, (size_t)elempack * out_elemsize, w, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
@@ -4398,10 +4366,8 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4473,10 +4439,8 @@ static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(w, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
@@ -4592,10 +4556,8 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(d, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
@@ -4623,10 +4585,8 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
@@ -4698,10 +4658,8 @@ static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
@@ -4817,10 +4775,8 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, nT, 1);
-        const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), nT, 16);
+        int out_channel_block, block, channel_block;
+        permute_get_block_sizes(d, channels, top_blob.c, (size_t)elempack * out_elemsize, h, block, channel_block, out_channel_block, nT);
 
         #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
@@ -4848,10 +4804,8 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
@@ -4923,10 +4877,8 @@ static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
+    int out_channel_block, block, channel_block;
+    permute_get_block_sizes(h, channels, top_blob.c, (size_t)elempack * out_elemsize, d, block, channel_block, out_channel_block, nT);
 
     #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
