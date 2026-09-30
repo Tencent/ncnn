@@ -2745,21 +2745,21 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
 #endif // __AVX512F__
 }
 
-static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int num_threads)
+static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    num_threads = permute_record_threads((size_t)rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), num_threads);
+    nT = permute_record_threads((size_t)rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), nT);
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute_transpose_blocks_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size);
         return;
     }
 
     // a few long contiguous blocks can be split without changing their order
-    if ((size_t)rows * cols <= (size_t)num_threads && size * sizeof(unsigned short) >= 16384)
+    if ((size_t)rows * cols <= (size_t)nT && size * sizeof(unsigned short) >= 16384)
     {
-        const int block = permute_block_size(size, sizeof(unsigned short), rows * cols, num_threads, 64 / sizeof(unsigned short));
-        #pragma omp parallel for collapse(3) num_threads(num_threads)
+        const int block = permute_block_size(size, sizeof(unsigned short), rows * cols, nT, 64 / sizeof(unsigned short));
+        #pragma omp parallel for collapse(3) num_threads(nT)
         for (int j = 0; j < cols; j++)
         {
             for (int i = 0; i < rows; i++)
@@ -2775,9 +2775,9 @@ static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 
-    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), 1, num_threads, size == 1 ? 4 : permute_record_alignment(outstride, sizeof(unsigned short)));
-    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), (cols + col_block - 1) / col_block, num_threads, size == 1 ? 4 : permute_record_alignment(size, sizeof(unsigned short)));
-    #pragma omp parallel for collapse(2) num_threads(num_threads)
+    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), 1, nT, size == 1 ? 4 : permute_record_alignment(outstride, sizeof(unsigned short)));
+    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), (cols + col_block - 1) / col_block, nT, size == 1 ? 4 : permute_record_alignment(size, sizeof(unsigned short)));
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int j = 0; j < cols; j += col_block)
     {
         for (int i = 0; i < rows; i += row_block)
@@ -2788,34 +2788,34 @@ static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size
 }
 
 // transpose independent matrices, splitting records only when the planes provide too few tasks
-static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int planes, size_t step, size_t outstep, int num_threads)
+static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int planes, size_t step, size_t outstep, int nT)
 {
     if (planes == 1)
     {
-        permute_transpose_matrix_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size, num_threads);
+        permute_transpose_matrix_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size, nT);
         return;
     }
 
-    num_threads = permute_record_threads((size_t)planes * rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), num_threads);
+    nT = permute_record_threads((size_t)planes * rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), nT);
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int q = 0; q < planes; q++)
             permute_transpose_blocks_bf16s_fp16s(ptr + q * step, stride, outptr + q * outstep, outstride, rows, cols, size);
         return;
     }
-    if (planes >= num_threads)
+    if (planes >= nT)
     {
-        #pragma omp parallel for num_threads(num_threads)
+        #pragma omp parallel for num_threads(nT)
         for (int q = 0; q < planes; q++)
             permute_transpose_blocks_bf16s_fp16s(ptr + q * step, stride, outptr + q * outstep, outstride, rows, cols, size);
         return;
     }
 
-    if ((size_t)planes * rows * cols < (size_t)num_threads && size * sizeof(unsigned short) >= 16384)
+    if ((size_t)planes * rows * cols < (size_t)nT && size * sizeof(unsigned short) >= 16384)
     {
-        const int block = permute_block_size(size, sizeof(unsigned short), planes * rows * cols, num_threads, 64 / sizeof(unsigned short));
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        const int block = permute_block_size(size, sizeof(unsigned short), planes * rows * cols, nT, 64 / sizeof(unsigned short));
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int q = 0; q < planes; q++)
         {
             for (int j = 0; j < cols; j++)
@@ -2834,9 +2834,9 @@ static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* 
         return;
     }
 
-    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), planes, num_threads, size == 1 ? 32 : permute_record_alignment(outstride, sizeof(unsigned short)));
-    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), planes * ((cols + col_block - 1) / col_block), num_threads, size == 1 ? 32 : permute_record_alignment(size, sizeof(unsigned short)));
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
+    const int col_block = permute_block_size(cols, (size_t)rows * size * sizeof(unsigned short), planes, nT, size == 1 ? 32 : permute_record_alignment(outstride, sizeof(unsigned short)));
+    const int row_block = permute_block_size(rows, (size_t)col_block * size * sizeof(unsigned short), planes * ((cols + col_block - 1) / col_block), nT, size == 1 ? 32 : permute_record_alignment(size, sizeof(unsigned short)));
+    #pragma omp parallel for collapse(3) num_threads(nT)
     for (int q = 0; q < planes; q++)
     {
         for (int j = 0; j < cols; j += col_block)
@@ -2852,14 +2852,14 @@ static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* 
 }
 
 // transpose spatial planes within each input channel group
-static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int rows, int cols, size_t stride, size_t outstride, int planes, size_t step, size_t outstep, int num_threads)
+static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int rows, int cols, size_t stride, size_t outstride, int planes, size_t step, size_t outstep, int nT)
 {
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int q = 0; q < channels; q++)
         {
@@ -2870,9 +2870,9 @@ static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& botto
         }
         return;
     }
-    if (channels * planes >= num_threads)
+    if (channels * planes >= nT)
     {
-        #pragma omp parallel for collapse(2) num_threads(num_threads)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int q = 0; q < channels; q++)
         {
             for (int z = 0; z < planes; z++)
@@ -2885,9 +2885,9 @@ static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& botto
         return;
     }
 
-    const int row_block = permute_block_size(rows, (size_t)cols * elemsize, channels * planes, num_threads, 32);
-    const int col_block = permute_block_size(cols, (size_t)rows * elemsize, channels * planes * ((rows + row_block - 1) / row_block), num_threads, 32);
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    const int row_block = permute_block_size(rows, (size_t)cols * elemsize, channels * planes, nT, 32);
+    const int col_block = permute_block_size(cols, (size_t)rows * elemsize, channels * planes * ((rows + row_block - 1) / row_block), nT, 32);
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int z = 0; z < planes; z++)
@@ -2906,7 +2906,7 @@ static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& botto
 }
 
 // transpose h and w while preserving the other two slice axes
-static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outdstep, int num_threads)
+static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outdstep, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -2914,7 +2914,7 @@ static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w;
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int q = 0; q < channels; q++)
         {
@@ -2928,9 +2928,9 @@ static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
         return;
     }
 
-    const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), channels * d, num_threads, 32);
-    const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), channels * d * ((w + col_block - 1) / col_block), num_threads, 32);
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    const int col_block = permute_block_size(w, (size_t)h * sizeof(unsigned short), channels * d, nT, 32);
+    const int row_block = permute_block_size(h, (size_t)w * sizeof(unsigned short), channels * d * ((w + col_block - 1) / col_block), nT, 32);
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += row_block)
     {
         for (int j = 0; j < w; j += col_block)
@@ -2949,7 +2949,7 @@ static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
 }
 
 // transpose d and w while preserving the other two slice axes
-static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outhstep, int num_threads)
+static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outhstep, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -2957,7 +2957,7 @@ static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w * h;
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int q = 0; q < channels; q++)
         {
@@ -2971,9 +2971,9 @@ static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
         return;
     }
 
-    const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), channels * h, num_threads, 32);
-    const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), channels * h * ((w + col_block - 1) / col_block), num_threads, 32);
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    const int col_block = permute_block_size(w, (size_t)d * sizeof(unsigned short), channels * h, nT, 32);
+    const int row_block = permute_block_size(d, (size_t)w * sizeof(unsigned short), channels * h * ((w + col_block - 1) / col_block), nT, 32);
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < d; i += row_block)
     {
         for (int j = 0; j < w; j += col_block)
@@ -2992,7 +2992,7 @@ static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
 }
 
 // transpose c and w while preserving the other two slice axes
-static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outdstep, size_t outhstep, int num_threads)
+static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outdstep, size_t outhstep, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3000,7 +3000,7 @@ static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = bottom_blob.cstep;
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -3014,9 +3014,9 @@ static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
         return;
     }
 
-    const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), d * h, num_threads, 32);
-    const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), d * h * ((w + col_block - 1) / col_block), num_threads, 32);
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    const int col_block = permute_block_size(w, (size_t)channels * sizeof(unsigned short), d * h, nT, 32);
+    const int row_block = permute_block_size(channels, (size_t)w * sizeof(unsigned short), d * h * ((w + col_block - 1) / col_block), nT, 32);
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < channels; i += row_block)
     {
         for (int j = 0; j < w; j += col_block)
@@ -3034,7 +3034,7 @@ static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     }
 }
 
-static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3044,19 +3044,19 @@ static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num
 
     if (elempack == 1 && out_elempack == 1)
     {
-        permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, h, h, w, 1, num_threads);
+        permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, h, h, w, 1, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute_transpose2d_bf16s_fp16s(bottom_blob, (size_t)w * elempack, top_blob, (size_t)top_blob.w * out_elempack, h * elempack, w, elempack, out_elempack);
         return;
     }
 
-    const int row_block = permute_block_size(h, (size_t)w * elemsize, (w + 31) / 32, num_threads, 32);
+    const int row_block = permute_block_size(h, (size_t)w * elemsize, (w + 31) / 32, nT, 32);
 
-    #pragma omp parallel for collapse(2) num_threads(num_threads)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int i = 0; i < h; i += row_block)
     {
         for (int x = 0; x < w; x += 32)
@@ -3068,7 +3068,7 @@ static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num
     }
 }
 
-static void permute3d_hwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute3d_hwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3079,7 +3079,7 @@ static void permute3d_hwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     const size_t outstride = (size_t)h * out_elempack;
     const size_t step = 0;
     const size_t outstep = 0;
-    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, 1, step, outstep, num_threads);
+    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, 1, step, outstep, nT);
 }
 
 static NCNN_FORCEINLINE void permute3d_wch_block_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels)
@@ -3106,7 +3106,7 @@ static NCNN_FORCEINLINE void permute3d_wch_block_bf16s_fp16s(const Mat& bottom_b
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3118,16 +3118,16 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
 
     if (elempack == 1 && out_elempack == 1)
     {
-        num_threads = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), num_threads);
+        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
 
         if (w < 64)
         {
             // short blocks include the w == 1 matrix-transpose case
-            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, h, w, num_threads);
+            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, top_blob.cstep, channels, h, w, nT);
             return;
         }
 
-        if (num_threads == 1)
+        if (nT == 1)
         {
             const size_t cstep = bottom_blob.cstep;
             for (int q = 0; q < h; q++)
@@ -3144,9 +3144,9 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
             return;
         }
 
-        const int block = permute_block_size(w, sizeof(unsigned short), top_blob.c * top_blob.h, num_threads, 32);
+        const int block = permute_block_size(w, sizeof(unsigned short), top_blob.c * top_blob.h, nT, 32);
 
-        #pragma omp parallel for collapse(3) num_threads(num_threads)
+        #pragma omp parallel for collapse(3) num_threads(nT)
         for (int i = 0; i < w; i += block)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3162,18 +3162,18 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute3d_wch_block_bf16s_fp16s(bottom_blob, top_blob, 0, 0, 0, w, channels, top_blob.c);
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
+    #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3210,7 +3210,7 @@ static NCNN_FORCEINLINE void permute3d_cwh_block_bf16s_fp16s(const Mat& bottom_b
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3224,7 +3224,7 @@ static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         // w and h stay adjacent in the output; retain input channel padding
         if (top_blob.cstep == (size_t)w * channels && (size_t)w * h <= INT_MAX)
         {
-            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, channels, channels, w * h, 1, num_threads);
+            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, channels, channels, w * h, 1, nT);
             return;
         }
 
@@ -3232,22 +3232,22 @@ static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         const size_t outstride = (size_t)top_blob.w;
         const size_t step = (size_t)w;
         const size_t outstep = top_blob.cstep;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, w, 1, h, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, w, 1, h, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute3d_cwh_block_bf16s_fp16s(bottom_blob, top_blob, 0, 0, 0, w, channels, top_blob.c);
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, 1, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
+    #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3284,7 +3284,7 @@ static NCNN_FORCEINLINE void permute3d_hcw_block_bf16s_fp16s(const Mat& bottom_b
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3298,7 +3298,7 @@ static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         // c and h stay adjacent in the input; retain output channel padding
         if (bottom_blob.cstep == (size_t)w * h && (size_t)channels * h <= INT_MAX)
         {
-            permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, top_blob.cstep, channels * h, w, 1, num_threads);
+            permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, top_blob.cstep, channels * h, w, 1, nT);
             return;
         }
 
@@ -3306,22 +3306,22 @@ static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         const size_t outstride = top_blob.cstep;
         const size_t step = bottom_blob.cstep;
         const size_t outstep = (size_t)top_blob.w;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, h, w, 1, channels, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, h, w, 1, channels, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute3d_hcw_block_bf16s_fp16s(bottom_blob, top_blob, 0, 0, 0, h, channels, top_blob.c);
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
+    #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3358,7 +3358,7 @@ static NCNN_FORCEINLINE void permute3d_chw_block_bf16s_fp16s(const Mat& bottom_b
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3372,13 +3372,13 @@ static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         // with w or h removed, the remaining operation is one c/spatial transpose
         if (w == 1 || h == 1)
         {
-            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, w == 1 ? (size_t)channels : top_blob.cstep, channels, w * h, 1, num_threads);
+            permute_transpose_matrix_bf16s_fp16s(bottom_blob, bottom_blob.cstep, top_blob, w == 1 ? (size_t)channels : top_blob.cstep, channels, w * h, 1, nT);
             return;
         }
 
         if (channels == 1)
         {
-            permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, top_blob.cstep, h, w, 1, num_threads);
+            permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, top_blob.cstep, h, w, 1, nT);
             return;
         }
 
@@ -3386,22 +3386,22 @@ static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         const size_t outstride = top_blob.cstep;
         const size_t step = (size_t)w;
         const size_t outstep = (size_t)top_blob.w;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, w, 1, h, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, w, 1, h, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         permute3d_chw_block_bf16s_fp16s(bottom_blob, top_blob, 0, 0, 0, h, channels, top_blob.c);
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, 1, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
+    #pragma omp parallel for collapse(3) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3414,7 +3414,7 @@ static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     }
 }
 
-static void permute4d_hwdc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hwdc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3426,10 +3426,10 @@ static void permute4d_hwdc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const size_t outstride = (size_t)h * out_elempack;
     const size_t step = (size_t)w * h * elempack;
     const size_t outstep = (size_t)w * h * out_elempack;
-    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, d, step, outstep, num_threads);
+    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, d, step, outstep, nT);
 }
 
-static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3441,16 +3441,16 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (elempack == out_elempack)
     {
-        num_threads = permute_record_threads(bottom_blob.total() * elemsize, (size_t)(w * elempack) * sizeof(unsigned short), num_threads);
+        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)(w * elempack) * sizeof(unsigned short), nT);
         const size_t stride = (size_t)w * h * elempack;
         const size_t outstride = (size_t)w * d * elempack;
         const size_t step = bottom_blob.cstep * elempack;
         const size_t outstep = top_blob.cstep * elempack;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, d, h, w * elempack, channels, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, d, h, w * elempack, channels, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int q = 0; q < channels; q++)
         {
@@ -3467,9 +3467,9 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int block = permute_block_size(w, elemsize, channels * h * d, num_threads, 32);
+    const int block = permute_block_size(w, elemsize, channels * h * d, nT, 32);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int y = 0; y < h; y++)
@@ -3487,7 +3487,7 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     }
 }
 
-static void permute4d_dwhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dwhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3499,10 +3499,10 @@ static void permute4d_dwhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const size_t outstride = (size_t)d * out_elempack;
     const size_t step = (size_t)w * elempack;
     const size_t outstep = (size_t)w * d * out_elempack;
-    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, d, w, stride, outstride, h, step, outstep, num_threads);
+    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, d, w, stride, outstride, h, step, outstep, nT);
 }
 
-static void permute4d_hdwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hdwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3514,10 +3514,10 @@ static void permute4d_hdwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const size_t outstride = (size_t)h * d * out_elempack;
     const size_t step = (size_t)w * h * elempack;
     const size_t outstep = (size_t)h * out_elempack;
-    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, d, step, outstep, num_threads);
+    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, d, step, outstep, nT);
 }
 
-static void permute4d_dhwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dhwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3529,10 +3529,10 @@ static void permute4d_dhwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const size_t outstride = (size_t)h * d * out_elempack;
     const size_t step = (size_t)w * elempack;
     const size_t outstep = (size_t)d * out_elempack;
-    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, d, w, stride, outstride, h, step, outstep, num_threads);
+    permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, d, w, stride, outstride, h, step, outstep, nT);
 }
 
-static void permute4d_whcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_whcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3548,7 +3548,7 @@ static void permute4d_whcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     bottom_blob_3d.cstep = bottom_blob.cstep;
     Mat top_blob_3d(w * h, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
     top_blob_3d.cstep = top_blob.cstep;
-    permute3d_wch_bf16s_fp16s(bottom_blob_3d, top_blob_3d, num_threads);
+    permute3d_wch_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
 static NCNN_FORCEINLINE void permute4d_hwcd_unpack_block_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int x)
@@ -3598,7 +3598,7 @@ static NCNN_FORCEINLINE void permute4d_hwcd_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3612,13 +3612,13 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w;
         const size_t outcstep = (size_t)top_blob.w * top_blob.h;
         const size_t outdstep = top_blob.cstep;
-        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, num_threads);
+        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int x = 0; x < w; x++)
             {
@@ -3627,12 +3627,12 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < h; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -3649,7 +3649,7 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int y = 0; y < h; y++)
         {
@@ -3658,12 +3658,12 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3706,7 +3706,7 @@ static NCNN_FORCEINLINE void permute4d_wchd_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3719,16 +3719,16 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (elempack == 1 && out_elempack == 1)
     {
-        num_threads = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), num_threads);
+        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = (size_t)channels * w;
         const size_t step = (size_t)w * h;
         const size_t outstep = top_blob.cstep;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, h, w, d, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, h, w, d, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int y = 0; y < h; y++)
         {
@@ -3737,12 +3737,12 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3758,7 +3758,7 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     }
 }
 
-static void permute4d_cwhd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_cwhd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3774,7 +3774,7 @@ static void permute4d_cwhd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     bottom_blob_3d.cstep = bottom_blob.cstep;
     Mat top_blob_3d(channels * elempack, w * h, top_blob.c, top_blob.data, out_elemsize, out_elempack);
     top_blob_3d.cstep = top_blob.cstep;
-    permute3d_cwh_bf16s_fp16s(bottom_blob_3d, top_blob_3d, num_threads);
+    permute3d_cwh_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
 static NCNN_FORCEINLINE void permute4d_hcwd_unpack_block_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int x)
@@ -3824,7 +3824,7 @@ static NCNN_FORCEINLINE void permute4d_hcwd_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3838,13 +3838,13 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w * top_blob.h;
         const size_t outcstep = (size_t)top_blob.w;
         const size_t outdstep = top_blob.cstep;
-        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, num_threads);
+        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int x = 0; x < w; x++)
             {
@@ -3853,12 +3853,12 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, w, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < h; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -3875,7 +3875,7 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int y = 0; y < h; y++)
         {
@@ -3884,12 +3884,12 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -3932,7 +3932,7 @@ static NCNN_FORCEINLINE void permute4d_chwd_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3946,11 +3946,11 @@ static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w * top_blob.h;
         const size_t outdstep = top_blob.cstep;
         const size_t outhstep = (size_t)top_blob.w;
-        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, num_threads);
+        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int y = 0; y < h; y++)
         {
@@ -3959,12 +3959,12 @@ static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, h, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4007,7 +4007,7 @@ static NCNN_FORCEINLINE void permute4d_wdch_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4020,16 +4020,16 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (elempack == 1 && out_elempack == 1)
     {
-        num_threads = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), num_threads);
+        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = (size_t)w * h;
         const size_t outstride = top_blob.cstep;
         const size_t step = bottom_blob.cstep;
         const size_t outstep = (size_t)d * w;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, d, h, w, channels, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, d, h, w, channels, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4038,12 +4038,12 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4106,7 +4106,7 @@ static NCNN_FORCEINLINE void permute4d_dwch_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int d = bottom_blob.d;
@@ -4120,13 +4120,13 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w;
         const size_t outcstep = (size_t)top_blob.w * top_blob.h;
         const size_t outhstep = top_blob.cstep;
-        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, num_threads);
+        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int x = 0; x < w; x++)
             {
@@ -4135,12 +4135,12 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -4157,7 +4157,7 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4166,12 +4166,12 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4214,7 +4214,7 @@ static NCNN_FORCEINLINE void permute4d_wcdh_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4227,16 +4227,16 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (elempack == 1 && out_elempack == 1)
     {
-        num_threads = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), num_threads);
+        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = top_blob.cstep;
         const size_t step = (size_t)w * h;
         const size_t outstep = (size_t)channels * w;
-        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, h, w, d, step, outstep, num_threads);
+        permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, channels, h, w, d, step, outstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4245,12 +4245,12 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4293,7 +4293,7 @@ static NCNN_FORCEINLINE void permute4d_cwdh_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int d = bottom_blob.d;
@@ -4307,11 +4307,11 @@ static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w;
         const size_t outdstep = (size_t)top_blob.w * top_blob.h;
         const size_t outhstep = top_blob.cstep;
-        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, num_threads);
+        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4320,12 +4320,12 @@ static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4388,7 +4388,7 @@ static NCNN_FORCEINLINE void permute4d_dcwh_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int d = bottom_blob.d;
@@ -4402,13 +4402,13 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w * top_blob.h;
         const size_t outcstep = (size_t)top_blob.w;
         const size_t outhstep = top_blob.cstep;
-        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, num_threads);
+        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int x = 0; x < w; x++)
             {
@@ -4417,12 +4417,12 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, w, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, w * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, w * out_channel_blocks * ((d + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -4439,7 +4439,7 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4448,12 +4448,12 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4496,7 +4496,7 @@ static NCNN_FORCEINLINE void permute4d_cdwh_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, hstep, outwstep, outcstep);
 }
 
-static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int d = bottom_blob.d;
@@ -4510,11 +4510,11 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = (size_t)top_blob.w * top_blob.h;
         const size_t outdstep = (size_t)top_blob.w;
         const size_t outhstep = top_blob.cstep;
-        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, num_threads);
+        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4523,12 +4523,12 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)w * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(w, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)w * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((w + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < w; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4544,7 +4544,7 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     }
 }
 
-static void permute4d_hdcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hdcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4560,7 +4560,7 @@ static void permute4d_hdcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     bottom_blob_3d.cstep = bottom_blob.cstep;
     Mat top_blob_3d(h * d, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
     top_blob_3d.cstep = top_blob.cstep;
-    permute3d_hcw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, num_threads);
+    permute3d_hcw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
 static NCNN_FORCEINLINE void permute4d_dhcw_unpack_block_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int y)
@@ -4613,7 +4613,7 @@ static NCNN_FORCEINLINE void permute4d_dhcw_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
@@ -4627,13 +4627,13 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = top_blob.cstep;
         const size_t outcstep = (size_t)top_blob.w * top_blob.h;
         const size_t outhstep = (size_t)top_blob.w;
-        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, num_threads);
+        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int y = 0; y < h; y++)
             {
@@ -4642,12 +4642,12 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -4664,7 +4664,7 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4673,12 +4673,12 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4721,7 +4721,7 @@ static NCNN_FORCEINLINE void permute4d_hcdw_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
@@ -4735,11 +4735,11 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = top_blob.cstep;
         const size_t outcstep = (size_t)top_blob.w;
         const size_t outdstep = (size_t)top_blob.w * top_blob.h;
-        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, num_threads);
+        permute_transpose_hw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outdstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4748,12 +4748,12 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4769,7 +4769,7 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     }
 }
 
-static void permute4d_chdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_chdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4785,7 +4785,7 @@ static void permute4d_chdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     bottom_blob_3d.cstep = bottom_blob.cstep;
     Mat top_blob_3d(channels * elempack, h * d, top_blob.c, top_blob.data, out_elemsize, out_elempack);
     top_blob_3d.cstep = top_blob.cstep;
-    permute3d_chw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, num_threads);
+    permute3d_chw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
 static NCNN_FORCEINLINE void permute4d_dchw_unpack_block_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int y)
@@ -4838,7 +4838,7 @@ static NCNN_FORCEINLINE void permute4d_dchw_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
@@ -4852,13 +4852,13 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = top_blob.cstep;
         const size_t outcstep = (size_t)top_blob.w;
         const size_t outhstep = (size_t)top_blob.w * top_blob.h;
-        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, num_threads);
+        permute_transpose_dw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outcstep, outhstep, nT);
         return;
     }
 
     if (out_elempack == 1)
     {
-        if (num_threads == 1)
+        if (nT == 1)
         {
             for (int y = 0; y < h; y++)
             {
@@ -4867,12 +4867,12 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
             return;
         }
 
-        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, num_threads, 1);
+        const int out_channel_block = permute_block_size(top_blob.c, (size_t)d * channels * elempack * out_elemsize, h, nT, 1);
         const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, num_threads, 32);
-        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), num_threads, 16);
+        const int block = permute_block_size(d, (size_t)channels * elempack * out_elemsize * out_channel_block, h * out_channel_blocks, nT, 32);
+        const int channel_block = permute_block_size(channels, (size_t)d * elempack * out_elemsize * out_channel_block, h * out_channel_blocks * ((d + block - 1) / block), nT, 16);
 
-        #pragma omp parallel for collapse(4) num_threads(num_threads)
+        #pragma omp parallel for collapse(4) num_threads(nT)
         for (int i = 0; i < d; i += block)
         {
             for (int c = 0; c < channels; c += channel_block)
@@ -4889,7 +4889,7 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4898,12 +4898,12 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)
@@ -4946,7 +4946,7 @@ static NCNN_FORCEINLINE void permute4d_cdhw_block_bf16s_fp16s(const Mat& bottom_
         permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
 }
 
-static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int num_threads)
+static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
@@ -4960,11 +4960,11 @@ static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t outstride = top_blob.cstep;
         const size_t outdstep = (size_t)top_blob.w;
         const size_t outhstep = (size_t)top_blob.w * top_blob.h;
-        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, num_threads);
+        permute_transpose_cw_pack1_stride_bf16s_fp16s(bottom_blob, top_blob, outstride, outdstep, outhstep, nT);
         return;
     }
 
-    if (num_threads == 1)
+    if (nT == 1)
     {
         for (int z = 0; z < d; z++)
         {
@@ -4973,12 +4973,12 @@ static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, num_threads, 1);
+    const int out_channel_block = permute_block_size(top_blob.c, (size_t)h * channels * elempack * out_elemsize, d, nT, 1);
     const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), num_threads, 16);
+    const int block = permute_block_size(h, (size_t)channels * elempack * out_elemsize * out_channel_block, d * out_channel_blocks, nT, 32);
+    const int channel_block = permute_block_size(channels, (size_t)h * elempack * out_elemsize * out_channel_block, d * out_channel_blocks * ((h + block - 1) / block), nT, 16);
 
-    #pragma omp parallel for collapse(4) num_threads(num_threads)
+    #pragma omp parallel for collapse(4) num_threads(nT)
     for (int i = 0; i < h; i += block)
     {
         for (int c = 0; c < channels; c += channel_block)

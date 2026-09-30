@@ -13,12 +13,12 @@ namespace ncnn {
 
 // split only when the existing channel/slice tasks cannot occupy the threads
 // keep each task large enough to amortize scheduling and align output segments
-static int permute_block_size(int size, size_t bytes_per_element, int groups, int num_threads, int alignment)
+static int permute_block_size(int size, size_t bytes_per_element, int groups, int nT, int alignment)
 {
-    if (num_threads <= 1 || groups >= num_threads)
+    if (nT <= 1 || groups >= nT)
         return size;
 
-    const int blocks = (num_threads + groups - 1) / groups;
+    const int blocks = (nT + groups - 1) / groups;
     const int min_block = (int)std::min((size_t)size, (16384 + bytes_per_element - 1) / bytes_per_element);
     int block = std::max((size + blocks - 1) / blocks, min_block);
     block = (block + alignment - 1) / alignment * alignment;
@@ -35,12 +35,12 @@ static int permute_record_alignment(size_t size, size_t elemsize)
 }
 
 // long contiguous records need more work per thread than register transposes
-static int permute_record_threads(size_t bytes, size_t record_bytes, int num_threads)
+static int permute_record_threads(size_t bytes, size_t record_bytes, int nT)
 {
     if (record_bytes < 4096)
-        return num_threads;
+        return nT;
 
-    return (int)std::min((size_t)num_threads, std::max((size_t)1, bytes / 1048576));
+    return (int)std::min((size_t)nT, std::max((size_t)1, bytes / 1048576));
 }
 
 #include "permute_fp32.h"
@@ -71,9 +71,9 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
 #ifdef _OPENMP
-    const int num_threads = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
+    const int nT = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
 #else
-    const int num_threads = 1;
+    const int nT = 1;
 #endif
 
     if (dims == 1 || order_type == 0)
@@ -109,7 +109,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute2d(bottom_blob, top_blob, num_threads);
+            permute2d(bottom_blob, top_blob, nT);
             return 0;
         }
     }
@@ -132,7 +132,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute3d_hwc(bottom_blob, top_blob, num_threads);
+            permute3d_hwc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -154,7 +154,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute3d_wch(bottom_blob, top_blob, num_threads);
+            permute3d_wch(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -176,7 +176,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute3d_cwh(bottom_blob, top_blob, num_threads);
+            permute3d_cwh(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -198,7 +198,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute3d_hcw(bottom_blob, top_blob, num_threads);
+            permute3d_hcw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -220,7 +220,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute3d_chw(bottom_blob, top_blob, num_threads);
+            permute3d_chw(bottom_blob, top_blob, nT);
             return 0;
         }
     }
@@ -261,7 +261,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hwdc(bottom_blob, top_blob, num_threads);
+            permute4d_hwdc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -273,7 +273,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wdhc(bottom_blob, top_blob, num_threads);
+            permute4d_wdhc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -285,7 +285,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dwhc(bottom_blob, top_blob, num_threads);
+            permute4d_dwhc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -297,7 +297,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hdwc(bottom_blob, top_blob, num_threads);
+            permute4d_hdwc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -309,7 +309,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dhwc(bottom_blob, top_blob, num_threads);
+            permute4d_dhwc(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -331,7 +331,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_whcd(bottom_blob, top_blob, num_threads);
+            permute4d_whcd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -353,7 +353,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hwcd(bottom_blob, top_blob, num_threads);
+            permute4d_hwcd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -375,7 +375,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wchd(bottom_blob, top_blob, num_threads);
+            permute4d_wchd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -397,7 +397,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cwhd(bottom_blob, top_blob, num_threads);
+            permute4d_cwhd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -419,7 +419,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hcwd(bottom_blob, top_blob, num_threads);
+            permute4d_hcwd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -441,7 +441,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_chwd(bottom_blob, top_blob, num_threads);
+            permute4d_chwd(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -463,7 +463,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wdch(bottom_blob, top_blob, num_threads);
+            permute4d_wdch(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -485,7 +485,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dwch(bottom_blob, top_blob, num_threads);
+            permute4d_dwch(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -507,7 +507,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wcdh(bottom_blob, top_blob, num_threads);
+            permute4d_wcdh(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -529,7 +529,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cwdh(bottom_blob, top_blob, num_threads);
+            permute4d_cwdh(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -551,7 +551,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dcwh(bottom_blob, top_blob, num_threads);
+            permute4d_dcwh(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -573,7 +573,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cdwh(bottom_blob, top_blob, num_threads);
+            permute4d_cdwh(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -595,7 +595,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hdcw(bottom_blob, top_blob, num_threads);
+            permute4d_hdcw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -617,7 +617,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dhcw(bottom_blob, top_blob, num_threads);
+            permute4d_dhcw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -639,7 +639,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hcdw(bottom_blob, top_blob, num_threads);
+            permute4d_hcdw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -661,7 +661,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_chdw(bottom_blob, top_blob, num_threads);
+            permute4d_chdw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -683,7 +683,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dchw(bottom_blob, top_blob, num_threads);
+            permute4d_dchw(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -705,7 +705,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cdhw(bottom_blob, top_blob, num_threads);
+            permute4d_cdhw(bottom_blob, top_blob, nT);
             return 0;
         }
     }
@@ -723,9 +723,9 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
 #ifdef _OPENMP
-    const int num_threads = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
+    const int nT = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
 #else
-    const int num_threads = 1;
+    const int nT = 1;
 #endif
 
     if (dims == 1 || order_type == 0)
@@ -761,7 +761,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute2d_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute2d_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
     }
@@ -784,7 +784,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute3d_hwc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute3d_hwc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -806,7 +806,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute3d_wch_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute3d_wch_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -828,7 +828,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute3d_cwh_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute3d_cwh_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -850,7 +850,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute3d_hcw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute3d_hcw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -872,7 +872,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute3d_chw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute3d_chw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
     }
@@ -913,7 +913,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hwdc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hwdc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -925,7 +925,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wdhc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_wdhc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -937,7 +937,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dwhc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dwhc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -949,7 +949,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hdwc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hdwc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -961,7 +961,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dhwc_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dhwc_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -983,7 +983,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_whcd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_whcd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1005,7 +1005,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hwcd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hwcd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1027,7 +1027,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wchd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_wchd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1049,7 +1049,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cwhd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_cwhd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1071,7 +1071,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hcwd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hcwd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1093,7 +1093,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_chwd_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_chwd_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1115,7 +1115,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wdch_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_wdch_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1137,7 +1137,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dwch_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dwch_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1159,7 +1159,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_wcdh_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_wcdh_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1181,7 +1181,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cwdh_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_cwdh_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1203,7 +1203,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dcwh_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dcwh_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1225,7 +1225,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cdwh_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_cdwh_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1247,7 +1247,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hdcw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hdcw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1269,7 +1269,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dhcw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dhcw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1291,7 +1291,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_hcdw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_hcdw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1313,7 +1313,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_chdw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_chdw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1335,7 +1335,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_dchw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_dchw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
 
@@ -1357,7 +1357,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             if (top_blob.empty())
                 return -100;
 
-            permute4d_cdhw_bf16s_fp16s(bottom_blob, top_blob, num_threads);
+            permute4d_cdhw_bf16s_fp16s(bottom_blob, top_blob, nT);
             return 0;
         }
     }
