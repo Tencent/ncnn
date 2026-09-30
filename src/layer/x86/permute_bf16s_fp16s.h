@@ -2651,8 +2651,6 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
 
 static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    nT = permute_record_threads((size_t)rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), nT);
-
     if (nT == 1)
     {
         permute_transpose_blocks_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size);
@@ -2684,8 +2682,6 @@ static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* 
         permute_transpose_matrix_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size, nT);
         return;
     }
-
-    nT = permute_record_threads((size_t)planes * rows * cols * size * sizeof(unsigned short), (size_t)size * sizeof(unsigned short), nT);
 
     if (nT == 1)
     {
@@ -2910,12 +2906,9 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
-
         if (w < 64)
         {
             // short blocks include the w == 1 matrix-transpose case
@@ -3183,11 +3176,9 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == out_elempack)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)(w * elempack) * sizeof(unsigned short), nT);
         const size_t stride = (size_t)w * h * elempack;
         const size_t outstride = (size_t)w * d * elempack;
         const size_t step = bottom_blob.cstep * elempack;
@@ -3429,11 +3420,9 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = (size_t)channels * w;
         const size_t step = (size_t)w * h;
@@ -3678,11 +3667,9 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = (size_t)w * h;
         const size_t outstride = top_blob.cstep;
         const size_t step = bottom_blob.cstep;
@@ -3848,11 +3835,9 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(unsigned short), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = top_blob.cstep;
         const size_t step = (size_t)w * h;

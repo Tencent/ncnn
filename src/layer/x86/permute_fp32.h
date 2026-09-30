@@ -2605,8 +2605,6 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 
 static void permute_transpose_matrix(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    nT = permute_record_threads((size_t)rows * cols * size * sizeof(float), (size_t)size * sizeof(float), nT);
-
     if (nT == 1)
     {
         permute_transpose_blocks(ptr, stride, outptr, outstride, rows, cols, size);
@@ -2638,8 +2636,6 @@ static void permute_transpose_matrices_stride(const float* ptr, size_t stride, f
         permute_transpose_matrix(ptr, stride, outptr, outstride, rows, cols, size, nT);
         return;
     }
-
-    nT = permute_record_threads((size_t)planes * rows * cols * size * sizeof(float), (size_t)size * sizeof(float), nT);
 
     if (nT == 1)
     {
@@ -2864,12 +2860,9 @@ static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, int nT)
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(float), nT);
-
         if (w < 32)
         {
             // short blocks include the w == 1 matrix-transpose case
@@ -3137,11 +3130,9 @@ static void permute4d_wdhc(const Mat& bottom_blob, Mat& top_blob, int nT)
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == out_elempack)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)(w * elempack) * sizeof(float), nT);
         const size_t stride = (size_t)w * h * elempack;
         const size_t outstride = (size_t)w * d * elempack;
         const size_t step = bottom_blob.cstep * elempack;
@@ -3383,11 +3374,9 @@ static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(float), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = (size_t)channels * w;
         const size_t step = (size_t)w * h;
@@ -3632,11 +3621,9 @@ static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(float), nT);
         const size_t stride = (size_t)w * h;
         const size_t outstride = top_blob.cstep;
         const size_t step = bottom_blob.cstep;
@@ -3802,11 +3789,9 @@ static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-    const size_t elemsize = bottom_blob.elemsize;
 
     if (elempack == 1 && out_elempack == 1)
     {
-        nT = permute_record_threads(bottom_blob.total() * elemsize, (size_t)w * sizeof(float), nT);
         const size_t stride = bottom_blob.cstep;
         const size_t outstride = top_blob.cstep;
         const size_t step = (size_t)w * h;

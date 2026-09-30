@@ -11,15 +11,6 @@
 
 namespace ncnn {
 
-// long contiguous records need more work per thread than register transposes
-static int permute_record_threads(size_t bytes, size_t record_bytes, int nT)
-{
-    if (record_bytes < 4096)
-        return nT;
-
-    return (int)std::min((size_t)nT, std::max((size_t)1, bytes / 1048576));
-}
-
 #include "permute_fp32.h"
 #include "permute_bf16s_fp16s.h"
 
