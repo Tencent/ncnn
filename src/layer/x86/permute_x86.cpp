@@ -11,39 +11,6 @@
 
 namespace ncnn {
 
-// split only when the existing channel/slice tasks cannot occupy the threads
-// keep each task large enough to amortize scheduling and align output segments
-static int permute_block_size(int size, size_t bytes_per_element, int groups, int nT, int alignment)
-{
-    if (nT <= 1 || groups >= nT)
-        return size;
-
-    const int blocks = (nT + groups - 1) / groups;
-    const int min_block = (int)std::min((size_t)size, (16384 + bytes_per_element - 1) / bytes_per_element);
-    int block = std::max((size + blocks - 1) / blocks, min_block);
-    block = (block + alignment - 1) / alignment * alignment;
-    return std::min(block, size);
-}
-
-// split spatial elements and input/output channel groups
-// pair_bytes includes both input and output packs
-static void permute_get_block_sizes(int size, int inchannels, int outchannels, size_t pair_bytes, int groups, int& block, int& channel_block, int& out_channel_block, int nT)
-{
-    out_channel_block = permute_block_size(outchannels, (size_t)size * inchannels * pair_bytes, groups, nT, 1);
-    const int out_channel_blocks = (outchannels + out_channel_block - 1) / out_channel_block;
-    block = permute_block_size(size, (size_t)inchannels * pair_bytes * out_channel_block, groups * out_channel_blocks, nT, 32);
-    channel_block = permute_block_size(inchannels, (size_t)size * pair_bytes * out_channel_block, groups * out_channel_blocks * ((size + block - 1) / block), nT, 16);
-}
-
-// align record boundaries to cache lines
-static int permute_record_alignment(size_t size, size_t elemsize)
-{
-    int alignment = 1;
-    while (size * elemsize * alignment % 64 != 0)
-        alignment *= 2;
-    return alignment;
-}
-
 // long contiguous records need more work per thread than register transposes
 static int permute_record_threads(size_t bytes, size_t record_bytes, int nT)
 {
