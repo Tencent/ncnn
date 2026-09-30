@@ -4514,31 +4514,6 @@ static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int num_thread
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_hdcw_block(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)h * d * out_elempack;
-    const size_t cstep = bottom_blob.cstep * elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep + c * cstep + i * wstep;
-    float* outptr = (float*)top_blob + q * outstep + c * elempack * outcstep + i * outwstep;
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, hstep, outcstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
-}
-
 static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, int num_threads)
 {
     const int w = bottom_blob.w;
@@ -4547,63 +4522,15 @@ static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, int num_thread
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
     const size_t out_elemsize = top_blob.elemsize;
 
-    if (elempack == 1 && out_elempack == 1)
-    {
-        if (num_threads == 1)
-        {
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = bottom_blob.channel(q);
-                float* outptr = (float*)top_blob + (size_t)q * h * d;
-                permute_transpose_pack1(ptr, w, outptr, top_blob.cstep, h * d, w);
-            }
-            return;
-        }
-
-        const int col_block = permute_block_size(w, (size_t)(h * d) * sizeof(float), channels, num_threads, 32);
-        const int row_block = permute_block_size(h * d, (size_t)w * sizeof(float), channels * ((w + col_block - 1) / col_block), num_threads, 32);
-
-        #pragma omp parallel for collapse(3) num_threads(num_threads)
-        for (int i = 0; i < h * d; i += row_block)
-        {
-            for (int j = 0; j < w; j += col_block)
-            {
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = (const float*)bottom_blob.channel(q) + (size_t)i * w + j;
-                    float* outptr = (float*)top_blob + (size_t)q * h * d + (size_t)j * top_blob.cstep + i;
-                    permute_transpose_pack1(ptr, w, outptr, top_blob.cstep, std::min(row_block, h * d - i), std::min(col_block, w - j));
-                }
-            }
-        }
-        return;
-    }
-
     // h and d stay adjacent on both sides
-    if (num_threads == 1)
-    {
-        permute4d_hdcw_block(bottom_blob, top_blob, 0, 0, 0, h * d, channels, top_blob.c);
-        return;
-    }
-
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)(h * d) * channels * elempack * out_elemsize, 1, num_threads, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h * d + block - 1) / block), num_threads, 16);
-
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
-    for (int i = 0; i < h * d; i += block)
-    {
-        for (int c = 0; c < channels; c += channel_block)
-        {
-            for (int q = 0; q < top_blob.c; q += out_channel_block)
-            {
-                permute4d_hdcw_block(bottom_blob, top_blob, i, c, q, std::min(block, h * d - i), std::min(channel_block, channels - c), std::min(out_channel_block, top_blob.c - q));
-            }
-        }
-    }
+    Mat bottom_blob_3d(w, h * d, channels, bottom_blob.data, elemsize, elempack);
+    bottom_blob_3d.cstep = bottom_blob.cstep;
+    Mat top_blob_3d(h * d, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+    top_blob_3d.cstep = top_blob.cstep;
+    permute3d_hcw(bottom_blob_3d, top_blob_3d, num_threads);
 }
 
 static NCNN_FORCEINLINE void permute4d_dhcw_unpack_block(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int y)
@@ -4812,71 +4739,23 @@ static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int num_thread
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_chdw_block(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels)
-{
-    const int w = bottom_blob.w;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = (size_t)channels * elempack * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t cstep = bottom_blob.cstep * elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep + c * cstep + i * wstep;
-    float* outptr = (float*)top_blob + q * outstep + c * elempack * outcstep + i * outwstep;
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, hstep, outwstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, size, inchannels, outchannels, wstep, outwstep, outcstep);
-}
-
 static void permute4d_chdw(const Mat& bottom_blob, Mat& top_blob, int num_threads)
 {
+    const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
     const size_t out_elemsize = top_blob.elemsize;
 
-    if (elempack == 1 && out_elempack == 1)
-    {
-        const size_t outstride = top_blob.cstep;
-        const size_t outdstep = (size_t)top_blob.w * top_blob.h;
-        const size_t outhstep = (size_t)top_blob.w;
-        permute_transpose_cw_pack1_stride(bottom_blob, top_blob, outstride, outdstep, outhstep, num_threads);
-        return;
-    }
-
     // h and d stay adjacent on both sides
-    if (num_threads == 1)
-    {
-        permute4d_chdw_block(bottom_blob, top_blob, 0, 0, 0, h * d, channels, top_blob.c);
-        return;
-    }
-
-    const int out_channel_block = permute_block_size(top_blob.c, (size_t)(h * d) * channels * elempack * out_elemsize, 1, num_threads, 1);
-    const int out_channel_blocks = (top_blob.c + out_channel_block - 1) / out_channel_block;
-    const int block = permute_block_size(h * d, (size_t)channels * elempack * out_elemsize * out_channel_block, out_channel_blocks, num_threads, 32);
-    const int channel_block = permute_block_size(channels, (size_t)(h * d) * elempack * out_elemsize * out_channel_block, out_channel_blocks * ((h * d + block - 1) / block), num_threads, 16);
-
-    #pragma omp parallel for collapse(3) num_threads(num_threads)
-    for (int i = 0; i < h * d; i += block)
-    {
-        for (int c = 0; c < channels; c += channel_block)
-        {
-            for (int q = 0; q < top_blob.c; q += out_channel_block)
-            {
-                permute4d_chdw_block(bottom_blob, top_blob, i, c, q, std::min(block, h * d - i), std::min(channel_block, channels - c), std::min(out_channel_block, top_blob.c - q));
-            }
-        }
-    }
+    Mat bottom_blob_3d(w, h * d, channels, bottom_blob.data, elemsize, elempack);
+    bottom_blob_3d.cstep = bottom_blob.cstep;
+    Mat top_blob_3d(channels * elempack, h * d, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+    top_blob_3d.cstep = top_blob.cstep;
+    permute3d_chw(bottom_blob_3d, top_blob_3d, num_threads);
 }
 
 static NCNN_FORCEINLINE void permute4d_dchw_unpack_block(const Mat& bottom_blob, Mat& top_blob, int i, int c, int q, int size, int inchannels, int outchannels, int y)
