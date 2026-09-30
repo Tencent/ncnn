@@ -30,9 +30,7 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsig
     _mm_storel_epi64((__m128i*)outptr, _v0);
     _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_v0, 8));
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
@@ -57,7 +55,6 @@ static NCNN_FORCEINLINE void permute_transpose4x4_stride_bf16s_fp16s(const unsig
     _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _r1);
     _mm_storeh_pd((double*)(outptr + 3 * outstride), _mm_castsi128_pd(_r1));
 }
-#endif // __SSE2__
 
 #if __AVX__
 static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
@@ -79,10 +76,9 @@ static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned sho
     _mm_storeu_si128((__m128i*)(outptr + 24), _r3);
 #endif // __AVX512BW__
 }
-
 #endif // __AVX__
 
-#if __SSE2__
+
 static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)(ptr));
@@ -99,8 +95,8 @@ static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsig
     _mm_storel_epi64((__m128i*)(outptr + 6 * outstride), _r3);
     _mm_storeh_pd((double*)(outptr + 7 * outstride), _mm_castsi128_pd(_r3));
 }
-#endif // __SSE2__
 
+#if __AVX__
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
@@ -108,8 +104,8 @@ static NCNN_FORCEINLINE void permute_transpose16x4_stride_bf16s_fp16s(const unsi
     permute_transpose8x4_stride_bf16s_fp16s(ptr + 8, stride, outptr + 8 * outstride, outstride);
 }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     int _p0;
@@ -151,7 +147,6 @@ static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsig
     _mm_storeu_si128((__m128i*)outptr, _mm_unpacklo_epi64(_v0, _v1));
     _mm_storeu_si128((__m128i*)(outptr + outstride), _mm_unpackhi_epi64(_v0, _v1));
 }
-#endif // __SSE2__
 
 #if __AVX__
 static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
@@ -184,10 +179,9 @@ static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned sho
     _mm_storeu_si128((__m128i*)(outptr + 24), _r3);
 #endif // __AVX512BW__
 }
-
 #endif // __AVX__
 
-#if __SSE2__
+
 static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)(ptr));
@@ -204,9 +198,7 @@ static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsig
     _mm_storeu_si128((__m128i*)(outptr + 2 * outstride), _r2);
     _mm_storeu_si128((__m128i*)(outptr + 3 * outstride), _r3);
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)(ptr));
@@ -227,17 +219,15 @@ static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsig
     _mm_storeu_si128((__m128i*)(outptr + 6 * outstride), _r6);
     _mm_storeu_si128((__m128i*)(outptr + 7 * outstride), _r7);
 }
-#endif // __SSE2__
 
+#if __AVX__
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_transpose8x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
     permute_transpose8x8_stride_bf16s_fp16s(ptr + 8, stride, outptr + 8 * outstride, outstride);
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     int _p0;
@@ -321,25 +311,19 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
     _mm256_storeu_si256((__m256i*)outptr, _a);
     _mm256_storeu_si256((__m256i*)(outptr + outstride), _b);
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose4x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_transpose4x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
     permute_transpose4x8_stride_bf16s_fp16s(ptr + 8 * stride, stride, outptr + 8, outstride);
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose8x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_transpose8x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
     permute_transpose8x8_stride_bf16s_fp16s(ptr + 8 * stride, stride, outptr + 8, outstride);
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m256i _r0 = _mm256_loadu_si256((const __m256i*)(ptr));
@@ -377,8 +361,12 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride_bf16s_fp16s(const uns
     _mm256_storeu_si256((__m256i*)(outptr + 15 * outstride), _rf);
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 // final two or one rows: load complete vectors and write only the valid output lanes
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
@@ -424,8 +412,8 @@ static NCNN_FORCEINLINE void permute_transpose16x2_stride_bf16s_fp16s(const unsi
     memcpy(outptr + 15 * outstride, &_p15, 4);
 }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose8x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
@@ -451,9 +439,7 @@ static NCNN_FORCEINLINE void permute_transpose8x2_stride_bf16s_fp16s(const unsig
     int _p7 = _mm_cvtsi128_si32(_mm_srli_si128(_v1, 12));
     memcpy(outptr + 7 * outstride, &_p7, 4);
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
@@ -469,8 +455,8 @@ static NCNN_FORCEINLINE void permute_transpose4x2_stride_bf16s_fp16s(const unsig
     int _p3 = _mm_cvtsi128_si32(_mm_srli_si128(_v0, 12));
     memcpy(outptr + 3 * outstride, &_p3, 4);
 }
-#endif // __SSE2__
 
+#if __AVX__
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_transpose16x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
@@ -495,8 +481,8 @@ static NCNN_FORCEINLINE void permute_transpose16x1_stride_bf16s_fp16s(const unsi
     outptr[15 * outstride] = (unsigned short)_mm_extract_epi16(_v1, 7);
 }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose8x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
@@ -510,9 +496,7 @@ static NCNN_FORCEINLINE void permute_transpose8x1_stride_bf16s_fp16s(const unsig
     outptr[6 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 6);
     outptr[7 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 7);
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static NCNN_FORCEINLINE void permute_transpose4x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
@@ -522,18 +506,18 @@ static NCNN_FORCEINLINE void permute_transpose4x1_stride_bf16s_fp16s(const unsig
     outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
     outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static void permute_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int cols)
 {
     int j = 0;
+#if __AVX__
 #if __AVX512F__
     for (; j + 15 < cols; j += 16)
     {
         permute_transpose16x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
 #endif // __AVX512F__
+#endif // __AVX__
     for (; j + 7 < cols; j += 8)
     {
         permute_transpose8x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
@@ -552,7 +536,6 @@ static void permute_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
             outptr[j * outstride + k] = ptr[k * stride + j];
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 static void permute_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int cols)
@@ -582,7 +565,6 @@ static void permute_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
             outptr[j * outstride + k] = ptr[k * stride + j];
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int cols)
@@ -611,6 +593,8 @@ static void permute_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t 
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 // unpacked matrix transpose, shared by 2d and channel/spatial permutations
 #if __SSE2__
@@ -618,13 +602,13 @@ static void permute_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t 
 static void permute_unpack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows)
 {
     int i = 0;
+#if __AVX__
 #if __AVX512F__
     for (; i + 15 < rows; i += 16)
     {
         permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
 #endif // __AVX512F__
-#if __AVX__
     for (; i + 7 < rows; i += 8)
     {
         permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
@@ -643,7 +627,6 @@ static void permute_unpack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t
         permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 // fixed input width; callers select the packing before traversing the rows
@@ -673,7 +656,6 @@ static void permute_unpack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t
         permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 // fixed input width; callers select the packing before traversing the rows
@@ -702,6 +684,8 @@ static void permute_unpack16_stride_bf16s_fp16s(const unsigned short* ptr, size_
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
@@ -721,6 +705,8 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
     }
 
     int i = 0;
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
     for (; i + 15 < rows; i += 16)
     {
@@ -750,16 +736,18 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
         }
     }
 #endif // __AVX512F__
-#if __SSE2__
+#endif // __AVX__
     for (; i + 7 < rows; i += 8)
     {
         int j = 0;
+#if __AVX__
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
             permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
+#endif // __AVX__
         for (; j + 7 < cols; j += 8)
         {
             permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
@@ -780,17 +768,17 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
             }
         }
     }
-#endif // __SSE2__
-#if __SSE2__
     for (; i + 3 < rows; i += 4)
     {
         int j = 0;
+#if __AVX__
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
             permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
+#endif // __AVX__
         for (; j + 7 < cols; j += 8)
         {
             permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
@@ -811,29 +799,25 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
             }
         }
     }
-#endif // __SSE2__
-#if __SSE2__
     for (; i + 1 < rows; i += 2)
     {
         int j = 0;
+#if __AVX__
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
             permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
-#if __SSE2__
+#endif // __AVX__
         for (; j + 7 < cols; j += 8)
         {
             permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
-#endif // __SSE2__
-#if __SSE2__
         for (; j + 3 < cols; j += 4)
         {
             permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
-#endif // __SSE2__
         for (; j < cols; j++)
         {
             outptr[j * outstride + i] = ptr[i * stride + j];
@@ -844,19 +828,19 @@ static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_
     for (; i < rows; i++)
     {
         int j = 0;
+#if __SSE2__
+#if __AVX__
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
             permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
-#if __SSE2__
+#endif // __AVX__
         for (; j + 7 < cols; j += 8)
         {
             permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
         }
-#endif // __SSE2__
-#if __SSE2__
         for (; j + 3 < cols; j += 4)
         {
             permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
@@ -884,7 +868,6 @@ static void permute_transpose_pack1to4_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 static void permute_transpose_pack1to8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -900,7 +883,6 @@ static void permute_transpose_pack1to8_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute_transpose_pack1to16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -917,8 +899,8 @@ static void permute_transpose_pack1to16_bf16s_fp16s(const unsigned short* ptr, s
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
 static void permute_transpose_pack4to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 4)
@@ -932,9 +914,7 @@ static void permute_transpose_pack4to1_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static void permute_transpose_pack4to4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 4)
@@ -947,7 +927,6 @@ static void permute_transpose_pack4to4_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 static void permute_transpose_pack4to8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -962,7 +941,6 @@ static void permute_transpose_pack4to8_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute_transpose_pack4to16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -979,7 +957,6 @@ static void permute_transpose_pack4to16_bf16s_fp16s(const unsigned short* ptr, s
 }
 #endif // __AVX512F__
 
-#if __AVX__
 static void permute_transpose_pack8to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 8)
@@ -993,9 +970,7 @@ static void permute_transpose_pack8to1_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __AVX__
 
-#if __AVX__
 static void permute_transpose_pack8to4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 8)
@@ -1008,9 +983,7 @@ static void permute_transpose_pack8to4_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __AVX__
 
-#if __AVX__
 static void permute_transpose_pack8to8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 8)
@@ -1023,7 +996,6 @@ static void permute_transpose_pack8to8_bf16s_fp16s(const unsigned short* ptr, si
         }
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute_transpose_pack8to16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -1038,9 +1010,7 @@ static void permute_transpose_pack8to16_bf16s_fp16s(const unsigned short* ptr, s
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute_transpose_pack16to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 16)
@@ -1054,9 +1024,7 @@ static void permute_transpose_pack16to1_bf16s_fp16s(const unsigned short* ptr, s
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute_transpose_pack16to4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 16)
@@ -1069,9 +1037,7 @@ static void permute_transpose_pack16to4_bf16s_fp16s(const unsigned short* ptr, s
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute_transpose_pack16to8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 16)
@@ -1084,9 +1050,7 @@ static void permute_transpose_pack16to8_bf16s_fp16s(const unsigned short* ptr, s
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute_transpose_pack16to16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     for (int y = 0; y < rows; y += 16)
@@ -1100,6 +1064,8 @@ static void permute_transpose_pack16to16_bf16s_fp16s(const unsigned short* ptr, 
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int elempack, int out_elempack)
 {
@@ -1115,7 +1081,6 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
         permute_transpose_pack1to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __SSE2__
 
 #if __AVX__
     if (elempack == 1 && out_elempack == 8)
@@ -1123,7 +1088,6 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
         permute_transpose_pack1to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 
 #if __AVX512F__
     if (elempack == 1 && out_elempack == 16)
@@ -1132,22 +1096,19 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
     if (elempack == 4 && out_elempack == 1)
     {
         permute_transpose_pack4to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __SSE2__
 
-#if __SSE2__
     if (elempack == 4 && out_elempack == 4)
     {
         permute_transpose_pack4to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __SSE2__
 
 #if __AVX__
     if (elempack == 4 && out_elempack == 8)
@@ -1155,7 +1116,6 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
         permute_transpose_pack4to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
@@ -1165,29 +1125,23 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
     }
 #endif // __AVX512F__
 
-#if __AVX__
     if (elempack == 8 && out_elempack == 1)
     {
         permute_transpose_pack8to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 
-#if __AVX__
     if (elempack == 8 && out_elempack == 4)
     {
         permute_transpose_pack8to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 
-#if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         permute_transpose_pack8to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
@@ -1195,39 +1149,33 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
         permute_transpose_pack8to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX512F__
 
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 1)
     {
         permute_transpose_pack16to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX512F__
 
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 4)
     {
         permute_transpose_pack16to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX512F__
 
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
         permute_transpose_pack16to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX512F__
 
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
         permute_transpose_pack16to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // spatial transpose within one input channel group
@@ -1313,7 +1261,6 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
         permute_unpack4_stride_bf16s_fp16s(ptr + x * 4, stride, outptr + x * outstride, outcstep, rows);
 #endif // __AVX512F__
 }
-#endif // __SSE2__
 
 #if __AVX__
 static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
@@ -1404,7 +1351,6 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
         permute_unpack8_stride_bf16s_fp16s(ptr + x * 8, stride, outptr + x * outstride, outcstep, rows);
 #endif // __AVX512F__
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static NCNN_FORCEINLINE void permute_spatial2x2_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
@@ -1491,6 +1437,8 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols, int elempack, int out_elempack)
 {
@@ -1524,7 +1472,6 @@ static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, siz
         permute_spatial_pack4to1_bf16s_fp16s(ptr, stride, outptr, outstride, outcstep, rows, cols);
         return;
     }
-#endif // __SSE2__
 
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
@@ -1537,7 +1484,6 @@ static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, siz
         permute_spatial_pack8to1_bf16s_fp16s(ptr, stride, outptr, outstride, outcstep, rows, cols);
         return;
     }
-#endif // __AVX__
 
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
@@ -1551,6 +1497,8 @@ static void permute_transpose_spatial_bf16s_fp16s(const unsigned short* ptr, siz
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 #if __SSE2__
@@ -1629,14 +1577,12 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         permute_spatial_pack4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (size == 8)
     {
         permute_spatial_pack8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (size == 16)
     {
@@ -1644,7 +1590,7 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 #endif // __AVX512F__
-#if __SSE2__
+#endif // __AVX__
     if (size >= 2 && size < 4)
     {
         for (int j = 0; j < cols; j++)
@@ -1665,8 +1611,6 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         }
         return;
     }
-#endif // __SSE2__
-#if __SSE2__
     if (size >= 4 && size < 8)
     {
         for (int j = 0; j < cols; j++)
@@ -1685,8 +1629,6 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         }
         return;
     }
-#endif // __SSE2__
-#if __SSE2__
     if (size >= 8 && size < 16)
     {
         for (int j = 0; j < cols; j++)
@@ -1705,7 +1647,6 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         }
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (size >= 16 && size < 32)
     {
@@ -1725,7 +1666,6 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         }
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (size >= 32 && size < 64)
     {
@@ -1746,6 +1686,8 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
     for (int j = 0; j < cols; j++)
     {
         const unsigned short* p = ptr + (size_t)j * size;
@@ -1767,7 +1709,6 @@ static void permute_unpack_spatial_bf16s_fp16s(const unsigned short* ptr, unsign
         permute_unpack4_stride_bf16s_fp16s(ptr, 4, outptr, outcstep, size);
         return;
     }
-#endif // __SSE2__
 
 #if __AVX__
     if (elempack == 8)
@@ -1775,7 +1716,6 @@ static void permute_unpack_spatial_bf16s_fp16s(const unsigned short* ptr, unsign
         permute_unpack8_stride_bf16s_fp16s(ptr, 8, outptr, outcstep, size);
         return;
     }
-#endif // __AVX__
 
 #if __AVX512F__
     if (elempack == 16)
@@ -1784,6 +1724,8 @@ static void permute_unpack_spatial_bf16s_fp16s(const unsigned short* ptr, unsign
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // exchange the input channel axis with one output channel group
@@ -1815,7 +1757,6 @@ static void permute3d_pack1to4_stride_bf16s_fp16s(const unsigned short* ptr, uns
         permute_pack4_stride_bf16s_fp16s(p, hstep, out, outwstep, w);
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 // the exchanged axis is contiguous; the stride variant has contiguous spatial input
@@ -1844,7 +1785,6 @@ static void permute3d_pack1to8_stride_bf16s_fp16s(const unsigned short* ptr, uns
         permute_pack8_stride_bf16s_fp16s(p, hstep, out, outwstep, w);
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 // the exchanged axis is contiguous; the stride variant has contiguous spatial input
@@ -1874,8 +1814,8 @@ static void permute3d_pack1to16_stride_bf16s_fp16s(const unsigned short* ptr, un
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
 
-#if __SSE2__
 // output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack4to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
@@ -1902,9 +1842,7 @@ static void permute3d_pack4to1_stride_bf16s_fp16s(const unsigned short* ptr, uns
         permute_unpack4_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
-#endif // __SSE2__
 
-#if __SSE2__
 static void permute3d_pack4to4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
@@ -1934,7 +1872,6 @@ static void permute3d_pack4to4_stride_bf16s_fp16s(const unsigned short* ptr, uns
         }
     }
 }
-#endif // __SSE2__
 
 #if __AVX__
 static void permute3d_pack4to8_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
@@ -1966,7 +1903,6 @@ static void permute3d_pack4to8_stride_bf16s_fp16s(const unsigned short* ptr, uns
         }
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute3d_pack4to16_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
@@ -1985,7 +1921,6 @@ static void permute3d_pack4to16_stride_bf16s_fp16s(const unsigned short* ptr, un
 }
 #endif // __AVX512F__
 
-#if __AVX__
 // output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack8to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
@@ -2012,9 +1947,7 @@ static void permute3d_pack8to1_stride_bf16s_fp16s(const unsigned short* ptr, uns
         permute_unpack8_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
-#endif // __AVX__
 
-#if __AVX__
 static void permute3d_pack8to4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2044,9 +1977,7 @@ static void permute3d_pack8to4_stride_bf16s_fp16s(const unsigned short* ptr, uns
         }
     }
 }
-#endif // __AVX__
 
-#if __AVX__
 static void permute3d_pack8to8_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2061,7 +1992,6 @@ static void permute3d_pack8to8_stride_bf16s_fp16s(const unsigned short* ptr, uns
         }
     }
 }
-#endif // __AVX__
 
 #if __AVX512F__
 static void permute3d_pack8to16_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
@@ -2078,9 +2008,7 @@ static void permute3d_pack8to16_stride_bf16s_fp16s(const unsigned short* ptr, un
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 // output channels are contiguous; the stride variant has contiguous spatial output
 static void permute3d_pack16to1_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t cstep, size_t outwstep)
 {
@@ -2107,9 +2035,7 @@ static void permute3d_pack16to1_stride_bf16s_fp16s(const unsigned short* ptr, un
         permute_unpack16_stride_bf16s_fp16s(p, wstep, out, outcstep, w);
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute3d_pack16to4_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2124,9 +2050,7 @@ static void permute3d_pack16to4_stride_bf16s_fp16s(const unsigned short* ptr, un
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute3d_pack16to8_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2141,9 +2065,7 @@ static void permute3d_pack16to8_stride_bf16s_fp16s(const unsigned short* ptr, un
         }
     }
 }
-#endif // __AVX512F__
 
-#if __AVX512F__
 static void permute3d_pack16to16_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, int w, int channels, size_t wstep, size_t hstep, size_t cstep, size_t outwstep, size_t outcstep)
 {
     for (int c = 0; c < channels; c++)
@@ -2159,6 +2081,8 @@ static void permute3d_pack16to16_stride_bf16s_fp16s(const unsigned short* ptr, u
     }
 }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 
 // the exchanged input axis is contiguous
 static void permute_pack_channels_bf16s_fp16s(const Mat& bottom_blob, const Mat& top_blob, const unsigned short* ptr, unsigned short* outptr, int size, int channels, size_t wstep, size_t outwstep, size_t outcstep)
@@ -2172,14 +2096,12 @@ static void permute_pack_channels_bf16s_fp16s(const Mat& bottom_blob, const Mat&
         permute3d_pack1to4_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (out_elempack == 8)
     {
         permute3d_pack1to8_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (out_elempack == 16)
     {
@@ -2187,6 +2109,8 @@ static void permute_pack_channels_bf16s_fp16s(const Mat& bottom_blob, const Mat&
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // the remaining input spatial axis is contiguous
@@ -2201,14 +2125,12 @@ static void permute_pack_channels_stride_bf16s_fp16s(const Mat& bottom_blob, con
         permute3d_pack1to4_stride_bf16s_fp16s(ptr, outptr, size, channels, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (out_elempack == 8)
     {
         permute3d_pack1to8_stride_bf16s_fp16s(ptr, outptr, size, channels, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (out_elempack == 16)
     {
@@ -2216,6 +2138,8 @@ static void permute_pack_channels_stride_bf16s_fp16s(const Mat& bottom_blob, con
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // the output channel axis is contiguous
@@ -2230,14 +2154,12 @@ static void permute_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, const un
         permute3d_pack4to1_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outwstep);
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
         permute3d_pack8to1_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outwstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
@@ -2245,6 +2167,8 @@ static void permute_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, const un
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // the remaining output spatial axis is contiguous
@@ -2259,14 +2183,12 @@ static void permute_unpack_channels_stride_bf16s_fp16s(const Mat& bottom_blob, c
         permute3d_pack4to1_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outcstep);
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
         permute3d_pack8to1_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, cstep, outcstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
@@ -2274,6 +2196,8 @@ static void permute_unpack_channels_stride_bf16s_fp16s(const Mat& bottom_blob, c
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 // both channel axes are packed
@@ -2297,7 +2221,6 @@ static void permute_channels_spatial_input_stride_bf16s_fp16s(const Mat& bottom_
         }
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (elempack == 4 && out_elempack == 8)
     {
@@ -2311,7 +2234,6 @@ static void permute_channels_spatial_input_stride_bf16s_fp16s(const Mat& bottom_
         }
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
     {
@@ -2319,7 +2241,6 @@ static void permute_channels_spatial_input_stride_bf16s_fp16s(const Mat& bottom_
         return;
     }
 #endif // __AVX512F__
-#if __AVX__
     if (elempack == 8 && out_elempack == 4)
     {
         if (hstep == 8 && outcstep == 4)
@@ -2332,42 +2253,35 @@ static void permute_channels_spatial_input_stride_bf16s_fp16s(const Mat& bottom_
         }
         return;
     }
-#endif // __AVX__
-#if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         permute3d_pack8to8_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
     {
         permute3d_pack8to16_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 4)
     {
         permute3d_pack16to4_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
         permute3d_pack16to8_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
         permute3d_pack16to16_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blob, const Mat& top_blob, const unsigned short* ptr, unsigned short* outptr, int size, int channels, size_t wstep, size_t outwstep, size_t outcstep)
@@ -2390,7 +2304,6 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
         }
         return;
     }
-#endif // __SSE2__
 #if __AVX__
     if (elempack == 4 && out_elempack == 8)
     {
@@ -2404,7 +2317,6 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
         }
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
     {
@@ -2412,7 +2324,6 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
         return;
     }
 #endif // __AVX512F__
-#if __AVX__
     if (elempack == 8 && out_elempack == 4)
     {
         if (hstep == 8 && outcstep == 4)
@@ -2425,42 +2336,35 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
         }
         return;
     }
-#endif // __AVX__
-#if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         permute3d_pack8to8_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX__
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
     {
         permute3d_pack8to16_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 4)
     {
         permute3d_pack16to4_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
         permute3d_pack16to8_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
-#endif // __AVX512F__
-#if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
         permute3d_pack16to16_stride_bf16s_fp16s(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
 }
 
 static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int nT)
