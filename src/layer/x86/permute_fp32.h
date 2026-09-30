@@ -2091,192 +2091,127 @@ static void permute3d_pack16to16_stride(const float* ptr, float* outptr, int w, 
 #endif // __AVX512F__
 
 // the exchanged input axis is contiguous
-static void permute_pack_channels(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t wstep, size_t outwstep, size_t outcstep)
+static void permute_pack_channels(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, size_t wstep, size_t outwstep, size_t outcstep)
 {
     const size_t cstep = bottom_blob.cstep * bottom_blob.elempack;
-    const size_t outstep = top_blob.cstep * top_blob.elempack;
     const int out_elempack = top_blob.elempack;
 
 #if __SSE2__
     if (out_elempack == 4)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * 4;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to4(p, out, size, channels, wstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to4(ptr, outptr, size, channels, wstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __SSE2__
 #if __AVX__
     if (out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to8(p, out, size, channels, wstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to8(ptr, outptr, size, channels, wstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to16(p, out, size, channels, wstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to16(ptr, outptr, size, channels, wstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 }
 
 // the remaining input spatial axis is contiguous
-static void permute_pack_channels_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t hstep, size_t outwstep, size_t outcstep)
+static void permute_pack_channels_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, size_t hstep, size_t outwstep, size_t outcstep)
 {
     const size_t cstep = bottom_blob.cstep * bottom_blob.elempack;
-    const size_t outstep = top_blob.cstep * top_blob.elempack;
     const int out_elempack = top_blob.elempack;
 
 #if __SSE2__
     if (out_elempack == 4)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 4;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to4_stride(p, out, size, channels, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to4_stride(ptr, outptr, size, channels, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __SSE2__
 #if __AVX__
     if (out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to8_stride(p, out, size, channels, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to8_stride(ptr, outptr, size, channels, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack1to16_stride(p, out, size, channels, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack1to16_stride(ptr, outptr, size, channels, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 }
 
 // the output channel axis is contiguous
-static void permute_unpack_channels(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t wstep, size_t hstep, size_t outwstep)
+static void permute_unpack_channels(const Mat& bottom_blob, const float* ptr, float* outptr, int size, int channels, size_t wstep, size_t outwstep)
 {
     const size_t cstep = bottom_blob.cstep * bottom_blob.elempack;
-    const size_t outstep = top_blob.cstep * top_blob.elempack;
     const int elempack = bottom_blob.elempack;
 
 #if __SSE2__
     if (elempack == 4)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack4to1(p, out, size, channels, wstep, cstep, outwstep);
-        }
+        permute3d_pack4to1(ptr, outptr, size, channels, wstep, cstep, outwstep);
         return;
     }
 #endif // __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to1(p, out, size, channels, wstep, cstep, outwstep);
-        }
+        permute3d_pack8to1(ptr, outptr, size, channels, wstep, cstep, outwstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to1(p, out, size, channels, wstep, cstep, outwstep);
-        }
+        permute3d_pack16to1(ptr, outptr, size, channels, wstep, cstep, outwstep);
         return;
     }
 #endif // __AVX512F__
 }
 
 // the remaining output spatial axis is contiguous
-static void permute_unpack_channels_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t wstep, size_t hstep, size_t outcstep)
+static void permute_unpack_channels_stride(const Mat& bottom_blob, const float* ptr, float* outptr, int size, int channels, size_t wstep, size_t outcstep)
 {
     const size_t cstep = bottom_blob.cstep * bottom_blob.elempack;
-    const size_t outstep = top_blob.cstep * top_blob.elempack;
     const int elempack = bottom_blob.elempack;
 
 #if __SSE2__
     if (elempack == 4)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack4to1_stride(p, out, size, channels, wstep, cstep, outcstep);
-        }
+        permute3d_pack4to1_stride(ptr, outptr, size, channels, wstep, cstep, outcstep);
         return;
     }
 #endif // __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to1_stride(p, out, size, channels, wstep, cstep, outcstep);
-        }
+        permute3d_pack8to1_stride(ptr, outptr, size, channels, wstep, cstep, outcstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to1_stride(p, out, size, channels, wstep, cstep, outcstep);
-        }
+        permute3d_pack16to1_stride(ptr, outptr, size, channels, wstep, cstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 }
 
 // both channel axes are packed
-static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t hstep, size_t outwstep, size_t outcstep)
+static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, size_t hstep, size_t outwstep, size_t outcstep)
 {
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
     const size_t cstep = bottom_blob.cstep * elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
     const size_t wstep = elempack;
 
 #if __SSE2__
@@ -2284,21 +2219,11 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
     {
         if (hstep == 4 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack4to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack4to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2308,21 +2233,11 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
     {
         if (hstep == 4 && outcstep == 8)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 8;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to8(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack4to8(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 8;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack4to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2330,12 +2245,7 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack4to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack4to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
@@ -2344,21 +2254,11 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
     {
         if (hstep == 8 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack8to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack8to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack8to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack8to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2366,24 +2266,14 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack8to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack8to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
@@ -2392,21 +2282,11 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
     {
         if (hstep == 16 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack16to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack16to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack16to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack16to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2414,35 +2294,24 @@ static void permute_channels_spatial_input_stride(const Mat& bottom_blob, const 
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack16to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack16to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 }
 
-static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, int outchannels, size_t wstep, size_t outwstep, size_t outcstep)
+static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat& top_blob, const float* ptr, float* outptr, int size, int channels, size_t wstep, size_t outwstep, size_t outcstep)
 {
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
     const size_t cstep = bottom_blob.cstep * elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
     const size_t hstep = elempack;
 
 #if __SSE2__
@@ -2450,21 +2319,11 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
     {
         if (hstep == 4 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack4to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack4to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2474,21 +2333,11 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
     {
         if (hstep == 4 && outcstep == 8)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 8;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to8(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack4to8(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 8;
-                float* out = outptr + q * outstep;
-                permute3d_pack4to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack4to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2496,12 +2345,7 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack4to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack4to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
@@ -2510,21 +2354,11 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
     {
         if (hstep == 8 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack8to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack8to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack8to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack8to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2532,24 +2366,14 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack8to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX__
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack8to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack8to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
@@ -2558,21 +2382,11 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
     {
         if (hstep == 16 && outcstep == 4)
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack16to4(p, out, size, channels, wstep, cstep, outwstep);
-            }
+            permute3d_pack16to4(ptr, outptr, size, channels, wstep, cstep, outwstep);
         }
         else
         {
-            for (int q = 0; q < outchannels; q++)
-            {
-                const float* p = ptr + q * hstep * 4;
-                float* out = outptr + q * outstep;
-                permute3d_pack16to4_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-            }
+            permute3d_pack16to4_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         }
         return;
     }
@@ -2580,24 +2394,14 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 8;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to8_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack16to8_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
-        for (int q = 0; q < outchannels; q++)
-        {
-            const float* p = ptr + q * hstep * 16;
-            float* out = outptr + q * outstep;
-            permute3d_pack16to16_stride(p, out, size, channels, wstep, hstep, cstep, outwstep, outcstep);
-        }
+        permute3d_pack16to16_stride(ptr, outptr, size, channels, wstep, hstep, cstep, outwstep, outcstep);
         return;
     }
 #endif // __AVX512F__
@@ -2652,11 +2456,11 @@ static void permute_transpose_spatial_planes_stride(const Mat& bottom_blob, Mat&
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
+        const float* ptr = bottom_blob.channel(q);
+        float* outptr = top_blob.channel(q * elempack / out_elempack);
         for (int z = 0; z < planes; z++)
         {
-            const float* ptr = (const float*)bottom_blob.channel(q) + z * step;
-            float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + z * outstep;
-            permute_transpose_spatial(ptr, stride, outptr, outstride, top_blob.cstep, rows, cols, elempack, out_elempack);
+            permute_transpose_spatial(ptr + z * step, stride, outptr + z * outstep, outstride, top_blob.cstep, rows, cols, elempack, out_elempack);
         }
     }
 }
@@ -2675,11 +2479,11 @@ static void permute_transpose_hw_pack1_stride(const Mat& bottom_blob, Mat& top_b
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
+        const float* ptr = bottom_blob.channel(q);
+        float* outptr = (float*)top_blob + q * outcstep;
         for (int z = 0; z < d; z++)
         {
-            const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-            float* outptr = (float*)top_blob + q * outcstep + z * outdstep;
-            permute_transpose_pack1(ptr, stride, outptr, outstride, h, w);
+            permute_transpose_pack1(ptr + z * (size_t)w * h, stride, outptr + z * outdstep, outstride, h, w);
         }
     }
 }
@@ -2698,11 +2502,11 @@ static void permute_transpose_dw_pack1_stride(const Mat& bottom_blob, Mat& top_b
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
+        const float* ptr = bottom_blob.channel(q);
+        float* outptr = (float*)top_blob + q * outcstep;
         for (int y = 0; y < h; y++)
         {
-            const float* ptr = (const float*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-            float* outptr = (float*)top_blob + q * outcstep + y * outhstep;
-            permute_transpose_pack1(ptr, stride, outptr, outstride, d, w);
+            permute_transpose_pack1(ptr + y * (size_t)w, stride, outptr + y * outhstep, outstride, d, w);
         }
     }
 }
@@ -2721,11 +2525,11 @@ static void permute_transpose_cw_pack1_stride(const Mat& bottom_blob, Mat& top_b
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
+        const float* ptr = (const float*)bottom_blob + z * (size_t)w * h;
+        float* outptr = (float*)top_blob + z * outdstep;
         for (int y = 0; y < h; y++)
         {
-            const float* ptr = (const float*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-            float* outptr = (float*)top_blob + z * outdstep + y * outhstep;
-            permute_transpose_pack1(ptr, stride, outptr, outstride, channels, w);
+            permute_transpose_pack1(ptr + y * (size_t)w, stride, outptr + y * outhstep, outstride, channels, w);
         }
     }
 }
@@ -2766,30 +2570,6 @@ static void permute3d_hwc(const Mat& bottom_blob, Mat& top_blob, int nT)
     permute_transpose_spatial_planes_stride(bottom_blob, top_blob, h, w, stride, outstride, 1, step, outstep, nT);
 }
 
-static NCNN_FORCEINLINE void permute3d_wch_channels(const Mat& bottom_blob, Mat& top_blob, int q)
-{
-    const int w = bottom_blob.w;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-}
-
 static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
@@ -2810,45 +2590,34 @@ static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, int nT)
         #pragma omp parallel for num_threads(nT)
         for (int q = 0; q < top_blob.c; q++)
         {
+            const float* ptr = (const float*)bottom_blob + q * (size_t)w;
+            float* outptr = top_blob.channel(q);
             for (int y = 0; y < top_blob.h; y++)
             {
-                const float* ptr = (const float*)bottom_blob + q * (size_t)w + y * bottom_blob.cstep;
-                float* outptr = (float*)top_blob.channel(q) + (size_t)y * w;
-                memcpy(outptr, ptr, (size_t)w * sizeof(float));
+                memcpy(outptr + (size_t)y * w, ptr + y * bottom_blob.cstep, (size_t)w * sizeof(float));
             }
         }
         return;
     }
 
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_wch_channels(bottom_blob, top_blob, q);
+        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        float* outptr = (float*)top_blob.channel(q);
+        // exchange c and h, keeping w as the inner spatial axis
+        if (elempack == 1)
+            permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+        else if (out_elempack == 1)
+            permute_unpack_channels_stride(bottom_blob, ptr, outptr, w, channels, wstep, outcstep);
+        else
+            permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
     }
-}
-
-static NCNN_FORCEINLINE void permute3d_cwh_channels(const Mat& bottom_blob, Mat& top_blob, int q)
-{
-    const int w = bottom_blob.w;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -2876,36 +2645,24 @@ static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t outcstep = out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_cwh_channels(bottom_blob, top_blob, q);
+        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        float* outptr = (float*)top_blob.channel(q);
+        // exchange c and h, keeping w as the inner spatial axis
+        if (elempack == 1)
+            permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+        else if (out_elempack == 1)
+            permute_unpack_channels(bottom_blob, ptr, outptr, w, channels, wstep, outwstep);
+        else
+            permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
     }
-}
-
-static NCNN_FORCEINLINE void permute3d_hcw_channels(const Mat& bottom_blob, Mat& top_blob, int q)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -2933,36 +2690,24 @@ static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = (size_t)w * elempack;
+    const size_t hstep = elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_hcw_channels(bottom_blob, top_blob, q);
+        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        float* outptr = (float*)top_blob.channel(q);
+        // exchange c and w, keeping h as the inner spatial axis
+        if (elempack == 1)
+            permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+        else if (out_elempack == 1)
+            permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
+        else
+            permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
     }
-}
-
-static NCNN_FORCEINLINE void permute3d_chw_channels(const Mat& bottom_blob, Mat& top_blob, int q)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -2996,10 +2741,23 @@ static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = (size_t)w * elempack;
+    const size_t hstep = elempack;
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t outcstep = out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_chw_channels(bottom_blob, top_blob, q);
+        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        float* outptr = (float*)top_blob.channel(q);
+        // exchange c and w, keeping h as the inner spatial axis
+        if (elempack == 1)
+            permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+        else if (out_elempack == 1)
+            permute_unpack_channels(bottom_blob, ptr, outptr, h, channels, wstep, outwstep);
+        else
+            permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
     }
 }
 
@@ -3037,16 +2795,23 @@ static void permute4d_wdhc(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t hstep = (size_t)w * elempack;
+    const size_t dstep = (size_t)w * h * elempack;
+    const size_t outhstep = (size_t)w * d * out_elempack;
+    const size_t outdstep = (size_t)w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
+        const float* ptr = bottom_blob.channel(q);
+        float* outptr = top_blob.channel(q * elempack / out_elempack);
         for (int y = 0; y < h; y++)
         {
+            const float* p = ptr + y * hstep;
+            float* out = outptr + y * outhstep;
             for (int z = 0; z < d; z++)
             {
-                const float* ptr = (const float*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack;
-                float* outptr = (float*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w) * out_elempack;
-                permute_unpack_spatial(ptr, outptr, top_blob.cstep, w, elempack);
+                permute_unpack_spatial(p + z * dstep, out + z * outdstep, top_blob.cstep, w, elempack);
             }
         }
     }
@@ -3116,51 +2881,6 @@ static void permute4d_whcd(const Mat& bottom_blob, Mat& top_blob, int nT)
     permute3d_wch(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_hwcd_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int x)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t xstep = (size_t)elempack;
-    const size_t outxstep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + x * outxstep + q * outstep;
-    // exchange c and d, keeping h as the inner spatial axis
-    permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_hwcd_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and d, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-}
-
 static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
@@ -3177,54 +2897,48 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int channels = bottom_blob.c;
+    const size_t hstep = (size_t)w * h * elempack;
+    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * elempack;
+        const size_t xstep = (size_t)elempack;
+        const size_t outxstep = (size_t)top_blob.w * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_hwcd_unpack_channels(bottom_blob, top_blob, q, x);
+                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + x * outxstep;
+                // exchange c and d, keeping h as the inner spatial axis
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t ystep = (size_t)w * elempack;
+    const size_t outystep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hwcd_channels(bottom_blob, top_blob, q, y);
+            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + y * outystep;
+            // exchange c and d, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_wchd_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and d, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3246,12 +2960,27 @@ static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * h * elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+    const size_t ystep = (size_t)w * elempack;
+    const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wchd_channels(bottom_blob, top_blob, q, y);
+            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + y * outystep;
+            // exchange c and d, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, w, channels, wstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
 }
@@ -3275,51 +3004,6 @@ static void permute4d_cwhd(const Mat& bottom_blob, Mat& top_blob, int nT)
     permute3d_cwh(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_hcwd_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int x)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t xstep = (size_t)elempack;
-    const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + x * outxstep + q * outstep;
-    // exchange c and d, keeping h as the inner spatial axis
-    permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_hcwd_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and d, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-}
-
 static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int w = bottom_blob.w;
@@ -3336,54 +3020,48 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int channels = bottom_blob.c;
+    const size_t hstep = (size_t)w * h * elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * elempack;
+        const size_t xstep = (size_t)elempack;
+        const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_hcwd_unpack_channels(bottom_blob, top_blob, q, x);
+                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + x * outxstep;
+                // exchange c and d, keeping h as the inner spatial axis
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t ystep = (size_t)w * elempack;
+    const size_t outystep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hcwd_channels(bottom_blob, top_blob, q, y);
+            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + y * outystep;
+            // exchange c and d, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_chwd_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * h * elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and d, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3401,41 +3079,31 @@ static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int channels = bottom_blob.c;
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * h * elempack;
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t outcstep = out_elempack;
+    const size_t ystep = (size_t)w * elempack;
+    const size_t outystep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_chwd_channels(bottom_blob, top_blob, q, y);
+            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + y * outystep;
+            // exchange c and d, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels(bottom_blob, ptr, outptr, w, channels, wstep, outwstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_wdch_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3457,60 +3125,29 @@ static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wdch_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, w, channels, wstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_dwch_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int x)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * h * elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t xstep = (size_t)elempack;
-    const size_t outxstep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + x * outxstep + q * outstep;
-    // exchange c and h, keeping d as the inner spatial axis
-    permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_dwch_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3529,54 +3166,49 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * h * elempack;
+        const size_t xstep = (size_t)elempack;
+        const size_t outxstep = (size_t)top_blob.w * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dwch_unpack_channels(bottom_blob, top_blob, q, x);
+                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + x * outxstep;
+                // exchange c and h, keeping d as the inner spatial axis
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dwch_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_wcdh_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3598,41 +3230,29 @@ static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wcdh_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, w, channels, wstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_cwdh_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3650,60 +3270,32 @@ static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t outcstep = out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cwdh_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels(bottom_blob, ptr, outptr, w, channels, wstep, outwstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_dcwh_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int x)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * h * elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t xstep = (size_t)elempack;
-    const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + x * outxstep + q * outstep;
-    // exchange c and h, keeping d as the inner spatial axis
-    permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_dcwh_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3722,54 +3314,49 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * h * elempack;
+        const size_t xstep = (size_t)elempack;
+        const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dcwh_unpack_channels(bottom_blob, top_blob, q, x);
+                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + x * outxstep;
+                // exchange c and h, keeping d as the inner spatial axis
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dcwh_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_cdwh_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = elempack;
-    const size_t hstep = (size_t)w * elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and h, keeping w as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3787,12 +3374,30 @@ static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t wstep = elempack;
+    const size_t hstep = (size_t)w * elempack;
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t outcstep = out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cdwh_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and h, keeping w as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels(bottom_blob, ptr, outptr, w, channels, wstep, outwstep);
+            else
+                permute_channels_spatial_input_stride(bottom_blob, top_blob, ptr, outptr, w, channels, hstep, outwstep, outcstep);
         }
     }
 }
@@ -3816,57 +3421,6 @@ static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, int nT)
     permute3d_hcw(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_dhcw_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * h * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and w, keeping d as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, outwstep, outcstep);
-    else
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_dhcw_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = (size_t)top_blob.w * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-}
-
 static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
@@ -3883,54 +3437,54 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int channels = bottom_blob.c;
+    const size_t hstep = elempack;
+    const size_t outcstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * h * elempack;
+        const size_t outwstep = out_elempack;
+        const size_t ystep = (size_t)w * elempack;
+        const size_t outystep = (size_t)top_blob.w * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dhcw_unpack_channels(bottom_blob, top_blob, q, y);
+                const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + y * outystep;
+                // exchange c and w, keeping d as the inner spatial axis
+                if (elempack == 1)
+                    permute_pack_channels(bottom_blob, top_blob, ptr, outptr, d, channels, wstep, outwstep, outcstep);
+                else
+                    permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t wstep = (size_t)w * elempack;
+    const size_t outwstep = (size_t)top_blob.w * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dhcw_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and w, keeping h as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+            else
+                permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_hcdw_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3948,12 +3502,30 @@ static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t wstep = (size_t)w * elempack;
+    const size_t hstep = elempack;
+    const size_t outwstep = out_elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hcdw_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and w, keeping h as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
+            else
+                permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
         }
     }
 }
@@ -3977,57 +3549,6 @@ static void permute4d_chdw(const Mat& bottom_blob, Mat& top_blob, int nT)
     permute3d_chw(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_dchw_unpack_channels(const Mat& bottom_blob, Mat& top_blob, int q, int y)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * h * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t ystep = (size_t)w * elempack;
-    const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + y * outystep + q * outstep;
-    // exchange c and w, keeping d as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, outwstep, outcstep);
-    else
-        permute_unpack_channels_stride(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
-}
-
-static NCNN_FORCEINLINE void permute4d_dchw_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = (size_t)top_blob.w * out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-}
-
 static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
 {
     const int h = bottom_blob.h;
@@ -4044,54 +3565,54 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int channels = bottom_blob.c;
+    const size_t hstep = elempack;
+    const size_t outcstep = (size_t)top_blob.w * out_elempack;
+
     if (out_elempack == 1)
     {
+        const size_t wstep = (size_t)w * h * elempack;
+        const size_t outwstep = out_elempack;
+        const size_t ystep = (size_t)w * elempack;
+        const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
+
         #pragma omp parallel for num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dchw_unpack_channels(bottom_blob, top_blob, q, y);
+                const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                float* outptr = (float*)top_blob.channel(q) + y * outystep;
+                // exchange c and w, keeping d as the inner spatial axis
+                if (elempack == 1)
+                    permute_pack_channels(bottom_blob, top_blob, ptr, outptr, d, channels, wstep, outwstep, outcstep);
+                else
+                    permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
             }
         }
         return;
     }
+
+    const size_t wstep = (size_t)w * elempack;
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)out_elempack;
 
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dchw_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and w, keeping h as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+            else
+                permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
         }
     }
-}
-
-static NCNN_FORCEINLINE void permute4d_cdhw_channels(const Mat& bottom_blob, Mat& top_blob, int q, int z)
-{
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
-    const int out_elempack = top_blob.elempack;
-
-    const size_t wstep = (size_t)w * elempack;
-    const size_t hstep = elempack;
-    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
-    const size_t outcstep = out_elempack;
-    const size_t outstep = top_blob.cstep * out_elempack;
-    const size_t zstep = (size_t)w * h * elempack;
-    const size_t outzstep = (size_t)top_blob.w * out_elempack;
-
-    const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
-    float* outptr = (float*)top_blob + z * outzstep + q * outstep;
-    // exchange c and w, keeping h as the inner spatial axis
-    if (elempack == 1)
-        permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
-    else if (out_elempack == 1)
-        permute_unpack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outwstep);
-    else
-        permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4109,12 +3630,30 @@ static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int channels = bottom_blob.c;
+    const size_t wstep = (size_t)w * elempack;
+    const size_t hstep = elempack;
+    const size_t outwstep = (size_t)top_blob.w * top_blob.h * out_elempack;
+    const size_t outcstep = out_elempack;
+    const size_t zstep = (size_t)w * h * elempack;
+    const size_t outzstep = (size_t)top_blob.w * out_elempack;
+
     #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cdhw_channels(bottom_blob, top_blob, q, z);
+            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            float* outptr = (float*)top_blob.channel(q) + z * outzstep;
+            // exchange c and w, keeping h as the inner spatial axis
+            if (elempack == 1)
+                permute_pack_channels(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
+            else if (out_elempack == 1)
+                permute_unpack_channels(bottom_blob, ptr, outptr, h, channels, wstep, outwstep);
+            else
+                permute_channels_axis_input_stride(bottom_blob, top_blob, ptr, outptr, h, channels, wstep, outwstep, outcstep);
         }
     }
 }

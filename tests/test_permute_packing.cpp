@@ -330,7 +330,7 @@ int main()
                   || test_permute_packing(op, 4, 9, 5, 3, 1, packs[p], bits, false, 4, true);
         }
     }
-    // single channel groups must still cover the spatial and slice task boundaries
+    // single channel groups cover large spatial matrices and multiple slices
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
@@ -342,7 +342,7 @@ int main()
     }
     for (int threads = 1; threads <= 4 && !ret; threads *= 2)
         ret = test_permute_packing(op, 3, 256, 128, 1, 1, 4, 32, true, threads, true);
-    // exercise the cache-blocked pack1 path and its direct-path boundaries
+    // large pack1 matrices include square, rectangular and vector-tail cases
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
         ret = test_permute_packing(op, 3, 256, 256, 1, 1, 1, bits, true, 1, true)
@@ -386,7 +386,7 @@ int main()
             }
         }
     }
-    // a few long continuous records exercise partitioning within a record
+    // long contiguous records cover copies with a vector tail
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
         ret = test_permute_packing(op, 4, 16385, 1, 1, 2, 1, bits, false, 4, true);
     // degenerate packed planes and a few long records with multiple slices
