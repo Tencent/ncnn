@@ -160,9 +160,9 @@ int main(int argc, char** argv)
         const int packing = atoi(argv[11]);
         const int buffers = argc == 13 ? atoi(argv[12]) : 1;
         if (dims < 2 || dims > 4 || w <= 0 || h <= 0 || d <= 0 || c <= 0 || threads <= 0 || buffers <= 0
-            || (pack != 1 && pack != 4 && pack != 8 && pack != 16) || pack > permute_max_elempack()
-            || (bits != 16 && bits != 32) || order < 0 || order >= (dims == 2 ? 2 : dims == 3 ? 6 : 24)
-            || (packing != 0 && packing != 1))
+                || (pack != 1 && pack != 4 && pack != 8 && pack != 16) || pack > permute_max_elempack()
+                || (bits != 16 && bits != 32) || order < 0 || order >= (dims == 2 ? 2 : dims == 3 ? 6 : 24)
+                || (packing != 0 && packing != 1))
             return -1;
         return perf_permute_packing(dims, w, pack, bits, order, threads, h, packing != 0, d, c, buffers, strcmp(argv[1], "--naive-case") == 0);
     }

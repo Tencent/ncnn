@@ -78,7 +78,6 @@ static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned sho
 }
 #endif // __AVX__
 
-
 static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)(ptr));
@@ -180,7 +179,6 @@ static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned sho
 #endif // __AVX512BW__
 }
 #endif // __AVX__
-
 
 static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
