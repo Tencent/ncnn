@@ -15,8 +15,7 @@
 namespace ncnn {
 
 // fastMalloc() reserves NCNN_MALLOC_OVERREAD past |size| for SIMD loads.
-// Pool recycle must clear that tail too, or SGEMM edge tiles can pull stale
-// NaNs from a previous tenant (#6766).
+// Explicit zeroing also covers the tail and the full retained block capacity.
 static void pool_clear_payload(void* ptr, size_t size)
 {
     memset(ptr, 0, size + NCNN_MALLOC_OVERREAD);
@@ -33,6 +32,7 @@ public:
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
     size_t size_drop_threshold;
+    bool zero_on_allocate;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -42,6 +42,7 @@ PoolAllocator::PoolAllocator()
 {
     d->size_compare_ratio = 0;
     d->size_drop_threshold = 10;
+    d->zero_on_allocate = false;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -105,6 +106,11 @@ void PoolAllocator::set_size_drop_threshold(size_t threshold)
     d->size_drop_threshold = threshold;
 }
 
+void PoolAllocator::set_zero_on_allocate(bool enable)
+{
+    d->zero_on_allocate = enable;
+}
+
 void* PoolAllocator::fastMalloc(size_t size)
 {
     d->budgets_lock.lock();
@@ -130,7 +136,8 @@ void* PoolAllocator::fastMalloc(size_t size)
 
             d->payouts_lock.unlock();
 
-            pool_clear_payload(ptr, bs);
+            if (d->zero_on_allocate)
+                pool_clear_payload(ptr, bs);
             return ptr;
         }
 
@@ -171,7 +178,8 @@ void* PoolAllocator::fastMalloc(size_t size)
     if (!ptr)
         return 0;
 
-    pool_clear_payload(ptr, size);
+    if (d->zero_on_allocate)
+        pool_clear_payload(ptr, size);
 
     d->payouts_lock.lock();
 
@@ -219,6 +227,7 @@ class UnlockedPoolAllocatorPrivate
 public:
     unsigned int size_compare_ratio; // 0~256
     size_t size_drop_threshold;
+    bool zero_on_allocate;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -228,6 +237,7 @@ UnlockedPoolAllocator::UnlockedPoolAllocator()
 {
     d->size_compare_ratio = 0;
     d->size_drop_threshold = 10;
+    d->zero_on_allocate = false;
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -287,6 +297,11 @@ void UnlockedPoolAllocator::set_size_drop_threshold(size_t threshold)
     d->size_drop_threshold = threshold;
 }
 
+void UnlockedPoolAllocator::set_zero_on_allocate(bool enable)
+{
+    d->zero_on_allocate = enable;
+}
+
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
@@ -304,7 +319,8 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 
             d->payouts.push_back(std::make_pair(bs, ptr));
 
-            pool_clear_payload(ptr, bs);
+            if (d->zero_on_allocate)
+                pool_clear_payload(ptr, bs);
             return ptr;
         }
 
@@ -337,7 +353,8 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
     if (!ptr)
         return 0;
 
-    pool_clear_payload(ptr, size);
+    if (d->zero_on_allocate)
+        pool_clear_payload(ptr, size);
 
     d->payouts.push_back(std::make_pair(size, ptr));
 
