@@ -370,7 +370,7 @@ static int test_concat_shape_mismatch()
     for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); i++)
     {
         if (test_concat_shape_mismatch_case(a[i], b[i], axes[i])
-            || test_concat_shape_mismatch_case(a[i], b[i], axes[i] - a[i].dims))
+                || test_concat_shape_mismatch_case(a[i], b[i], axes[i] - a[i].dims))
             return -1;
     }
     // Different ranks and out-of-range axes must also fail before allocation.
