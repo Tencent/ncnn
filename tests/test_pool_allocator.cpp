@@ -66,9 +66,9 @@ int main()
     {
         const size_t size = sizes[i];
         if (test_pool_allocator_clears_overread<ncnn::PoolAllocator>(size, size)
-            || test_pool_allocator_clears_overread<ncnn::UnlockedPoolAllocator>(size, size)
-            || test_pool_allocator_clears_overread<ncnn::PoolAllocator>(size, (size + 1) / 2)
-            || test_pool_allocator_clears_overread<ncnn::UnlockedPoolAllocator>(size, (size + 1) / 2))
+                || test_pool_allocator_clears_overread<ncnn::UnlockedPoolAllocator>(size, size)
+                || test_pool_allocator_clears_overread<ncnn::PoolAllocator>(size, (size + 1) / 2)
+                || test_pool_allocator_clears_overread<ncnn::UnlockedPoolAllocator>(size, (size + 1) / 2))
         {
             fprintf(stderr, "test_pool_allocator_clears_overread failed size=%zu\n", size);
             return -1;
