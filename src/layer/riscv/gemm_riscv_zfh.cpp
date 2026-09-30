@@ -10,6 +10,7 @@
 #include "riscv_usability.h"
 
 #include "cpu.h"
+#include <stdlib.h>
 
 namespace ncnn {
 
@@ -730,5 +731,78 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     return ret;
 }
 #endif // NCNN_ZFH
+
+
+// ================== SpacemiT K3 A100 IME2 (smt.vfwmadot) ==================
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+#if __riscv_v
+#include "gemm_riscv_ime2.h"
+#endif
+
+int Gemm_riscv::create_pipeline_ime2(const Option& opt)
+{
+#if !__riscv_v
+    (void)opt;
+    return -99;
+#else
+    // 先探测：当前核能否执行 smt.vfwmadot（X100 上是 SIGILL）。
+    // 探测失败 -> 返回非 0，调用方回退到 fp16s 路径。
+    if (!ncnn_ime2::ime2_probe())
+        return -99;
+
+    // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
+    // 线程数无关的布局：forward 阶段可以任意 num_threads。
+    const int N = constantN;
+    const int K = constantK;
+
+    int ret = ncnn_ime2::ime2_pack_B(B_data, BT_data_ime2, N, K);
+    if (ret != 0)
+        return ret;
+
+    use_ime2_path = 1;
+    nT = opt.num_threads;
+
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)bottom_blobs; (void)top_blobs; (void)opt;
+    return -1;
+#else
+    const Mat& A = bottom_blobs[0];
+
+    const int M = (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+    const int K = constantK;
+
+    if (A.elembits() != 16)
+        return -1;
+
+    // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 2;
+        out_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(N, M / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    return ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt);
+#endif
+}
+#endif // NCNN_ZFH
+
 
 } //namespace ncnn

@@ -32,12 +32,21 @@ protected:
     int create_pipeline_wq_int8(const Option& opt);
     int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+    // SpacemiT K3 A100 IME2 (smt.vfwmadot) 路径
+    int create_pipeline_ime2(const Option& opt);
+    int forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 
 public:
     int nT;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+    int use_ime2_path = 0;
+    Mat BT_data_ime2;
+#endif
 #if NCNN_WEIGHT_QUANT
     Mat BT_data_wq_int8;
     Mat BT_data_wq_int8_descales;

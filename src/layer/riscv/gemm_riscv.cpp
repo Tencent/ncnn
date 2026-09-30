@@ -10,6 +10,7 @@
 #include "riscv_usability.h"
 
 #include "cpu.h"
+#include <stdio.h>
 
 namespace ncnn {
 
@@ -1893,6 +1894,34 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 #if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage)
     {
+#if NCNN_RISCV_SPACEMIT_IME2
+        // SpacemiT K3 A100 IME2 快速路径（实现与硬件探测都在 gemm_riscv_zfh.cpp 内）。
+        //   形状条件：transB=1、无常量 A、无转置输出。
+        //   C 项处理：
+        //     - constantC 且 broadcast=-1（空头 C）→ C 永远不存在 → IME2 完全接管，不建 fp16s 管线；
+        //     - 否则 forward 时可能出现 runtime C → 两条管线都建，forward 按有无 C 选路。
+        //   注意：ncnn 权重打包布局按 vlenb 定死，进程必须钉在单簇（跨簇会算错）。
+        if (!constantA && constantB && transB && !transA
+                && !output_transpose && !output_N1M
+                && (!constantC || constant_broadcast_type_C == -1))
+        {
+            bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+            if (c_never_exists)
+            {
+                if (create_pipeline_ime2(opt) == 0)
+                {
+                    if (opt.lightmode)
+                        B_data.release();
+                    return 0;   // IME2 完全接管
+                }
+            }
+            else
+            {
+                // 可能有 runtime C：额外建 IME2 打包，同时继续建 fp16s 管线
+                create_pipeline_ime2(opt);
+            }
+        }
+#endif
         return create_pipeline_fp16s(opt);
     }
 #endif
@@ -2046,6 +2075,29 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_ZFH
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();
+#if NCNN_RISCV_SPACEMIT_IME2
+    if (use_ime2_path && elembits == 16)
+    {
+        // IME2 路径只处理「无 C 项」的纯 A*B^T。
+        // constantB 时 C 只可能来自 bottom_blobs[1]（runtime 传入）；constantC 且
+        // broadcast=-1 时 CT_data 为空（等价于无 C）。有非空 C 且 beta!=0 则回退。
+        bool has_C = false;
+        if (constantC)
+        {
+            has_C = !CT_data.empty() && beta != 0.f;
+        }
+        else if (bottom_blobs.size() == 2)
+        {
+            has_C = !bottom_blobs[1].empty() && beta != 0.f;
+        }
+        else if (bottom_blobs.size() >= 3)
+        {
+            has_C = true; // 保守起见，多输入一律回退
+        }
+        if (!has_C)
+            return forward_ime2(bottom_blobs, top_blobs, opt);
+    }
+#endif
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);
