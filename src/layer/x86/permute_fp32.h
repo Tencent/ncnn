@@ -129,8 +129,8 @@ static NCNN_FORCEINLINE void permute_transpose2x8_stride(const float* ptr, size_
     __m128 _t3 = _mm_movelh_ps(_r6, _r7);
     __m128 _a1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(2, 0, 2, 0));
     __m128 _b1 = _mm_shuffle_ps(_t2, _t3, _MM_SHUFFLE(3, 1, 3, 1));
-    __m256 _a = _mm256_insertf128_ps(_mm256_castps128_ps256(_a0), _a1, 1);
-    __m256 _b = _mm256_insertf128_ps(_mm256_castps128_ps256(_b0), _b1, 1);
+    __m256 _a = combine4x2_ps(_a0, _a1);
+    __m256 _b = combine4x2_ps(_b0, _b1);
     _mm256_storeu_ps(outptr, _a);
     _mm256_storeu_ps(outptr + outstride, _b);
 }
@@ -247,14 +247,8 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride(const float* ptr, size
     __m128 _t7 = _mm_movelh_ps(_r14, _r15);
     __m128 _a3 = _mm_shuffle_ps(_t6, _t7, _MM_SHUFFLE(2, 0, 2, 0));
     __m128 _b3 = _mm_shuffle_ps(_t6, _t7, _MM_SHUFFLE(3, 1, 3, 1));
-    __m512 _a = _mm512_castps128_ps512(_a0);
-    _a = _mm512_insertf32x4(_a, _a1, 1);
-    _a = _mm512_insertf32x4(_a, _a2, 2);
-    _a = _mm512_insertf32x4(_a, _a3, 3);
-    __m512 _b = _mm512_castps128_ps512(_b0);
-    _b = _mm512_insertf32x4(_b, _b1, 1);
-    _b = _mm512_insertf32x4(_b, _b2, 2);
-    _b = _mm512_insertf32x4(_b, _b3, 3);
+    __m512 _a = combine4x4_ps(_a0, _a1, _a2, _a3);
+    __m512 _b = combine4x4_ps(_b0, _b1, _b2, _b3);
     _mm512_storeu_ps(outptr, _a);
     _mm512_storeu_ps(outptr + outstride, _b);
 }
