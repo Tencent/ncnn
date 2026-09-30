@@ -3,10 +3,11 @@
 
 // full register tiles have no size or packing branches
 
+// tile names use input columns x rows
 // contiguous tiles take only pointers; stride variants use scalar-element strides
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose4x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     int _p0;
     memcpy(&_p0, ptr, 4);
@@ -63,7 +64,7 @@ static NCNN_FORCEINLINE void permute_transpose4x4_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __AVX__
-static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
+static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
 {
 #if __AVX512BW__
     const __m512i _index = _mm512_set_epi16(31, 23, 15, 7, 30, 22, 14, 6, 29, 21, 13, 5, 28, 20, 12, 4, 27, 19, 11, 3, 26, 18, 10, 2, 25, 17, 9, 1, 24, 16, 8, 0);
@@ -86,7 +87,7 @@ static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned sho
 #endif // __AVX__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)(ptr));
     __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + stride));
@@ -109,15 +110,15 @@ static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose4x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose16x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-    permute_transpose4x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
-    permute_transpose4x8_stride_bf16s_fp16s(ptr + 8, stride, outptr + 8 * outstride, outstride);
+    permute_transpose8x4_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
+    permute_transpose8x4_stride_bf16s_fp16s(ptr + 8, stride, outptr + 8 * outstride, outstride);
 }
 #endif // __AVX512F__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose8x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     int _p0;
     memcpy(&_p0, ptr, 4);
@@ -161,7 +162,7 @@ static NCNN_FORCEINLINE void permute_transpose8x2_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __AVX__
-static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
+static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
 {
 #if __AVX512BW__
     const __m512i _index = _mm512_set_epi16(31, 27, 23, 19, 15, 11, 7, 3, 30, 26, 22, 18, 14, 10, 6, 2, 29, 25, 21, 17, 13, 9, 5, 1, 28, 24, 20, 16, 12, 8, 4, 0);
@@ -195,7 +196,7 @@ static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned sho
 #endif // __AVX__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)(ptr));
     __m128i _r1 = _mm_loadl_epi64((const __m128i*)(ptr + stride));
@@ -237,7 +238,7 @@ static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose8x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose16x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_transpose8x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
     permute_transpose8x8_stride_bf16s_fp16s(ptr + 8, stride, outptr + 8 * outstride, outstride);
@@ -245,7 +246,7 @@ static NCNN_FORCEINLINE void permute_transpose8x16_stride_bf16s_fp16s(const unsi
 #endif // __AVX512F__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose16x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     int _p0;
     memcpy(&_p0, ptr, 4);
@@ -331,15 +332,15 @@ static NCNN_FORCEINLINE void permute_transpose16x2_stride_bf16s_fp16s(const unsi
 #endif // __AVX512F__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose16x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose4x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-    permute_transpose8x4_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
-    permute_transpose8x4_stride_bf16s_fp16s(ptr + 8 * stride, stride, outptr + 8, outstride);
+    permute_transpose4x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
+    permute_transpose4x8_stride_bf16s_fp16s(ptr + 8 * stride, stride, outptr + 8, outstride);
 }
 #endif // __AVX512F__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose16x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose8x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_transpose8x8_stride_bf16s_fp16s(ptr, stride, outptr, outstride);
     permute_transpose8x8_stride_bf16s_fp16s(ptr + 8 * stride, stride, outptr + 8, outstride);
@@ -387,7 +388,7 @@ static NCNN_FORCEINLINE void permute_transpose16x16_stride_bf16s_fp16s(const uns
 
 // final two or one rows: load complete vectors and write only the valid output lanes
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose16x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m256i _r0 = _mm256_loadu_si256((const __m256i*)ptr);
     __m256i _r1 = _mm256_loadu_si256((const __m256i*)(ptr + stride));
@@ -433,7 +434,7 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
 #endif // __AVX512F__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose8x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
     __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + stride));
@@ -461,7 +462,7 @@ static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose4x2_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
     __m128i _r1 = _mm_loadl_epi64((const __m128i*)(ptr + stride));
@@ -479,7 +480,7 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __AVX512F__
-static NCNN_FORCEINLINE void permute_transpose1x16_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose16x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
     __m256i _r0 = _mm256_loadu_si256((const __m256i*)ptr);
     __m128i _v0 = _mm256_castsi256_si128(_r0);
@@ -504,7 +505,7 @@ static NCNN_FORCEINLINE void permute_transpose1x16_stride_bf16s_fp16s(const unsi
 #endif // __AVX512F__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose1x8_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose8x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
     __m128i _v0 = _r0;
@@ -520,7 +521,7 @@ static NCNN_FORCEINLINE void permute_transpose1x8_stride_bf16s_fp16s(const unsig
 #endif // __SSE2__
 
 #if __SSE2__
-static NCNN_FORCEINLINE void permute_transpose1x4_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
+static NCNN_FORCEINLINE void permute_transpose4x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
     __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
     __m128i _v0 = _r0;
@@ -538,12 +539,12 @@ static void permute_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
 #if __AVX512F__
     for (; j + 15 < cols; j += 16)
     {
-        permute_transpose4x16_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose16x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
 #endif // __AVX512F__
     for (; j + 7 < cols; j += 8)
     {
-        permute_transpose4x8_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose8x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j + 3 < cols; j += 4)
     {
@@ -551,7 +552,7 @@ static void permute_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
     }
     for (; j + 1 < cols; j += 2)
     {
-        permute_transpose4x2_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose2x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j < cols; j++)
     {
@@ -568,7 +569,7 @@ static void permute_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
 #if __AVX512F__
     for (; j + 15 < cols; j += 16)
     {
-        permute_transpose8x16_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose16x8_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
 #endif // __AVX512F__
     for (; j + 7 < cols; j += 8)
@@ -577,11 +578,11 @@ static void permute_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t s
     }
     for (; j + 3 < cols; j += 4)
     {
-        permute_transpose8x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose4x8_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j + 1 < cols; j += 2)
     {
-        permute_transpose8x2_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose2x8_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j < cols; j++)
     {
@@ -601,15 +602,15 @@ static void permute_pack16_stride_bf16s_fp16s(const unsigned short* ptr, size_t 
     }
     for (; j + 7 < cols; j += 8)
     {
-        permute_transpose16x8_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose8x16_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j + 3 < cols; j += 4)
     {
-        permute_transpose16x4_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose4x16_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j + 1 < cols; j += 2)
     {
-        permute_transpose16x2_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
+        permute_transpose2x16_stride_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride);
     }
     for (; j < cols; j++)
     {
@@ -628,13 +629,13 @@ static void permute_unpack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t
 #if __AVX512F__
     for (; i + 15 < rows; i += 16)
     {
-        permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
 #endif // __AVX512F__
 #if __AVX__
     for (; i + 7 < rows; i += 8)
     {
-        permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
 #endif // __AVX__
     for (; i + 3 < rows; i += 4)
@@ -643,11 +644,11 @@ static void permute_unpack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t
     }
     for (; i + 1 < rows; i += 2)
     {
-        permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i < rows; i++)
     {
-        permute_transpose1x4_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+        permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
     }
 }
 #endif // __SSE2__
@@ -660,7 +661,7 @@ static void permute_unpack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t
 #if __AVX512F__
     for (; i + 15 < rows; i += 16)
     {
-        permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
 #endif // __AVX512F__
     for (; i + 7 < rows; i += 8)
@@ -669,15 +670,15 @@ static void permute_unpack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t
     }
     for (; i + 3 < rows; i += 4)
     {
-        permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i + 1 < rows; i += 2)
     {
-        permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i < rows; i++)
     {
-        permute_transpose1x8_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+        permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
     }
 }
 #endif // __AVX__
@@ -693,19 +694,19 @@ static void permute_unpack16_stride_bf16s_fp16s(const unsigned short* ptr, size_
     }
     for (; i + 7 < rows; i += 8)
     {
-        permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i + 3 < rows; i += 4)
     {
-        permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i + 1 < rows; i += 2)
     {
-        permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
+        permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride, stride, outptr + i, outstride);
     }
     for (; i < rows; i++)
     {
-        permute_transpose1x16_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
+        permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride, outptr + i, outstride);
     }
 }
 #endif // __AVX512F__
@@ -723,15 +724,15 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
         }
         for (; j + 7 < cols; j += 8)
         {
-            permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j + 3 < cols; j += 4)
         {
-            permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j + 1 < cols; j += 2)
         {
-            permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j < cols; j++)
         {
@@ -749,7 +750,7 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
-            permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
         for (; j + 7 < cols; j += 8)
@@ -758,11 +759,11 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
         }
         for (; j + 3 < cols; j += 4)
         {
-            permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j + 1 < cols; j += 2)
         {
-            permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j < cols; j++)
         {
@@ -780,12 +781,12 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
-            permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
         for (; j + 7 < cols; j += 8)
         {
-            permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j + 3 < cols; j += 4)
         {
@@ -793,7 +794,7 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
         }
         for (; j + 1 < cols; j += 2)
         {
-            permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
         for (; j < cols; j++)
         {
@@ -811,19 +812,19 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
-            permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
 #if __SSE2__
         for (; j + 7 < cols; j += 8)
         {
-            permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __SSE2__
 #if __SSE2__
         for (; j + 3 < cols; j += 4)
         {
-            permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
+            permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride);
         }
 #endif // __SSE2__
         for (; j < cols; j++)
@@ -839,19 +840,19 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
 #if __AVX512F__
         for (; j + 15 < cols; j += 16)
         {
-            permute_transpose1x16_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+            permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
         }
 #endif // __AVX512F__
 #if __SSE2__
         for (; j + 7 < cols; j += 8)
         {
-            permute_transpose1x8_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+            permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
         }
 #endif // __SSE2__
 #if __SSE2__
         for (; j + 3 < cols; j += 4)
         {
-            permute_transpose1x4_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
+            permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride + j, outptr + j * outstride + i, outstride);
         }
 #endif // __SSE2__
         for (; j < cols; j++)
@@ -1013,7 +1014,7 @@ static void permute_transpose_pack4to8_bf16s_fp16s(const unsigned short* ptr, si
         {
             const unsigned short* p = ptr + (y / 4) * stride + x * 4;
             unsigned short* out = outptr + (x / 8) * outstride + y * 8;
-            permute_transpose8x4_bf16s_fp16s(p, out);
+            permute_transpose4x8_bf16s_fp16s(p, out);
         }
     }
 }
@@ -1028,7 +1029,7 @@ static void permute_transpose_pack4to16_bf16s_fp16s(const unsigned short* ptr, s
         {
             const unsigned short* p = ptr + (y / 4) * stride + x * 4;
             unsigned short* out = outptr + (x / 16) * outstride + y * 16;
-            permute_transpose16x4_stride_bf16s_fp16s(p, 4, out, 16);
+            permute_transpose4x16_stride_bf16s_fp16s(p, 4, out, 16);
         }
     }
 }
@@ -1059,7 +1060,7 @@ static void permute_transpose_pack8to4_bf16s_fp16s(const unsigned short* ptr, si
         {
             const unsigned short* p = ptr + (y / 8) * stride + x * 8;
             unsigned short* out = outptr + (x / 4) * outstride + y * 4;
-            permute_transpose4x8_bf16s_fp16s(p, out);
+            permute_transpose8x4_bf16s_fp16s(p, out);
         }
     }
 }
@@ -1089,7 +1090,7 @@ static void permute_transpose_pack8to16_bf16s_fp16s(const unsigned short* ptr, s
         {
             const unsigned short* p = ptr + (y / 8) * stride + x * 8;
             unsigned short* out = outptr + (x / 16) * outstride + y * 16;
-            permute_transpose16x8_stride_bf16s_fp16s(p, 8, out, 16);
+            permute_transpose8x16_stride_bf16s_fp16s(p, 8, out, 16);
         }
     }
 }
@@ -1120,7 +1121,7 @@ static void permute_transpose_pack16to4_bf16s_fp16s(const unsigned short* ptr, s
         {
             const unsigned short* p = ptr + (y / 16) * stride + x * 16;
             unsigned short* out = outptr + (x / 4) * outstride + y * 4;
-            permute_transpose4x16_stride_bf16s_fp16s(p, 16, out, 4);
+            permute_transpose16x4_stride_bf16s_fp16s(p, 16, out, 4);
         }
     }
 }
@@ -1135,7 +1136,7 @@ static void permute_transpose_pack16to8_bf16s_fp16s(const unsigned short* ptr, s
         {
             const unsigned short* p = ptr + (y / 16) * stride + x * 16;
             unsigned short* out = outptr + (x / 8) * outstride + y * 8;
-            permute_transpose8x16_stride_bf16s_fp16s(p, 16, out, 8);
+            permute_transpose16x8_stride_bf16s_fp16s(p, 16, out, 8);
         }
     }
 }
@@ -1357,14 +1358,14 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 7 < rows; i += 8)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 3 < rows; i += 4)
@@ -1378,14 +1379,14 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose2x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i < rows; i++)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose1x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, outptr + j * outstride + i, outcstep);
+                permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride + j * 4, outptr + j * outstride + i, outcstep);
             }
         }
     }
@@ -1459,7 +1460,7 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 7 < rows; i += 8)
@@ -1473,21 +1474,21 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 1 < rows; i += 2)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose2x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i < rows; i++)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose1x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, outptr + j * outstride + i, outcstep);
+                permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride + j * 8, outptr + j * outstride + i, outcstep);
             }
         }
     }
@@ -1567,28 +1568,28 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 3 < rows; i += 4)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i + 1 < rows; i += 2)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose2x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
+                permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
             }
         }
         for (; i < rows; i++)
         {
             for (int j = x; j < xmax; j++)
             {
-                permute_transpose1x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, outptr + j * outstride + i, outcstep);
+                permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride + j * 16, outptr + j * outstride + i, outcstep);
             }
         }
     }
@@ -2048,7 +2049,7 @@ static void permute3d_pack4to8_bf16s_fp16s(const unsigned short* ptr, unsigned s
         unsigned short* out = outptr + c * 4 * 8;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose8x4_bf16s_fp16s(p, out);
+            permute_transpose4x8_bf16s_fp16s(p, out);
             p += wstep;
             out += outwstep;
         }
@@ -2063,7 +2064,7 @@ static void permute3d_pack4to8_stride_bf16s_fp16s(const unsigned short* ptr, uns
         unsigned short* out = outptr + c * 4 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose8x4_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose4x8_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
@@ -2080,7 +2081,7 @@ static void permute3d_pack4to16_stride_bf16s_fp16s(const unsigned short* ptr, un
         unsigned short* out = outptr + c * 4 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose16x4_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose4x16_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
@@ -2126,7 +2127,7 @@ static void permute3d_pack8to4_bf16s_fp16s(const unsigned short* ptr, unsigned s
         unsigned short* out = outptr + c * 8 * 4;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose4x8_bf16s_fp16s(p, out);
+            permute_transpose8x4_bf16s_fp16s(p, out);
             p += wstep;
             out += outwstep;
         }
@@ -2141,7 +2142,7 @@ static void permute3d_pack8to4_stride_bf16s_fp16s(const unsigned short* ptr, uns
         unsigned short* out = outptr + c * 8 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose4x8_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose8x4_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
@@ -2175,7 +2176,7 @@ static void permute3d_pack8to16_stride_bf16s_fp16s(const unsigned short* ptr, un
         unsigned short* out = outptr + c * 8 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose16x8_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose8x16_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
@@ -2221,7 +2222,7 @@ static void permute3d_pack16to4_stride_bf16s_fp16s(const unsigned short* ptr, un
         unsigned short* out = outptr + c * 16 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose4x16_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose16x4_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
@@ -2238,7 +2239,7 @@ static void permute3d_pack16to8_stride_bf16s_fp16s(const unsigned short* ptr, un
         unsigned short* out = outptr + c * 16 * outcstep;
         for (int x = 0; x < w; x++)
         {
-            permute_transpose8x16_stride_bf16s_fp16s(p, hstep, out, outcstep);
+            permute_transpose16x8_stride_bf16s_fp16s(p, hstep, out, outcstep);
             p += wstep;
             out += outwstep;
         }
