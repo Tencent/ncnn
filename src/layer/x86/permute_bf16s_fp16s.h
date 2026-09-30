@@ -703,8 +703,23 @@ static void permute_unpack16_stride_bf16s_fp16s(const unsigned short* ptr, size_
 }
 #endif // __AVX512F__
 
-static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
+static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
+    if (cols == 1)
+    {
+        if (stride == 1)
+            memcpy(outptr, ptr, (size_t)rows * sizeof(unsigned short));
+        else
+            for (int i = 0; i < rows; i++)
+                outptr[i] = ptr[i * stride];
+        return;
+    }
+    if (rows == 1 && outstride == 1)
+    {
+        memcpy(outptr, ptr, (size_t)cols * sizeof(unsigned short));
+        return;
+    }
+
     int i = 0;
 #if __AVX512F__
     for (; i + 15 < rows; i += 16)
@@ -852,69 +867,6 @@ static void permute_transpose_pack1_block_bf16s_fp16s(const unsigned short* ptr,
             outptr[j * outstride + i] = ptr[i * stride + j];
         }
     }
-}
-
-// cache blocking is useful for medium planes with regularly spaced rows
-// small task blocks and narrow pack/unpack matrices use the direct kernel
-static void permute_transpose_pack1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
-{
-    if (cols == 1)
-    {
-        if (stride == 1)
-            memcpy(outptr, ptr, (size_t)rows * sizeof(unsigned short));
-        else
-            for (int i = 0; i < rows; i++)
-                outptr[i] = ptr[i * stride];
-        return;
-    }
-    if (rows == 1 && outstride == 1)
-    {
-        memcpy(outptr, ptr, (size_t)cols * sizeof(unsigned short));
-        return;
-    }
-
-    // large planes keep an output stripe resident while scanning the input
-    if (rows >= 512 && cols >= 16 && stride >= 512 && outstride >= 512)
-    {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack1_block_bf16s_fp16s(ptr + j, stride, outptr + j * outstride, outstride, rows, std::min(32, cols - j));
-        return;
-    }
-    // narrow input rows already fit in a register-row sweep
-    if (rows >= 16 && (size_t)cols * sizeof(unsigned short) >= 1024 && (rows > 512 || cols > 512))
-    {
-        // coalesced axes can form long rectangles
-        // bound the tile payload to 16 KiB on each side, allowing wider tiles for fewer input rows
-        const int row_block = std::min(rows, 64);
-        const int col_block = std::min(256, 16384 / (row_block * (int)sizeof(unsigned short)));
-        for (int j = 0; j < cols; j += col_block)
-        {
-            for (int i = 0; i < rows; i += row_block)
-                permute_transpose_pack1_block_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(row_block, rows - i), std::min(col_block, cols - j));
-        }
-        return;
-    }
-
-#if __SSE2__
-    if (rows >= 256 && rows <= 512 && cols >= 256 && cols <= 512 && stride <= 1024 && outstride <= 1024
-        && stride % 256 == 0 && outstride % 256 == 0)
-    {
-#if __AVX512F__
-        const int block = rows * cols < 131072 ? 64 : 32;
-#else
-        const int block = 32;
-#endif
-        for (int i = 0; i < rows; i += block)
-        {
-            for (int j = 0; j < cols; j += block)
-            {
-                permute_transpose_pack1_block_bf16s_fp16s(ptr + i * stride + j, stride, outptr + j * outstride + i, outstride, std::min(block, rows - i), std::min(block, cols - j));
-            }
-        }
-        return;
-    }
-#endif // __SSE2__
-    permute_transpose_pack1_block_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
 }
 
 // 2d: packed rows become packed output rows after transposing w and h
@@ -1160,8 +1112,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __SSE2__
     if (elempack == 1 && out_elempack == 4)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack1to4_bf16s_fp16s(ptr + (size_t)j * 1, stride, outptr + (j / 4) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack1to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __SSE2__
@@ -1169,8 +1120,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX__
     if (elempack == 1 && out_elempack == 8)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack1to8_bf16s_fp16s(ptr + (size_t)j * 1, stride, outptr + (j / 8) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack1to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX__
@@ -1178,8 +1128,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 1 && out_elempack == 16)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack1to16_bf16s_fp16s(ptr + (size_t)j * 1, stride, outptr + (j / 16) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack1to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1187,8 +1136,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __SSE2__
     if (elempack == 4 && out_elempack == 1)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack4to1_bf16s_fp16s(ptr + (size_t)j * 4, stride, outptr + (j / 1) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack4to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __SSE2__
@@ -1196,8 +1144,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __SSE2__
     if (elempack == 4 && out_elempack == 4)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack4to4_bf16s_fp16s(ptr + (size_t)j * 4, stride, outptr + (j / 4) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack4to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __SSE2__
@@ -1205,8 +1152,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX__
     if (elempack == 4 && out_elempack == 8)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack4to8_bf16s_fp16s(ptr + (size_t)j * 4, stride, outptr + (j / 8) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack4to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX__
@@ -1214,8 +1160,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 4 && out_elempack == 16)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack4to16_bf16s_fp16s(ptr + (size_t)j * 4, stride, outptr + (j / 16) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack4to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1223,8 +1168,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX__
     if (elempack == 8 && out_elempack == 1)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack8to1_bf16s_fp16s(ptr + (size_t)j * 8, stride, outptr + (j / 1) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack8to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX__
@@ -1232,8 +1176,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX__
     if (elempack == 8 && out_elempack == 4)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack8to4_bf16s_fp16s(ptr + (size_t)j * 8, stride, outptr + (j / 4) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack8to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX__
@@ -1241,8 +1184,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack8to8_bf16s_fp16s(ptr + (size_t)j * 8, stride, outptr + (j / 8) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack8to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX__
@@ -1250,8 +1192,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 8 && out_elempack == 16)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack8to16_bf16s_fp16s(ptr + (size_t)j * 8, stride, outptr + (j / 16) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack8to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1259,8 +1200,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 1)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack16to1_bf16s_fp16s(ptr + (size_t)j * 16, stride, outptr + (j / 1) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack16to1_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1268,8 +1208,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 4)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack16to4_bf16s_fp16s(ptr + (size_t)j * 16, stride, outptr + (j / 4) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack16to4_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1277,8 +1216,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 8)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack16to8_bf16s_fp16s(ptr + (size_t)j * 16, stride, outptr + (j / 8) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack16to8_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1286,8 +1224,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 #if __AVX512F__
     if (elempack == 16 && out_elempack == 16)
     {
-        for (int j = 0; j < cols; j += 32)
-            permute_transpose_pack16to16_bf16s_fp16s(ptr + (size_t)j * 16, stride, outptr + (j / 16) * outstride, outstride, rows, std::min(32, cols - j));
+        permute_transpose_pack16to16_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
 #endif // __AVX512F__
@@ -1306,33 +1243,28 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride_bf16s_fp16s(const u
 
 static void permute_spatial_pack4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 1 < rows; i += 2)
     {
-        const int xmax = std::min(x + 8, cols);
-        int i = 0;
-        for (; i + 1 < rows; i += 2)
+        int j = 0;
+        for (; j + 1 < cols; j += 2)
         {
-            int j = x;
-            for (; j + 1 < xmax; j += 2)
-            {
-                permute_spatial2x2_pack4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i * 4, outstride);
-            }
-            for (; j < xmax; j++)
-            {
-                __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
-                _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
-                __m128i _v1 = _mm_loadl_epi64((const __m128i*)(ptr + (i + 1) * stride + j * 4));
-                _mm_storel_epi64((__m128i*)(outptr + j * outstride + (i + 1) * 4), _v1);
-            }
+            permute_spatial2x2_pack4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i * 4, outstride);
         }
-        for (; i < rows; i++)
+        for (; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
-                _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
-            }
+            __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
+            _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
+            __m128i _v1 = _mm_loadl_epi64((const __m128i*)(ptr + (i + 1) * stride + j * 4));
+            _mm_storel_epi64((__m128i*)(outptr + j * outstride + (i + 1) * 4), _v1);
+        }
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
+            _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
         }
     }
 }
@@ -1340,46 +1272,40 @@ static void permute_spatial_pack4_bf16s_fp16s(const unsigned short* ptr, size_t 
 static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, size_t outcstep, int rows, int cols)
 {
 #if __AVX512F__
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 15 < rows; i += 16)
     {
-        const int xmax = std::min(x + 8, cols);
-
-        int i = 0;
-        for (; i + 15 < rows; i += 16)
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose4x16_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 7 < rows; i += 8)
+    }
+    for (; i + 7 < rows; i += 8)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose4x8_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 3 < rows; i += 4)
+    }
+    for (; i + 3 < rows; i += 4)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose4x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose4x4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 1 < rows; i += 2)
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose4x2_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i < rows; i++)
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride + j * 4, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose4x1_stride_bf16s_fp16s(ptr + i * stride + j * 4, outptr + j * outstride + i, outcstep);
         }
     }
 #else
@@ -1400,33 +1326,28 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const u
 
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 1 < rows; i += 2)
     {
-        const int xmax = std::min(x + 8, cols);
-        int i = 0;
-        for (; i + 1 < rows; i += 2)
+        int j = 0;
+        for (; j + 1 < cols; j += 2)
         {
-            int j = x;
-            for (; j + 1 < xmax; j += 2)
-            {
-                permute_spatial2x2_pack8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i * 8, outstride);
-            }
-            for (; j < xmax; j++)
-            {
-                __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
-                _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
-                __m128i _v1 = _mm_loadu_si128((const __m128i*)(ptr + (i + 1) * stride + j * 8));
-                _mm_storeu_si128((__m128i*)(outptr + j * outstride + (i + 1) * 8), _v1);
-            }
+            permute_spatial2x2_pack8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i * 8, outstride);
         }
-        for (; i < rows; i++)
+        for (; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
-                _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
-            }
+            __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
+            _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
+            __m128i _v1 = _mm_loadu_si128((const __m128i*)(ptr + (i + 1) * stride + j * 8));
+            _mm_storeu_si128((__m128i*)(outptr + j * outstride + (i + 1) * 8), _v1);
+        }
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
+            _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
         }
     }
 }
@@ -1442,46 +1363,40 @@ static void permute_spatial_pack8to1_bf16s_fp16s(const unsigned short* ptr, size
         return;
     }
 
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 15 < rows; i += 16)
     {
-        const int xmax = std::min(x + 8, cols);
-
-        int i = 0;
-        for (; i + 15 < rows; i += 16)
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose8x16_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 7 < rows; i += 8)
+    }
+    for (; i + 7 < rows; i += 8)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose8x8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 3 < rows; i += 4)
+    }
+    for (; i + 3 < rows; i += 4)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose8x4_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 1 < rows; i += 2)
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose8x2_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i < rows; i++)
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride + j * 8, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose8x1_stride_bf16s_fp16s(ptr + i * stride + j * 8, outptr + j * outstride + i, outcstep);
         }
     }
 #else
@@ -1502,33 +1417,28 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack16_stride_bf16s_fp16s(const 
 
 static void permute_spatial_pack16_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 1 < rows; i += 2)
     {
-        const int xmax = std::min(x + 8, cols);
-        int i = 0;
-        for (; i + 1 < rows; i += 2)
+        int j = 0;
+        for (; j + 1 < cols; j += 2)
         {
-            int j = x;
-            for (; j + 1 < xmax; j += 2)
-            {
-                permute_spatial2x2_pack16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i * 16, outstride);
-            }
-            for (; j < xmax; j++)
-            {
-                __m256 _v0 = _mm256_loadu_ps((const float*)(ptr + i * stride + j * 16));
-                _mm256_storeu_ps((float*)(outptr + j * outstride + i * 16), _v0);
-                __m256 _v1 = _mm256_loadu_ps((const float*)(ptr + (i + 1) * stride + j * 16));
-                _mm256_storeu_ps((float*)(outptr + j * outstride + (i + 1) * 16), _v1);
-            }
+            permute_spatial2x2_pack16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i * 16, outstride);
         }
-        for (; i < rows; i++)
+        for (; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                __m256 _v0 = _mm256_loadu_ps((const float*)(ptr + i * stride + j * 16));
-                _mm256_storeu_ps((float*)(outptr + j * outstride + i * 16), _v0);
-            }
+            __m256 _v0 = _mm256_loadu_ps((const float*)(ptr + i * stride + j * 16));
+            _mm256_storeu_ps((float*)(outptr + j * outstride + i * 16), _v0);
+            __m256 _v1 = _mm256_loadu_ps((const float*)(ptr + (i + 1) * stride + j * 16));
+            _mm256_storeu_ps((float*)(outptr + j * outstride + (i + 1) * 16), _v1);
+        }
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            __m256 _v0 = _mm256_loadu_ps((const float*)(ptr + i * stride + j * 16));
+            _mm256_storeu_ps((float*)(outptr + j * outstride + i * 16), _v0);
         }
     }
 }
@@ -1543,46 +1453,40 @@ static void permute_spatial_pack16to1_bf16s_fp16s(const unsigned short* ptr, siz
         return;
     }
 
-    // keep adjacent input records and output rows in the same cache block
-    for (int x = 0; x < cols; x += 8)
+    int i = 0;
+    for (; i + 15 < rows; i += 16)
     {
-        const int xmax = std::min(x + 8, cols);
-
-        int i = 0;
-        for (; i + 15 < rows; i += 16)
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose16x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose16x16_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 7 < rows; i += 8)
+    }
+    for (; i + 7 < rows; i += 8)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose16x8_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 3 < rows; i += 4)
+    }
+    for (; i + 3 < rows; i += 4)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose16x4_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i + 1 < rows; i += 2)
+    }
+    for (; i + 1 < rows; i += 2)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose16x2_stride_bf16s_fp16s(ptr + i * stride + j * 16, stride, outptr + j * outstride + i, outcstep);
         }
-        for (; i < rows; i++)
+    }
+    for (; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
         {
-            for (int j = x; j < xmax; j++)
-            {
-                permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride + j * 16, outptr + j * outstride + i, outcstep);
-            }
+            permute_transpose16x1_stride_bf16s_fp16s(ptr + i * stride + j * 16, outptr + j * outstride + i, outcstep);
         }
     }
 }
