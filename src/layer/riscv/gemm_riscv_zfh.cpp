@@ -1777,7 +1777,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
 }
 #endif // NCNN_ZFH
 
-
 // ================== SpacemiT K3 A100 IME2 (smt.vfwmadot) ==================
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
 #if __riscv_v
@@ -1814,7 +1813,9 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
 int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if !__riscv_v
-    (void)bottom_blobs; (void)top_blobs; (void)opt;
+    (void)bottom_blobs;
+    (void)top_blobs;
+    (void)opt;
     return -1;
 #else
     const Mat& A = bottom_blobs[0];
@@ -1848,6 +1849,5 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif
 }
 #endif // NCNN_ZFH
-
 
 } //namespace ncnn
