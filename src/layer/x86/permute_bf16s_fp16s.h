@@ -2695,7 +2695,7 @@ static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& botto
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int z = 0; z < planes; z++)
@@ -2718,7 +2718,7 @@ static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w;
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int z = 0; z < d; z++)
@@ -2741,7 +2741,7 @@ static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w * h;
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int y = 0; y < h; y++)
@@ -2764,7 +2764,7 @@ static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
     const int channels = bottom_blob.c;
     const size_t stride = bottom_blob.cstep;
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int y = 0; y < h; y++)
@@ -2853,7 +2853,7 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
             return;
         }
 
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int q = 0; q < top_blob.c; q++)
         {
             for (int y = 0; y < top_blob.h; y++)
@@ -3083,7 +3083,7 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(3) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < channels; q++)
     {
         for (int y = 0; y < h; y++)
@@ -3225,7 +3225,7 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3236,7 +3236,7 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3292,7 +3292,7 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3384,7 +3384,7 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3395,7 +3395,7 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3447,7 +3447,7 @@ static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3503,7 +3503,7 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3577,7 +3577,7 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3588,7 +3588,7 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3644,7 +3644,7 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3696,7 +3696,7 @@ static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3770,7 +3770,7 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3781,7 +3781,7 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3833,7 +3833,7 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3931,7 +3931,7 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -3942,7 +3942,7 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -3994,7 +3994,7 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -4092,7 +4092,7 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        #pragma omp parallel for collapse(2) num_threads(nT)
+        #pragma omp parallel for num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -4103,7 +4103,7 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -4155,7 +4155,7 @@ static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    #pragma omp parallel for collapse(2) num_threads(nT)
+    #pragma omp parallel for num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
