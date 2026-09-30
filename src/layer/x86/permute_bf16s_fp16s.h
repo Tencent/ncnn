@@ -2651,11 +2651,7 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
 
 static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    if (nT == 1)
-    {
-        permute_transpose_blocks_bf16s_fp16s(ptr, stride, outptr, outstride, rows, cols, size);
-        return;
-    }
+    (void)nT;
 
     // scalar matrices keep the full register transpose width
 #if __AVX512F__
@@ -2683,13 +2679,6 @@ static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* 
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int q = 0; q < planes; q++)
-            permute_transpose_blocks_bf16s_fp16s(ptr + q * step, stride, outptr + q * outstep, outstride, rows, cols, size);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < planes; q++)
     {
@@ -2700,21 +2689,11 @@ static void permute_transpose_matrices_stride_bf16s_fp16s(const unsigned short* 
 // transpose spatial planes within each input channel group
 static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int rows, int cols, size_t stride, size_t outstride, int planes, size_t step, size_t outstep, int nT)
 {
+    (void)nT;
+
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const int out_elempack = top_blob.elempack;
-
-    if (nT == 1)
-    {
-        for (int q = 0; q < channels; q++)
-        {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            unsigned short* outptr = top_blob.channel(q * elempack / out_elempack);
-            for (int z = 0; z < planes; z++)
-                permute_transpose_spatial_bf16s_fp16s(ptr + z * step, stride, outptr + z * outstep, outstride, top_blob.cstep, rows, cols, elempack, out_elempack);
-        }
-        return;
-    }
 
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int q = 0; q < channels; q++)
@@ -2731,25 +2710,13 @@ static void permute_transpose_spatial_planes_stride_bf16s_fp16s(const Mat& botto
 // transpose h and w while preserving the other two slice axes
 static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outdstep, int nT)
 {
+    (void)nT;
+
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w;
-
-    if (nT == 1)
-    {
-        for (int q = 0; q < channels; q++)
-        {
-            for (int z = 0; z < d; z++)
-            {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + z * (size_t)w * h;
-                unsigned short* outptr = (unsigned short*)top_blob + q * outcstep + z * outdstep;
-                permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, h, w);
-            }
-        }
-        return;
-    }
 
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int q = 0; q < channels; q++)
@@ -2766,25 +2733,13 @@ static void permute_transpose_hw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
 // transpose d and w while preserving the other two slice axes
 static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outcstep, size_t outhstep, int nT)
 {
+    (void)nT;
+
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const size_t stride = (size_t)w * h;
-
-    if (nT == 1)
-    {
-        for (int q = 0; q < channels; q++)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + q * bottom_blob.cstep + y * (size_t)w;
-                unsigned short* outptr = (unsigned short*)top_blob + q * outcstep + y * outhstep;
-                permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, d, w);
-            }
-        }
-        return;
-    }
 
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int q = 0; q < channels; q++)
@@ -2801,25 +2756,13 @@ static void permute_transpose_dw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob
 // transpose c and w while preserving the other two slice axes
 static void permute_transpose_cw_pack1_stride_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, size_t outstride, size_t outdstep, size_t outhstep, int nT)
 {
+    (void)nT;
+
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const size_t stride = bottom_blob.cstep;
-
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + z * (size_t)w * h + y * (size_t)w;
-                unsigned short* outptr = (unsigned short*)top_blob + z * outdstep + y * outhstep;
-                permute_transpose_pack1_bf16s_fp16s(ptr, stride, outptr, outstride, channels, w);
-            }
-        }
-        return;
-    }
 
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
@@ -2846,12 +2789,6 @@ static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
         return;
     }
 
-    if (nT == 1)
-    {
-        permute_transpose2d_bf16s_fp16s(bottom_blob, (size_t)w * elempack, top_blob, (size_t)top_blob.w * out_elempack, h * elempack, w, elempack, out_elempack);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int x = 0; x < w; x += out_elempack)
     {
@@ -2875,7 +2812,7 @@ static void permute3d_hwc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     permute_transpose_spatial_planes_stride_bf16s_fp16s(bottom_blob, top_blob, h, w, stride, outstride, 1, step, outstep, nT);
 }
 
-static NCNN_FORCEINLINE void permute3d_wch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels)
+static NCNN_FORCEINLINE void permute3d_wch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q)
 {
     const int w = bottom_blob.w;
     const int channels = bottom_blob.c;
@@ -2892,11 +2829,11 @@ static NCNN_FORCEINLINE void permute3d_wch_channels_bf16s_fp16s(const Mat& botto
     unsigned short* outptr = (unsigned short*)top_blob + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -2916,23 +2853,6 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
             return;
         }
 
-        if (nT == 1)
-        {
-            const size_t cstep = bottom_blob.cstep;
-            for (int q = 0; q < h; q++)
-            {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * w;
-                unsigned short* outptr = top_blob.channel(q);
-                for (int c = 0; c < channels; c++)
-                {
-                    memcpy(outptr, ptr, (size_t)w * sizeof(unsigned short));
-                    ptr += cstep;
-                    outptr += w;
-                }
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int q = 0; q < top_blob.c; q++)
         {
@@ -2946,20 +2866,14 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         return;
     }
 
-    if (nT == 1)
-    {
-        permute3d_wch_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_wch_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1);
+        permute3d_wch_channels_bf16s_fp16s(bottom_blob, top_blob, q);
     }
 }
 
-static NCNN_FORCEINLINE void permute3d_cwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels)
+static NCNN_FORCEINLINE void permute3d_cwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q)
 {
     const int w = bottom_blob.w;
     const int channels = bottom_blob.c;
@@ -2976,11 +2890,11 @@ static NCNN_FORCEINLINE void permute3d_cwh_channels_bf16s_fp16s(const Mat& botto
     unsigned short* outptr = (unsigned short*)top_blob + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3008,20 +2922,14 @@ static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         return;
     }
 
-    if (nT == 1)
-    {
-        permute3d_cwh_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_cwh_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1);
+        permute3d_cwh_channels_bf16s_fp16s(bottom_blob, top_blob, q);
     }
 }
 
-static NCNN_FORCEINLINE void permute3d_hcw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels)
+static NCNN_FORCEINLINE void permute3d_hcw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3039,11 +2947,11 @@ static NCNN_FORCEINLINE void permute3d_hcw_channels_bf16s_fp16s(const Mat& botto
     unsigned short* outptr = (unsigned short*)top_blob + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3071,20 +2979,14 @@ static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         return;
     }
 
-    if (nT == 1)
-    {
-        permute3d_hcw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_hcw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1);
+        permute3d_hcw_channels_bf16s_fp16s(bottom_blob, top_blob, q);
     }
 }
 
-static NCNN_FORCEINLINE void permute3d_chw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels)
+static NCNN_FORCEINLINE void permute3d_chw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3102,11 +3004,11 @@ static NCNN_FORCEINLINE void permute3d_chw_channels_bf16s_fp16s(const Mat& botto
     unsigned short* outptr = (unsigned short*)top_blob + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3140,16 +3042,10 @@ static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
         return;
     }
 
-    if (nT == 1)
-    {
-        permute3d_chw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c);
-        return;
-    }
-
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        permute3d_chw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1);
+        permute3d_chw_channels_bf16s_fp16s(bottom_blob, top_blob, q);
     }
 }
 
@@ -3184,23 +3080,6 @@ static void permute4d_wdhc_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         const size_t step = bottom_blob.cstep * elempack;
         const size_t outstep = top_blob.cstep * elempack;
         permute_transpose_matrices_stride_bf16s_fp16s(bottom_blob, stride, top_blob, outstride, d, h, w * elempack, channels, step, outstep, nT);
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int q = 0; q < channels; q++)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                for (int z = 0; z < d; z++)
-                {
-                    const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q) + ((size_t)z * h + y) * w * elempack;
-                    unsigned short* outptr = (unsigned short*)top_blob.channel(q * elempack / out_elempack) + (((size_t)y * d + z) * w) * out_elempack;
-                    permute_unpack_spatial_bf16s_fp16s(ptr, outptr, top_blob.cstep, w, elempack);
-                }
-            }
-        }
         return;
     }
 
@@ -3283,7 +3162,7 @@ static void permute4d_whcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     permute3d_wch_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_hwcd_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int x)
+static NCNN_FORCEINLINE void permute4d_hwcd_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int x)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3301,10 +3180,10 @@ static NCNN_FORCEINLINE void permute4d_hwcd_unpack_channels_bf16s_fp16s(const Ma
     const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
     unsigned short* outptr = (unsigned short*)top_blob + x * outxstep + q * outstep;
     // exchange c and d, keeping h as the inner spatial axis
-    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outcstep);
+    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_hwcd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_hwcd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3323,9 +3202,9 @@ static NCNN_FORCEINLINE void permute4d_hwcd_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and d, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3346,31 +3225,13 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                permute4d_hwcd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, x);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_hwcd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, x);
+                permute4d_hwcd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, x);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int y = 0; y < h; y++)
-        {
-            permute4d_hwcd_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
         }
         return;
     }
@@ -3380,12 +3241,12 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hwcd_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+            permute4d_hwcd_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_wchd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_wchd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3405,11 +3266,11 @@ static NCNN_FORCEINLINE void permute4d_wchd_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and d, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3431,21 +3292,12 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int y = 0; y < h; y++)
-        {
-            permute4d_wchd_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wchd_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+            permute4d_wchd_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
         }
     }
 }
@@ -3469,7 +3321,7 @@ static void permute4d_cwhd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     permute3d_cwh_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_hcwd_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int x)
+static NCNN_FORCEINLINE void permute4d_hcwd_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int x)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3487,10 +3339,10 @@ static NCNN_FORCEINLINE void permute4d_hcwd_unpack_channels_bf16s_fp16s(const Ma
     const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
     unsigned short* outptr = (unsigned short*)top_blob + x * outxstep + q * outstep;
     // exchange c and d, keeping h as the inner spatial axis
-    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outcstep);
+    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_hcwd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_hcwd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3509,9 +3361,9 @@ static NCNN_FORCEINLINE void permute4d_hcwd_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and d, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3532,31 +3384,13 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                permute4d_hcwd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, x);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_hcwd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, x);
+                permute4d_hcwd_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, x);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int y = 0; y < h; y++)
-        {
-            permute4d_hcwd_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
         }
         return;
     }
@@ -3566,12 +3400,12 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hcwd_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+            permute4d_hcwd_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_chwd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_chwd_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3591,11 +3425,11 @@ static NCNN_FORCEINLINE void permute4d_chwd_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and d, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3613,26 +3447,17 @@ static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int y = 0; y < h; y++)
-        {
-            permute4d_chwd_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_chwd_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+            permute4d_chwd_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_wdch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_wdch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3652,11 +3477,11 @@ static NCNN_FORCEINLINE void permute4d_wdch_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3678,26 +3503,17 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_wdch_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wdch_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_wdch_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_dwch_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int x)
+static NCNN_FORCEINLINE void permute4d_dwch_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int x)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3716,10 +3532,10 @@ static NCNN_FORCEINLINE void permute4d_dwch_unpack_channels_bf16s_fp16s(const Ma
     const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
     unsigned short* outptr = (unsigned short*)top_blob + x * outxstep + q * outstep;
     // exchange c and h, keeping d as the inner spatial axis
-    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, hstep, outcstep);
+    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_dwch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_dwch_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3738,9 +3554,9 @@ static NCNN_FORCEINLINE void permute4d_dwch_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3761,31 +3577,13 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                permute4d_dwch_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, x);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dwch_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, x);
+                permute4d_dwch_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, x);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_dwch_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
         }
         return;
     }
@@ -3795,12 +3593,12 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dwch_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_dwch_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_wcdh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_wcdh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3820,11 +3618,11 @@ static NCNN_FORCEINLINE void permute4d_wcdh_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3846,26 +3644,17 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_wcdh_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_wcdh_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_wcdh_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_cwdh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_cwdh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3885,11 +3674,11 @@ static NCNN_FORCEINLINE void permute4d_cwdh_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3907,26 +3696,17 @@ static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_cwdh_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cwdh_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_cwdh_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_dcwh_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int x)
+static NCNN_FORCEINLINE void permute4d_dcwh_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int x)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3945,10 +3725,10 @@ static NCNN_FORCEINLINE void permute4d_dcwh_unpack_channels_bf16s_fp16s(const Ma
     const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
     unsigned short* outptr = (unsigned short*)top_blob + x * outxstep + q * outstep;
     // exchange c and h, keeping d as the inner spatial axis
-    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, hstep, outcstep);
+    permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_dcwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_dcwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3967,9 +3747,9 @@ static NCNN_FORCEINLINE void permute4d_dcwh_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -3990,31 +3770,13 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                permute4d_dcwh_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, x);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dcwh_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, x);
+                permute4d_dcwh_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, x);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_dcwh_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
         }
         return;
     }
@@ -4024,12 +3786,12 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dcwh_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_dcwh_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_cdwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_cdwh_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4049,11 +3811,11 @@ static NCNN_FORCEINLINE void permute4d_cdwh_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and h, keeping w as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_pack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, outchannels, hstep, outwstep, outcstep);
+        permute_channels_spatial_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, w, channels, 1, hstep, outwstep, outcstep);
 }
 
 static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4071,21 +3833,12 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_cdwh_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cdwh_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_cdwh_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
@@ -4109,7 +3862,7 @@ static void permute4d_hdcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     permute3d_hcw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_dhcw_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_dhcw_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4130,12 +3883,12 @@ static NCNN_FORCEINLINE void permute4d_dhcw_unpack_channels_bf16s_fp16s(const Ma
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and w, keeping d as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, outwstep, outcstep);
     else
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_dhcw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_dhcw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4155,9 +3908,9 @@ static NCNN_FORCEINLINE void permute4d_dhcw_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4178,31 +3931,13 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                permute4d_dhcw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dhcw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+                permute4d_dhcw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_dhcw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
         }
         return;
     }
@@ -4212,12 +3947,12 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dhcw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_dhcw_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_hcdw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_hcdw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4237,11 +3972,11 @@ static NCNN_FORCEINLINE void permute4d_hcdw_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outcstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4259,21 +3994,12 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_hcdw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_hcdw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_hcdw_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
@@ -4297,7 +4023,7 @@ static void permute4d_chdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     permute3d_chw_bf16s_fp16s(bottom_blob_3d, top_blob_3d, nT);
 }
 
-static NCNN_FORCEINLINE void permute4d_dchw_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int y)
+static NCNN_FORCEINLINE void permute4d_dchw_unpack_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int y)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4318,12 +4044,12 @@ static NCNN_FORCEINLINE void permute4d_dchw_unpack_channels_bf16s_fp16s(const Ma
     unsigned short* outptr = (unsigned short*)top_blob + y * outystep + q * outstep;
     // exchange c and w, keeping d as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, outwstep, outcstep);
     else
-        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, outchannels, wstep, hstep, outcstep);
+        permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, d, channels, 1, wstep, hstep, outcstep);
 }
 
-static NCNN_FORCEINLINE void permute4d_dchw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_dchw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4343,9 +4069,9 @@ static NCNN_FORCEINLINE void permute4d_dchw_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4366,31 +4092,13 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
 
     if (out_elempack == 1)
     {
-        if (nT == 1)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                permute4d_dchw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, y);
-            }
-            return;
-        }
-
         #pragma omp parallel for collapse(2) num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                permute4d_dchw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, y);
+                permute4d_dchw_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, q, y);
             }
-        }
-        return;
-    }
-
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_dchw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
         }
         return;
     }
@@ -4400,12 +4108,12 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_dchw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_dchw_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
 
-static NCNN_FORCEINLINE void permute4d_cdhw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int outchannels, int z)
+static NCNN_FORCEINLINE void permute4d_cdhw_channels_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int q, int z)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -4425,11 +4133,11 @@ static NCNN_FORCEINLINE void permute4d_cdhw_channels_bf16s_fp16s(const Mat& bott
     unsigned short* outptr = (unsigned short*)top_blob + z * outzstep + q * outstep;
     // exchange c and w, keeping h as the inner spatial axis
     if (elempack == 1)
-        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_pack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
     else if (out_elempack == 1)
-        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, hstep, outwstep);
+        permute_unpack_channels_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, hstep, outwstep);
     else
-        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, outchannels, wstep, outwstep, outcstep);
+        permute_channels_axis_input_stride_bf16s_fp16s(bottom_blob, top_blob, ptr, outptr, h, channels, 1, wstep, outwstep, outcstep);
 }
 
 static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
@@ -4447,21 +4155,12 @@ static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         return;
     }
 
-    if (nT == 1)
-    {
-        for (int z = 0; z < d; z++)
-        {
-            permute4d_cdhw_channels_bf16s_fp16s(bottom_blob, top_blob, 0, top_blob.c, z);
-        }
-        return;
-    }
-
     #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            permute4d_cdhw_channels_bf16s_fp16s(bottom_blob, top_blob, q, 1, z);
+            permute4d_cdhw_channels_bf16s_fp16s(bottom_blob, top_blob, q, z);
         }
     }
 }
