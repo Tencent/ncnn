@@ -18,18 +18,25 @@ int Concat::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Concat::check_shape(const std::vector<Mat>& bottom_blobs) const
+template<typename MatType>
+static int concat_check_shape(const std::vector<MatType>& bottom_blobs, int axis)
 {
     if (bottom_blobs.empty())
         return -1;
 
-    const Mat& ref = bottom_blobs[0];
+    const MatType& ref = bottom_blobs[0];
     const int dims = ref.dims;
     const int positive_axis = axis < 0 ? dims + axis : axis;
 
+    if (dims < 1 || dims > 4 || positive_axis < 0 || positive_axis >= dims)
+    {
+        NCNN_LOGE("Concat invalid dims=%d axis=%d", dims, axis);
+        return -1;
+    }
+
     for (size_t b = 1; b < bottom_blobs.size(); b++)
     {
-        const Mat& bottom_blob = bottom_blobs[b];
+        const MatType& bottom_blob = bottom_blobs[b];
 
         if (bottom_blob.dims != dims)
         {
@@ -85,6 +92,18 @@ int Concat::check_shape(const std::vector<Mat>& bottom_blobs) const
 
     return 0;
 }
+
+int Concat::check_shape(const std::vector<Mat>& bottom_blobs) const
+{
+    return concat_check_shape(bottom_blobs, axis);
+}
+
+#if NCNN_VULKAN
+int Concat::check_shape(const std::vector<VkMat>& bottom_blobs) const
+{
+    return concat_check_shape(bottom_blobs, axis);
+}
+#endif // NCNN_VULKAN
 
 int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

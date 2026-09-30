@@ -22,6 +22,9 @@ protected:
     // axis-0 paths size the output from bottom_blobs[0] then memcpy each
     // input's total() and can heap-overflow (see #7025).
     int check_shape(const std::vector<Mat>& bottom_blobs) const;
+#if NCNN_VULKAN
+    int check_shape(const std::vector<VkMat>& bottom_blobs) const;
+#endif // NCNN_VULKAN
 
 public:
     int axis;
