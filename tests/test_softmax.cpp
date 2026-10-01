@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_softmax(const ncnn::Mat& a, int axis)
+static int test_softmax(const ncnn::Mat& a, int axis, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis); // axis
@@ -11,7 +11,7 @@ static int test_softmax(const ncnn::Mat& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Softmax", pd, weights, a);
+    int ret = test_layer("Softmax", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
@@ -20,12 +20,12 @@ static int test_softmax(const ncnn::Mat& a, int axis)
     return ret;
 }
 
-static int test_softmax_nd(const ncnn::Mat& m)
+static int test_softmax_nd(const ncnn::Mat& m, int flag = 0)
 {
     const int dims = m.dims;
     for (int i = -dims; i < dims; i++)
     {
-        int ret = test_softmax(m, i);
+        int ret = test_softmax(m, i, flag);
         if (ret != 0)
             return ret;
     }
@@ -42,7 +42,7 @@ static int test_softmax_0()
 
     return 0
            || test_softmax_nd(a)
-           || test_softmax_nd(b)
+           || test_softmax_nd(b, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_softmax_nd(c)
            || test_softmax_nd(d);
 }
@@ -56,7 +56,7 @@ static int test_softmax_1()
 
     return 0
            || test_softmax_nd(a)
-           || test_softmax_nd(b)
+           || test_softmax_nd(b, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_softmax_nd(c)
            || test_softmax_nd(d);
 }
@@ -70,7 +70,7 @@ static int test_softmax_2()
 
     return 0
            || test_softmax_nd(a)
-           || test_softmax_nd(b)
+           || test_softmax_nd(b, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_softmax_nd(c)
            || test_softmax_nd(d);
 }

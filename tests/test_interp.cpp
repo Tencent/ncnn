@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
+static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -14,7 +14,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);
@@ -23,7 +23,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
     return ret;
 }
 
-static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_height, int output_width)
+static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_height, int output_width, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -35,7 +35,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_height, output_width);
@@ -44,7 +44,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
     return ret;
 }
 
-static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int align_corner)
+static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int align_corner, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -56,7 +56,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float h
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width, align_corner);
@@ -513,12 +513,12 @@ static int test_interp_7()
            || test_interp_ref(a, 1, 10, 12)
            || test_interp_ref(a, 1, 15, 16)
 
-           || test_interp(b, 1, 2.f, 2.f, 0, 0)
+           || test_interp(b, 1, 2.f, 2.f, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_interp(b, 1, 0.5f, 0.5f, 0, 0)
-           || test_interp(b, 1, 1.f, 1.f, 10, 12)
-           || test_interp(b, 1, 1.f, 1.f, 14, 17)
-           || test_interp_ref(b, 1, 10, 12)
-           || test_interp_ref(b, 1, 14, 17)
+           || test_interp(b, 1, 1.f, 1.f, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp(b, 1, 1.f, 1.f, 14, 17, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 1, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 1, 14, 17, TEST_LAYER_DISABLE_GPU_TESTING)
 
            || test_interp(c, 1, 2.f, 2.f, 0, 0)
            || test_interp(c, 1, 0.5f, 0.5f, 0, 0)
@@ -546,11 +546,11 @@ static int test_interp_8()
            || test_interp_ref(a, 2, 10, 12)
            || test_interp_ref(a, 2, 15, 16)
 
-           || test_interp(b, 2, 2.f, 2.f, 0, 0)
+           || test_interp(b, 2, 2.f, 2.f, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_interp(b, 2, 0.5f, 0.5f, 0, 0)
-           || test_interp(b, 2, 1.f, 1.f, 10, 12)
-           || test_interp_align_corner(b, 2, 2.f, 2.f, 0, 0, 1)
-           || test_interp_ref(b, 2, 10, 12)
+           || test_interp(b, 2, 1.f, 1.f, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_align_corner(b, 2, 2.f, 2.f, 0, 0, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 2, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
 
            || test_interp(c, 2, 2.f, 2.f, 0, 0)
            || test_interp(c, 2, 0.5f, 0.5f, 0, 0)

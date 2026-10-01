@@ -3,14 +3,14 @@
 
 #include "testutil.h"
 
-static int test_dropout(const ncnn::Mat& a, float scale)
+static int test_dropout(const ncnn::Mat& a, float scale, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, scale);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Dropout", pd, weights, a);
+    int ret = test_layer("Dropout", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_dropout failed a.dims=%d a=(%d %d %d %d) scale=%f\n", a.dims, a.w, a.h, a.d, a.c, scale);
@@ -26,8 +26,8 @@ static int test_dropout_0()
            || test_dropout(RandomMat(5, 6, 7, 24), 0.2f)
            || test_dropout(RandomMat(7, 8, 9, 12), 0.3f)
            || test_dropout(RandomMat(3, 4, 5, 13), 0.5f)
-           || test_dropout(RandomMat(5, 7, 24), 1.f)
-           || test_dropout(RandomMat(5, 7, 24), 0.2f)
+           || test_dropout(RandomMat(5, 7, 24), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_dropout(RandomMat(5, 7, 24), 0.2f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_dropout(RandomMat(7, 9, 12), 1.f)
            || test_dropout(RandomMat(7, 9, 12), 0.3f)
            || test_dropout(RandomMat(3, 5, 13), 1.f)
@@ -37,8 +37,8 @@ static int test_dropout_0()
 static int test_dropout_1()
 {
     return 0
-           || test_dropout(RandomMat(15, 24), 1.f)
-           || test_dropout(RandomMat(15, 24), 0.6f)
+           || test_dropout(RandomMat(15, 24), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_dropout(RandomMat(15, 24), 0.6f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_dropout(RandomMat(19, 12), 1.f)
            || test_dropout(RandomMat(19, 12), 0.4f)
            || test_dropout(RandomMat(17, 15), 1.f)

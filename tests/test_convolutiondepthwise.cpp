@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group)
+static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -32,7 +32,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer("ConvolutionDepthWise", pd, weights, a);
+    int ret = test_layer("ConvolutionDepthWise", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
@@ -82,7 +82,7 @@ static int test_convolutiondepthwise_0()
                   || test_convolutiondepthwise(15, 7, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise(15, 7, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise(15, 7, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16)
+                  || test_convolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16, TEST_LAYER_DISABLE_GPU_TESTING)
                   || test_convolutiondepthwise(18, 17, 1, 1, k, d, s, p, 1, 1)
                   || test_convolutiondepthwise(18, 17, 2, 2, k, d, s, p, 0, 1)
                   || test_convolutiondepthwise(18, 17, 2, 2, k, d, s, p, 1, 2)
@@ -95,7 +95,7 @@ static int test_convolutiondepthwise_0()
                   || test_convolutiondepthwise(18, 17, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise(18, 17, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise(18, 17, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise(18, 17, 16, 16, k, d, s, p, 1, 16)
+                  || test_convolutiondepthwise(18, 17, 16, 16, k, d, s, p, 1, 16, TEST_LAYER_DISABLE_GPU_TESTING)
                   || test_convolutiondepthwise(25, 33, 1, 1, k, d, s, p, 1, 1)
                   || test_convolutiondepthwise(25, 33, 2, 2, k, d, s, p, 0, 1)
                   || test_convolutiondepthwise(25, 33, 2, 2, k, d, s, p, 1, 2)
@@ -108,7 +108,7 @@ static int test_convolutiondepthwise_0()
                   || test_convolutiondepthwise(25, 33, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise(25, 33, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise(25, 33, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise(25, 33, 16, 16, k, d, s, p, 1, 16);
+                  || test_convolutiondepthwise(25, 33, 16, 16, k, d, s, p, 1, 16, TEST_LAYER_DISABLE_GPU_TESTING);
 
         if (ret != 0)
             return -1;

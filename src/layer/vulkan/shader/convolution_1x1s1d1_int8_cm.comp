@@ -71,14 +71,16 @@ const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 const uint Md4 = M / 4;
 
+// keep packed int8 row strides aligned to 16 bytes
+// odd multiples of 16 bytes spread successive rows across shared memory banks
 #if ncnn_VK_KHR_cooperative_matrix
-#define PAD 1
+const uint Nd4p = (((Nd4 + 3) / 4) | 1) * 4;
+const uint Kd4p = (((Kd4 + 3) / 4) | 1) * 4;
 #elif ncnn_VK_NV_cooperative_matrix
-#define PAD 0
+// keep the original packed stride on old nv drivers
+const uint Nd4p = Nd4;
+const uint Kd4p = Kd4;
 #endif
-
-const uint Nd4p = Nd4 + PAD;
-const uint Kd4p = Kd4 + PAD;
 
 shared int tmp_v[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * M * Kd4p];
 shared int tmp_k[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * K * Nd4p];

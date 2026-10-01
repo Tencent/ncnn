@@ -106,6 +106,9 @@ public:
             {
                 VkPipelineBindPoint bind_point;
                 VkPipeline pipeline;
+#if NCNN_COVERAGE
+                VkPipelineLayout pipeline_layout;
+#endif
             } bind_pipeline;
             struct
             {
@@ -335,6 +338,9 @@ int VkComputePrivate::begin_command_buffer()
 
 int VkComputePrivate::end_command_buffer()
 {
+#if NCNN_COVERAGE
+    vkdev->record_shader_coverage_barrier(compute_command_buffer);
+#endif
     VkResult ret = vkEndCommandBuffer(compute_command_buffer);
     if (ret != VK_SUCCESS)
     {
@@ -1354,6 +1360,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+#if NCNN_COVERAGE
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
+#endif
         }
         else
         {
@@ -1362,6 +1371,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             r.command_buffer = d->compute_command_buffer;
             r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_pipeline.pipeline = pipeline->pipeline();
+#if NCNN_COVERAGE
+            r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
+#endif
             d->delayed_records.push_back(r);
         }
     }
@@ -1671,6 +1683,9 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+#if NCNN_COVERAGE
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
+#endif
         }
         else
         {
@@ -1679,6 +1694,9 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             r.command_buffer = d->compute_command_buffer;
             r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_pipeline.pipeline = pipeline->pipeline();
+#if NCNN_COVERAGE
+            r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
+#endif
             d->delayed_records.push_back(r);
         }
     }
@@ -1897,6 +1915,9 @@ int VkCompute::submit_and_wait()
             case VkComputePrivate::record::TYPE_bind_pipeline:
             {
                 vkCmdBindPipeline(r.command_buffer, r.bind_pipeline.bind_point, r.bind_pipeline.pipeline);
+#if NCNN_COVERAGE
+                vkdev->bind_shader_coverage(r.command_buffer, r.bind_pipeline.pipeline_layout);
+#endif
                 break;
             }
             case VkComputePrivate::record::TYPE_bind_descriptorsets:
