@@ -3048,6 +3048,7 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         //     - constantC 且 broadcast=-1（空头 C）→ C 永远不存在 → IME2 完全接管，不建 fp16s 管线；
         //     - 否则 forward 时可能出现 runtime C → 两条管线都建，forward 按有无 C 选路。
         //   注意：ncnn 权重打包布局按 vlenb 定死，进程必须钉在单簇（跨簇会算错）。
+        bool ime2_full_takeover = false;
         if (!constantA && constantB && transB && !transA
                 && !output_transpose && !output_N1M
                 && (!constantC || constant_broadcast_type_C == -1))
@@ -3055,12 +3056,11 @@ int Gemm_riscv::create_pipeline(const Option& opt)
             bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
             if (c_never_exists)
             {
-                if (create_pipeline_ime2(opt) == 0)
-                {
-                    if (opt.lightmode)
-                        B_data.release();
-                    return 0; // IME2 完全接管
-                }
+                // IME2 接管 fp16 路径。但不能省掉下面的通用 fp32 管线：
+                // 裸建的 Gemm 层（不在 Net 里、没有自动 cast，例如 ncnn_llm 的
+                // LlmHead）可能收到 fp32 输入，此时必须能落到 fp32 前向，
+                // 否则 BT_data 为空 -> gemm fp32 内核读空指针崩溃。
+                ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
             }
             else
             {
@@ -3068,11 +3068,20 @@ int Gemm_riscv::create_pipeline(const Option& opt)
                 create_pipeline_ime2(opt);
             }
         }
-#endif
+        if (!ime2_full_takeover)
+        {
+            if (opt.use_fp16_arithmetic)
+                return create_pipeline_fp16sa(opt);
+
+            return create_pipeline_fp16s(opt);
+        }
+        // ime2_full_takeover：fp16 输入走 IME2；继续向下构建 fp32 回退管线
+#else
         if (opt.use_fp16_arithmetic)
             return create_pipeline_fp16sa(opt);
 
         return create_pipeline_fp16s(opt);
+#endif
     }
 #endif
 
