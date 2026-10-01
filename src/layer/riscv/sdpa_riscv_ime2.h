@@ -25,7 +25,10 @@ typedef __fp16 ime2_fp16;
 /* ---------------- 运行时探测（A100?） ---------------- */
 
 static sigjmp_buf g_sdpa_ime2_jb;
-static void sdpa_ime2_sigill(int) { siglongjmp(g_sdpa_ime2_jb, 1); }
+static void sdpa_ime2_sigill(int)
+{
+    siglongjmp(g_sdpa_ime2_jb, 1);
+}
 
 static int ime2_probe(void)
 {
@@ -35,7 +38,8 @@ static int ime2_probe(void)
     done = 1;
 
     unsigned long vlenb = 0;
-    __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+    __asm__ volatile("csrr %0, vlenb"
+                     : "=r"(vlenb));
     if (vlenb != 128) /* IME2 fp16 矩阵单元只在 VLEN=1024 的 A100 上 */
         return 0;
 
@@ -180,8 +184,8 @@ static void ime2_tile_16x16(const ime2_fp16* At, const ime2_fp16* Bt,
         : [A0] "+r"(At), [A1] "+r"(A1), [B0] "+r"(Bt), [B1] "+r"(B1), [k] "+r"(k)
         : [C00] "r"(C00), [C10] "r"(C10), [C01] "r"(C01), [C11] "r"(C11)
         : "t0", "v2", "v4", "v8", "v10",
-          "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-          "memory", "cc");
+        "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+        "memory", "cc");
 }
 
 /* ---------------- fp32 输出 GEMM（单线程，供 per-head 调用） ---------------- */

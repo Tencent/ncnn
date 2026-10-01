@@ -99,11 +99,11 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
-        const Mat query_head = query.channel(q);                          // [L, E] fp32
-        const Mat key_head = key.channel(q / num_heads_per_group);        // [dst, E]
-        const Mat value_head = value.channel(q / num_heads_per_group);    // [dst, Ev]
-        Mat qk_cross_head = qk_cross.channel(get_omp_thread_num());       // [L, dst]
-        Mat top_blob_head = top_blob.channel(q);                          // [L, Ev]
+        const Mat query_head = query.channel(q);                       // [L, E] fp32
+        const Mat key_head = key.channel(q / num_heads_per_group);     // [dst, E]
+        const Mat value_head = value.channel(q / num_heads_per_group); // [dst, Ev]
+        Mat qk_cross_head = qk_cross.channel(get_omp_thread_num());    // [L, dst]
+        Mat top_blob_head = top_blob.channel(q);                       // [L, Ev]
 
         Mat AT, BT;
         if (ime2_pack_fp32(query_head, embed_dim, AT, src_seqlen, embed_dim, opt.workspace_allocator) != 0)
