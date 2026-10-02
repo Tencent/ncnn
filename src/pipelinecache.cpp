@@ -1197,6 +1197,14 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     return 0;
 }
 
+static bool prefer_driver_subgroup_size(const GpuInfo& info)
+{
+    // requiring a fixed subgroup size makes most shaders slower on intel integrated gpu
+    // let the driver choose the width for shaders that do not depend on it
+    return info.vendor_id() == 0x8086 && info.type() == 1 && info.driver_id() == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+           && info.support_subgroup_size_control() && !info.support_cooperative_matrix();
+}
+
 int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info,
                                 const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size,
                                 VkDescriptorSetLayout* _descriptorset_layout,
@@ -1227,6 +1235,12 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
         goto ERROR_PipelineCache;
 
     ensure_vk_pipeline_cache(vkdev, d);
+
+    if (!shader_info.subgroup_ops && prefer_driver_subgroup_size(vkdev->info))
+    {
+        // 0 = no required subgroup size
+        subgroup_size = 0;
+    }
 
     ret = vkdev->create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, d->vk_pipeline_cache, &pipeline);
     if (ret != 0)
