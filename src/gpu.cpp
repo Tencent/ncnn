@@ -2972,8 +2972,35 @@ static int find_default_vulkan_device_index()
     return -1;
 }
 
+#if defined _WIN32
+// RtlDllShutdownInProgress from ntdll.dll is not declared in the public sdk headers
+// it returns true when called within dll detach during process termination
+// but false when the dll is unloaded via FreeLibrary at runtime
+typedef BOOLEAN(WINAPI* RtlDllShutdownInProgressType)(VOID);
+static int is_process_shutdown_in_progress()
+{
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll)
+        return 0;
+
+    RtlDllShutdownInProgressType RtlDllShutdownInProgress = (RtlDllShutdownInProgressType)GetProcAddress(ntdll, "RtlDllShutdownInProgress");
+    if (!RtlDllShutdownInProgress)
+        return 0;
+
+    return RtlDllShutdownInProgress() != 0;
+}
+#endif // defined _WIN32
+
 int create_gpu_instance(const char* driver_path)
 {
+#if defined _WIN32
+    // refuse to create the vulkan instance during process termination
+    // the driver icd may have been detached already
+    // an already-created instance is still reported as valid below
+    if (g_instance.created == 0 && is_process_shutdown_in_progress())
+        return -1;
+#endif // defined _WIN32
+
     MutexLockGuard lock(g_instance_lock);
 
     if (g_instance.created != 0)
@@ -3602,9 +3629,26 @@ VkInstance get_gpu_instance()
 
 void destroy_gpu_instance()
 {
+#if defined _WIN32
+    // check shutdown before taking the lock: during process termination the
+    // other threads may have been killed while holding g_instance_lock
+    if (is_process_shutdown_in_progress())
+    {
+        // windows unloads dlls in an order we cannot control during process exit
+        // the gpu driver icd may have been detached already, leaving the vulkan
+        // entry points pointing at dead code, so any vk call below would crash
+        // skip the teardown and let the os reclaim everything
+        // mark created=-1 so the instance cannot be resurrected during shutdown
+        g_instance.instance = 0;
+        g_instance.created = -1;
+        return;
+    }
+#endif // defined _WIN32
+
     MutexLockGuard lock(g_instance_lock);
 
-    if (g_instance.created == 0)
+    // -1 means teardown was skipped during process shutdown; nothing left to do
+    if (g_instance.created != 1)
         return;
 
     for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
