@@ -1536,6 +1536,17 @@ void GpuInfoPrivate::query_extension_properties()
         querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
     }
 
+    if (physicalDeviceProperties.vendorID == 0x8086 && physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+            && queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+            && querySubgroupSizeControlFeatures.subgroupSizeControl
+            && (querySubgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT)
+            && !queryCooperativeMatrixFeatures.cooperativeMatrix && !queryCooperativeMatrixFeaturesNV.cooperativeMatrix
+            && querySubgroupSizeControlProperties.minSubgroupSize <= 16 && querySubgroupSizeControlProperties.maxSubgroupSize >= 16)
+    {
+        // intel integrated gpu reports simd32, shaders that use subgroup operations run faster at simd16
+        querySubgroupProperties.subgroupSize = 16;
+    }
+
     // query supported cooperative matrix types and operations
     queryCooperativeMatrixSubProperties.clear();
     queryCooperativeMatrixSubPropertiesNV.clear();

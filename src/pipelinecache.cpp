@@ -949,6 +949,29 @@ int PipelineCache::load_cache(const wchar_t* path) const
 #endif // defined(_WIN32)
 #endif // NCNN_STDIO
 
+// a required subgroup size bounds the workgroup to
+// requiredSubgroupSize * maxComputeWorkgroupSubgroups invocations
+// drop the requirement for a shader that does not depend on the subgroup size,
+// reject the pipeline for one that does rather than run it at another width
+static int resolve_required_subgroup_size(const GpuInfo& info, const ShaderInfo& shader_info, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t& subgroup_size)
+{
+    if (subgroup_size == 0 || !info.support_subgroup_size_control())
+        return 0;
+
+    const uint32_t max_invocations = subgroup_size * info.max_compute_workgroup_subgroups();
+    if (local_size_x * local_size_y * local_size_z <= max_invocations)
+        return 0;
+
+    if (!shader_info.subgroup_ops)
+    {
+        subgroup_size = 0;
+        return 0;
+    }
+
+    NCNN_LOGE("workgroup %u x %u x %u exceeds %u invocations allowed at required subgroup size %u, use a smaller workgroup or set_subgroup_size()", local_size_x, local_size_y, local_size_z, max_invocations, subgroup_size);
+    return -1;
+}
+
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                                 uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                                 VkShaderModule* _shader_module,
@@ -999,6 +1022,13 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
     if (!shader_module)
     {
         NCNN_LOGE("create_shader_module failed");
+        return -1;
+    }
+
+    ret = resolve_required_subgroup_size(vkdev->info, shader_info, local_size_x, local_size_y, local_size_z, subgroup_size);
+    if (ret != 0)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
 
@@ -1077,6 +1107,13 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
     if (ret != 0)
     {
         NCNN_LOGE("create_shader_module failed");
+        return -1;
+    }
+
+    ret = resolve_required_subgroup_size(vkdev->info, shader_info, local_size_x, local_size_y, local_size_z, subgroup_size);
+    if (ret != 0)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
 
