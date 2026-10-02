@@ -194,6 +194,11 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_shape(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_BF16
     int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
     if (opt.use_bf16_storage && elembits == 16)

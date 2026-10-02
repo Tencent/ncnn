@@ -31,6 +31,85 @@ int BinaryOp::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_VALIDATION
+template<typename MatType>
+static void binaryop_expand_shape(const MatType& a, const MatType& b, int shape[4])
+{
+    shape[0] = a.w * (a.dims == 1 ? a.elempack : 1);
+    shape[1] = a.h * (a.dims == 2 ? a.elempack : 1);
+    shape[2] = a.d;
+    shape[3] = a.c * (a.dims >= 3 ? a.elempack : 1);
+
+    if (a.dims >= b.dims)
+        return;
+
+    // Match the forward paths: inner-axis expansion takes precedence over
+    // the rank-one outer-axis compatibility rule.
+    if (a.dims == 1)
+    {
+        const int inner_size = (b.dims == 2 ? b.h : b.c) * b.elempack;
+        if (shape[0] == inner_size)
+        {
+            shape[b.dims == 2 ? 1 : 3] = shape[0];
+            shape[0] = 1;
+        }
+    }
+    else if (a.dims == 2)
+    {
+        shape[3] = shape[1];
+        shape[b.dims == 3 ? 1 : 2] = shape[0];
+        shape[0] = 1;
+        if (b.dims == 4)
+            shape[1] = 1;
+    }
+    else // a.dims == 3 && b.dims == 4
+    {
+        shape[2] = shape[1];
+        shape[1] = shape[0];
+        shape[0] = 1;
+    }
+}
+
+template<typename MatType>
+static int binaryop_check_shape(const std::vector<MatType>& bottom_blobs)
+{
+    if (bottom_blobs.size() != 2)
+        return -1;
+
+    const MatType& a = bottom_blobs[0];
+    const MatType& b = bottom_blobs[1];
+    if (a.dims < 1 || a.dims > 4 || b.dims < 1 || b.dims > 4)
+        return -1;
+
+    int a_shape[4];
+    int b_shape[4];
+    binaryop_expand_shape(a, b, a_shape);
+    binaryop_expand_shape(b, a, b_shape);
+    for (int i = 0; i < 4; i++)
+    {
+        if (a_shape[i] != b_shape[i] && a_shape[i] != 1 && b_shape[i] != 1)
+        {
+            NCNN_LOGE("BinaryOp incompatible broadcast dimension %d: %d vs %d", i, a_shape[i], b_shape[i]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int BinaryOp::check_shape(const std::vector<Mat>& bottom_blobs) const
+{
+    return binaryop_check_shape(bottom_blobs);
+}
+
+#if NCNN_VULKAN
+int BinaryOp::check_shape(const std::vector<VkMat>& bottom_blobs) const
+{
+    return binaryop_check_shape(bottom_blobs);
+}
+#endif // NCNN_VULKAN
+#endif // NCNN_VALIDATION
+
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
@@ -341,6 +420,11 @@ static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type,
 
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_shape(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& A = bottom_blobs[0];
     const Mat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
