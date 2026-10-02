@@ -233,8 +233,7 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
         for (int t = 0; t < 2; t++)
         {
             std::vector<ncnn::Mat> outputs;
-            const int flag = TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0);
-            test_layer_cpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, a, 1, outputs, std::vector<ncnn::Mat>(), flag);
+            test_layer_cpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, a, 1, outputs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0));
             if (CompareMat(outputs, refs, 0.001f) != 0)
                 return -1;
         }
@@ -525,9 +524,8 @@ static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_tran
     {
         ncnn::Mat output;
         ncnn::Mat scaled_output;
-        const int flag = TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0);
-        test_layer_cpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, A_scaled, output, ncnn::Mat(), flag);
-        test_layer_cpu(ncnn::layer_to_index("Gemm"), scaled_pd, scaled_weights, opt, A, scaled_output, ncnn::Mat(), flag);
+        test_layer_cpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, A_scaled, output, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0));
+        test_layer_cpu(ncnn::layer_to_index("Gemm"), scaled_pd, scaled_weights, opt, A, scaled_output, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0));
         if (CompareMat(output, scaled_output, 0.001f) != 0)
         {
             fprintf(stderr, "test_gemm_wq_int8_input_scale_equivalence failed transA=%d output_transpose=%d threading=%d\n", transA, output_transpose, t);

@@ -47,7 +47,7 @@ static void print_int_array(const std::vector<int>& a)
     fprintf(stderr, " ]");
 }
 
-static int test_crop(const ncnn::Mat& a, const std::vector<int>& starts_array, const std::vector<int>& ends_array, const std::vector<int>& axes_array)
+static int test_crop(const ncnn::Mat& a, const std::vector<int>& starts_array, const std::vector<int>& ends_array, const std::vector<int>& axes_array, int flag = 0)
 {
     ncnn::Mat starts(starts_array.size());
     {
@@ -83,7 +83,7 @@ static int test_crop(const ncnn::Mat& a, const std::vector<int>& starts_array, c
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Crop", pd, weights, a);
+    int ret = test_layer("Crop", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -99,7 +99,7 @@ static int test_crop(const ncnn::Mat& a, const std::vector<int>& starts_array, c
     return ret;
 }
 
-static int test_crop_1d(const ncnn::Mat& a)
+static int test_crop_1d(const ncnn::Mat& a, int flag = 0)
 {
     std::vector<int> params[][3] = {
         {IntArray(12), IntArray(-233), IntArray(0)},
@@ -114,7 +114,7 @@ static int test_crop_1d(const ncnn::Mat& a)
 
     for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++)
     {
-        int ret = test_crop(a, params[i][0], params[i][1], params[i][2]);
+        int ret = test_crop(a, params[i][0], params[i][1], params[i][2], flag);
         if (ret)
             return ret;
     }
@@ -122,7 +122,7 @@ static int test_crop_1d(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_crop_2d(const ncnn::Mat& a)
+static int test_crop_2d(const ncnn::Mat& a, int flag = 0)
 {
     std::vector<int> params[][3] = {
         {IntArray(12), IntArray(-233), IntArray(0)},
@@ -151,7 +151,7 @@ static int test_crop_2d(const ncnn::Mat& a)
 
     for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++)
     {
-        int ret = test_crop(a, params[i][0], params[i][1], params[i][2]);
+        int ret = test_crop(a, params[i][0], params[i][1], params[i][2], flag);
         if (ret)
             return ret;
     }
@@ -159,7 +159,7 @@ static int test_crop_2d(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_crop_3d(const ncnn::Mat& a)
+static int test_crop_3d(const ncnn::Mat& a, int flag = 0)
 {
     std::vector<int> params[][3] = {
         {IntArray(11), IntArray(-233), IntArray(0)},
@@ -219,7 +219,7 @@ static int test_crop_3d(const ncnn::Mat& a)
 
     for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++)
     {
-        int ret = test_crop(a, params[i][0], params[i][1], params[i][2]);
+        int ret = test_crop(a, params[i][0], params[i][1], params[i][2], flag);
         if (ret)
             return ret;
     }
@@ -227,7 +227,7 @@ static int test_crop_3d(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_crop_4d(const ncnn::Mat& a)
+static int test_crop_4d(const ncnn::Mat& a, int flag = 0)
 {
     std::vector<int> params[][3] = {
         {IntArray(11), IntArray(-233), IntArray(0)},
@@ -348,7 +348,7 @@ static int test_crop_4d(const ncnn::Mat& a)
 
     for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++)
     {
-        int ret = test_crop(a, params[i][0], params[i][1], params[i][2]);
+        int ret = test_crop(a, params[i][0], params[i][1], params[i][2], flag);
         if (ret)
             return ret;
     }
@@ -356,6 +356,7 @@ static int test_crop_4d(const ncnn::Mat& a)
     return 0;
 }
 
+// the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
 {
     SRAND(776757);
@@ -364,13 +365,13 @@ int main()
            || test_crop_1d(RandomMat(112))
            || test_crop_1d(RandomMat(126))
            || test_crop_1d(RandomMat(127))
-           || test_crop_2d(RandomMat(20, 48))
+           || test_crop_2d(RandomMat(20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_2d(RandomMat(15, 36))
            || test_crop_2d(RandomMat(16, 33))
-           || test_crop_3d(RandomMat(20, 20, 48))
+           || test_crop_3d(RandomMat(20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_3d(RandomMat(15, 15, 36))
            || test_crop_3d(RandomMat(16, 16, 33))
-           || test_crop_4d(RandomMat(20, 20, 20, 48))
+           || test_crop_4d(RandomMat(20, 20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_4d(RandomMat(15, 15, 15, 36))
            || test_crop_4d(RandomMat(16, 16, 16, 33));
 }

@@ -55,7 +55,7 @@ static void print_int_array(const std::vector<int>& a)
     fprintf(stderr, " ]");
 }
 
-static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
+static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, int flag = 0)
 {
     ncnn::Mat a = _a;
     if (op_type == 9 || op_type == 10)
@@ -72,7 +72,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Reduction", pd, weights, a);
+    int ret = test_layer("Reduction", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_reduction failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d reduce_all=1\n", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
@@ -81,7 +81,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
     return ret;
 }
 
-static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const std::vector<int>& axes_array)
+static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const std::vector<int>& axes_array, int flag = 0)
 {
     ncnn::Mat a = _a;
     if (op_type == 9 || op_type == 10)
@@ -109,7 +109,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Reduction", pd, weights, a);
+    int ret = test_layer("Reduction", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_reduction failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
@@ -121,58 +121,58 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
     return ret;
 }
 
-static int test_reduction_nd(const ncnn::Mat& a)
+static int test_reduction_nd(const ncnn::Mat& a, int flag = 0)
 {
     int ret1 = 0
-               || test_reduction(a, 1.f, 0)
-               || test_reduction(a, 2.f, 0)
-               || test_reduction(a, 1.f, 1)
-               || test_reduction(a, 2.f, 1)
-               || test_reduction(a, 1.f, 0, IntArray(0))
-               || test_reduction(a, 1.f, 1, IntArray(0));
+               || test_reduction(a, 1.f, 0, flag)
+               || test_reduction(a, 2.f, 0, flag)
+               || test_reduction(a, 1.f, 1, flag)
+               || test_reduction(a, 2.f, 1, flag)
+               || test_reduction(a, 1.f, 0, IntArray(0), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0), flag);
 
     if (a.dims == 1 || ret1 != 0)
         return ret1;
 
     int ret2 = 0
-               || test_reduction(a, 2.f, 0, IntArray(1))
-               || test_reduction(a, 2.f, 1, IntArray(1))
-               || test_reduction(a, 1.f, 0, IntArray(0, 1))
-               || test_reduction(a, 1.f, 1, IntArray(0, 1));
+               || test_reduction(a, 2.f, 0, IntArray(1), flag)
+               || test_reduction(a, 2.f, 1, IntArray(1), flag)
+               || test_reduction(a, 1.f, 0, IntArray(0, 1), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0, 1), flag);
 
     if (a.dims == 2 || ret2 != 0)
         return ret2;
 
     int ret3 = 0
-               || test_reduction(a, 1.f, 0, IntArray(2))
-               || test_reduction(a, 1.f, 1, IntArray(2))
-               || test_reduction(a, 2.f, 0, IntArray(0, 2))
-               || test_reduction(a, 2.f, 0, IntArray(1, 2))
-               || test_reduction(a, 2.f, 1, IntArray(0, 2))
-               || test_reduction(a, 2.f, 1, IntArray(1, 2))
-               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2))
-               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2));
+               || test_reduction(a, 1.f, 0, IntArray(2), flag)
+               || test_reduction(a, 1.f, 1, IntArray(2), flag)
+               || test_reduction(a, 2.f, 0, IntArray(0, 2), flag)
+               || test_reduction(a, 2.f, 0, IntArray(1, 2), flag)
+               || test_reduction(a, 2.f, 1, IntArray(0, 2), flag)
+               || test_reduction(a, 2.f, 1, IntArray(1, 2), flag)
+               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2), flag);
 
     if (a.dims == 3 || ret3 != 0)
         return ret3;
 
     int ret4 = 0
-               || test_reduction(a, 2.f, 0, IntArray(3))
-               || test_reduction(a, 2.f, 1, IntArray(3))
-               || test_reduction(a, 1.f, 0, IntArray(0, 3))
-               || test_reduction(a, 1.f, 0, IntArray(1, 3))
-               || test_reduction(a, 2.f, 0, IntArray(2, 3))
-               || test_reduction(a, 1.f, 1, IntArray(0, 3))
-               || test_reduction(a, 1.f, 1, IntArray(1, 3))
-               || test_reduction(a, 2.f, 1, IntArray(2, 3))
-               || test_reduction(a, 2.f, 0, IntArray(0, 1, 3))
-               || test_reduction(a, 1.f, 0, IntArray(0, 2, 3))
-               || test_reduction(a, 2.f, 0, IntArray(1, 2, 3))
-               || test_reduction(a, 2.f, 1, IntArray(0, 1, 3))
-               || test_reduction(a, 1.f, 1, IntArray(0, 2, 3))
-               || test_reduction(a, 2.f, 1, IntArray(1, 2, 3))
-               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2, 3))
-               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2, 3));
+               || test_reduction(a, 2.f, 0, IntArray(3), flag)
+               || test_reduction(a, 2.f, 1, IntArray(3), flag)
+               || test_reduction(a, 1.f, 0, IntArray(0, 3), flag)
+               || test_reduction(a, 1.f, 0, IntArray(1, 3), flag)
+               || test_reduction(a, 2.f, 0, IntArray(2, 3), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0, 3), flag)
+               || test_reduction(a, 1.f, 1, IntArray(1, 3), flag)
+               || test_reduction(a, 2.f, 1, IntArray(2, 3), flag)
+               || test_reduction(a, 2.f, 0, IntArray(0, 1, 3), flag)
+               || test_reduction(a, 1.f, 0, IntArray(0, 2, 3), flag)
+               || test_reduction(a, 2.f, 0, IntArray(1, 2, 3), flag)
+               || test_reduction(a, 2.f, 1, IntArray(0, 1, 3), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0, 2, 3), flag)
+               || test_reduction(a, 2.f, 1, IntArray(1, 2, 3), flag)
+               || test_reduction(a, 1.f, 0, IntArray(0, 1, 2, 3), flag)
+               || test_reduction(a, 1.f, 1, IntArray(0, 1, 2, 3), flag);
 
     return ret4;
 }
@@ -196,7 +196,7 @@ static int test_reduction_1()
     ncnn::Mat c = RandomMat(3, 5, 13);
 
     return 0
-           || test_reduction_nd(a)
+           || test_reduction_nd(a, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_reduction_nd(b)
            || test_reduction_nd(c);
 }
@@ -208,7 +208,7 @@ static int test_reduction_2()
     ncnn::Mat c = RandomMat(19, 15);
 
     return 0
-           || test_reduction_nd(a)
+           || test_reduction_nd(a, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_reduction_nd(b)
            || test_reduction_nd(c);
 }

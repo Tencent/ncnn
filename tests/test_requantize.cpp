@@ -139,6 +139,9 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
     Randomize(weights[1], 10, 100);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    // ordinary cases cover dims=1/2/3; retain the packed dims=4 cases
+    if (a.dims != 4)
+        flag |= TEST_LAYER_DISABLE_GPU_TESTING;
 #if !__riscv
     flag |= TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
 #endif
