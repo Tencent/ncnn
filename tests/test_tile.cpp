@@ -184,6 +184,7 @@ static int test_tile_2()
            || test_tile(b, IntArray(1, 2, 1, 4))
            || test_tile(c, IntArray(5))
            || test_tile(c, IntArray(6, 1))
+           || test_tile(c, IntArray(4, 1))
            || test_tile(c, IntArray(6, 1, 6))
            || test_tile(c, IntArray(3, 2, 1, 1));
 }
