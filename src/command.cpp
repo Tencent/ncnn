@@ -2090,6 +2090,12 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 {
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
+    if (!pipeline->pipeline())
+    {
+        NCNN_LOGE("record_pipeline skipped, pipeline was not created");
+        return;
+    }
+
     bool need_resolve = false;
     for (size_t i = 0; i < _buffer_bindings.size(); i++)
     {
