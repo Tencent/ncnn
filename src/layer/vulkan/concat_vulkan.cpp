@@ -158,6 +158,10 @@ int Concat_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+    int ret_shape = check_shape(bottom_blobs);
+    if (ret_shape != 0)
+        return ret_shape;
+
     int dims = bottom_blobs[0].dims;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
