@@ -82,19 +82,38 @@ static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int 
     ime2_fp16* dst = (ime2_fp16*)T;
 
     for (int i = 0; i < rt; i++)
+    {
+        const int gr0 = i * 8;
         for (int j = 0; j < kt; j++)
         {
             ime2_fp16* t = dst + ((size_t)i * kt + j) * 64;
-            for (int r = 0; r < 8; r++)
-                for (int c = 0; c < 8; c++)
+            const int gk0 = j * 8;
+            if (gr0 + 8 <= R && gk0 + 8 <= K)
+            {
+                // 快路径：整块在界内，紧凑转换循环（GCC 自动向量化）
+                const float* s0 = src + (size_t)gr0 * ld + gk0;
+                for (int r = 0; r < 8; r++)
                 {
-                    const int gr = i * 8 + r, gk = j * 8 + c;
-                    float v = 0.f;
-                    if (gr < R && gk < K)
-                        v = src[(size_t)gr * ld + gk];
-                    t[r * 8 + c] = (ime2_fp16)v;
+                    const float* s = s0 + (size_t)r * ld;
+                    ime2_fp16* d = t + r * 8;
+                    for (int c = 0; c < 8; c++)
+                        d[c] = (ime2_fp16)s[c];
                 }
+            }
+            else
+            {
+                for (int r = 0; r < 8; r++)
+                    for (int c = 0; c < 8; c++)
+                    {
+                        const int gr = gr0 + r, gk = gk0 + c;
+                        float v = 0.f;
+                        if (gr < R && gk < K)
+                            v = src[(size_t)gr * ld + gk];
+                        t[r * 8 + c] = (ime2_fp16)v;
+                    }
+            }
         }
+    }
     return 0;
 }
 
@@ -109,19 +128,37 @@ static int ime2_pack_fp32_T(const float* src, size_t ld, ncnn::Mat& T, int R, in
     ime2_fp16* dst = (ime2_fp16*)T;
 
     for (int i = 0; i < rt; i++)
+    {
+        const int gr0 = i * 8;
         for (int j = 0; j < kt; j++)
         {
             ime2_fp16* t = dst + ((size_t)i * kt + j) * 64;
-            for (int r = 0; r < 8; r++)
-                for (int c = 0; c < 8; c++)
+            const int gk0 = j * 8;
+            if (gr0 + 8 <= R && gk0 + 8 <= K)
+            {
+                // 转置快路径：紧凑转换循环（GCC 自动向量化跨步访存）
+                for (int r = 0; r < 8; r++)
                 {
-                    const int gr = i * 8 + r, gk = j * 8 + c;
-                    float v = 0.f;
-                    if (gr < R && gk < K)
-                        v = src[(size_t)gk * ld + gr];
-                    t[r * 8 + c] = (ime2_fp16)v;
+                    const float* s = src + (size_t)gk0 * ld + (gr0 + r);
+                    ime2_fp16* d = t + r * 8;
+                    for (int c = 0; c < 8; c++)
+                        d[c] = (ime2_fp16)s[(size_t)c * ld];
                 }
+            }
+            else
+            {
+                for (int r = 0; r < 8; r++)
+                    for (int c = 0; c < 8; c++)
+                    {
+                        const int gr = gr0 + r, gk = gk0 + c;
+                        float v = 0.f;
+                        if (gr < R && gk < K)
+                            v = src[(size_t)gk * ld + gr];
+                        t[r * 8 + c] = (ime2_fp16)v;
+                    }
+            }
         }
+    }
     return 0;
 }
 
