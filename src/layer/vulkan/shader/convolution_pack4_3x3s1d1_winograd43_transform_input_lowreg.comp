@@ -1,0 +1,149 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int block_y = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+} p;
+
+afpvec4 load_v(int v_offset_0, int sx, int sy, int r, int k)
+{
+    if (sy + r < psc(h) && sx + k < psc(w))
+        return buffer_ld4(bottom_blob_data, v_offset_0 + r * psc(w) + k);
+    return afpvec4(0.f);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
+        return;
+
+    int sx = gx * 4;
+    int sy = gy * 4;
+
+    int v_offset_0 = gz * psc(cstep) + sy * psc(w) + sx;
+
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
+    int tm_step = psc(outcstep) * c;
+
+#define sq2    1.41421356237
+#define sq2_d2 1.41421356237 / 2
+
+    // const float itm[6][6] = {
+    //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
+    //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
+    //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
+    //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
+    //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
+    // };
+
+    // the transform is separable: output row i depends only on m[i][0..5],
+    // and m[i][r] depends only on input row r.
+    // produce the output rows in groups that share their input columns,
+    // reloading the inputs per group instead of keeping the whole 6x6 tile
+    // and its 6x6 intermediate in registers
+
+    // output row 0, input columns 0 2 4
+    {
+        afpvec4 m0[6];
+        for (int r = 0; r < 6; r++)
+        {
+            afpvec4 v0 = load_v(v_offset_0, sx, sy, r, 0);
+            afpvec4 v2 = load_v(v_offset_0, sx, sy, r, 2);
+            afpvec4 v4 = load_v(v_offset_0, sx, sy, r, 4);
+            m0[r] = v0 - v2 * afp(2.5) + v4;
+        }
+
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 0 * tm_step, (m0[0] - m0[2] * afp(2.5) + m0[4]));
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 1 * tm_step, (m0[4] - m0[2] * afp(2) + m0[3] * afp(sq2_d2) - m0[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 2 * tm_step, (m0[4] - m0[2] * afp(2) - m0[3] * afp(sq2_d2) + m0[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 3 * tm_step, (m0[4] - m0[2] * afp(0.5) + m0[3] * afp(sq2) - m0[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 4 * tm_step, (m0[4] - m0[2] * afp(0.5) - m0[3] * afp(sq2) + m0[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + 5 * tm_step, (m0[1] - m0[3] * afp(2.5) + m0[5]));
+    }
+
+    // output rows 1 2 and 3 4, input columns 1 2 3 4
+    for (int i = 1; i < 5; i += 2)
+    {
+        const afp a = i == 1 ? afp(2) : afp(0.5);
+        const afp b = i == 1 ? afp(sq2_d2) : afp(sq2);
+        const afp d = i == 1 ? afp(sq2) : afp(sq2_d2);
+
+        afpvec4 ma[6];
+        afpvec4 mb[6];
+        for (int r = 0; r < 6; r++)
+        {
+            afpvec4 v1 = load_v(v_offset_0, sx, sy, r, 1);
+            afpvec4 v2 = load_v(v_offset_0, sx, sy, r, 2);
+            afpvec4 v3 = load_v(v_offset_0, sx, sy, r, 3);
+            afpvec4 v4 = load_v(v_offset_0, sx, sy, r, 4);
+            ma[r] = v4 - v2 * a + v3 * b - v1 * d;
+            mb[r] = v4 - v2 * a - v3 * b + v1 * d;
+        }
+
+        int o = v_tm_offset + i * 6 * tm_step;
+        buffer_st4(bottom_tm_blob_data, o + 0 * tm_step, (ma[0] - ma[2] * afp(2.5) + ma[4]));
+        buffer_st4(bottom_tm_blob_data, o + 1 * tm_step, (ma[4] - ma[2] * afp(2) + ma[3] * afp(sq2_d2) - ma[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 2 * tm_step, (ma[4] - ma[2] * afp(2) - ma[3] * afp(sq2_d2) + ma[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 3 * tm_step, (ma[4] - ma[2] * afp(0.5) + ma[3] * afp(sq2) - ma[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 4 * tm_step, (ma[4] - ma[2] * afp(0.5) - ma[3] * afp(sq2) + ma[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 5 * tm_step, (ma[1] - ma[3] * afp(2.5) + ma[5]));
+
+        o += 6 * tm_step;
+        buffer_st4(bottom_tm_blob_data, o + 0 * tm_step, (mb[0] - mb[2] * afp(2.5) + mb[4]));
+        buffer_st4(bottom_tm_blob_data, o + 1 * tm_step, (mb[4] - mb[2] * afp(2) + mb[3] * afp(sq2_d2) - mb[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 2 * tm_step, (mb[4] - mb[2] * afp(2) - mb[3] * afp(sq2_d2) + mb[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 3 * tm_step, (mb[4] - mb[2] * afp(0.5) + mb[3] * afp(sq2) - mb[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 4 * tm_step, (mb[4] - mb[2] * afp(0.5) - mb[3] * afp(sq2) + mb[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 5 * tm_step, (mb[1] - mb[3] * afp(2.5) + mb[5]));
+    }
+
+    // output row 5, input columns 1 3 5
+    {
+        afpvec4 m5[6];
+        for (int r = 0; r < 6; r++)
+        {
+            afpvec4 v1 = load_v(v_offset_0, sx, sy, r, 1);
+            afpvec4 v3 = load_v(v_offset_0, sx, sy, r, 3);
+            afpvec4 v5 = load_v(v_offset_0, sx, sy, r, 5);
+            m5[r] = v1 - v3 * afp(2.5) + v5;
+        }
+
+        int o = v_tm_offset + 30 * tm_step;
+        buffer_st4(bottom_tm_blob_data, o + 0 * tm_step, (m5[0] - m5[2] * afp(2.5) + m5[4]));
+        buffer_st4(bottom_tm_blob_data, o + 1 * tm_step, (m5[4] - m5[2] * afp(2) + m5[3] * afp(sq2_d2) - m5[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 2 * tm_step, (m5[4] - m5[2] * afp(2) - m5[3] * afp(sq2_d2) + m5[1] * afp(sq2)));
+        buffer_st4(bottom_tm_blob_data, o + 3 * tm_step, (m5[4] - m5[2] * afp(0.5) + m5[3] * afp(sq2) - m5[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 4 * tm_step, (m5[4] - m5[2] * afp(0.5) - m5[3] * afp(sq2) + m5[1] * afp(sq2_d2)));
+        buffer_st4(bottom_tm_blob_data, o + 5 * tm_step, (m5[1] - m5[3] * afp(2.5) + m5[5]));
+    }
+}
