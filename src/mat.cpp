@@ -16,34 +16,34 @@
 #endif // NCNN_VULKAN
 
 namespace ncnn {
-static void zero_mat_create_padding(int _dims, int _w, int _h, int _d, int _c, size_t _elemsize, size_t _cstep, void* _data, size_t _totalsize)
+static void zero_mat_create_padding(const Mat& m, size_t totalsize)
 {
-    if (!_data || _elemsize == 0 || _cstep == 0)
-        return;
-
-    size_t per_channel = 1;
-    if (_dims == 1)
-        per_channel = (size_t)_w;
-    else if (_dims == 2)
-        per_channel = (size_t)_w * _h;
-    else if (_dims == 3)
-        per_channel = (size_t)_w * _h;
-    else if (_dims == 4)
-        per_channel = (size_t)_w * _h * _d;
-
-    unsigned char* base = (unsigned char*)_data;
-    if (_cstep > per_channel)
+    const size_t per_channel = (size_t)m.w * m.h * m.d;
+    const size_t channel_bytes = m.cstep * m.elemsize;
+    const size_t used_per_batch = channel_bytes * m.c;
+#if NCNN_BATCH
+    const size_t batch_bytes = m.nstep * m.elemsize;
+#else
+    const size_t batch_bytes = used_per_batch;
+#endif
+    unsigned char* base = (unsigned char*)m.data;
+    for (int b = 0; b < m.n; b++)
     {
-        const size_t pad_bytes = (_cstep - per_channel) * _elemsize;
-        for (int i = 0; i < _c; i++)
+        unsigned char* batch = base + b * batch_bytes;
+        if (m.cstep > per_channel)
         {
-            memset(base + (i * _cstep + per_channel) * _elemsize, 0, pad_bytes);
+            const size_t payload_bytes = per_channel * m.elemsize;
+            const size_t pad_bytes = channel_bytes - payload_bytes;
+            for (int q = 0; q < m.c; q++)
+                memset(batch + q * channel_bytes + payload_bytes, 0, pad_bytes);
         }
+        if (batch_bytes > used_per_batch)
+            memset(batch + used_per_batch, 0, batch_bytes - used_per_batch);
     }
 
-    const size_t used = (size_t)_c * _cstep * _elemsize;
-    if (_totalsize > used)
-        memset(base + used, 0, _totalsize - used);
+    const size_t used = (size_t)m.n * batch_bytes;
+    if (totalsize > used)
+        memset(base + used, 0, totalsize - used);
 }
 
 #if NCNN_BATCH
@@ -363,8 +363,8 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -407,8 +407,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -451,8 +451,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -495,8 +495,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -539,8 +539,8 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -583,8 +583,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -627,8 +627,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -671,8 +671,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -750,8 +750,8 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, int _n, Allocator* _al
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -795,8 +795,8 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, int _n, Alloca
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -840,8 +840,8 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, int _n
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -885,8 +885,8 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
     if (data)
     {
-        // Zero only cstep/elempack padding lanes, not payload the next layer writes (#6765).
-        zero_mat_create_padding(dims, w, h, d, c, elemsize, cstep, data, totalsize);
+        // Zero only allocation padding, not payload the next layer writes (#6765).
+        zero_mat_create_padding(*this, totalsize);
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
