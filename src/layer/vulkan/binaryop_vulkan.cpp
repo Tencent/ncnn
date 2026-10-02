@@ -50,7 +50,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     bool broadcast = true;
-    if (A_shape.dims == B_shape.dims && A_shape.w == B_shape.w && A_shape.h == B_shape.h && A_shape.d == B_shape.d && A_shape.c == B_shape.c)
+    if (A_shape.dims == B_shape.dims && A_shape.w == B_shape.w && A_shape.h == B_shape.h && A_shape.d == B_shape.d && A_shape.c == B_shape.c && A_shape.elempack == B_shape.elempack)
     {
         broadcast = false;
     }
