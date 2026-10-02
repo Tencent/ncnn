@@ -139,7 +139,7 @@ static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K)
                 {
                     const int gm = gm0 + r;
                     const ime2_fp16* src = (p == 1) ? (a + (size_t)gm * K + gk0)
-                                                    : (a + ((size_t)(gm / p) * K + gk0) * p + gm % p);
+                                           : (a + ((size_t)(gm / p) * K + gk0) * p + gm % p);
                     memcpy(t + r * 8, src, 16);
                 }
             }
@@ -168,130 +168,130 @@ static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K)
 /* ---------------- 内层内核 ---------------- */
 
 /* 单个 8x8 输出 tile：Ctmp(64 fp32) = At(8x8) x Bt(8x8)^T，沿 K 循环 kt 次 */
-static void ime2_tile_8x8(const ime2_fp16 *At, const ime2_fp16 *Bt, float *Ctmp, int kt)
+static void ime2_tile_8x8(const ime2_fp16* At, const ime2_fp16* Bt, float* Ctmp, int kt)
 {
-	/* 流水版：预取 k+1 步的 A/B，同时算当前步 —— 隐藏 L2 取数延迟。
-	 * 实测同结构比非流水快 ~2x（微基准 119->195 GFLOP/s/核）。 */
-	int k = kt - 1;
-	__asm__ volatile(
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vmv.v.i v16, 0\n\t"
-		"vsetvli t0, zero, e16, m1, tu, mu\n\t"
-		"vle16.v v2, (%[A])\n\t"
-		"vle16.v v8, (%[B])\n\t"
-		"addi %[A], %[A], 128\n\t"
-		"addi %[B], %[B], 128\n\t"
-		"1:\n\t"
-		"vle16.v v12, (%[A])\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t"
-		"vle16.v v13, (%[B])\n\t"
-		"vmv.v.v v2, v12\n\t"
-		"vmv.v.v v8, v13\n\t"
-		"addi %[A], %[A], 128\n\t"
-		"addi %[B], %[B], 128\n\t"
-		"addi %[k], %[k], -1\n\t"
-		"bnez %[k], 1b\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t"
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vse32.v v16, (%[C])\n\t"
-		: [A] "+r"(At), [B] "+r"(Bt), [k] "+r"(k)
-		: [C] "r"(Ctmp)
-		: "t0", "v2", "v8", "v12", "v13", "v16", "v17", "memory", "cc");
+    /* 流水版：预取 k+1 步的 A/B，同时算当前步 —— 隐藏 L2 取数延迟。
+     * 实测同结构比非流水快 ~2x（微基准 119->195 GFLOP/s/核）。 */
+    int k = kt - 1;
+    __asm__ volatile(
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vmv.v.i v16, 0\n\t"
+        "vsetvli t0, zero, e16, m1, tu, mu\n\t"
+        "vle16.v v2, (%[A])\n\t"
+        "vle16.v v8, (%[B])\n\t"
+        "addi %[A], %[A], 128\n\t"
+        "addi %[B], %[B], 128\n\t"
+        "1:\n\t"
+        "vle16.v v12, (%[A])\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t"
+        "vle16.v v13, (%[B])\n\t"
+        "vmv.v.v v2, v12\n\t"
+        "vmv.v.v v8, v13\n\t"
+        "addi %[A], %[A], 128\n\t"
+        "addi %[B], %[B], 128\n\t"
+        "addi %[k], %[k], -1\n\t"
+        "bnez %[k], 1b\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t"
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vse32.v v16, (%[C])\n\t"
+        : [A] "+r"(At), [B] "+r"(Bt), [k] "+r"(k)
+        : [C] "r"(Ctmp)
+        : "t0", "v2", "v8", "v12", "v13", "v16", "v17", "memory", "cc");
 }
 
-static void ime2_tile_16x16(const ime2_fp16 *At, const ime2_fp16 *Bt,
-                            float *C00, float *C10, float *C01, float *C11, int kt)
+static void ime2_tile_16x16(const ime2_fp16* At, const ime2_fp16* Bt,
+                            float* C00, float* C10, float* C01, float* C11, int kt)
 {
-	const ime2_fp16 *A1 = At + (size_t)kt * 64;
-	const ime2_fp16 *B1 = Bt + (size_t)kt * 64;
-	int k = kt - 1;
-	__asm__ volatile(
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vmv.v.i v16, 0\n\t vmv.v.i v18, 0\n\t vmv.v.i v20, 0\n\t vmv.v.i v22, 0\n\t"
-		"vsetvli t0, zero, e16, m1, tu, mu\n\t"
-		"vle16.v v2, (%[A0])\n\t vle16.v v8, (%[B0])\n\t vle16.v v4, (%[A1])\n\t vle16.v v10, (%[B1])\n\t"
-		"addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t"
-		"1:\n\t"
-		"vle16.v v12, (%[A0])\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t"
-		"vle16.v v13, (%[B0])\n\t"
-		"smt.vfwmadot v18, v4, v8\n\t"
-		"vle16.v v14, (%[A1])\n\t"
-		"smt.vfwmadot v20, v2, v10\n\t"
-		"vle16.v v15, (%[B1])\n\t"
-		"smt.vfwmadot v22, v4, v10\n\t"
-		"vmv.v.v v2, v12\n\t vmv.v.v v8, v13\n\t vmv.v.v v4, v14\n\t vmv.v.v v10, v15\n\t"
-		"addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
-		"addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t"
-		"addi %[k], %[k], -1\n\t bnez %[k], 1b\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t smt.vfwmadot v18, v4, v8\n\t"
-		"smt.vfwmadot v20, v2, v10\n\t smt.vfwmadot v22, v4, v10\n\t"
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vse32.v v16, (%[C00])\n\t vse32.v v18, (%[C10])\n\t vse32.v v20, (%[C01])\n\t vse32.v v22, (%[C11])\n\t"
-		: [A0] "+r"(At), [A1] "+r"(A1), [B0] "+r"(Bt), [B1] "+r"(B1), [k] "+r"(k)
-		: [C00] "r"(C00), [C10] "r"(C10), [C01] "r"(C01), [C11] "r"(C11)
-		: "t0", "v2", "v4", "v8", "v10", "v12", "v13", "v14", "v15",
-		  "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-		  "memory", "cc");
+    const ime2_fp16* A1 = At + (size_t)kt * 64;
+    const ime2_fp16* B1 = Bt + (size_t)kt * 64;
+    int k = kt - 1;
+    __asm__ volatile(
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vmv.v.i v16, 0\n\t vmv.v.i v18, 0\n\t vmv.v.i v20, 0\n\t vmv.v.i v22, 0\n\t"
+        "vsetvli t0, zero, e16, m1, tu, mu\n\t"
+        "vle16.v v2, (%[A0])\n\t vle16.v v8, (%[B0])\n\t vle16.v v4, (%[A1])\n\t vle16.v v10, (%[B1])\n\t"
+        "addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t"
+        "1:\n\t"
+        "vle16.v v12, (%[A0])\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t"
+        "vle16.v v13, (%[B0])\n\t"
+        "smt.vfwmadot v18, v4, v8\n\t"
+        "vle16.v v14, (%[A1])\n\t"
+        "smt.vfwmadot v20, v2, v10\n\t"
+        "vle16.v v15, (%[B1])\n\t"
+        "smt.vfwmadot v22, v4, v10\n\t"
+        "vmv.v.v v2, v12\n\t vmv.v.v v8, v13\n\t vmv.v.v v4, v14\n\t vmv.v.v v10, v15\n\t"
+        "addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
+        "addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t"
+        "addi %[k], %[k], -1\n\t bnez %[k], 1b\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t smt.vfwmadot v18, v4, v8\n\t"
+        "smt.vfwmadot v20, v2, v10\n\t smt.vfwmadot v22, v4, v10\n\t"
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vse32.v v16, (%[C00])\n\t vse32.v v18, (%[C10])\n\t vse32.v v20, (%[C01])\n\t vse32.v v22, (%[C11])\n\t"
+        : [A0] "+r"(At), [A1] "+r"(A1), [B0] "+r"(Bt), [B1] "+r"(B1), [k] "+r"(k)
+        : [C00] "r"(C00), [C10] "r"(C10), [C01] "r"(C01), [C11] "r"(C11)
+        : "t0", "v2", "v4", "v8", "v10", "v12", "v13", "v14", "v15",
+        "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+        "memory", "cc");
 }
 
 /* 2x4 寄存器分块：一次算 16(M)x32(N)。k+1 预取流水（全部 vmv 在 8 个 MAC 之后，
  * 独立预装载寄存器 —— 早前移 vmv 会让 c2/c3 列用到下一步的 A 操作数，已对拍验证）。 */
-static void ime2_tile_16x32(const ime2_fp16 *At, const ime2_fp16 *Bt,
-                            float *C00, float *C10,
-                            float *C01, float *C11,
-                            float *C02, float *C12,
-                            float *C03, float *C13, int kt)
+static void ime2_tile_16x32(const ime2_fp16* At, const ime2_fp16* Bt,
+                            float* C00, float* C10,
+                            float* C01, float* C11,
+                            float* C02, float* C12,
+                            float* C03, float* C13, int kt)
 {
-	const ime2_fp16 *A1 = At + (size_t)kt * 64;
-	const ime2_fp16 *B1 = Bt + (size_t)kt * 64, *B2 = B1 + (size_t)kt * 64, *B3 = B2 + (size_t)kt * 64;
-	int k = kt - 1;
-	__asm__ volatile(
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vmv.v.i v16, 0\n\t vmv.v.i v18, 0\n\t vmv.v.i v20, 0\n\t vmv.v.i v22, 0\n\t"
-		"vmv.v.i v24, 0\n\t vmv.v.i v26, 0\n\t vmv.v.i v28, 0\n\t vmv.v.i v30, 0\n\t"
-		"vsetvli t0, zero, e16, m1, tu, mu\n\t"
-		"vle16.v v2, (%[A0])\n\t vle16.v v4, (%[A1])\n\t"
-		"vle16.v v8, (%[B0])\n\t vle16.v v9, (%[B1])\n\t vle16.v v10, (%[B2])\n\t vle16.v v11, (%[B3])\n\t"
-		"addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
-		"addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t addi %[B2], %[B2], 128\n\t addi %[B3], %[B3], 128\n\t"
-		"1:\n\t"
-		"vle16.v v12, (%[A0])\n\t"
-		"vle16.v v14, (%[A1])\n\t"
-		"vle16.v v15, (%[B0])\n\t"
-		"vle16.v v13, (%[B1])\n\t"
-		"vle16.v v1, (%[B2])\n\t"
-		"vle16.v v3, (%[B3])\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t"
-		"smt.vfwmadot v18, v4, v8\n\t"
-		"smt.vfwmadot v20, v2, v9\n\t"
-		"smt.vfwmadot v22, v4, v9\n\t"
-		"smt.vfwmadot v24, v2, v10\n\t"
-		"smt.vfwmadot v26, v4, v10\n\t"
-		"smt.vfwmadot v28, v2, v11\n\t"
-		"smt.vfwmadot v30, v4, v11\n\t"
-		"addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
-		"addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t addi %[B2], %[B2], 128\n\t addi %[B3], %[B3], 128\n\t"
-		"vmv.v.v v2, v12\n\t vmv.v.v v4, v14\n\t vmv.v.v v8, v15\n\t"
-		"vmv.v.v v9, v13\n\t vmv.v.v v10, v1\n\t vmv.v.v v11, v3\n\t"
-		"addi %[k], %[k], -1\n\t bnez %[k], 1b\n\t"
-		"smt.vfwmadot v16, v2, v8\n\t smt.vfwmadot v18, v4, v8\n\t"
-		"smt.vfwmadot v20, v2, v9\n\t smt.vfwmadot v22, v4, v9\n\t"
-		"smt.vfwmadot v24, v2, v10\n\t smt.vfwmadot v26, v4, v10\n\t"
-		"smt.vfwmadot v28, v2, v11\n\t smt.vfwmadot v30, v4, v11\n\t"
-		"vsetvli t0, zero, e32, m2, tu, mu\n\t"
-		"vse32.v v16, (%[C00])\n\t vse32.v v18, (%[C10])\n\t"
-		"vse32.v v20, (%[C01])\n\t vse32.v v22, (%[C11])\n\t"
-		"vse32.v v24, (%[C02])\n\t vse32.v v26, (%[C12])\n\t"
-		"vse32.v v28, (%[C03])\n\t vse32.v v30, (%[C13])\n\t"
-		: [A0] "+r"(At), [A1] "+r"(A1),
-		  [B0] "+r"(Bt), [B1] "+r"(B1), [B2] "+r"(B2), [B3] "+r"(B3), [k] "+r"(k)
-		: [C00] "r"(C00), [C10] "r"(C10), [C01] "r"(C01), [C11] "r"(C11),
-		  [C02] "r"(C02), [C12] "r"(C12), [C03] "r"(C03), [C13] "r"(C13)
-		: "t0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
-		  "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
-		  "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
-		  "memory", "cc");
+    const ime2_fp16* A1 = At + (size_t)kt * 64;
+    const ime2_fp16 *B1 = Bt + (size_t)kt * 64, *B2 = B1 + (size_t)kt * 64, *B3 = B2 + (size_t)kt * 64;
+    int k = kt - 1;
+    __asm__ volatile(
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vmv.v.i v16, 0\n\t vmv.v.i v18, 0\n\t vmv.v.i v20, 0\n\t vmv.v.i v22, 0\n\t"
+        "vmv.v.i v24, 0\n\t vmv.v.i v26, 0\n\t vmv.v.i v28, 0\n\t vmv.v.i v30, 0\n\t"
+        "vsetvli t0, zero, e16, m1, tu, mu\n\t"
+        "vle16.v v2, (%[A0])\n\t vle16.v v4, (%[A1])\n\t"
+        "vle16.v v8, (%[B0])\n\t vle16.v v9, (%[B1])\n\t vle16.v v10, (%[B2])\n\t vle16.v v11, (%[B3])\n\t"
+        "addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
+        "addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t addi %[B2], %[B2], 128\n\t addi %[B3], %[B3], 128\n\t"
+        "1:\n\t"
+        "vle16.v v12, (%[A0])\n\t"
+        "vle16.v v14, (%[A1])\n\t"
+        "vle16.v v15, (%[B0])\n\t"
+        "vle16.v v13, (%[B1])\n\t"
+        "vle16.v v1, (%[B2])\n\t"
+        "vle16.v v3, (%[B3])\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t"
+        "smt.vfwmadot v18, v4, v8\n\t"
+        "smt.vfwmadot v20, v2, v9\n\t"
+        "smt.vfwmadot v22, v4, v9\n\t"
+        "smt.vfwmadot v24, v2, v10\n\t"
+        "smt.vfwmadot v26, v4, v10\n\t"
+        "smt.vfwmadot v28, v2, v11\n\t"
+        "smt.vfwmadot v30, v4, v11\n\t"
+        "addi %[A0], %[A0], 128\n\t addi %[A1], %[A1], 128\n\t"
+        "addi %[B0], %[B0], 128\n\t addi %[B1], %[B1], 128\n\t addi %[B2], %[B2], 128\n\t addi %[B3], %[B3], 128\n\t"
+        "vmv.v.v v2, v12\n\t vmv.v.v v4, v14\n\t vmv.v.v v8, v15\n\t"
+        "vmv.v.v v9, v13\n\t vmv.v.v v10, v1\n\t vmv.v.v v11, v3\n\t"
+        "addi %[k], %[k], -1\n\t bnez %[k], 1b\n\t"
+        "smt.vfwmadot v16, v2, v8\n\t smt.vfwmadot v18, v4, v8\n\t"
+        "smt.vfwmadot v20, v2, v9\n\t smt.vfwmadot v22, v4, v9\n\t"
+        "smt.vfwmadot v24, v2, v10\n\t smt.vfwmadot v26, v4, v10\n\t"
+        "smt.vfwmadot v28, v2, v11\n\t smt.vfwmadot v30, v4, v11\n\t"
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vse32.v v16, (%[C00])\n\t vse32.v v18, (%[C10])\n\t"
+        "vse32.v v20, (%[C01])\n\t vse32.v v22, (%[C11])\n\t"
+        "vse32.v v24, (%[C02])\n\t vse32.v v26, (%[C12])\n\t"
+        "vse32.v v28, (%[C03])\n\t vse32.v v30, (%[C13])\n\t"
+        : [A0] "+r"(At), [A1] "+r"(A1),
+        [B0] "+r"(Bt), [B1] "+r"(B1), [B2] "+r"(B2), [B3] "+r"(B3), [k] "+r"(k)
+        : [C00] "r"(C00), [C10] "r"(C10), [C01] "r"(C01), [C11] "r"(C11),
+        [C02] "r"(C02), [C12] "r"(C12), [C03] "r"(C03), [C13] "r"(C13)
+        : "t0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+        "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+        "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
+        "memory", "cc");
 }
 
 /* ---------------- 完整 GEMM ---------------- */
@@ -315,16 +315,21 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     (void)opt;
 
     #pragma omp parallel for num_threads(nT) collapse(2)
-    for (int i = 0; i < mt; i += 2) {
-        for (int j = 0; j < nt; j += 2) {
+    for (int i = 0; i < mt; i += 2)
+    {
+        for (int j = 0; j < nt; j += 2)
+        {
             float t00[64], t10[64], t01[64], t11[64];
 
             const bool full2x2 = (i + 1 < mt) && (j + 1 < nt);
 
-            if (full2x2) {
+            if (full2x2)
+            {
                 ime2_tile_16x16(at + (size_t)i * kt * 64, bt + (size_t)j * kt * 64,
                                 t00, t10, t01, t11, kt);
-            } else {
+            }
+            else
+            {
                 ime2_tile_8x8(at + (size_t)i * kt * 64, bt + (size_t)j * kt * 64, t00, kt);
                 if (j + 1 < nt)
                     ime2_tile_8x8(at + (size_t)i * kt * 64, bt + (size_t)(j + 1) * kt * 64, t01, kt);
@@ -336,11 +341,13 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
 
             /* 散射 + fp32->fp16 转换，写进 ncnn 打包布局 */
             for (int r = 0; r < 8; r++)
-                for (int c = 0; c < 8; c++) {
-                    const float *tiles[4] = { t00, t01, t10, t11 };
-                    const int dm[4] = { 0, 0, 8, 8 };
-                    const int dn[4] = { 0, 8, 0, 8 };
-                    for (int q = 0; q < 4; q++) {
+                for (int c = 0; c < 8; c++)
+                {
+                    const float* tiles[4] = {t00, t01, t10, t11};
+                    const int dm[4] = {0, 0, 8, 8};
+                    const int dn[4] = {0, 8, 0, 8};
+                    for (int q = 0; q < 4; q++)
+                    {
                         const int gm = i * 8 + dm[q] + r;
                         const int gn = j * 8 + dn[q] + c;
                         if (gm >= M || gn >= N)
