@@ -240,6 +240,7 @@ static int test_binaryop_3()
     return 0
            || test_binaryop_3(7, 3, 31)
            || test_binaryop_3(6, 4, 28)
+           || test_binaryop_3(5, 3, 4)
            || test_binaryop_3(5, 5, 24, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_binaryop_3(4, 6, 32, TEST_LAYER_DISABLE_GPU_TESTING);
 }
