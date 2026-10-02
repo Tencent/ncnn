@@ -58,12 +58,7 @@ static int test_invalid_vulkan(const ncnn::Mat& a, const ncnn::Mat& b)
     ncnn::ParamDict pd;
     pd.set(0, 0);
     op->load_param(pd);
-    if (op->create_pipeline(opt) != 0)
-    {
-        op->destroy_pipeline(opt);
-        delete op;
-        return -1;
-    }
+    // Rejection must happen before any pipeline or dispatch is needed.
 
     int ret;
     bool output_empty;
@@ -96,7 +91,7 @@ static int test_valid_broadcast()
     // outer-axis compatibility, and the ambiguous inner-axis preference.
     const ncnn::Mat a[] = {
         RandomMat(5), RandomMat(5, 3), RandomMat(5, 3, 4), RandomMat(5, 3, 2, 4),
-        RandomMat(5, 3), RandomMat(5, 3, 4), RandomMat(5, 3, 4), RandomMat(5, 3, 2, 4),
+        RandomMat(5, 3), RandomMat(5, 3, 4), RandomMat(5, 3, 8), RandomMat(5, 3, 2, 4),
         RandomMat(5, 3), RandomMat(5, 3, 4), RandomMat(5, 3, 4), RandomMat(5, 3, 2, 4),
         RandomMat(5, 3, 2, 4), RandomMat(5, 3, 2, 4),
         RandomMat(5, 3), RandomMat(5, 3, 4), RandomMat(5, 3, 2, 4), RandomMat(4, 4, 4)
