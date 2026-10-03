@@ -536,6 +536,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
 
     const size_t elemsize = query.elemsize;
+    const int attn_mask_channels = attn_mask_blob.c * attn_mask_blob.elempack;
+    const int attn_mask_dims = attn_mask_blob.dims == 3 && attn_mask_channels == 1 ? 2 : attn_mask_blob.dims;
 
     VkMat key = cur_key;
     VkMat value = cur_value;
