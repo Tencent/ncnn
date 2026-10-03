@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -30,17 +32,20 @@ def test():
     mod.save("test_F_adaptive_max_pool2d.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_adaptive_max_pool2d.pt inputshape=[1,12,24,64]")
+    converted = torchscript_to_pnnx("test_F_adaptive_max_pool2d", "[1,12,24,64]")
 
     # pnnx inference
-    import test_F_adaptive_max_pool2d_pnnx
-    b = test_F_adaptive_max_pool2d_pnnx.test_inference()
+    b = converted(x)
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    if not has_torch_export():
+        return True
+
+    converted = exported_program_to_pnnx(net, x, "test_F_adaptive_max_pool2d_pt2")
+    c = converted(x)
+    return all(torch.equal(a0, c0) for a0, c0 in zip(a, c))
 
 if __name__ == "__main__":
     if test():

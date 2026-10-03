@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -50,17 +52,20 @@ def test():
     mod.save("test_nn_AvgPool2d.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_AvgPool2d.pt inputshape=[1,12,128,128],[12,128,128]")
+    converted = torchscript_to_pnnx("test_nn_AvgPool2d", "[1,12,128,128],[12,128,128]")
 
     # pnnx inference
-    import test_nn_AvgPool2d_pnnx
-    b = test_nn_AvgPool2d_pnnx.test_inference()
+    b = converted(x, y)
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    if not has_torch_export():
+        return True
+
+    converted = exported_program_to_pnnx(net, (x, y), "test_nn_AvgPool2d_pt2")
+    c = converted(x, y)
+    return all(torch.equal(a0, c0) for a0, c0 in zip(a, c))
 
 if __name__ == "__main__":
     if test():
