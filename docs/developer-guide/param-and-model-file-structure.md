@@ -69,6 +69,38 @@ In modern ncnn param file
 * array could be represented as `3=2.0,3.0` that is much more human friendly
 * string typed value: `4=hello` and the string is no longer than 255
 
+### shape hints
+
+An output blob shape may be declared inline in the layer line, so that consumers such as `ncnnoptimize`
+do not have to re-derive it from real data. The hints are stored in param index `30`, therefore the text
+spelling is the integer array `-23330` (`-23300 - 30`).
+
+```
+-23330=<count>,<dims>,<w>,<h>[,<d>],<c>[,<dims>,<w>,<h>[,<d>],<c>]...
+```
+
+* `<count>` is the total number of integers that follow, that is `output count * step`
+* each output blob of the layer contributes exactly one record, in output blob order
+* `step` is the number of integers per record: `4` or `5`, and `dims` 4 requires `step` 5.
+  `ncnnoptimize` uses `step` 5 for every record of a layer
+* `step` must be identical for every output of the same layer. A layer with both 3-dim and 4-dim outputs
+  therefore uses `step` 5 for all of them, and the unused `<d>` slot of the 3-dim records is ignored
+* `dims` 0 means "no hint for this output" and skips the whole record
+* `w` is the innermost dimension, then `h`, then `d`, with `c` outermost, matching `ncnn::Mat(w,h,d,c)`.
+  Hint shapes describe a single sample, so they do not carry the batch count (`Mat::n`)
+
+```
+Input         in    0 1 in0  -23330=5,4,7,6,5,4                # one 4-dim output, w=7 h=6 d=5 c=4
+Input         in    0 2 in0 in1 -23330=10,3,7,6,1,5,4,4,3,2,32 # 3-dim w=7 h=6 c=5 and 4-dim w=4 h=3 d=2 c=32
+```
+
+Hints are optional. A model without them behaves exactly as before, and a runtime that does not
+understand param index `30` stores and ignores it. `ncnnoptimize` derives the shapes with its
+shape inference and writes the hints for every layer whose output shapes are all known; a layer with
+any unknown output shape gets no hint at all. When `NCNN_VALIDATION` is enabled a malformed hint
+(wrong element count, `step` other than 4 or 5, negative sizes) rejects the model, and param index
+`30` must be an integer or float array; any other type is rejected.
+
 ## net.param.bin
 
 Binary custom layer type indexes must include `LayerType::CustomBit`. Untagged unknown type indexes are rejected instead of falling back to a custom registry slot. `ncnn2mem` adds this tag automatically.
