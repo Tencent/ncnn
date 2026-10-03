@@ -614,6 +614,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_mm.cpp
     pass_ncnn/torch_norm.cpp
     pass_ncnn/torch_prod.cpp
+    pass_ncnn/torch_repeat_interleave.cpp
     pass_ncnn/torch_roll.cpp
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
