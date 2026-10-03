@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "batch_reshape.h"
 
 namespace pnnx {
 
@@ -61,7 +62,7 @@ pnnx.Output             output      1 0 out
             new_shape.push_back(-1);
         }
 
-        const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
+        const bool batch_reshape = is_batch_reshape(op->inputs[0], op->outputs[0]);
         if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
         {
             new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
