@@ -14,6 +14,7 @@
 // ncnn public header
 #include "datareader.h"
 #include "layer.h"
+#include "layer/gemm.h"
 #include "layer_type.h"
 #include "net.h"
 
@@ -145,6 +146,18 @@ int NetQuantize::check_int8scale_table_requirement(const char* int8scale_table_p
     for (size_t i = 0; i < layers.size(); i++)
     {
         const std::string& type = layers[i]->type;
+        if (type == "Gemm")
+        {
+            const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[i];
+            if ((gemm->constantA || gemm->constantB) && !int8scale_table_path)
+            {
+                fprintf(stderr, "%s (%s): calibration table is required for static weight quantization\n", layers[i]->name.c_str(), type.c_str());
+                fprintf(stderr, "run ncnn2table to generate weight scales and pass the table to ncnn2int8\n");
+                return -1;
+            }
+            continue;
+        }
+
         if (type != "Embed" && type != "MultiHeadAttention" && type != "RNN" && type != "LSTM" && type != "GRU")
             continue;
 
@@ -608,10 +621,24 @@ int NetQuantize::quantize_gemm()
 
         fprintf(stderr, "quantize_gemm %s\n", gemm->name.c_str());
 
-        // TODO move to ncnn2table
-
         if (gemm->constantA)
         {
+            char key_a[256];
+            snprintf(key_a, 256, "%s_param_0", layers[i]->name.c_str());
+            std::map<std::string, ncnn::Mat>::iterator iter_a = weight_int8scale_table.find(key_a);
+            if (iter_a == weight_int8scale_table.end())
+            {
+                fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+                return -1;
+            }
+
+            ncnn::Mat A_data_int8_scales = iter_a->second;
+            if (A_data_int8_scales.w != gemm->constantM)
+            {
+                fprintf(stderr, "gemm %s param_0 scale size mismatch\n", gemm->name.c_str());
+                return -1;
+            }
+
             if (gemm->transA == 1)
             {
                 // transpose for easier quantization
@@ -628,19 +655,7 @@ int NetQuantize::quantize_gemm()
                 gemm->transA = 0;
             }
 
-            gemm->A_data_int8_scales.create(gemm->constantM);
-            for (int i = 0; i < gemm->constantM; i++)
-            {
-                float absmax = 0.f;
-
-                const float* ptr = (const float*)gemm->A_data + i * gemm->constantK;
-                for (int j = 0; j < gemm->constantK; j++)
-                {
-                    absmax = std::max(absmax, (float)fabs(ptr[j]));
-                }
-
-                gemm->A_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-            }
+            gemm->A_data_int8_scales = A_data_int8_scales;
 
             ncnn::Mat A_data = gemm->A_data.reshape(gemm->constantK, gemm->constantM);
             ncnn::Mat A_data_int8;
@@ -657,6 +672,22 @@ int NetQuantize::quantize_gemm()
 
         if (gemm->constantB)
         {
+            char key_b[256];
+            snprintf(key_b, 256, "%s_param_1", layers[i]->name.c_str());
+            std::map<std::string, ncnn::Mat>::iterator iter_b = weight_int8scale_table.find(key_b);
+            if (iter_b == weight_int8scale_table.end())
+            {
+                fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+                return -1;
+            }
+
+            ncnn::Mat B_data_int8_scales = iter_b->second;
+            if (B_data_int8_scales.w != 1)
+            {
+                fprintf(stderr, "gemm %s param_1 scale size mismatch\n", gemm->name.c_str());
+                return -1;
+            }
+
             if (gemm->transB == 0)
             {
                 // transpose for easier quantization
@@ -673,17 +704,7 @@ int NetQuantize::quantize_gemm()
                 gemm->transB = 1;
             }
 
-            const float* ptr = gemm->B_data;
-            float absmax = 0.f;
-            for (int j = 0; j < gemm->B_data.w; j++)
-            {
-                absmax = std::max(absmax, (float)fabs(ptr[j]));
-            }
-
-            gemm->B_data_int8_scale = absmax == 0.f ? 1.f : 127 / absmax;
-
-            ncnn::Mat B_data_int8_scales(1);
-            B_data_int8_scales[0] = gemm->B_data_int8_scale;
+            gemm->B_data_int8_scale = B_data_int8_scales[0];
 
             ncnn::Mat B_data_int8;
 
