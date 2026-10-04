@@ -77,6 +77,24 @@
 #define wsfpvec4 vec4
 #endif
 
+// wide arithmetic types: use these where a narrow fp16 arithmetic type would
+// overflow or lose precision - the accumulation over a long reduction (gemm K,
+// convolution taps), swish's exp(-v) and the rotaryembed rotation.  They are
+// fp32 whenever NCNN_fp16_arithmetic_f32acc is set (the runtime defines it with
+// fp16 arithmetic); in every other configuration the alias resolves to the type
+// the operator already used, so the generated shader is unchanged.
+#if NCNN_fp16_arithmetic_f32acc
+#define wfp float
+#define wfpvec2 vec2
+#define wfpvec4 vec4
+#define wfpmat4 mat4
+#else
+#define wfp afp
+#define wfpvec2 afpvec2
+#define wfpvec4 afpvec4
+#define wfpmat4 afpmat4
+#endif
+
 // shared local-memory types
 #if NCNN_bf16_storage
 #define lfp bfloat16_t

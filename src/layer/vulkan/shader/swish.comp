@@ -21,7 +21,11 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-    v = v / (afpvec4(1.f) + exp(-v));
+    // keep the internal state wide: exp(-v) overflows the fp16 range for
+    // v < ~-11, so a fp16 silu silently clamps the tail of the sigmoid to zero
+    // and biases the gating.  only the storage stays 16-bit.
+    wfpvec4 vf = wfpvec4(v);
+    vf = vf / (wfpvec4(1.f) + exp(-vf));
 
-    buffer_st4(bottom_top_blob_data, gi, v);
+    buffer_st4(bottom_top_blob_data, gi, afpvec4(vf));
 }

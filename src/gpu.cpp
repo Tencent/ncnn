@@ -5613,6 +5613,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_fp16_arithmetic)
     {
         option_defines.append("NCNN_fp16_arithmetic", 1);
+
+        // a narrow fp16 arithmetic type drifts and can saturate when a long
+        // reduction or an exp is evaluated in it, so the operators use the
+        // wfp/wfpvec types, which are fp32 when this is defined.
+        option_defines.append("NCNN_fp16_arithmetic_f32acc", 1);
     }
 
     if (opt.use_int8_storage)
