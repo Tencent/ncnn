@@ -63,6 +63,20 @@
 #define afpmat4 mat4
 #endif
 
+// wide storage types: use these for a 16-bit storage buffer whose value can
+// overflow the narrow fp16 exponent (a square grows twice as fast as its
+// input), so it must hold more than the storage type gives.  bf16 (8-bit
+// exponent) keeps its 16-bit buffer and results, everything else is fp32.
+#if NCNN_bf16_storage || NCNN_bf16_packed
+#define wsfp sfp
+#define wsfpvec2 sfpvec2
+#define wsfpvec4 sfpvec4
+#else
+#define wsfp float
+#define wsfpvec2 vec2
+#define wsfpvec4 vec4
+#endif
+
 // shared local-memory types
 #if NCNN_bf16_storage
 #define lfp bfloat16_t

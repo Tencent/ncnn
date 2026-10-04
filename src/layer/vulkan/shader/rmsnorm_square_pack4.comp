@@ -4,7 +4,8 @@
 #version 450
 
 layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout(binding = 1) writeonly buffer square_blob { sfpvec4 square_blob_data[]; };
+// x^2 overflows the narrow fp16 exponent, so keep the square wide
+layout(binding = 1) writeonly buffer square_blob { wsfpvec4 square_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -25,5 +26,9 @@ void main()
 
     int idx = gz * p.cstep + gy * p.w + gx;
     vec4 v = vec4(buffer_ld4(bottom_top_blob_data, idx));
+#if NCNN_bf16_storage || NCNN_bf16_packed
     buffer_st4(square_blob_data, idx, afpvec4(v * v));
+#else
+    square_blob_data[idx] = v * v;
+#endif
 }

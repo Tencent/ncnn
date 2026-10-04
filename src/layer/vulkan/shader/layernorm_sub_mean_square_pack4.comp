@@ -7,7 +7,8 @@ layout(constant_id = 0) const int affine_size = 0;
 
 layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout(binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
-layout(binding = 2) writeonly buffer square_blob { sfpvec4 square_blob_data[]; };
+// (value - mean)^2 overflows the narrow fp16 exponent, so keep the square wide
+layout(binding = 2) writeonly buffer square_blob { wsfpvec4 square_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -36,5 +37,9 @@ void main()
 
     v = v - mean;
 
+#if NCNN_bf16_storage || NCNN_bf16_packed
     buffer_st4(square_blob_data, gi, afpvec4(v * v));
+#else
+    square_blob_data[gi] = v * v;
+#endif
 }
