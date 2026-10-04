@@ -717,7 +717,32 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         return 0;
     }
 
-    VkMat qk_cross(dst_seqlen, src_seqlen, num_heads, elemsize, opt.workspace_vkallocator);
+    // The plain path materialises the full heads x src_seqlen x dst_seqlen score
+    // matrix, an O(N^2) block that can dominate device memory (~6.5 GB for fp32
+    // at 1024x1728).  Process the heads in groups so that only one group's score
+    // matrix is resident at a time.  The sdpa_cross shader indexes Q/K/V/top/mask
+    // by head_offset + local head and the intermediate score matrix by the
+    // chunk-local head.
+    int head_chunk = num_heads;
+    if (!use_cooperative_matrix)
+    {
+        const size_t bytes_per_head = (size_t)src_seqlen * (size_t)dst_seqlen * elemsize;
+        size_t score_budget = (size_t)768 * 1024 * 1024;
+        if (opt.sdpa_score_budget_mb > 0)
+            score_budget = (size_t)opt.sdpa_score_budget_mb * 1024 * 1024;
+        if (bytes_per_head > 0 && bytes_per_head * (size_t)num_heads > score_budget)
+        {
+            head_chunk = (int)(score_budget / bytes_per_head);
+            if (head_chunk < 1)
+                head_chunk = 1;
+        }
+    }
+
+    for (int head0 = 0; head0 < num_heads; head0 += head_chunk)
+    {
+    const int chunk_heads = head_chunk < num_heads - head0 ? head_chunk : num_heads - head0;
+
+    VkMat qk_cross(dst_seqlen, src_seqlen, chunk_heads, elemsize, opt.workspace_vkallocator);
     if (qk_cross.empty())
         return -100;
 
@@ -726,7 +751,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         int M = src_seqlen;
         int N = dst_seqlen;
         int K = embed_dim;
-        int B = num_heads;
+        int B = chunk_heads;
 
         std::vector<VkMat> bindings(4);
         bindings[0] = query;
@@ -734,7 +759,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         bindings[2] = qk_cross;
         bindings[3] = attn_mask_blob;
 
-        std::vector<vk_constant_type> constants(11);
+        std::vector<vk_constant_type> constants(use_cooperative_matrix ? 11 : 12);
         constants[0].f = _scale;
         constants[1].i = M;
         constants[2].i = N;
@@ -746,6 +771,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[8].i = key.cstep;
         constants[9].i = qk_cross.cstep;
         constants[10].i = attn_mask_blob.cstep;
+        if (constants.size() > 11)
+            constants[11].i = head0;
 
         if (use_cooperative_matrix)
         {
@@ -782,7 +809,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         int M = src_seqlen;
         int N = out_embed_dim;
         int K = dst_seqlen;
-        int B = num_heads;
+        int B = chunk_heads;
 
         std::vector<VkMat> bindings(4);
         bindings[0] = qk_cross;
@@ -790,7 +817,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         bindings[2] = top_blob;
         bindings[3] = VkMat();
 
-        std::vector<vk_constant_type> constants(11);
+        std::vector<vk_constant_type> constants(use_cooperative_matrix ? 11 : 12);
         constants[0].f = 1.f; // scale
         constants[1].i = M;
         constants[2].i = N;
@@ -802,6 +829,13 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[8].i = value.cstep;
         constants[9].i = top_blob.cstep;
         constants[10].i = 0; // mask_cstep
+        // top_blob is indexed by head_offset + the chunk-local head, exactly like
+        // the qk pass indexes query/key/value.  Without this the push constant
+        // stays at its zero-initialised value, so every chunk writes into the
+        // first chunk_heads heads and the remaining heads of top_blob are never
+        // written at all (they keep whatever the blob allocator handed out).
+        if (constants.size() > 11)
+            constants[11].i = head0;
 
         if (use_cooperative_matrix)
         {
@@ -824,6 +858,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
             cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
         }
+    }
     }
 
     return 0;
