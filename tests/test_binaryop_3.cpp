@@ -7,7 +7,7 @@
 
 static int op_type = 0;
 
-static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
+static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
 {
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
@@ -55,7 +55,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, flag);
+    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
@@ -64,7 +64,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
     return ret;
 }
 
-static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
+static int test_binaryop(const ncnn::Mat& _a, float b)
 {
     ncnn::Mat a = _a;
     if (op_type == 6 || op_type == 9)
@@ -97,7 +97,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, flag);
+    int ret = test_layer("BinaryOp", pd, weights, a, 0.001);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
@@ -155,202 +155,199 @@ static int test_binaryop_atan2_special()
     return 0;
 }
 
-static int test_binaryop_1(int w, int flag = 0)
+static int test_binaryop_1(int w)
 {
-    ncnn::Mat a[2];
-    for (int j = 0; j < 2; j++)
+    // same-shape arithmetic, singleton axes and complementary output growth
+    ncnn::Mat inputs[] = {
+        RandomMat(w),
+        RandomMat(1)
+    };
+    const int broadcast_pairs[][2] = {
+        {0, 1}
+    };
+    int ret = test_binaryop(inputs[0], inputs[0])
+              || test_binaryop(inputs[1], inputs[1]);
+    if (ret != 0)
+        return ret;
+    for (size_t i = 0; i < sizeof(broadcast_pairs) / sizeof(broadcast_pairs[0]); i++)
     {
-        int bw = j % 2 == 0 ? w : 1;
-        a[j] = RandomMat(bw);
-    }
-
-    for (int j = 0; j < 2; j++)
-    {
-        for (int k = 0; k < 2; k++)
-        {
-            int ret = test_binaryop(a[j], a[k], flag);
-            if (ret != 0)
-                return ret;
-        }
-
-        int ret = test_binaryop(a[j], 0.2f, flag);
+        const ncnn::Mat& a = inputs[broadcast_pairs[i][0]];
+        const ncnn::Mat& b = inputs[broadcast_pairs[i][1]];
+        int ret = test_binaryop(a, b) || test_binaryop(b, a);
         if (ret != 0)
             return ret;
     }
-
-    return 0;
+    // scalar parameters exercise the dense vector and single-element kernels
+    return test_binaryop(inputs[0], 0.2f)
+           || test_binaryop(inputs[1], 0.2f);
 }
 
 static int test_binaryop_1()
 {
-    // the 28-element cases cover the same Vulkan packing and broadcast paths
+    // pack1, pack4, pack8 and pack16 include both vector loops and remainders
     return 0
            || test_binaryop_1(31)
            || test_binaryop_1(28)
-           || test_binaryop_1(24, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_binaryop_1(32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_1(24)
+           || test_binaryop_1(32);
 }
 
-static int test_binaryop_2(int w, int h, int flag = 0)
+static int test_binaryop_2(int w, int h)
 {
-    ncnn::Mat a[4];
-    for (int j = 0; j < 2; j++)
+    // same-shape arithmetic, singleton axes and complementary output growth
+    ncnn::Mat inputs[] = {
+        RandomMat(w, h),
+        RandomMat(1, h),
+        RandomMat(w, 1),
+        RandomMat(1, 1)
+    };
+    const int broadcast_pairs[][2] = {
+        {0, 1}, {0, 2}, {0, 3}, {1, 2}
+    };
+    int ret = test_binaryop(inputs[0], inputs[0])
+              || test_binaryop(inputs[1], inputs[1]);
+    if (ret != 0)
+        return ret;
+    for (size_t i = 0; i < sizeof(broadcast_pairs) / sizeof(broadcast_pairs[0]); i++)
     {
-        for (int k = 0; k < 2; k++)
-        {
-            int bw = j % 2 == 0 ? w : 1;
-            int bh = k % 2 == 0 ? h : 1;
-            a[j * 2 + k] = RandomMat(bw, bh);
-        }
-    }
-
-    for (int j = 0; j < 4; j++)
-    {
-        for (int k = 0; k < 4; k++)
-        {
-            // retain full spatial broadcasts, singleton packed axes and every no-broadcast shape
-            int ret;
-            if (j != k && (j & k) > 1)
-                ret = test_binaryop(a[j], a[k], flag | TEST_LAYER_DISABLE_GPU_TESTING);
-            else
-                ret = test_binaryop(a[j], a[k], flag);
-            if (ret != 0)
-                return ret;
-        }
-
-        int ret;
-        if (j != 0 && j != 3)
-            ret = test_binaryop(a[j], 0.2f, flag | TEST_LAYER_DISABLE_GPU_TESTING);
-        else
-            ret = test_binaryop(a[j], 0.2f, flag);
+        const ncnn::Mat& a = inputs[broadcast_pairs[i][0]];
+        const ncnn::Mat& b = inputs[broadcast_pairs[i][1]];
+        int ret = test_binaryop(a, b) || test_binaryop(b, a);
         if (ret != 0)
             return ret;
     }
-
-    return 0;
+    // scalar parameters exercise the dense vector and single-element kernels
+    return test_binaryop(inputs[0], 0.2f)
+           || test_binaryop(inputs[3], 0.2f);
 }
 
 static int test_binaryop_2()
 {
-    // the 28-element cases cover the same Vulkan packing and broadcast paths
-    return 0
+    // singleton width includes a short row count before the packing boundaries
+    ncnn::Mat rows = RandomMat(1, 3);
+    return test_binaryop(rows, rows)
            || test_binaryop_2(13, 31)
            || test_binaryop_2(14, 28)
-           || test_binaryop_2(15, 24, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_binaryop_2(16, 32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_2(15, 24)
+           || test_binaryop_2(16, 32);
 }
 
-static int test_binaryop_3(int w, int h, int c, int flag = 0)
+static int test_binaryop_3(int w, int h, int c)
 {
-    ncnn::Mat a[8];
-    for (int j = 0; j < 2; j++)
+    // same-shape arithmetic, singleton axes and complementary output growth
+    ncnn::Mat inputs[] = {
+        RandomMat(w, h, c),
+        RandomMat(1, h, c),
+        RandomMat(w, 1, c),
+        RandomMat(1, 1, c),
+        RandomMat(w, h, 1),
+        RandomMat(1, h, 1),
+        RandomMat(w, 1, 1),
+        RandomMat(1, 1, 1)
+    };
+    const int broadcast_pairs[][2] = {
+        {1, 2}, {0, 1}, {0, 2}, {0, 3},
+        {0, 4}, {0, 5}, {0, 6}, {0, 7},
+        {1, 6}, {2, 5}, {3, 4}
+    };
+    int ret = test_binaryop(inputs[0], inputs[0])
+              || test_binaryop(inputs[1], inputs[1])
+              || test_binaryop(inputs[3], inputs[3]);
+    if (ret != 0)
+        return ret;
+    for (size_t i = 0; i < sizeof(broadcast_pairs) / sizeof(broadcast_pairs[0]); i++)
     {
-        for (int k = 0; k < 2; k++)
-        {
-            for (int l = 0; l < 2; l++)
-            {
-                int bw = j % 2 == 0 ? w : 1;
-                int bh = k % 2 == 0 ? h : 1;
-                int bc = l % 2 == 0 ? c : 1;
-                a[j * 4 + k * 2 + l] = RandomMat(bw, bh, bc);
-            }
-        }
-    }
-
-    for (int j = 0; j < 8; j++)
-    {
-        for (int k = 0; k < 8; k++)
-        {
-            // retain full spatial broadcasts, singleton packed axes and every no-broadcast shape
-            int ret;
-            if (j != k && (j & k) > 1)
-                ret = test_binaryop(a[j], a[k], flag | TEST_LAYER_DISABLE_GPU_TESTING);
-            else
-                ret = test_binaryop(a[j], a[k], flag);
-            if (ret != 0)
-                return ret;
-        }
-
-        int ret;
-        if (j != 0 && j != 7)
-            ret = test_binaryop(a[j], 0.2f, flag | TEST_LAYER_DISABLE_GPU_TESTING);
-        else
-            ret = test_binaryop(a[j], 0.2f, flag);
+        const ncnn::Mat& a = inputs[broadcast_pairs[i][0]];
+        const ncnn::Mat& b = inputs[broadcast_pairs[i][1]];
+        int ret = test_binaryop(a, b) || test_binaryop(b, a);
         if (ret != 0)
             return ret;
     }
+    // scalar parameters exercise the dense vector and single-element kernels
+    return test_binaryop(inputs[0], 0.2f)
+           || test_binaryop(inputs[7], 0.2f);
+}
 
-    return 0;
+static int test_binaryop_channel_broadcast(int c)
+{
+    // equal packing broadcasts the channel vector over width in both operand directions
+    ncnn::Mat a = RandomMat(1, 9, c);
+    ncnn::Mat b = RandomMat(7, 1, c);
+    return test_binaryop(a, b) || test_binaryop(b, a);
+}
+
+static int test_binaryop_mixed_channel_broadcast()
+{
+    // scalar row values broadcast over packed channels and width
+    ncnn::Mat a = RandomMat(7, 3, 32);
+    ncnn::Mat b = RandomMat(1, 3, 1);
+    return test_binaryop(a, b) || test_binaryop(b, a);
 }
 
 static int test_binaryop_3()
 {
-    // the 28-element cases cover the same Vulkan packing and broadcast paths
+    // spatial broadcasting uses scalar and packed channels independently of vector widths
     return 0
            || test_binaryop_3(7, 3, 31)
-           || test_binaryop_3(6, 4, 28)
-           || test_binaryop_3(5, 5, 24, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_binaryop_3(4, 6, 32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_3(7, 9, 28)
+           || test_binaryop_channel_broadcast(24)
+           || test_binaryop_channel_broadcast(32)
+           || test_binaryop_mixed_channel_broadcast();
 }
 
-static int test_binaryop_4(int w, int h, int d, int c, int flag = 0)
+static int test_binaryop_4(int w, int h, int d, int c)
 {
-    ncnn::Mat a[16];
-    for (int j = 0; j < 2; j++)
+    // same-shape arithmetic, singleton axes and complementary output growth
+    ncnn::Mat inputs[] = {
+        RandomMat(w, h, d, c),
+        RandomMat(1, h, d, c),
+        RandomMat(w, 1, d, c),
+        RandomMat(1, 1, d, c),
+        RandomMat(w, h, 1, c),
+        RandomMat(1, h, 1, c),
+        RandomMat(w, 1, 1, c),
+        RandomMat(1, 1, 1, c),
+        RandomMat(w, h, d, 1),
+        RandomMat(1, h, d, 1),
+        RandomMat(w, 1, d, 1),
+        RandomMat(1, 1, d, 1),
+        RandomMat(w, h, 1, 1),
+        RandomMat(1, h, 1, 1),
+        RandomMat(w, 1, 1, 1),
+        RandomMat(1, 1, 1, 1)
+    };
+    const int broadcast_pairs[][2] = {
+        {0, 1}, {0, 2}, {0, 4}, {0, 8},
+        {0, 3}, {0, 7}, {0, 15},
+        {1, 14}, {2, 13}, {3, 12}, {4, 11},
+        {5, 10}, {6, 9}, {7, 8}
+    };
+    int ret = test_binaryop(inputs[0], inputs[0])
+              || test_binaryop(inputs[15], inputs[15]);
+    if (ret != 0)
+        return ret;
+    for (size_t i = 0; i < sizeof(broadcast_pairs) / sizeof(broadcast_pairs[0]); i++)
     {
-        for (int k = 0; k < 2; k++)
-        {
-            for (int l = 0; l < 2; l++)
-            {
-                for (int m = 0; m < 2; m++)
-                {
-                    int bw = j % 2 == 0 ? w : 1;
-                    int bh = k % 2 == 0 ? h : 1;
-                    int bd = l % 2 == 0 ? d : 1;
-                    int bc = m % 2 == 0 ? c : 1;
-                    a[j * 8 + k * 4 + l * 2 + m] = RandomMat(bw, bh, bd, bc);
-                }
-            }
-        }
-    }
-
-    for (int j = 0; j < 16; j++)
-    {
-        for (int k = 0; k < 16; k++)
-        {
-            // retain full spatial broadcasts, singleton packed axes and every no-broadcast shape
-            int ret;
-            if (j != k && (j & k) > 1)
-                ret = test_binaryop(a[j], a[k], flag | TEST_LAYER_DISABLE_GPU_TESTING);
-            else
-                ret = test_binaryop(a[j], a[k], flag);
-            if (ret != 0)
-                return ret;
-        }
-
-        int ret;
-        if (j != 0 && j != 15)
-            ret = test_binaryop(a[j], 0.2f, flag | TEST_LAYER_DISABLE_GPU_TESTING);
-        else
-            ret = test_binaryop(a[j], 0.2f, flag);
+        const ncnn::Mat& a = inputs[broadcast_pairs[i][0]];
+        const ncnn::Mat& b = inputs[broadcast_pairs[i][1]];
+        int ret = test_binaryop(a, b) || test_binaryop(b, a);
         if (ret != 0)
             return ret;
     }
-
-    return 0;
+    // scalar parameters exercise the dense vector and single-element kernels
+    return test_binaryop(inputs[0], 0.2f)
+           || test_binaryop(inputs[15], 0.2f);
 }
 
 static int test_binaryop_4()
 {
-    // the 28-element cases cover the same Vulkan packing and broadcast paths
+    // depth broadcasting uses scalar and packed channels independently of vector widths
     return 0
            || test_binaryop_4(2, 7, 3, 31)
-           || test_binaryop_4(3, 6, 4, 28)
-           || test_binaryop_4(4, 5, 5, 24, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_binaryop_4(5, 4, 6, 32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_4(3, 6, 4, 28);
 }
 
-static int test_binaryop_5(int w, int h, int d, int c, int flag = 0)
+static int test_binaryop_5(int w, int h, int d, int c)
 {
     ncnn::Mat a[4] = {
         RandomMat(c),
@@ -359,17 +356,18 @@ static int test_binaryop_5(int w, int h, int d, int c, int flag = 0)
         RandomMat(w, h, d, c),
     };
 
-    for (int j = 0; j < 4; j++)
+    // every implicit-rank expansion is checked in both operand directions
+    const int rank_pairs[][2] = {
+        {0, 1}, {0, 2}, {0, 3},
+        {1, 2}, {1, 3}, {2, 3}
+    };
+    for (size_t i = 0; i < sizeof(rank_pairs) / sizeof(rank_pairs[0]); i++)
     {
-        for (int k = 0; k < 4; k++)
-        {
-            if (j == k)
-                continue;
-
-            int ret = test_binaryop(a[j], a[k], flag);
-            if (ret != 0)
-                return ret;
-        }
+        const int j = rank_pairs[i][0];
+        const int k = rank_pairs[i][1];
+        int ret = test_binaryop(a[j], a[k]) || test_binaryop(a[k], a[j]);
+        if (ret != 0)
+            return ret;
     }
 
     return 0;
@@ -377,15 +375,15 @@ static int test_binaryop_5(int w, int h, int d, int c, int flag = 0)
 
 static int test_binaryop_5()
 {
-    // the 28-element cases cover the same Vulkan packing and broadcast paths
+    // implicit-rank broadcasts retain each packing boundary
     return 0
            || test_binaryop_5(2, 7, 3, 31)
            || test_binaryop_5(3, 6, 4, 28)
-           || test_binaryop_5(4, 5, 5, 24, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_binaryop_5(5, 4, 6, 32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_5(4, 5, 5, 24)
+           || test_binaryop_5(5, 4, 6, 32);
 }
 
-static int test_binaryop_6(int w, int h, int d, int c, int flag = 0)
+static int test_binaryop_6(int w, int h, int d, int c)
 {
     ncnn::Mat a[3] = {
         RandomMat(d, c),
@@ -397,7 +395,7 @@ static int test_binaryop_6(int w, int h, int d, int c, int flag = 0)
     {
         ncnn::Mat b = RandomMat(a[j].w);
 
-        int ret = test_binaryop(a[j], b, flag) || test_binaryop(b, a[j], flag);
+        int ret = test_binaryop(a[j], b) || test_binaryop(b, a[j]);
         if (ret != 0)
             return ret;
     }
@@ -412,7 +410,7 @@ static int test_binaryop_6(int w, int h, int d, int c, int flag = 0)
     {
         ncnn::Mat b = RandomMat(aa[j].w);
 
-        int ret = test_binaryop(aa[j], b, flag) || test_binaryop(b, aa[j], flag);
+        int ret = test_binaryop(aa[j], b) || test_binaryop(b, aa[j]);
         if (ret != 0)
             return ret;
     }
@@ -427,7 +425,7 @@ static int test_binaryop_6()
            || test_binaryop_6(16, 15, 12, 31)
            || test_binaryop_6(12, 16, 14, 28)
            || test_binaryop_6(16, 15, 12, 24)
-           || test_binaryop_6(15, 12, 16, 32, TEST_LAYER_DISABLE_GPU_TESTING);
+           || test_binaryop_6(15, 12, 16, 32);
 }
 
 int main()

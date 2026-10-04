@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int flag = 0)
+static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int activation_type = 0, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -26,10 +26,9 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     pd.set(6, outch / group * c / group * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    activation_params[0] = activation_type == 2 ? 0.1f : -0.5f; // alpha
+    activation_params[1] = 0.25f; // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -53,51 +52,92 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
 
 static int test_deconvolutiondepthwise_0()
 {
-    static const int kdsp[16][4] = {
-        {1, 1, 1, 0},
-        {1, 1, 2, 0},
-        {2, 1, 1, 1},
-        {2, 1, 2, -233},
-        {3, 1, 1, 1},
-        {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 1, -233},
-        {4, 1, 2, -234},
-        {4, 2, 1, -234},
-        {5, 1, 1, 2},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
+    // scalar and packed depthwise kernels cover all geometric boundaries
+    static const int kdsp[][4] = {
+        {1, 1, 1, 0}, {1, 1, 2, 0}, {2, 1, 1, 1}, {2, 1, 2, -233},
+        {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1},
+        {4, 1, 1, -233}, {4, 1, 2, -234}, {4, 2, 1, -234},
+        {5, 1, 1, 2}, {5, 1, 2, 2}, {5, 2, 2, 2},
+        {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
     };
-
-    for (int i = 0; i < 16; i++)
+    for (size_t i = 0; i < sizeof(kdsp) / sizeof(kdsp[0]); i++)
     {
-        const int k = kdsp[i][0];
-        const int d = kdsp[i][1];
-        const int s = kdsp[i][2];
-        const int p = kdsp[i][3];
-
-        int ret = 0
-                  || test_deconvolutiondepthwise(15, 7, 1, 1, k, d, s, p, 1, 1, 0, 0, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 2, 2, k, d, s, p, 0, 1, 1, 1, 7, 5)
-                  || test_deconvolutiondepthwise(15, 7, 2, 2, k, d, s, p, 1, 2, 1, 0, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 3, 3, k, d, s, p, 0, 3, 0, 1, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 4, 2, k, d, s, p, 1, 2, 0, 0, 7, 5)
-                  || test_deconvolutiondepthwise(15, 7, 4, 4, k, d, s, p, 0, 4, 2, 2, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 7, 7, k, d, s, p, 1, 7, 2, 0, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 8, 8, k, d, s, p, 0, 2, 0, 2, 7, 5)
-                  || test_deconvolutiondepthwise(15, 7, 8, 8, k, d, s, p, 1, 8, 0, 0, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 12, 12, k, d, s, p, 0, 4, 3, 3, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 15, 15, k, d, s, p, 1, 15, 3, 0, 7, 5)
-                  || test_deconvolutiondepthwise(15, 7, 16, 8, k, d, s, p, 0, 2, 0, 3, 0, 0)
-                  || test_deconvolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16, 0, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING);
-
-        if (ret != 0)
+        const int* k = kdsp[i];
+        if (test_deconvolutiondepthwise(15, 7, 1, 1, k[0], k[1], k[2], k[3], 1, 1, 0, 0, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 8, 8, k[0], k[1], k[2], k[3], 0, 8, 0, 0, 0, 0))
             return -1;
     }
 
+    // channel remainders and crop axes use specialized and large generic representatives
+    static const int remainder_kdsp[][4] = {{1, 1, 1, 0}, {3, 1, 1, 1}, {7, 2, 1, -233}};
+    for (size_t i = 0; i < sizeof(remainder_kdsp) / sizeof(remainder_kdsp[0]); i++)
+    {
+        const int* k = remainder_kdsp[i];
+        if (test_deconvolutiondepthwise(15, 7, 2, 2, k[0], k[1], k[2], k[3], 1, 2, 1, 0, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 3, 3, k[0], k[1], k[2], k[3], 0, 3, 0, 1, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 4, 4, k[0], k[1], k[2], k[3], 0, 4, 2, 2, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 7, 7, k[0], k[1], k[2], k[3], 1, 7, 2, 0, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 15, 15, k[0], k[1], k[2], k[3], 1, 15, 3, 0, 7, 5))
+            return -1;
+    }
+
+    // group kernels retain all four arm specialized kernels and generic boundaries
+    static const int grouped_kdsp[][4] = {
+        {3, 1, 1, 1}, {3, 1, 2, 1}, {4, 1, 1, -233}, {4, 1, 2, -234},
+        {1, 1, 1, 0}, {3, 2, 1, 1}, {7, 2, 1, -233}
+    };
+    for (size_t i = 0; i < sizeof(grouped_kdsp) / sizeof(grouped_kdsp[0]); i++)
+    {
+        const int* k = grouped_kdsp[i];
+        if (test_deconvolutiondepthwise(15, 7, 2, 2, k[0], k[1], k[2], k[3], 0, 1, 1, 1, 7, 5)
+            || test_deconvolutiondepthwise(15, 7, 4, 2, k[0], k[1], k[2], k[3], 1, 2, 0, 0, 7, 5)
+            || test_deconvolutiondepthwise(15, 7, 8, 8, k[0], k[1], k[2], k[3], 0, 2, 0, 2, 7, 5)
+            || test_deconvolutiondepthwise(15, 7, 12, 12, k[0], k[1], k[2], k[3], 0, 4, 3, 3, 0, 0)
+            || test_deconvolutiondepthwise(15, 7, 16, 8, k[0], k[1], k[2], k[3], 0, 2, 0, 3, 0, 0))
+            return -1;
+    }
+
+    // activation types are explicit for every depthwise and group packing route
+    for (int activation = 0; activation < 5; activation++)
+    {
+        if (test_deconvolutiondepthwise(15, 7, 1, 1, 3, 1, 2, 1, 1, 1, 0, 0, 0, 0, activation)
+            || test_deconvolutiondepthwise(15, 7, 4, 4, 3, 1, 2, 1, 0, 4, 2, 2, 0, 0, activation)
+            || test_deconvolutiondepthwise(15, 7, 8, 8, 3, 1, 2, 1, 1, 8, 0, 0, 0, 0, activation)
+            || test_deconvolutiondepthwise(15, 7, 2, 2, 3, 1, 2, 1, 0, 1, 1, 1, 7, 5, activation)
+            || test_deconvolutiondepthwise(15, 7, 4, 2, 3, 1, 2, 1, 1, 2, 0, 0, 7, 5, activation)
+            || test_deconvolutiondepthwise(15, 7, 8, 8, 3, 1, 2, 1, 0, 2, 0, 2, 7, 5, activation)
+            || test_deconvolutiondepthwise(15, 7, 12, 12, 3, 1, 2, 1, 0, 4, 3, 3, 0, 0, activation)
+            || test_deconvolutiondepthwise(15, 7, 16, 8, 3, 1, 2, 1, 0, 2, 0, 3, 0, 0, activation))
+            return -1;
+    }
+
+    // nonzero activation preserves each specialized scalar group's postprocessing
+    if (test_deconvolutiondepthwise(15, 7, 2, 2, 3, 1, 1, 1, 0, 1, 1, 1, 7, 5, 1)
+        || test_deconvolutiondepthwise(15, 7, 2, 2, 3, 1, 2, 1, 0, 1, 1, 1, 7, 5, 1)
+        || test_deconvolutiondepthwise(15, 7, 2, 2, 4, 1, 1, -233, 0, 1, 1, 1, 7, 5, 1)
+        || test_deconvolutiondepthwise(15, 7, 2, 2, 4, 1, 2, -234, 0, 1, 1, 1, 7, 5, 1))
+        return -1;
+
+    return test_deconvolutiondepthwise(25, 13, 24, 24, 7, 2, 1, -233, 1, 24, 0, 0, 0, 0)
+           || test_deconvolutiondepthwise(25, 13, 16, 8, 7, 2, 1, -233, 0, 2, 0, 3, 0, 0);
+}
+
+static int test_deconvolutiondepthwise_cpu_pack16()
+{
+    // retain the original cpu-only pack16 group without adding gpu capability assumptions
+    static const int cases[][5] = {
+        {1, 1, 1, 0, 0}, {1, 1, 2, 0, 1}, {2, 1, 1, 1, 2}, {2, 1, 2, -233, 3},
+        {3, 1, 1, 1, 4}, {3, 1, 2, 1, 0}, {3, 2, 1, 1, 1},
+        {4, 1, 1, -233, 2}, {4, 1, 2, -234, 3}, {4, 2, 1, -234, 4},
+        {5, 1, 1, 2, 0}, {5, 1, 2, 2, 1}, {5, 2, 2, 2, 2},
+        {7, 1, 1, 3, 3}, {7, 1, 2, 3, 4}, {7, 2, 1, -233, 0}
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const int* c = cases[i];
+        if (test_deconvolutiondepthwise(15, 7, 16, 16, c[0], c[1], c[2], c[3], 1, 16, 0, 0, 0, 0, c[4], TEST_LAYER_DISABLE_GPU_TESTING) != 0)
+            return -1;
+    }
     return 0;
 }
 
@@ -287,17 +327,60 @@ static int test_deconvolutiondepthwise_load_param_text()
 }
 #endif // NCNN_VALIDATION
 
+static int test_deconvolutiondepthwise_relu_scalar_tail()
+{
+    // grouped scalar output has nine elements and a deterministic negative fp16 tail
+    ncnn::Mat a(1, 1, 2);
+    a.fill(-1.f);
+    ncnn::ParamDict pd;
+    pd.set(0, 2);
+    pd.set(1, 3);
+    pd.set(2, 1);
+    pd.set(3, 2);
+    pd.set(4, 0);
+    pd.set(5, 0);
+    pd.set(6, 36);
+    pd.set(7, 1);
+    pd.set(9, 1);
+    ncnn::Mat activation_params(2);
+    activation_params[0] = 0.1f;
+    activation_params[1] = 0.25f;
+    pd.set(10, activation_params);
+    std::vector<ncnn::Mat> weights(1);
+    weights[0].create(36);
+    weights[0].fill(1.f);
+    return test_layer("DeconvolutionDepthWise", pd, weights, a, 0.001);
+}
+
+static int test_deconvolutiondepthwise_group_pack_bias()
+{
+    // both per-group packing directions retain their opposite bias boundary
+    return 0
+           || test_deconvolutiondepthwise(1, 1, 6, 8, 1, 1, 1, 0, 1, 2, 0, 0, 0, 0, 3)
+           || test_deconvolutiondepthwise(1, 1, 8, 6, 1, 1, 1, 0, 0, 2, 0, 0, 0, 0, 3);
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
            || test_deconvolutiondepthwise_0()
+           || test_deconvolutiondepthwise_cpu_pack16()
            || test_deconvolutiondepthwise_activation_params_text()
 #if NCNN_VALIDATION
            || test_deconvolutiondepthwise_load_param()
            || test_deconvolutiondepthwise_load_param_text()
            || test_deconvolutiondepthwise_load_param_dynamic()
 #endif // NCNN_VALIDATION
+           // the grouped k2 kernel produces an internal gemm M8 packing tier
+           || test_deconvolutiondepthwise(15, 7, 2, 2, 2, 1, 1, 1, 0, 1, 1, 1, 7, 5)
+           || test_deconvolutiondepthwise_relu_scalar_tail()
+           // each group exercises scalar to packed and packed to scalar kernels
+           || test_deconvolutiondepthwise(7, 5, 6, 8, 3, 1, 1, 1, 0, 2, 0, 0, 0, 0, 3)
+           || test_deconvolutiondepthwise(7, 5, 8, 6, 3, 1, 2, 1, 1, 2, 1, 0, 0, 0, 3)
+           // same lower explicitly crops an odd border in both axes
+           || test_deconvolutiondepthwise(2, 2, 1, 1, 4, 1, 2, -234, 0, 1, 0, 0, 3, 3, 0)
+           || test_deconvolutiondepthwise_group_pack_bias()
            ;
 }

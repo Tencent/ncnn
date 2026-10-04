@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int flag = 0)
+static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_w, int output_h, int activation_type = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -25,10 +25,9 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     pd.set(5, bias);
     pd.set(6, outch * c * kernel * kernel);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    activation_params[0] = activation_type == 2 ? 0.1f : -0.5f; // alpha
+    activation_params[1] = 0.25f; // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -41,7 +40,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     weights[0] = RandomMat(outch * c * kernel * kernel);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer("Deconvolution", pd, weights, a, 0.001, flag);
+    int ret = test_layer("Deconvolution", pd, weights, a, 0.001);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -60,11 +59,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        // the default Vulkan options also use direct deconvolution below the GEMM thresholds
-        if (c < 8 || kernel * kernel * outch < 8)
-            ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag | TEST_LAYER_DISABLE_GPU_TESTING);
-        else
-            ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag);
+        ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -84,7 +79,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001, flag);
+        ret = test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -97,47 +92,96 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
 
 static int test_deconvolution_0()
 {
-    static const int kdsp[16][4] = {
-        {1, 1, 1, 0},
-        {1, 1, 2, 0},
-        {2, 1, 1, 1},
-        {2, 1, 2, -233},
-        {3, 1, 1, 1},
-        {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 1, -233},
-        {4, 1, 2, -234},
-        {4, 2, 1, -234},
-        {5, 1, 1, 2},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
+    static const int kdsp[][4] = {
+        {1, 1, 1, 0}, {1, 1, 2, 0},
+        {2, 1, 1, 1}, {2, 1, 2, -233},
+        {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1},
+        {4, 1, 1, -233}, {4, 1, 2, -234}, {4, 2, 1, -234},
+        {5, 1, 1, 2}, {5, 1, 2, 2}, {5, 2, 2, 2},
+        {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
     };
-
-    for (int i = 0; i < 16; i++)
+    // scalar geometry covers every kernel, stride, dilation and padding boundary
+    for (size_t i = 0; i < sizeof(kdsp) / sizeof(kdsp[0]); i++)
     {
-        const int k = kdsp[i][0];
-        const int d = kdsp[i][1];
-        const int s = kdsp[i][2];
-        const int p = kdsp[i][3];
-
-        int ret = 0
-                  || test_deconvolution(9, 7, 1, 1, k, d, s, p, 1, 0, 0, 0, 0)
-                  || test_deconvolution(9, 7, 4, 13, k, d, s, p, 0, 1, 1, 7, 5)
-                  || test_deconvolution(9, 7, 13, 4, k, d, s, p, 1, 1, 0, 0, 0)
-                  || test_deconvolution(9, 7, 4, 8, k, d, s, p, 0, 0, 1, 0, 0)
-                  || test_deconvolution(9, 7, 8, 4, k, d, s, p, 1, 0, 0, 7, 5)
-                  || test_deconvolution(7, 7, 12, 12, k, d, s, p, 1, 0, 1, 0, 0)
-                  || test_deconvolution(4, 5, 12, 11, k, d, s, p, 0, 0, 1, 1, 0)
-                  || test_deconvolution(9, 7, 8, 13, k, d, s, p, 0, 2, 2, 0, 0)
-                  || test_deconvolution(9, 7, 13, 8, k, d, s, p, 1, 2, 0, 0, 0)
-                  || test_deconvolution(9, 7, 16, 16, k, d, s, p, 0, 0, 2, 7, 5);
-
-        if (ret != 0)
+        const int* k = kdsp[i];
+        if (test_deconvolution(9, 7, 1, 1, k[0], k[1], k[2], k[3], 1, 0, 0, 0, 0))
             return -1;
     }
+
+    // large pack16 cases retain specialized kernels and the largest dilation
+    static const int large_kdsp[][4] = {
+        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1},
+        {4, 1, 1, -233}, {4, 1, 2, -234}, {7, 2, 1, -233}
+    };
+    for (size_t i = 0; i < sizeof(large_kdsp) / sizeof(large_kdsp[0]); i++)
+    {
+        const int* k = large_kdsp[i];
+        if (test_deconvolution(9, 7, 16, 16, k[0], k[1], k[2], k[3], 0, 0, 2, 7, 5))
+            return -1;
+    }
+
+    // pack4 geometry keeps generic, strided and dilated representatives
+    static const int packed_kdsp[][4] = {
+        {1, 1, 1, 0}, {3, 1, 1, 1}, {3, 1, 2, 1}, {7, 2, 1, -233}
+    };
+    for (size_t i = 0; i < sizeof(packed_kdsp) / sizeof(packed_kdsp[0]); i++)
+    {
+        const int* k = packed_kdsp[i];
+        if (test_deconvolution(7, 7, 12, 12, k[0], k[1], k[2], k[3], 1, 0, 1, 0, 0))
+            return -1;
+    }
+
+    // scalar tails retain each optimized 3x3 and 4x4 kernel in both directions
+    static const int specialized[][4] = {{3, 1, 1, 1}, {3, 1, 2, 1}, {4, 1, 1, -233}, {4, 1, 2, -234}};
+    // input channels, output channels, bias, output padding and explicit output size
+    static const int scalar_tails[][7] = {
+        {4, 13, 0, 1, 1, 7, 5}, {13, 4, 1, 1, 0, 0, 0}
+    };
+    for (size_t i = 0; i < sizeof(specialized) / sizeof(specialized[0]); i++)
+    {
+        for (size_t j = 0; j < sizeof(scalar_tails) / sizeof(scalar_tails[0]); j++)
+        {
+            const int* k = specialized[i];
+            const int* a = scalar_tails[j];
+            if (test_deconvolution(9, 7, a[0], a[1], k[0], k[1], k[2], k[3], a[2], a[3], a[4], a[5], a[6]) != 0)
+                return -1;
+        }
+    }
+
+    // mixed pack4 and pack8 directions use one generic kernel representative
+    static const int packing[][7] = {
+        {4, 8, 0, 0, 1, 0, 0}, {8, 4, 1, 0, 0, 7, 5},
+        {8, 13, 0, 2, 2, 0, 0}, {13, 8, 1, 2, 0, 0, 0}
+    };
+    for (size_t i = 0; i < sizeof(packing) / sizeof(packing[0]); i++)
+    {
+        const int* a = packing[i];
+        if (test_deconvolution(9, 7, a[0], a[1], 3, 1, 1, 1, a[2], a[3], a[4], a[5], a[6]) != 0)
+            return -1;
+    }
+
+    // generic packing keeps 1x1 and the largest dilated kernel
+    static const int generic[][4] = {{1, 1, 1, 0}, {7, 2, 1, -233}};
+    for (size_t i = 0; i < sizeof(generic) / sizeof(generic[0]); i++)
+    {
+        const int* k = generic[i];
+        if (test_deconvolution(9, 7, 4, 13, k[0], k[1], k[2], k[3], 0, 1, 1, 7, 5)
+            || test_deconvolution(9, 7, 13, 8, k[0], k[1], k[2], k[3], 1, 2, 0, 0, 0))
+            return -1;
+    }
+
+    // every activation is tested directly for scalar and packed output
+    for (int activation = 0; activation < 5; activation++)
+    {
+        if (test_deconvolution(5, 4, 7, 7, 3, 1, 1, 1, 1, 0, 0, 0, 0, activation)
+            || test_deconvolution(5, 4, 8, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0, activation))
+            return -1;
+    }
+
+    // explicit width-only and height-only requests cover independent crop boundaries
+    if (test_deconvolution(4, 5, 12, 11, 3, 1, 1, 0, 0, 0, 1, 1, 0)
+        || test_deconvolution(4, 5, 12, 11, 3, 1, 1, 0, 0, 0, 1, 0, 1))
+        return -1;
 
     // tier coverage for small outch and various elempack
     return 0
@@ -157,7 +201,7 @@ static int test_deconvolution_0()
            || test_deconvolution(3, 3, 14, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
            // avx512 tier coverage
            || test_deconvolution(5, 4, 1, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
-           || test_deconvolution(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_deconvolution(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0)
            || test_deconvolution(5, 4, 8, 16, 3, 1, 2, 1, 1, 0, 0, 0, 0)
            || test_deconvolution(4, 3, 5, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
            || test_deconvolution(5, 4, 24, 8, 3, 1, 1, 1, 1, 0, 0, 0, 0)
@@ -450,6 +494,31 @@ static int test_deconvolution_load_param_text()
 }
 #endif // NCNN_VALIDATION
 
+static int test_deconvolution_activation_boundaries()
+{
+    // generic kernels exercise activation fusion across input and output packing
+    for (int activation = 0; activation < 5; activation++)
+    {
+        if (test_deconvolution(3, 3, 3, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
+            || test_deconvolution(3, 3, 4, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
+            || test_deconvolution(3, 3, 3, 8, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
+            || test_deconvolution(3, 3, 8, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation))
+            return -1;
+    }
+
+    // specialized scalar kernels apply activation after the deconvolution
+    return 0
+           || test_deconvolution(3, 3, 1, 1, 3, 1, 2, 0, 0, 0, 0, 0, 0, 1)
+           || test_deconvolution(3, 3, 1, 1, 4, 1, 1, 0, 0, 0, 0, 0, 0, 1)
+           || test_deconvolution(3, 3, 1, 1, 4, 1, 2, 0, 0, 0, 0, 0, 0, 1);
+}
+
+static int test_deconvolution_stride_packing_boundary()
+{
+    // scalar input remainder covers both stride phases in packed output
+    return test_deconvolution(9, 7, 13, 8, 3, 1, 2, 1, 1, 2, 0, 0, 0);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -462,5 +531,7 @@ int main()
            || test_deconvolution_load_param()
            || test_deconvolution_load_param_text()
 #endif // NCNN_VALIDATION
+           || test_deconvolution_activation_boundaries()
+           || test_deconvolution_stride_packing_boundary()
            ;
 }

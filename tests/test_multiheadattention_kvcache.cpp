@@ -429,6 +429,82 @@ static int test_multiheadattention_kvcache_batch_rejected()
 }
 #endif // NCNN_BATCH
 
+static int test_multiheadattention_shared_kv_kvcache(const std::vector<ncnn::Mat>& as, int attn_mask)
+{
+    const int embed_dim = 16;
+    const int num_heads = 4;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * embed_dim);
+    pd.set(3, embed_dim);
+    pd.set(4, embed_dim);
+    pd.set(5, attn_mask);
+    pd.set(6, 1.f / sqrtf(embed_dim / num_heads));
+    pd.set(7, 1);
+
+    // identity projections keep shared-input and cache indexing numerically observable
+    std::vector<ncnn::Mat> weights(8);
+    for (int projection = 0; projection < 4; projection++)
+    {
+        weights[projection * 2] = ncnn::Mat(embed_dim * embed_dim);
+        weights[projection * 2].fill(0.f);
+        for (int i = 0; i < embed_dim; i++)
+            weights[projection * 2][i * embed_dim + i] = 1.f;
+        weights[projection * 2 + 1] = ncnn::Mat(embed_dim);
+        weights[projection * 2 + 1].fill(0.f);
+    }
+
+    const float epsilon = 0.005f;
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_shared_kv_kvcache failed inputs=%d attn_mask=%d\n", (int)as.size(), attn_mask);
+    return ret;
+}
+
+static int test_multiheadattention_shared_kv_kvcache_boundaries()
+{
+    ncnn::Mat q(16, 3);
+    ncnn::Mat kv(16, 4);
+    ncnn::Mat cached_k(4, 2, 4);
+    ncnn::Mat cached_v(4, 2, 4);
+    for (size_t i = 0; i < q.total(); i++)
+        q[i] = ((int)(i % 11) - 5) * 0.0625f;
+    for (size_t i = 0; i < kv.total(); i++)
+        kv[i] = ((int)(i % 7) - 3) * 0.125f;
+    for (size_t i = 0; i < cached_k.total(); i++)
+        cached_k[i] = ((int)(i % 9) - 4) * 0.125f;
+    for (size_t i = 0; i < cached_v.total(); i++)
+        cached_v[i] = ((int)(i % 13) - 6) * 0.0625f;
+
+    // cross attention reuses the nonempty two-token cache instead of appending shared kv
+    std::vector<ncnn::Mat> unmasked(4);
+    unmasked[0] = q;
+    unmasked[1] = kv;
+    unmasked[2] = cached_k;
+    unmasked[3] = cached_v;
+
+    // per-head masks include channel padding and distinct finite key penalties
+    ncnn::Mat mask(2, 3, 4);
+    mask.fill(0.f);
+    for (int head = 0; head < 4; head++)
+    {
+        ncnn::Mat channel = mask.channel(head);
+        for (int row = 0; row < 3; row++)
+            channel.row(row)[head % 2] = -0.5f * (head + 1);
+    }
+    std::vector<ncnn::Mat> masked(5);
+    masked[0] = q;
+    masked[1] = kv;
+    masked[2] = mask;
+    masked[3] = cached_k;
+    masked[4] = cached_v;
+
+    return test_multiheadattention_shared_kv_kvcache(unmasked, 0)
+           || test_multiheadattention_shared_kv_kvcache(masked, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -445,5 +521,6 @@ int main()
 #if NCNN_BATCH
            || test_multiheadattention_kvcache_batch_rejected()
 #endif // NCNN_BATCH
+           || test_multiheadattention_shared_kv_kvcache_boundaries()
            ;
 }
