@@ -8,6 +8,9 @@
 #endif // __ARM_NEON
 
 #include "cpu.h"
+#include "expression.h"
+
+#include <string.h>
 
 namespace ncnn {
 
@@ -29,6 +32,11 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 {
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
+
+#if NCNN_BATCH
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+        return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
 
     int elembits = bottom_blob.elembits();
 
@@ -317,6 +325,11 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+        return Reshape::forward(bottom_blobs, top_blobs, opt);
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     Mat& top_blob = top_blobs[0];
 
@@ -733,5 +746,229 @@ int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 
     return 0;
 }
+
+#if NCNN_BATCH
+int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+    Mat input_shape;
+    Mat output_shape;
+    int input_axis = 233;
+    int output_axis = 233;
+    size_t input_total = 0;
+    if (resolve_batch_shape(bottom_blobs, input_shape, output_shape, input_axis, output_axis, input_total) != 0)
+        return -1;
+
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        const int pack_axis_size = output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c;
+#if NCNN_ARM82
+        out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && bottom_blob.elembits() == 16 && pack_axis_size % 8 == 0 ? 8 : pack_axis_size % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = pack_axis_size % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif // __ARM_NEON
+
+    const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
+    const size_t out_elemsize = scalar_elemsize * out_elempack;
+
+    bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && out_elempack == bottom_blob.elempack;
+    if (reshape_zero_copy && bottom_blob.elempack != 1)
+    {
+        const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * bottom_blob.elempack : bottom_blob.dims == 2 ? bottom_blob.h * bottom_blob.elempack : bottom_blob.c * bottom_blob.elempack;
+        const int out_pack_axis_size = output_shape.dims == 1 ? output_shape.w : output_shape.dims == 2 ? output_shape.h : output_shape.c;
+        reshape_zero_copy = pack_axis_size == out_pack_axis_size;
+    }
+
+    if (reshape_zero_copy)
+    {
+        if (output_shape.dims == 1)
+            top_blob = bottom_blob.reshape(output_shape.w / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 2)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 3)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.c / out_elempack, opt.blob_allocator);
+        if (output_shape.dims == 4)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.d, output_shape.c / out_elempack, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
+
+    if (output_shape.dims == 1)
+        top_blob.create(output_shape.w / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 2)
+        top_blob.create(output_shape.w, output_shape.h / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 3)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 4)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.d, output_shape.c / out_elempack, out_elemsize, out_elempack, output_shape.n, opt.blob_allocator);
+
+    if (top_blob.empty())
+        return -100;
+
+    if (out_elempack == bottom_blob.elempack)
+    {
+        if (output_shape.dims == bottom_blob.dims)
+        {
+            if (input_axis == 0 && output_axis == 233)
+            {
+                if (bottom_blob.dims == 1 && top_blob.w == bottom_blob.w * bottom_blob.n)
+                {
+                    const size_t size = (size_t)bottom_blob.w * bottom_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int b = 0; b < bottom_blob.n; b++)
+                    {
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)b * bottom_blob.nstep * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (size_t)b * bottom_blob.w * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+                if (bottom_blob.dims == 2 && top_blob.w == bottom_blob.w && top_blob.h == bottom_blob.h * bottom_blob.n)
+                {
+                    const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int b = 0; b < bottom_blob.n; b++)
+                    {
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)b * bottom_blob.nstep * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (size_t)b * bottom_blob.w * bottom_blob.h * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+                if ((bottom_blob.dims == 3 || bottom_blob.dims == 4) && top_blob.w == bottom_blob.w && top_blob.h == bottom_blob.h && top_blob.d == bottom_blob.d && top_blob.c == bottom_blob.c * bottom_blob.n)
+                {
+                    const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int bq = 0; bq < bottom_blob.n * bottom_blob.c; bq++)
+                    {
+                        const int b = bq / bottom_blob.c;
+                        const int q = bq - b * bottom_blob.c;
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (size_t)bq * top_blob.cstep * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+            }
+            if (input_axis == 233 && output_axis == 0)
+            {
+                if (bottom_blob.dims == 1 && bottom_blob.w == top_blob.w * top_blob.n)
+                {
+                    const size_t size = (size_t)top_blob.w * top_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int b = 0; b < top_blob.n; b++)
+                    {
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)b * top_blob.w * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (size_t)b * top_blob.nstep * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+                if (bottom_blob.dims == 2 && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h * top_blob.n)
+                {
+                    const size_t size = (size_t)top_blob.w * top_blob.h * top_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int b = 0; b < top_blob.n; b++)
+                    {
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)b * top_blob.w * top_blob.h * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + (size_t)b * top_blob.nstep * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+                if ((bottom_blob.dims == 3 || bottom_blob.dims == 4) && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.d && bottom_blob.c == top_blob.c * top_blob.n)
+                {
+                    const size_t size = (size_t)top_blob.w * top_blob.h * top_blob.d * top_blob.elemsize;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int bq = 0; bq < top_blob.n * top_blob.c; bq++)
+                    {
+                        const int b = bq / top_blob.c;
+                        const int q = bq - b * top_blob.c;
+                        const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)(b * top_blob.c + q) * bottom_blob.cstep * bottom_blob.elemsize;
+                        unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * top_blob.elemsize;
+                        memcpy(outptr, ptr, size);
+                    }
+                    return 0;
+                }
+            }
+        }
+        if (input_axis == 1 && output_axis == 233)
+        {
+            if (bottom_blob.dims == 2 && top_blob.dims == 3 && top_blob.w == bottom_blob.w && top_blob.h == bottom_blob.n && top_blob.c == bottom_blob.h)
+            {
+                const size_t size = (size_t)bottom_blob.w * bottom_blob.elemsize;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bq = 0; bq < bottom_blob.n * bottom_blob.h; bq++)
+                {
+                    const int b = bq / bottom_blob.h;
+                    const int q = bq - b * bottom_blob.h;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.w) * bottom_blob.elemsize;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w) * top_blob.elemsize;
+                    memcpy(outptr, ptr, size);
+                }
+                return 0;
+            }
+            if (bottom_blob.dims == 3 && top_blob.dims == 4 && top_blob.w == bottom_blob.w && top_blob.h == bottom_blob.h && top_blob.d == bottom_blob.n && top_blob.c == bottom_blob.c)
+            {
+                const size_t size = (size_t)bottom_blob.w * bottom_blob.h * bottom_blob.elemsize;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bq = 0; bq < bottom_blob.n * bottom_blob.c; bq++)
+                {
+                    const int b = bq / bottom_blob.c;
+                    const int q = bq - b * bottom_blob.c;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)b * bottom_blob.nstep + (size_t)q * bottom_blob.cstep) * bottom_blob.elemsize;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)q * top_blob.cstep + (size_t)b * top_blob.w * top_blob.h) * top_blob.elemsize;
+                    memcpy(outptr, ptr, size);
+                }
+                return 0;
+            }
+        }
+        if (input_axis == 233 && output_axis == 1)
+        {
+            if (bottom_blob.dims == 3 && top_blob.dims == 2 && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.n && bottom_blob.c == top_blob.h)
+            {
+                const size_t size = (size_t)top_blob.w * top_blob.elemsize;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bq = 0; bq < top_blob.n * top_blob.h; bq++)
+                {
+                    const int b = bq / top_blob.h;
+                    const int q = bq - b * top_blob.h;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w) * bottom_blob.elemsize;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.w) * top_blob.elemsize;
+                    memcpy(outptr, ptr, size);
+                }
+                return 0;
+            }
+            if (bottom_blob.dims == 4 && top_blob.dims == 3 && bottom_blob.w == top_blob.w && bottom_blob.h == top_blob.h && bottom_blob.d == top_blob.n && bottom_blob.c == top_blob.c)
+            {
+                const size_t size = (size_t)top_blob.w * top_blob.h * top_blob.elemsize;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bq = 0; bq < top_blob.n * top_blob.c; bq++)
+                {
+                    const int b = bq / top_blob.c;
+                    const int q = bq - b * top_blob.c;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + ((size_t)q * bottom_blob.cstep + (size_t)b * bottom_blob.w * bottom_blob.h) * bottom_blob.elemsize;
+                    unsigned char* outptr = (unsigned char*)top_blob + ((size_t)b * top_blob.nstep + (size_t)q * top_blob.cstep) * top_blob.elemsize;
+                    memcpy(outptr, ptr, size);
+                }
+                return 0;
+            }
+        }
+    }
+
+    copy_batch_reshape(bottom_blob, top_blob, input_shape, input_axis, output_shape, output_axis, input_total, scalar_elemsize, opt);
+
+    return 0;
+}
+#endif // NCNN_BATCH
 
 } // namespace ncnn

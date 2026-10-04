@@ -10,12 +10,13 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x):
+    def forward(self, x, q):
         x0 = F.unfold(x, kernel_size=3)
         x1 = F.unfold(x, kernel_size=(2,4), stride=(2,1), padding=2, dilation=1)
         x2 = F.unfold(x, kernel_size=(1,3), stride=1, padding=(2,4), dilation=(1,2))
+        q = F.unfold(q, kernel_size=3)
 
-        return x0, x1, x2
+        return x0, x1, x2, q
 
 def test():
     net = Model()
@@ -23,16 +24,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 64, 64)
+    q = torch.rand(2, 12, 64, 64)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_F_unfold.pt")
 
     # torchscript to ncnn
     import os
-    os.system("../../src/pnnx test_F_unfold.pt inputshape=[1,12,64,64]")
+    os.system("../../src/pnnx test_F_unfold.pt inputshape=[1,12,64,64],[2,12,64,64]")
 
     # ncnn inference
     import test_F_unfold_ncnn

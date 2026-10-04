@@ -1,0 +1,111 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int type = 1;
+layout(constant_id = 1) const float value = 0;
+layout(constant_id = 2) const int per_channel_pad = 0;
+
+#define shape_constant_id_offset 3
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sint8 top_blob_data[]; };
+layout(binding = 2) readonly buffer per_channel_pad_blob { sint8 per_channel_pad_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+
+    int left;
+    int top;
+    int front;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
+        return;
+
+    const int pad_value = int(value);
+
+    // if (psc(dims) == 4)
+    {
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        int x = gx - p.left;
+        int yh = gy % psc(outh) - p.top;
+        int yd = gy / psc(outh) - p.front;
+        int y = yd * psc(h) + yh;
+        int z = gz;
+
+        if (type == 0)
+        {
+            if (x >= 0 && x < psc(w) && yh >= 0 && yh < psc(h) && yd >= 0 && yd < psc(d) && z >= 0 && z < psc(c))
+            {
+                int v_offset = z * psc(cstep) + y * psc(w) + x;
+                i8buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+            }
+            else if (per_channel_pad == 1)
+            {
+                i8buffer_cp1(top_blob_data, gi, per_channel_pad_blob_data, gz);
+            }
+            else
+            {
+                i8buffer_st1(top_blob_data, gi, pad_value);
+            }
+        }
+        if (type == 1)
+        {
+            x = clamp(x, 0, psc(w) - 1);
+            yh = clamp(yh, 0, psc(h) - 1);
+            yd = clamp(yd, 0, psc(d) - 1);
+            y = yd * psc(h) + yh;
+
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
+            i8buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+        if (type == 2)
+        {
+            x = abs(x);
+            yh = abs(yh);
+            yd = abs(yd);
+            x = (p.w - 1) - abs(x - (p.w - 1));
+            yh = (p.h - 1) - abs(yh - (p.h - 1));
+            yd = (p.d - 1) - abs(yd - (p.d - 1));
+            y = yd * psc(h) + yh;
+
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
+            i8buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        }
+    }
+}

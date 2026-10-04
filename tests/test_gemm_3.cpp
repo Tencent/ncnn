@@ -181,7 +181,7 @@ static void RandomizeB(ncnn::Mat& m, float absmax)
     }
 }
 
-static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
+static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
@@ -218,7 +218,16 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
         RandomizeB(a[a.size() - 1], 10.f);
     }
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_int8 failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
@@ -227,7 +236,7 @@ static int test_gemm_int8(int M, int N, int K, float alpha, int transA, int tran
     return ret;
 }
 
-static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int constantC)
+static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int constantC, bool use_bf16 = false, int output_N1M = 0, int flag = 0)
 {
     int broadcast_type_C = 0;
     if (C.dims == 1 && C.w == 1)
@@ -274,6 +283,7 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, broadcast_type_C);
+    pd.set(11, output_N1M);
     // pd.set(12, 1);                  // output_elempack
     pd.set(13, output_elemtype);
     pd.set(14, output_transpose);
@@ -289,20 +299,29 @@ static int test_gemm_int8_bias(int M, int N, int K, const ncnn::Mat& C, float al
     std::vector<ncnn::Mat> a;
     if (!constantA)
     {
-        a.push_back(transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M));
+        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
         RandomizeA(a[a.size() - 1], transA, 10.f);
     }
     if (!constantB)
     {
-        a.push_back(transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K));
+        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
         RandomizeB(a[a.size() - 1], 10.f);
     }
     if (!constantC) a.push_back(C);
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = use_bf16;
+    opt.use_bf16_storage = use_bf16;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_int8_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_elemtype, output_transpose, constantA, constantB, constantC);
+        fprintf(stderr, "test_gemm_int8_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d constantC=%d use_bf16=%d output_N1M=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_elemtype, output_transpose, constantA, constantB, constantC, use_bf16, output_N1M);
     }
 
     return ret;
@@ -366,7 +385,65 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     return 0;
 }
 
-static int test_gemm_0(int M, int N, int K)
+static int test_gemm_int8_bf16s(int M, int N, int K, float alpha, int transA, int transB, int output_elemtype, int output_transpose, int constantA, int constantB, int output_N1M)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+    pd.set(4, constantA);
+    pd.set(5, constantB);
+    pd.set(6, 1);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+    pd.set(10, -1);
+    pd.set(11, output_N1M);
+    pd.set(13, output_elemtype);
+    pd.set(14, output_transpose);
+    pd.set(18, 2); // int8_scale_term
+
+    std::vector<ncnn::Mat> weights;
+    if (constantA) weights.push_back(transA ? RandomS8Mat(M, K) : RandomS8Mat(K, M));
+    if (constantB) weights.push_back(transB ? RandomS8Mat(K, N) : RandomS8Mat(N, K));
+    if (constantA) weights.push_back(RandomMat(M, 10.f, 20.f));
+    if (constantB) weights.push_back(RandomMat(1, 10.f, 20.f));
+
+    std::vector<ncnn::Mat> a;
+    if (!constantA)
+    {
+        a.push_back(transA ? (output_N1M ? ncnn::Mat(M, 1, K) : ncnn::Mat(M, K)) : (output_N1M ? ncnn::Mat(K, 1, M) : ncnn::Mat(K, M)));
+        RandomizeA(a[a.size() - 1], transA, 10.f);
+    }
+    if (!constantB)
+    {
+        a.push_back(transB ? (output_N1M ? ncnn::Mat(K, 1, N) : ncnn::Mat(K, N)) : (output_N1M ? ncnn::Mat(N, 1, K) : ncnn::Mat(N, K)));
+        RandomizeB(a[a.size() - 1], 10.f);
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = true;
+    opt.use_bf16_storage = true;
+
+    float epsilon = 0.001;
+
+    int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, epsilon);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_int8_bf16s failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int test_gemm_0(int M, int N, int K, int constant_flag = 0)
 {
     return 0
            || test_gemm_int8(M, N, K, 2.1f, 0, 1, 0, 0, 0, 0, 0)
@@ -374,36 +451,36 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm_int8(M, N, K, 4.1f, 0, 0, 0, 0, 0, 0, 1)
            || test_gemm_int8(M, N, K, 5.1f, 1, 0, 0, 0, 0, 0, 1)
 
-           || test_gemm_int8(M, N, K, 0.2f, 0, 1, 0, 0, 1, 0, 1)
-           || test_gemm_int8(M, N, K, 0.3f, 1, 1, 0, 0, 1, 0, 1)
-           || test_gemm_int8(M, N, K, 0.4f, 0, 0, 0, 0, 0, 1, 0)
-           || test_gemm_int8(M, N, K, 0.5f, 0, 1, 0, 0, 0, 1, 0)
+           || test_gemm_int8(M, N, K, 0.2f, 0, 1, 0, 0, 1, 0, 1, constant_flag)
+           || test_gemm_int8(M, N, K, 0.3f, 1, 1, 0, 0, 1, 0, 1, constant_flag)
+           || test_gemm_int8(M, N, K, 0.4f, 0, 0, 0, 0, 0, 1, 0, constant_flag)
+           || test_gemm_int8(M, N, K, 0.5f, 0, 1, 0, 0, 0, 1, 0, constant_flag)
 
-           || test_gemm_int8(M, N, K, 1.2f, 0, 1, 0, 0, 1, 1, 0)
-           || test_gemm_int8(M, N, K, 1.3f, 1, 1, 0, 0, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 0, 0)
-           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 0, 1)
+           || test_gemm_int8(M, N, K, 1.2f, 0, 1, 0, 0, 1, 1, 0, constant_flag)
+           || test_gemm_int8(M, N, K, 1.3f, 1, 1, 0, 0, 1, 1, 1, constant_flag)
+           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 0, 0, constant_flag)
+           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 0, 1, constant_flag)
 
-           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 1, 1, 1)
-           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 1, 1, 0, constant_flag)
+           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 1, 1, 0, constant_flag)
+           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 1, 1, 1, constant_flag)
+           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 1, 1, 1, constant_flag)
 
-           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 0, 1, 1)
-           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 0, 1, 1)
-           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 1, 0, 0)
-           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 1, 0, 0)
+           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 0, 1, 1, constant_flag)
+           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 0, 1, 1, constant_flag)
+           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 1, 0, 0, constant_flag)
+           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 1, 0, 0, constant_flag)
 
            || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 0, 0, 0)
            || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 0, 1, 0)
-           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 0, 1, 1)
+           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 0, 1, 0, constant_flag)
+           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 0, 1, 1, constant_flag)
 
            || test_gemm_int8_fp16s(M, N, K, 1.f, 0, 1, 0, 0, 0, 0, 0)
            || test_gemm_int8_fp16s(M, N, K, 1.f, 1, 0, 0, 1, 0, 0, 0);
 }
 
-static int test_gemm_1(int M, int N, int K)
+static int test_gemm_1(int M, int N, int K, int constant_flag = 0)
 {
     return 0
            || test_gemm_int8_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 0, 0, 0, 0, 0)
@@ -422,23 +499,26 @@ static int test_gemm_1(int M, int N, int K)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 2, 0, 0, 0, 0)
            || test_gemm_int8_bias(M, N, K, RandomMat(N), 3.1f, -0.6f, 0, 1, 3, 1, 0, 0, 0)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1), 1.7f, -0.4f, 0, 0, 0, 0, 0, 0, 0, false, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(M), -1.3f, 0.6f, 1, 0, 0, 1, 0, 0, 0, false, 1)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 0.8f, 0.5f, 0, 1, 0, 0, 0, 0, 0, false, 1)
 
-           || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 0, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 1, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(M), -3.1f, 0.6f, 0, 1, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(M), -3.1f, 0.6f, 0, 1, 3, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 0, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 1, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 3, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 0, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 1, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 3, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 0.8f, 1.f, 0, 0, 0, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 2, 0, 1, 1, 1)
-           || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 3, 1, 1, 1, 1);
+           || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 0, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1), -2.1f, 0.5f, 0, 0, 1, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(M), -3.1f, 0.6f, 0, 1, 2, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(M), -3.1f, 0.6f, 0, 1, 3, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 0, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(1, M), -4.1f, 0.7f, 1, 0, 1, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 2, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), -5.1f, -0.8f, 1, 1, 3, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 0, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, M), 1.f, 1.f, 1, 1, 1, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 2, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), -2.1f, -0.5f, 0, 0, 3, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N, 1), 0.8f, 1.f, 0, 0, 0, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), 0.8f, 1.f, 0, 0, 1, 1, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 2, 0, 1, 1, 1, false, 0, constant_flag)
+           || test_gemm_int8_bias(M, N, K, RandomMat(N), -3.1f, -0.6f, 0, 1, 3, 1, 1, 1, 1, false, 0, constant_flag);
 }
 #endif // NCNN_INT8
 
@@ -447,62 +527,122 @@ int main()
     SRAND(7767517);
 
 #if NCNN_INT8
-    int mnk[][3] = {
-        {1, 1, 1},
-        {1, 1, 23},
-        {1, 1, 47},
-        {1, 23, 1},
-        {1, 23, 23},
-        {1, 31, 1},
-        {1, 35, 1},
-        {1, 35, 47},
-        {1, 47, 1},
-        {2, 2, 2},
-        {3, 3, 3},
-        {4, 4, 4},
-        {5, 5, 5},
-        {6, 6, 6},
-        {7, 7, 7},
-        {7, 31, 3},
-        {8, 8, 8},
-        {12, 12, 23},
-        {12, 23, 12},
-        {12, 31, 12},
-        {15, 15, 15},
-        {16, 16, 16},
-        {19, 44, 7},
-        {20, 28, 7},
-        {23, 31, 1},
-        {23, 31, 23},
-        {24, 24, 47},
-        {24, 35, 24},
-        {24, 47, 24},
-        {31, 31, 31},
-        {32, 32, 9},
-        {35, 47, 48},
-        {35, 48, 47},
-        {40, 40, 40},
-        {47, 48, 47}
-    };
+    // the flag applies to constant operands; dynamic operands retain every matrix size
+    int ret = 0
+              || test_gemm_0(1, 1, 1)
+              || test_gemm_1(1, 1, 1)
+              || test_gemm_0(1, 1, 23)
+              || test_gemm_1(1, 1, 23)
+              || test_gemm_0(1, 1, 47, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(1, 1, 47, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(1, 23, 1)
+              || test_gemm_1(1, 23, 1)
+              || test_gemm_0(23, 1, 1)
+              || test_gemm_1(23, 1, 1)
+              || test_gemm_0(1, 23, 23)
+              || test_gemm_1(1, 23, 23)
+              || test_gemm_0(23, 1, 23)
+              || test_gemm_1(23, 1, 23)
+              || test_gemm_0(1, 31, 1)
+              || test_gemm_1(1, 31, 1)
+              || test_gemm_0(31, 1, 1)
+              || test_gemm_1(31, 1, 1)
+              || test_gemm_0(1, 35, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(1, 35, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(35, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(35, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(1, 35, 47)
+              || test_gemm_1(1, 35, 47)
+              || test_gemm_0(35, 1, 47)
+              || test_gemm_1(35, 1, 47)
+              || test_gemm_0(1, 47, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(1, 47, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(47, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(47, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(2, 2, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(2, 2, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(3, 3, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(3, 3, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(4, 4, 4)
+              || test_gemm_1(4, 4, 4)
+              || test_gemm_0(5, 5, 5, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(5, 5, 5, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(6, 6, 6, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(6, 6, 6, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(7, 7, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(7, 7, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(7, 31, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(7, 31, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(31, 7, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(31, 7, 3, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(8, 8, 8, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(8, 8, 8, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(12, 12, 23)
+              || test_gemm_1(12, 12, 23)
+              || test_gemm_0(12, 23, 12)
+              || test_gemm_1(12, 23, 12)
+              || test_gemm_0(23, 12, 12)
+              || test_gemm_1(23, 12, 12)
+              || test_gemm_0(12, 31, 12)
+              || test_gemm_1(12, 31, 12)
+              || test_gemm_0(31, 12, 12)
+              || test_gemm_1(31, 12, 12)
+              || test_gemm_0(15, 15, 15)
+              || test_gemm_1(15, 15, 15)
+              || test_gemm_0(16, 16, 16)
+              || test_gemm_1(16, 16, 16)
+              || test_gemm_0(19, 44, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(19, 44, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(44, 19, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(44, 19, 7, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(20, 28, 7)
+              || test_gemm_1(20, 28, 7)
+              || test_gemm_0(28, 20, 7)
+              || test_gemm_1(28, 20, 7)
+              || test_gemm_0(23, 31, 1)
+              || test_gemm_1(23, 31, 1)
+              || test_gemm_0(31, 23, 1)
+              || test_gemm_1(31, 23, 1)
+              || test_gemm_0(23, 31, 23)
+              || test_gemm_1(23, 31, 23)
+              || test_gemm_0(31, 23, 23)
+              || test_gemm_1(31, 23, 23)
+              || test_gemm_0(24, 24, 47, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(24, 24, 47, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(24, 35, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(24, 35, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(35, 24, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(35, 24, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(24, 47, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(24, 47, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(47, 24, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(47, 24, 24, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(31, 31, 31, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(31, 31, 31, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(32, 32, 9, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(32, 32, 9, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(35, 47, 48)
+              || test_gemm_1(35, 47, 48)
+              || test_gemm_0(47, 35, 48)
+              || test_gemm_1(47, 35, 48)
+              || test_gemm_0(35, 48, 47)
+              || test_gemm_1(35, 48, 47)
+              || test_gemm_0(48, 35, 47)
+              || test_gemm_1(48, 35, 47)
+              || test_gemm_0(40, 40, 40, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_1(40, 40, 40, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_gemm_0(47, 48, 47)
+              || test_gemm_1(47, 48, 47)
+              || test_gemm_0(48, 47, 47)
+              || test_gemm_1(48, 47, 47);
+    if (ret != 0)
+        return ret;
 
-    int mnk_count = sizeof(mnk) / sizeof(int) / 3;
-
-    for (int i = 0; i < mnk_count; i++)
+    if (test_gemm_int8_bf16s(12, 23, 12, 1.f, 0, 1, 0, 0, 0, 0, 0)
+            || test_gemm_int8_bf16s(12, 23, 12, 1.f, 1, 0, 0, 1, 0, 0, 0)
+            || test_gemm_int8_bias(12, 23, 12, RandomMat(23), 1.7f, -0.4f, 0, 1, 0, 1, 0, 0, 0, true))
     {
-        int M = mnk[i][0];
-        int N = mnk[i][1];
-        int K = mnk[i][2];
-
-        int ret = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
-        if (ret != 0)
-            return ret;
-
-        if (M != N)
-        {
-            int ret = test_gemm_0(N, M, K) || test_gemm_1(N, M, K);
-            if (ret != 0)
-                return ret;
-        }
+        return -1;
     }
 #else
     // test nothing for non-int8 build

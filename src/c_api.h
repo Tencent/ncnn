@@ -63,6 +63,8 @@ NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 
 NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_kvcache_max_seqlen_hint(ncnn_option_t opt, int max_seqlen_hint);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
@@ -75,6 +77,8 @@ NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_packed(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int16_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt);
@@ -91,6 +95,8 @@ NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enab
 NCNN_EXPORT void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);
@@ -107,6 +113,12 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator);
+#if NCNN_BATCH
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_batch(int w, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_batch(int w, int h, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_batch(int w, int h, int c, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_batch(int w, int h, int d, int c, int n, ncnn_allocator_t allocator);
+#endif /* NCNN_BATCH */
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator);
@@ -115,6 +127,12 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elemp
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+#if NCNN_BATCH
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem_batch(int w, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem_batch(int w, int h, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem_batch(int w, int h, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem_batch(int w, int h, int d, int c, size_t elemsize, int elempack, int n, ncnn_allocator_t allocator);
+#endif /* NCNN_BATCH */
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
@@ -134,11 +152,18 @@ NCNN_EXPORT int ncnn_mat_get_w(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_h(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_d(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_c(const ncnn_mat_t mat);
+NCNN_EXPORT int ncnn_mat_get_n(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_cstep(const ncnn_mat_t mat);
+#if NCNN_BATCH
+NCNN_EXPORT size_t ncnn_mat_get_nstep(const ncnn_mat_t mat);
+#endif /* NCNN_BATCH */
 NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
 
+#if NCNN_BATCH
+NCNN_EXPORT void* ncnn_mat_get_batch_data(const ncnn_mat_t mat, int b);
+#endif /* NCNN_BATCH */
 NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
 
 #if NCNN_PIXEL
@@ -199,6 +224,9 @@ struct NCNN_EXPORT __ncnn_datareader_t
     void* pthis;
 
 #if NCNN_STRING
+    /* follow scanf conversion and input consumption rules, including field widths and scansets */
+    /* %1023[^\r\n] must preserve leading whitespace and leave CR/LF unread */
+    /* append a null terminator on a successful scanset conversion and return 1 */
     int (*scan)(ncnn_datareader_t dr, const char* format, void* p);
 #endif /* NCNN_STRING */
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);

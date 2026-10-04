@@ -36,7 +36,7 @@ jobs:
   aarch64-native:
     runs-on: ubuntu-24.04-arm
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: build
       run: |
@@ -65,7 +65,7 @@ jobs:
   asan:
     runs-on: ubuntu-24.04-arm
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: build
       run: |
         mkdir build && cd build
@@ -79,7 +79,7 @@ jobs:
   aarch64:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: aarch64-gnu-toolchain
       run: |

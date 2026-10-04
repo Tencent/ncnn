@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x0 = F.glu(x, dim=0)
 
         y0 = F.glu(y, dim=0)
@@ -25,7 +25,10 @@ class Model(nn.Module):
         w2 = F.glu(w, dim=2)
         w3 = F.glu(w, dim=3)
         w4 = F.glu(w, dim=-1)
-        return x0, y0, y1, z0, z1, z2, z3, w0, w1, w2, w3, w4
+        q = F.max_pool2d(q, 1)
+        q0 = F.glu(q, dim=1)
+        q1 = F.glu(q, dim=-1)
+        return x0, y0, y1, z0, z1, z2, z3, w0, w1, w2, w3, w4, q0, q1
 
 def test():
     net = Model()
@@ -36,16 +39,17 @@ def test():
     y = torch.rand(12, 16)
     z = torch.rand(24, 28, 34)
     w = torch.rand(8, 10, 12, 14)
+    q = torch.rand(2, 4, 6, 8)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_glu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34],[8,10,12,14]")
+    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34],[8,10,12,14],[2,4,6,8]")
 
     # ncnn inference
     import test_F_glu_ncnn

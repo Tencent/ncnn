@@ -2,15 +2,60 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void layernorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+void layernorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
 #endif
 
-static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void layernorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void layernorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void layernorm_bf16s_fma(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void layernorm_bf16s_fma4(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+#endif
+
+static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        layernorm_bf16s_sse_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        layernorm_bf16s_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        layernorm_bf16s_avxneconvert(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        layernorm_bf16s_avx2(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        layernorm_bf16s_fma(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        layernorm_bf16s_fma4(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
         return;
     }
 #endif
@@ -197,9 +242,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
         __m512 _eps = _mm512_set1_ps(eps);
         _var_avx512 = _mm512_div_ps(_var_avx512, _elemcount);
         _var_avx512 = _mm512_add_ps(_var_avx512, _eps);
-        __m256 _var0 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_var_avx512, 0));
-        __m256 _var1 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_var_avx512, 1));
-        _var_avx512 = combine8x2_ps(_var0, _var1);
+        _var_avx512 = _mm512_comp_rsqrt_ps(_var_avx512);
         _mean_avx512 = _mm512_mul_ps(_mean_avx512, _var_avx512);
     }
 #endif // __AVX512F__
@@ -217,7 +260,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
         __m256 _eps = _mm256_set1_ps(eps);
         _var_avx = _mm256_div_ps(_var_avx, _elemcount);
         _var_avx = _mm256_add_ps(_var_avx, _eps);
-        _var_avx = _mm256_rsqrt_ps(_var_avx);
+        _var_avx = _mm256_comp_rsqrt_ps(_var_avx);
         _mean_avx = _mm256_mul_ps(_mean_avx, _var_avx);
 #if __AVX512F__
         _var_avx512 = combine8x2_ps(_var_avx, _var_avx);
@@ -247,7 +290,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
         __m128 _eps = _mm_set1_ps(eps);
         _var = _mm_div_ps(_var, _elemcount);
         _var = _mm_add_ps(_var, _eps);
-        _var = _mm_rsqrt_ps(_var);
+        _var = _mm_comp_rsqrt_ps(_var);
         _mean = _mm_mul_ps(_mean, _var);
 #if __AVX__
         _var_avx = combine4x2_ps(_var, _var);
@@ -392,7 +435,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
                 __m128 _beta = _mm_set1_ps(beta_ptr[0]);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -435,7 +478,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
                 __m128 _beta = _mm_loadu_ps(beta_ptr);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 4;
                 beta_ptr += 4;
@@ -476,7 +519,7 @@ static void layernorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, con
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_comp_fmsub_ps(_p, _var, _mean);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__
