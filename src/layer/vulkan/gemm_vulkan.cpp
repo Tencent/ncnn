@@ -9,6 +9,20 @@
 
 namespace ncnn {
 
+// K-tile width (in units of the 8x8 local size) of the shared-memory staging
+// gemm.  fp16 native arithmetic is memory/latency bound at long K (its half2
+// muls issue too few instructions to hide the staging latency), so a long
+// reduction stages a wide K-tile; a short one is compute bound and a wide tile
+// only costs shared memory / occupancy.  Ignored by the bf16-packed path.
+static int gemm_kunroll_for_shape(const Option& opt, int K)
+{
+    if (!opt.use_fp16_arithmetic)
+        return 8;
+
+    // measured crossover between K = 8192 and K = 10240
+    return K >= 10240 ? 64 : 8;
+}
+
 #if NCNN_INT8
 static inline signed char float2int8(float v)
 {
@@ -574,7 +588,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
     else if (opt.use_shader_local_memory)
     {
-        std::vector<vk_specialization_type> specializations(15);
+        std::vector<vk_specialization_type> specializations(17);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -590,6 +604,8 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[12].i = output_elempack;
         specializations[13].i = output_elemtype;
         specializations[14].i = output_transpose;
+        specializations[15].u32 = (uint32_t)gemm_kunroll_for_shape(opt, K);
+        specializations[16].u32 = (uint32_t)(gemm_kunroll_for_shape(opt, K) + 1);
 
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_local_size_xyz(8, 8, 1);
@@ -661,7 +677,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
     else
     {
-        std::vector<vk_specialization_type> specializations(15);
+        std::vector<vk_specialization_type> specializations(17);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -677,6 +693,8 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[12].i = output_elempack;
         specializations[13].i = output_elemtype;
         specializations[14].i = output_transpose;
+        specializations[15].u32 = (uint32_t)gemm_kunroll_for_shape(opt, K);
+        specializations[16].u32 = (uint32_t)(gemm_kunroll_for_shape(opt, K) + 1);
 
         Mat local_size_xyz;
 
