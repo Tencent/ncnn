@@ -12,15 +12,15 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     ncnn::Mat a = RandomMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, pooling_type);              // pooling_type
-    pd.set(1, kernel);                    // kernel_w
-    pd.set(2, stride);                    // stride_w
-    pd.set(3, pad);                       // pad_w
-    pd.set(4, global_pooling);            // global_pooling
-    pd.set(5, pad_mode);                  // pad_mode
-    pd.set(6, avgpool_count_include_pad); // avgpool_count_include_pad
-    pd.set(7, adaptive_pooling);          // adaptive_pooling
-    pd.set(8, out_w);                     // out_w
+    pd.set(0, pooling_type);                // pooling_type
+    pd.set(1, kernel);                      // kernel_w
+    pd.set(2, stride);                      // stride_w
+    pd.set(3, pad);                         // pad_w
+    pd.set(4, global_pooling);              // global_pooling
+    pd.set(5, pad_mode);                    // pad_mode
+    pd.set(6, avgpool_count_include_pad);   // avgpool_count_include_pad
+    pd.set(7, adaptive_pooling);            // adaptive_pooling
+    pd.set(8, out_w);                       // out_w
     pd.set(18, out_h == 0 ? out_w : out_h); // out_h
 
     std::vector<ncnn::Mat> weights(0);
@@ -38,7 +38,14 @@ static int test_pooling_0()
 {
     // specialized max kernels retain scalar channel tails and each packing class
     static const int channels_pad[][2] = {
-        {1, 0}, {2, 1}, {3, 2}, {4, 3}, {7, 0}, {8, 1}, {15, 2}, {16, 3},
+        {1, 0},
+        {2, 1},
+        {3, 2},
+        {4, 3},
+        {7, 0},
+        {8, 1},
+        {15, 2},
+        {16, 3},
     };
     static const int specialized[][3] = {{2, 2, 0}, {3, 2, 1}};
     for (int i = 0; i < 2; i++)
@@ -66,8 +73,14 @@ static int test_pooling_0()
 
     // generic kernel geometry is independent of padding and channel packing
     static const int geometry[][3] = {
-        {2, 1, 0}, {3, 1, 0}, {4, 1, 0}, {5, 1, 0},
-        {5, 2, 2}, {7, 1, 0}, {7, 2, 1}, {7, 3, 2},
+        {2, 1, 0},
+        {3, 1, 0},
+        {4, 1, 0},
+        {5, 1, 0},
+        {5, 2, 2},
+        {7, 1, 0},
+        {7, 2, 1},
+        {7, 3, 2},
     };
     for (int i = 0; i < 8; i++)
     {
@@ -94,9 +107,16 @@ static int test_pooling_1()
 {
     // averaging geometry does not select the specialized max kernels
     static const int geometry[][3] = {
-        {2, 1, 0}, {2, 2, 0}, {3, 1, 0}, {3, 2, 1},
-        {4, 1, 0}, {5, 1, 0}, {5, 2, 2},
-        {7, 1, 0}, {7, 2, 1}, {7, 3, 2},
+        {2, 1, 0},
+        {2, 2, 0},
+        {3, 1, 0},
+        {3, 2, 1},
+        {4, 1, 0},
+        {5, 1, 0},
+        {5, 2, 2},
+        {7, 1, 0},
+        {7, 2, 1},
+        {7, 3, 2},
     };
     for (int i = 0; i < 10; i++)
     {
@@ -157,12 +177,24 @@ static int test_pooling_adaptive(int pooling_type)
 {
     // outputs below, equal to and above either input axis for each packing class
     static const int shapes[][3] = {
-        {2, 5, 1}, {5, 2, 1}, {3, 6, 3}, {6, 3, 3},
-        {4, 4, 4}, {6, 4, 4}, {8, 7, 8}, {7, 8, 8},
+        {2, 5, 1},
+        {5, 2, 1},
+        {3, 6, 3},
+        {6, 3, 3},
+        {4, 4, 4},
+        {6, 4, 4},
+        {8, 7, 8},
+        {7, 8, 8},
     };
     static const int outputs[][4] = {
-        {1, 2, 5, 6}, {1, 2, 5, 6}, {1, 3, 6, 7}, {1, 3, 6, 7},
-        {1, 3, 4, 5}, {1, 4, 6, 7}, {1, 7, 8, 9}, {1, 7, 8, 9},
+        {1, 2, 5, 6},
+        {1, 2, 5, 6},
+        {1, 3, 6, 7},
+        {1, 3, 6, 7},
+        {1, 3, 4, 5},
+        {1, 4, 6, 7},
+        {1, 7, 8, 9},
+        {1, 7, 8, 9},
     };
     for (int i = 0; i < 8; i++)
     {

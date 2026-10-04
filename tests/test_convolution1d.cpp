@@ -22,7 +22,7 @@ static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, 
 
     ncnn::Mat activation_params(2);
     activation_params[0] = activation_type == 2 ? 0.1f : (activation_type == 6 ? 0.2f : -0.5f); // alpha
-    activation_params[1] = activation_type == 6 ? 0.5f : 0.25f; // beta
+    activation_params[1] = activation_type == 6 ? 0.5f : 0.25f;                                 // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -44,12 +44,7 @@ static int test_convolution1d_0()
 {
     // kernel, dilation, stride and padding boundaries use a compact channel group
     static const int kdsp[][4] = {
-        {1, 1, 1, 0}, {1, 1, 2, 0},
-        {2, 1, 1, 1}, {2, 1, 2, -233},
-        {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1},
-        {4, 1, 1, 2}, {4, 1, 2, -233}, {4, 2, 1, -234},
-        {5, 1, 1, -234}, {5, 1, 2, 2}, {5, 2, 2, 2},
-        {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
+        {1, 1, 1, 0}, {1, 1, 2, 0}, {2, 1, 1, 1}, {2, 1, 2, -233}, {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1}, {4, 1, 1, 2}, {4, 1, 2, -233}, {4, 2, 1, -234}, {5, 1, 1, -234}, {5, 1, 2, 2}, {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
     };
     // scalar and large channel groups cover the kernel geometry independently
     // scalar geometry covers all padding, stride and dilation branches
@@ -62,9 +57,7 @@ static int test_convolution1d_0()
 
     // large packed inputs retain specialized kernels and generic dilation routes
     static const int packed_kdsp[][4] = {
-        {1, 1, 1, 0}, {1, 1, 2, 0}, {2, 1, 1, 1},
-        {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1},
-        {4, 2, 1, -234}, {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}
+        {1, 1, 1, 0}, {1, 1, 2, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1}, {4, 2, 1, -234}, {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}
     };
     for (size_t i = 0; i < sizeof(packed_kdsp) / sizeof(packed_kdsp[0]); i++)
     {
@@ -75,8 +68,7 @@ static int test_convolution1d_0()
 
     // each kernel retains the scalar channel remainder in its reduction depth
     static const int scalar_kdsp[][4] = {
-        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1},
-        {4, 1, 1, 2}, {5, 1, 1, -234}, {7, 1, 1, 3}
+        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {4, 1, 1, 2}, {5, 1, 1, -234}, {7, 1, 1, 3}
     };
     for (size_t i = 0; i < sizeof(scalar_kdsp) / sizeof(scalar_kdsp[0]); i++)
     {
@@ -87,26 +79,23 @@ static int test_convolution1d_0()
 
     // channel tails retain specialized, generic and large kernel representatives
     if (test_convolution1d(9, 3, 3, 1, 1, 1, 0, 1)
-        || test_convolution1d(25, 24, 24, 1, 1, 1, 0, 1)
-        || test_convolution1d(25, 28, 28, 1, 1, 1, 0, 0)
-        || test_convolution1d(9, 3, 3, 3, 1, 1, 1, 1)
-        || test_convolution1d(9, 7, 7, 3, 1, 1, 1, 0)
-        || test_convolution1d(9, 15, 15, 3, 1, 1, 1, 1)
-        || test_convolution1d(25, 24, 24, 3, 1, 1, 1, 1)
-        || test_convolution1d(25, 28, 28, 3, 1, 1, 1, 0)
-        || test_convolution1d(25, 48, 31, 3, 1, 1, 1, 0)
-        || test_convolution1d(9, 7, 7, 7, 1, 1, 3, 0)
-        || test_convolution1d(9, 15, 15, 7, 1, 1, 3, 1)
-        || test_convolution1d(25, 24, 24, 7, 1, 1, 3, 1)
-        || test_convolution1d(25, 48, 31, 7, 1, 1, 3, 0))
+            || test_convolution1d(25, 24, 24, 1, 1, 1, 0, 1)
+            || test_convolution1d(25, 28, 28, 1, 1, 1, 0, 0)
+            || test_convolution1d(9, 3, 3, 3, 1, 1, 1, 1)
+            || test_convolution1d(9, 7, 7, 3, 1, 1, 1, 0)
+            || test_convolution1d(9, 15, 15, 3, 1, 1, 1, 1)
+            || test_convolution1d(25, 24, 24, 3, 1, 1, 1, 1)
+            || test_convolution1d(25, 28, 28, 3, 1, 1, 1, 0)
+            || test_convolution1d(25, 48, 31, 3, 1, 1, 1, 0)
+            || test_convolution1d(9, 7, 7, 7, 1, 1, 3, 0)
+            || test_convolution1d(9, 15, 15, 7, 1, 1, 3, 1)
+            || test_convolution1d(25, 24, 24, 7, 1, 1, 3, 1)
+            || test_convolution1d(25, 48, 31, 7, 1, 1, 3, 0))
         return -1;
 
     // pointwise kernels cover every mixed packing direction
     static const int pointwise_shapes[][3] = {
-        {1, 3, 0}, {3, 1, 1}, {1, 31, 1}, {31, 1, 0},
-        {28, 31, 0}, {31, 28, 1}, {24, 28, 1}, {28, 24, 0},
-        {24, 31, 0}, {31, 24, 1}, {24, 48, 0}, {48, 24, 1},
-        {28, 48, 1}, {48, 28, 0}, {31, 48, 1}
+        {1, 3, 0}, {3, 1, 1}, {1, 31, 1}, {31, 1, 0}, {28, 31, 0}, {31, 28, 1}, {24, 28, 1}, {28, 24, 0}, {24, 31, 0}, {31, 24, 1}, {24, 48, 0}, {48, 24, 1}, {28, 48, 1}, {48, 28, 0}, {31, 48, 1}
     };
     for (size_t i = 0; i < sizeof(pointwise_shapes) / sizeof(pointwise_shapes[0]); i++)
     {
@@ -117,8 +106,7 @@ static int test_convolution1d_0()
 
     // three-tap kernels retain scalar, partial and full vector packing directions
     static const int generic_shapes[][3] = {
-        {1, 3, 0}, {3, 1, 1}, {1, 31, 1}, {31, 1, 0},
-        {28, 31, 0}, {31, 28, 1}, {24, 48, 0}, {48, 24, 1}
+        {1, 3, 0}, {3, 1, 1}, {1, 31, 1}, {31, 1, 0}, {28, 31, 0}, {31, 28, 1}, {24, 48, 0}, {48, 24, 1}
     };
     for (size_t i = 0; i < sizeof(generic_shapes) / sizeof(generic_shapes[0]); i++)
     {
@@ -129,17 +117,14 @@ static int test_convolution1d_0()
 
     // large kernels cover full and partial cooperative matrix tiles in mixed packing
     if (test_convolution1d(25, 31, 48, 7, 1, 1, 3, 1)
-        || test_convolution1d(25, 28, 31, 7, 1, 1, 3, 0)
-        || test_convolution1d(25, 24, 48, 7, 1, 1, 3, 0)
-        || test_convolution1d(25, 48, 24, 7, 1, 1, 3, 1))
+            || test_convolution1d(25, 28, 31, 7, 1, 1, 3, 0)
+            || test_convolution1d(25, 24, 48, 7, 1, 1, 3, 0)
+            || test_convolution1d(25, 48, 24, 7, 1, 1, 3, 1))
         return -1;
 
     // each scalar output tier sees every input remainder tier during kernel transformation
     static const int tail_shapes[][2] = {
-        {3, 31}, {7, 31}, {15, 31},
-        {1, 15}, {3, 15}, {7, 15}, {31, 15},
-        {1, 7}, {3, 7}, {15, 7}, {31, 7},
-        {7, 3}, {15, 3}, {31, 3}, {7, 1}, {15, 1}
+        {3, 31}, {7, 31}, {15, 31}, {1, 15}, {3, 15}, {7, 15}, {31, 15}, {1, 7}, {3, 7}, {15, 7}, {31, 7}, {7, 3}, {15, 3}, {31, 3}, {7, 1}, {15, 1}
     };
     for (size_t i = 0; i < sizeof(tail_shapes) / sizeof(tail_shapes[0]); i++)
     {
@@ -151,7 +136,7 @@ static int test_convolution1d_0()
     for (int activation = 0; activation < 7; activation++)
     {
         if (test_convolution1d(9, 7, 7, 3, 1, 1, 1, 1, activation)
-            || test_convolution1d(9, 8, 16, 3, 1, 1, 1, 0, activation))
+                || test_convolution1d(9, 8, 16, 3, 1, 1, 1, 0, activation))
             return -1;
     }
 
@@ -212,8 +197,7 @@ static int test_convolution1d_1()
     // dynamic pointwise and three-tap kernels cover each packing direction
     const int packing_kdsp[][4] = {{1, 1, 1, 0}, {3, 1, 1, 1}};
     const int packing_shapes[][3] = {
-        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0}, {8, 12, 1},
-        {8, 13, 0}, {13, 8, 1}, {12, 16, 0}, {15, 15, 0}, {16, 16, 0}
+        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0}, {8, 12, 1}, {8, 13, 0}, {13, 8, 1}, {12, 16, 0}, {15, 15, 0}, {16, 16, 0}
     };
     for (int g = 0; g < 2; g++)
     {
@@ -228,8 +212,7 @@ static int test_convolution1d_1()
 
     // stride, dilation and automatic padding use scalar, packed and mixed channels
     const int geometry_kdsp[][4] = {
-        {1, 1, 2, 0}, {2, 1, 1, 1}, {2, 1, 2, -233},
-        {3, 1, 2, 1}, {3, 2, 1, -234}
+        {1, 1, 2, 0}, {2, 1, 1, 1}, {2, 1, 2, -233}, {3, 1, 2, 1}, {3, 2, 1, -234}
     };
     const int geometry_shapes[][3] = {{1, 1, 1}, {12, 12, 0}, {13, 4, 1}, {8, 13, 0}};
     for (int g = 0; g < 5; g++)

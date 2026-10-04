@@ -521,6 +521,5 @@ int main()
 #if NCNN_BATCH
            || test_multiheadattention_kvcache_batch_rejected()
 #endif // NCNN_BATCH
-           || test_multiheadattention_shared_kv_kvcache_boundaries()
-           ;
+           || test_multiheadattention_shared_kv_kvcache_boundaries();
 }

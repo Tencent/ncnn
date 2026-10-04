@@ -23,7 +23,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
 
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? 0.2f : -0.1f; // alpha
-    activation_params[1] = 0.3f;                                // beta
+    activation_params[1] = 0.3f;                                  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -44,12 +44,21 @@ static int test_convolutiondepthwise_0()
 {
     // specialized kernels retain each depthwise and grouped packing transition
     static const int specialized_geometry[][6] = {
-        {3, 1, 1, 1, 18, 17}, {3, 1, 2, 1, 25, 33},
-        {5, 1, 1, -234, 18, 17}, {5, 1, 2, 2, 25, 33},
+        {3, 1, 1, 1, 18, 17},
+        {3, 1, 2, 1, 25, 33},
+        {5, 1, 1, -234, 18, 17},
+        {5, 1, 2, 2, 25, 33},
     };
     static const int specialized_channels[][3] = {
-        {7, 7, 7}, {8, 8, 8}, {12, 12, 4}, {8, 8, 2},
-        {2, 2, 1}, {4, 2, 2}, {16, 8, 2}, {4, 4, 4}, {16, 16, 16},
+        {7, 7, 7},
+        {8, 8, 8},
+        {12, 12, 4},
+        {8, 8, 2},
+        {2, 2, 1},
+        {4, 2, 2},
+        {16, 8, 2},
+        {4, 4, 4},
+        {16, 16, 16},
     };
     for (int i = 0; i < 4; i++)
     {
@@ -64,15 +73,25 @@ static int test_convolutiondepthwise_0()
 
     // generic geometry is orthogonal to scalar, pack4/8/16 and grouped implementations
     static const int generic_geometry[][6] = {
-        {1, 1, 1, 0, 15, 7}, {1, 1, 2, 0, 18, 17},
-        {2, 1, 1, 1, 25, 33}, {2, 1, 2, -233, 15, 7},
-        {3, 2, 1, 1, 15, 7}, {4, 1, 1, 2, 18, 17},
-        {4, 1, 2, -233, 25, 33}, {4, 2, 1, -234, 15, 7},
-        {5, 2, 2, 2, 15, 7}, {7, 1, 1, 3, 18, 17},
-        {7, 1, 2, 3, 25, 33}, {7, 2, 1, -233, 15, 7},
+        {1, 1, 1, 0, 15, 7},
+        {1, 1, 2, 0, 18, 17},
+        {2, 1, 1, 1, 25, 33},
+        {2, 1, 2, -233, 15, 7},
+        {3, 2, 1, 1, 15, 7},
+        {4, 1, 1, 2, 18, 17},
+        {4, 1, 2, -233, 25, 33},
+        {4, 2, 1, -234, 15, 7},
+        {5, 2, 2, 2, 15, 7},
+        {7, 1, 1, 3, 18, 17},
+        {7, 1, 2, 3, 25, 33},
+        {7, 2, 1, -233, 15, 7},
     };
     static const int generic_channels[][3] = {
-        {7, 7, 7}, {4, 4, 4}, {8, 8, 8}, {16, 16, 16}, {12, 12, 4},
+        {7, 7, 7},
+        {4, 4, 4},
+        {8, 8, 8},
+        {16, 16, 16},
+        {12, 12, 4},
     };
     for (int i = 0; i < 12; i++)
     {
@@ -91,14 +110,26 @@ static int test_convolutiondepthwise_0()
     // specialized kernels, generic dilation and group packing conversions
     // input channels, output channels, groups and bias
     static const int packing[][4] = {
-        {1, 1, 1, 1}, {2, 2, 1, 0}, {2, 2, 2, 1}, {3, 3, 3, 0},
-        {4, 2, 2, 1}, {4, 4, 4, 0}, {7, 7, 7, 1}, {8, 8, 2, 0},
-        {8, 8, 8, 1}, {12, 12, 4, 0}, {15, 15, 15, 1}, {16, 8, 2, 0},
+        {1, 1, 1, 1},
+        {2, 2, 1, 0},
+        {2, 2, 2, 1},
+        {3, 3, 3, 0},
+        {4, 2, 2, 1},
+        {4, 4, 4, 0},
+        {7, 7, 7, 1},
+        {8, 8, 2, 0},
+        {8, 8, 8, 1},
+        {12, 12, 4, 0},
+        {15, 15, 15, 1},
+        {16, 8, 2, 0},
         {16, 16, 16, 1},
     };
     static const int kernels[][4] = {
-        {3, 1, 1, 1}, {3, 1, 2, 1}, {5, 1, 1, 2},
-        {5, 1, 2, 2}, {7, 2, 1, -233},
+        {3, 1, 1, 1},
+        {3, 1, 2, 1},
+        {5, 1, 1, 2},
+        {5, 1, 2, 2},
+        {7, 2, 1, -233},
     };
     for (int i = 0; i < 13; i++)
     {
@@ -145,8 +176,14 @@ static int test_convolutiondepthwise_0()
 
     // explicit activations and bias for scalar, packed and grouped paths
     static const int activation_channels[][3] = {
-        {3, 3, 3}, {4, 4, 4}, {8, 8, 8}, {16, 16, 16},
-        {4, 2, 2}, {12, 12, 4}, {8, 8, 2}, {16, 8, 2},
+        {3, 3, 3},
+        {4, 4, 4},
+        {8, 8, 8},
+        {16, 16, 16},
+        {4, 2, 2},
+        {12, 12, 4},
+        {8, 8, 2},
+        {16, 8, 2},
     };
     for (int i = 0; i < 8; i++)
     {
@@ -174,8 +211,14 @@ static int test_convolutiondepthwise_activation_boundaries()
 {
     // identity kernels exercise all hard-swish regions without random saturation
     static const int channels[][2] = {
-        {3, 3}, {4, 4}, {8, 8}, {16, 16},
-        {2, 1}, {12, 4}, {8, 2}, {16, 2},
+        {3, 3},
+        {4, 4},
+        {8, 8},
+        {16, 16},
+        {2, 1},
+        {12, 4},
+        {8, 2},
+        {16, 2},
     };
     const float input[] = {-4.f, -1.f, 0.f, 1.f, 4.f, 0.f};
     const float output[] = {0.f, -0.1f, 0.f, 0.5f, 4.f};

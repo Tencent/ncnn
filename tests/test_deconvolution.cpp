@@ -27,7 +27,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
 
     ncnn::Mat activation_params(2);
     activation_params[0] = activation_type == 2 ? 0.1f : -0.5f; // alpha
-    activation_params[1] = 0.25f; // beta
+    activation_params[1] = 0.25f;                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -93,12 +93,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
 static int test_deconvolution_0()
 {
     static const int kdsp[][4] = {
-        {1, 1, 1, 0}, {1, 1, 2, 0},
-        {2, 1, 1, 1}, {2, 1, 2, -233},
-        {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1},
-        {4, 1, 1, -233}, {4, 1, 2, -234}, {4, 2, 1, -234},
-        {5, 1, 1, 2}, {5, 1, 2, 2}, {5, 2, 2, 2},
-        {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
+        {1, 1, 1, 0}, {1, 1, 2, 0}, {2, 1, 1, 1}, {2, 1, 2, -233}, {3, 1, 1, 1}, {3, 1, 2, 1}, {3, 2, 1, 1}, {4, 1, 1, -233}, {4, 1, 2, -234}, {4, 2, 1, -234}, {5, 1, 1, 2}, {5, 1, 2, 2}, {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233}
     };
     // scalar geometry covers every kernel, stride, dilation and padding boundary
     for (size_t i = 0; i < sizeof(kdsp) / sizeof(kdsp[0]); i++)
@@ -110,8 +105,7 @@ static int test_deconvolution_0()
 
     // large pack16 cases retain specialized kernels and the largest dilation
     static const int large_kdsp[][4] = {
-        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1},
-        {4, 1, 1, -233}, {4, 1, 2, -234}, {7, 2, 1, -233}
+        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1}, {4, 1, 1, -233}, {4, 1, 2, -234}, {7, 2, 1, -233}
     };
     for (size_t i = 0; i < sizeof(large_kdsp) / sizeof(large_kdsp[0]); i++)
     {
@@ -150,8 +144,7 @@ static int test_deconvolution_0()
 
     // mixed pack4 and pack8 directions use one generic kernel representative
     static const int packing[][7] = {
-        {4, 8, 0, 0, 1, 0, 0}, {8, 4, 1, 0, 0, 7, 5},
-        {8, 13, 0, 2, 2, 0, 0}, {13, 8, 1, 2, 0, 0, 0}
+        {4, 8, 0, 0, 1, 0, 0}, {8, 4, 1, 0, 0, 7, 5}, {8, 13, 0, 2, 2, 0, 0}, {13, 8, 1, 2, 0, 0, 0}
     };
     for (size_t i = 0; i < sizeof(packing) / sizeof(packing[0]); i++)
     {
@@ -166,7 +159,7 @@ static int test_deconvolution_0()
     {
         const int* k = generic[i];
         if (test_deconvolution(9, 7, 4, 13, k[0], k[1], k[2], k[3], 0, 1, 1, 7, 5)
-            || test_deconvolution(9, 7, 13, 8, k[0], k[1], k[2], k[3], 1, 2, 0, 0, 0))
+                || test_deconvolution(9, 7, 13, 8, k[0], k[1], k[2], k[3], 1, 2, 0, 0, 0))
             return -1;
     }
 
@@ -174,13 +167,13 @@ static int test_deconvolution_0()
     for (int activation = 0; activation < 5; activation++)
     {
         if (test_deconvolution(5, 4, 7, 7, 3, 1, 1, 1, 1, 0, 0, 0, 0, activation)
-            || test_deconvolution(5, 4, 8, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0, activation))
+                || test_deconvolution(5, 4, 8, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0, activation))
             return -1;
     }
 
     // explicit width-only and height-only requests cover independent crop boundaries
     if (test_deconvolution(4, 5, 12, 11, 3, 1, 1, 0, 0, 0, 1, 1, 0)
-        || test_deconvolution(4, 5, 12, 11, 3, 1, 1, 0, 0, 0, 1, 0, 1))
+            || test_deconvolution(4, 5, 12, 11, 3, 1, 1, 0, 0, 0, 1, 0, 1))
         return -1;
 
     // tier coverage for small outch and various elempack
@@ -500,9 +493,9 @@ static int test_deconvolution_activation_boundaries()
     for (int activation = 0; activation < 5; activation++)
     {
         if (test_deconvolution(3, 3, 3, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
-            || test_deconvolution(3, 3, 4, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
-            || test_deconvolution(3, 3, 3, 8, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
-            || test_deconvolution(3, 3, 8, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation))
+                || test_deconvolution(3, 3, 4, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
+                || test_deconvolution(3, 3, 3, 8, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation)
+                || test_deconvolution(3, 3, 8, 3, 2, 1, 1, 0, 1, 0, 0, 0, 0, activation))
             return -1;
     }
 
@@ -532,6 +525,5 @@ int main()
            || test_deconvolution_load_param_text()
 #endif // NCNN_VALIDATION
            || test_deconvolution_activation_boundaries()
-           || test_deconvolution_stride_packing_boundary()
-           ;
+           || test_deconvolution_stride_packing_boundary();
 }

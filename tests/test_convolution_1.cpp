@@ -18,7 +18,7 @@ static int test_convolution_impl(int w, int h, int c, int outch, int kernel, int
 
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? 0.2f : -0.1f; // alpha
-    activation_params[1] = 0.3f;                                // beta
+    activation_params[1] = 0.3f;                                  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -64,9 +64,7 @@ static int test_convolution_packing(int w, int h, int k, int d, int s, int p)
 {
     // scalar, pack4, pack8 and pack16 input/output transitions
     static const int channels[][3] = {
-        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0},
-        {8, 12, 1}, {8, 13, 0}, {13, 8, 1}, {12, 16, 0},
-        {15, 15, 0}, {16, 16, 0}
+        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0}, {8, 12, 1}, {8, 13, 0}, {13, 8, 1}, {12, 16, 0}, {15, 15, 0}, {16, 16, 0}
     };
     for (int i = 0; i < 10; i++)
     {
@@ -93,11 +91,20 @@ static int test_convolution_direct_geometry()
 {
     // direct implementations independently cover geometry and packing transitions
     static const int geometry[][4] = {
-        {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233},
+        {5, 2, 2, 2},
+        {7, 1, 1, 3},
+        {7, 1, 2, 3},
+        {7, 2, 1, -233},
     };
     static const int channels[][3] = {
-        {13, 4, 1}, {8, 13, 0}, {12, 12, 0}, {16, 16, 0},
-        {13, 24, 1}, {8, 8, 1}, {4, 13, 0}, {15, 15, 0},
+        {13, 4, 1},
+        {8, 13, 0},
+        {12, 12, 0},
+        {16, 16, 0},
+        {13, 24, 1},
+        {8, 8, 1},
+        {4, 13, 0},
+        {15, 15, 0},
     };
     for (int fp16 = 0; fp16 < 2; fp16++)
     {
@@ -123,11 +130,19 @@ static int test_convolution_cpu_tuning()
     opt.num_threads = 1;
     opt.use_a53_a55_optimized_kernel = true;
     static const int channels[][3] = {
-        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {16, 16, 0},
-        {13, 24, 1}, {8, 12, 0}, {15, 15, 1},
+        {1, 1, 1},
+        {4, 13, 0},
+        {13, 4, 1},
+        {16, 16, 0},
+        {13, 24, 1},
+        {8, 12, 0},
+        {15, 15, 1},
     };
     static const int geometry[][4] = {
-        {5, 2, 2, 2}, {7, 1, 1, 3}, {7, 1, 2, 3}, {7, 2, 1, -233},
+        {5, 2, 2, 2},
+        {7, 1, 1, 3},
+        {7, 1, 2, 3},
+        {7, 2, 1, -233},
     };
     static const int shapes[][2] = {{9, 7}, {18, 17}, {25, 33}, {18, 17}};
     for (int i = 0; i < 7; i++)

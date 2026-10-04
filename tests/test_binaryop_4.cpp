@@ -134,9 +134,7 @@ static int test_binaryop_3(int w, int h, int c)
         RandomMat(1, 1, 1, 0.8f, 0.9f)
     };
     const int broadcast_pairs[][2] = {
-        {1, 2}, {0, 1}, {0, 2}, {0, 3},
-        {0, 4}, {0, 5}, {0, 6}, {0, 7},
-        {1, 6}, {2, 5}, {3, 4}
+        {1, 2}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {1, 6}, {2, 5}, {3, 4}
     };
     int ret = test_binaryop(inputs[0], second_inputs[0])
               || test_binaryop(inputs[1], second_inputs[1])
@@ -227,14 +225,10 @@ static int test_binaryop_4_broadcast(int w, int h, int d, int c)
         RandomMat(1, 1, 1, 1, 0.8f, 0.9f)
     };
     const int broadcast_pairs[][2] = {
-        {0, 0}, {0, 1}, {0, 3}, {0, 7},
-        {0, 2}, {0, 6}, {0, 14},
-        {1, 13}, {2, 12}, {3, 11}, {4, 10},
-        {5, 9}, {6, 8}, {7, 7}
+        {0, 0}, {0, 1}, {0, 3}, {0, 7}, {0, 2}, {0, 6}, {0, 14}, {1, 13}, {2, 12}, {3, 11}, {4, 10}, {5, 9}, {6, 8}, {7, 7}
     };
     const int ordered_operations[][3] = {
-        {12, 0, 1}, {13, 0, 1},
-        {14, 0, 1}, {14, 1, 0}
+        {12, 0, 1}, {13, 0, 1}, {14, 0, 1}, {14, 1, 0}
     };
     for (size_t j = 0; j < sizeof(ordered_operations) / sizeof(ordered_operations[0]); j++)
     {
@@ -278,8 +272,7 @@ static int test_binaryop_5(int w, int h, int d, int c)
 
     // every implicit-rank expansion is checked in both operand directions
     const int rank_pairs[][2] = {
-        {0, 1}, {0, 2}, {0, 3},
-        {1, 2}, {1, 3}, {2, 3}
+        {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
     };
     for (size_t i = 0; i < sizeof(rank_pairs) / sizeof(rank_pairs[0]); i++)
     {

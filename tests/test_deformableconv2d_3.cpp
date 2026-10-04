@@ -118,15 +118,13 @@ static int test_deformableconv2d_0()
 
         // separate channel packing from the small spatial boundary cases
         static const int channels[][2] = {
-            {3, 3}, {12, 12}, {24, 24}, {48, 48},
-            {3, 12}, {12, 24}, {24, 48}, {48, 3}
+            {3, 3}, {12, 12}, {24, 24}, {48, 48}, {3, 12}, {12, 24}, {24, 48}, {48, 3}
         };
         for (int j = 0; j < 8; j++)
         {
             if (test_deformableconv2d(16, 16, channels[j][0], channels[j][1], k, d, s, p, 1) != 0)
                 return -1;
         }
-
     }
 
     return 0;

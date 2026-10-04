@@ -22,7 +22,7 @@ static int test_convolution_impl(int w, int h, int c, int outch, int kernel, int
 
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? 0.2f : -0.1f; // alpha
-    activation_params[1] = 0.3f;                                // beta
+    activation_params[1] = 0.3f;                                  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -68,9 +68,7 @@ static int test_convolution_packing(int w, int h, int k, int d, int s, int p)
 {
     // scalar, pack4, pack8 and pack16 input/output transitions
     static const int channels[][3] = {
-        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0},
-        {8, 12, 1}, {8, 13, 0}, {13, 24, 1}, {12, 16, 0},
-        {15, 15, 0}, {16, 16, 0}
+        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {12, 12, 0}, {8, 12, 1}, {8, 13, 0}, {13, 24, 1}, {12, 16, 0}, {15, 15, 0}, {16, 16, 0}
     };
     for (int i = 0; i < 10; i++)
     {
@@ -93,15 +91,17 @@ static int test_convolution_packed_spatial()
 {
     // packed spatial blocks and tails use contiguous, dilated and strided kernels
     static const int geometry[][4] = {
-        {2, 1, 1, 1}, {4, 2, 1, -234}, {5, 1, 2, 2},
+        {2, 1, 1, 1},
+        {4, 2, 1, -234},
+        {5, 1, 2, 2},
     };
     for (int i = 0; i < 3; i++)
     {
         const int* g = geometry[i];
         if (test_convolution(18, 17, 12, 12, g[0], g[1], g[2], g[3], 0)
-            || test_convolution(18, 17, 16, 16, g[0], g[1], g[2], g[3], 0)
-            || test_convolution(25, 33, 12, 12, g[0], g[1], g[2], g[3], 0)
-            || test_convolution(25, 33, 16, 16, g[0], g[1], g[2], g[3], 0))
+                || test_convolution(18, 17, 16, 16, g[0], g[1], g[2], g[3], 0)
+                || test_convolution(25, 33, 12, 12, g[0], g[1], g[2], g[3], 0)
+                || test_convolution(25, 33, 16, 16, g[0], g[1], g[2], g[3], 0))
             return -1;
     }
 
@@ -113,12 +113,22 @@ static int test_convolution_direct_geometry()
 {
     // dedicated kernels and the generic contiguous kernel retain every packing transition
     static const int geometry[][4] = {
-        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1},
-        {3, 1, 2, 1}, {5, 1, 1, -234}, {5, 1, 2, 2},
+        {1, 1, 1, 0},
+        {2, 1, 1, 1},
+        {3, 1, 1, 1},
+        {3, 1, 2, 1},
+        {5, 1, 1, -234},
+        {5, 1, 2, 2},
     };
     static const int channels[][3] = {
-        {13, 4, 1}, {8, 13, 0}, {12, 12, 0}, {16, 16, 0},
-        {13, 24, 1}, {8, 8, 1}, {4, 13, 0}, {15, 15, 0},
+        {13, 4, 1},
+        {8, 13, 0},
+        {12, 12, 0},
+        {16, 16, 0},
+        {13, 24, 1},
+        {8, 8, 1},
+        {4, 13, 0},
+        {15, 15, 0},
     };
     for (int fp16 = 0; fp16 < 2; fp16++)
     {
@@ -135,7 +145,9 @@ static int test_convolution_direct_geometry()
 
     // generic stride and dilation retain scalar, pack4 and pack16 output bodies and tails
     static const int generic_geometry[][4] = {
-        {2, 1, 2, -233}, {3, 2, 1, 1}, {4, 2, 1, -234},
+        {2, 1, 2, -233},
+        {3, 2, 1, 1},
+        {4, 2, 1, -234},
     };
     static const int generic_channels[][3] = {{15, 15, 0}, {12, 12, 0}, {16, 16, 0}};
     for (int fp16 = 0; fp16 < 2; fp16++)
@@ -270,16 +282,30 @@ static int test_convolution_bf16_winograd_hardswish_boundaries()
 }
 
 static const int activation_bias_cases[][2] = {
-    {0, 0}, {1, 0}, {0, 1}, {1, 2},
-    {0, 3}, {1, 4}, {0, 5}, {1, 6},
+    {0, 0},
+    {1, 0},
+    {0, 1},
+    {1, 2},
+    {0, 3},
+    {1, 4},
+    {0, 5},
+    {1, 6},
 };
 
 static int test_convolution_activations()
 {
     // cover each activation and both bias states for scalar and pack4/8/16 transitions
     static const int channels[][2] = {
-        {1, 1}, {13, 4}, {4, 13}, {12, 12},
-        {13, 24}, {8, 13}, {8, 12}, {16, 16}, {15, 15}, {31, 31},
+        {1, 1},
+        {13, 4},
+        {4, 13},
+        {12, 12},
+        {13, 24},
+        {8, 13},
+        {8, 12},
+        {16, 16},
+        {15, 15},
+        {31, 31},
     };
     for (int i = 0; i < 10; i++)
     {
@@ -293,8 +319,14 @@ static int test_convolution_activations()
 
     // fused activations on direct fp32/fp16 packed and scalar output paths
     static const int direct_channels[][2] = {
-        {13, 4}, {8, 13}, {12, 12}, {16, 16},
-        {13, 24}, {8, 8}, {4, 13}, {15, 15},
+        {13, 4},
+        {8, 13},
+        {12, 12},
+        {16, 16},
+        {13, 24},
+        {8, 8},
+        {4, 13},
+        {15, 15},
     };
     for (int fp16 = 0; fp16 < 2; fp16++)
     {
@@ -344,8 +376,14 @@ static int test_convolution_post_activation()
 {
     // specialized direct kernels apply the activation as a separate layer
     static const int channels[][3] = {
-        {13, 4, 1}, {8, 13, 0}, {12, 12, 0}, {16, 16, 0},
-        {13, 24, 1}, {8, 8, 1}, {4, 13, 0}, {15, 15, 0},
+        {13, 4, 1},
+        {8, 13, 0},
+        {12, 12, 0},
+        {16, 16, 0},
+        {13, 24, 1},
+        {8, 8, 1},
+        {4, 13, 0},
+        {15, 15, 0},
     };
     for (int fp16 = 0; fp16 < 2; fp16++)
     {
@@ -389,11 +427,19 @@ static int test_convolution_cpu_tuning()
     opt.num_threads = 1;
     opt.use_a53_a55_optimized_kernel = true;
     static const int channels[][3] = {
-        {1, 1, 1}, {4, 13, 0}, {13, 4, 1}, {16, 16, 0},
-        {13, 24, 1}, {8, 12, 0}, {15, 15, 1},
+        {1, 1, 1},
+        {4, 13, 0},
+        {13, 4, 1},
+        {16, 16, 0},
+        {13, 24, 1},
+        {8, 12, 0},
+        {15, 15, 1},
     };
     static const int geometry[][4] = {
-        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1},
+        {1, 1, 1, 0},
+        {2, 1, 1, 1},
+        {3, 1, 1, 1},
+        {3, 1, 2, 1},
     };
     static const int shapes[][2] = {{9, 7}, {18, 17}, {25, 33}, {18, 17}};
     for (int i = 0; i < 7; i++)
@@ -416,36 +462,42 @@ static int test_convolution_0()
 {
     // specialized im2col templates retain every channel packing direction
     static const int specialized_geometry[][4] = {
-        {2, 1, 1, 1}, {3, 1, 2, 1}, {5, 1, 1, -234}, {5, 1, 2, 2},
+        {2, 1, 1, 1},
+        {3, 1, 2, 1},
+        {5, 1, 1, -234},
+        {5, 1, 2, 2},
     };
     for (size_t i = 0; i < sizeof(specialized_geometry) / sizeof(specialized_geometry[0]); i++)
     {
         const int* g = specialized_geometry[i];
         if (test_convolution_packing(9, 7, g[0], g[1], g[2], g[3])
-            || test_convolution_spatial(g[0], g[1], g[2], g[3]))
+                || test_convolution_spatial(g[0], g[1], g[2], g[3]))
             return -1;
     }
 
     // generic geometry and large spatial boundaries use scalar and pack16 anchors
     static const int generic_geometry[][4] = {
-        {2, 1, 2, -233}, {3, 2, 1, 1}, {4, 1, 1, 2},
-        {4, 1, 2, -233}, {4, 2, 1, -234},
+        {2, 1, 2, -233},
+        {3, 2, 1, 1},
+        {4, 1, 1, 2},
+        {4, 1, 2, -233},
+        {4, 2, 1, -234},
     };
     for (size_t i = 0; i < sizeof(generic_geometry) / sizeof(generic_geometry[0]); i++)
     {
         const int* g = generic_geometry[i];
         if (test_convolution(9, 7, 1, 1, g[0], g[1], g[2], g[3], 1)
-            || test_convolution(9, 7, 16, 16, g[0], g[1], g[2], g[3], 0)
-            || test_convolution_spatial(g[0], g[1], g[2], g[3]))
+                || test_convolution(9, 7, 16, 16, g[0], g[1], g[2], g[3], 0)
+                || test_convolution_spatial(g[0], g[1], g[2], g[3]))
             return -1;
     }
 
     // strided and dilated mixed packing retains generic im2col dispatch boundaries
     if (test_convolution(9, 7, 13, 24, 3, 2, 1, 1, 1)
-        || test_convolution(9, 7, 13, 24, 4, 2, 1, -234, 1)
-        || test_convolution(9, 7, 13, 4, 3, 2, 1, 1, 1)
-        || test_convolution(9, 7, 8, 13, 3, 2, 1, 1, 0)
-        || test_convolution(9, 7, 13, 24, 2, 1, 2, -233, 1))
+            || test_convolution(9, 7, 13, 24, 4, 2, 1, -234, 1)
+            || test_convolution(9, 7, 13, 4, 3, 2, 1, 1, 1)
+            || test_convolution(9, 7, 8, 13, 3, 2, 1, 1, 0)
+            || test_convolution(9, 7, 13, 24, 2, 1, 2, -233, 1))
         return -1;
 
     // 1x1 and winograd implementations have distinct spatial tile boundaries
@@ -611,7 +663,11 @@ static int test_convolution_fp16_generic_packing()
 {
     // direct fp16 packing retains generic kernel, dilation and stride paths
     static const int geometry[][3] = {
-        {2, 1, 1}, {3, 2, 1}, {3, 1, 3}, {7, 2, 1}, {7, 1, 3},
+        {2, 1, 1},
+        {3, 2, 1},
+        {3, 1, 3},
+        {7, 2, 1},
+        {7, 1, 3},
     };
     for (int i = 0; i < 5; i++)
     {

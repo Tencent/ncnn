@@ -111,16 +111,12 @@ static int test_reduction_axes(const ncnn::Mat& a)
     const int axes1[][4] = {{0, -1, -1, -1}};
     const int axes2[][4] = {{0, -1, -1, -1}, {1, -1, -1, -1}, {0, 1, -1, -1}};
     const int axes3[][4] = {
-        {0, -1, -1, -1}, {1, -1, -1, -1}, {2, -1, -1, -1},
-        {0, 1, -1, -1}, {0, 2, -1, -1}, {1, 2, -1, -1}, {0, 1, 2, -1}
+        {0, -1, -1, -1}, {1, -1, -1, -1}, {2, -1, -1, -1}, {0, 1, -1, -1}, {0, 2, -1, -1}, {1, 2, -1, -1}, {0, 1, 2, -1}
     };
     const int axes4[][4] = {
-        {0, -1, -1, -1}, {1, -1, -1, -1}, {2, -1, -1, -1}, {3, -1, -1, -1},
-        {0, 1, -1, -1}, {0, 2, -1, -1}, {0, 3, -1, -1},
-        {1, 2, -1, -1}, {1, 3, -1, -1}, {2, 3, -1, -1},
-        {0, 1, 2, -1}, {0, 1, 3, -1}, {0, 2, 3, -1}, {1, 2, 3, -1}, {0, 1, 2, 3}
+        {0, -1, -1, -1}, {1, -1, -1, -1}, {2, -1, -1, -1}, {3, -1, -1, -1}, {0, 1, -1, -1}, {0, 2, -1, -1}, {0, 3, -1, -1}, {1, 2, -1, -1}, {1, 3, -1, -1}, {2, 3, -1, -1}, {0, 1, 2, -1}, {0, 1, 3, -1}, {0, 2, 3, -1}, {1, 2, 3, -1}, {0, 1, 2, 3}
     };
-    const int (*axis_sets)[4] = a.dims == 4 ? axes4 : a.dims == 3 ? axes3 : a.dims == 2 ? axes2 : axes1;
+    const int(*axis_sets)[4] = a.dims == 4 ? axes4 : a.dims == 3 ? axes3 : a.dims == 2 ? axes2 : axes1;
     const int counts[] = {1, 3, 7, 15};
     for (int i = 0; i < counts[a.dims - 1]; i++)
     {
@@ -318,6 +314,5 @@ int main()
            || test_reduction_load_param_type()
            || test_reduction_load_param_text()
 #endif // NCNN_VALIDATION
-           || test_reduction_depth_padding_boundaries()
-           ;
+           || test_reduction_depth_padding_boundaries();
 }

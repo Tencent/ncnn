@@ -22,7 +22,7 @@ static int test_convolutiondepthwise_dynamic(int w, int h, int c, int outch, int
 
     ncnn::Mat activation_params(2);
     activation_params[0] = activation_type == 6 ? 0.5f : (activation_type == 2 ? 0.1f : -0.5f); // alpha
-    activation_params[1] = activation_type == 6 ? 0.5f : 0.3f; // beta
+    activation_params[1] = activation_type == 6 ? 0.5f : 0.3f;                                  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -134,7 +134,7 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
 
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? 0.2f : -0.1f; // alpha
-    activation_params[1] = 0.3f;                                // beta
+    activation_params[1] = 0.3f;                                  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -232,8 +232,14 @@ static int test_convolutiondepthwise_1()
 
     // packed geometry covers dedicated 3x3 kernels and full or partial dot-product blocks
     static const int packed_kdsp[][4] = {
-        {1, 1, 1, 0}, {2, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 2, 1},
-        {3, 2, 1, 1}, {4, 2, 1, -234}, {5, 2, 2, 2}, {7, 2, 1, -233},
+        {1, 1, 1, 0},
+        {2, 1, 1, 1},
+        {3, 1, 1, 1},
+        {3, 1, 2, 1},
+        {3, 2, 1, 1},
+        {4, 2, 1, -234},
+        {5, 2, 2, 2},
+        {7, 2, 1, -233},
     };
     for (int requant = 0; requant < 2; requant++)
     {
@@ -248,8 +254,7 @@ static int test_convolutiondepthwise_1()
     // group packing is independent of the full depthwise geometry matrix
     static const int grouped_channels[][3] = {{12, 12, 4}, {8, 8, 2}};
     static const int grouped_kdsp[][4] = {
-        {1, 1, 1, 0}, {3, 1, 1, 1}, {3, 1, 2, 1},
-        {5, 1, 2, 2}, {7, 2, 1, -233}
+        {1, 1, 1, 0}, {3, 1, 1, 1}, {3, 1, 2, 1}, {5, 1, 2, 2}, {7, 2, 1, -233}
     };
     for (int requant = 0; requant < 2; requant++)
     {
@@ -268,9 +273,18 @@ static int test_convolutiondepthwise_1()
     // specialized int8 kernels and group packing conversions
     // input channels, output channels, groups and bias
     static const int packing[][4] = {
-        {1, 1, 1, 1}, {2, 2, 1, 0}, {2, 2, 2, 1}, {3, 3, 3, 0},
-        {4, 2, 2, 1}, {4, 4, 4, 0}, {7, 7, 7, 1}, {8, 8, 2, 0},
-        {8, 8, 8, 1}, {12, 12, 4, 0}, {15, 15, 15, 1}, {16, 8, 2, 0},
+        {1, 1, 1, 1},
+        {2, 2, 1, 0},
+        {2, 2, 2, 1},
+        {3, 3, 3, 0},
+        {4, 2, 2, 1},
+        {4, 4, 4, 0},
+        {7, 7, 7, 1},
+        {8, 8, 2, 0},
+        {8, 8, 8, 1},
+        {12, 12, 4, 0},
+        {15, 15, 15, 1},
+        {16, 8, 2, 0},
         {16, 16, 16, 1},
     };
     for (int requant = 0; requant < 2; requant++)
@@ -320,14 +334,22 @@ static int test_convolutiondepthwise_1()
 
     // every packing route keeps both bias states independently of activation types
     static const int activation_channels[][3] = {
-        {3, 3, 3}, {8, 8, 8}, {12, 12, 4}, {8, 8, 2},
-        {2, 2, 1}, {4, 2, 2}, {16, 8, 2},
+        {3, 3, 3},
+        {8, 8, 8},
+        {12, 12, 4},
+        {8, 8, 2},
+        {2, 2, 1},
+        {4, 2, 2},
+        {16, 8, 2},
     };
     // bias representatives for activation types one through six
     static const int activation_bias[][6] = {
-        {0, 1, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 0},
-        {0, 1, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 0},
-        {0, 1, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 0},
+        {0, 1, 0, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0},
+        {0, 1, 0, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0},
+        {0, 1, 0, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0},
         {0, 1, 0, 1, 0, 1},
     };
     for (int requant = 0; requant < 2; requant++)
@@ -336,7 +358,7 @@ static int test_convolutiondepthwise_1()
         {
             const int* ch = activation_channels[i];
             if (test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, 0, ch[2], requant != 0, 0, false, 0)
-                || test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, 1, ch[2], requant != 0, 0, false, 0))
+                    || test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, 1, ch[2], requant != 0, 0, false, 0))
                 return -1;
             for (int act = 1; act < 7; act++)
             {
@@ -356,8 +378,8 @@ static int test_convolutiondepthwise_1()
             const int* k = scale_kernels[i];
             const int* p = scale_packing_kernels[i];
             if (test_convolutiondepthwise_int8(15, 7, 8, 8, k[0], k[1], k[2], k[3], 1, 8, requant != 0, requant ? 102 : 2, false, 0)
-                || test_convolutiondepthwise_int8(15, 7, 2, 2, p[0], p[1], p[2], p[3], 0, 1, requant != 0, 0, false, 0)
-                || test_convolutiondepthwise_int8(15, 7, 4, 2, p[0], p[1], p[2], p[3], 1, 2, requant != 0, 0, false, 0))
+                    || test_convolutiondepthwise_int8(15, 7, 2, 2, p[0], p[1], p[2], p[3], 0, 1, requant != 0, 0, false, 0)
+                    || test_convolutiondepthwise_int8(15, 7, 4, 2, p[0], p[1], p[2], p[3], 1, 2, requant != 0, 0, false, 0))
                 return -1;
         }
 
@@ -373,10 +395,14 @@ static int test_convolutiondepthwise_int8_specialized_activations()
 {
     // pack8 3x3 kernels have separate dequantized and requantized relu paths
     static const int cases[][4] = {
-        {1, 0, 0, 1}, {1, 1, 0, 1},
-        {1, 0, 1, 1}, {1, 1, 1, 1},
-        {2, 0, 0, 1}, {2, 1, 0, 1},
-        {2, 0, 1, 1}, {2, 1, 1, 1},
+        {1, 0, 0, 1},
+        {1, 1, 0, 1},
+        {1, 0, 1, 1},
+        {1, 1, 1, 1},
+        {2, 0, 0, 1},
+        {2, 1, 0, 1},
+        {2, 0, 1, 1},
+        {2, 1, 1, 1},
         {2, 0, 0, 2},
     };
     for (int i = 0; i < 9; i++)
@@ -393,8 +419,14 @@ static int test_convolutiondepthwise_int8_activation_boundaries()
 {
     // scaled identity kernels cover all hard-swish regions in int8 arithmetic
     static const int channels[][3] = {
-        {3, 3, 3}, {4, 4, 4}, {8, 8, 8}, {16, 16, 16},
-        {2, 2, 1}, {12, 12, 4}, {8, 8, 2}, {16, 8, 2},
+        {3, 3, 3},
+        {4, 4, 4},
+        {8, 8, 8},
+        {16, 16, 16},
+        {2, 2, 1},
+        {12, 12, 4},
+        {8, 8, 2},
+        {16, 8, 2},
     };
     const float input[] = {-4.f, -1.f, 0.f, 1.f, 4.f, 0.f};
     for (int requant = 0; requant < 2; requant++)
