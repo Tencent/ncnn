@@ -9,18 +9,50 @@
 
 namespace ncnn {
 
-// K-tile width (in units of the 8x8 local size) of the shared-memory staging
-// gemm.  fp16 native arithmetic is memory/latency bound at long K (its half2
-// muls issue too few instructions to hide the staging latency), so a long
-// reduction stages a wide K-tile; a short one is compute bound and a wide tile
-// only costs shared memory / occupancy.  Ignored by the bf16-packed path.
-static int gemm_kunroll_for_shape(const Option& opt, int K)
+// Choose the shared-memory staging tile of the plain gemm from the device
+// limits.  The workgroup covers TG groups along each axis and a group is 4
+// output rows (M) or 4 columns (N), so the output tile is (4*TG) x (4*TG) and
+// the local size is TG x TG.  Every staged element is reused by 4*TG outputs,
+// so a wider tile means fewer passes over A and B for the same output.  KU is
+// the number of K elements staged per barrier (KU / TG per thread).
+//
+// A wide tile costs a large workgroup and shared memory, so it is only used
+// where the device allows it - a device that cannot run 256 invocations per
+// workgroup keeps the 32x32 tile.  The bf16-packed path always keeps it.
+static void gemm_stage_tile(const VulkanDevice* vkdev, const Option& opt, int K, int& TG, int& KU)
 {
-    if (!opt.use_fp16_arithmetic)
-        return 8;
+    TG = 8;
+    KU = 8;
 
-    // measured crossover between K = 8192 and K = 10240
-    return K >= 10240 ? 64 : 8;
+    if (!opt.use_fp16_arithmetic)
+        return;
+
+    const int max_invocations = (int)vkdev->info.max_workgroup_invocations();
+    const int max_workgroup_size_x = (int)vkdev->info.max_workgroup_size_x();
+    const size_t max_shared_memory = vkdev->info.max_shared_memory_size();
+
+    for (int tg = 16; tg >= 8; tg /= 2)
+    {
+        if (tg * tg > max_invocations || tg > max_workgroup_size_x)
+            continue;
+
+        // 32 K elements per barrier (two per thread) for a long reduction.  The
+        // 32x32 fallback keeps its shape gate: a short reduction does not need
+        // the wider staging tile.  KU must be a multiple of TG so that the
+        // staging loop covers the whole tile.
+        int ku = tg == 8 ? (K >= 10240 ? 64 : 8) : 32;
+        ku = ((ku + tg - 1) / tg) * tg;
+
+        // tmp_a + tmp_b, KU + 1 for the bank-conflict padding.  lfpvec4 is
+        // 8 bytes for fp16 storage with fp16 arithmetic.
+        const size_t shared_memory = 2 * (size_t)tg * (ku + 1) * 8;
+        if (shared_memory > max_shared_memory)
+            continue;
+
+        TG = tg;
+        KU = ku;
+        return;
+    }
 }
 
 #if NCNN_INT8
@@ -60,6 +92,9 @@ Gemm_vulkan::Gemm_vulkan()
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
+
+    TG = 8;
+    KU = 8;
 }
 
 int Gemm_vulkan::create_pipeline(const Option& opt)
@@ -125,6 +160,8 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     const int M = constantM ? constantM : 1024;
     const int N = constantN ? constantN : 1024;
     const int K = constantK ? constantK : 1024;
+
+    gemm_stage_tile(vkdev, opt, K, TG, KU);
 
     if (use_cooperative_matrix)
     {
@@ -588,7 +625,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
     else if (opt.use_shader_local_memory)
     {
-        std::vector<vk_specialization_type> specializations(17);
+        std::vector<vk_specialization_type> specializations(18);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -604,11 +641,12 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[12].i = output_elempack;
         specializations[13].i = output_elemtype;
         specializations[14].i = output_transpose;
-        specializations[15].u32 = (uint32_t)gemm_kunroll_for_shape(opt, K);
-        specializations[16].u32 = (uint32_t)(gemm_kunroll_for_shape(opt, K) + 1);
+        specializations[15].u32 = (uint32_t)KU;
+        specializations[16].u32 = (uint32_t)(KU + 1);
+        specializations[17].u32 = (uint32_t)TG;
 
         pipeline_gemm = new Pipeline(vkdev);
-        pipeline_gemm->set_local_size_xyz(8, 8, 1);
+        pipeline_gemm->set_local_size_xyz(TG, TG, 1);
         pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
     else if (use_subgroup_ops)
@@ -693,8 +731,8 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[12].i = output_elempack;
         specializations[13].i = output_elemtype;
         specializations[14].i = output_transpose;
-        specializations[15].u32 = (uint32_t)gemm_kunroll_for_shape(opt, K);
-        specializations[16].u32 = (uint32_t)(gemm_kunroll_for_shape(opt, K) + 1);
+        specializations[15].u32 = (uint32_t)KU;
+        specializations[16].u32 = (uint32_t)(KU + 1);
 
         Mat local_size_xyz;
 
@@ -747,6 +785,9 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     UNROLL_SG_K = 1;
     UNROLL_WG_M = 1;
     UNROLL_WG_N = 1;
+
+    TG = 8;
+    KU = 8;
 
     return 0;
 }
@@ -983,8 +1024,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         if (opt.use_shader_local_memory)
         {
             VkMat dispatcher;
-            dispatcher.w = (N + 3) / 4;
-            dispatcher.h = (M + 3) / 4;
+            dispatcher.w = ((N + 4 * TG - 1) / (4 * TG)) * TG;
+            dispatcher.h = ((M + 4 * TG - 1) / (4 * TG)) * TG;
             dispatcher.c = 1;
             cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
         }

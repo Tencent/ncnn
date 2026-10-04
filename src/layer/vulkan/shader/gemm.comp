@@ -13,6 +13,13 @@
 layout(constant_id = 15) const int KU = 8;
 layout(constant_id = 16) const int KU_TILE = 9;
 
+// Groups per tile dimension: each output group is 4 rows (M) or 4 columns (N),
+// so the workgroup tile is (4*TG) x (4*TG) and TG is also the local size in
+// each dimension.  A wider tile reuses every staged element over more outputs
+// and thus reads A and B fewer times.  TG = 8 reproduces the historical 8x8
+// local size / 32x32 tile bit for bit.  KU must be a multiple of TG and >= TG.
+layout(constant_id = 17) const int TG = 8;
+
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
 layout(constant_id = 2) const int transA = 0;
@@ -55,8 +62,8 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfpvec4 tmp_a[8][KU_TILE];
-shared lfpvec4 tmp_b[8][KU_TILE];
+shared lfpvec4 tmp_a[TG][KU_TILE];
+shared lfpvec4 tmp_b[TG][KU_TILE];
 #endif
 
 void main()
@@ -145,11 +152,11 @@ void main()
     int k = 0;
     for (; k + (KU - 1) < NN; k += KU)
     {
-        for (int m8 = 0; m8 < KU / 8; m8++)
+        for (int m8 = 0; m8 < KU / TG; m8++)
         {
-            const int kk = k + m8 * 8;
-            const int acol = int(lx) + m8 * 8;
-            const int bcol = int(ly) + m8 * 8;
+            const int kk = k + m8 * TG;
+            const int acol = int(lx) + m8 * TG;
+            const int bcol = int(ly) + m8 * TG;
             {
             if (p.A_elempack == 4)
             {
@@ -327,11 +334,11 @@ void main()
     {
         const int remain = NN - k;
 
-        for (int m8 = 0; m8 < KU / 8; m8++)
+        for (int m8 = 0; m8 < KU / TG; m8++)
         {
-            const int kk = k + m8 * 8;
-            const int acol = int(lx) + m8 * 8;
-            const int bcol = int(ly) + m8 * 8;
+            const int kk = k + m8 * TG;
+            const int acol = int(lx) + m8 * TG;
+            const int bcol = int(ly) + m8 * TG;
 
             if (acol < remain)
             {

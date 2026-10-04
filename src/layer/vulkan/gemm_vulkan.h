@@ -41,6 +41,11 @@ public:
     Pipeline* pipeline_gemm;
     Pipeline* pipeline_gemm_pack4;
 
+    // shared-memory staging tile of the plain gemm, chosen from the device
+    // limits in create_pipeline (see gemm_stage_tile)
+    int TG;
+    int KU;
+
     // subgroup
     bool use_subgroup_ops;
 
