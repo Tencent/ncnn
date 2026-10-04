@@ -237,14 +237,14 @@
 #define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #elif NCNN_fp16_storage && NCNN_fp16_arithmetic
 #define buffer_ld1(buf,i) buf[i]
-#define buffer_st1(buf,i,v) {buf[i]=v;}
+#define buffer_st1(buf,i,v) {buf[i]=float16_t(v);}
 #define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_cp1to4(buf,i,sbuf,si4) {buf[i]=f16vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}
 #define buffer_ld2(buf,i) buf[i]
-#define buffer_st2(buf,i,v) {buf[i]=v;}
+#define buffer_st2(buf,i,v) {buf[i]=f16vec2(v);}
 #define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_ld4(buf,i) buf[i]
-#define buffer_st4(buf,i,v) {buf[i]=v;}
+#define buffer_st4(buf,i,v) {buf[i]=f16vec4(v);}
 #define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
 #define sfp2afpmat4(v) v
