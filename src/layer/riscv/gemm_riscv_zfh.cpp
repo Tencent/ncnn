@@ -54,9 +54,6 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
     if (BT.empty())
         return -100;
@@ -181,6 +178,10 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
     }
     else
     {
+        Mat ATX(TILE_K * TILE_M, nn_K, nT, 2u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+
         #pragma omp parallel for num_threads(nT)
         for (int ppi = 0; ppi < nn_M; ppi++)
         {
@@ -611,9 +612,6 @@ static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
     if (BT.empty())
         return -100;
@@ -738,6 +736,10 @@ static int gemm_riscv_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_
     }
     else
     {
+        Mat ATX(TILE_K * TILE_M, nn_K, nT, 2u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+
         #pragma omp parallel for num_threads(nT)
         for (int ppi = 0; ppi < nn_M; ppi++)
         {

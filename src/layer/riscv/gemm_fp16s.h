@@ -108,7 +108,7 @@ pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int ma
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 #endif
 
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     __fp16* pp = AT;
 
@@ -166,7 +166,7 @@ transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int
     const size_t vl = __riscv_vsetvl_e32m2(packn);
 #endif
 
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     __fp16* pp = AT;
 
@@ -224,7 +224,7 @@ pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int ma
     const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
 
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     __fp16* pp = BT;
 
@@ -296,7 +296,7 @@ transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int
     const size_t vl4 = __riscv_vsetvl_e32m2(4);
 #endif
 
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     __fp16* pp = BT;
 
@@ -368,7 +368,7 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 #if __riscv_vector
     const int out_elempack = top_blob.elempack;
 #endif
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const float* pp = topT;
 
@@ -584,7 +584,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 #if __riscv_vector
     const int out_elempack = top_blob.elempack;
 #endif
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const __fp16* pAT = AT_tile;
     const __fp16* pBT = BT_tile;
