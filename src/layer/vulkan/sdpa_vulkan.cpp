@@ -238,6 +238,53 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             FA_UNROLL_WG_M = 4;
             const int subgroup_size = vkdev->info.subgroup_size();
 
+            // Query tile M.  Threads-per-row is local_size / M =
+            // (subgroup_size * FA_UNROLL_WG_M) / M, so keeping FA_UNROLL_WG_M == M
+            // leaves threads-per-row == subgroup_size, i.e. exactly the same
+            // softmax reduction order as the stock M = 4 / UNROLL_WG_M = 4 setup:
+            // the output stays bit-identical.  A larger tile raises the K/V reuse
+            // of this kernel.
+            {
+                const int max_inv = (int)vkdev->info.max_workgroup_invocations();
+                const int max_wg_x = (int)vkdev->info.max_workgroup_size_x();
+                const size_t max_shared = vkdev->info.max_shared_memory_size();
+                for (int mm = 8; mm <= 32; mm *= 2)
+                {
+                    const int local_size = subgroup_size * mm;
+                    if (local_size > max_inv || local_size > max_wg_x)
+                        break;
+                    // tmp_q + tmp_k (uvec4) + tmp_s + tmp_scratch
+                    const size_t shared = 16 * (size_t)mm * (FA_coopmat_K / 8 + 1) * 2
+                                          + 4 * (size_t)mm * (FA_coopmat_N + 1)
+                                          + 4 * (size_t)mm * subgroup_size;
+                    if (shared > max_shared)
+                        break;
+                    FA_coopmat_M = mm;
+                    FA_UNROLL_WG_M = mm;
+                }
+            }
+
+            // Key/head tile.  A wider tile reloads each query tile fewer times.
+            // Unlike the query tile this regroups the softmax, so the result is
+            // not bit-identical.  tmp_k is reused as the V tile, which is why the
+            // key and head tiles are kept equal.
+            {
+                const size_t max_shared = vkdev->info.max_shared_memory_size();
+                for (int nk = 64; nk >= 32; nk /= 2)
+                {
+                    const size_t shared = 16 * (size_t)FA_coopmat_M * (nk / 8 + 1)
+                                          + 16 * (size_t)nk * (nk / 8 + 1)
+                                          + 4 * (size_t)FA_coopmat_M * (nk + 1)
+                                          + 4 * (size_t)FA_coopmat_M * subgroup_size;
+                    if (shared <= max_shared)
+                    {
+                        FA_coopmat_N = nk;
+                        FA_coopmat_K = nk;
+                        break;
+                    }
+                }
+            }
+
             // assert FA_coopmat_N == FA_coopmat_K
             // assert local_size % FA_coopmat_M == 0
 
