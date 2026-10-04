@@ -287,6 +287,12 @@ void main()
 
         barrier();
 
+#if NCNN_fp16_gemm_mixed
+        afpvec4 hsum0 = afpvec4(0.f);
+        afpvec4 hsum1 = afpvec4(0.f);
+        afpvec4 hsum2 = afpvec4(0.f);
+        afpvec4 hsum3 = afpvec4(0.f);
+#endif
 
         for (int k4 = 0; k4 < KU; k4++)
         {
@@ -294,12 +300,25 @@ void main()
 
             afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
+#if NCNN_fp16_gemm_mixed
+            hsum0 += a.r * b;
+            hsum1 += a.g * b;
+            hsum2 += a.b * b;
+            hsum3 += a.a * b;
+#else
             sum0 += wfp(a.r) * wfpvec4(b);
             sum1 += wfp(a.g) * wfpvec4(b);
             sum2 += wfp(a.b) * wfpvec4(b);
             sum3 += wfp(a.a) * wfpvec4(b);
+#endif
         }
 
+#if NCNN_fp16_gemm_mixed
+        sum0 += wfpvec4(hsum0);
+        sum1 += wfpvec4(hsum1);
+        sum2 += wfpvec4(hsum2);
+        sum3 += wfpvec4(hsum3);
+#endif
 
         barrier();
     }
@@ -451,6 +470,12 @@ void main()
 
         barrier();
 
+#if NCNN_fp16_gemm_mixed
+        afpvec4 hsum0 = afpvec4(0.f);
+        afpvec4 hsum1 = afpvec4(0.f);
+        afpvec4 hsum2 = afpvec4(0.f);
+        afpvec4 hsum3 = afpvec4(0.f);
+#endif
 
         for (int k4 = 0; k4 < remain; k4++)
         {
@@ -458,12 +483,25 @@ void main()
 
             afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
+#if NCNN_fp16_gemm_mixed
+            hsum0 += a.r * b;
+            hsum1 += a.g * b;
+            hsum2 += a.b * b;
+            hsum3 += a.a * b;
+#else
             sum0 += wfp(a.r) * wfpvec4(b);
             sum1 += wfp(a.g) * wfpvec4(b);
             sum2 += wfp(a.b) * wfpvec4(b);
             sum3 += wfp(a.a) * wfpvec4(b);
+#endif
         }
 
+#if NCNN_fp16_gemm_mixed
+        sum0 += wfpvec4(hsum0);
+        sum1 += wfpvec4(hsum1);
+        sum2 += wfpvec4(hsum2);
+        sum3 += wfpvec4(hsum3);
+#endif
     }
 #else
     for (int k = 0; k < psc(K); k++)
