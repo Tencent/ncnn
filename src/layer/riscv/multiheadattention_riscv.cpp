@@ -1054,7 +1054,6 @@ int MultiHeadAttention_riscv::forward(const std::vector<Mat>& bottom_blobs, std:
     const Mat& value_affine = kv_cache ? cached_xv_blob : v_affine;
     Mat v_affine_fp32 = value_affine;
 
-
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
