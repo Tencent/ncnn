@@ -144,7 +144,7 @@ static void coalesce_shader_coverage_probes(std::vector<uint32_t>& spirv)
     size_t functions_begin = 0;
     size_t segment = 0;
     uint32_t uint_type = 0;
-    for (size_t i = 5; i<spirv.size(); i += spirv[i]> > 16)
+    for (size_t i = 5; i < spirv.size(); i += (spirv[i] >> 16))
     {
         const uint32_t* p = &spirv[i];
         const uint32_t count = p[0] >> 16;
@@ -187,7 +187,7 @@ static void coalesce_shader_coverage_probes(std::vector<uint32_t>& spirv)
         return;
 
     std::map<uint32_t, uint32_t> constants;
-    for (size_t i = 5; i<functions_begin; i += spirv[i]> > 16)
+    for (size_t i = 5; i < functions_begin; i += (spirv[i] >> 16))
     {
         const uint32_t* p = &spirv[i];
         if ((spv::Op)(p[0] & 0xffff) == spv::Op::OpConstant && (p[0] >> 16) == 4 && p[1] == uint_type)
@@ -210,7 +210,7 @@ static void coalesce_shader_coverage_probes(std::vector<uint32_t>& spirv)
     }
 
     std::vector<uint32_t> result(spirv.begin(), spirv.begin() + 5);
-    for (size_t i = 5; i<spirv.size(); i += spirv[i]> > 16)
+    for (size_t i = 5; i < spirv.size(); i += (spirv[i] >> 16))
     {
         if (i == functions_begin)
             result.insert(result.end(), definitions.begin(), definitions.end());
