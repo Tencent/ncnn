@@ -3719,9 +3719,9 @@ int Gemm_riscv::forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     const int output_elemtype = this->output_elemtype == 0 && use_fp16_storage ? 2 : 1;
-    const int outh = output_transpose ? N : M;
     int out_elempack = 1;
 #if __riscv_vector
+    const int outh = output_transpose ? N : M;
     if (opt.use_packing_layout)
     {
 #if NCNN_ZFH
