@@ -565,6 +565,7 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+    const int packn_s8 = csrr_vlenb();
 #endif // __riscv_vector
 
     int elembits = bottom_blob.elembits();
@@ -594,13 +595,39 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
     bool use_int8_requantize = int8_scale_term > 100;
+    int out_elempack = 1;
     int out_elempack_int32 = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
     {
+        if (use_int8_requantize)
+        {
+            out_elempack = num_output % packn_s8 == 0 ? packn_s8 : 1;
+        }
+        else
+        {
+#if NCNN_ZFH
+            if (support_fp16_storage && opt.use_fp16_storage)
+            {
+                const int packn_f16 = csrr_vlenb() / 2;
+                out_elempack = num_output % packn_f16 == 0 ? packn_f16 : 1;
+            }
+            else
+#endif // NCNN_ZFH
+            {
+                out_elempack = num_output % packn == 0 ? packn : 1;
+            }
+        }
         out_elempack_int32 = num_output % packn == 0 ? packn : 1;
     }
 #endif // __riscv_vector
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage)
+    {
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+    }
+#endif // NCNN_ZFH
 
     Mat top_blob_int32;
     top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
@@ -611,17 +638,17 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
     convolution_packed_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
     bottom_blob_bordered.release();
 
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
     if (use_int8_requantize)
     {
         requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
-        if (top_blob.empty())
-            return -100;
     }
     else
     {
         dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
-        if (top_blob.empty())
-            return -100;
 
         if (activation)
         {
