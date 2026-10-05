@@ -27,26 +27,26 @@ int SELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int n = size;
 #if __riscv_zvfh
+        int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m4(n);
             vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
             vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
 
-            // Negative part: (exp(x) - 1) * alphaxlambda
-            // Convert to float32 for exp calculation
+            // negative part: (exp(x) - 1) * alphaxlambda
+            // convert to float32 for exp calculation
             vfloat32m8_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m8(_p, vl);
             vfloat32m8_t _nps_f32 = exp_ps(_p_f32, vl);
             _nps_f32 = __riscv_vfsub_vf_f32m8(_nps_f32, 1.f, vl);
             _nps_f32 = __riscv_vfmul_vf_f32m8(_nps_f32, alphaxlambda, vl);
             vfloat16m4_t _nps = __riscv_vfncvt_f_f_w_f16m4(_nps_f32, vl);
 
-            // Positive part: x * lambda
+            // positive part: x * lambda
             _p = __riscv_vfmul_vf_f16m4(_p, (__fp16)lambda, vl);
 
-            // Merge results
+            // merge results
             _p = __riscv_vmerge_vvm_f16m4(_p, _nps, _lower, vl);
 
             __riscv_vse16_v_f16m4(ptr, _p, vl);

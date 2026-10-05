@@ -446,9 +446,9 @@ _RVV_FLOAT32_SIGMOID_OP(8, 4)
  * is preserved.
  * ====================================================
  */
-// Coefficients for approximation to erf
+// coefficients for approximation to erf
 #define c_erf_threshold 0.927734375f // 475/512
-// Large branch (t > 0.927734375f)
+// large branch (t > 0.927734375f)
 #define c_erf_c0 -1.72853470e-5f
 #define c_erf_c1 3.83197126e-4f
 #define c_erf_c2 -3.88396438e-3f
@@ -456,7 +456,7 @@ _RVV_FLOAT32_SIGMOID_OP(8, 4)
 #define c_erf_c4 -1.06777877e-1f
 #define c_erf_c5 -6.34846687e-1f
 #define c_erf_c6 -1.28717512e-1f
-// Small branch (t <= 0.927734375f)
+// small branch (t <= 0.927734375f)
 #define c_erf_s0 -5.96761703e-4f
 #define c_erf_s1 4.99119423e-3f
 #define c_erf_s2 -2.67681349e-2f

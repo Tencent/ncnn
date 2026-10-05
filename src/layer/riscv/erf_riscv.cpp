@@ -31,7 +31,7 @@ int Erf_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
-    if (opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_inplace_fp16sa(bottom_top_blob, opt);

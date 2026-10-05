@@ -14,7 +14,9 @@ namespace ncnn {
 
 SELU_riscv::SELU_riscv()
 {
+#if __riscv_vector
     support_packing = true;
+#endif
 #if NCNN_ZFH
 #if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
@@ -26,14 +28,9 @@ SELU_riscv::SELU_riscv()
 
 int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if C906
-    // FIXME -O3 leads illegal instruction
-    return SELU::forward_inplace(bottom_top_blob, opt);
-#endif
-
+#if NCNN_ZFH
     int elembits = bottom_top_blob.elembits();
 
-#if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
@@ -81,6 +78,6 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __riscv_vector
     }
     return 0;
-};
+}
 
 } // namespace ncnn

@@ -20,7 +20,6 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
     int elempack = bottom_top_blob.elempack;
     int size = w * h * d * elempack;
 
-#if __riscv_vector
     if (fast_gelu)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -28,8 +27,8 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         {
             __fp16* ptr = bottom_top_blob.channel(q);
 
-            int n = size;
 #if __riscv_zvfh
+            int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
@@ -43,7 +42,7 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 _arg = __riscv_vfadd_vv_f16m4(_p, _arg, vl);
                 _arg = __riscv_vfmul_vf_f16m4(_arg, (__fp16)0.79788452f, vl);
 
-                // For tanh, convert to float32
+                // for tanh, convert to float32
                 vfloat32m8_t _arg_f32 = __riscv_vfwcvt_f_f_v_f32m8(_arg, vl);
                 vfloat32m8_t _tanharg_f32 = tanh_ps(_arg_f32, vl);
                 vfloat16m4_t _tanharg = __riscv_vfncvt_f_f_w_f16m4(_tanharg_f32, vl);
@@ -74,15 +73,15 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         {
             __fp16* ptr = bottom_top_blob.channel(q);
 
-            int n = size;
 #if __riscv_zvfh
+            int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m4(n);
                 vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
 
                 // y = 0.5 * x * erfc(-x / sqrt(2))
-                // Convert to float32 for erfc
+                // convert to float32 for erfc
                 vfloat32m8_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m8(_p, vl);
                 vfloat32m8_t _perfc_f32 = __riscv_vfmul_vf_f32m8(_p_f32, -0.70710678f, vl);
                 _p_f32 = __riscv_vfmul_vf_f32m8(_p_f32, 0.5f, vl);
@@ -107,9 +106,6 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
     }
 
     return 0;
-#endif // __riscv_vector
-
-    return GELU::forward_inplace(bottom_top_blob, opt);
 }
 #endif // NCNN_ZFH
 

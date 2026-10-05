@@ -25,15 +25,15 @@ int ELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int n = size;
 #if __riscv_zvfh
+        int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m4(n);
             vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
             vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
 
-            // Convert to float32 for exp calculation
+            // convert to float32 for exp calculation
             vfloat32m8_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m8(_p, vl);
             vfloat32m8_t _exp_v = exp_ps(_p_f32, vl);
             _exp_v = __riscv_vfsub_vf_f32m8(_exp_v, 1.f, vl);
