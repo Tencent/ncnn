@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_shufflechannel(const ncnn::Mat& a, int group, int reverse)
 {
     ncnn::ParamDict pd;
@@ -95,6 +99,25 @@ static int test_shufflechannel_2()
            || test_shufflechannel(5, 3, 2, 16, 8, 1);
 }
 
+#if NCNN_VALIDATION
+static int test_shufflechannel_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    if (test_layer_param(ncnn::LayerType::ShuffleChannel, base, 0) != 0)
+        return -1;
+
+    const int invalid[] = {0, -1, -8, INT_MIN};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::ShuffleChannel, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -102,5 +125,9 @@ int main()
     return 0
            || test_shufflechannel_2()
            || test_shufflechannel_0()
-           || test_shufflechannel_1();
+           || test_shufflechannel_1()
+#if NCNN_VALIDATION
+           || test_shufflechannel_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

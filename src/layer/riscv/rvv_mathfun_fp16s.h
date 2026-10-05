@@ -272,69 +272,67 @@ _RVV_FLOAT16_COS_OP(2, 8)
 _RVV_FLOAT16_COS_OP(4, 4)
 _RVV_FLOAT16_COS_OP(8, 2)
 
-#define c_tanh_tiny 1e-4f
-#define c_tanh_hi   9.0f
+#define c_tanh_f16_tiny 1e-4f
+// tanh(4.5) = 0.99975 already rounds to 1.0 in half precision,
+// so anything outside [-4.5, 4.5] is -/+1.0f
+#define c_tanh_f16_hi 4.5f
+// tanh(x) ~= x * P(x^2) / Q(x^2), rational approximation fitted on [0, 4.5] for half precision.
+// The single precision coefficients used by the fp32 tanh_ps cannot be represented in fp16:
+// alpha_9 alpha_11 alpha_13 underflow to zero and alpha_7 becomes subnormal,
+// which makes the approximation saturate at ~1.044 instead of 1.0.
+// All coefficients below are exactly representable in fp16 and stay in the normal range.
 // The monomial coefficients of the numerator polynomial (odd).
-#define c_tanh_alpha_1  4.89352455891786e-3f
-#define c_tanh_alpha_3  6.37261928875436e-4f
-#define c_tanh_alpha_5  1.48572235717979e-5f
-#define c_tanh_alpha_7  5.12229709037114e-8f
-#define c_tanh_alpha_9  -8.60467152213735e-11f
-#define c_tanh_alpha_11 2.00018790482477e-13f
-#define c_tanh_alpha_13 -2.76076847742355e-16f
+#define c_tanh_f16_alpha_1 1.f
+#define c_tanh_f16_alpha_3 0.1038818359375f
+#define c_tanh_f16_alpha_5 0.0007195472717285156f
 // The monomial coefficients of the denominator polynomial (even).
-#define c_tanh_beta_0 4.89352518554385e-3f
-#define c_tanh_beta_2 2.26843463243900e-3f
-#define c_tanh_beta_4 1.18534705686654e-4f
-#define c_tanh_beta_6 1.19825839466702e-6f
+#define c_tanh_f16_beta_0 1.f
+#define c_tanh_f16_beta_2 0.43701171875f
+#define c_tanh_f16_beta_4 0.0132904052734375f
 
-#define _RVV_FLOAT16_TANH_OP(LMUL, MLEN)                                                                \
-    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, size_t vl)                         \
-    {                                                                                                   \
-        vfloat16m##LMUL##_t x2 = __riscv_vfsgnj_vf_f16m##LMUL(x, (__fp16)1.f, vl);                      \
-                                                                                                        \
-        vbool##MLEN##_t tiny_mask = __riscv_vmfge_vf_f16m##LMUL##_b##MLEN(x2, (__fp16)c_tanh_tiny, vl); \
-                                                                                                        \
-        /* clamp the inputs to the range [-9, 9] since anything outside */                              \
-        /* this range is -/+1.0f in single-precision.                   */                              \
-        x2 = __riscv_vfmin_vf_f16m##LMUL(x2, (__fp16)c_tanh_hi, vl);                                    \
-                                                                                                        \
-        /* since the polynomials are odd/even, we need x**2. */                                         \
-        vfloat16m##LMUL##_t z = __riscv_vfmul_vv_f16m##LMUL(x2, x2, vl);                                \
-                                                                                                        \
-        /* evaluate the numerator polynomial y. */                                                      \
-        vfloat16m##LMUL##_t y = __riscv_vfmul_vf_f16m##LMUL(z, (__fp16)c_tanh_alpha_13, vl);            \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_11, vl);                                \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                      \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_9, vl);                                 \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                      \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_7, vl);                                 \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                      \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_5, vl);                                 \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                      \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_3, vl);                                 \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                      \
-        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_alpha_1, vl);                                 \
-        y = __riscv_vfmul_vv_f16m##LMUL(y, x2, vl);                                                     \
-                                                                                                        \
-        /* evaluate the denominator polynomial w. */                                                    \
-        vfloat16m##LMUL##_t w = __riscv_vfmul_vf_f16m##LMUL(z, (__fp16)c_tanh_beta_6, vl);              \
-        w = __riscv_vfadd_vf_f16m##LMUL(w, (__fp16)c_tanh_beta_4, vl);                                  \
-        w = __riscv_vfmul_vv_f16m##LMUL(w, z, vl);                                                      \
-        w = __riscv_vfadd_vf_f16m##LMUL(w, (__fp16)c_tanh_beta_2, vl);                                  \
-        w = __riscv_vfmul_vv_f16m##LMUL(w, z, vl);                                                      \
-        w = __riscv_vfadd_vf_f16m##LMUL(w, (__fp16)c_tanh_beta_0, vl);                                  \
-                                                                                                        \
-        /* divide the numerator by the denominator. */                                                  \
-        y = __riscv_vfdiv_vv_f16m##LMUL(y, w, vl);                                                      \
-                                                                                                        \
-        /* reinstate the sign.  */                                                                      \
-        y = __riscv_vfsgnj_vv_f16m##LMUL(y, x, vl);                                                     \
-                                                                                                        \
-        /* when the argument is very small in magnitude it's more accurate to just return it. */        \
-        y = __riscv_vmerge_vvm_f16m##LMUL(x, y, tiny_mask, vl);                                         \
-                                                                                                        \
-        return y;                                                                                       \
+#define _RVV_FLOAT16_TANH_OP(LMUL, MLEN)                                                                    \
+    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, size_t vl)                             \
+    {                                                                                                       \
+        vfloat16m##LMUL##_t x2 = __riscv_vfsgnj_vf_f16m##LMUL(x, (__fp16)1.f, vl);                          \
+                                                                                                            \
+        vbool##MLEN##_t tiny_mask = __riscv_vmfge_vf_f16m##LMUL##_b##MLEN(x2, (__fp16)c_tanh_f16_tiny, vl); \
+                                                                                                            \
+        /* anything outside the range [-4.5, 4.5] is -/+1.0f in half precision. */                          \
+        vbool##MLEN##_t sat_mask = __riscv_vmfge_vf_f16m##LMUL##_b##MLEN(x2, (__fp16)c_tanh_f16_hi, vl);    \
+                                                                                                            \
+        /* clamp the inputs so that x**2 does not overflow. */                                              \
+        x2 = __riscv_vfmin_vf_f16m##LMUL(x2, (__fp16)c_tanh_f16_hi, vl);                                    \
+                                                                                                            \
+        /* since the polynomials are odd/even, we need x**2. */                                             \
+        vfloat16m##LMUL##_t z = __riscv_vfmul_vv_f16m##LMUL(x2, x2, vl);                                    \
+                                                                                                            \
+        /* evaluate the numerator polynomial y. */                                                          \
+        vfloat16m##LMUL##_t y = __riscv_vfmul_vf_f16m##LMUL(z, (__fp16)c_tanh_f16_alpha_5, vl);             \
+        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_f16_alpha_3, vl);                                 \
+        y = __riscv_vfmul_vv_f16m##LMUL(y, z, vl);                                                          \
+        y = __riscv_vfadd_vf_f16m##LMUL(y, (__fp16)c_tanh_f16_alpha_1, vl);                                 \
+        y = __riscv_vfmul_vv_f16m##LMUL(y, x2, vl);                                                         \
+                                                                                                            \
+        /* evaluate the denominator polynomial w. */                                                        \
+        vfloat16m##LMUL##_t w = __riscv_vfmul_vf_f16m##LMUL(z, (__fp16)c_tanh_f16_beta_4, vl);              \
+        w = __riscv_vfadd_vf_f16m##LMUL(w, (__fp16)c_tanh_f16_beta_2, vl);                                  \
+        w = __riscv_vfmul_vv_f16m##LMUL(w, z, vl);                                                          \
+        w = __riscv_vfadd_vf_f16m##LMUL(w, (__fp16)c_tanh_f16_beta_0, vl);                                  \
+                                                                                                            \
+        /* divide the numerator by the denominator. */                                                      \
+        y = __riscv_vfdiv_vv_f16m##LMUL(y, w, vl);                                                          \
+                                                                                                            \
+        /* the approximation must never exceed 1.0f, and saturate beyond the fitted range. */               \
+        y = __riscv_vfmin_vf_f16m##LMUL(y, (__fp16)1.f, vl);                                                \
+        y = __riscv_vfmerge_vfm_f16m##LMUL(y, (__fp16)1.f, sat_mask, vl);                                   \
+                                                                                                            \
+        /* reinstate the sign.  */                                                                          \
+        y = __riscv_vfsgnj_vv_f16m##LMUL(y, x, vl);                                                         \
+                                                                                                            \
+        /* when the argument is very small in magnitude it's more accurate to just return it. */            \
+        y = __riscv_vmerge_vvm_f16m##LMUL(x, y, tiny_mask, vl);                                             \
+                                                                                                            \
+        return y;                                                                                           \
     }
 
 _RVV_FLOAT16_TANH_OP(1, 16)

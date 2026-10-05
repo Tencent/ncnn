@@ -325,23 +325,19 @@ int Gemm::load_param(const ParamDict& pd)
 #endif
     }
 
-    if (constantA == 1 && (constantM == 0 || constantK == 0))
-    {
-        NCNN_LOGE("constantM and constantK must be non-zero when constantA enabled");
+#if NCNN_VALIDATION
+    if (constantA == 1 && (constantM <= 0 || constantK <= 0))
         return -1;
-    }
 
-    if (constantB == 1 && (constantN == 0 || constantK == 0))
-    {
-        NCNN_LOGE("constantN and constantK must be non-zero when constantB enabled");
+    if (constantB == 1 && (constantN <= 0 || constantK <= 0))
         return -1;
-    }
 
     if (constantC == 1 && (constant_broadcast_type_C < -1 || constant_broadcast_type_C > 4))
     {
         NCNN_LOGE("constant_broadcast_type_C must be -1 or 0~4 when constantC enabled");
         return -1;
     }
+#endif // NCNN_VALIDATION
 
     if (constantA == 0 && constantB == 1 && constantC == 1)
         one_blob_only = true;

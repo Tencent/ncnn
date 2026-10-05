@@ -39,6 +39,17 @@ cmake -DNCNN_STRING=OFF ..
 
     Read more [here](https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/use-ncnn-with-alexnet.md#input-and-output).
 
+### disable NCNN_VALIDATION
+
+```
+cmake -DNCNN_VALIDATION=OFF ..
+```
+
+* Enabled by default. Disable it for fixed models whose parameters and graph have already been validated to reduce binary size.
+* Omits additional parameter ID, array length, numeric range, layer parameter and graph consistency checks, including graph cycle detection. Invalid parameters are not guaranteed to return an error with this option disabled.
+* Preserves parameter parsing and numeric conversions, default values, allocation and read failure handling, feature availability checks, and resource cleanup. Valid models have the same behavior in both configurations.
+* Independent of `NCNN_STDIO`, `NCNN_STRING` and `NCNN_BUILD_TESTS`. Validation tests run when enabled; inference and conversion tests also run when disabled.
+
 ### disable NCNN_BF16
 
 ```
