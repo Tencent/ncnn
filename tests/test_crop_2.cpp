@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, const ncnn::Mat& ref)
+static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, const ncnn::Mat& ref, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, woffset);
@@ -25,7 +25,7 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, 
     ab[0] = a;
     ab[1] = ref;
 
-    int ret = test_layer("Crop", pd, weights, ab);
+    int ret = test_layer("Crop", pd, weights, ab, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d ref.dims=%d ref=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c, woffset, hoffset, doffset, coffset, ref.dims, ref.w, ref.h, ref.d, ref.c);
@@ -34,62 +34,63 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, 
     return ret;
 }
 
-static int test_crop_2(const ncnn::Mat& a)
+static int test_crop_2(const ncnn::Mat& a, int flag = 0)
 {
     return 0
-           || test_crop(a, 0, 0, 0, 0, a)
-           || test_crop(a, 0, 0, 0, 0, ncnn::Mat(27))
+           || test_crop(a, 0, 0, 0, 0, a, flag)
+           || test_crop(a, 0, 0, 0, 0, ncnn::Mat(27), flag)
 
-           || test_crop(a, 11, 0, 0, 0, ncnn::Mat(7))
-           || test_crop(a, 12, 0, 0, 0, ncnn::Mat(12))
-           || test_crop(a, 16, 0, 0, 0, ncnn::Mat(16));
+           || test_crop(a, 11, 0, 0, 0, ncnn::Mat(7), flag)
+           || test_crop(a, 12, 0, 0, 0, ncnn::Mat(12), flag)
+           || test_crop(a, 16, 0, 0, 0, ncnn::Mat(16), flag);
 }
 
-static int test_crop_5(const ncnn::Mat& a)
+static int test_crop_5(const ncnn::Mat& a, int flag = 0)
 {
     return 0
-           || test_crop(a, 0, 0, 0, 0, a)
+           || test_crop(a, 0, 0, 0, 0, a, flag)
 
-           || test_crop(a, 0, 12, 0, 0, ncnn::Mat(8, 7))
-           || test_crop(a, 5, 0, 0, 0, ncnn::Mat(7, 27))
+           || test_crop(a, 0, 12, 0, 0, ncnn::Mat(8, 7), flag)
+           || test_crop(a, 5, 0, 0, 0, ncnn::Mat(7, 27), flag)
 
-           || test_crop(a, 5, 11, 0, 0, ncnn::Mat(5, 12))
-           || test_crop(a, 6, 12, 0, 0, ncnn::Mat(4, 16))
-           || test_crop(a, 4, 8, 0, 0, ncnn::Mat(6, 7));
+           || test_crop(a, 5, 11, 0, 0, ncnn::Mat(5, 12), flag)
+           || test_crop(a, 6, 12, 0, 0, ncnn::Mat(4, 16), flag)
+           || test_crop(a, 4, 8, 0, 0, ncnn::Mat(6, 7), flag);
 }
 
-static int test_crop_8(const ncnn::Mat& a)
+static int test_crop_8(const ncnn::Mat& a, int flag = 0)
 {
     return 0
-           || test_crop(a, 0, 0, 0, 0, a)
+           || test_crop(a, 0, 0, 0, 0, a, flag)
 
-           || test_crop(a, 0, 5, 0, 0, ncnn::Mat(6, 6))
-           || test_crop(a, 6, 0, 0, 0, ncnn::Mat(8, 8))
-           || test_crop(a, 5, 2, 0, 0, ncnn::Mat(6, 3))
-           || test_crop(a, 6, 3, 0, 0, ncnn::Mat(8, 4))
-           || test_crop(a, 4, 4, 0, 0, ncnn::Mat(7, 5))
+           || test_crop(a, 0, 5, 0, 0, ncnn::Mat(6, 6), flag)
+           || test_crop(a, 6, 0, 0, 0, ncnn::Mat(8, 8), flag)
+           || test_crop(a, 5, 2, 0, 0, ncnn::Mat(6, 3), flag)
+           || test_crop(a, 6, 3, 0, 0, ncnn::Mat(8, 4), flag)
+           || test_crop(a, 4, 4, 0, 0, ncnn::Mat(7, 5), flag)
 
-           || test_crop(a, 5, 3, 0, 11, ncnn::Mat(7, 3, 7))
-           || test_crop(a, 6, 4, 0, 12, ncnn::Mat(6, 4, 12))
-           || test_crop(a, 4, 2, 0, 8, ncnn::Mat(5, 5, 16));
+           || test_crop(a, 5, 3, 0, 11, ncnn::Mat(7, 3, 7), flag)
+           || test_crop(a, 6, 4, 0, 12, ncnn::Mat(6, 4, 12), flag)
+           || test_crop(a, 4, 2, 0, 8, ncnn::Mat(5, 5, 16), flag);
 }
 
-static int test_crop_11(const ncnn::Mat& a)
+static int test_crop_11(const ncnn::Mat& a, int flag = 0)
 {
     return 0
-           || test_crop(a, 0, 0, 0, 0, a)
+           || test_crop(a, 0, 0, 0, 0, a, flag)
 
-           || test_crop(a, 0, 5, 0, 0, ncnn::Mat(6, 6, 6))
-           || test_crop(a, 6, 0, 0, 0, ncnn::Mat(8, 8, 8))
-           || test_crop(a, 5, 5, 5, 0, ncnn::Mat(6, 6, 6))
-           || test_crop(a, 6, 6, 6, 0, ncnn::Mat(8, 8, 8))
-           || test_crop(a, 4, 4, 4, 0, ncnn::Mat(5, 5, 5))
+           || test_crop(a, 0, 5, 0, 0, ncnn::Mat(6, 6, 6), flag)
+           || test_crop(a, 6, 0, 0, 0, ncnn::Mat(8, 8, 8), flag)
+           || test_crop(a, 5, 5, 5, 0, ncnn::Mat(6, 6, 6), flag)
+           || test_crop(a, 6, 6, 6, 0, ncnn::Mat(8, 8, 8), flag)
+           || test_crop(a, 4, 4, 4, 0, ncnn::Mat(5, 5, 5), flag)
 
-           || test_crop(a, 3, 3, 3, 11, ncnn::Mat(3, 3, 3, 7))
-           || test_crop(a, 4, 4, 4, 12, ncnn::Mat(6, 6, 6, 12))
-           || test_crop(a, 5, 5, 5, 8, ncnn::Mat(8, 8, 8, 16));
+           || test_crop(a, 3, 3, 3, 11, ncnn::Mat(3, 3, 3, 7), flag)
+           || test_crop(a, 4, 4, 4, 12, ncnn::Mat(6, 6, 6, 12), flag)
+           || test_crop(a, 5, 5, 5, 8, ncnn::Mat(8, 8, 8, 16), flag);
 }
 
+// the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
 {
     SRAND(776757);
@@ -98,13 +99,13 @@ int main()
            || test_crop_2(RandomMat(112))
            || test_crop_2(RandomMat(126))
            || test_crop_2(RandomMat(127))
-           || test_crop_5(RandomMat(20, 48))
+           || test_crop_5(RandomMat(20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_5(RandomMat(15, 36))
            || test_crop_5(RandomMat(16, 33))
-           || test_crop_8(RandomMat(20, 20, 48))
+           || test_crop_8(RandomMat(20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_8(RandomMat(15, 15, 36))
            || test_crop_8(RandomMat(16, 16, 33))
-           || test_crop_11(RandomMat(20, 20, 20, 48))
+           || test_crop_11(RandomMat(20, 20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_11(RandomMat(15, 15, 15, 36))
            || test_crop_11(RandomMat(16, 16, 16, 33));
 }

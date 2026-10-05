@@ -3,6 +3,8 @@
 
 #include "convert_Tensor_slice.h"
 
+#include <algorithm>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -19,11 +21,6 @@ void convert_Tensor_slice(Graph& graph)
         {
             if (op->type != "Tensor.slice")
                 continue;
-
-            matched = true;
-
-            op->type = "Crop";
-            op->name = std::string("slice_") + std::to_string(op_index++);
 
             std::vector<int> axes;
             std::vector<int> starts;
@@ -107,7 +104,9 @@ void convert_Tensor_slice(Graph& graph)
 
             const int axes_rank = axes.size();
 
-            bool has_select = false;
+            int select_count = 0;
+            bool unsupported = false;
+            std::vector<int> select_axis_indices;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (steps[i] == 0)
@@ -116,49 +115,90 @@ void convert_Tensor_slice(Graph& graph)
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
-                    has_select = true;
+                    select_axis_indices.push_back(i);
                 }
                 else if (steps[i] != 1)
                 {
                     fprintf(stderr, "slice with step %d is not supported\n", steps[i]);
-                    continue;
+                    unsupported = true;
+                    break;
                 }
             }
+            if (unsupported)
+                continue;
 
             const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             {
                 int input_rank = op->inputs[0]->shape.size();
+                if (input_rank == 0 && !op->outputs.empty())
+                    input_rank = op->outputs[0]->shape.size() + select_axis_indices.size();
 
-                if (batch_index >= 0 && batch_index < input_rank)
+                if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
                     input_rank -= 1;
 
                 if (input_rank > 4)
                 {
                     fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
-                    continue;
                 }
             }
 
+            int input_rank0 = op->inputs[0]->shape.size();
+            if (input_rank0 == 0 && !op->outputs.empty())
+                input_rank0 = op->outputs[0]->shape.size() + select_axis_indices.size();
             for (int i = 0; i < axes_rank; i++)
             {
-                if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
+                if (axes[i] < 0 && input_rank0 > 0)
                 {
-                    fprintf(stderr, "slice along batch axis is not supported\n");
+                    axes[i] = input_rank0 + axes[i];
+                }
+
+                if (axes[i] == ncnn_batch_axis)
+                {
+                    if (starts[i] != 0 || ends[i] != INT_MAX)
+                        fprintf(stderr, "slice along batch axis is not supported\n");
+                    axes[i] = -233;
                     continue;
                 }
 
-                if (axes[i] < 0)
-                {
-                    int input_rank = op->inputs[0]->shape.size();
-                    axes[i] = input_rank + axes[i];
-                }
+                if (std::find(select_axis_indices.begin(), select_axis_indices.end(), i) != select_axis_indices.end())
+                    select_count += 1;
 
-                if (axes[i] > batch_index)
+                if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
 
                 if (ends[i] == INT_MAX)
                     ends[i] = -233;
+            }
+            matched = true;
+
+            op->type = "Crop";
+            op->name = std::string("slice_") + std::to_string(op_index++);
+
+            {
+                std::vector<int> axes2;
+                std::vector<int> starts2;
+                std::vector<int> ends2;
+                for (int i = 0; i < axes_rank; i++)
+                {
+                    if (axes[i] == -233)
+                        continue;
+
+                    axes2.push_back(axes[i]);
+                    starts2.push_back(starts[i]);
+                    ends2.push_back(ends[i]);
+                }
+                axes = axes2;
+                starts = starts2;
+                ends = ends2;
+            }
+
+            if (axes.empty())
+            {
+                axes = std::vector<int> {0};
+                starts = std::vector<int> {0};
+                ends = std::vector<int> {-233};
             }
 
             op->params["9"] = starts;
@@ -177,7 +217,7 @@ void convert_Tensor_slice(Graph& graph)
             op->params.erase("selects");
 
             // reshape for output, squeezing the slice dim
-            if (has_select)
+            if (select_count > 0)
             {
                 Operand* out = op->outputs[0];
 
@@ -186,6 +226,7 @@ void convert_Tensor_slice(Graph& graph)
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
                 reshape_in->params["__batch_index"] = batch_index;
+                reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
 
                 reshape->inputs.push_back(reshape_in);
                 reshape->outputs.push_back(out);
@@ -196,7 +237,10 @@ void convert_Tensor_slice(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape->params["shape"] = out->shape;
+                if (!out->shape.empty())
+                    reshape->params["shape"] = out->shape;
+                else
+                    reshape->params["shape"] = std::vector<int> {-1};
             }
 
             break;

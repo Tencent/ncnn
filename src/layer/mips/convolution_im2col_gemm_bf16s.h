@@ -1945,25 +1945,19 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _zero_bf16 = __msa_fill_h(0);
                 v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
-                v4f32 _r0 = (v4f32)__msa_ilvr_h(_r01, _zero_bf16);
-                v4f32 _r1 = (v4f32)__msa_ilvl_h(_r01, _zero_bf16);
-                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 4 * 2, 0);
-                v8i16 _r45 = (v8i16)__msa_ld_h(p0 + 4 * 4, 0);
-                v8i16 _r67 = (v8i16)__msa_ld_h(p0 + 4 * 6, 0);
-                v4f32 _r2 = (v4f32)__msa_ilvr_h(_r23, _zero_bf16);
-                v4f32 _r3 = (v4f32)__msa_ilvl_h(_r23, _zero_bf16);
-                v4f32 _r4 = (v4f32)__msa_ilvr_h(_r45, _zero_bf16);
-                v4f32 _r5 = (v4f32)__msa_ilvl_h(_r45, _zero_bf16);
-                v4f32 _r6 = (v4f32)__msa_ilvr_h(_r67, _zero_bf16);
-                v4f32 _r7 = (v4f32)__msa_ilvl_h(_r67, _zero_bf16);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
-                __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
-                __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
-                __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
+                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 8, 0);
+                v8i16 _r45 = (v8i16)__msa_ld_h(p0 + 16, 0);
+                v8i16 _r67 = (v8i16)__msa_ld_h(p0 + 24, 0);
+                v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r45, (v2i64)_r01);
+                v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r45, (v2i64)_r01);
+                v8i16 _r2 = (v8i16)__msa_ilvr_d((v2i64)_r67, (v2i64)_r23);
+                v8i16 _r3 = (v8i16)__msa_ilvl_d((v2i64)_r67, (v2i64)_r23);
+                transpose8x4_epi16(_r0, _r1, _r2, _r3);
+                __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r2, (v2i64)_r0), pp, 0);
+                __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r2, (v2i64)_r0), pp + 8, 0);
+                __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r3, (v2i64)_r1), pp + 16, 0);
+                __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r3, (v2i64)_r1), pp + 24, 0);
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2025,16 +2019,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _zero_bf16 = __msa_fill_h(0);
                 v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
-                v4f32 _r0 = (v4f32)__msa_ilvr_h(_r01, _zero_bf16);
-                v4f32 _r1 = (v4f32)__msa_ilvl_h(_r01, _zero_bf16);
-                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 4 * 2, 0);
-                v4f32 _r2 = (v4f32)__msa_ilvr_h(_r23, _zero_bf16);
-                v4f32 _r3 = (v4f32)__msa_ilvl_h(_r23, _zero_bf16);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
-                __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
+                v8i16 _r23 = (v8i16)__msa_ld_h(p0 + 8, 0);
+                v8i16 _r02 = (v8i16)__msa_ilvr_d((v2i64)_r23, (v2i64)_r01);
+                v8i16 _r13 = (v8i16)__msa_ilvl_d((v2i64)_r23, (v2i64)_r01);
+                v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r13, _r02);
+                v8i16 _tmp1 = (v8i16)__msa_ilvl_h(_r13, _r02);
+                __msa_st_h((v8i16)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0), pp, 0);
+                __msa_st_h((v8i16)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0), pp + 8, 0);
                 pp += 16;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2092,13 +2084,11 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 // transpose4x2
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                v8i16 _zero_bf16 = __msa_fill_h(0);
                 v8i16 _r01 = (v8i16)__msa_ld_h(p0, 0);
-                v4f32 _r0 = (v4f32)__msa_ilvr_h(_r01, _zero_bf16);
-                v4f32 _r1 = (v4f32)__msa_ilvl_h(_r01, _zero_bf16);
-                v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
-                v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
+                v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r01, (v2i64)_r01);
+                v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r01, (v2i64)_r01);
+                v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r1, _r0);
+                __msa_st_h(_tmp0, pp, 0);
                 pp += 8;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2148,7 +2138,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                __msa_storel_d(float2bfloat_msa(bfloat2float_msa(p0)), pp);
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -2252,20 +2245,39 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr);
-                    v4f32 _r1 = bfloat2float_msa(sptr + stride_w * 4);
-                    v4f32 _r2 = bfloat2float_msa(sptr + stride_w * 8);
-                    v4f32 _r3 = bfloat2float_msa(sptr + stride_w * 12);
-                    v4f32 _r4 = bfloat2float_msa(sptr + stride_w * 16);
-                    v4f32 _r5 = bfloat2float_msa(sptr + stride_w * 20);
-                    v4f32 _r6 = bfloat2float_msa(sptr + stride_w * 24);
-                    v4f32 _r7 = bfloat2float_msa(sptr + stride_w * 28);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
-                    __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
-                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
-                    __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        v8i16 _r23 = (v8i16)__msa_ld_h(sptr + 8, 0);
+                        v8i16 _r45 = (v8i16)__msa_ld_h(sptr + 16, 0);
+                        v8i16 _r67 = (v8i16)__msa_ld_h(sptr + 24, 0);
+                        v8i16 _r0 = (v8i16)__msa_ilvr_d((v2i64)_r45, (v2i64)_r01);
+                        v8i16 _r1 = (v8i16)__msa_ilvl_d((v2i64)_r45, (v2i64)_r01);
+                        v8i16 _r2 = (v8i16)__msa_ilvr_d((v2i64)_r67, (v2i64)_r23);
+                        v8i16 _r3 = (v8i16)__msa_ilvl_d((v2i64)_r67, (v2i64)_r23);
+                        transpose8x4_epi16(_r0, _r1, _r2, _r3);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r2, (v2i64)_r0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r2, (v2i64)_r0), pp + 8, 0);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r3, (v2i64)_r1), pp + 16, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r3, (v2i64)_r1), pp + 24, 0);
+                    }
+                    else
+                    {
+                        v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
+                        v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                        v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
+                        v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
+                        v8i16 _r4 = (v8i16)__msa_loadl_d(sptr + stride_w * 16);
+                        v8i16 _r5 = (v8i16)__msa_loadl_d(sptr + stride_w * 20);
+                        v8i16 _r6 = (v8i16)__msa_loadl_d(sptr + stride_w * 24);
+                        v8i16 _r7 = (v8i16)__msa_loadl_d(sptr + stride_w * 28);
+                        transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                        transpose4x4_epi16(_r4, _r5, _r6, _r7);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r4, (v2i64)_r0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r4, (v2i64)_r0), pp + 8, 0);
+                        __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r5, (v2i64)_r1), pp + 16, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r5, (v2i64)_r1), pp + 24, 0);
+                    }
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2343,20 +2355,20 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr0);
-                    v4f32 _r1 = bfloat2float_msa(sptr1);
-                    v4f32 _r2 = bfloat2float_msa(sptr2);
-                    v4f32 _r3 = bfloat2float_msa(sptr3);
-                    v4f32 _r4 = bfloat2float_msa(sptr4);
-                    v4f32 _r5 = bfloat2float_msa(sptr5);
-                    v4f32 _r6 = bfloat2float_msa(sptr6);
-                    v4f32 _r7 = bfloat2float_msa(sptr7);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
-                    __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
-                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
-                    __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
+                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr0);
+                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr1);
+                    v8i16 _r2 = (v8i16)__msa_loadl_d(sptr2);
+                    v8i16 _r3 = (v8i16)__msa_loadl_d(sptr3);
+                    v8i16 _r4 = (v8i16)__msa_loadl_d(sptr4);
+                    v8i16 _r5 = (v8i16)__msa_loadl_d(sptr5);
+                    v8i16 _r6 = (v8i16)__msa_loadl_d(sptr6);
+                    v8i16 _r7 = (v8i16)__msa_loadl_d(sptr7);
+                    transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                    transpose4x4_epi16(_r4, _r5, _r6, _r7);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r4, (v2i64)_r0), pp, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r4, (v2i64)_r0), pp + 8, 0);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r5, (v2i64)_r1), pp + 16, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r5, (v2i64)_r1), pp + 24, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2417,13 +2429,27 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr);
-                    v4f32 _r1 = bfloat2float_msa(sptr + stride_w * 4);
-                    v4f32 _r2 = bfloat2float_msa(sptr + stride_w * 8);
-                    v4f32 _r3 = bfloat2float_msa(sptr + stride_w * 12);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
-                    __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        v8i16 _r23 = (v8i16)__msa_ld_h(sptr + 8, 0);
+                        v8i16 _r02 = (v8i16)__msa_ilvr_d((v2i64)_r23, (v2i64)_r01);
+                        v8i16 _r13 = (v8i16)__msa_ilvl_d((v2i64)_r23, (v2i64)_r01);
+                        v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r13, _r02);
+                        v8i16 _tmp1 = (v8i16)__msa_ilvl_h(_r13, _r02);
+                        __msa_st_h((v8i16)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0), pp, 0);
+                        __msa_st_h((v8i16)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0), pp + 8, 0);
+                    }
+                    else
+                    {
+                        v8i16 _r0 = (v8i16)__msa_loadl_d(sptr);
+                        v8i16 _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                        v8i16 _r2 = (v8i16)__msa_loadl_d(sptr + stride_w * 8);
+                        v8i16 _r3 = (v8i16)__msa_loadl_d(sptr + stride_w * 12);
+                        transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                        __msa_st_h(_r0, pp, 0);
+                        __msa_st_h(_r1, pp + 8, 0);
+                    }
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2477,13 +2503,13 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr0);
-                    v4f32 _r1 = bfloat2float_msa(sptr1);
-                    v4f32 _r2 = bfloat2float_msa(sptr2);
-                    v4f32 _r3 = bfloat2float_msa(sptr3);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
-                    __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
+                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr0);
+                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr1);
+                    v8i16 _r2 = (v8i16)__msa_loadl_d(sptr2);
+                    v8i16 _r3 = (v8i16)__msa_loadl_d(sptr3);
+                    transpose4x4_epi16(_r0, _r1, _r2, _r3);
+                    __msa_st_h(_r0, pp, 0);
+                    __msa_st_h(_r1, pp + 8, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2535,11 +2561,21 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr);
-                    v4f32 _r1 = bfloat2float_msa(sptr + stride_w * 4);
-                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
-                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
+                    v8i16 _r0;
+                    v8i16 _r1;
+                    if (stride_w == 1)
+                    {
+                        v8i16 _r01 = (v8i16)__msa_ld_h(sptr, 0);
+                        _r0 = (v8i16)__msa_ilvr_d((v2i64)_r01, (v2i64)_r01);
+                        _r1 = (v8i16)__msa_ilvl_d((v2i64)_r01, (v2i64)_r01);
+                    }
+                    else
+                    {
+                        _r0 = (v8i16)__msa_loadl_d(sptr);
+                        _r1 = (v8i16)__msa_loadl_d(sptr + stride_w * 4);
+                    }
+                    v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r1, _r0);
+                    __msa_st_h(_tmp0, pp, 0);
                     pp += 8;
                 }
 #endif // __mips_msa
@@ -2584,11 +2620,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    v4f32 _r0 = bfloat2float_msa(sptr0);
-                    v4f32 _r1 = bfloat2float_msa(sptr1);
-                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
-                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
+                    v8i16 _r0 = (v8i16)__msa_loadl_d(sptr0);
+                    v8i16 _r1 = (v8i16)__msa_loadl_d(sptr1);
+                    v8i16 _tmp0 = (v8i16)__msa_ilvr_h(_r1, _r0);
+                    __msa_st_h(_tmp0, pp, 0);
                     pp += 8;
                 }
 #endif // __mips_msa
@@ -2629,7 +2664,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
             }
             if (elempack == 4)
             {
-                __msa_storel_d(float2bfloat_msa(bfloat2float_msa(sptr)), pp);
+                pp[0] = sptr[0];
+                pp[1] = sptr[1];
+                pp[2] = sptr[2];
+                pp[3] = sptr[3];
                 pp += 4;
             }
 #endif // __mips_msa

@@ -43,6 +43,12 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
+    // kv cache memory allocator
+    Allocator* kvcache_allocator;
+
+    // maximum kv cache sequence length hint
+    int kvcache_max_seqlen_hint;
+
 #if NCNN_VULKAN
     // blob memory allocator
     VkAllocator* blob_vkallocator;
@@ -52,6 +58,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // kv cache memory allocator
+    VkAllocator* kvcache_vkallocator;
 
     // pipeline cache
     PipelineCache* pipeline_cache;
@@ -145,8 +154,9 @@ public:
     bool use_fp16_uniform;
     bool use_int8_uniform;
 
-    bool use_reserved_9;
-    bool use_reserved_10;
+    // enable int16 layout options for vulkan int8 shader intermediate data
+    bool use_int16_packed;
+    bool use_int16_storage;
     bool use_reserved_11;
 };
 

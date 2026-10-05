@@ -12,10 +12,12 @@ class Model(nn.Module):
         self.up_0 = nn.PixelShuffle(4)
         self.up_1 = nn.PixelShuffle(2)
 
-    def forward(self, x):
+    def forward(self, x, q):
         x = self.up_0(x)
         x = self.up_1(x)
-        return x
+        q = self.up_0(q)
+        q = self.up_1(q)
+        return x, q
 
 def test():
     net = Model()
@@ -23,22 +25,23 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 128, 6, 8)
+    q = torch.rand(2, 128, 6, 8)
 
-    a0 = net(x)
+    a0, a1 = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_PixelShuffle.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_PixelShuffle.pt inputshape=[1,128,6,8]")
+    os.system("../../src/pnnx test_nn_PixelShuffle.pt inputshape=[1,128,6,8],[2,128,6,8]")
 
     # ncnn inference
     import test_nn_PixelShuffle_ncnn
-    b0 = test_nn_PixelShuffle_ncnn.test_inference()
+    b0, b1 = test_nn_PixelShuffle_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

@@ -3,11 +3,15 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 #define OP_TYPE_MAX 28
 
 static int op_type = 0;
 
-static int test_unaryop(const ncnn::Mat& _a)
+static int test_unaryop(const ncnn::Mat& _a, int flag = 0)
 {
     ncnn::Mat a = _a;
     if (op_type == 2 || op_type == 3)
@@ -40,8 +44,8 @@ static int test_unaryop(const ncnn::Mat& _a)
     }
     if (op_type == 27)
     {
-        // value must be > -1 for log1p
-        Randomize(a, -0.999f, 2.f);
+        // leave margin above -1 for reduced precision log1p
+        Randomize(a, -0.99f, 2.f);
     }
 #if __powerpc__
     // nearbyintf produces wrong result in halfway cases, why ?
@@ -69,7 +73,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("UnaryOp", pd, weights, a);
+    int ret = test_layer("UnaryOp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, op_type);
@@ -78,10 +82,12 @@ static int test_unaryop(const ncnn::Mat& _a)
     return ret;
 }
 
+// cpu pack8/pack16 cases reuse the Vulkan pack4 path covered by the pack4 cases
+// keep the 1d sizes for dispatch boundary coverage
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(11, 3, 2, 16))
+           || test_unaryop(RandomMat(11, 3, 2, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 2, 2, 12))
            || test_unaryop(RandomMat(6, 1, 5, 13));
 }
@@ -89,7 +95,7 @@ static int test_unaryop_0()
 static int test_unaryop_1()
 {
     return 0
-           || test_unaryop(RandomMat(11, 7, 16))
+           || test_unaryop(RandomMat(11, 7, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 4, 12))
            || test_unaryop(RandomMat(6, 5, 13));
 }
@@ -97,7 +103,7 @@ static int test_unaryop_1()
 static int test_unaryop_2()
 {
     return 0
-           || test_unaryop(RandomMat(12, 16))
+           || test_unaryop(RandomMat(12, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 12))
            || test_unaryop(RandomMat(14, 15));
 }
@@ -109,6 +115,30 @@ static int test_unaryop_3()
            || test_unaryop(RandomMat(12))
            || test_unaryop(RandomMat(15));
 }
+
+#if NCNN_VALIDATION
+static int test_unaryop_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 27; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 28, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::UnaryOp, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -126,5 +156,9 @@ int main()
             return ret;
     }
 
-    return 0;
+    return 0
+#if NCNN_VALIDATION
+           || test_unaryop_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

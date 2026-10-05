@@ -43,8 +43,8 @@ static int test_multiheadattention_cross_kvcache(const ncnn::Mat& q, const ncnn:
 
     if (input_kvcache)
     {
-        as.push_back(RandomMat(k.h, embed_dim));
-        as.push_back(RandomMat(k.h, embed_dim));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
     }
     else
     {
@@ -68,7 +68,7 @@ static int test_multiheadattention_cross_kvcache(const ncnn::Mat& q, const ncnn:
     return test_multiheadattention_cross_kvcache(q, k, v, embed_dim, num_heads, attn_mask, 0) || test_multiheadattention_cross_kvcache(q, k, v, embed_dim, num_heads, attn_mask, 1);
 }
 
-static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int embed_dim, int num_heads, int flag = 0)
 {
     const int qdim = q.w;
     const int dst_seqlen = q.h;
@@ -111,7 +111,7 @@ static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int 
 
     float epsilon = 0.005;
 
-    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention_self_kvcache_prefill failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
@@ -120,11 +120,10 @@ static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int 
     return ret;
 }
 
-static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads, int cur_seqlen)
 {
     const int qdim = q.w;
     const int past_seqlen = q.h;
-    const int cur_seqlen = 1;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -148,15 +147,15 @@ static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int e
 
     std::vector<ncnn::Mat> as(3);
     as[0] = RandomMat(qdim, cur_seqlen);
-    as[1] = RandomMat(past_seqlen, embed_dim);
-    as[2] = RandomMat(past_seqlen, embed_dim);
+    as[1] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
+    as[2] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
 
     float epsilon = 0.005;
 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
+        fprintf(stderr, "test_multiheadattention_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d cur_seqlen=%d\n", q.w, q.h, embed_dim, num_heads, cur_seqlen);
     }
 
     return ret;
@@ -180,14 +179,15 @@ static int test_multiheadattention_1()
     return 0
            || test_multiheadattention_self_kvcache_prefill(RandomMat(64, 128), 64, 4)
            || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8)
-           || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_self_kvcache_prefill(RandomMat(48, 127), 64, 8, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 static int test_multiheadattention_2()
 {
     return 0
-           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_self_kvcache_decode(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4, 1)
+           || test_multiheadattention_self_kvcache_decode(RandomMat(48, 127), 64, 8, 1)
+           || test_multiheadattention_self_kvcache_decode(RandomMat(64, 128), 64, 4, 32);
 }
 
 #if NCNN_INT8
@@ -234,8 +234,8 @@ static int test_multiheadattention_int8_cross_kvcache(const ncnn::Mat& q, const 
 
     if (input_kvcache)
     {
-        as.push_back(RandomMat(k.h, embed_dim));
-        as.push_back(RandomMat(k.h, embed_dim));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
+        as.push_back(RandomMat(embed_dim / num_heads, k.h, num_heads));
     }
     else
     {
@@ -316,11 +316,10 @@ static int test_multiheadattention_int8_self_kvcache_prefill(const ncnn::Mat& q,
     return ret;
 }
 
-static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads)
+static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, int embed_dim, int num_heads, int cur_seqlen)
 {
     const int qdim = q.w;
     const int past_seqlen = q.h;
-    const int cur_seqlen = 1;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -349,15 +348,15 @@ static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, 
 
     std::vector<ncnn::Mat> as(3);
     as[0] = RandomMat(qdim, cur_seqlen);
-    as[1] = RandomMat(past_seqlen, embed_dim);
-    as[2] = RandomMat(past_seqlen, embed_dim);
+    as[1] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
+    as[2] = RandomMat(embed_dim / num_heads, past_seqlen, num_heads);
 
     float epsilon = 0.1;
 
     int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_int8_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d\n", q.w, q.h, embed_dim, num_heads);
+        fprintf(stderr, "test_multiheadattention_int8_self_kvcache_decode failed q=(%d %d) embed_dim=%d num_heads=%d cur_seqlen=%d\n", q.w, q.h, embed_dim, num_heads, cur_seqlen);
     }
 
     return ret;
@@ -386,10 +385,125 @@ static int test_multiheadattention_4()
 static int test_multiheadattention_5()
 {
     return 0
-           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(48, 127), 64, 8);
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4, 1)
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(48, 127), 64, 8, 1)
+           || test_multiheadattention_int8_self_kvcache_decode(RandomMat(64, 128), 64, 4, 32);
 }
 #endif
+
+#if NCNN_BATCH
+static int test_multiheadattention_kvcache_batch_rejected()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 16);
+    pd.set(1, 4);
+    pd.set(2, 16 * 12);
+    pd.set(3, 12);
+    pd.set(4, 12);
+    pd.set(7, 1); // kv_cache
+
+    ncnn::Layer* op = ncnn::create_layer_cpu("MultiHeadAttention");
+    if (!op)
+        return -1;
+
+    int ret = op->load_param(pd);
+    if (ret == 0 && !op->support_batch)
+        ret = -1;
+
+    ncnn::Mat query;
+    query.create(12, 1, 4u, 1, 2);
+
+    std::vector<ncnn::Mat> bottoms(3);
+    bottoms[0] = query;
+    std::vector<ncnn::Mat> tops(3);
+
+    if (ret == 0 && op->forward(bottoms, tops, ncnn::Option()) != -1)
+        ret = -1;
+
+    delete op;
+
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_kvcache_batch_rejected failed ret=%d\n", ret);
+
+    return ret;
+}
+#endif // NCNN_BATCH
+
+static int test_multiheadattention_shared_kv_kvcache(const std::vector<ncnn::Mat>& as, int attn_mask)
+{
+    const int embed_dim = 16;
+    const int num_heads = 4;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * embed_dim);
+    pd.set(3, embed_dim);
+    pd.set(4, embed_dim);
+    pd.set(5, attn_mask);
+    pd.set(6, 1.f / sqrtf(embed_dim / num_heads));
+    pd.set(7, 1);
+
+    // identity projections keep shared-input and cache indexing numerically observable
+    std::vector<ncnn::Mat> weights(8);
+    for (int projection = 0; projection < 4; projection++)
+    {
+        weights[projection * 2] = ncnn::Mat(embed_dim * embed_dim);
+        weights[projection * 2].fill(0.f);
+        for (int i = 0; i < embed_dim; i++)
+            weights[projection * 2][i * embed_dim + i] = 1.f;
+        weights[projection * 2 + 1] = ncnn::Mat(embed_dim);
+        weights[projection * 2 + 1].fill(0.f);
+    }
+
+    const float epsilon = 0.005f;
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_shared_kv_kvcache failed inputs=%d attn_mask=%d\n", (int)as.size(), attn_mask);
+    return ret;
+}
+
+static int test_multiheadattention_shared_kv_kvcache_boundaries()
+{
+    ncnn::Mat q(16, 3);
+    ncnn::Mat kv(16, 4);
+    ncnn::Mat cached_k(4, 2, 4);
+    ncnn::Mat cached_v(4, 2, 4);
+    for (size_t i = 0; i < q.total(); i++)
+        q[i] = ((int)(i % 11) - 5) * 0.0625f;
+    for (size_t i = 0; i < kv.total(); i++)
+        kv[i] = ((int)(i % 7) - 3) * 0.125f;
+    for (size_t i = 0; i < cached_k.total(); i++)
+        cached_k[i] = ((int)(i % 9) - 4) * 0.125f;
+    for (size_t i = 0; i < cached_v.total(); i++)
+        cached_v[i] = ((int)(i % 13) - 6) * 0.0625f;
+
+    // cross attention reuses the nonempty two-token cache instead of appending shared kv
+    std::vector<ncnn::Mat> unmasked(4);
+    unmasked[0] = q;
+    unmasked[1] = kv;
+    unmasked[2] = cached_k;
+    unmasked[3] = cached_v;
+
+    // per-head masks include channel padding and distinct finite key penalties
+    ncnn::Mat mask(2, 3, 4);
+    mask.fill(0.f);
+    for (int head = 0; head < 4; head++)
+    {
+        ncnn::Mat channel = mask.channel(head);
+        for (int row = 0; row < 3; row++)
+            channel.row(row)[head % 2] = -0.5f * (head + 1);
+    }
+    std::vector<ncnn::Mat> masked(5);
+    masked[0] = q;
+    masked[1] = kv;
+    masked[2] = mask;
+    masked[3] = cached_k;
+    masked[4] = cached_v;
+
+    return test_multiheadattention_shared_kv_kvcache(unmasked, 0)
+           || test_multiheadattention_shared_kv_kvcache(masked, 1);
+}
 
 int main()
 {
@@ -404,5 +518,8 @@ int main()
            || test_multiheadattention_4()
            || test_multiheadattention_5()
 #endif
-           ;
+#if NCNN_BATCH
+           || test_multiheadattention_kvcache_batch_rejected()
+#endif // NCNN_BATCH
+           || test_multiheadattention_shared_kv_kvcache_boundaries();
 }

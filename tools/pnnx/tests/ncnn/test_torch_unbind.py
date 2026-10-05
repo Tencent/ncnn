@@ -9,9 +9,11 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, z):
         x0, x1, x2 = torch.unbind(x, dim=0)
         y0, y1, y2, y3, y4, y5, y6, y7, y8 = torch.unbind(y, dim=1)
+        z = F.max_pool2d(z, 1)
+        z0, z1, z2 = torch.unbind(z, dim=1)
 
         x0 = F.relu(x0)
         x1 = F.relu(x1)
@@ -25,7 +27,10 @@ class Model(nn.Module):
         y6 = F.relu(y6)
         y7 = F.relu(y7)
         y8 = F.relu(y8)
-        return x0, x1, x2, y0, y1, y2, y3, y4, y5, y6, y7, y8
+        z0 = F.relu(z0)
+        z1 = F.relu(z1)
+        z2 = F.relu(z2)
+        return x0, x1, x2, y0, y1, y2, y3, y4, y5, y6, y7, y8, z0, z1, z2
 
 def test():
     net = Model()
@@ -34,16 +39,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16)
     y = torch.rand(5, 9, 11)
+    z = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_torch_unbind.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_unbind.pt inputshape=[3,16],[5,9,11]")
+    os.system("../../src/pnnx test_torch_unbind.pt inputshape=[3,16],[5,9,11],[2,3,5,7]")
 
     # ncnn inference
     import test_torch_unbind_ncnn

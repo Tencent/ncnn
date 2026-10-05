@@ -9,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, w):
+    def forward(self, x, y, w, q):
         x = F.interpolate(x, size=16)
         x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = F.interpolate(x, size=(20), mode='nearest')
@@ -49,7 +49,8 @@ class Model(nn.Module):
         y = F.interpolate(y, scale_factor=(1.1,0.5), mode='bicubic', align_corners=True, recompute_scale_factor=True)
 
         w = F.interpolate(w, scale_factor=(2.976744,2.976744), mode='nearest', recompute_scale_factor=False)
-        return x, y, w
+        q = F.interpolate(q, scale_factor=2, mode='bilinear', align_corners=False)
+        return x, y, w, q
 
 def test():
     net = Model()
@@ -59,16 +60,17 @@ def test():
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
     w = torch.rand(1, 8, 86, 86)
+    q = torch.rand(2, 3, 16, 16)
 
-    a = net(x, y, w)
+    a = net(x, y, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, w))
+    mod = torch.jit.trace(net, (x, y, w, q))
     mod.save("test_F_interpolate.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,8,86,86]")
+    os.system("../../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,8,86,86],[2,3,16,16]")
 
     # ncnn inference
     import test_F_interpolate_ncnn

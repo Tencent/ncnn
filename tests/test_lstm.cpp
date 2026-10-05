@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_lstm(int size, int T, int outch, int direction, int hidden_size = 0)
 {
     ncnn::Mat a = RandomMat(size, T);
@@ -639,25 +643,47 @@ static int test_lstm_7()
 }
 #endif
 
+#if NCNN_VALIDATION
+static int test_lstm_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 192);
+    if (test_layer_param(ncnn::LayerType::LSTM, base, 0) != 0)
+        return -1;
+
+    const int invalid[] = {0, -1, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::LSTM, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0
+           || test_layer_param(ncnn::LayerType::LSTM, base, 2, 3, -1)
+           || test_layer_param(ncnn::LayerType::LSTM, base, 1, 193, -1)
+           || test_layer_param(ncnn::LayerType::LSTM, base, 3, 0, -1)
+           || test_layer_param(ncnn::LayerType::LSTM, base, 3, INT_MAX, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_INT8
     return 0
            || test_lstm_0()
            || test_lstm_1()
            || test_lstm_2()
            || test_lstm_3()
+#if NCNN_INT8
            || test_lstm_4()
            || test_lstm_5()
            || test_lstm_6()
-           || test_lstm_7();
-#else
-    return 0
-           || test_lstm_0()
-           || test_lstm_1()
-           || test_lstm_2()
-           || test_lstm_3();
-#endif
+           || test_lstm_7()
+#endif // NCNN_INT8
+#if NCNN_VALIDATION
+           || test_lstm_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

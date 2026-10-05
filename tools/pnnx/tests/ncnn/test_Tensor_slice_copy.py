@@ -9,11 +9,13 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q):
         x = x.clone()
         y = y.clone()
         z = z.clone()
         w = w.clone()
+        q = F.max_pool2d(q, 1)
+        q = q.clone()
         xx = x[1]
         x[...,1] = x[...,-1] * 3
         x[:,:,3,:2].clamp_(0, 0.5)
@@ -23,7 +25,9 @@ class Model(nn.Module):
         y[...,-1,-5:-1] = y[...,-4,1:5] - 11
         z[:1] = z[-1:] * z[3:4]
         w[100:] = w[4:24] + 23
-        return x, y, z, w
+        q[:,1:2,:,:] = q[:,0:1,:,:] + 1
+        q[:,:,1:5,2:6] = q[:,:,1:5,7:11] * 2
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -34,16 +38,17 @@ def test():
     y = torch.rand(15, 19, 20)
     z = torch.rand(19, 20)
     w = torch.rand(120)
+    q = torch.rand(2, 3, 6, 12)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_Tensor_slice_copy.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_slice_copy.pt inputshape=[18,15,19,20],[15,19,20],[19,20],[120]")
+    os.system("../../src/pnnx test_Tensor_slice_copy.pt inputshape=[18,15,19,20],[15,19,20],[19,20],[120],[2,3,6,12]")
 
     # ncnn inference
     import test_Tensor_slice_copy_ncnn

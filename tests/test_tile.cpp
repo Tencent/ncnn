@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_tile(const ncnn::Mat& a, int axis, int tiles)
 {
     ncnn::ParamDict pd;
@@ -212,6 +216,67 @@ static int test_tile_3()
            || test_tile(c, IntArray(1, 3, 2, 2));
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_tile_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(2, param_int_array(1, 1));
+    if (test_layer_param(ncnn::LayerType::Tile, base, 0)
+            || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(0), 0))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::Tile, base, 2, param_int_array(1, INT_MIN), -1);
+}
+
+static int test_tile_load_param_axis()
+{
+    ncnn::ParamDict base;
+    for (int i = 0; i <= 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Tile, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    ncnn::ParamDict empty = base;
+    empty.set(2, ncnn::Mat(0));
+    // repeats overrides axis
+    ncnn::ParamDict repeats = base;
+    repeats.set(2, param_int_array(1, 1));
+
+    const int invalid[] = {-1, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Tile, base, 0, invalid[i], -1)
+                  || test_layer_param(ncnn::LayerType::Tile, empty, 0, invalid[i], -1)
+                  || test_layer_param(ncnn::LayerType::Tile, repeats, 0, invalid[i], 0);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -220,5 +285,10 @@ int main()
            || test_tile_0()
            || test_tile_1()
            || test_tile_2()
-           || test_tile_3();
+           || test_tile_3()
+#if NCNN_VALIDATION
+           || test_tile_load_param()
+           || test_tile_load_param_axis()
+#endif // NCNN_VALIDATION
+           ;
 }

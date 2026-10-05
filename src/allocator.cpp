@@ -1329,7 +1329,7 @@ static void* fastMalloc_with_alignment(size_t size, size_t alignment)
 {
 #if _MSC_VER
     return _aligned_malloc(size, alignment);
-#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif ((defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)) || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, alignment, size))
         ptr = 0;

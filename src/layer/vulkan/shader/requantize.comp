@@ -84,7 +84,8 @@ void main()
         scale_out = buffer_ld1(scale_out_blob_data, gy);
     }
 
-    int v_int = int(round(clamp(v_fp * scale_out, afp(-127.f), afp(127.f))));
+    v_fp *= scale_out;
+    int v_int = float2int8(v_fp);
 
     const uint outgi = gy * psc(out_stride) + gx;
 
