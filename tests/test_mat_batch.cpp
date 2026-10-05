@@ -5370,6 +5370,9 @@ static int test_vkmat_batch_forward_reshape_same_axis_relu()
 
     ncnn::Net net_ref;
     net_ref.opt.use_packing_layout = false;
+    net_ref.opt.use_fp16_packed = false;
+    net_ref.opt.use_fp16_storage = false;
+    net_ref.opt.use_fp16_arithmetic = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
