@@ -51,7 +51,7 @@ static void print_int_array(const std::vector<int>& a)
     fprintf(stderr, " ]");
 }
 
-static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, int axis, int flag = 0)
+static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, int axis)
 {
     ncnn::Mat slices(slices_array.size());
     {
@@ -71,7 +71,7 @@ static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, 
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer("Slice", pd, weights, a0, slices.w, 0.001, flag);
+    int ret = test_layer("Slice", pd, weights, a0, slices.w, 0.001);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -83,7 +83,7 @@ static int test_slice(const ncnn::Mat& a, const std::vector<int>& slices_array, 
     return ret;
 }
 
-static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indices_array, int axis, int flag = 0)
+static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indices_array, int axis)
 {
     ncnn::Mat indices(indices_array.size());
     {
@@ -103,7 +103,7 @@ static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indice
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer("Slice", pd, weights, a0, indices.w, 0.001, flag);
+    int ret = test_layer("Slice", pd, weights, a0, indices.w, 0.001);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice_indices failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
@@ -115,54 +115,96 @@ static int test_slice_indices(const ncnn::Mat& a, const std::vector<int>& indice
     return ret;
 }
 
-static int test_slice_0(const ncnn::Mat& a, int flag = 0)
+// channel partitions cover scalar and vector outputs and mixed packing conversions
+static int test_slice_channel_packing(const ncnn::Mat& a, int mixed_axis)
 {
     return 0
-           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
-           || test_slice(a, IntArray(-233, -233, -233), 1, flag)
-           || test_slice(a, IntArray(-233, -233, -233), -2, flag)
-           || test_slice(a, IntArray(-233, -233, -233), 3, flag)
-           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(32, 8, -233), 0, flag)
-           || test_slice(a, IntArray(2, 12, 16, -233), 1, flag)
-           || test_slice(a, IntArray(16, 4, 5, -233), -2, flag)
-           || test_slice(a, IntArray(8, 2, 16, -233), 3, flag)
-           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
-           || test_slice_indices(a, IntArray(4, 20, 4), 1, flag)
-           || test_slice_indices(a, IntArray(16, -16), -2, flag)
-           || test_slice_indices(a, IntArray(1, -12), 3, flag);
+           || test_slice(a, IntArray(-233, -233, -233), 0)
+           || test_slice(a, IntArray(3, 12, 16, -233), 0)
+           || test_slice(a, IntArray(12, 16, -233), 0)
+           || test_slice(a, IntArray(32, 8, -233), mixed_axis)
+           || test_slice_indices(a, IntArray(2, -24, -8), 0);
+}
+
+// the 60-element extent retains pack4 input and pack4-to-pack8/pack16 outputs
+static int test_slice_mixed_channel_packing(const ncnn::Mat& a, int mixed_axis)
+{
+    return 0
+           || test_slice(a, IntArray(3, 12, 16, -233), 0)
+           || test_slice(a, IntArray(32, 8, -233), mixed_axis);
+}
+
+static int test_slice_depth(const ncnn::Mat& a)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 1)
+           || test_slice(a, IntArray(2, 12, 16, -233), 1)
+           || test_slice_indices(a, IntArray(4, 20, 4), 1);
+}
+
+static int test_slice_height_4d(const ncnn::Mat& a)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), -2)
+           || test_slice(a, IntArray(16, 4, 5, -233), -2)
+           || test_slice_indices(a, IntArray(16, -16), -2);
+}
+
+static int test_slice_width_4d(const ncnn::Mat& a)
+{
+    return 0
+           || test_slice(a, IntArray(-233, -233, -233), 3)
+           || test_slice(a, IntArray(8, 2, 16, -233), 3)
+           || test_slice_indices(a, IntArray(1, -12), 3);
 }
 
 static int test_slice_0()
 {
-    ncnn::Mat a[] = {
-        RandomMat(30, 32, 36, 48),
-        RandomMat(36, 30, 32, 51),
-        RandomMat(30, 32, 36, 60)
+    ncnn::Mat channels[] = {
+        RandomMat(30, 8, 4, 48),
+        RandomMat(20, 8, 4, 51),
+        RandomMat(30, 8, 4, 60)
+    };
+    ncnn::Mat depths[] = {
+        RandomMat(30, 8, 36, 48),
+        RandomMat(20, 8, 32, 51),
+        RandomMat(30, 8, 36, 60)
+    };
+    ncnn::Mat heights[] = {
+        RandomMat(30, 32, 4, 48),
+        RandomMat(20, 30, 4, 51)
+    };
+    ncnn::Mat widths[] = {
+        RandomMat(30, 8, 4, 48),
+        RandomMat(36, 8, 4, 51)
     };
 
-    // the 60-element case retains the same Vulkan input/output packing
     return 0
-           || test_slice_0(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_slice_0(a[1])
-           || test_slice_0(a[2]);
+           || test_slice_channel_packing(channels[0], 0)
+           || test_slice_channel_packing(channels[1], 0)
+           || test_slice_mixed_channel_packing(channels[2], 0)
+           || test_slice_depth(depths[0])
+           || test_slice_depth(depths[1])
+           // retain a pack4 spatial copy independently of mixed channel partitions
+           || test_slice(depths[2], IntArray(-233, -233, -233), 1)
+           || test_slice_height_4d(heights[0])
+           || test_slice_height_4d(heights[1])
+           || test_slice_width_4d(widths[0])
+           || test_slice_width_4d(widths[1])
+           // large strides and mixed pack1/pack4 outputs cross allocator blocks
+           || test_slice_indices(RandomMat(36, 30, 32, 51), IntArray(4, 20, 4), 1)
+           || test_slice(RandomMat(30, 32, 36, 60), IntArray(3, 12, 16, -233), 0);
 }
 
-static int test_slice_1(const ncnn::Mat& a, int flag = 0)
+static int test_slice_spatial_3d(const ncnn::Mat& a)
 {
     return 0
-           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
-           || test_slice(a, IntArray(-233, -233, -233), 1, flag)
-           || test_slice(a, IntArray(-233, -233, -233), -1, flag)
-           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(32, 8, -233), 0, flag)
-           || test_slice(a, IntArray(2, 12, 16, -233), 1, flag)
-           || test_slice(a, IntArray(16, 4, 5, -233), -1, flag)
-           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
-           || test_slice_indices(a, IntArray(4, 20, 4), 1, flag)
-           || test_slice_indices(a, IntArray(1, -12), 2, flag);
+           || test_slice(a, IntArray(-233, -233, -233), 1)
+           || test_slice(a, IntArray(-233, -233, -233), -1)
+           || test_slice(a, IntArray(2, 12, 16, -233), 1)
+           || test_slice(a, IntArray(16, 4, 5, -233), -1)
+           || test_slice_indices(a, IntArray(4, 20, 4), 1)
+           || test_slice_indices(a, IntArray(1, -12), 2);
 }
 
 static int test_slice_1()
@@ -173,24 +215,21 @@ static int test_slice_1()
         RandomMat(51, 36, 60)
     };
 
-    // the 60-element case retains the same Vulkan input/output packing
     return 0
-           || test_slice_1(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_slice_1(a[1])
-           || test_slice_1(a[2]);
+           || test_slice_channel_packing(a[0], 0)
+           || test_slice_channel_packing(a[1], 0)
+           || test_slice_mixed_channel_packing(a[2], 0)
+           || test_slice_spatial_3d(a[0])
+           || test_slice_spatial_3d(a[1])
+           || test_slice(a[2], IntArray(-233, -233, -233), 1);
 }
 
-static int test_slice_2(const ncnn::Mat& a, int flag = 0)
+static int test_slice_spatial_2d(const ncnn::Mat& a)
 {
     return 0
-           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
-           || test_slice(a, IntArray(-233, -233, -233), -1, flag)
-           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(32, 8, -233), -2, flag)
-           || test_slice(a, IntArray(2, 12, 16, -233), -1, flag)
-           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag)
-           || test_slice_indices(a, IntArray(1, -12), 1, flag);
+           || test_slice(a, IntArray(-233, -233, -233), -1)
+           || test_slice(a, IntArray(2, 12, 16, -233), -1)
+           || test_slice_indices(a, IntArray(1, -12), 1);
 }
 
 static int test_slice_2()
@@ -201,21 +240,13 @@ static int test_slice_2()
         RandomMat(36, 60)
     };
 
-    // the 60-element case retains the same Vulkan input/output packing
     return 0
-           || test_slice_2(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_slice_2(a[1])
-           || test_slice_2(a[2]);
-}
-
-static int test_slice_3(const ncnn::Mat& a, int flag = 0)
-{
-    return 0
-           || test_slice(a, IntArray(-233, -233, -233), 0, flag)
-           || test_slice(a, IntArray(3, 12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(12, 16, -233), 0, flag)
-           || test_slice(a, IntArray(32, 8, -233), -1, flag)
-           || test_slice_indices(a, IntArray(2, -24, -8), 0, flag);
+           || test_slice_channel_packing(a[0], -2)
+           || test_slice_channel_packing(a[1], -2)
+           || test_slice_mixed_channel_packing(a[2], -2)
+           || test_slice_spatial_2d(a[0])
+           || test_slice_spatial_2d(a[1])
+           || test_slice(a[2], IntArray(-233, -233, -233), -1);
 }
 
 static int test_slice_3()
@@ -226,11 +257,10 @@ static int test_slice_3()
         RandomMat(60)
     };
 
-    // the 60-element case retains the same Vulkan input/output packing
     return 0
-           || test_slice_3(a[0], TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_slice_3(a[1])
-           || test_slice_3(a[2]);
+           || test_slice_channel_packing(a[0], -1)
+           || test_slice_channel_packing(a[1], -1)
+           || test_slice_mixed_channel_packing(a[2], -1);
 }
 
 static int test_slice_4()
