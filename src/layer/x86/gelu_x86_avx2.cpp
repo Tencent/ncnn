@@ -10,11 +10,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "gelu_bf16s.h"
 
 void gelu_bf16s_avx2(Mat& a, int fast_gelu, const Option& opt)
 {
     gelu_bf16s(a, fast_gelu, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

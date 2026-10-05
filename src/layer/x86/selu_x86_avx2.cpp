@@ -10,11 +10,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "selu_bf16s.h"
 
 void selu_bf16s_avx2(Mat& a, float alphaxlambda, float lambda, const Option& opt)
 {
     selu_bf16s(a, alphaxlambda, lambda, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

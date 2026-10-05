@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import XLNetConfig
 from transformers.models.xlnet.modeling_xlnet import XLNetRelativeAttention
 
+import transformers
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -34,7 +36,10 @@ class Model(nn.Module):
 
         mask0 = torch.zeros_like(mask0)
 
-        out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, head_mask=None, output_attentions=True)
+        if version.parse(transformers.__version__) < version.parse('5.0'):
+            out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, head_mask=None, output_attentions=True)
+        else:
+            out0 = self.attn0(h=x, g=None, attn_mask_h=mask0, attn_mask_g=None, r=r, seg_mat=None, output_attentions=True)
 
         return out0[0]
 

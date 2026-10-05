@@ -5,6 +5,10 @@
 void layernorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void layernorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void layernorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
 #endif
@@ -22,6 +26,14 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
         layernorm_bf16s_avx512bf16(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        layernorm_bf16s_avxneconvert(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
         return;
     }
 #endif
@@ -423,7 +435,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
                 __m128 _beta = _mm_set1_ps(beta_ptr[0]);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -466,7 +478,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
                 __m128 _beta = _mm_loadu_ps(beta_ptr);
                 _p = _mm_comp_fmsub_ps(_p, _var, _mean);
                 _p = _mm_comp_fmadd_ps(_p, _gamma, _beta);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 4;
                 beta_ptr += 4;
@@ -507,7 +519,7 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_comp_fmsub_ps(_p, _var, _mean);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

@@ -431,10 +431,21 @@ static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i& v0)
     return _v;
 }
 
+static NCNN_FORCEINLINE __m128 _mm_comp_bcstnebf16_ps(const unsigned short* ptr)
+{
+#if __AVXNECONVERT__ && !__AVX512F__
+    return _mm_bcstnebf16_ps(ptr);
+#else
+    return _mm_set1_ps(ncnn::bfloat16_to_float32(*ptr));
+#endif
+}
+
 static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
+#elif __AVXNECONVERT__ && !__AVX512F__
+    __m128i _v = (__m128i)_mm_cvtneps_avx_pbh(v);
 #else
     __m128i _a = _mm_castps_si128(v);
     _a = _mm_add_epi32(_a, _mm_set1_epi32(0x8000));
@@ -454,6 +465,8 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm_cvtne2ps_pbh(v1, v0);
+#elif __AVXNECONVERT__ && !__AVX512F__
+    __m128i _v = (__m128i)_mm256_cvtneps_avx_pbh(combine4x2_ps(v0, v1));
 #elif __AVX512F__
     __m256i _ab = _mm256_castps_si256(combine4x2_ps(v0, v1));
     _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
@@ -1302,10 +1315,21 @@ static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
     return _v;
 }
 
+static NCNN_FORCEINLINE __m256 _mm256_comp_bcstnebf16_ps(const unsigned short* ptr)
+{
+#if __AVXNECONVERT__ && !__AVX512F__
+    return _mm256_bcstnebf16_ps(ptr);
+#else
+    return _mm256_set1_ps(ncnn::bfloat16_to_float32(*ptr));
+#endif
+}
+
 static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm256_cvtneps_pbh(v0);
+#elif __AVXNECONVERT__ && !__AVX512F__
+    __m128i _v = (__m128i)_mm256_cvtneps_avx_pbh(v0);
 #elif __AVX2__
     __m256i _ab = _mm256_castps_si256(v0);
     _ab = _mm256_srli_epi32(_mm256_add_epi32(_ab, _mm256_set1_epi32(0x8000)), 16);
@@ -1331,6 +1355,10 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 {
 #if __AVX512BF16__
     __m256i _v = (__m256i)_mm256_cvtne2ps_pbh(v1, v0);
+#elif __AVXNECONVERT__ && !__AVX512F__
+    __m128i _v0 = (__m128i)_mm256_cvtneps_avx_pbh(v0);
+    __m128i _v1 = (__m128i)_mm256_cvtneps_avx_pbh(v1);
+    __m256i _v = combine4x2_epi32(_v0, _v1);
 #elif __AVX512F__
     __m512i _ab = _mm512_castps_si512(combine8x2_ps(v0, v1));
     _ab = _mm512_srli_epi32(_mm512_add_epi32(_ab, _mm512_set1_epi32(0x8000)), 16);

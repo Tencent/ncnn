@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "batchnorm_bf16s.h"
 
 void batchnorm_bf16s_avx2(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
@@ -18,5 +20,7 @@ void batchnorm_bf16s_per_element_avx2(unsigned short* ptr, const float* a, const
 {
     batchnorm_bf16s_per_element(ptr, a, b, size, num_threads);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

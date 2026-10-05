@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_class,
                                       int num_box, float confidence_threshold, float nms_threshold,
                                       ncnn::Mat& biases, ncnn::Mat& mask, ncnn::Mat& anchors_scale)
@@ -117,6 +121,323 @@ static int test_yolov3detectionoutput_v3tiny()
            || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
 }
 
+#if NCNN_VALIDATION
+static int test_yolov3detectionoutput_load_param()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 20);
+    pd.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    pd.set(4, biases);
+    ncnn::Mat mask(1);
+    mask[0] = 0.f;
+    pd.set(5, mask);
+    ncnn::Mat scales(1);
+    scales[0] = 32.f;
+    pd.set(6, scales);
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, 0) != 0)
+        return -1;
+
+    const ncnn::ParamDict base = pd;
+
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 4, ncnn::Mat(0), -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, ncnn::Mat(0), -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, ncnn::Mat(0), -1))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 4, missing_data, -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, missing_data, -1)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, missing_data, -1))
+        return -1;
+
+    const float invalid[] = {-1.f, 0.5f, 1.f, (float)INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        mask[0] = invalid[i];
+        if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, -1) != 0)
+            return -1;
+    }
+    mask[0] = 0.f;
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, ncnn::Mat(), -1) != 0)
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(6, ncnn::Mat());
+        pd.set(4, biases.range(0, 1));
+        if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_yolov3detectionoutput_load_param_values()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+    pd.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    pd.set(4, biases);
+    ncnn::Mat mask(2);
+    mask.fill(0.f);
+    pd.set(5, mask);
+    ncnn::Mat scales(2);
+    scales.fill(32.f);
+    pd.set(6, scales);
+
+    const float valid[] = {0.5f, 1.f, 33.6f, 2147483520.f};
+    for (int i = 0; i < 4; i++)
+    {
+        biases.fill(valid[i]);
+        scales.fill(valid[i]);
+        if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, 0) != 0)
+            return -1;
+    }
+    biases.fill(1.f);
+    scales.fill(32.f);
+
+    // zero, negative zero, negative values, infinities and nan
+    const unsigned int invalid[] = {0x00000000u, 0x80000000u, 0xbf800000u, 0x7f800000u, 0xff800000u, 0x7fc00000u, 0x7f800001u};
+    for (int i = 0; i < 7; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            memcpy((float*)biases + j, &invalid[i], sizeof(float));
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, -1) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed biases[%d]=0x%08x\n", j, invalid[i]);
+                return -1;
+            }
+            biases[j] = 1.f;
+
+            memcpy((float*)scales + j, &invalid[i], sizeof(float));
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, -1) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed anchors_scale[%d]=0x%08x\n", j, invalid[i]);
+                return -1;
+            }
+            scales[j] = 32.f;
+        }
+    }
+
+    const unsigned int boundaries[] = {0x4effffffu, 0x4f000000u, 0x4f000001u};
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            memcpy((float*)scales + j, &boundaries[i], sizeof(float));
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, i == 0 ? 0 : -1) != 0)
+            {
+                fprintf(stderr, "test_yolov3detectionoutput_load_param_values failed anchors_scale[%d]=0x%08x\n", j, boundaries[i]);
+                return -1;
+            }
+            scales[j] = 32.f;
+        }
+    }
+
+    return 0;
+}
+
+static int test_yolov3detectionoutput_load_param_unused()
+{
+    ncnn::ParamDict base;
+    base.set(0, 1);
+    base.set(1, 1);
+    ncnn::Mat biases(6);
+    biases.fill(1.f);
+    base.set(4, biases);
+    ncnn::Mat mask(2);
+    mask[0] = 2.f;
+    mask[1] = 0.f;
+    base.set(5, mask);
+    ncnn::Mat scales(3);
+    scales.fill(32.f);
+    base.set(6, scales);
+
+    if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 0)
+            || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 6, scales.range(0, 1), -1))
+        return -1;
+
+    // unused anchors and scales may contain values that would otherwise be rejected
+    const unsigned int invalid[] = {0x00000000u, 0x80000000u, 0xbf800000u, 0x7f800000u, 0xff800000u, 0x7fc00000u, 0x7f800001u};
+    for (int i = 0; i < 7; i++)
+    {
+        memcpy((float*)scales + 2, &invalid[i], sizeof(float));
+        for (int anchor = 0; anchor < 3; anchor++)
+        {
+            mask[0] = (float)((anchor + 1) % 3);
+            mask[1] = (float)((anchor + 2) % 3);
+            ncnn::Mat used_mask = mask.clone();
+            used_mask[1] = (float)anchor;
+
+            for (int j = 0; j < 2; j++)
+            {
+                memcpy((float*)biases + anchor * 2 + j, &invalid[i], sizeof(float));
+                if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 0)
+                        || test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, 5, used_mask, -1))
+                {
+                    fprintf(stderr, "test_yolov3detectionoutput_load_param_unused failed anchor=%d component=%d value=0x%08x\n", anchor, j, invalid[i]);
+                    return -1;
+                }
+                biases[anchor * 2 + j] = 1.f;
+            }
+        }
+    }
+
+    return 0;
+}
+
+#if NCNN_STRING
+static int test_yolov3detectionoutput_load_param_text(const char* mask, int expected_ret)
+{
+    TestParamDict pd;
+    if (pd.load_param(mask) != 0)
+        return -1;
+
+    const float b[] = {10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
+    const float s[] = {33.6, 16.8};
+    ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
+    ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
+
+    pd.set(0, 80);
+    pd.set(1, 3);
+    pd.set(4, biases);
+    pd.set(6, anchors_scale);
+    int ret = test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_yolov3detectionoutput_load_param_text failed mask=%s\n", mask);
+    }
+
+    return ret;
+}
+
+static int test_yolov3detectionoutput_load_param_values_text(const char* params, int expected_ret)
+{
+    TestParamDict pd;
+    if (pd.load_param(params) != 0)
+        return -1;
+
+    pd.set(0, 1);
+    pd.set(1, 1);
+    ncnn::Mat mask(1);
+    mask.fill(0.f);
+    pd.set(5, mask);
+
+    int ret = test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, expected_ret);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_yolov3detectionoutput_load_param_values_text failed params=%s\n", params);
+    }
+
+    return ret;
+}
+
+#endif
+
+static int test_yolov3detectionoutput_load_param_text()
+{
+#if NCNN_STRING
+    return 0
+           // integer bit patterns written by ModelWriter for yolov4-tiny
+           || test_yolov3detectionoutput_load_param_text("-23305=6,1077936128,1082130432,1084227584,1065353216,1073741824,1077936128", 0)
+           || test_yolov3detectionoutput_load_param_text("-23305=6,3.0,4.0,5.0,1.0,2.0,3.0", 0)
+           // negative, fractional, out-of-range, infinite and nan indices
+           || test_yolov3detectionoutput_load_param_text("-23305=6,-1082130432,1082130432,1084227584,1065353216,1073741824,1077936128", -1)
+           || test_yolov3detectionoutput_load_param_text("-23305=6,1056964608,1082130432,1084227584,1065353216,1073741824,1077936128", -1)
+           || test_yolov3detectionoutput_load_param_text("-23305=6,1086324736,1082130432,1084227584,1065353216,1073741824,1077936128", -1)
+           || test_yolov3detectionoutput_load_param_text("-23305=6,2139095040,1082130432,1084227584,1065353216,1073741824,1077936128", -1)
+           || test_yolov3detectionoutput_load_param_text("-23305=6,2143289344,1082130432,1084227584,1065353216,1073741824,1077936128", -1);
+#else
+    return 0;
+#endif
+}
+
+static int test_yolov3detectionoutput_load_param_values_text()
+{
+#if NCNN_STRING
+    return 0
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,32", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,0.5,1.5 -23306=1,0.5", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=4,10,14,0,-1 -23306=2,32,2147483647", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=4,10.0,14.0,0.0,-1.0 -23306=2,32.0,2147483648.0", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,0,14 -23306=1,32", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,-1 -23306=1,32", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,0", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,-1", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483520", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483583", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483584", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483520.0", 0)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483647.0", -1)
+           || test_yolov3detectionoutput_load_param_values_text("-23304=2,10,14 -23306=1,2147483647", -1);
+#else
+    return 0;
+#endif
+}
+
+static int test_yolov3detectionoutput_load_param_thresholds()
+{
+    ncnn::ParamDict base;
+    base.set(0, 1);
+    base.set(1, 1);
+    ncnn::Mat biases(2);
+    biases.fill(1.f);
+    base.set(4, biases);
+    ncnn::Mat mask(1);
+    mask.fill(0.f);
+    base.set(5, mask);
+    ncnn::Mat scales(1);
+    scales.fill(32.f);
+    base.set(6, scales);
+
+    const float valid[] = {-1.f, 0.f, 0.5f, 1.f, 2.f};
+    const unsigned int special[] = {0x7f800000u, 0xff800000u, 0x7fc00000u, 0xffc00000u, 0x7f800001u, 0xff800001u};
+    for (int id = 2; id <= 3; id++)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, id, valid[i], 0) != 0)
+                return -1;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            float value;
+            memcpy(&value, &special[i], sizeof(value));
+            const int expected_ret = i < 2 ? 0 : -1;
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, base, id, value, expected_ret) != 0)
+                return -1;
+
+            // binary scalar parameters have no integer or float type tag
+            unsigned char binary[] = {0, 0, 0, 0, 0, 0, 0, 0, 0x17, 0xff, 0xff, 0xff};
+            binary[0] = (unsigned char)id;
+            for (int j = 0; j < 4; j++)
+                binary[4 + j] = (unsigned char)(special[i] >> (j * 8));
+
+            TestParamDict pd;
+            if (pd.load_param_bin(binary) != 0)
+                return -1;
+            pd.set(0, 1);
+            pd.set(1, 1);
+            pd.set(4, biases);
+            pd.set(5, mask);
+            pd.set(6, scales);
+            if (test_layer_param(ncnn::LayerType::Yolov3DetectionOutput, pd, expected_ret) != 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -125,5 +446,14 @@ int main()
            || test_yolov3detectionoutput_v3tiny()
            || test_yolov3detectionoutput_v3()
            || test_yolov3detectionoutput_v4tiny()
-           || test_yolov3detectionoutput_v4();
+           || test_yolov3detectionoutput_v4()
+#if NCNN_VALIDATION
+           || test_yolov3detectionoutput_load_param()
+           || test_yolov3detectionoutput_load_param_text()
+           || test_yolov3detectionoutput_load_param_values()
+           || test_yolov3detectionoutput_load_param_unused()
+           || test_yolov3detectionoutput_load_param_values_text()
+           || test_yolov3detectionoutput_load_param_thresholds()
+#endif // NCNN_VALIDATION
+           ;
 }
