@@ -5225,6 +5225,8 @@ static int test_vkmat_batch_forward_reshape_negative_axis()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str_ref);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5304,6 +5306,8 @@ static int test_vkmat_batch_forward_reshape_shape_expr()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str_ref);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5379,6 +5383,8 @@ static int test_vkmat_batch_forward_reshape_same_axis_relu()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5594,6 +5600,8 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5674,6 +5682,8 @@ static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5754,6 +5764,8 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
@@ -5833,6 +5845,8 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
     net_ref.opt.use_fp16_packed = false;
     net_ref.opt.use_fp16_storage = false;
     net_ref.opt.use_fp16_arithmetic = false;
+    net_ref.opt.use_bf16_packed = false;
+    net_ref.opt.use_bf16_storage = false;
     net_ref.load_param_mem(param_str);
 
     ncnn::Extractor ex_ref = net_ref.create_extractor();
