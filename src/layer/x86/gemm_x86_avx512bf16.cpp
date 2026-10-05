@@ -18,6 +18,7 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
 #include "gemm_bf16s.h"
 
 void pack_A_tile_bf16_avx512bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -44,6 +45,7 @@ void gemm_transB_packed_tile_bf16s_avx512bf16(const Mat& AT_tile, const Mat& BT_
 {
     gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 }
+#endif // NCNN_BF16
 
 #if NCNN_WEIGHT_QUANT
 #if NCNN_BF16

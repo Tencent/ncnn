@@ -106,6 +106,9 @@ public:
             {
                 VkPipelineBindPoint bind_point;
                 VkPipeline pipeline;
+#if NCNN_COVERAGE
+                VkPipelineLayout pipeline_layout;
+#endif
             } bind_pipeline;
             struct
             {
@@ -335,6 +338,9 @@ int VkComputePrivate::begin_command_buffer()
 
 int VkComputePrivate::end_command_buffer()
 {
+#if NCNN_COVERAGE
+    vkdev->record_shader_coverage_barrier(compute_command_buffer);
+#endif
     VkResult ret = vkEndCommandBuffer(compute_command_buffer);
     if (ret != VK_SUCCESS)
     {
@@ -1354,6 +1360,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+#if NCNN_COVERAGE
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
+#endif
         }
         else
         {
@@ -1362,6 +1371,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             r.command_buffer = d->compute_command_buffer;
             r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_pipeline.pipeline = pipeline->pipeline();
+#if NCNN_COVERAGE
+            r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
+#endif
             d->delayed_records.push_back(r);
         }
     }
@@ -1427,24 +1439,41 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
                     if (binding_type == 2)
                         image_binding_count++;
-                    else // if (binding_type == 3)
+                    else if (binding_type == 3)
                         sampler_binding_count++;
                 }
 
+                // VUID-VkDescriptorPoolSize-descriptorCount-00302: each
+                // descriptorCount must be > 0. Skip unused descriptor types
+                // (common on buffer-only compute shaders; Mesa v3dv asserts).
+                // See https://github.com/Tencent/ncnn/issues/6951
                 VkDescriptorPoolSize poolSizes[3];
-                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                poolSizes[0].descriptorCount = buffer_binding_count;
-                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[1].descriptorCount = image_binding_count;
-                poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[2].descriptorCount = sampler_binding_count;
+                uint32_t pool_size_count = 0;
+                if (buffer_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    poolSizes[pool_size_count].descriptorCount = buffer_binding_count;
+                    pool_size_count++;
+                }
+                if (image_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                    poolSizes[pool_size_count].descriptorCount = image_binding_count;
+                    pool_size_count++;
+                }
+                if (sampler_binding_count > 0)
+                {
+                    poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    poolSizes[pool_size_count].descriptorCount = sampler_binding_count;
+                    pool_size_count++;
+                }
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 descriptorPoolCreateInfo.pNext = 0;
                 descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
                 descriptorPoolCreateInfo.maxSets = 1;
-                descriptorPoolCreateInfo.poolSizeCount = 3;
+                descriptorPoolCreateInfo.poolSizeCount = pool_size_count;
                 descriptorPoolCreateInfo.pPoolSizes = poolSizes;
 
                 VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
@@ -1654,6 +1683,9 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+#if NCNN_COVERAGE
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
+#endif
         }
         else
         {
@@ -1662,6 +1694,9 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             r.command_buffer = d->compute_command_buffer;
             r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_pipeline.pipeline = pipeline->pipeline();
+#if NCNN_COVERAGE
+            r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
+#endif
             d->delayed_records.push_back(r);
         }
     }
@@ -1880,6 +1915,9 @@ int VkCompute::submit_and_wait()
             case VkComputePrivate::record::TYPE_bind_pipeline:
             {
                 vkCmdBindPipeline(r.command_buffer, r.bind_pipeline.bind_point, r.bind_pipeline.pipeline);
+#if NCNN_COVERAGE
+                vkdev->bind_shader_coverage(r.command_buffer, r.bind_pipeline.pipeline_layout);
+#endif
                 break;
             }
             case VkComputePrivate::record::TYPE_bind_descriptorsets:

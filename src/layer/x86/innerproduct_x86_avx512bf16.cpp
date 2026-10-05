@@ -15,6 +15,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "innerproduct_bf16s.h"
 #include "innerproduct_gemm_bf16s.h"
 
@@ -32,5 +34,7 @@ void innerproduct_transform_kernel_bf16s_avx512bf16(const Mat& weight_data, Mat&
 {
     innerproduct_transform_kernel_bf16s(weight_data, weight_data_tm, num_input, num_output, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -6,6 +6,11 @@ int sdpa_prefill_bf16s_avx512bf16(const Mat& query, const Mat& key, const Mat& v
 int sdpa_kvcache_bf16s_avx512bf16(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 #endif
 
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+int sdpa_prefill_bf16s_avxneconvert(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
+int sdpa_kvcache_bf16s_avxneconvert(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 int sdpa_prefill_bf16s_avx2(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
 int sdpa_kvcache_bf16s_avx2(const Mat& query, const Mat& past_key, const Mat& past_value, const Mat& cur_key, const Mat& cur_value, Mat& cached_key, Mat& cached_value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt);
@@ -434,11 +439,11 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
     {
         const unsigned short* p0 = key.row<const unsigned short>(src_begin + j);
 
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         unsigned short* pp = panel + (token_lane + j) * 2;
 #else
         unsigned short* pp = panel + token_lane + j;
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         int d = 0;
         for (; d + 15 < head_dim; d += 16)
         {
@@ -459,7 +464,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             __m256i _re = _mm256_loadu_si256((const __m256i*)(p0 + hstep * 14));
             __m256i _rf = _mm256_loadu_si256((const __m256i*)(p0 + hstep * 15));
 
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             transpose8x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
             transpose8x8_epi32(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
@@ -490,12 +495,12 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             _mm256_storeu_si256((__m256i*)(pp + panel_width * 13), _rd);
             _mm256_storeu_si256((__m256i*)(pp + panel_width * 14), _re);
             _mm256_storeu_si256((__m256i*)(pp + panel_width * 15), _rf);
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 
             p0 += 16;
             pp += panel_width * 16;
         }
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         for (; d + 1 < head_dim; d += 2)
         {
             pp[0] = p0[0];
@@ -534,7 +539,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             p0 += 2;
             pp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (size_t)d * panel_width + token_lane + j;
         for (; d < head_dim; d++)
         {
@@ -563,11 +568,11 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
     {
         const unsigned short* p0 = key.row<const unsigned short>(src_begin + j);
 
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         unsigned short* pp = panel + (token_lane + j) * 2;
 #else
         unsigned short* pp = panel + token_lane + j;
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         int d = 0;
         for (; d + 7 < head_dim; d += 8)
         {
@@ -579,7 +584,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + hstep * 5));
             __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + hstep * 6));
             __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + hstep * 7));
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             transpose4x4_epi32(_r0, _r1, _r2, _r3);
             transpose4x4_epi32(_r4, _r5, _r6, _r7);
 
@@ -598,12 +603,12 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             _mm_storeu_si128((__m128i*)(pp + panel_width * 5), _r5);
             _mm_storeu_si128((__m128i*)(pp + panel_width * 6), _r6);
             _mm_storeu_si128((__m128i*)(pp + panel_width * 7), _r7);
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 
             p0 += 8;
             pp += panel_width * 8;
         }
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         for (; d + 1 < head_dim; d += 2)
         {
             pp[0] = p0[0];
@@ -626,7 +631,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             p0 += 2;
             pp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (size_t)d * panel_width + token_lane + j;
         for (; d < head_dim; d++)
         {
@@ -648,11 +653,11 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
     {
         const unsigned short* p0 = key.row<const unsigned short>(src_begin + j);
 
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         unsigned short* pp = panel + (token_lane + j) * 2;
 #else
         unsigned short* pp = panel + token_lane + j;
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         int d = 0;
         for (; d + 3 < head_dim; d += 4)
         {
@@ -660,7 +665,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + hstep));
             __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + hstep * 2));
             __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + hstep * 3));
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
             __m128i _tmp0 = _mm_unpacklo_epi32(_r0, _r1);
             __m128i _tmp1 = _mm_unpacklo_epi32(_r2, _r3);
             _r0 = _mm_unpacklo_epi64(_tmp0, _tmp1);
@@ -678,12 +683,12 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             _mm_storel_epi64((__m128i*)(pp + panel_width), _mm_srli_si128(_r0, 8));
             _mm_storel_epi64((__m128i*)(pp + panel_width * 2), _r1);
             _mm_storel_epi64((__m128i*)(pp + panel_width * 3), _mm_srli_si128(_r1, 8));
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
 
             p0 += 4;
             pp += panel_width * 4;
         }
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         for (; d + 1 < head_dim; d += 2)
         {
             pp[0] = p0[0];
@@ -698,7 +703,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             p0 += 2;
             pp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (size_t)d * panel_width + token_lane + j;
         for (; d < head_dim; d++)
         {
@@ -717,7 +722,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
         const unsigned short* p1 = p0 + hstep;
         int d = 0;
         unsigned short* pp;
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (token_lane + j) * 2;
         for (; d + 1 < head_dim; d += 2)
         {
@@ -729,7 +734,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             p1 += 2;
             pp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (size_t)d * panel_width + token_lane + j;
         for (; d < head_dim; d++)
         {
@@ -745,7 +750,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
         const unsigned short* p0 = key.row<const unsigned short>(src_begin + j);
         int d = 0;
         unsigned short* pp;
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (token_lane + j) * 2;
         for (; d + 1 < head_dim; d += 2)
         {
@@ -754,7 +759,7 @@ static void sdpa_pack_key_tile_bf16s(const Mat& key, Mat& packed_key, int src_be
             p0 += 2;
             pp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         pp = panel + (size_t)d * panel_width + token_lane + j;
         for (; d < head_dim; d++)
         {
@@ -854,7 +859,7 @@ static void sdpa_append_kvcache_token_bf16s(const Mat& key, const Mat& value, Ma
         unsigned short* kpanel = (unsigned short*)cached_key.channel(g) + (size_t)panel_id * key.w * panel_width;
         int d = 0;
         unsigned short* kpp;
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         kpp = kpanel + token_lane * 2;
         for (; d + 1 < key.w; d += 2)
         {
@@ -863,7 +868,7 @@ static void sdpa_append_kvcache_token_bf16s(const Mat& key, const Mat& value, Ma
             kptr += 2;
             kpp += panel_width * 2;
         }
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
         kpp = kpanel + (size_t)d * panel_width + token_lane;
         for (; d < key.w; d++)
         {
@@ -1198,7 +1203,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 32;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
                             _sum0 = _mm512_fmadd_ps(bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA)), _mm512_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
@@ -1208,6 +1213,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 64;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
                             _sum0 = _mm512_fmadd_ps(bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA)), _mm512_set1_ps(bfloat16_to_float32(*pK)), _sum0);
@@ -2317,19 +2323,20 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 16;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
-                            _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8))), _mm256_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 16))), _mm256_set1_ps(bfloat16_to_float32(pK[2])), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 24))), _mm256_set1_ps(bfloat16_to_float32(pK[3])), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_comp_bcstnebf16_ps(pK), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8))), _mm256_comp_bcstnebf16_ps(pK + 1), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 16))), _mm256_comp_bcstnebf16_ps(pK + 2), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 24))), _mm256_comp_bcstnebf16_ps(pK + 3), _sum3);
                             pA += 32;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
-                            _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_set1_ps(bfloat16_to_float32(*pK)), _sum0);
+                            _sum0 = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_comp_bcstnebf16_ps(pK), _sum0);
                             pA += 8;
                             pK++;
                         }
@@ -2338,7 +2345,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         {
                             if (mask_hstep == 0)
                             {
-                                _sum = _mm256_add_ps(_sum, _mm256_set1_ps(bfloat16_to_float32(*maskptr)));
+                                _sum = _mm256_add_ps(_sum, _mm256_comp_bcstnebf16_ps(maskptr));
                             }
                             else
                             {
@@ -2396,6 +2403,45 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 pK_pair += NR * 2;
                             }
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
+                                __m256 _pA4 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8)));
+                                __m256 _pB0 = _mm256_cvtneebf16_ps((const __m256bh*)pK_pair);
+                                __m256 _pB4 = _mm256_cvtneobf16_ps((const __m256bh*)pK_pair);
+
+                                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                                __m256 _pB2 = _mm256_permute2f128_ps(_pB0, _pB0, _MM_SHUFFLE(0, 0, 0, 1));
+                                __m256 _pB3 = _mm256_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm256_fmadd_ps(_pA0, _pB0, _sum0);
+                                _sum1 = _mm256_fmadd_ps(_pA0, _pB1, _sum1);
+                                _sum2 = _mm256_fmadd_ps(_pA1, _pB0, _sum2);
+                                _sum3 = _mm256_fmadd_ps(_pA1, _pB1, _sum3);
+                                _sum4 = _mm256_fmadd_ps(_pA0, _pB2, _sum4);
+                                _sum5 = _mm256_fmadd_ps(_pA0, _pB3, _sum5);
+                                _sum6 = _mm256_fmadd_ps(_pA1, _pB2, _sum6);
+                                _sum7 = _mm256_fmadd_ps(_pA1, _pB3, _sum7);
+
+                                _pA1 = _mm256_permute_ps(_pA4, _MM_SHUFFLE(1, 0, 3, 2));
+                                _pB1 = _mm256_permute_ps(_pB4, _MM_SHUFFLE(0, 3, 2, 1));
+                                _pB2 = _mm256_permute2f128_ps(_pB4, _pB4, _MM_SHUFFLE(0, 0, 0, 1));
+                                _pB3 = _mm256_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm256_fmadd_ps(_pA4, _pB4, _sum0);
+                                _sum1 = _mm256_fmadd_ps(_pA4, _pB1, _sum1);
+                                _sum2 = _mm256_fmadd_ps(_pA1, _pB4, _sum2);
+                                _sum3 = _mm256_fmadd_ps(_pA1, _pB1, _sum3);
+                                _sum4 = _mm256_fmadd_ps(_pA4, _pB2, _sum4);
+                                _sum5 = _mm256_fmadd_ps(_pA4, _pB3, _sum5);
+                                _sum6 = _mm256_fmadd_ps(_pA1, _pB2, _sum6);
+                                _sum7 = _mm256_fmadd_ps(_pA1, _pB3, _sum7);
+
+                                pA += 16;
+                                pK_pair += NR * 2;
+                            }
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             const unsigned short* pK = key_panel + (size_t)d * NR + j;
                             for (; d < head_dim; d++)
                             {
@@ -2519,6 +2565,36 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             }
                             pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            pK = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
+                                __m256 _pA2 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8)));
+                                __m128 _pB0s = _mm_cvtneebf16_ps((const __m128bh*)pK);
+                                __m128 _pB2s = _mm_cvtneobf16_ps((const __m128bh*)pK);
+                                __m256 _pB0 = combine4x2_ps(_pB0s, _pB0s);
+                                __m256 _pB2 = combine4x2_ps(_pB2s, _pB2s);
+
+                                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm256_fmadd_ps(_pA0, _pB0, _sum0);
+                                _sum1 = _mm256_fmadd_ps(_pA0, _pB1, _sum1);
+                                _sum2 = _mm256_fmadd_ps(_pA1, _pB0, _sum2);
+                                _sum3 = _mm256_fmadd_ps(_pA1, _pB1, _sum3);
+
+                                _pA1 = _mm256_permute_ps(_pA2, _MM_SHUFFLE(1, 0, 3, 2));
+                                _pB1 = _mm256_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm256_fmadd_ps(_pA2, _pB2, _sum0);
+                                _sum1 = _mm256_fmadd_ps(_pA2, _pB1, _sum1);
+                                _sum2 = _mm256_fmadd_ps(_pA1, _pB2, _sum2);
+                                _sum3 = _mm256_fmadd_ps(_pA1, _pB1, _sum3);
+
+                                pA += 16;
+                                pK += NR * 2;
+                            }
+                            pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             for (; d < head_dim; d++)
                             {
                                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -2582,12 +2658,26 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 pK_pair += NR;
                             }
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m256 _q0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
+                                __m256 _q1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8)));
+                                _sum0 = _mm256_fmadd_ps(_q0, _mm256_comp_bcstnebf16_ps(pK_pair), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_q0, _mm256_comp_bcstnebf16_ps(pK_pair + 2), _sum1);
+                                _sum0 = _mm256_fmadd_ps(_q1, _mm256_comp_bcstnebf16_ps(pK_pair + 1), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_q1, _mm256_comp_bcstnebf16_ps(pK_pair + 3), _sum1);
+                                pA += 16;
+                                pK_pair += NR * 2;
+                            }
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             const unsigned short* pK = key_panel + (size_t)d * NR + j;
                             for (; d < head_dim; d++)
                             {
                                 __m256 _q = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
-                                _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
-                                _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
+                                _sum0 = _mm256_comp_fmadd_ps(_q, _mm256_comp_bcstnebf16_ps(pK), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_q, _mm256_comp_bcstnebf16_ps(pK + 1), _sum1);
                                 pA += 8;
                                 pK += NR;
                             }
@@ -2621,9 +2711,22 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             }
                             pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m256 _q0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
+                                __m256 _q1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(pA + 8)));
+                                _sum = _mm256_fmadd_ps(_q0, _mm256_comp_bcstnebf16_ps(pK_pair), _sum);
+                                _sum = _mm256_fmadd_ps(_q1, _mm256_comp_bcstnebf16_ps(pK_pair + 1), _sum);
+                                pA += 16;
+                                pK_pair += NR * 2;
+                            }
+                            pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             for (; d < head_dim; d++)
                             {
-                                _sum = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_set1_ps(bfloat16_to_float32(*pK)), _sum);
+                                _sum = _mm256_comp_fmadd_ps(bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA)), _mm256_comp_bcstnebf16_ps(pK), _sum);
                                 pA += 8;
                                 pK += NR;
                             }
@@ -2713,14 +2816,14 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m256 _p = _mm256_loadu_ps(pS);
-                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[1])), _out1);
-                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[2])), _out2);
-                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[3])), _out3);
-                            _out4 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[4])), _out4);
-                            _out5 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[5])), _out5);
-                            _out6 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[6])), _out6);
-                            _out7 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[7])), _out7);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 1), _out1);
+                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 2), _out2);
+                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 3), _out3);
+                            _out4 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 4), _out4);
+                            _out5 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 5), _out5);
+                            _out6 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 6), _out6);
+                            _out7 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 7), _out7);
                             pS += 8;
                             pV += value_dim;
                         }
@@ -2747,10 +2850,10 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m256 _p = _mm256_loadu_ps(pS);
-                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[1])), _out1);
-                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[2])), _out2);
-                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[3])), _out3);
+                            _out0 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV), _out0);
+                            _out1 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 1), _out1);
+                            _out2 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 2), _out2);
+                            _out3 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 3), _out3);
                             pS += 8;
                             pV += value_dim;
                         }
@@ -2768,7 +2871,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         const unsigned short* pV = valueptr;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(pS), _mm256_set1_ps(bfloat16_to_float32(*pV)), _out);
+                            _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(pS), _mm256_comp_bcstnebf16_ps(pV), _out);
                             pS += 8;
                             pV += value_dim;
                         }
@@ -2954,10 +3057,10 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 for (int j = 0; j < max_nn; j++)
                                 {
                                     __m256 _p = _mm256_loadu_ps(pS);
-                                    _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                                    _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[1])), _out1);
-                                    _out2 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[2])), _out2);
-                                    _out3 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[3])), _out3);
+                                    _out0 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV), _out0);
+                                    _out1 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 1), _out1);
+                                    _out2 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 2), _out2);
+                                    _out3 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 3), _out3);
                                     pS += 8;
                                     pV += value_panel_width;
                                 }
@@ -2982,8 +3085,8 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 for (int j = 0; j < max_nn; j++)
                                 {
                                     __m256 _p = _mm256_loadu_ps(pS);
-                                    _out0 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                                    _out1 = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(bfloat16_to_float32(pV[1])), _out1);
+                                    _out0 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV), _out0);
+                                    _out1 = _mm256_comp_fmadd_ps(_p, _mm256_comp_bcstnebf16_ps(pV + 1), _out1);
                                     pS += 8;
                                     pV += value_panel_width;
                                 }
@@ -3004,7 +3107,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 const unsigned short* pV = value_panel;
                                 for (int j = 0; j < max_nn; j++)
                                 {
-                                    _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(pS), _mm256_set1_ps(bfloat16_to_float32(*pV)), _out);
+                                    _out = _mm256_comp_fmadd_ps(_mm256_loadu_ps(pS), _mm256_comp_bcstnebf16_ps(pV), _out);
                                     pS += 8;
                                     pV += value_panel_width;
                                 }
@@ -3067,19 +3170,20 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pA += 8;
                             pK += 2;
                         }
-#endif // __AVX512BF16__
+#else  // __AVX512BF16__
                         for (; d + 3 < head_dim; d += 4)
                         {
-                            _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 4))), _mm_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 8))), _mm_set1_ps(bfloat16_to_float32(pK[2])), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 12))), _mm_set1_ps(bfloat16_to_float32(pK[3])), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_comp_bcstnebf16_ps(pK), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 4))), _mm_comp_bcstnebf16_ps(pK + 1), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 8))), _mm_comp_bcstnebf16_ps(pK + 2), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 12))), _mm_comp_bcstnebf16_ps(pK + 3), _sum3);
                             pA += 16;
                             pK += 4;
                         }
+#endif // __AVX512BF16__
                         for (; d < head_dim; d++)
                         {
-                            _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_set1_ps(bfloat16_to_float32(*pK)), _sum0);
+                            _sum0 = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_comp_bcstnebf16_ps(pK), _sum0);
                             pA += 4;
                             pK++;
                         }
@@ -3088,7 +3192,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         {
                             if (mask_hstep == 0)
                             {
-                                _sum = _mm_add_ps(_sum, _mm_set1_ps(bfloat16_to_float32(*maskptr)));
+                                _sum = _mm_add_ps(_sum, _mm_comp_bcstnebf16_ps(maskptr));
                             }
                             else
                             {
@@ -3135,6 +3239,33 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 pK_pair += NR;
                             }
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m128 _pA0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
+                                __m128 _pA2 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 4)));
+                                __m128 _pB0 = _mm_cvtneebf16_ps((const __m128bh*)pK_pair);
+                                __m128 _pB2 = _mm_cvtneobf16_ps((const __m128bh*)pK_pair);
+
+                                __m128 _pA1 = _mm_shuffle_ps(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                                __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm_fmadd_ps(_pA0, _pB0, _sum0);
+                                _sum1 = _mm_fmadd_ps(_pA0, _pB1, _sum1);
+                                _sum2 = _mm_fmadd_ps(_pA1, _pB0, _sum2);
+                                _sum3 = _mm_fmadd_ps(_pA1, _pB1, _sum3);
+
+                                _pA1 = _mm_shuffle_ps(_pA2, _pA2, _MM_SHUFFLE(1, 0, 3, 2));
+                                _pB1 = _mm_shuffle_ps(_pB2, _pB2, _MM_SHUFFLE(0, 3, 2, 1));
+                                _sum0 = _mm_fmadd_ps(_pA2, _pB2, _sum0);
+                                _sum1 = _mm_fmadd_ps(_pA2, _pB1, _sum1);
+                                _sum2 = _mm_fmadd_ps(_pA1, _pB2, _sum2);
+                                _sum3 = _mm_fmadd_ps(_pA1, _pB1, _sum3);
+
+                                pA += 8;
+                                pK_pair += NR * 2;
+                            }
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             const unsigned short* pK = key_panel + (size_t)d * NR + j;
                             for (; d < head_dim; d++)
                             {
@@ -3200,12 +3331,26 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 pK_pair += NR;
                             }
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m128 _q0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
+                                __m128 _q1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 4)));
+                                _sum0 = _mm_fmadd_ps(_q0, _mm_comp_bcstnebf16_ps(pK_pair), _sum0);
+                                _sum1 = _mm_fmadd_ps(_q0, _mm_comp_bcstnebf16_ps(pK_pair + 2), _sum1);
+                                _sum0 = _mm_fmadd_ps(_q1, _mm_comp_bcstnebf16_ps(pK_pair + 1), _sum0);
+                                _sum1 = _mm_fmadd_ps(_q1, _mm_comp_bcstnebf16_ps(pK_pair + 3), _sum1);
+                                pA += 8;
+                                pK_pair += NR * 2;
+                            }
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             const unsigned short* pK = key_panel + (size_t)d * NR + j;
                             for (; d < head_dim; d++)
                             {
                                 __m128 _q = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
-                                _sum0 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(bfloat16_to_float32(pK[0])), _sum0);
-                                _sum1 = _mm_comp_fmadd_ps(_q, _mm_set1_ps(bfloat16_to_float32(pK[1])), _sum1);
+                                _sum0 = _mm_comp_fmadd_ps(_q, _mm_comp_bcstnebf16_ps(pK), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_q, _mm_comp_bcstnebf16_ps(pK + 1), _sum1);
                                 pA += 4;
                                 pK += NR;
                             }
@@ -3239,9 +3384,22 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             }
                             pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                            const unsigned short* pK_pair = key_panel + j * 2;
+                            for (; d + 1 < head_dim; d += 2)
+                            {
+                                __m128 _q0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
+                                __m128 _q1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(pA + 4)));
+                                _sum = _mm_fmadd_ps(_q0, _mm_comp_bcstnebf16_ps(pK_pair), _sum);
+                                _sum = _mm_fmadd_ps(_q1, _mm_comp_bcstnebf16_ps(pK_pair + 1), _sum);
+                                pA += 8;
+                                pK_pair += NR * 2;
+                            }
+                            pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                             for (; d < head_dim; d++)
                             {
-                                _sum = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_set1_ps(bfloat16_to_float32(*pK)), _sum);
+                                _sum = _mm_comp_fmadd_ps(bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA)), _mm_comp_bcstnebf16_ps(pK), _sum);
                                 pA += 4;
                                 pK += NR;
                             }
@@ -3332,14 +3490,14 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m128 _p = _mm_loadu_ps(pS);
-                            _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                            _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[1])), _out1);
-                            _out2 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[2])), _out2);
-                            _out3 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[3])), _out3);
-                            _out4 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[4])), _out4);
-                            _out5 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[5])), _out5);
-                            _out6 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[6])), _out6);
-                            _out7 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[7])), _out7);
+                            _out0 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV), _out0);
+                            _out1 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 1), _out1);
+                            _out2 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 2), _out2);
+                            _out3 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 3), _out3);
+                            _out4 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 4), _out4);
+                            _out5 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 5), _out5);
+                            _out6 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 6), _out6);
+                            _out7 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 7), _out7);
                             pS += 4;
                             pV += value_dim;
                         }
@@ -3366,10 +3524,10 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         for (int j = 0; j < max_jj; j++)
                         {
                             const __m128 _p = _mm_loadu_ps(pS);
-                            _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                            _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[1])), _out1);
-                            _out2 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[2])), _out2);
-                            _out3 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[3])), _out3);
+                            _out0 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV), _out0);
+                            _out1 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 1), _out1);
+                            _out2 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 2), _out2);
+                            _out3 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 3), _out3);
                             pS += 4;
                             pV += value_dim;
                         }
@@ -3387,7 +3545,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         const unsigned short* pV = valueptr;
                         for (int j = 0; j < max_jj; j++)
                         {
-                            _out = _mm_comp_fmadd_ps(_mm_loadu_ps(pS), _mm_set1_ps(bfloat16_to_float32(*pV)), _out);
+                            _out = _mm_comp_fmadd_ps(_mm_loadu_ps(pS), _mm_comp_bcstnebf16_ps(pV), _out);
                             pS += 4;
                             pV += value_dim;
                         }
@@ -3517,8 +3675,8 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 for (int j = 0; j < max_nn; j++)
                                 {
                                     __m128 _p = _mm_loadu_ps(pS);
-                                    _out0 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[0])), _out0);
-                                    _out1 = _mm_comp_fmadd_ps(_p, _mm_set1_ps(bfloat16_to_float32(pV[1])), _out1);
+                                    _out0 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV), _out0);
+                                    _out1 = _mm_comp_fmadd_ps(_p, _mm_comp_bcstnebf16_ps(pV + 1), _out1);
                                     pS += 4;
                                     pV += value_panel_width;
                                 }
@@ -3539,7 +3697,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                                 const unsigned short* pV = value_panel;
                                 for (int j = 0; j < max_nn; j++)
                                 {
-                                    _out = _mm_comp_fmadd_ps(_mm_loadu_ps(pS), _mm_set1_ps(bfloat16_to_float32(*pV)), _out);
+                                    _out = _mm_comp_fmadd_ps(_mm_loadu_ps(pS), _mm_comp_bcstnebf16_ps(pV), _out);
                                     pS += 4;
                                     pV += value_panel_width;
                                 }
@@ -3685,11 +3843,29 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
 #endif
                         pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + j * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m256 _k0 = _mm256_cvtneebf16_ps((const __m256bh*)pK);
+                            __m256 _k1 = _mm256_cvtneobf16_ps((const __m256bh*)pK);
+                            _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA0), _k0, _sum0);
+                            _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA1), _k0, _sum1);
+                            _sum0 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA0 + 1), _k1, _sum0);
+                            _sum1 = _mm256_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA1 + 1), _k1, _sum1);
+                            pA0 += 2;
+                            pA1 += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             __m256 _k = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK));
-                            _sum0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(*pA0++)), _k, _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_mm256_set1_ps(bfloat16_to_float32(*pA1++)), _k, _sum1);
+                            _sum0 = _mm256_comp_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA0), _k, _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_mm256_comp_bcstnebf16_ps(pA1), _k, _sum1);
+                            pA0++;
+                            pA1++;
                             pK += NR;
                         }
                         __m256 _scale = _mm256_set1_ps(scale);
@@ -3756,11 +3932,29 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
 #endif
                         pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + j * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128 _k0 = _mm_cvtneebf16_ps((const __m128bh*)pK);
+                            __m128 _k1 = _mm_cvtneobf16_ps((const __m128bh*)pK);
+                            _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA0), _k0, _sum0);
+                            _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA1), _k0, _sum1);
+                            _sum0 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA0 + 1), _k1, _sum0);
+                            _sum1 = _mm_fmadd_ps(_mm_comp_bcstnebf16_ps(pA1 + 1), _k1, _sum1);
+                            pA0 += 2;
+                            pA1 += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             __m128 _k = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK));
-                            _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(*pA0++)), _k, _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(bfloat16_to_float32(*pA1++)), _k, _sum1);
+                            _sum0 = _mm_comp_fmadd_ps(_mm_comp_bcstnebf16_ps(pA0), _k, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_mm_comp_bcstnebf16_ps(pA1), _k, _sum1);
+                            pA0++;
+                            pA1++;
                             pK += NR;
                         }
                         __m128 _scale = _mm_set1_ps(scale);
@@ -3813,6 +4007,36 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         sum11 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(3, 3, 3, 3)));
                         pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + j * 2;
+                        __m128 _sum = _mm_setzero_ps();
+                        __m128 _sum2 = _mm_setzero_ps();
+                        __m128i _mask = _mm_set1_epi32(0xffff0000);
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128i _q0 = _mm_set1_epi32(((const int*)pA0)[0]);
+                            __m128i _q1 = _mm_set1_epi32(((const int*)pA1)[0]);
+                            __m128i _k0 = _mm_set1_epi32(((const int*)pK)[0]);
+                            __m128i _k1 = _mm_set1_epi32(((const int*)pK)[1]);
+                            __m128i _q = _mm_unpacklo_epi64(_q0, _q1);
+                            __m128i _k = _mm_unpacklo_epi32(_k0, _k1);
+                            __m128 _pA0 = _mm_castsi128_ps(_mm_slli_epi32(_q, 16));
+                            __m128 _pB0 = _mm_castsi128_ps(_mm_slli_epi32(_k, 16));
+                            __m128 _pA1 = _mm_castsi128_ps(_mm_and_si128(_q, _mask));
+                            __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_k, _mask));
+                            _sum = _mm_comp_fmadd_ps(_pA0, _pB0, _sum);
+                            _sum2 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum2);
+                            pA0 += 2;
+                            pA1 += 2;
+                            pK += NR * 2;
+                        }
+                        _sum = _mm_add_ps(_sum, _sum2);
+                        sum00 = _mm_cvtss_f32(_sum);
+                        sum01 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(1, 1, 1, 1)));
+                        sum10 = _mm_cvtss_f32(_mm_movehl_ps(_sum, _sum));
+                        sum11 = _mm_cvtss_f32(_mm_shuffle_ps(_sum, _sum, _MM_SHUFFLE(3, 3, 3, 3)));
+                        pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             const float k0 = bfloat16_to_float32(pK[0]);
@@ -3868,6 +4092,32 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         sum1 = _mm_cvtss_f32(_mm_movehl_ps(_sum, _sum));
                         pK = key_panel + (size_t)d * NR + j;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + j * 2;
+                        __m128 _sum = _mm_setzero_ps();
+                        __m128 _sum2 = _mm_setzero_ps();
+                        __m128i _mask = _mm_set1_epi32(0xffff0000);
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128i _q0 = _mm_set1_epi32(((const int*)pA0)[0]);
+                            __m128i _q1 = _mm_set1_epi32(((const int*)pA1)[0]);
+                            __m128i _q = _mm_unpacklo_epi64(_q0, _q1);
+                            __m128i _k = _mm_set1_epi32(((const int*)pK)[0]);
+                            __m128 _pA0 = _mm_castsi128_ps(_mm_slli_epi32(_q, 16));
+                            __m128 _pB0 = _mm_castsi128_ps(_mm_slli_epi32(_k, 16));
+                            __m128 _pA1 = _mm_castsi128_ps(_mm_and_si128(_q, _mask));
+                            __m128 _pB1 = _mm_castsi128_ps(_mm_and_si128(_k, _mask));
+                            _sum = _mm_comp_fmadd_ps(_pA0, _pB0, _sum);
+                            _sum2 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum2);
+                            pA0 += 2;
+                            pA1 += 2;
+                            pK += NR * 2;
+                        }
+                        _sum = _mm_add_ps(_sum, _sum2);
+                        sum0 = _mm_cvtss_f32(_sum);
+                        sum1 = _mm_cvtss_f32(_mm_movehl_ps(_sum, _sum));
+                        pK = key_panel + (size_t)d * NR + j;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             const float v = bfloat16_to_float32(*pK);
@@ -4270,10 +4520,24 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m256 _key0 = _mm256_cvtneebf16_ps((const __m256bh*)pK);
+                            __m256 _key1 = _mm256_cvtneobf16_ps((const __m256bh*)pK);
+                            _sum = _mm256_fmadd_ps(_key0, _mm256_comp_bcstnebf16_ps(pA), _sum);
+                            _sum = _mm256_fmadd_ps(_key1, _mm256_comp_bcstnebf16_ps(pA + 1), _sum);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             __m256 _key = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pK));
-                            _sum = _mm256_comp_fmadd_ps(_key, _mm256_set1_ps(bfloat16_to_float32(*pA++)), _sum);
+                            _sum = _mm256_comp_fmadd_ps(_key, _mm256_comp_bcstnebf16_ps(pA), _sum);
+                            pA++;
                             pK += NR;
                         }
                         _sum = _mm256_mul_ps(_sum, _mm256_set1_ps(scale));
@@ -4305,10 +4569,24 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         }
                         pK = key_panel + (size_t)d * NR + k;
 #endif // __AVX512BF16__
+#if __AVXNECONVERT__ && !__AVX512F__
+                        pK = key_panel + k * 2;
+                        for (; d + 1 < head_dim; d += 2)
+                        {
+                            __m128 _key0 = _mm_cvtneebf16_ps((const __m128bh*)pK);
+                            __m128 _key1 = _mm_cvtneobf16_ps((const __m128bh*)pK);
+                            _sum = _mm_fmadd_ps(_key0, _mm_comp_bcstnebf16_ps(pA), _sum);
+                            _sum = _mm_fmadd_ps(_key1, _mm_comp_bcstnebf16_ps(pA + 1), _sum);
+                            pA += 2;
+                            pK += NR * 2;
+                        }
+                        pK = key_panel + (size_t)d * NR + k;
+#endif // __AVXNECONVERT__ && !__AVX512F__
                         for (; d < head_dim; d++)
                         {
                             __m128 _key = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pK));
-                            _sum = _mm_comp_fmadd_ps(_key, _mm_set1_ps(bfloat16_to_float32(*pA++)), _sum);
+                            _sum = _mm_comp_fmadd_ps(_key, _mm_comp_bcstnebf16_ps(pA), _sum);
+                            pA++;
                             pK += NR;
                         }
                         _sum = _mm_mul_ps(_sum, _mm_set1_ps(scale));
@@ -4328,7 +4606,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                         const unsigned short* pA = qptr;
                         float sum = 0.f;
                         int d = 0;
-#if __AVX512BF16__
+#if __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                         pK = key_panel + k * 2;
                         for (; d + 1 < head_dim; d += 2)
                         {
@@ -4338,7 +4616,7 @@ static void sdpa_attention_tile_bf16s(const Mat& queryT, const Mat& key_head, co
                             pK += NR * 2;
                         }
                         pK = key_panel + (size_t)d * NR + k;
-#endif // __AVX512BF16__
+#endif // __AVX512BF16__ || (__AVXNECONVERT__ && !__AVX512F__)
                         for (; d < head_dim; d++)
                         {
                             sum += bfloat16_to_float32(*pA++) * bfloat16_to_float32(*pK);
@@ -4621,6 +4899,11 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
         return sdpa_prefill_bf16s_avx512bf16(query, key, value, attn_mask_blob, top_blob, scale, opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+        return sdpa_prefill_bf16s_avxneconvert(query, key, value, attn_mask_blob, top_blob, scale, opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__

@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_pooling1d(int w, int h, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
 {
     ncnn::Mat a = RandomMat(w, h);
@@ -236,6 +240,108 @@ static int test_pooling1d_4()
            || test_pooling1d(13, 16, 0, 1, 1, 0, 0, 0, 1, 0, 12);
 }
 
+#if NCNN_VALIDATION
+static int test_pooling1d_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Pooling1D, base, 0) != 0)
+        return -1;
+
+    // global pooling does not use the local stride
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Pooling1D, base, 2, 0, -1)
+           || test_layer_param(ncnn::LayerType::Pooling1D, global, 2, 0, 0);
+}
+
+static int test_pooling1d_load_param_type()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Pooling1D, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling1D, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling1D, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i <= 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling1D, base, 5, i, 0) != 0)
+            return -1;
+    }
+
+    // global and adaptive pooling do not use pad_mode
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict adaptive = base;
+    adaptive.set(4, 0);
+    adaptive.set(8, 1);
+    adaptive.set(7, 1);
+
+    const int invalid_pad[] = {-1, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Pooling1D, base, 5, invalid_pad[i], -1)
+                  || test_layer_param(ncnn::LayerType::Pooling1D, global, 5, invalid_pad[i], 0)
+                  || test_layer_param(ncnn::LayerType::Pooling1D, adaptive, 5, invalid_pad[i], 0);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+static int test_pooling1d_load_param_adaptive()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    base.set(7, 1);
+    if (test_layer_param(ncnn::LayerType::Pooling1D, base, -1) != 0)
+        return -1;
+
+    base.set(8, 2);
+    if (test_layer_param(ncnn::LayerType::Pooling1D, base, 0) != 0)
+        return -1;
+
+    // global and ordinary pooling ignore adaptive output sizes
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict ordinary = base;
+    ordinary.set(4, 0);
+    ordinary.set(7, 0);
+
+    const int invalid[] = {0, -1, -233, INT_MIN};
+    if (test_layer_param(ncnn::LayerType::Pooling1D, base, 8, 1, 0) != 0)
+        return -1;
+
+    for (int i = 0; i < 4; i++)
+    {
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Pooling1D, base, 8, invalid[i], -1)
+                  || test_layer_param(ncnn::LayerType::Pooling1D, global, 8, invalid[i], 0)
+                  || test_layer_param(ncnn::LayerType::Pooling1D, ordinary, 8, invalid[i], 0);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -245,5 +351,11 @@ int main()
            || test_pooling1d_1()
            || test_pooling1d_2()
            || test_pooling1d_3()
-           || test_pooling1d_4();
+           || test_pooling1d_4()
+#if NCNN_VALIDATION
+           || test_pooling1d_load_param()
+           || test_pooling1d_load_param_type()
+           || test_pooling1d_load_param_adaptive()
+#endif // NCNN_VALIDATION
+           ;
 }

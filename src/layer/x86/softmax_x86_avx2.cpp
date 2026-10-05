@@ -12,6 +12,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "softmax_bf16s.h"
 
 void softmax_bf16s_avx2(unsigned short* _ptr, int elemcount, int elempack)
@@ -33,5 +35,7 @@ void softmax_bf16s_pack8_avx2(unsigned short* _ptr, int elemcount, size_t stride
 {
     softmax_bf16s_pack8(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

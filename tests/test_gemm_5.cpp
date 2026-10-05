@@ -51,7 +51,7 @@ static int test_gemm_0(int M, int N, int K)
 }
 
 // Test with forced output_elempack, fp32 paths only.
-static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_transpose, int output_N1M = 0)
+static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_transpose, int output_N1M = 0, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, 1.f); // alpha
@@ -100,8 +100,7 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
         opt.use_bf16_packed = options[i][1];
         opt.use_bf16_storage = options[i][1];
 
-        int flags = output_elempack > 4 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
-        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flags);
+        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_gemm_ep failed M=%d N=%d K=%d output_elempack=%d output_transpose=%d output_N1M=%d\n", M, N, K, output_elempack, output_transpose, output_N1M);
@@ -113,7 +112,7 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
 }
 
 // Test with forced output_elempack, bf16 paths only.
-static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int output_transpose)
+static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int output_transpose, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, 1.f); // alpha
@@ -160,8 +159,7 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
         opt.use_bf16_packed = options[i][1];
         opt.use_bf16_storage = options[i][1];
 
-        int flags = output_elempack > 4 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
-        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flags);
+        int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_gemm_ep_bf16 failed M=%d N=%d K=%d output_elempack=%d output_transpose=%d\n", M, N, K, output_elempack, output_transpose);
@@ -172,42 +170,44 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
     return 0;
 }
 
-static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_elempack, int bf16_min_elempack, int bf16_max_elempack)
+static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_elempack, int bf16_min_elempack, int bf16_max_elempack, int ep, int flag = 0)
 {
-    const int elempacks[] = {1, 4, 8, 16};
-
-    for (int ei = 0; ei < 4; ei++)
+    for (int output_transpose = 0; output_transpose < 2; output_transpose++)
     {
-        int ep = elempacks[ei];
+        int outh = output_transpose ? N : M;
+        if (outh % ep != 0)
+            continue;
 
-        for (int output_transpose = 0; output_transpose < 2; output_transpose++)
+        // fp32 path
+        if (ep == 1 || (ep <= fp32_max_elempack && ep % fp32_min_elempack == 0))
         {
-            int outh = output_transpose ? N : M;
-            if (outh % ep != 0)
-                continue;
-
-            // fp32 path
-            if (ep == 1 || (ep <= fp32_max_elempack && ep % fp32_min_elempack == 0))
+            for (int output_N1M = 0; output_N1M < 2; output_N1M++)
             {
-                for (int output_N1M = 0; output_N1M < 2; output_N1M++)
-                {
-                    int ret = test_gemm_ep(M, N, K, ep, output_transpose, output_N1M);
-                    if (ret != 0)
-                        return ret;
-                }
-            }
-
-            // bf16 path (only when bf16 supports larger elempack than fp32)
-            if ((ep == 1 || (ep <= bf16_max_elempack && ep % fp32_min_elempack == 0)) && ep > fp32_max_elempack)
-            {
-                int ret = test_gemm_ep_bf16(M, N, K, ep, output_transpose);
+                int ret = test_gemm_ep(M, N, K, ep, output_transpose, output_N1M, flag);
                 if (ret != 0)
                     return ret;
             }
         }
+
+        // bf16 path (only when bf16 supports larger elempack than fp32)
+        if ((ep == 1 || (ep <= bf16_max_elempack && ep % fp32_min_elempack == 0)) && ep > fp32_max_elempack)
+        {
+            int ret = test_gemm_ep_bf16(M, N, K, ep, output_transpose, flag);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;
+}
+
+static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_elempack, int bf16_min_elempack, int bf16_max_elempack)
+{
+    return 0
+           || test_gemm_1(M, N, K, fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack, 1)
+           || test_gemm_1(M, N, K, fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack, 4)
+           || test_gemm_1(M, N, K, fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack, 8, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_gemm_1(M, N, K, fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack, 16, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 int main()

@@ -10,11 +10,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "sigmoid_bf16s.h"
 
 void sigmoid_bf16s_avx2(Mat& a, const Option& opt)
 {
     sigmoid_bf16s(a, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

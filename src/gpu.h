@@ -264,6 +264,7 @@ public:
     bool unified_compute_transfer_queue() const;
     bool resizable_bar_enabled() const;
     bool support_image_storage() const;
+    bool prefer_shader_local_memory() const;
 
     // subgroup
     uint32_t subgroup_size() const;
@@ -388,6 +389,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
@@ -449,6 +451,11 @@ public:
 
     VkDevice vkdevice() const;
     bool is_valid() const;
+
+#if NCNN_COVERAGE
+    void bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const;
+    void record_shader_coverage_barrier(VkCommandBuffer command_buffer) const;
+#endif
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 

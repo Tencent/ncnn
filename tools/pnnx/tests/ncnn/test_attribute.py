@@ -164,6 +164,53 @@ def test_shared_integer_attribute(dtype, transpose):
     return True
 
 
+def test_shared_bool_attribute(transpose, fp16):
+    class SharedBool(nn.Module):
+        def __init__(self):
+            super().__init__()
+            mask = torch.tensor([True, False, True, True])
+            self.register_buffer("mask", mask.reshape(2, 2) if transpose else mask)
+
+        def forward(self, x):
+            mask = self.mask.t() if transpose else self.mask
+            return x + mask, self.mask
+
+    print("shared bool attribute transpose=%s fp16=%d" % (transpose, fp16), flush=True)
+    net = SharedBool().eval()
+    torch.manual_seed(0)
+    x = torch.rand(2, 2) if transpose else torch.rand(4)
+    pnnx = Path(os.environ.get("PNNX_TEST_PNNX", "../../src/pnnx")).resolve()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        work_dir = Path(temp_dir)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            torch.export.save(torch.export.export(net, (x,)), work_dir / "shared_bool.pt2")
+        result = subprocess.run(
+            [str(pnnx), "shared_bool.pt2", "fp16=%d" % fp16],
+            cwd=work_dir, capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print(result.stderr)
+            return False
+        constants = [line.split() for line in (work_dir / "shared_bool.ncnn.param").read_text().splitlines()
+                     if line.startswith("MemoryData ")]
+        if not any("21=3" in constant[5:] for constant in constants):
+            print("shared bool output lost its raw byte storage")
+            return False
+        previous_dir = Path.cwd()
+        try:
+            os.chdir(work_dir)
+            module = _import_generated_module(work_dir / "shared_bool_ncnn.py", "shared_bool")
+            actual, actual_mask = module.test_inference()
+        finally:
+            os.chdir(previous_dir)
+        expected, expected_mask = net(x)
+        torch.testing.assert_close(actual, expected)
+        # Extractor converts the byte output to float; its saved storage stays bool.
+        torch.testing.assert_close(actual_mask, expected_mask.float())
+    return True
+
+
 def test():
     return all(test_attribute(dtype, fp16) for dtype, fp16 in
                ((torch.bool, 0), (torch.float64, 0), (torch.float64, 1),
@@ -174,7 +221,9 @@ def test():
                 (torch.int32, 0), (torch.int32, 1),
                 (torch.int64, 0), (torch.int64, 1))) and all(
                     test_shared_integer_attribute(dtype, transpose)
-                    for dtype in (torch.int32, torch.int64) for transpose in (False, True))
+                    for dtype in (torch.int32, torch.int64) for transpose in (False, True)) and all(
+                        test_shared_bool_attribute(transpose, fp16)
+                        for transpose in (False, True) for fp16 in (0, 1))
 
 
 if __name__ == "__main__":

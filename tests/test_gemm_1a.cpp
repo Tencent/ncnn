@@ -56,7 +56,8 @@ int main()
             if (TILE_M >= M && TILE_N >= N && TILE_K >= K)
                 continue;
 
-            int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K);
+            // tile sizes only affect cpu kernels; the no-tiling call below covers Vulkan
+            int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K, TEST_LAYER_DISABLE_GPU_TESTING);
             if (ret != 0)
                 return ret;
         }

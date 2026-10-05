@@ -288,19 +288,13 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
-            if (attr.type == 9) // bool --> fp32
+            if (attr.type == 9) // bool
             {
-                const unsigned char* p = (const unsigned char*)attr.data.data();
-                int len = attr.data.size();
+                // pad size to 4bytes
+                std::vector<char> data_int8 = attr.data;
+                data_int8.resize(alignSize(data_int8.size(), 4), 0);
 
-                std::vector<float> data_fp32(len);
-
-                for (int i = 0; i < len; i++)
-                {
-                    data_fp32[i] = p[i] ? 1.f : 0.f;
-                }
-
-                fwrite(data_fp32.data(), data_fp32.size() * sizeof(float), 1, binfp);
+                fwrite(data_int8.data(), data_int8.size(), 1, binfp);
                 continue;
             }
 

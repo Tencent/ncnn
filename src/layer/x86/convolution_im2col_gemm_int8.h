@@ -1077,9 +1077,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     __m512i _vindex0 = _mm512_add_epi32(_dxy_offset, _mm512_set1_epi32(puv_offset0));
 
-                    __m128i _p0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
-
-                    _mm_store_si128((__m128i*)pp, _p0);
+                    _mm512_mask_cvtepi32_storeu_epi8(pp, (__mmask16)-1, _mm512_i32gather_epi32(_vindex0, bottom_blob, sizeof(signed char)));
 
                     pp += 16;
                 }
@@ -1609,9 +1607,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 #if __AVX2__
                     __m256i _vindex0 = _mm256_add_epi32(_dxy_offset, _mm256_set1_epi32(puv_offset0));
 
+#if __AVX512F__
+                    _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm256_comp_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_storel_epi64((__m128i*)pp, _p0);
+#endif
 
 #else // __AVX2__
 
@@ -2051,9 +2053,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset, _mm_set1_epi32(puv_offset));
 
 #if __AVX2__
+#if __AVX512F__
+                    _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
+#else
                     __m128i _p0 = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)bottom_blob, _vindex0, sizeof(signed char)));
 
                     _mm_store_ss((float*)pp, _mm_castsi128_ps(_p0));
+#endif
 #else
 #ifdef _MSC_VER
                     __declspec(align(16))

@@ -3,7 +3,11 @@
 
 #include "testutil.h"
 
-static int test_convolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
+#include "layer_type.h"
+
+#include <limits.h>
+
+static int test_convolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -30,7 +34,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
 
     float epsilon = 0.001;
 
-    int ret = test_layer("Convolution", pd, weights, a, epsilon);
+    int ret = test_layer("Convolution", pd, weights, a, epsilon, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -49,7 +53,11 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
+        // retain the separate 1x1 path; other small convolutions already use direct convolution by default
+        if (!(kernel == 1 && dilation == 1 && stride == 1) && (c * kernel * kernel < 8 || outch < 8))
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, flag | TEST_LAYER_DISABLE_GPU_TESTING);
+        else
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -69,7 +77,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -83,7 +91,8 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.num_threads = 1;
         opt.use_a53_a55_optimized_kernel = true;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
+        // a53/a55 tuning is CPU-only; the default Vulkan options are already tested
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, TEST_LAYER_DISABLE_GPU_TESTING);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -95,76 +104,221 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     return ret;
 }
 
+static int test_convolution_0(int k, int d, int s, int p, int spatial_flag = 0)
+{
+    return 0
+           || test_convolution(9, 7, 1, 1, k, d, s, p, 1)
+           || test_convolution(9, 7, 4, 13, k, d, s, p, 0)
+           || test_convolution(9, 7, 13, 4, k, d, s, p, 1)
+           || test_convolution(9, 7, 12, 12, k, d, s, p, 0)
+           || test_convolution(9, 7, 8, 12, k, d, s, p, 1)
+           || test_convolution(9, 7, 8, 13, k, d, s, p, 0)
+           || test_convolution(9, 7, 13, 24, k, d, s, p, 1)
+           || test_convolution(9, 7, 12, 16, k, d, s, p, 0)
+           || test_convolution(9, 7, 15, 15, k, d, s, p, 0)
+           || test_convolution(9, 7, 16, 16, k, d, s, p, 0)
+           || test_convolution(18, 17, 1, 1, k, d, s, p, 1, spatial_flag)
+           || test_convolution(18, 17, 4, 13, k, d, s, p, 0, spatial_flag)
+           || test_convolution(18, 17, 13, 4, k, d, s, p, 1, spatial_flag)
+           || test_convolution(18, 17, 12, 12, k, d, s, p, 0)
+           || test_convolution(18, 17, 8, 12, k, d, s, p, 1, spatial_flag)
+           || test_convolution(18, 17, 8, 13, k, d, s, p, 0, spatial_flag)
+           || test_convolution(18, 17, 13, 24, k, d, s, p, 1, spatial_flag)
+           || test_convolution(18, 17, 12, 16, k, d, s, p, 0, spatial_flag)
+           || test_convolution(18, 17, 15, 15, k, d, s, p, 0, spatial_flag)
+           || test_convolution(18, 17, 16, 16, k, d, s, p, 0, spatial_flag)
+           || test_convolution(25, 33, 1, 1, k, d, s, p, 1)
+           || test_convolution(25, 33, 4, 13, k, d, s, p, 0)
+           || test_convolution(25, 33, 13, 4, k, d, s, p, 1)
+           || test_convolution(25, 33, 12, 12, k, d, s, p, 0)
+           || test_convolution(25, 33, 8, 12, k, d, s, p, 1, spatial_flag)
+           || test_convolution(25, 33, 8, 13, k, d, s, p, 0, spatial_flag)
+           || test_convolution(25, 33, 13, 24, k, d, s, p, 1, spatial_flag)
+           || test_convolution(25, 33, 12, 16, k, d, s, p, 0, spatial_flag)
+           || test_convolution(25, 33, 15, 15, k, d, s, p, 0, spatial_flag)
+           || test_convolution(25, 33, 16, 16, k, d, s, p, 0);
+}
+
 static int test_convolution_0()
 {
-    static const int kdsp[16][4] = {
-        {1, 1, 1, 0},
-        {1, 1, 2, 0},
-        {2, 1, 1, 1},
-        {2, 1, 2, -233},
-        {3, 1, 1, 1},
-        {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 1, 2},
-        {4, 1, 2, -233},
-        {4, 2, 1, -234},
-        {5, 1, 1, -234},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
-    };
-
-    for (int i = 0; i < 12; i++)
-    {
-        const int k = kdsp[i][0];
-        const int d = kdsp[i][1];
-        const int s = kdsp[i][2];
-        const int p = kdsp[i][3];
-
-        int ret = 0
-                  || test_convolution(9, 7, 1, 1, k, d, s, p, 1)
-                  || test_convolution(9, 7, 4, 13, k, d, s, p, 0)
-                  || test_convolution(9, 7, 13, 4, k, d, s, p, 1)
-                  || test_convolution(9, 7, 12, 12, k, d, s, p, 0)
-                  || test_convolution(9, 7, 8, 12, k, d, s, p, 1)
-                  || test_convolution(9, 7, 8, 13, k, d, s, p, 0)
-                  || test_convolution(9, 7, 13, 24, k, d, s, p, 1)
-                  || test_convolution(9, 7, 12, 16, k, d, s, p, 0)
-                  || test_convolution(9, 7, 15, 15, k, d, s, p, 0)
-                  || test_convolution(9, 7, 16, 16, k, d, s, p, 0)
-                  || test_convolution(18, 17, 1, 1, k, d, s, p, 1)
-                  || test_convolution(18, 17, 4, 13, k, d, s, p, 0)
-                  || test_convolution(18, 17, 13, 4, k, d, s, p, 1)
-                  || test_convolution(18, 17, 12, 12, k, d, s, p, 0)
-                  || test_convolution(18, 17, 8, 12, k, d, s, p, 1)
-                  || test_convolution(18, 17, 8, 13, k, d, s, p, 0)
-                  || test_convolution(18, 17, 13, 24, k, d, s, p, 1)
-                  || test_convolution(18, 17, 12, 16, k, d, s, p, 0)
-                  || test_convolution(18, 17, 15, 15, k, d, s, p, 0)
-                  || test_convolution(18, 17, 16, 16, k, d, s, p, 0)
-                  || test_convolution(25, 33, 1, 1, k, d, s, p, 1)
-                  || test_convolution(25, 33, 4, 13, k, d, s, p, 0)
-                  || test_convolution(25, 33, 13, 4, k, d, s, p, 1)
-                  || test_convolution(25, 33, 12, 12, k, d, s, p, 0)
-                  || test_convolution(25, 33, 8, 12, k, d, s, p, 1)
-                  || test_convolution(25, 33, 8, 13, k, d, s, p, 0)
-                  || test_convolution(25, 33, 13, 24, k, d, s, p, 1)
-                  || test_convolution(25, 33, 12, 16, k, d, s, p, 0)
-                  || test_convolution(25, 33, 15, 15, k, d, s, p, 0)
-                  || test_convolution(25, 33, 16, 16, k, d, s, p, 0);
-
-        if (ret != 0)
-            return -1;
-    }
+    // retain 1x1 and winograd cases; the flag applies to repeated larger spatial shapes
+    int ret = 0
+              || test_convolution_0(1, 1, 1, 0)
+              || test_convolution_0(1, 1, 2, 0)
+              || test_convolution_0(2, 1, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(2, 1, 2, -233, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(3, 1, 1, 1)
+              || test_convolution_0(3, 1, 2, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(3, 2, 1, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(4, 1, 1, 2, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(4, 1, 2, -233, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(4, 2, 1, -234, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(5, 1, 1, -234, TEST_LAYER_DISABLE_GPU_TESTING)
+              || test_convolution_0(5, 1, 2, 2, TEST_LAYER_DISABLE_GPU_TESTING);
+    if (ret != 0)
+        return -1;
 
     return 0;
 }
+
+static int test_convolution_activation_params_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"0=1 1=1 6=1 9=3 -23310=2,-1,2", "0=1 1=1 6=1 9=3 -23310=2,-1.0,2.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(10) != 5 + i)
+            return -1;
+
+        std::vector<ncnn::Mat> weights(1);
+        weights[0].create(1);
+        weights[0][0] = 1.f;
+
+        ncnn::Mat a(2, 1, 1);
+        a[0] = -3.f;
+        a[1] = 3.f;
+        ncnn::Mat reference(2, 1, 1);
+        reference[0] = -1.f;
+        reference[1] = 2.f;
+        ncnn::Mat b;
+        int ret = test_layer_naive(ncnn::LayerType::Convolution, pd, weights, a, b, 0);
+        if (ret == 0)
+            ret = CompareMat(reference, b, 0.f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution_activation_params_text failed params=%s ret=%d\n", params[i], ret);
+            return ret;
+        }
+
+        const ncnn::Mat original = pd.get(10, ncnn::Mat());
+        const int* p = original;
+        if (i == 0 ? (p[0] != -1 || p[1] != 2) : (original[0] != -1.f || original[1] != 2.f))
+        {
+            fprintf(stderr, "test_convolution_activation_params_text modified params=%s\n", params[i]);
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
+#if NCNN_VALIDATION
+static int test_convolution_load_param_activation(const ncnn::ParamDict& base, int activation_type, const ncnn::Mat& activation_params, int expected_ret)
+{
+    ncnn::ParamDict pd = base;
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    return test_layer_param(ncnn::LayerType::Convolution, pd, expected_ret);
+}
+
+static int test_convolution_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 8);
+    base.set(1, 3);
+    base.set(6, 216);
+    if (test_layer_param(ncnn::LayerType::Convolution, base, 0) != 0)
+        return -1;
+
+    ncnn::Mat params(2);
+    params[0] = 0.1f;
+    params[1] = 0.5f;
+
+    int ret = 0
+              || test_convolution_load_param_activation(base, 0, ncnn::Mat(), 0)
+              || test_convolution_load_param_activation(base, 0, ncnn::Mat(0), 0)
+              || test_convolution_load_param_activation(base, 0, params, 0)
+              || test_convolution_load_param_activation(base, 0, params.range(0, 1), 0)
+              || test_convolution_load_param_activation(base, 1, ncnn::Mat(), 0)
+              || test_convolution_load_param_activation(base, 1, ncnn::Mat(0), 0)
+              || test_convolution_load_param_activation(base, 1, params, 0)
+              || test_convolution_load_param_activation(base, 1, params.range(0, 1), 0)
+              || test_convolution_load_param_activation(base, 2, ncnn::Mat(), -1)
+              || test_convolution_load_param_activation(base, 2, ncnn::Mat(0), -1)
+              || test_convolution_load_param_activation(base, 2, params, 0)
+              || test_convolution_load_param_activation(base, 2, params.range(0, 1), 0)
+              || test_convolution_load_param_activation(base, 3, ncnn::Mat(), -1)
+              || test_convolution_load_param_activation(base, 3, ncnn::Mat(0), -1)
+              || test_convolution_load_param_activation(base, 3, params, 0)
+              || test_convolution_load_param_activation(base, 3, params.range(0, 1), -1)
+              || test_convolution_load_param_activation(base, 4, ncnn::Mat(), 0)
+              || test_convolution_load_param_activation(base, 4, ncnn::Mat(0), 0)
+              || test_convolution_load_param_activation(base, 4, params, 0)
+              || test_convolution_load_param_activation(base, 4, params.range(0, 1), 0)
+              || test_convolution_load_param_activation(base, 5, ncnn::Mat(), 0)
+              || test_convolution_load_param_activation(base, 5, ncnn::Mat(0), 0)
+              || test_convolution_load_param_activation(base, 5, params, 0)
+              || test_convolution_load_param_activation(base, 5, params.range(0, 1), 0)
+              || test_convolution_load_param_activation(base, 6, ncnn::Mat(), -1)
+              || test_convolution_load_param_activation(base, 6, ncnn::Mat(0), -1)
+              || test_convolution_load_param_activation(base, 6, params, 0)
+              || test_convolution_load_param_activation(base, 6, params.range(0, 1), -1)
+              || test_convolution_load_param_activation(base, 7, ncnn::Mat(), -1);
+    if (ret != 0)
+        return ret;
+
+    if (test_layer_param(ncnn::LayerType::Convolution, base, 10, 1, -1)
+            || test_layer_param(ncnn::LayerType::Convolution, base, 10, 1.f, -1))
+        return -1;
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    const ncnn::Mat bad[] = {ncnn::Mat(2, (size_t)1u), ncnn::Mat(2, (size_t)2u), ncnn::Mat(2, 2), ncnn::Mat(2, (size_t)16u, 4), missing_data};
+    for (int i = 0; i < 5; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Convolution, base, 10, bad[i], -1) != 0)
+            return -1;
+    }
+
+    ret = 0
+          || test_layer_param(ncnn::LayerType::Convolution, base, 0, 0, -1)
+          || test_layer_param(ncnn::LayerType::Convolution, base, 1, 0, -1)
+          || test_layer_param(ncnn::LayerType::Convolution, base, 2, 0, -1)
+          || test_layer_param(ncnn::LayerType::Convolution, base, 3, 0, -1)
+          || test_layer_param(ncnn::LayerType::Convolution, base, 1, INT_MAX, -1)
+          || test_layer_param(ncnn::LayerType::Convolution, base, 6, 217, -1);
+    if (ret != 0)
+        return ret;
+
+    ncnn::ParamDict dynamic;
+    dynamic.set(19, 1); // runtime weight dimensions are unspecified at load time
+    if (test_layer_param(ncnn::LayerType::Convolution, dynamic, 0) != 0)
+        return -1;
+
+    return test_layer_param(ncnn::LayerType::Convolution, dynamic, 3, 0, -1);
+}
+
+static int test_convolution_load_param_text()
+{
+#if NCNN_STRING
+    const char* params[] = {"0=1 1=1 6=1 9=3 -23310=2,-1,2", "0=1 1=1 6=1 9=3 -23310=2,-1.0,2.0"};
+    for (int i = 0; i < 2; i++)
+    {
+        TestParamDict pd;
+        if (pd.load_param(params[i]) != 0 || pd.type(10) != 5 + i)
+            return -1;
+
+        if (test_layer_param(ncnn::LayerType::Convolution, pd, 0) != 0)
+            return -1;
+    }
+#endif
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
     SRAND(7767517);
 
-    return test_convolution_0();
+    return 0
+           || test_convolution_0()
+           || test_convolution_activation_params_text()
+#if NCNN_VALIDATION
+           || test_convolution_load_param()
+           || test_convolution_load_param_text()
+#endif // NCNN_VALIDATION
+           ;
 }

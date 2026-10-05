@@ -17,7 +17,7 @@ static Attribute float_attribute(const Attribute& attr)
     converted.shape = attr.shape;
     converted.data.resize((size_t)attr.elemcount() * 4);
 
-    if (attr.type >= 4 && attr.type <= 8)
+    if (attr.type >= 4 && attr.type <= 9)
     {
         for (size_t i = 0; i < converted.data.size() / 4; i++)
         {
@@ -44,9 +44,13 @@ static Attribute float_attribute(const Attribute& attr)
             {
                 value = ((const int8_t*)attr.data.data())[i];
             }
-            else
+            else if (attr.type == 8)
             {
                 value = ((const uint8_t*)attr.data.data())[i];
+            }
+            else
+            {
+                value = attr.data[i] ? 1.f : 0.f;
             }
             memcpy(converted.data.data() + i * 4, &value, 4);
         }
@@ -70,13 +74,13 @@ static bool is_layout_operator(const Operator* op)
 static Operand* float_constant_input(Graph& graph, Operand* input, Operator* consumer, std::map<Operand*, Operand*>& converted)
 {
     // Only clone the numeric branch. A shared transpose/reshape may also feed
-    // Embedding, which must retain the original integer representation.
+    // Embedding or a bool output, which must retain the original representation.
     std::vector<Operand*> chain;
     Operand* current = input;
     while (converted.find(current) == converted.end())
     {
         Operator* op = current->producer;
-        if ((current->type != 4 && current->type != 5) || op->outputs.size() != 1)
+        if ((current->type != 4 && current->type != 5 && current->type != 9) || op->outputs.size() != 1)
             return 0;
         chain.push_back(current);
         if (op->type == "pnnx.Attribute")
@@ -134,7 +138,7 @@ void convert_to_float(Graph& graph)
 
         for (Operand*& input : op->inputs)
         {
-            if (input->type != 4 && input->type != 5)
+            if (input->type != 4 && input->type != 5 && input->type != 9)
                 continue;
             Operand* replacement = float_constant_input(graph, input, op, converted);
             if (!replacement)

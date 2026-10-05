@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "prelu_bf16s.h"
 
 void prelu_bf16s_avx512bf16(unsigned short* ptr, const float* slope, int size, int elempack)
@@ -23,5 +25,7 @@ void prelu_bf16s_single_slope_avx512bf16(unsigned short* ptr, float slope, int s
 {
     prelu_bf16s_single_slope(ptr, slope, size, num_threads);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn
