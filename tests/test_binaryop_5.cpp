@@ -228,7 +228,7 @@ static int test_binaryop_4_broadcast(int w, int h, int d, int c)
         {0, 0}, {0, 1}, {0, 3}, {0, 7}, {0, 2}, {0, 6}, {0, 14}, {1, 13}, {2, 12}, {3, 11}, {4, 10}, {5, 9}, {6, 8}, {7, 7}
     };
     const int ordered_operations[][3] = {
-        {12, 0, 1}, {13, 0, 1}, {14, 0, 1}, {14, 1, 0}
+        {15, 0, 1}, {16, 0, 1}, {17, 0, 1}, {18, 0, 1}
     };
     for (size_t j = 0; j < sizeof(ordered_operations) / sizeof(ordered_operations[0]); j++)
     {
@@ -379,7 +379,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 12; op_type < 15; op_type++)
+    for (op_type = 15; op_type < 19; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()
