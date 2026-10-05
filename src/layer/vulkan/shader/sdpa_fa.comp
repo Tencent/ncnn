@@ -180,6 +180,12 @@ void main()
                                + dot(unpackBFloat2x16(qa.y), unpackBFloat2x16(kb.y))
                                + dot(unpackBFloat2x16(qa.z), unpackBFloat2x16(kb.z))
                                + dot(unpackBFloat2x16(qa.w), unpackBFloat2x16(kb.w));
+#elif NCNN_fp16_arithmetic
+                        f16vec2 _s = unpackFloat2x16(qa.x) * unpackFloat2x16(kb.x);
+                        _s += unpackFloat2x16(qa.y) * unpackFloat2x16(kb.y);
+                        _s += unpackFloat2x16(qa.z) * unpackFloat2x16(kb.z);
+                        _s += unpackFloat2x16(qa.w) * unpackFloat2x16(kb.w);
+                        acc += float(_s.x) + float(_s.y);
 #else
                         acc += dot(unpackHalf2x16(qa.x), unpackHalf2x16(kb.x))
                                + dot(unpackHalf2x16(qa.y), unpackHalf2x16(kb.y))
@@ -380,6 +386,25 @@ void main()
                     const uint row = idx / Nd8;
                     const uint col = idx % Nd8;
 
+#if NCNN_fp16_arithmetic
+                    f16vec4 acc0 = f16vec4(0.0);
+                    f16vec4 acc1 = f16vec4(0.0);
+
+                    [[unroll]] for (uint n = 0; n < N; n++)
+                    {
+                        const f16vec4 pv4 = f16vec4(float16_t(tmp_s[row * Np + n]));
+                        const uvec4 vv = tmp_k[n * Nd8p + col];
+
+                        const f16vec4 vv0 = f16vec4(unpackFloat2x16(vv.x), unpackFloat2x16(vv.y));
+                        const f16vec4 vv1 = f16vec4(unpackFloat2x16(vv.z), unpackFloat2x16(vv.w));
+
+                        acc0 += pv4 * vv0;
+                        acc1 += pv4 * vv1;
+                    }
+
+                    om[c][i][0] += vec4(acc0);
+                    om[c][i][1] += vec4(acc1);
+#else
                     vec4 acc0 = vec4(0.f);
                     vec4 acc1 = vec4(0.f);
 
@@ -402,6 +427,7 @@ void main()
 
                     om[c][i][0] += acc0;
                     om[c][i][1] += acc1;
+#endif
                 }
             }
         }
