@@ -5053,6 +5053,8 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim()
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5127,6 +5129,8 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch()
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5246,6 +5250,8 @@ static int test_vkmat_batch_forward_reshape_negative_axis()
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5327,6 +5333,8 @@ static int test_vkmat_batch_forward_reshape_shape_expr()
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5404,6 +5412,8 @@ static int test_vkmat_batch_forward_reshape_same_axis_relu()
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5437,6 +5447,11 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch_axis1()
     ncnn::Net net;
     ncnn::Option opt;
     opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5507,6 +5522,11 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_axis1()
     ncnn::Net net;
     ncnn::Option opt;
     opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
     net.opt = opt;
     net.load_param_mem(param_str);
     net.load_model((const unsigned char*)"");
@@ -5626,6 +5646,9 @@ static int test_vkmat_batch_forward_reshape_batch_to_dim_pack1to4()
         opt.use_packing_layout = true;
         opt.use_fp16_packed = use_fp16_storage;
         opt.use_fp16_storage = use_fp16_storage;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
         net.opt = opt;
         net.load_param_mem(param_str);
         net.load_model((const unsigned char*)"");
@@ -5708,6 +5731,9 @@ static int test_vkmat_batch_forward_reshape_packed_batch_to_dim_axis1()
         opt.use_packing_layout = true;
         opt.use_fp16_packed = use_fp16_storage;
         opt.use_fp16_storage = use_fp16_storage;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
         net.opt = opt;
         net.load_param_mem(param_str);
         net.load_model((const unsigned char*)"");
@@ -5790,6 +5816,9 @@ static int test_vkmat_batch_forward_reshape_dim_to_batch_pack4to1()
         opt.use_packing_layout = true;
         opt.use_fp16_packed = use_fp16_storage;
         opt.use_fp16_storage = use_fp16_storage;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
         net.opt = opt;
         net.load_param_mem(param_str);
         net.load_model((const unsigned char*)"");
@@ -5871,6 +5900,9 @@ static int test_vkmat_batch_forward_reshape_packed_dim_to_batch_axis1()
         opt.use_packing_layout = true;
         opt.use_fp16_packed = use_fp16_storage;
         opt.use_fp16_storage = use_fp16_storage;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
         net.opt = opt;
         net.load_param_mem(param_str);
         net.load_model((const unsigned char*)"");
