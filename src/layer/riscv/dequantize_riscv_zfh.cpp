@@ -164,14 +164,14 @@ static void dequantize_packnto1_fp16s(const int* intptr, __fp16* f16ptr, const M
     {
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(std::min((size_t)n, vlm8));
             vint32m8_t _v = __riscv_vle32_v_i32m8(intptr, vl);
             vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(_v, vl);
             _vf = __riscv_vfmul_vv_f32m8(_vf, _scale, vl);
             __riscv_vse16_v_f16m4(tmp, __riscv_vfncvt_f_f_w_f16m4(_vf, vl), vl);
             for (size_t j = 0; j < (vl / vlm1); j++)
             {
-                for (int i = 0; i < vlm1; i++)
+                for (size_t i = 0; i < vlm1; i++)
                 {
                     f16ptr[i * stride] = tmp[j * vlm1 + i];
                 }
@@ -194,7 +194,7 @@ static void dequantize_packnto1_fp16s(const int* intptr, __fp16* f16ptr, const M
 
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(std::min((size_t)n, vlm8));
             vint32m8_t _v = __riscv_vle32_v_i32m8(intptr, vl);
             vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(_v, vl);
             _vf = __riscv_vfmacc_vv_f32m8(_bias, _vf, _scale, vl);
@@ -202,7 +202,7 @@ static void dequantize_packnto1_fp16s(const int* intptr, __fp16* f16ptr, const M
 
             for (size_t j = 0; j < (vl / vlm1); j++)
             {
-                for (int i = 0; i < vlm1; i++)
+                for (size_t i = 0; i < vlm1; i++)
                 {
                     f16ptr[i * stride] = tmp[j * vlm1 + i];
                 }
@@ -337,7 +337,7 @@ int Dequantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     {
         int out_elempack = 1;
 #if __riscv_vector
-        if (opt.use_packing_layout)
+        if (opt.use_packing_layout && elempack == packn)
         {
             out_elempack = h * elempack % packn_f16 == 0 ? packn_f16 : 1;
         }
@@ -399,7 +399,7 @@ int Dequantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     {
         int out_elempack = 1;
 #if __riscv_vector
-        if (opt.use_packing_layout)
+        if (opt.use_packing_layout && elempack == packn)
         {
             out_elempack = channels * elempack % packn_f16 == 0 ? packn_f16 : 1;
         }

@@ -6,7 +6,7 @@ static void convolution_transform_kernel_packed_int8_rvv(const Mat& kernel, Mat&
     const int maxk = kernel_w * kernel_h;
 
     // src = kw-kh-inch-outch
-    // dst = pb-pa-kw-kh-inch/vlm1-outch/vlm1
+    // dst = pb-pa-kw-kh-inch/pa-outch/pb
 
     // clang-format off
     // *INDENT-OFF*
@@ -56,7 +56,7 @@ static void convolution_transform_kernel_packed_int8_rvv(const Mat& kernel, Mat&
         {
             for (int k = 0; k < maxk; k++)
             {
-                for (size_t i = 0; i < pack4n; i++)
+                for (int i = 0; i < pack4n; i++)
                 {
                     const signed char* src = kptr + (p + i) * maxk + k;
                     vint8m1_t row = __riscv_vlse8_v_i8m1(src, inch * maxk, vlm4);
@@ -110,7 +110,7 @@ static void convolution_transform_kernel_packed_int8_rvv(const Mat& kernel, Mat&
             {
                 const signed char* k0 = kptr + k;
 
-                for (size_t i = 0; i < pack4n; i++)
+                for (int i = 0; i < pack4n; i++)
                 {
                     g00[0] = k0[0];
                     k0 += maxk;

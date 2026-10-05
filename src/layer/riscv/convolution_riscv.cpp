@@ -587,9 +587,6 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
 
     int w = bottom_blob_bordered.w;
     int h = bottom_blob_bordered.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob_bordered.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -627,7 +624,7 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
     if (top_blob_int32.empty())
         return -100;
 
-    // TODO: Implement winograd, sgemm, etc
+    // TODO: implement winograd, sgemm, etc
     convolution_packed_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
     bottom_blob_bordered.release();
 

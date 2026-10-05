@@ -177,7 +177,7 @@ static void requantize_packnto1(const int* ptr, signed char* s8ptr, const Mat& s
     {
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(std::min((size_t)n, vlm8));
             vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(__riscv_vle32_v_i32m8(ptr, vl), vl);
             _vf = __riscv_vfmul_vv_f32m8(_vf, _scale_in, vl);
             _vf = activation_ps(_vf, activation_type, activation_params, vl);
@@ -185,7 +185,7 @@ static void requantize_packnto1(const int* ptr, signed char* s8ptr, const Mat& s
             __riscv_vse8_v_i8m2(tmp, float2int8(_vf, vl), vl);
             for (size_t j = 0; j < (vl / vlm1); j++)
             {
-                for (int i = 0; i < vlm1; i++)
+                for (size_t i = 0; i < vlm1; i++)
                 {
                     s8ptr[i * stride] = tmp[j * vlm1 + i];
                 }
@@ -208,7 +208,7 @@ static void requantize_packnto1(const int* ptr, signed char* s8ptr, const Mat& s
 
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
+            size_t vl = __riscv_vsetvl_e32m8(std::min((size_t)n, vlm8));
             vfloat32m8_t _vf = __riscv_vfcvt_f_x_v_f32m8(__riscv_vle32_v_i32m8(ptr, vl), vl);
             _vf = __riscv_vfmadd_vv_f32m8(_vf, _scale_in, _bias, vl);
             _vf = activation_ps(_vf, activation_type, activation_params, vl);
@@ -216,7 +216,7 @@ static void requantize_packnto1(const int* ptr, signed char* s8ptr, const Mat& s
             __riscv_vse8_v_i8m2(tmp, float2int8(_vf, vl), vl);
             for (size_t j = 0; j < (vl / vlm1); j++)
             {
-                for (int i = 0; i < vlm1; i++)
+                for (size_t i = 0; i < vlm1; i++)
                 {
                     s8ptr[i * stride] = tmp[j * vlm1 + i];
                 }
@@ -567,7 +567,6 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
-    const size_t out_elemsize = elempack * 1u;
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
@@ -610,7 +609,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     {
         int out_elempack = 1;
 #if __riscv_vector
-        if (opt.use_packing_layout)
+        if (opt.use_packing_layout && elempack == packn)
         {
             out_elempack = h * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
@@ -678,7 +677,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     {
         int out_elempack = 1;
 #if __riscv_vector
-        if (opt.use_packing_layout)
+        if (opt.use_packing_layout && elempack == packn)
         {
             out_elempack = channels * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
@@ -696,6 +695,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __riscv_vector
         if (elempack == packn && out_elempack == packn_s8)
         {
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
                 const int* ptr0 = bottom_blob.channel(q * 4);

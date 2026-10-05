@@ -168,6 +168,9 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
 static int test_requantize_0()
 {
     return 0
+           || test_requantize_pack1(RandomIntMat(3, 3, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(3, 3, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(3, 3, 128), 128, 1, 128)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 1)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 0)
@@ -197,6 +200,9 @@ static int test_requantize_0()
 static int test_requantize_1()
 {
     return 0
+           || test_requantize_pack1(RandomIntMat(9, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(9, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(9, 128), 128, 1, 128)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 1)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 0)
@@ -299,13 +305,11 @@ static int test_requantize_3()
 static int test_requantize_4()
 {
     return 0
-#ifndef __riscv
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 128), 128, 1, 128)
            || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 1, 1, 24)
            || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 24, 24, 0)
-#else
-           || test_requantize(RandomIntMat(5, 3, 2, 24), 1, 1, 24)
-           || test_requantize(RandomIntMat(5, 3, 2, 24), 24, 24, 0)
-#endif
            || test_requantize_pack1(RandomIntMat(5, 3, 2, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(5, 3, 2, 12), 12, 12, 0)
            || test_requantize_pack1(RandomIntMat(3, 5, 3, 13), 1, 13, 13)
