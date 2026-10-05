@@ -64,16 +64,16 @@ void main()
         return;
 #endif
 
-    afpvec4 sum0 = afpvec4(0.f);
-    afpvec4 sum1 = afpvec4(0.f);
-    afpvec4 sum2 = afpvec4(0.f);
-    afpvec4 sum3 = afpvec4(0.f);
+    wfpvec4 sum0 = wfpvec4(0.f);
+    wfpvec4 sum1 = wfpvec4(0.f);
+    wfpvec4 sum2 = wfpvec4(0.f);
+    wfpvec4 sum3 = wfpvec4(0.f);
 
     const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
 
     if (broadcast_type_C == 0)
     {
-        sum0 = afpvec4(buffer_ld1(C_blob_data, 0));
+        sum0 = wfpvec4(buffer_ld1(C_blob_data, 0));
         sum1 = sum0;
         sum2 = sum0;
         sum3 = sum0;
@@ -82,10 +82,10 @@ void main()
     {
         const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
 
-        sum0 = afpvec4(buffer_ld1(C_blob_data, gy4.r));
-        sum1 = afpvec4(buffer_ld1(C_blob_data, gy4.g));
-        sum2 = afpvec4(buffer_ld1(C_blob_data, gy4.b));
-        sum3 = afpvec4(buffer_ld1(C_blob_data, gy4.a));
+        sum0 = wfpvec4(buffer_ld1(C_blob_data, gy4.r));
+        sum1 = wfpvec4(buffer_ld1(C_blob_data, gy4.g));
+        sum2 = wfpvec4(buffer_ld1(C_blob_data, gy4.b));
+        sum3 = wfpvec4(buffer_ld1(C_blob_data, gy4.a));
     }
     if (broadcast_type_C == 3)
     {
@@ -281,10 +281,10 @@ void main()
 
             afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
-            sum0 += a.r * b;
-            sum1 += a.g * b;
-            sum2 += a.b * b;
-            sum3 += a.a * b;
+            sum0 += wfp(a.r) * wfpvec4(b);
+            sum1 += wfp(a.g) * wfpvec4(b);
+            sum2 += wfp(a.b) * wfpvec4(b);
+            sum3 += wfp(a.a) * wfpvec4(b);
         }
 
         barrier();
@@ -436,10 +436,10 @@ void main()
 
             afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
-            sum0 += a.r * b;
-            sum1 += a.g * b;
-            sum2 += a.b * b;
-            sum3 += a.a * b;
+            sum0 += wfp(a.r) * wfpvec4(b);
+            sum1 += wfp(a.g) * wfpvec4(b);
+            sum2 += wfp(a.b) * wfpvec4(b);
+            sum3 += wfp(a.a) * wfpvec4(b);
         }
     }
 #else
@@ -561,10 +561,10 @@ void main()
             }
         }
 
-        sum0 += a.r * b;
-        sum1 += a.g * b;
-        sum2 += a.b * b;
-        sum3 += a.a * b;
+        sum0 += wfp(a.r) * wfpvec4(b);
+        sum1 += wfp(a.g) * wfpvec4(b);
+        sum2 += wfp(a.b) * wfpvec4(b);
+        sum3 += wfp(a.a) * wfpvec4(b);
     }
 #endif
 
@@ -591,40 +591,40 @@ void main()
             const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
             const uint gi = gx * p.outhstep + gy * 4;
 
-            buffer_st4(top_blob_data_4, gi, sum0);
-            if (gy * 4 + 1 < psc(M)) buffer_st4(top_blob_data_4, gi + 1, sum1);
-            if (gy * 4 + 2 < psc(M)) buffer_st4(top_blob_data_4, gi + 2, sum2);
-            if (gy * 4 + 3 < psc(M)) buffer_st4(top_blob_data_4, gi + 3, sum3);
+            buffer_st4(top_blob_data_4, gi, afpvec4(sum0));
+            if (gy * 4 + 1 < psc(M)) buffer_st4(top_blob_data_4, gi + 1, afpvec4(sum1));
+            if (gy * 4 + 2 < psc(M)) buffer_st4(top_blob_data_4, gi + 2, afpvec4(sum2));
+            if (gy * 4 + 3 < psc(M)) buffer_st4(top_blob_data_4, gi + 3, afpvec4(sum3));
         }
         else
         {
             const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
             const uvec4 gi4 = gx4 * p.outhstep + gy * 4;
 
-            buffer_st1(top_blob_data, gi4.r, sum0.r);
-            if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.r + 1, sum1.r);
-            if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.r + 2, sum2.r);
-            if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.r + 3, sum3.r);
+            buffer_st1(top_blob_data, gi4.r, afp(sum0.r));
+            if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.r + 1, afp(sum1.r));
+            if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.r + 2, afp(sum2.r));
+            if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.r + 3, afp(sum3.r));
             if (gx4.g < psc(N))
             {
-                buffer_st1(top_blob_data, gi4.g, sum0.g);
-                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.g + 1, sum1.g);
-                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.g + 2, sum2.g);
-                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.g + 3, sum3.g);
+                buffer_st1(top_blob_data, gi4.g, afp(sum0.g));
+                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.g + 1, afp(sum1.g));
+                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.g + 2, afp(sum2.g));
+                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.g + 3, afp(sum3.g));
             }
             if (gx4.b < psc(N))
             {
-                buffer_st1(top_blob_data, gi4.b, sum0.b);
-                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.b + 1, sum1.b);
-                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.b + 2, sum2.b);
-                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.b + 3, sum3.b);
+                buffer_st1(top_blob_data, gi4.b, afp(sum0.b));
+                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.b + 1, afp(sum1.b));
+                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.b + 2, afp(sum2.b));
+                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.b + 3, afp(sum3.b));
             }
             if (gx4.a < psc(N))
             {
-                buffer_st1(top_blob_data, gi4.a, sum0.a);
-                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.a + 1, sum1.a);
-                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.a + 2, sum2.a);
-                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.a + 3, sum3.a);
+                buffer_st1(top_blob_data, gi4.a, afp(sum0.a));
+                if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.a + 1, afp(sum1.a));
+                if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.a + 2, afp(sum2.a));
+                if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.a + 3, afp(sum3.a));
             }
         }
     }
@@ -646,30 +646,30 @@ void main()
             const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
             const uvec4 gi4 = gy4 * p.outhstep + gx * 4;
 
-            buffer_st1(top_blob_data, gi4.r, sum0.r);
-            if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.r + 1, sum0.g);
-            if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.r + 2, sum0.b);
-            if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.r + 3, sum0.a);
+            buffer_st1(top_blob_data, gi4.r, afp(sum0.r));
+            if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.r + 1, afp(sum0.g));
+            if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.r + 2, afp(sum0.b));
+            if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.r + 3, afp(sum0.a));
             if (gy4.g < psc(M))
             {
-                buffer_st1(top_blob_data, gi4.g, sum1.r);
-                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.g + 1, sum1.g);
-                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.g + 2, sum1.b);
-                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.g + 3, sum1.a);
+                buffer_st1(top_blob_data, gi4.g, afp(sum1.r));
+                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.g + 1, afp(sum1.g));
+                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.g + 2, afp(sum1.b));
+                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.g + 3, afp(sum1.a));
             }
             if (gy4.b < psc(M))
             {
-                buffer_st1(top_blob_data, gi4.b, sum2.r);
-                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.b + 1, sum2.g);
-                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.b + 2, sum2.b);
-                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.b + 3, sum2.a);
+                buffer_st1(top_blob_data, gi4.b, afp(sum2.r));
+                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.b + 1, afp(sum2.g));
+                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.b + 2, afp(sum2.b));
+                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.b + 3, afp(sum2.a));
             }
             if (gy4.a < psc(M))
             {
-                buffer_st1(top_blob_data, gi4.a, sum3.r);
-                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.a + 1, sum3.g);
-                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.a + 2, sum3.b);
-                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.a + 3, sum3.a);
+                buffer_st1(top_blob_data, gi4.a, afp(sum3.r));
+                if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.a + 1, afp(sum3.g));
+                if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.a + 2, afp(sum3.b));
+                if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.a + 3, afp(sum3.a));
             }
         }
     }
