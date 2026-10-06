@@ -235,9 +235,12 @@ int Tile_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     const int gather_elempack = outdims == dims ? elempack : 1;
 
     int out_elempack;
-    if (outdims == 1) out_elempack = outw % 4 == 0 ? 4 : 1;
-    else if (outdims == 2) out_elempack = outh % 4 == 0 ? 4 : 1;
-    else out_elempack = outc % 4 == 0 ? 4 : 1; // if (outdims == 3 || outdims == 4)
+    if (outdims == 1)
+        out_elempack = outw % 4 == 0 ? 4 : 1;
+    else if (outdims == 2)
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    else
+        out_elempack = outc % 4 == 0 ? 4 : 1; // if (outdims == 3 || outdims == 4)
 
     // unpacking
     VkMat bottom_blob_gathered = bottom_blob;
