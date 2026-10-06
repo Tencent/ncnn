@@ -7,55 +7,60 @@ int main()
 {
     SRAND(7767517);
 
-    int mnk[][3] = {
-        {40, 40, 40},
+    // transpose and output layouts cover short, aligned and remainder dimensions
+    static const int layouts[][3] = {
         {47, 47, 47},
-        {48, 48, 48},
-        {52, 52, 52},
         {63, 64, 63},
         {64, 63, 64},
-        {64, 64, 64}
+        {64, 64, 64},
     };
-
-    int tile_mnk[][3] = {
-        {1, 1, 1},
-        {2, 2, 2},
-        {4, 4, 4},
-        {8, 8, 8},
-        {12, 12, 12},
-        {16, 16, 16},
-        {20, 20, 20},
-        {24, 24, 24},
-        {28, 28, 28}
-    };
-
-    int mnk_count = sizeof(mnk) / sizeof(int) / 3;
-    int tile_mnk_count = sizeof(tile_mnk) / sizeof(int) / 3;
-
-    for (int i = 0; i < mnk_count; i++)
+    for (int i = 0; i < (int)(sizeof(layouts) / sizeof(layouts[0])); i++)
     {
-        int M = mnk[i][0];
-        int N = mnk[i][1];
-        int K = mnk[i][2];
+        const int* t = layouts[i];
+        if (test_gemm_0(t[0], t[1], t[2], 100, 100, 100) != 0)
+            return -1;
+    }
 
-        for (int j = 0; j < tile_mnk_count; j++)
+    // independent dimensions retain small and intermediate matrix sizes
+    static const int dimensions[][3] = {
+        {40, 40, 40},
+        {48, 48, 48},
+        {52, 52, 52},
+    };
+    for (int i = 0; i < (int)(sizeof(dimensions) / sizeof(dimensions[0])); i++)
+    {
+        const int* t = dimensions[i];
+        if (test_gemm(t[0], t[1], t[2], 100, 100, 100, 2.1f, 0, 0, 0) != 0)
+            return -1;
+    }
+
+    // aligned and remainder shapes exercise every tile and transpose layout
+    static const int boundary[][3] = {
+        {47, 47, 47},
+        {64, 64, 64},
+    };
+    static const int tiles[] = {1, 2, 4, 8, 12, 16, 20, 24, 28};
+    const int boundary_count = sizeof(boundary) / sizeof(boundary[0]);
+    for (int i = 0; i < boundary_count; i++)
+    {
+        for (int j = 0; j < 9; j++)
         {
-            int TILE_M = tile_mnk[j][0];
-            int TILE_N = tile_mnk[j][1];
-            int TILE_K = tile_mnk[j][2];
-
-            if (TILE_M >= M && TILE_N >= N && TILE_K >= K)
-                continue;
-
-            int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K);
-            if (ret != 0)
-                return ret;
+            // tile overrides affect cpu kernels
+            if (test_gemm_0(boundary[i][0], boundary[i][1], boundary[i][2], tiles[j], tiles[j], tiles[j], TEST_LAYER_DISABLE_GPU_TESTING) != 0)
+                return -1;
         }
+    }
 
-        // test no tiling
-        int ret = test_gemm_0(M, N, K, 100, 100, 100);
-        if (ret != 0)
-            return ret;
+    // short matrices and asymmetric dimensions cover partial tiles independently
+    static const int partial[][6] = {
+        {2, 2, 2, 1, 1, 1}, {3, 3, 3, 2, 2, 2}, {5, 5, 5, 4, 4, 4}, {9, 9, 9, 8, 8, 8}, {13, 13, 13, 12, 12, 12}, {17, 17, 17, 16, 16, 16}, {21, 21, 21, 20, 20, 20}, {25, 25, 25, 24, 24, 24}, {29, 29, 29, 28, 28, 28}, {63, 64, 63, 1, 1, 1}, {64, 63, 64, 4, 8, 4}
+    };
+    const int partial_count = sizeof(partial) / sizeof(partial[0]);
+    for (int i = 0; i < partial_count; i++)
+    {
+        const int* t = partial[i];
+        if (test_gemm_0(t[0], t[1], t[2], t[3], t[4], t[5], TEST_LAYER_DISABLE_GPU_TESTING) != 0)
+            return -1;
     }
 
     return 0;

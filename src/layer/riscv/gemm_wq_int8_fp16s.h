@@ -4,7 +4,9 @@
 // K-major, row-interleaved MR-packn/MR2/MR1
 static void quantize_A_tile_wq_int8_fp16s(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
+#if __riscv_vector && __riscv_zvfh
     const int elempack = A.elempack;
+#endif // __riscv_vector && __riscv_zvfh
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
     const int local_block_count = (max_kk + block_size - 1) / block_size;
