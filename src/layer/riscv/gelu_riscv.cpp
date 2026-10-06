@@ -82,16 +82,16 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                auto _p = __riscv_vle32_v_f32m8(ptr, vl);
-                auto _perfc = __riscv_vfmul_vf_f32m8(_p, -.70710678f, vl);
-                _p = __riscv_vfmul_vf_f32m8(_p, .5f, vl);
+                size_t vl = __riscv_vsetvl_e32m4(n);
+                auto _p = __riscv_vle32_v_f32m4(ptr, vl);
+                auto _perfc = __riscv_vfmul_vf_f32m4(_p, -.70710678f, vl);
+                _p = __riscv_vfmul_vf_f32m4(_p, .5f, vl);
                 // y = x * P(X <= x) where X ~ N(0, 1)
 
                 _perfc = erfc_ps(_perfc, vl);
 
-                _p = __riscv_vfmul_vv_f32m8(_p, _perfc, vl);
-                __riscv_vse32_v_f32m8(ptr, _p, vl);
+                _p = __riscv_vfmul_vv_f32m4(_p, _perfc, vl);
+                __riscv_vse32_v_f32m4(ptr, _p, vl);
 
                 n -= vl;
                 ptr += vl;

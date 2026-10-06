@@ -77,21 +77,21 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e16m4(n);
-                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+                size_t vl = __riscv_vsetvl_e16m2(n);
+                vfloat16m2_t _p = __riscv_vle16_v_f16m2(ptr, vl);
 
                 // y = 0.5 * x * erfc(-x / sqrt(2))
                 // convert to float32 for erfc
-                vfloat32m8_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m8(_p, vl);
-                vfloat32m8_t _perfc_f32 = __riscv_vfmul_vf_f32m8(_p_f32, -0.70710678f, vl);
-                _p_f32 = __riscv_vfmul_vf_f32m8(_p_f32, 0.5f, vl);
+                vfloat32m4_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m4(_p, vl);
+                vfloat32m4_t _perfc_f32 = __riscv_vfmul_vf_f32m4(_p_f32, -0.70710678f, vl);
+                _p_f32 = __riscv_vfmul_vf_f32m4(_p_f32, 0.5f, vl);
 
                 _perfc_f32 = erfc_ps(_perfc_f32, vl);
 
-                _p_f32 = __riscv_vfmul_vv_f32m8(_p_f32, _perfc_f32, vl);
-                _p = __riscv_vfncvt_f_f_w_f16m4(_p_f32, vl);
+                _p_f32 = __riscv_vfmul_vv_f32m4(_p_f32, _perfc_f32, vl);
+                _p = __riscv_vfncvt_f_f_w_f16m2(_p_f32, vl);
 
-                __riscv_vse16_v_f16m4(ptr, _p, vl);
+                __riscv_vse16_v_f16m2(ptr, _p, vl);
                 n -= vl;
                 ptr += vl;
             }
