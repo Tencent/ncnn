@@ -30,8 +30,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    inputs = (torch.rand(128), torch.rand(1, 128), torch.rand(1, 1, 128))
-    inputs2 = (torch.rand(160), torch.rand(1, 160), torch.rand(1, 1, 160))
+    inputs = (torch.rand(128), torch.rand(1, 128), torch.rand(2, 3, 128))
+    inputs2 = (torch.rand(160), torch.rand(1, 160), torch.rand(2, 3, 160))
 
     # export torchscript
     mod = torch.jit.trace(net, inputs)
@@ -39,7 +39,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    if os.system("../../src/pnnx test_torchaudio_MelSpectrogram.pt inputshape=[128],[1,128],[1,1,128] inputshape2=[160],[1,160],[1,1,160] fp16=0") != 0:
+    if os.system("../../src/pnnx test_torchaudio_MelSpectrogram.pt inputshape=[128],[1,128],[2,3,128] inputshape2=[160],[1,160],[2,3,160] fp16=0") != 0:
         return False
 
     # ncnn inference

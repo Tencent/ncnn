@@ -248,6 +248,34 @@ static bool is_layout_transparent_op(const Operator* op)
     return is_identity_op(op) || is_elementwise_op(op) || is_layout_op(op);
 }
 
+static int get_layout_batch_axis(const Operator* op, int batch_axis)
+{
+    if (batch_axis == 233)
+        return 233;
+
+    const int rank = (int)op->inputs[0]->shape.size();
+    if (op->type == "Tensor.permute")
+    {
+        const std::vector<int>& dims = op->params.at("dims").ai;
+        for (int i = 0; i < (int)dims.size(); i++)
+        {
+            if (normalize_axis(dims[i], rank) == batch_axis)
+                return i;
+        }
+    }
+    if (op->type == "torch.transpose" || op->type == "torch.t")
+    {
+        const int dim0 = op->type == "torch.t" ? 0 : normalize_axis(op->params.at("dim0").i, rank);
+        const int dim1 = op->type == "torch.t" ? 1 : normalize_axis(op->params.at("dim1").i, rank);
+        if (batch_axis == dim0)
+            return dim1;
+        if (batch_axis == dim1)
+            return dim0;
+    }
+
+    return batch_axis;
+}
+
 static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, const Operand* r)
 {
     if (op->type == "pnnx.Output")
@@ -260,6 +288,9 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
         return get_ncnn_batch_axis(r);
 
     if ((op->type == "Tensor.slice" || op->type == "Tensor.select") && input_index != 0)
+        return get_ncnn_batch_axis(r);
+
+    if (op->type == "torchaudio.functional.spectrogram" && input_index == 0)
         return get_ncnn_batch_axis(r);
 
     if (op->type == "F.scaled_dot_product_attention")
@@ -472,7 +503,7 @@ void convert_batch_layout(Graph& graph)
         {
             const int batch_axis = op->inputs.empty() ? default_ncnn_batch_axis(get_batch_index(batch_indices, op->outputs[0])) : get_ncnn_batch_axis(op->inputs[0]);
             for (Operand* r : op->outputs)
-                set_ncnn_batch_axis(r, batch_axis == 233 ? 233 : get_batch_index(batch_indices, r));
+                set_ncnn_batch_axis(r, get_layout_batch_axis(op, batch_axis));
         }
         else if (is_layout_transparent_op(op))
         {
@@ -610,6 +641,11 @@ void convert_batch_layout(Graph& graph)
                 set_ncnn_batch_axis(r, batch_axis);
         }
         else if (is_binary_eltwise_op(op))
+        {
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_axis(r, default_ncnn_batch_axis(get_batch_index(batch_indices, r)));
+        }
+        else if (op->type == "torchaudio.functional.spectrogram")
         {
             for (Operand* r : op->outputs)
                 set_ncnn_batch_axis(r, default_ncnn_batch_axis(get_batch_index(batch_indices, r)));

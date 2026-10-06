@@ -257,6 +257,7 @@ endif()
 
 pnnx_ncnn_add_test(torchaudio_F_inverse_spectrogram)
 pnnx_ncnn_add_test(torchaudio_F_spectrogram)
+pnnx_ncnn_add_test(torchaudio_F_spectrogram_batch)
 pnnx_ncnn_add_test(torchaudio_InverseSpectrogram)
 pnnx_ncnn_add_test(torchaudio_MelSpectrogram)
 pnnx_ncnn_add_test(torchaudio_Spectrogram)

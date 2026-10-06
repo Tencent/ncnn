@@ -254,9 +254,34 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class torchaudio_F_spectrogram_reshape_4 : public torchaudio_F_spectrogram_reshape
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+13 12
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+pnnx.Input              input_3     0 1 leading0
+pnnx.Input              input_4     0 1 leading1
+pnnx.Input              input_5     0 1 leading2
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.size             freq        1 1 spec freq_size dim=1
+Tensor.size             time        1 1 spec time_size dim=2
+prim::ListConstruct     shape       5 1 leading0 leading1 leading2 freq_size time_size unpacked_shape
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_1, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_2, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_3, 140)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_4, 140)
 
 class torchaudio_F_spectrogram_1 : public GraphRewriterPass
 {
