@@ -71,7 +71,7 @@ int Scale_riscv::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Optio
                 n -= vl;
             }
         }
-#else  // __riscv_vector
+#else // __riscv_vector
         int w = bottom_top_blob.w;
         if (bias_term)
         {
