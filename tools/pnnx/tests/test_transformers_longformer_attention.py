@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import LongformerConfig
 from transformers.models.longformer.modeling_longformer import LongformerAttention
 
+import transformers
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -21,7 +23,10 @@ class Model(nn.Module):
 
     def forward(self, x, mask0):
         is_index_masked = mask0 < 0
-        out0 = self.attn0(x, attention_mask=mask0, layer_head_mask=None, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
+        if version.parse(transformers.__version__) < version.parse('5.0'):
+            out0 = self.attn0(x, attention_mask=mask0, layer_head_mask=None, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
+        else:
+            out0 = self.attn0(x, attention_mask=mask0, is_index_masked=is_index_masked, is_index_global_attn=None, is_global_attn=None)
         return out0[0],
 
 def test():

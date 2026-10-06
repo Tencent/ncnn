@@ -183,10 +183,13 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("num_threads", &Option::num_threads)
     .def_readwrite("blob_allocator", &Option::blob_allocator)
     .def_readwrite("workspace_allocator", &Option::workspace_allocator)
+    .def_readwrite("kvcache_allocator", &Option::kvcache_allocator)
+    .def_readwrite("kvcache_max_seqlen_hint", &Option::kvcache_max_seqlen_hint)
 #if NCNN_VULKAN
     .def_readwrite("blob_vkallocator", &Option::blob_vkallocator)
     .def_readwrite("workspace_vkallocator", &Option::workspace_vkallocator)
     .def_readwrite("staging_vkallocator", &Option::staging_vkallocator)
+    .def_readwrite("kvcache_vkallocator", &Option::kvcache_vkallocator)
     //.def_readwrite("pipeline_cache", &Option::pipeline_cache)
 #endif // NCNN_VULKAN
     .def_readwrite("openmp_blocktime", &Option::openmp_blocktime)
@@ -962,6 +965,8 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
+    .def("set_kvcache_allocator", &Extractor::set_kvcache_allocator, py::arg("allocator"))
+    .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen_hint"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
     .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
@@ -969,6 +974,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_name"), py::arg("type") = 0)
@@ -979,6 +987,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_index"), py::arg("type") = 0);

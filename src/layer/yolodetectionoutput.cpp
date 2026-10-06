@@ -3,6 +3,8 @@
 
 #include "yolodetectionoutput.h"
 
+#include <limits.h>
+
 #include "layer_type.h"
 
 namespace ncnn {
@@ -11,6 +13,7 @@ YoloDetectionOutput::YoloDetectionOutput()
 {
     one_blob_only = false;
     support_inplace = true;
+    softmax = 0;
 }
 
 int YoloDetectionOutput::load_param(const ParamDict& pd)
@@ -20,6 +23,58 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
     confidence_threshold = pd.get(2, 0.01f);
     nms_threshold = pd.get(3, 0.45f);
     biases = pd.get(4, Mat());
+
+#if NCNN_VALIDATION
+    // reject nan thresholds while preserving infinite cutoffs
+    unsigned int confidence_bits;
+    unsigned int nms_bits;
+    memcpy(&confidence_bits, &confidence_threshold, sizeof(confidence_bits));
+    memcpy(&nms_bits, &nms_threshold, sizeof(nms_bits));
+    if ((confidence_bits & 0x7fffffffu) > 0x7f800000u || (nms_bits & 0x7fffffffu) > 0x7f800000u)
+        return -1;
+
+    {
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
+            return -1;
+
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
+            return -1;
+    }
+
+    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || num_box > biases.w / 2)
+        return -1;
+
+    for (int i = 0; i < num_box * 2; i++)
+    {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(4) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)biases + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
+        const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[i] : biases[i];
+        if (bias <= 0.f)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
 
     return 0;
 }

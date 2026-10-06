@@ -6,7 +6,7 @@ layout(constant_id = 0) const int affine = 0;
 layout(constant_id = 1) const int affine_size = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout(binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer coeffs_blob { float coeffs_blob_data[]; };
 layout(binding = 2) readonly buffer gamma_blob { sfp gamma_data[]; };
 
 layout(push_constant) uniform parameter
@@ -30,15 +30,15 @@ void main()
     const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
     const int inner_id = q % affine_size;
 
-    afp a = buffer_ld1(coeffs_blob_data, group_id);
+    float a = coeffs_blob_data[group_id];
 
-    afp v = buffer_ld1(bottom_top_blob_data, gi);
+    float v = float(buffer_ld1(bottom_top_blob_data, gi));
     v = v * a; // v = v / sqrt(rms+eps)
 
     if (affine == 1)
     {
-        afp gamma = buffer_ld1(gamma_data, inner_id);
+        float gamma = float(buffer_ld1(gamma_data, inner_id));
         v = v * gamma;
     }
-    buffer_st1(bottom_top_blob_data, gi, v);
+    buffer_st1(bottom_top_blob_data, gi, afp(v));
 }
