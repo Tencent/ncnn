@@ -35,7 +35,8 @@ static int test_dequantize_pack8(const ncnn::Mat& a, int scale_data_size, int bi
     if (bias_data_size)
         weights[1] = RandomMat(bias_data_size);
 
-    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    // forced CPU pack8 does not change the Vulkan pack4 input
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
 #if !__riscv
     flag |= TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
 #endif

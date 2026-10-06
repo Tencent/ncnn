@@ -1542,11 +1542,13 @@ y = data
 | 1         | h             | int   | 0         |                   |
 | 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
-| 21        | load_type     | int   | 1         | 1=fp32            |
+| 21        | load_type     | int   | 1         | 1=fp32, 3=int8    |
 
-| weight        | type  | shape                 |
-| ------------- | ----- | --------------------- |
-| data          | float | [w, h, d, c]          |
+| weight        | type       | shape                 |
+| ------------- | ---------- | --------------------- |
+| data          | float/int8 | [w, h, d, c]          |
+
+For `load_type=3`, data consists of raw int8 bytes without a type tag, padded with zeros to a multiple of 4 bytes.
 
 # Mish
 ```
@@ -2217,6 +2219,7 @@ for each num_head part
 ```
 
 * input mat dims: q 3d; k 3d; v 3d; attn_mask optional 2d
+* attn_mask values must be finite; use a large negative value for masked positions and keep at least one key unmasked for each query
 * output mat dims: 3d
 
 | param id  | name          | type  | default   | description       |

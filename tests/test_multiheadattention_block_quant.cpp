@@ -236,8 +236,7 @@ static int test_multiheadattention_block_quant(const ncnn::ParamDict& pd, const 
     for (int t = 0; t < 2; t++)
     {
         std::vector<ncnn::Mat> outputs;
-        const int flags = TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0);
-        test_layer_cpu(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, opt, inputs, top_blob_count, outputs, std::vector<ncnn::Mat>(), flags);
+        test_layer_cpu(ncnn::layer_to_index("MultiHeadAttention"), pd, weights, opt, inputs, top_blob_count, outputs, std::vector<ncnn::Mat>(), TEST_LAYER_DISABLE_GPU_TESTING | (t ? TEST_LAYER_ENABLE_THREADING : 0));
         if (CompareMat(outputs, refs, 0.001f) != 0)
             return -1;
     }
@@ -482,11 +481,10 @@ static int test_multiheadattention_wq_int8_pipeline()
         mha->forward(inputs[i], outputs, opt_forward);
         if (CompareMat(outputs, reference[i], 0.001f) != 0)
             test_ret = -1;
-        for (int j = 0; j < 3; j++)
-        {
-            if (outputs[j].allocator != &blob_pool_allocator)
-                test_ret = -1;
-        }
+        if (outputs[0].allocator != &blob_pool_allocator)
+            test_ret = -1;
+        if (outputs[1].allocator || outputs[2].allocator)
+            test_ret = -1;
     }
 
     mha->destroy_pipeline(opt);

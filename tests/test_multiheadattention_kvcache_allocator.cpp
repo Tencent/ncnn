@@ -10,7 +10,7 @@
 
 #include <float.h>
 
-static int test_multiheadattention_kvcache_allocator(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, int qdim, int max_seqlen_hint)
+static int test_multiheadattention_kvcache_allocator(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, int qdim, int max_seqlen_hint, int use_kvcache_allocator)
 {
     ncnn::Layer* reference = ncnn::create_layer_naive("MultiHeadAttention");
     ncnn::Layer* op = ncnn::create_layer_cpu("MultiHeadAttention");
@@ -33,7 +33,7 @@ static int test_multiheadattention_kvcache_allocator(const ncnn::ParamDict& pd, 
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
-    opt.kvcache_allocator = &kvcache_allocator;
+    opt.kvcache_allocator = use_kvcache_allocator ? &kvcache_allocator : 0;
     opt.kvcache_max_seqlen_hint = max_seqlen_hint;
 
     int ret = reference->create_pipeline(reference_opt);
@@ -78,7 +78,7 @@ static int test_multiheadattention_kvcache_allocator(const ncnn::ParamDict& pd, 
 
         if (CompareMat(reference_tops[0], tops[0], 0.001) != 0)
             ret = -1;
-        if (tops[1].allocator != &kvcache_allocator || tops[2].allocator != &kvcache_allocator)
+        if (tops[1].allocator != opt.kvcache_allocator || tops[2].allocator != opt.kvcache_allocator)
             ret = -1;
 
         if (i == 0 || (i == 1 && max_seqlen_hint == 0))
@@ -139,8 +139,10 @@ static int test_multiheadattention_kvcache_allocator()
     weights[7] = RandomMat(qdim);
 
     return 0
-           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 0)
-           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 32);
+           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 0, 0)
+           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 32, 0)
+           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 0, 1)
+           || test_multiheadattention_kvcache_allocator(pd, weights, qdim, 32, 1);
 }
 
 #if NCNN_VULKAN

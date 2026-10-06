@@ -56,13 +56,28 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     kdim = pd.get(3, embed_dim);
     vdim = pd.get(4, embed_dim);
     attn_mask = pd.get(5, 0);
-    scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
     kv_cache = pd.get(7, 0);
     quantize_term = pd.get(18, 0);
+
+#if NCNN_VALIDATION
+    if (num_heads <= 0)
+        return -1;
+
+    if (embed_dim <= 0 || embed_dim % num_heads != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
+
+#if NCNN_VALIDATION
+    if (weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0 || kdim > INT_MAX / embed_dim || vdim > INT_MAX / embed_dim)
+        return -1;
+#endif // NCNN_VALIDATION
+
     int weight_bits;
     int block_size;
     bool has_input_scale;
-    weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
+    const bool is_weight_block_quantize = get_weight_block_quantize_params(weight_bits, block_size, has_input_scale) == 0;
 
     if (quantize_term == 4 || quantize_term == 5 || quantize_term == 6)
     {
@@ -70,27 +85,15 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
         return -1;
     }
 
-    if (quantize_term >= 400 && !weight_block_quantize)
+    if (quantize_term >= 400 && !is_weight_block_quantize)
     {
         NCNN_LOGE("MultiHeadAttention unsupported quantize_term %d", quantize_term);
         return -1;
     }
 
-    if (weight_block_quantize)
+    if (is_weight_block_quantize)
     {
-#if NCNN_WEIGHT_QUANT
-        if (embed_dim <= 0 || num_heads <= 0 || embed_dim % num_heads != 0 || weight_data_size <= 0 || weight_data_size % embed_dim != 0 || kdim <= 0 || vdim <= 0)
-        {
-            NCNN_LOGE("MultiHeadAttention unsupported weight block quantize");
-            return -1;
-        }
-
-        support_packing = false;
-        support_bf16_storage = false;
-        support_fp16_storage = false;
-        support_vulkan = false;
-        support_vulkan_packing = false;
-#else
+#if !NCNN_WEIGHT_QUANT
         NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
         return -1;
 #endif
@@ -101,6 +104,20 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
         NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
         return -1;
 #endif
+    }
+
+    weight_block_quantize = is_weight_block_quantize;
+
+    if (kv_cache)
+        support_batch = true;
+
+    if (weight_block_quantize)
+    {
+        support_packing = false;
+        support_bf16_storage = false;
+        support_fp16_storage = false;
+        support_vulkan = false;
+        support_vulkan_packing = false;
     }
 
     return 0;
@@ -249,18 +266,12 @@ int MultiHeadAttention::kvcache_capacity(int current_capacity, int new_seqlen, i
 
 int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache, int new_seqlen, int num_kv_head, int head_dim, size_t elemsize, int elempack, const Option& opt) const
 {
-    if (!cache.empty() && new_seqlen <= cache.h)
+    Allocator* allocator = opt.kvcache_allocator;
+    const bool reuse = !cache.empty() && cache.allocator == allocator;
+    const int current_capacity = reuse ? (int)(cache.cstep / cache.w) : 0;
+    if (reuse)
     {
-        new_cache = cache;
-        new_cache.h = new_seqlen;
-        return 0;
-    }
-
-    Allocator* allocator = opt.kvcache_allocator ? opt.kvcache_allocator : opt.blob_allocator;
-    if (opt.kvcache_allocator && !cache.empty() && cache.allocator == allocator)
-    {
-        const int capacity = (int)(cache.cstep / cache.w);
-        if (new_seqlen <= capacity)
+        if (new_seqlen <= current_capacity)
         {
             new_cache = cache;
             new_cache.h = new_seqlen;
@@ -268,12 +279,7 @@ int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache,
         }
     }
 
-    int capacity = new_seqlen > 0 ? new_seqlen : 1;
-    if (opt.kvcache_allocator)
-    {
-        const int current_capacity = cache.empty() ? 0 : (int)(cache.cstep / cache.w);
-        capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
-    }
+    int capacity = kvcache_capacity(current_capacity, new_seqlen, opt.kvcache_max_seqlen_hint);
 
     Mat m;
     m.create(head_dim, capacity, num_kv_head, elemsize, elempack, allocator);
@@ -301,6 +307,11 @@ int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache,
 // refers to https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {

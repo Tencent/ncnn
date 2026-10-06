@@ -16,6 +16,12 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
+#if ncnn_vendorID == 0x5143
+// adreno needs stride * 2 for these packed fp16 buffers
+#define coopMatLoad(m, buf, element, stride, layout)  coopMatLoad(m, buf, element, (stride) * 2, layout)
+#define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
+#endif
+
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
 layout(constant_id = 2) const int transA = 0;
@@ -74,23 +80,51 @@ const uint Md4 = M / 4;
 const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 
-// avoid bank conflict
-#if ncnn_VK_KHR_cooperative_matrix
-#define PAD 1
-#elif ncnn_VK_NV_cooperative_matrix
-// fixme: pad causes incorrect result on old driver
-#define PAD 0
-#endif
-
-const uint Md4p = Md4 + PAD;
-const uint Nd4p = Nd4 + PAD;
-const uint Kd4p = Kd4 + PAD;
-
 // cannot alias output with a and b
 // cm store may happen while another subgroup is loading
-shared uvec2 tmp_a[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * (M * Kd4p > K * Md4p ? M * Kd4p : K * Md4p)];
-shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * (K * Nd4p > N * Kd4p ? K * Nd4p : N * Kd4p)];
+#if ncnn_vendorID == 0x5143
+// avoid specialization select in shared array lengths on adreno
+// max(x, y) = x - ((x - y) & ((x - y) >> 31)) for these small tile sizes
+const int tmp_a_size_diff = int(M * Kd4) - int(K * Md4);
+const int tmp_b_size_diff = int(K * Nd4) - int(N * Kd4);
+const uint tmp_a_size = M * Kd4 - uint(tmp_a_size_diff & (tmp_a_size_diff >> 31));
+const uint tmp_b_size = K * Nd4 - uint(tmp_b_size_diff & (tmp_b_size_diff >> 31));
+
+shared uvec2 tmp_a[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * tmp_a_size];
+shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * tmp_b_size];
+#else
+shared uvec2 tmp_a[UNROLL_WG_M][UNROLL_SG_K * UNROLL_SG_M * (M * Kd4 > K * Md4 ? M * Kd4 : K * Md4)];
+shared uvec2 tmp_b[UNROLL_WG_N][UNROLL_SG_K * UNROLL_SG_N * (K * Nd4 > N * Kd4 ? K * Nd4 : N * Kd4)];
+#endif
 shared uvec2 tmp_o[UNROLL_WG_N * UNROLL_WG_M][UNROLL_SG_N * UNROLL_SG_M * M * N / 4];
+
+// reorder k loads while preserving the cooperative matrix layout
+uint interleave_a_index(uint siq)
+{
+    if (UNROLL_SG_K == 1)
+        return siq;
+
+    const uint zk = siq / (Md4 * K * UNROLL_SG_M);
+    const uint zm = (siq / (Md4 * K)) % UNROLL_SG_M;
+    const uint i = (siq / Md4) % K;
+    const uint j = siq % Md4;
+    const uint ak = i * UNROLL_SG_K + zk;
+    return (((ak / K) * UNROLL_SG_M + zm) * K + ak % K) * Md4 + j;
+}
+
+// reorder k loads while preserving the cooperative matrix layout
+uint interleave_b_index(uint siq)
+{
+    if (UNROLL_SG_K == 1)
+        return siq;
+
+    const uint zk = siq / (Nd4 * K * UNROLL_SG_N);
+    const uint zn = (siq / (Nd4 * K)) % UNROLL_SG_N;
+    const uint j = (siq / Nd4) % K;
+    const uint i = siq % Nd4;
+    const uint bk = j * UNROLL_SG_K + zk;
+    return ((bk / K * UNROLL_SG_N + zn) * K + bk % K) * Nd4 + i;
+}
 
 void main()
 {
@@ -120,7 +154,12 @@ void main()
     //
 
     const uint wgi = gl_WorkGroupID.x;
+#if ncnn_vendorID == 0x5143
+    // keep the subgroup index consistent with the adreno lane index workaround
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
     const uint sgi = gl_SubgroupID;
+#endif
 
     const uint wgmm = (psc(GM) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (psc(GN) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
@@ -139,7 +178,12 @@ void main()
         return;
 
     const uint li = gl_LocalInvocationID.x;
+#if ncnn_vendorID == 0x5143
+    // adreno corrupts the subgroup invocation index in cooperative matrix shaders
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+#else
     const uint si = gl_SubgroupInvocationID;
+#endif
 
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
@@ -497,7 +541,7 @@ void main()
 
                             uvec2 v = uvec2(0);
 
-                            const uint gk = ki + zk * K + i;
+                            const uint gk = ki + i * UNROLL_SG_K + zk;
                             const uint gm = (mi + zm) * Md4 + j;
 
                             if (gk < psc(GK))
@@ -897,7 +941,7 @@ void main()
 
                             uvec2 v = uvec2(0);
 
-                            const uint gk = ki + zk * K + j;
+                            const uint gk = ki + j * UNROLL_SG_K + zk;
                             const uint gn = (ni + zn) * Nd4 + i;
 
                             if (gk < psc(GK))
@@ -944,7 +988,7 @@ void main()
                             const uint j = ij / Kd4;
                             const uint i = ij % Kd4;
 
-                            tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4 + i] = prefetch_tmp_a[q];
                         }
                     }
                 }
@@ -960,17 +1004,14 @@ void main()
                         {
                             if (psc(A_elempack) == 4)
                             {
-                                const uint i = siq / Md4;
-                                const uint j = siq % Md4;
-
-                                tmp_a[sgmi][i * Md4p + j] = prefetch_tmp_a[q];
+                                tmp_a[sgmi][interleave_a_index(siq)] = prefetch_tmp_a[q];
                             }
                             else
                             {
                                 const uint j = siq / Kd4;
                                 const uint i = siq % Kd4;
 
-                                tmp_a[sgmi][j * Kd4p + i] = prefetch_tmp_a[q];
+                                tmp_a[sgmi][j * Kd4 + i] = prefetch_tmp_a[q];
                             }
                         }
                     }
@@ -990,14 +1031,14 @@ void main()
                                 const uint j = siq / Kd4;
                                 const uint i = siq % Kd4;
 
-                                tmp_a[sgmi][j * Kd4p + i] = prefetch_tmp_a[q];
+                                tmp_a[sgmi][j * Kd4 + i] = prefetch_tmp_a[q];
                             }
                             else
                             {
                                 const uint i = siq / Md4;
                                 const uint j = siq % Md4;
 
-                                tmp_a[sgmi][i * Md4p + j] = prefetch_tmp_a[q];
+                                tmp_a[sgmi][i * Md4 + j] = prefetch_tmp_a[q];
                             }
                         }
                     }
@@ -1021,7 +1062,7 @@ void main()
                             const uint i = ij / Nd4;
                             const uint j = ij % Nd4;
 
-                            tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = prefetch_tmp_b[q];
+                            tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4 + j] = prefetch_tmp_b[q];
                         }
                     }
                 }
@@ -1040,14 +1081,14 @@ void main()
                                 const uint i = siq / Kd4;
                                 const uint j = siq % Kd4;
 
-                                tmp_b[sgni][i * Kd4p + j] = prefetch_tmp_b[q];
+                                tmp_b[sgni][i * Kd4 + j] = prefetch_tmp_b[q];
                             }
                             else
                             {
                                 const uint i = siq / Nd4;
                                 const uint j = siq % Nd4;
 
-                                tmp_b[sgni][i * Nd4p + j] = prefetch_tmp_b[q];
+                                tmp_b[sgni][i * Nd4 + j] = prefetch_tmp_b[q];
                             }
                         }
                     }
@@ -1064,17 +1105,14 @@ void main()
                         {
                             if (psc(B_elempack) == 4)
                             {
-                                const uint j = siq / Nd4;
-                                const uint i = siq % Nd4;
-
-                                tmp_b[sgni][j * Nd4p + i] = prefetch_tmp_b[q];
+                                tmp_b[sgni][interleave_b_index(siq)] = prefetch_tmp_b[q];
                             }
                             else
                             {
                                 const uint j = siq / Kd4;
                                 const uint i = siq % Kd4;
 
-                                tmp_b[sgni][j * Kd4p + i] = prefetch_tmp_b[q];
+                                tmp_b[sgni][j * Kd4 + i] = prefetch_tmp_b[q];
                             }
                         }
                     }
@@ -1212,7 +1250,7 @@ void main()
 
                                 uvec2 v = uvec2(0);
 
-                                const uint gk = ki + zk * K + i;
+                                const uint gk = ki + i * UNROLL_SG_K + zk;
                                 const uint gm = (mi + zm) * Md4 + j;
 
                                 if (gk < psc(GK))
@@ -1611,7 +1649,7 @@ void main()
 
                                 uvec2 v = uvec2(0);
 
-                                const uint gk = ki + zk * K + j;
+                                const uint gk = ki + j * UNROLL_SG_K + zk;
                                 const uint gn = (ni + zn) * Nd4 + i;
 
                                 if (gk < psc(GK))
@@ -1652,9 +1690,9 @@ void main()
                     if (constantA == 1)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                     }
                     else if (transA == 0)
@@ -1662,17 +1700,17 @@ void main()
                         if (psc(A_elempack) == 4)
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                         }
                         else
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                         }
                     }
@@ -1681,17 +1719,17 @@ void main()
                         if (psc(A_elempack) == 4)
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                         }
                         else
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                            coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                            coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                         }
                     }
@@ -1702,9 +1740,16 @@ void main()
                     if (constantB == 1)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                     }
                     else if (transB == 0)
@@ -1712,17 +1757,31 @@ void main()
                         if (psc(B_elempack) == 4)
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                         }
                         else
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                         }
                     }
@@ -1731,22 +1790,38 @@ void main()
                         if (psc(B_elempack) == 4)
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                         }
                         else
                         {
 #if ncnn_VK_KHR_cooperative_matrix
-                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                            coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                            // adreno driver must consume the matrix before merging layout branches
+                            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                            {
+                                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                            }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                            coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                         }
                     }
                 }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
                 // sum += k * v
                 [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
                 {
@@ -1759,6 +1834,7 @@ void main()
 #endif
                     }
                 }
+#endif
             }
         }
 
@@ -1783,7 +1859,7 @@ void main()
                         const uint j = ij / Kd4;
                         const uint i = ij % Kd4;
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = prefetch_tmp_a[q];
+                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4 + i] = prefetch_tmp_a[q];
                     }
                 }
             }
@@ -1799,17 +1875,14 @@ void main()
                     {
                         if (psc(A_elempack) == 4)
                         {
-                            const uint i = siq / Md4;
-                            const uint j = siq % Md4;
-
-                            tmp_a[sgmi][i * Md4p + j] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][interleave_a_index(siq)] = prefetch_tmp_a[q];
                         }
                         else
                         {
                             const uint j = siq / Kd4;
                             const uint i = siq % Kd4;
 
-                            tmp_a[sgmi][j * Kd4p + i] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][j * Kd4 + i] = prefetch_tmp_a[q];
                         }
                     }
                 }
@@ -1829,14 +1902,14 @@ void main()
                             const uint j = siq / Kd4;
                             const uint i = siq % Kd4;
 
-                            tmp_a[sgmi][j * Kd4p + i] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][j * Kd4 + i] = prefetch_tmp_a[q];
                         }
                         else
                         {
                             const uint i = siq / Md4;
                             const uint j = siq % Md4;
 
-                            tmp_a[sgmi][i * Md4p + j] = prefetch_tmp_a[q];
+                            tmp_a[sgmi][i * Md4 + j] = prefetch_tmp_a[q];
                         }
                     }
                 }
@@ -1860,7 +1933,7 @@ void main()
                         const uint i = ij / Nd4;
                         const uint j = ij % Nd4;
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = prefetch_tmp_b[q];
+                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4 + j] = prefetch_tmp_b[q];
                     }
                 }
             }
@@ -1879,14 +1952,14 @@ void main()
                             const uint i = siq / Kd4;
                             const uint j = siq % Kd4;
 
-                            tmp_b[sgni][i * Kd4p + j] = prefetch_tmp_b[q];
+                            tmp_b[sgni][i * Kd4 + j] = prefetch_tmp_b[q];
                         }
                         else
                         {
                             const uint i = siq / Nd4;
                             const uint j = siq % Nd4;
 
-                            tmp_b[sgni][i * Nd4p + j] = prefetch_tmp_b[q];
+                            tmp_b[sgni][i * Nd4 + j] = prefetch_tmp_b[q];
                         }
                     }
                 }
@@ -1903,17 +1976,14 @@ void main()
                     {
                         if (psc(B_elempack) == 4)
                         {
-                            const uint j = siq / Nd4;
-                            const uint i = siq % Nd4;
-
-                            tmp_b[sgni][j * Nd4p + i] = prefetch_tmp_b[q];
+                            tmp_b[sgni][interleave_b_index(siq)] = prefetch_tmp_b[q];
                         }
                         else
                         {
                             const uint j = siq / Kd4;
                             const uint i = siq % Kd4;
 
-                            tmp_b[sgni][j * Kd4p + i] = prefetch_tmp_b[q];
+                            tmp_b[sgni][j * Kd4 + i] = prefetch_tmp_b[q];
                         }
                     }
                 }
@@ -1942,9 +2012,9 @@ void main()
                 if (constantA == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                 }
                 else if (transA == 0)
@@ -1952,17 +2022,17 @@ void main()
                     if (psc(A_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                     }
                 }
@@ -1971,17 +2041,17 @@ void main()
                     if (psc(A_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                 }
@@ -1992,9 +2062,16 @@ void main()
                 if (constantB == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                 }
                 else if (transB == 0)
@@ -2002,17 +2079,31 @@ void main()
                     if (psc(B_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                     }
                 }
@@ -2021,22 +2112,38 @@ void main()
                     if (psc(B_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                     }
                 }
             }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
             // sum += k * v
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
@@ -2049,6 +2156,7 @@ void main()
 #endif
                 }
             }
+#endif
         }
     }
     else if (kk >= UNROLL_SG_K)
@@ -2077,7 +2185,7 @@ void main()
                     const uint j = ij / Kd4;
                     const uint i = ij % Kd4;
 
-                    tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = A_blob_data[A_offset + siq];
+                    tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4 + i] = A_blob_data[A_offset + siq];
                 }
             }
         }
@@ -2166,7 +2274,7 @@ void main()
                             }
                         }
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = v;
+                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -2189,7 +2297,7 @@ void main()
 
                         uvec2 v = uvec2(0);
 
-                        const uint gk = ki + zk * K + i;
+                        const uint gk = ki + i * UNROLL_SG_K + zk;
                         const uint gm = (mi + zm) * Md4 + j;
 
                         if (gk < psc(GK))
@@ -2203,7 +2311,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * K + i) * Md4p + j] = v;
+                        tmp_a[sgmi][interleave_a_index(siq)] = v;
                     }
                 }
             }
@@ -2293,7 +2401,7 @@ void main()
                             }
                         }
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * K + i) * Md4p + j] = v;
+                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * K + i) * Md4 + j] = v;
                     }
                 }
             }
@@ -2330,7 +2438,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = v;
+                        tmp_a[sgmi][((zk * UNROLL_SG_M + zm) * M + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -2356,7 +2464,7 @@ void main()
                     const uint i = ij / Nd4;
                     const uint j = ij % Nd4;
 
-                    tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = B_blob_data[B_offset + siq];
+                    tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4 + j] = B_blob_data[B_offset + siq];
                 }
             }
         }
@@ -2445,7 +2553,7 @@ void main()
                             }
                         }
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4p + j] = v;
+                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + i) * Nd4 + j] = v;
                     }
                 }
             }
@@ -2482,7 +2590,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * N + i) * Kd4p + j] = v;
+                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * N + i) * Kd4 + j] = v;
                     }
                 }
             }
@@ -2572,7 +2680,7 @@ void main()
                             }
                         }
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * N + j) * Kd4p + i] = v;
+                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * N + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -2595,7 +2703,7 @@ void main()
 
                         uvec2 v = uvec2(0);
 
-                        const uint gk = ki + zk * K + j;
+                        const uint gk = ki + j * UNROLL_SG_K + zk;
                         const uint gn = (ni + zn) * Nd4 + i;
 
                         if (gk < psc(GK))
@@ -2609,7 +2717,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_b[sgni][((zk * UNROLL_SG_N + zn) * K + j) * Nd4p + i] = v;
+                        tmp_b[sgni][interleave_b_index(siq)] = v;
                     }
                 }
             }
@@ -2637,9 +2745,9 @@ void main()
                 if (constantA == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                 }
                 else if (transA == 0)
@@ -2647,17 +2755,17 @@ void main()
                     if (psc(A_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                     }
                 }
@@ -2666,17 +2774,17 @@ void main()
                     if (psc(A_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Kd4 * M), Kd4, false);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4p * K), Md4p, true);
+                        coopMatLoadNV(A[zm], tmp_a[sgmi], (zk * UNROLL_SG_M + zm) * (Md4 * K), Md4, true);
 #endif
                     }
                 }
@@ -2687,9 +2795,16 @@ void main()
                 if (constantB == 1)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                 }
                 else if (transB == 0)
@@ -2697,17 +2812,31 @@ void main()
                     if (psc(B_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                     }
                 }
@@ -2716,22 +2845,38 @@ void main()
                     if (psc(B_elempack) == 4)
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4p * K), Nd4p, false);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Nd4 * K), Nd4, false);
 #endif
                     }
                     else
                     {
 #if ncnn_VK_KHR_cooperative_matrix
-                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                        coopMatLoad(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                        // adreno driver must consume the matrix before merging layout branches
+                        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                        {
+                            sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                        }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4p * N), Kd4p, true);
+                        coopMatLoadNV(B[zn], tmp_b[sgni], (zk * UNROLL_SG_N + zn) * (Kd4 * N), Kd4, true);
 #endif
                     }
                 }
             }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
             // sum += k * v
             [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             {
@@ -2744,6 +2889,7 @@ void main()
 #endif
                 }
             }
+#endif
         }
 
         k += UNROLL_SG_K;
@@ -2772,7 +2918,7 @@ void main()
                     const uint j = ij / Kd4;
                     const uint i = ij % Kd4;
 
-                    tmp_a[sgmi][(zm * M + j) * Kd4p + i] = A_blob_data[A_offset + siq];
+                    tmp_a[sgmi][(zm * M + j) * Kd4 + i] = A_blob_data[A_offset + siq];
                 }
             }
         }
@@ -2851,7 +2997,7 @@ void main()
                             }
                         }
 
-                        tmp_a[sgmi][(zm * M + j) * Kd4p + i] = v;
+                        tmp_a[sgmi][(zm * M + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -2886,7 +3032,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_a[sgmi][(zm * K + i) * Md4p + j] = v;
+                        tmp_a[sgmi][(zm * K + i) * Md4 + j] = v;
                     }
                 }
             }
@@ -2966,7 +3112,7 @@ void main()
                             }
                         }
 
-                        tmp_a[sgmi][(zm * K + i) * Md4p + j] = v;
+                        tmp_a[sgmi][(zm * K + i) * Md4 + j] = v;
                     }
                 }
             }
@@ -3001,7 +3147,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_a[sgmi][(zm * M + j) * Kd4p + i] = v;
+                        tmp_a[sgmi][(zm * M + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -3036,7 +3182,7 @@ void main()
                     const uint i = ij / Nd4;
                     const uint j = ij % Nd4;
 
-                    tmp_b[sgni][(zn * K + i) * Nd4p + j] = B_blob_data[B_offset + siq];
+                    tmp_b[sgni][(zn * K + i) * Nd4 + j] = B_blob_data[B_offset + siq];
                 }
             }
         }
@@ -3115,7 +3261,7 @@ void main()
                             }
                         }
 
-                        tmp_b[sgni][(zn * K + i) * Nd4p + j] = v;
+                        tmp_b[sgni][(zn * K + i) * Nd4 + j] = v;
                     }
                 }
             }
@@ -3150,7 +3296,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_b[sgni][(zn * N + i) * Kd4p + j] = v;
+                        tmp_b[sgni][(zn * N + i) * Kd4 + j] = v;
                     }
                 }
             }
@@ -3230,7 +3376,7 @@ void main()
                             }
                         }
 
-                        tmp_b[sgni][(zn * N + j) * Kd4p + i] = v;
+                        tmp_b[sgni][(zn * N + j) * Kd4 + i] = v;
                     }
                 }
             }
@@ -3265,7 +3411,7 @@ void main()
                             v = v & packed_mask;
                         }
 
-                        tmp_b[sgni][(zn * K + j) * Nd4p + i] = v;
+                        tmp_b[sgni][(zn * K + j) * Nd4 + i] = v;
                     }
                 }
             }
@@ -3291,9 +3437,9 @@ void main()
             if (constantA == 1)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, false);
+                coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, false);
 #endif
             }
             else if (transA == 0)
@@ -3301,17 +3447,17 @@ void main()
                 if (psc(A_elempack) == 4)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Md4p * K), Md4p, true);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Md4 * K), Md4, true);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, false);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, false);
 #endif
                 }
             }
@@ -3320,17 +3466,17 @@ void main()
                 if (psc(A_elempack) == 4)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4p * M), Kd4p, false);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Kd4 * M), Kd4, false);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Md4p * K), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(A[zm], tmp_a[sgmi], zm * (Md4 * K), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Md4p * K), Md4p, true);
+                    coopMatLoadNV(A[zm], tmp_a[sgmi], zm * (Md4 * K), Md4, true);
 #endif
                 }
             }
@@ -3341,9 +3487,16 @@ void main()
             if (constantB == 1)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                // adreno driver must consume the matrix before merging layout branches
+                [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                {
+                    sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
+                coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, false);
 #endif
             }
             else if (transB == 0)
@@ -3351,17 +3504,31 @@ void main()
                 if (psc(B_elempack) == 4)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, true);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4 * N), Kd4, true);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, false);
 #endif
                 }
             }
@@ -3370,22 +3537,38 @@ void main()
                 if (psc(B_elempack) == 4)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, gl_CooperativeMatrixLayoutRowMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4p * K), Nd4p, false);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Nd4 * K), Nd4, false);
 #endif
                 }
                 else
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatLoad(B[zn], tmp_b[sgni], zn * (Kd4 * N), Kd4, gl_CooperativeMatrixLayoutColumnMajor);
+#if ncnn_vendorID == 0x5143
+                    // adreno driver must consume the matrix before merging layout branches
+                    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                    {
+                        sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+                    }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
-                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4p * N), Kd4p, true);
+                    coopMatLoadNV(B[zn], tmp_b[sgni], zn * (Kd4 * N), Kd4, true);
 #endif
                 }
             }
         }
 
+// adreno already performs mul-add inside the B load branches
+#if ncnn_vendorID != 0x5143
         // sum += k * v
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
@@ -3398,6 +3581,7 @@ void main()
 #endif
             }
         }
+#endif
     }
 
     if (alpha != 1.f)
@@ -3424,6 +3608,12 @@ void main()
                     coopMatStore(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (Md4 * N), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #else
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+                    [[unroll]] for (uint i = 0; i < sum[zn][zm].length(); i++)
+                    {
+                        sum[zn][zm][i] = roundBFloat16(sum[zn][zm][i]);
+                    }
+#endif
                     coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
                     coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
@@ -3446,6 +3636,12 @@ void main()
                     coopMatStore(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (Nd4 * M), Nd4, gl_CooperativeMatrixLayoutRowMajor);
 #else
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+                    [[unroll]] for (uint i = 0; i < sum[zn][zm].length(); i++)
+                    {
+                        sum[zn][zm][i] = roundBFloat16(sum[zn][zm][i]);
+                    }
+#endif
                     coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
                     coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
@@ -3471,6 +3667,12 @@ void main()
                     coopMatStore(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (Nd4 * M), Nd4, gl_CooperativeMatrixLayoutRowMajor);
 #else
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+                    [[unroll]] for (uint i = 0; i < sum[zn][zm].length(); i++)
+                    {
+                        sum[zn][zm][i] = roundBFloat16(sum[zn][zm][i]);
+                    }
+#endif
                     coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
                     coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
@@ -3493,6 +3695,12 @@ void main()
                     coopMatStore(sum[zn][zm], tmp_o[sgi], (zn * UNROLL_SG_M + zm) * (Md4 * N), Md4, gl_CooperativeMatrixLayoutColumnMajor);
 #else
 #if NCNN_bf16_storage
+#if ncnn_vendorID == 0x1002
+                    [[unroll]] for (uint i = 0; i < sum[zn][zm].length(); i++)
+                    {
+                        sum[zn][zm][i] = roundBFloat16(sum[zn][zm][i]);
+                    }
+#endif
                     coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
                     coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);

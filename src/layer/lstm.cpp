@@ -3,6 +3,8 @@
 
 #include "lstm.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 LSTM::LSTM()
@@ -18,6 +20,19 @@ int LSTM::load_param(const ParamDict& pd)
     direction = pd.get(2, 0);
     hidden_size = pd.get(3, num_output);
     int8_scale_term = pd.get(8, 0);
+
+#if NCNN_VALIDATION
+    if (num_output <= 0 || hidden_size <= 0)
+        return -1;
+
+    const int num_directions = direction == 2 ? 2 : 1;
+    if (direction < 0 || direction > 2 || hidden_size > INT_MAX / 4 / num_directions)
+        return -1;
+
+    const int rows = hidden_size * 4 * num_directions;
+    if (weight_data_size <= 0 || weight_data_size % rows != 0 || num_output > INT_MAX / rows)
+        return -1;
+#endif // NCNN_VALIDATION
 
     if (int8_scale_term)
     {
