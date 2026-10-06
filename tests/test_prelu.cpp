@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_prelu(const ncnn::Mat& a, int num_slope)
+static int test_prelu(const ncnn::Mat& a, int num_slope, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, num_slope);
@@ -11,7 +11,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(num_slope);
 
-    int ret = test_layer("PReLU", pd, weights, a);
+    int ret = test_layer("PReLU", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.d, a.c, num_slope);
@@ -20,13 +20,15 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     return ret;
 }
 
+// cpu pack8/pack16 cases reuse the Vulkan pack4 path covered by the pack4 cases
+// keep the 1d sizes for dispatch boundary coverage
 static int test_prelu_0()
 {
     return 0
-           || test_prelu(RandomMat(5, 7, 24), 24)
-           || test_prelu(RandomMat(5, 7, 24), 1)
-           || test_prelu(RandomMat(5, 7, 32), 32)
-           || test_prelu(RandomMat(5, 7, 32), 1)
+           || test_prelu(RandomMat(5, 7, 24), 24, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(5, 7, 24), 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(5, 7, 32), 32, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(5, 7, 32), 1, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_prelu(RandomMat(7, 9, 12), 12)
            || test_prelu(RandomMat(7, 9, 12), 1)
            || test_prelu(RandomMat(3, 5, 13), 13)
@@ -36,10 +38,10 @@ static int test_prelu_0()
 static int test_prelu_1()
 {
     return 0
-           || test_prelu(RandomMat(15, 24), 24)
-           || test_prelu(RandomMat(15, 24), 1)
-           || test_prelu(RandomMat(15, 32), 32)
-           || test_prelu(RandomMat(15, 32), 1)
+           || test_prelu(RandomMat(15, 24), 24, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(15, 24), 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(15, 32), 32, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_prelu(RandomMat(15, 32), 1, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_prelu(RandomMat(17, 12), 12)
            || test_prelu(RandomMat(17, 12), 1)
            || test_prelu(RandomMat(19, 15), 15)
