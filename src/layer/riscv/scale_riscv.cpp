@@ -76,6 +76,7 @@ int Scale_riscv::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Optio
         if (bias_term)
         {
             const float* ptr_b = bias_data;
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 ptr[i] = ptr[i] * ptr_s[i] + ptr_b[i];
@@ -83,6 +84,7 @@ int Scale_riscv::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Optio
         }
         else
         {
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 ptr[i] *= ptr_s[i];
