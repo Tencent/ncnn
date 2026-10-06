@@ -1,0 +1,69 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfpvec4 src_blob_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfpvec4 dst_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+
+    int offset;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    // gy folds outd * outh when the blob is 4d
+    int yd = p.dims == 4 ? gy / p.outh : 0;
+    int yh = p.dims == 4 ? gy % p.outh : gy;
+
+    if (gx >= p.outw || yh >= p.outh || yd >= p.outd || gz >= p.outc)
+        return;
+
+    int si;
+    int gi;
+
+    if (p.dims == 1)
+    {
+        si = gx;
+        gi = gx;
+    }
+    else if (p.dims == 2)
+    {
+        si = yh * p.w + gx;
+        gi = yh * p.outw + gx;
+    }
+    else if (p.dims == 3)
+    {
+        si = gz * p.cstep + yh * p.w + gx;
+        gi = gz * p.outcstep + yh * p.outw + gx;
+    }
+    else // if (p.dims == 4)
+    {
+        si = gz * p.cstep + yd * p.h * p.w + yh * p.w + gx;
+        gi = gz * p.outcstep + yd * p.outh * p.outw + yh * p.outw + gx;
+    }
+
+    afpvec4 a = buffer_ld4(src_blob_data, si);
+    afpvec4 b = buffer_ld4(src_blob_data, si + p.offset);
+
+    afpvec4 res = a / (afpvec4(1.f) + exp(-b));
+    buffer_st4(dst_blob_data, gi, res);
+}
