@@ -413,12 +413,10 @@ static NCNN_FORCEINLINE void permute_transpose8x1_stride(const float* ptr, float
 
 static NCNN_FORCEINLINE void permute_transpose4x1_stride(const float* ptr, float* outptr, size_t outstride)
 {
-    __m128 _r0 = _mm_loadu_ps(ptr);
-    __m128 _v0 = _r0;
-    _mm_store_ss(outptr, _v0);
-    _mm_store_ss(outptr + outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(1, 1, 1, 1)));
-    _mm_store_ss(outptr + 2 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(2, 2, 2, 2)));
-    _mm_store_ss(outptr + 3 * outstride, _mm_shuffle_ps(_v0, _v0, _MM_SHUFFLE(3, 3, 3, 3)));
+    memcpy(outptr, ptr, sizeof(float));
+    memcpy(outptr + outstride, ptr + 1, sizeof(float));
+    memcpy(outptr + 2 * outstride, ptr + 2, sizeof(float));
+    memcpy(outptr + 3 * outstride, ptr + 3, sizeof(float));
 }
 
 static void permute_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride, int cols)
