@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_torch_unbind.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -88,7 +89,7 @@ void convert_torch_unbind(Graph& graph)
             {
                 Operand* out = op->outputs[i];
 
-                Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape" + std::to_string(i), op);
+                Operator* reshape = graph.new_operator_after("Reshape", op->name + "_ncnnreshape" + std::to_string(i), op);
 
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape" + std::to_string(i) + "_in");
 
@@ -101,16 +102,16 @@ void convert_torch_unbind(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
                 reshape_in->type = out->type;
-                reshape_in->shape = out->shape;
+                reshape_in->shape = op->inputs[0]->shape;
+                reshape_in->shape[axis0] = 1;
                 reshape_in->params["__batch_index"] = batch_index;
                 reshape_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
                 out->params["__batch_index"] = output_batch_index;
                 out->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
 
-                if (!out->shape.empty())
-                    reshape->params["shape"] = out->shape;
-                else
-                    reshape->params["shape"] = std::vector<int> {-1};
+                auto shape = logical_shape(reshape_in, 0);
+                shape.erase(shape.begin() + axis0);
+                write_reshape_shape(reshape, shape);
             }
 
             break;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_Tensor_slice.h"
+#include "reshape_shape.h"
 
 #include <algorithm>
 
@@ -147,6 +148,7 @@ void convert_Tensor_slice(Graph& graph)
             int input_rank0 = op->inputs[0]->shape.size();
             if (input_rank0 == 0 && !op->outputs.empty())
                 input_rank0 = op->outputs[0]->shape.size() + select_axis_indices.size();
+            std::vector<int> select_logical_axes;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
@@ -163,7 +165,10 @@ void convert_Tensor_slice(Graph& graph)
                 }
 
                 if (std::find(select_axis_indices.begin(), select_axis_indices.end(), i) != select_axis_indices.end())
+                {
                     select_count += 1;
+                    select_logical_axes.push_back(axes[i]);
+                }
 
                 if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
@@ -221,7 +226,7 @@ void convert_Tensor_slice(Graph& graph)
             {
                 Operand* out = op->outputs[0];
 
-                Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape", op);
+                Operator* reshape = graph.new_operator_after("Reshape", op->name + "_ncnnreshape", op);
 
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
@@ -237,10 +242,18 @@ void convert_Tensor_slice(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                if (!out->shape.empty())
-                    reshape->params["shape"] = out->shape;
-                else
-                    reshape->params["shape"] = std::vector<int> {-1};
+                reshape_in->type = out->type;
+                reshape_in->shape = out->shape;
+                std::sort(select_logical_axes.begin(), select_logical_axes.end());
+                if (reshape_in->shape.empty())
+                    reshape_in->shape.resize(input_rank0 - select_count, -1);
+                for (int axis : select_logical_axes)
+                    reshape_in->shape.insert(reshape_in->shape.begin() + axis, 1);
+
+                auto shape = logical_shape(reshape_in, 0);
+                for (auto it = select_logical_axes.rbegin(); it != select_logical_axes.rend(); ++it)
+                    shape.erase(shape.begin() + *it);
+                write_reshape_shape(reshape, shape);
             }
 
             break;

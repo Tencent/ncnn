@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -536,7 +537,15 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph, module_operators);
+        try
+        {
+            pnnx::pass_ncnn(pnnx_graph, module_operators);
+        }
+        catch (const std::runtime_error& e)
+        {
+            fprintf(stderr, "ncnn conversion failed: %s\n", e.what());
+            return -1;
+        }
 
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }

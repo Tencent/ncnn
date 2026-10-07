@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
-#include "batch_reshape.h"
+#include "reshape_shape.h"
+
+#include <stdexcept>
 
 namespace pnnx {
 
@@ -34,100 +36,32 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim = captured_params.at("dim").i;
-        std::vector<int> sizes = captured_params.at("sizes").ai;
+        const auto& sizes = captured_params.at("sizes").ai;
+        auto shape = logical_shape(op->inputs[0], 0);
+        if (dim < 0)
+            dim += (int)shape.size();
+        if (dim < 0 || dim >= (int)shape.size())
+            throw std::runtime_error("unflatten input rank is unknown");
 
-        const int input_rank = op->inputs[0]->shape.size();
-
-        if (dim < 0 && input_rank > 0)
-            dim += input_rank;
-
-        std::vector<int> shape = op->outputs[0]->shape;
-        if (shape.empty())
+        int infer_count = 0;
+        std::vector<std::string> known_sizes;
+        for (int size : sizes)
         {
-            const std::vector<int>& input_shape = op->inputs[0]->shape;
-            if (input_shape.empty())
-            {
-                fprintf(stderr, "unflatten tensor with unknown input shape is not supported yet, fallback to sizes\n");
-                shape = sizes;
-            }
+            if (size == -1)
+                infer_count++;
+            else if (size > 0)
+                known_sizes.push_back(std::to_string(size));
             else
-            {
-                shape.insert(shape.end(), input_shape.begin(), input_shape.begin() + dim);
-                shape.insert(shape.end(), sizes.begin(), sizes.end());
-                shape.insert(shape.end(), input_shape.begin() + dim + 1, input_shape.end());
-            }
+                throw std::runtime_error("unflatten sizes must be positive or inferred");
         }
-
-        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
-        const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
-        const bool batch_reshape = is_batch_reshape(op->inputs[0], op->outputs[0]);
-
-        std::vector<int> new_shape = shape;
-
-        if (new_shape.size() == 5 && output_ncnn_batch_axis == 233)
-        {
-            if (new_shape[0] == 1)
-            {
-                fprintf(stderr, "assume reshape 5-rank tensor has batch_index 0\n");
-                new_shape.erase(new_shape.begin());
-            }
-        }
-
-        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
-        {
-            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
-        }
-
-        int shape_rank = (int)new_shape.size();
-
-        if (shape_rank == 0)
-        {
-            fprintf(stderr, "unflatten to unknown-rank tensor is not supported yet, fallback to flatten\n");
-            new_shape.push_back(-1);
-            shape_rank = 1;
-        }
-
-        if (shape_rank == 1)
-        {
-            op->params["0"] = new_shape[0];
-        }
-        if (shape_rank == 2)
-        {
-            op->params["0"] = new_shape[1];
-            op->params["1"] = new_shape[0];
-        }
-        if (shape_rank == 3)
-        {
-            op->params["0"] = new_shape[2];
-            op->params["1"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
-        if (shape_rank == 4)
-        {
-            op->params["0"] = new_shape[3];
-            op->params["1"] = new_shape[2];
-            op->params["11"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
-        if (shape_rank >= 5)
-        {
-            if (shape_rank > 5 || (shape_rank == 5 && (output_ncnn_batch_axis == 233 || !batch_reshape)))
-                fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
-
-            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
-            for (int i = shape_rank - 2; i >= 0; i--)
-            {
-                shape_expr += ",";
-                shape_expr += std::to_string(new_shape[i]);
-            }
-            op->params["6"] = shape_expr;
-        }
-
-        if (batch_reshape)
-        {
-            op->params["12"] = input_ncnn_batch_axis;
-            op->params["13"] = output_ncnn_batch_axis;
-        }
+        if (infer_count > 1 || sizes.empty())
+            throw std::runtime_error("unflatten sizes require at most one infer dimension");
+        std::vector<std::string> expanded;
+        for (int size : sizes)
+            expanded.push_back(size == -1 ? shape_quotient(shape[dim], shape_product(known_sizes)) : std::to_string(size));
+        shape.erase(shape.begin() + dim);
+        shape.insert(shape.begin() + dim, expanded.begin(), expanded.end());
+        write_reshape_shape(op, shape);
     }
 };
 

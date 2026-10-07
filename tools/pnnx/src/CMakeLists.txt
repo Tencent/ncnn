@@ -591,6 +591,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ZeroPad2d.cpp
     pass_ncnn/Tensor_expand.cpp
     pass_ncnn/Tensor_permute.cpp
+    pass_ncnn/reshape_shape.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp

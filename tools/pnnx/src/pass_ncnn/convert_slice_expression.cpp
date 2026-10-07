@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_slice_expression.h"
+#include "reshape_shape.h"
 
 #include <algorithm>
 #include <stack>
@@ -614,8 +615,8 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
-            const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
             if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
             {
                 fprintf(stderr, "slice along batch axis %d is not supported\n", batch_index);
@@ -659,7 +660,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             {
                 Operand* out = op->outputs[0];
 
-                Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape", op);
+                Operator* reshape = graph.new_operator_after("Reshape", op->name + "_ncnnreshape", op);
 
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
@@ -675,7 +676,12 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape->params["shape"] = out->shape;
+                reshape_in->type = out->type;
+                reshape_in->shape = out->shape;
+                reshape_in->shape.insert(reshape_in->shape.begin() + dim, 1);
+                auto target = logical_shape(reshape_in, 0);
+                target.erase(target.begin() + dim);
+                write_reshape_shape(reshape, target);
             }
 
             break;
@@ -773,8 +779,8 @@ void convert_slice_expression_single_axis_select(Graph& graph)
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
-            const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
             if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
             {
                 fprintf(stderr, "select along batch axis %d is not supported\n", batch_index);
@@ -1157,6 +1163,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 references[op->inputs[0]] = reference_index++;
             }
 
+            std::vector<int> selected_axes;
             bool has_select = false;
 
             const size_t dims_count = dims.size();
@@ -1183,6 +1190,10 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 if (is_select)
                 {
                     has_select = true;
+                    int axis = dims[i];
+                    if (axis < 0)
+                        axis += (int)op->inputs[0]->shape.size();
+                    selected_axes.push_back(axis);
 
                     // simulate select as slice
                     for (size_t j = 0; j < select_tokens.size(); j++)
@@ -1301,8 +1312,8 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
             // change nchw annotation to w,h,c / w,h,d,c with batch index dropped
 
-            const int batch_index = op->outputs[0]->params["__batch_index"].i;
-            const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            const int batch_index = op->inputs[0]->params["__batch_index"].i;
+            const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
             std::string new_starts_expr;
             std::string new_ends_expr;
@@ -1377,7 +1388,7 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             {
                 Operand* out = op->outputs[0];
 
-                Operator* reshape = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape", op);
+                Operator* reshape = graph.new_operator_after("Reshape", op->name + "_ncnnreshape", op);
 
                 Operand* reshape_in = graph.new_operand(op->name + "_ncnnreshape_in");
 
@@ -1393,7 +1404,15 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape->params["shape"] = out->shape;
+                reshape_in->type = out->type;
+                reshape_in->shape = out->shape;
+                std::sort(selected_axes.begin(), selected_axes.end());
+                for (int axis : selected_axes)
+                    reshape_in->shape.insert(reshape_in->shape.begin() + axis, 1);
+                auto target = logical_shape(reshape_in, 0);
+                for (auto it = selected_axes.rbegin(); it != selected_axes.rend(); ++it)
+                    target.erase(target.begin() + *it);
+                write_reshape_shape(reshape, target);
             }
 
             break;

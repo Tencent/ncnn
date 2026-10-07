@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "insert_reshape_numpy_binaryop_broadcast.h"
-#include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -102,7 +102,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
 
             Operand* binaryop_lower_rank_in = op->inputs[binaryop_lower_rank_in_index];
 
-            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
+            Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
 
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
 
@@ -141,7 +141,19 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
             }
 
-            reshape0->params["shape"] = reshape0_shape;
+            reshape0_out->shape = reshape0_shape;
+            reshape0_out->type = binaryop_lower_rank_in->type;
+            auto target = logical_shape(binaryop_lower_rank_in, 0);
+            std::string batch;
+            if (lower_ncnn_batch_axis != 233)
+            {
+                batch = target[lower_ncnn_batch_axis];
+                target.erase(target.begin() + lower_ncnn_batch_axis);
+            }
+            target.insert(target.begin(), std::abs(input_rank0 - input_rank1), "1");
+            if (lower_ncnn_batch_axis != 233)
+                target.insert(target.begin() + lower_ncnn_batch_axis, batch);
+            write_reshape_shape(reshape0, target);
 
             break;
         }

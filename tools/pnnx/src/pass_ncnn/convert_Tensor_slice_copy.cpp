@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_Tensor_slice_copy.h"
+#include "reshape_shape.h"
 
 #include <algorithm>
 
@@ -229,7 +230,7 @@ void convert_Tensor_slice_copy(Graph& graph)
             {
                 Operand* in = op->inputs[1];
 
-                Operator* reshape = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape", op);
+                Operator* reshape = graph.new_operator_before("Reshape", op->name + "_ncnnreshape", op);
 
                 Operand* reshape_out = graph.new_operand(op->name + "_ncnnreshape_out");
 
@@ -247,6 +248,7 @@ void convert_Tensor_slice_copy(Graph& graph)
                 in->consumers.push_back(reshape);
 
                 std::vector<int> shape = in->shape;
+                auto target = logical_shape(in, 0);
                 for (auto si : selected_axis_indices)
                 {
                     // unsqueeze
@@ -257,12 +259,12 @@ void convert_Tensor_slice_copy(Graph& graph)
                         continue;
 
                     shape.insert(shape.begin() + sa, 1);
+                    target.insert(target.begin() + sa, "1");
                 }
 
-                if (!shape.empty())
-                    reshape->params["shape"] = shape;
-                else
-                    reshape->params["shape"] = std::vector<int> {-1};
+                reshape_out->shape = shape;
+                reshape_out->type = in->type;
+                write_reshape_shape(reshape, target);
             }
 
             break;

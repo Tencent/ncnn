@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "insert_reshape_linear.h"
-#include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -43,11 +43,8 @@ void insert_reshape_linear(Graph& graph)
             Operand* linear_in = op->inputs[0];
             Operand* linear_out = op->outputs[0];
 
-            const int batch_index = linear_in->params["__batch_index"].i;
-            const int ncnn_batch_axis = linear_in->params["__ncnn_batch_axis"].i;
-
-            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
-            Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
+            Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
+            Operator* reshape1 = graph.new_operator_after("Reshape", op->name + "_ncnnreshape1", op);
 
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
             Operand* reshape1_in = graph.new_operand(op->name + "_ncnnreshape1_in");
@@ -75,42 +72,36 @@ void insert_reshape_linear(Graph& graph)
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
 
-            reshape0_out->params["__batch_index"] = batch_index;
-            reshape1_in->params["__batch_index"] = batch_index;
-            reshape0_out->params["__ncnn_batch_axis"] = ncnn_batch_axis;
-            reshape1_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
-
-            int reshape_h = 1;
-            for (size_t j = 0; j < linear_in->shape.size() - 1; j++)
-            {
-                if (linear_in->shape[j] == -1)
-                {
-                    reshape_h = -1;
-                    break;
-                }
-                reshape_h *= linear_in->shape[j];
-            }
-
-            std::vector<int> reshape0_out_shape;
-            std::vector<int> reshape1_in_shape;
-            if (ncnn_batch_axis == 0)
-            {
-                reshape0_out_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
-                reshape1_in_shape = {1, reshape_h, linear_out->shape[input_rank - 1]};
-            }
-            else
-            {
-                reshape0_out_shape = {reshape_h, linear_in->shape[input_rank - 1]};
-                reshape1_in_shape = {reshape_h, linear_out->shape[input_rank - 1]};
-            }
-            std::vector<int> reshape1_out_shape = linear_out->shape;
-
-            reshape0->params["shape"] = reshape0_out_shape;
-            reshape1->params["shape"] = reshape1_out_shape;
+            // fold physical leading dimensions into rows and retain native batch
+            const int batch_axis = linear_in->params["__ncnn_batch_axis"].i;
+            const auto input_shape = logical_shape(linear_in, 0);
+            auto leading_shape = input_shape;
+            leading_shape.pop_back();
+            if (batch_axis != 233)
+                leading_shape.erase(leading_shape.begin() + batch_axis);
+            std::vector<std::string> folded_shape = {shape_product(leading_shape), input_shape.back()};
+            const int folded_batch_axis = batch_axis == 233 ? 233 : 0;
+            reshape0_out->params["__batch_index"] = folded_batch_axis;
+            reshape1_in->params["__batch_index"] = folded_batch_axis;
+            reshape0_out->params["__ncnn_batch_axis"] = folded_batch_axis;
+            reshape1_in->params["__ncnn_batch_axis"] = folded_batch_axis;
             reshape0_out->type = linear_in->type;
-            reshape0_out->shape = reshape0_out_shape;
             reshape1_in->type = linear_out->type;
-            reshape1_in->shape = reshape1_in_shape;
+            reshape0_out->shape = {-1, linear_in->shape.back()};
+            reshape1_in->shape = {-1, linear_out->shape.back()};
+            if (batch_axis != 233)
+            {
+                folded_shape.insert(folded_shape.begin(), input_shape[batch_axis]);
+                reshape0_out->shape.insert(reshape0_out->shape.begin(), linear_in->shape[batch_axis]);
+                reshape1_in->shape.insert(reshape1_in->shape.begin(), linear_in->shape[batch_axis]);
+            }
+            write_reshape_shape(reshape0, folded_shape);
+
+            reshape1->inputs.push_back(linear_in);
+            linear_in->consumers.push_back(reshape1);
+            auto output_shape = logical_shape(linear_in, 1);
+            output_shape.back() = std::to_string(linear_out->shape.back());
+            write_reshape_shape(reshape1, output_shape);
 
             break;
         }

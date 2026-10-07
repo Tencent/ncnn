@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "insert_reshape_pooling.h"
-#include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -30,8 +30,8 @@ void insert_reshape_pooling(Graph& graph)
             // nn.MaxPool3d    4d-5d-4d
             bool insert_reshape = false;
             if ((op->type == "nn.MaxPool1d" && input_rank == 2)
-                    || (op->type == "nn.MaxPool2d" && input_rank == 3)
-                    || (op->type == "nn.MaxPool3d" && input_rank == 4))
+                || (op->type == "nn.MaxPool2d" && input_rank == 3)
+                || (op->type == "nn.MaxPool3d" && input_rank == 4))
             {
                 insert_reshape = true;
             }
@@ -46,11 +46,8 @@ void insert_reshape_pooling(Graph& graph)
             Operand* pooling_in = op->inputs[0];
             Operand* pooling_out = op->outputs[0];
 
-            const int batch_index = pooling_in->params["__batch_index"].i;
-            const int ncnn_batch_axis = pooling_in->params["__ncnn_batch_axis"].i;
-
-            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
-            Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
+            Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
+            Operator* reshape1 = graph.new_operator_after("Reshape", op->name + "_ncnnreshape1", op);
 
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
             Operand* reshape1_in = graph.new_operand(op->name + "_ncnnreshape1_in");
@@ -79,16 +76,22 @@ void insert_reshape_pooling(Graph& graph)
             reshape1_in->consumers.push_back(reshape1);
 
             reshape0_out->params["__batch_index"] = 0;
-            reshape1_in->params["__batch_index"] = batch_index;
+            reshape1_in->params["__batch_index"] = 0;
             reshape0_out->params["__ncnn_batch_axis"] = 0;
-            reshape1_in->params["__ncnn_batch_axis"] = ncnn_batch_axis;
+            reshape1_in->params["__ncnn_batch_axis"] = 0;
+            reshape0_out->type = pooling_in->type;
+            reshape1_in->type = pooling_out->type;
+            reshape0_out->shape = pooling_in->shape;
+            reshape0_out->shape.insert(reshape0_out->shape.begin(), 1);
+            reshape1_in->shape = pooling_out->shape;
+            reshape1_in->shape.insert(reshape1_in->shape.begin(), 1);
 
-            std::vector<int> reshape0_shape = pooling_in->shape;
-            reshape0_shape.insert(reshape0_shape.begin(), 1);
-            std::vector<int> reshape1_shape = pooling_out->shape;
-
-            reshape0->params["shape"] = reshape0_shape;
-            reshape1->params["shape"] = reshape1_shape;
+            auto input_shape = logical_shape(pooling_in, 0);
+            input_shape.insert(input_shape.begin(), "1");
+            write_reshape_shape(reshape0, input_shape);
+            auto output_shape = logical_shape(reshape1_in, 0);
+            output_shape.erase(output_shape.begin());
+            write_reshape_shape(reshape1, output_shape);
 
             break;
         }
