@@ -9,7 +9,7 @@
 #include "net.h"
 #include "datareader.h"
 
-#include <algorithm>
+#include <float.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -87,7 +87,7 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
     }
     const size_t bytes = inputs[0].total() * inputs[0].elemsize;
     const int iterations = std::max(buffers, (int)std::max((size_t)4, std::min((size_t)128, 16 * 1024 * 1024 / bytes)));
-    double times[7];
+    double time_min = DBL_MAX;
     for (int trial = 0; trial < 7; trial++)
     {
         const double start = ncnn::get_current_time();
@@ -101,10 +101,10 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
                 return -1;
             }
         }
-        times[trial] = (ncnn::get_current_time() - start) / iterations;
+        const double time = (ncnn::get_current_time() - start) / iterations;
+        time_min = std::min(time_min, time);
     }
-    std::sort(times, times + 7);
-    fprintf(stderr, "Permute%s dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d median=%.6f min=%.6f max=%.6f ms\n", naive ? " naive" : "", dims, w, h, d, c, bits, elempack, outputs[0].elempack, order_type, threads, buffers, times[3], times[0], times[6]);
+    fprintf(stderr, "Permute%s dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d min=%.6f ms\n", naive ? " naive" : "", dims, w, h, d, c, bits, elempack, outputs[0].elempack, order_type, threads, buffers, time_min);
     op->destroy_pipeline(opt);
     delete op;
     return 0;

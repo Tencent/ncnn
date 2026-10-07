@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <vector>
 
 static int permute_max_elempack()
 {
