@@ -417,16 +417,78 @@ class ModelBatchUnflattenAfterConv1d(nn.Module):
         return self.post(x)
 
 
-def compare(a, b):
-    if isinstance(a, tuple):
-        if not isinstance(b, tuple) or len(a) != len(b):
-            return False
-        for a0, b0 in zip(a, b):
-            if not torch.allclose(a0, b0, 1e-3, 1e-3):
-                return False
-        return True
+class ModelDynamicBatchUnflatten(nn.Module):
+    def __init__(self):
+        super(ModelDynamicBatchUnflatten, self).__init__()
+        self.conv = nn.Conv1d(4, 6, 1)
+        self.post = nn.Conv2d(6, 6, 1)
 
-    return torch.allclose(a, b, 1e-3, 1e-3)
+    def forward(self, x):
+        x = self.conv(x)
+        x = x.unflatten(0, (-1, 2))
+        return self.post(x.permute(0, 2, 1, 3))
+
+
+class ModelMiddleBatchReshapePartition(nn.Module):
+    def forward(self, x):
+        x = F.max_pool1d(x, 1).transpose(0, 1)
+        x = x.reshape(4, 2, 6).transpose(0, 1)
+        return F.max_pool1d(x, 1)
+
+
+class ModelMiddleBatchShapeExpression(nn.Module):
+    def forward(self, x):
+        x = F.max_pool1d(x, 1).transpose(0, 1)
+        x = x.reshape(x.size(0), x.size(1), 2, x.size(2) // 2)
+        return F.max_pool2d(x.permute(1, 0, 2, 3), 1)
+
+
+class ModelExternalShapeReference(nn.Module):
+    def forward(self, x, y):
+        y = F.max_pool1d(y, 1)
+        return x.reshape(-1, y.size(2))
+
+
+class ModelDifferentBatchShapeReferences(nn.Module):
+    def forward(self, x, y, z):
+        y = F.max_pool1d(y, 1)
+        z = F.max_pool1d(z, 1)
+        return x.reshape(y.size(0), z.size(0), -1)
+
+
+class ModelDynamicAdjacentReshape(nn.Module):
+    def forward(self, x):
+        x = F.max_pool2d(x, 1)
+        x = x.reshape(x.size(0), x.size(1), -1)
+        x = x.reshape(x.size(0), x.size(1), 2, -1)
+        return F.max_pool2d(x, 1)
+
+
+class ModelDynamicLinear(nn.Module):
+    def __init__(self):
+        super(ModelDynamicLinear, self).__init__()
+        self.linear = nn.Linear(8, 6)
+
+    def forward(self, x):
+        return self.linear(F.max_pool2d(x, 1))
+
+
+def compare(a, b):
+    if not isinstance(a, tuple):
+        a = (a,)
+    if not isinstance(b, tuple):
+        b = (b,)
+    if len(a) != len(b):
+        print("output count mismatch", len(a), len(b))
+        return False
+    for i, (a0, b0) in enumerate(zip(a, b)):
+        if a0.shape != b0.shape:
+            print("output", i, "shape mismatch", a0.shape, b0.shape)
+            return False
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
+            print("output", i, "max error", (a0 - b0).abs().max().item())
+            return False
+    return True
 
 
 def no_batch_reshape_param(name):
@@ -438,13 +500,20 @@ def no_batch_reshape_param(name):
     return True
 
 
-def has_batch_reshape_param(name, input_axis=0, output_axis=0):
-    expected = "12=" + str(input_axis) + " 13=" + str(output_axis)
+def has_batch_reshape_param(name, input_axis=0, output_axis=0, layer_prefix=None):
     with open(name + ".ncnn.param") as f:
         for line in f:
-            if line.startswith("Reshape ") and expected in line:
+            fields = line.split()
+            if not fields or fields[0] != "Reshape":
+                continue
+            if layer_prefix is not None and not fields[1].startswith(layer_prefix):
+                continue
+            param_start = 4 + int(fields[2]) + int(fields[3])
+            params = dict(x.split("=", 1) for x in fields[param_start:])
+            if params.get("12") == str(input_axis) and params.get("13") == str(output_axis):
                 return True
 
+    print(name, "missing batch reshape", layer_prefix, input_axis, output_axis)
     return False
 
 
@@ -455,8 +524,6 @@ def run_model(name, net, inputs, inputs2=None):
         inputs = (inputs,)
     if inputs2 is not None and not isinstance(inputs2, tuple):
         inputs2 = (inputs2,)
-
-    a = net(*inputs)
 
     mod = torch.jit.trace(net, inputs)
     mod.save(name + ".pt")
@@ -470,9 +537,15 @@ def run_model(name, net, inputs, inputs2=None):
         return False
 
     ncnnpy = __import__(name + "_ncnn")
-    b = ncnnpy.test_inference()
-
-    return compare(a, b)
+    import ncnn
+    with ncnn.Net() as ncnnnet:
+        if ncnnnet.load_param(name + ".ncnn.param") != 0 or ncnnnet.load_model(name + ".ncnn.bin") != 0:
+            return False
+        for data in (inputs, inputs2):
+            if data is not None and not compare(net(*data), ncnnpy.inference(ncnnnet, *data)):
+                print(name, "inputs", [tuple(x.shape) for x in data])
+                return False
+    return True
 
 
 def run_convert_only(name, net, inputs):
@@ -621,7 +694,7 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(720)
-    if not run_convert_only("test_ncnn_batch_layout_physical5d_reshape", ModelPhysical5DReshape(), x):
+    if run_convert_only("test_ncnn_batch_layout_physical5d_reshape", ModelPhysical5DReshape(), x):
         return False
 
     torch.manual_seed(0)
@@ -637,7 +710,7 @@ def test():
     name = "test_ncnn_batch_layout_same_batch_axis_reshape_compat"
     if not run_model(name, ModelSameBatchAxisReshapeCompat(), (x, y), (x2, y2)):
         return False
-    if not no_batch_reshape_param(name):
+    if not has_batch_reshape_param(name):
         return False
 
     torch.manual_seed(0)
@@ -709,8 +782,46 @@ def test():
         name = "test_ncnn_batch_layout_unflatten_after_conv1d"
         if not run_model(name, ModelBatchUnflattenAfterConv1d(), x):
             return False
-        if not has_batch_reshape_param(name):
+        if not has_batch_reshape_param(name, layer_prefix="unflatten_"):
             return False
+
+    for mode in ("flatten", "reshape"):
+        for label, shape2 in (("batch", (3, 4, 8, 16)), ("frequency", (2, 4, 5, 16)), ("batch_frames", (3, 4, 5, 19))):
+            x = torch.rand(2, 4, 8, 16)
+            x2 = torch.rand(*shape2)
+            name = "test_ncnn_batch_layout_dynamic_" + mode + "_" + label
+            if not run_model(name, ModelBatchFoldToConv1d(mode), x, x2):
+                return False
+            if not has_batch_reshape_param(name, layer_prefix=(mode + "_", "Tensor." + mode + "_")):
+                return False
+
+    if version.parse(torch.__version__) >= version.parse('1.13'):
+        name = "test_ncnn_batch_layout_dynamic_unflatten"
+        if not run_model(name, ModelDynamicBatchUnflatten(), torch.rand(4, 4, 16), torch.rand(6, 4, 19)):
+            return False
+        if not has_batch_reshape_param(name, layer_prefix="unflatten_"):
+            return False
+
+    name = "test_ncnn_batch_layout_middle_partition"
+    if not run_model(name, ModelMiddleBatchReshapePartition(), torch.arange(48).float().reshape(2, 3, 8)):
+        return False
+    if not has_batch_reshape_param(name, 1, 1, "reshape_"):
+        return False
+
+    if not run_model("test_ncnn_batch_layout_middle_expression", ModelMiddleBatchShapeExpression(), torch.rand(2, 3, 8), torch.rand(2, 5, 12)):
+        return False
+    if not run_model("test_ncnn_batch_layout_external_reference", ModelExternalShapeReference(), (torch.rand(24), torch.rand(2, 1, 12)), (torch.rand(24), torch.rand(3, 1, 8))):
+        return False
+    if not run_model("test_ncnn_batch_layout_different_batch_references", ModelDifferentBatchShapeReferences(), (torch.rand(24), torch.rand(2, 1, 4), torch.rand(3, 1, 4)), (torch.rand(24), torch.rand(4, 1, 4), torch.rand(2, 1, 4))):
+        return False
+    if not run_model("test_ncnn_batch_layout_dynamic_adjacent", ModelDynamicAdjacentReshape(), torch.rand(2, 3, 4, 5), torch.rand(3, 3, 6, 7)):
+        return False
+    if not run_model("test_ncnn_batch_layout_dynamic_linear", ModelDynamicLinear(), torch.rand(2, 3, 4, 8), torch.rand(3, 5, 7, 8)):
+        return False
+    if not run_model("test_ncnn_batch_layout_dynamic_unbind", ModelUnbindBeforeBatchLayout(), torch.rand(2, 3, 5, 7), torch.rand(4, 3, 6, 8)):
+        return False
+    if not run_model("test_ncnn_batch_layout_dynamic_slice", ModelSliceMultiSelectLayout(), torch.rand(2, 3, 5, 7), torch.rand(4, 6, 8, 10)):
+        return False
 
     return True
 

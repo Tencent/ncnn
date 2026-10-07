@@ -402,14 +402,24 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             }
         }
 
-        fprintf(pyfp, "    out = []\n");
-        fprintf(pyfp, "\n");
+        std::string input_names;
+        for (int input_index = 0;; input_index++)
+        {
+            std::string name = "in" + std::to_string(input_index);
+            if (!g.get_operand(name))
+                break;
+            input_names += ", " + name;
+        }
 
+        fprintf(pyfp, "\n");
         fprintf(pyfp, "    with ncnn.Net() as net:\n");
         fprintf(pyfp, "        net.load_param(\"%s\")\n", parampath.c_str());
         fprintf(pyfp, "        net.load_model(\"%s\")\n", binpath.c_str());
+        fprintf(pyfp, "        return inference(net%s)\n", input_names.c_str());
         fprintf(pyfp, "\n");
-        fprintf(pyfp, "        with net.create_extractor() as ex:\n");
+        fprintf(pyfp, "def inference(net%s):\n", input_names.c_str());
+        fprintf(pyfp, "    out = []\n");
+        fprintf(pyfp, "    with net.create_extractor() as ex:\n");
 
         for (int input_index = 0;; input_index++)
         {
@@ -426,7 +436,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (r->shape.size() < 2)
                 batch_index = 233;
 
-            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
+            fprintf(pyfp, "        ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");
@@ -438,12 +448,12 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
-            fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
+            fprintf(pyfp, "        _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
             int batch_index = 233;
             if (r->params.find("__ncnn_batch_axis") != r->params.end())
                 batch_index = r->params.at("__ncnn_batch_axis").i;
-            fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
+            fprintf(pyfp, "        out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");
