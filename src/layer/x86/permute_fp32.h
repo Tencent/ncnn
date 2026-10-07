@@ -2504,7 +2504,7 @@ static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, int nT)
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        const float* ptr = (const float*)bottom_blob + (size_t)q * out_elempack * hstep;
         float* outptr = (float*)top_blob.channel(q);
         // exchange c and h, keeping w as the inner spatial axis
         if (elempack == 1)
@@ -2549,7 +2549,7 @@ static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, int nT)
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        const float* ptr = (const float*)bottom_blob + (size_t)q * out_elempack * hstep;
         float* outptr = (float*)top_blob.channel(q);
         // exchange c and h, keeping w as the inner spatial axis
         if (elempack == 1)
@@ -2594,7 +2594,7 @@ static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, int nT)
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        const float* ptr = (const float*)bottom_blob + (size_t)q * out_elempack * hstep;
         float* outptr = (float*)top_blob.channel(q);
         // exchange c and w, keeping h as the inner spatial axis
         if (elempack == 1)
@@ -2645,7 +2645,7 @@ static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, int nT)
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const float* ptr = (const float*)bottom_blob + q * out_elempack * hstep;
+        const float* ptr = (const float*)bottom_blob + (size_t)q * out_elempack * hstep;
         float* outptr = (float*)top_blob.channel(q);
         // exchange c and w, keeping h as the inner spatial axis
         if (elempack == 1)
@@ -2808,7 +2808,7 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + x * outxstep;
                 // exchange c and d, keeping h as the inner spatial axis
                 permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
@@ -2826,7 +2826,7 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -2868,7 +2868,7 @@ static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -2931,7 +2931,7 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + x * outxstep;
                 // exchange c and d, keeping h as the inner spatial axis
                 permute_unpack_channels_stride(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
@@ -2949,7 +2949,7 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -2989,7 +2989,7 @@ static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3033,7 +3033,7 @@ static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3078,7 +3078,7 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + x * outxstep;
                 // exchange c and h, keeping d as the inner spatial axis
                 permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
@@ -3096,7 +3096,7 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3138,7 +3138,7 @@ static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3181,7 +3181,7 @@ static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3226,7 +3226,7 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + x * outxstep;
                 // exchange c and h, keeping d as the inner spatial axis
                 permute_unpack_channels_stride(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
@@ -3244,7 +3244,7 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3285,7 +3285,7 @@ static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3350,7 +3350,7 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + y * outystep;
                 // exchange c and w, keeping d as the inner spatial axis
                 if (elempack == 1)
@@ -3372,7 +3372,7 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3413,7 +3413,7 @@ static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3478,7 +3478,7 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const float* ptr = (const float*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                const float* ptr = (const float*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
                 float* outptr = (float*)top_blob.channel(q) + y * outystep;
                 // exchange c and w, keeping d as the inner spatial axis
                 if (elempack == 1)
@@ -3500,7 +3500,7 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3541,7 +3541,7 @@ static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, int nT)
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const float* ptr = (const float*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const float* ptr = (const float*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             float* outptr = (float*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)

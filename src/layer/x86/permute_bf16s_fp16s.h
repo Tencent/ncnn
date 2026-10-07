@@ -2566,7 +2566,7 @@ static void permute3d_wch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * hstep;
+        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * out_elempack * hstep;
         unsigned short* outptr = (unsigned short*)top_blob.channel(q);
         // exchange c and h, keeping w as the inner spatial axis
         if (elempack == 1)
@@ -2611,7 +2611,7 @@ static void permute3d_cwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * hstep;
+        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * out_elempack * hstep;
         unsigned short* outptr = (unsigned short*)top_blob.channel(q);
         // exchange c and h, keeping w as the inner spatial axis
         if (elempack == 1)
@@ -2656,7 +2656,7 @@ static void permute3d_hcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * hstep;
+        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * out_elempack * hstep;
         unsigned short* outptr = (unsigned short*)top_blob.channel(q);
         // exchange c and w, keeping h as the inner spatial axis
         if (elempack == 1)
@@ -2707,7 +2707,7 @@ static void permute3d_chw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int
     #pragma omp parallel for num_threads(nT)
     for (int q = 0; q < top_blob.c; q++)
     {
-        const unsigned short* ptr = (const unsigned short*)bottom_blob + q * out_elempack * hstep;
+        const unsigned short* ptr = (const unsigned short*)bottom_blob + (size_t)q * out_elempack * hstep;
         unsigned short* outptr = (unsigned short*)top_blob.channel(q);
         // exchange c and w, keeping h as the inner spatial axis
         if (elempack == 1)
@@ -2870,7 +2870,7 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + x * outxstep;
                 // exchange c and d, keeping h as the inner spatial axis
                 permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
@@ -2888,7 +2888,7 @@ static void permute4d_hwcd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -2930,7 +2930,7 @@ static void permute4d_wchd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -2993,7 +2993,7 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + x * outxstep;
                 // exchange c and d, keeping h as the inner spatial axis
                 permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, ptr, outptr, h, channels, wstep, outcstep);
@@ -3011,7 +3011,7 @@ static void permute4d_hcwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3051,7 +3051,7 @@ static void permute4d_chwd_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
             // exchange c and d, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3095,7 +3095,7 @@ static void permute4d_wdch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3140,7 +3140,7 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + x * outxstep;
                 // exchange c and h, keeping d as the inner spatial axis
                 permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
@@ -3158,7 +3158,7 @@ static void permute4d_dwch_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3200,7 +3200,7 @@ static void permute4d_wcdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3243,7 +3243,7 @@ static void permute4d_cwdh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3288,7 +3288,7 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + x * xstep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + x * outxstep;
                 // exchange c and h, keeping d as the inner spatial axis
                 permute_unpack_channels_stride_bf16s_fp16s(bottom_blob, ptr, outptr, d, channels, wstep, outcstep);
@@ -3306,7 +3306,7 @@ static void permute4d_dcwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3347,7 +3347,7 @@ static void permute4d_cdwh_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and h, keeping w as the inner spatial axis
             if (elempack == 1)
@@ -3412,7 +3412,7 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
                 // exchange c and w, keeping d as the inner spatial axis
                 if (elempack == 1)
@@ -3434,7 +3434,7 @@ static void permute4d_dhcw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3475,7 +3475,7 @@ static void permute4d_hcdw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3540,7 +3540,7 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
         {
             for (int q = 0; q < top_blob.c; q++)
             {
-                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + q * out_elempack * hstep;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob + y * ystep + (size_t)q * out_elempack * hstep;
                 unsigned short* outptr = (unsigned short*)top_blob.channel(q) + y * outystep;
                 // exchange c and w, keeping d as the inner spatial axis
                 if (elempack == 1)
@@ -3562,7 +3562,7 @@ static void permute4d_dchw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
@@ -3603,7 +3603,7 @@ static void permute4d_cdhw_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, in
     {
         for (int q = 0; q < top_blob.c; q++)
         {
-            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + q * out_elempack * hstep;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + z * zstep + (size_t)q * out_elempack * hstep;
             unsigned short* outptr = (unsigned short*)top_blob.channel(q) + z * outzstep;
             // exchange c and w, keeping h as the inner spatial axis
             if (elempack == 1)
