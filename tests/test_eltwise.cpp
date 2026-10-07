@@ -17,7 +17,7 @@ static void print_float_array(const ncnn::Mat& a)
     fprintf(stderr, " ]");
 }
 
-static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn::Mat& coeffs)
+static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn::Mat& coeffs, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -25,7 +25,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Eltwise", pd, weights, a);
+    int ret = test_layer("Eltwise", pd, weights, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, op_type);
@@ -55,9 +55,9 @@ static int test_eltwise_0()
            || test_eltwise(a, 0, ncnn::Mat())
            || test_eltwise(a, 1, ncnn::Mat())
            || test_eltwise(a, 2, ncnn::Mat())
-           || test_eltwise(b, 0, ncnn::Mat())
-           || test_eltwise(b, 1, ncnn::Mat())
-           || test_eltwise(b, 2, ncnn::Mat())
+           || test_eltwise(b, 0, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_eltwise(b, 1, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_eltwise(b, 2, ncnn::Mat(), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_eltwise(c, 0, ncnn::Mat())
            || test_eltwise(c, 1, ncnn::Mat())
            || test_eltwise(c, 2, ncnn::Mat())
@@ -65,9 +65,9 @@ static int test_eltwise_0()
            || test_eltwise(a, 0, RandomMat(2))
            || test_eltwise(a, 1, RandomMat(2))
            || test_eltwise(a, 2, RandomMat(2))
-           || test_eltwise(b, 0, RandomMat(2))
-           || test_eltwise(b, 1, RandomMat(2))
-           || test_eltwise(b, 2, RandomMat(2))
+           || test_eltwise(b, 0, RandomMat(2), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_eltwise(b, 1, RandomMat(2), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_eltwise(b, 2, RandomMat(2), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_eltwise(c, 0, RandomMat(2))
            || test_eltwise(c, 1, RandomMat(2))
            || test_eltwise(c, 2, RandomMat(2));

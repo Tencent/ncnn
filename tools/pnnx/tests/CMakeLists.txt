@@ -378,7 +378,9 @@ endif()
 
 pnnx_add_test(torchaudio_F_inverse_spectrogram)
 pnnx_add_test(torchaudio_F_spectrogram)
+pnnx_add_test(torchaudio_F_spectrogram_reshape)
 pnnx_add_test(torchaudio_InverseSpectrogram)
+pnnx_add_test(torchaudio_MelSpectrogram)
 pnnx_add_test(torchaudio_Spectrogram)
 
 pnnx_add_test(transformers_albert_attention)

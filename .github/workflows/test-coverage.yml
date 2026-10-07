@@ -46,7 +46,10 @@ jobs:
       env:
         LD_LIBRARY_PATH: /data/action/install/lib64
         NCNN_VULKAN_DRIVER: /usr/lib64/libEGL_nvidia.so.0
-      run: cd build && ctest --output-on-failure -j 4
+      run: |
+        mkdir -p build/shader-coverage
+        export NCNN_SHADER_COVERAGE_DIR="$GITHUB_WORKSPACE/build/shader-coverage"
+        cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -54,7 +57,12 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/install/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        set -- -a lcov.info
+        for report in shader-coverage/shader-coverage-*.info; do
+          set -- "$@" -a "$report"
+        done
+        lcov "$@" -o coverage.info
+        lcov --list coverage.info
 
     - name: codecov
       uses: codecov/codecov-action@v6
@@ -63,7 +71,7 @@ jobs:
         disable_search: true
         plugins: noop
         binary: /data/action/.local/bin/codecov
-        files: build/lcov.info
+        files: build/coverage.info
 
   linux-gcc-x64:
     name: x64-${{ matrix.name }}
@@ -359,6 +367,8 @@ jobs:
     - name: test
       run: |
         export LP_NUM_THREADS=4
+        mkdir -p build/shader-coverage
+        export NCNN_SHADER_COVERAGE_DIR="$GITHUB_WORKSPACE/build/shader-coverage"
         cd build && ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
@@ -366,7 +376,12 @@ jobs:
         lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
         lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
         lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
-        lcov --ignore-errors inconsistent --list lcov.info
+        set -- -a lcov.info
+        for report in shader-coverage/shader-coverage-*.info; do
+          set -- "$@" -a "$report"
+        done
+        lcov "$@" -o coverage.info
+        lcov --ignore-errors inconsistent --list coverage.info
 
     - name: codecov
       uses: codecov/codecov-action@v6
@@ -375,7 +390,7 @@ jobs:
         disable_search: true
         plugins: noop
         binary: /data/action/osd/codecov
-        files: build/lcov.info
+        files: build/coverage.info
 
   linux-gpu-swiftshader:
     runs-on: [self-hosted, linux, ubuntu25]
@@ -417,6 +432,8 @@ jobs:
       run: |
         printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        mkdir -p build/shader-coverage
+        export NCNN_SHADER_COVERAGE_DIR="$GITHUB_WORKSPACE/build/shader-coverage"
         cd build && ctest --output-on-failure -j 8
     - name: lcov-collect
       run: |
@@ -424,7 +441,12 @@ jobs:
         lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
         lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
         lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
-        lcov --ignore-errors inconsistent --list lcov.info
+        set -- -a lcov.info
+        for report in shader-coverage/shader-coverage-*.info; do
+          set -- "$@" -a "$report"
+        done
+        lcov "$@" -o coverage.info
+        lcov --ignore-errors inconsistent --list coverage.info
 
     - name: codecov
       uses: codecov/codecov-action@v6
@@ -433,7 +455,7 @@ jobs:
         disable_search: true
         plugins: noop
         binary: /data/action/osd/codecov
-        files: build/lcov.info
+        files: build/coverage.info
 
   linux-gcc-cross:
     name: ${{ matrix.arch }}
