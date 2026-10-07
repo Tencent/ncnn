@@ -4,18 +4,23 @@
 import torch
 import torch.nn as nn
 import torchaudio
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.normalized = "frame_length" if version.parse(torchaudio.__version__) >= version.parse("0.13.0") else False
+
     def forward(self, x, y):
-        out0 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized="window", power=1)
+        out0 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=True, power=1)
         out1 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(32), win_length=32, hop_length=8, pad=0, center=True, normalized=False, power=None)
-        out2 = torchaudio.functional.spectrogram(y, n_fft=32, window=torch.hamming_window(24), win_length=24, hop_length=8, pad=8, center=False, pad_mode="constant", onesided=False, normalized="frame_length", power=2)
+        out2 = torchaudio.functional.spectrogram(y, n_fft=32, window=torch.hamming_window(24), win_length=24, hop_length=8, pad=8, center=False, pad_mode="constant", onesided=False, normalized=self.normalized, power=2)
         out3 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=False, power=2)
         out4 = torchaudio.functional.spectrogram(x.transpose(0, 1), n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=False, power=2)
-        return out0, torch.view_as_real(out1), out2, out3, out4
+        if torch.is_complex(out1):
+            out1 = torch.view_as_real(out1)
+        return out0, out1, out2, out3, out4
 
 def test():
     net = Model()
@@ -40,7 +45,7 @@ def test():
         ncnn_net.opt.num_threads = 2
         if ncnn_net.load_param("test_torchaudio_F_spectrogram_batch.ncnn.param") != 0 or ncnn_net.load_model("test_torchaudio_F_spectrogram_batch.ncnn.bin") != 0:
             return False
-        for args in (inputs, inputs2):
+        for input_index, args in enumerate((inputs, inputs2)):
             a = net(*args)
             with ncnn_net.create_extractor() as ex:
                 for i, x in enumerate(args):
@@ -51,7 +56,11 @@ def test():
                     if ret != 0:
                         return False
                     b0 = torch.from_numpy(out.numpy(batch_index=0).copy())
-                    if a0.shape != b0.shape or not torch.allclose(a0, b0, 1e-3, 1e-3):
+                    if a0.shape != b0.shape:
+                        print("input set %d output %d shape mismatch: torch %s ncnn %s" % (input_index, i, tuple(a0.shape), tuple(b0.shape)))
+                        return False
+                    if not torch.allclose(a0, b0, 1e-3, 1e-3):
+                        print("input set %d output %d shape %s max error %g" % (input_index, i, tuple(a0.shape), (a0 - b0).abs().max().item()))
                         return False
     return True
 
