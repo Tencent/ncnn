@@ -73,6 +73,15 @@ int MatMul_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const int max_ABdims = std::max(Adims, Bdims);
     const size_t elemsize = A.elemsize;
 
+    // check reduction dimension consistency between the two inputs
+    const int kA = A.w;
+    const int kB = Bdims == 1 ? B.w : (transB == 0 ? B.h : B.w);
+    if (kA != kB)
+    {
+        NCNN_LOGE("matmul reduction dimension mismatch: %d vs %d", kA, kB);
+        return -1;
+    }
+
     if (Adims == 1 && Bdims == 1)
     {
         // dot product
