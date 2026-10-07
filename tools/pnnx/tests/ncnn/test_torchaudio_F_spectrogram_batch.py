@@ -12,23 +12,31 @@ class Model(nn.Module):
 
         self.normalized = "frame_length" if version.parse(torchaudio.__version__) >= version.parse("0.13.0") else False
 
-    def forward(self, x, y):
+    def forward(self, x, y, z):
         out0 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=True, power=1)
         out1 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(32), win_length=32, hop_length=8, pad=0, center=True, normalized=False, power=None)
         out2 = torchaudio.functional.spectrogram(y, n_fft=32, window=torch.hamming_window(24), win_length=24, hop_length=8, pad=8, center=False, pad_mode="constant", onesided=False, normalized=self.normalized, power=2)
         out3 = torchaudio.functional.spectrogram(x, n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=False, power=2)
         out4 = torchaudio.functional.spectrogram(x.transpose(0, 1), n_fft=32, window=torch.hann_window(24), win_length=24, hop_length=8, pad=0, center=True, normalized=False, power=2)
+
+        # keep the input batch axis fixed before moving it to the waveform time axis
+        out5 = torchaudio.functional.spectrogram(z, n_fft=4, window=torch.hann_window(4), win_length=4, hop_length=2, pad=0, center=False, normalized=False, power=2)
+        out6 = torchaudio.functional.spectrogram(z.t(), n_fft=4, window=torch.hann_window(4), win_length=4, hop_length=2, pad=0, center=False, normalized=False, power=2)
+        out7 = torchaudio.functional.spectrogram(z.t(), n_fft=4, window=torch.hann_window(4), win_length=4, hop_length=2, pad=2, center=False, normalized=False, power=2)
+        out8 = torchaudio.functional.spectrogram(z.t(), n_fft=4, window=torch.hann_window(4), win_length=4, hop_length=2, pad=2, center=False, normalized=False, power=None)
         if torch.is_complex(out1):
             out1 = torch.view_as_real(out1)
-        return out0, out1, out2, out3, out4
+        if torch.is_complex(out8):
+            out8 = torch.view_as_real(out8)
+        return out0, out1, out2, out3, out4, out5, out6, out7, out8
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    inputs = (torch.rand(2, 3, 128), torch.rand(2, 3, 2, 128))
-    inputs2 = (torch.rand(3, 4, 160), torch.rand(3, 2, 4, 160))
+    inputs = (torch.rand(2, 3, 128), torch.rand(2, 3, 2, 128), torch.rand(8, 64))
+    inputs2 = (torch.rand(3, 4, 160), torch.rand(3, 2, 4, 160), torch.rand(10, 80))
 
     # export torchscript
     mod = torch.jit.trace(net, inputs)
@@ -36,7 +44,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    if os.system("../../src/pnnx test_torchaudio_F_spectrogram_batch.pt inputshape=[2,3,128],[2,3,2,128] inputshape2=[3,4,160],[3,2,4,160] fp16=0") != 0:
+    if os.system("../../src/pnnx test_torchaudio_F_spectrogram_batch.pt inputshape=[2,3,128],[2,3,2,128],[8,64] inputshape2=[3,4,160],[3,2,4,160],[10,80] fp16=0") != 0:
         return False
 
     # ncnn inference

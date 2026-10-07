@@ -290,8 +290,25 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
     if ((op->type == "Tensor.slice" || op->type == "Tensor.select") && input_index != 0)
         return get_ncnn_batch_axis(r);
 
+    if (op->type == "F.pad" && input_index == 0)
+    {
+        if (!op->has_param("pad"))
+            return 233;
+        const int batch_axis = get_ncnn_batch_axis(r);
+        const int padded_rank = (int)op->params.at("pad").ai.size() / 2;
+        if (batch_axis != 233 && batch_axis >= (int)r->shape.size() - padded_rank)
+            return 233;
+        return batch_axis;
+    }
+
     if (op->type == "torchaudio.functional.spectrogram" && input_index == 0)
-        return get_ncnn_batch_axis(r);
+    {
+        const int batch_axis = get_ncnn_batch_axis(r);
+        // padding requires the waveform time axis to be a physical dimension
+        if (batch_axis == (int)r->shape.size() - 1 && op->params.at("pad").type == 2 && op->params.at("pad").i > 0)
+            return 233;
+        return batch_axis;
+    }
 
     if (op->type == "F.scaled_dot_product_attention")
         return r->params.at("__batch_index").i == 233 ? 233 : 0;
