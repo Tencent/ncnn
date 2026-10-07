@@ -51,9 +51,9 @@ static NCNN_FORCEINLINE void permute_transpose4x4_stride_bf16s_fp16s(const unsig
     __m128i _r3 = _mm_loadl_epi64((const __m128i*)(ptr + 3 * stride));
     transpose8x4_epi16(_r0, _r1, _r2, _r3);
     _mm_storel_epi64((__m128i*)(outptr), _r0);
-    _mm_storeh_pd((double*)(outptr + outstride), _mm_castsi128_pd(_r0));
+    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_r0, 8));
     _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _r1);
-    _mm_storeh_pd((double*)(outptr + 3 * outstride), _mm_castsi128_pd(_r1));
+    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_r1, 8));
 }
 
 #if __AVX__
@@ -86,13 +86,13 @@ static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsig
     __m128i _r3 = _mm_loadu_si128((const __m128i*)(ptr + 3 * stride));
     transpose8x4_epi16(_r0, _r1, _r2, _r3);
     _mm_storel_epi64((__m128i*)(outptr), _r0);
-    _mm_storeh_pd((double*)(outptr + outstride), _mm_castsi128_pd(_r0));
+    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_r0, 8));
     _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _r1);
-    _mm_storeh_pd((double*)(outptr + 3 * outstride), _mm_castsi128_pd(_r1));
+    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_r1, 8));
     _mm_storel_epi64((__m128i*)(outptr + 4 * outstride), _r2);
-    _mm_storeh_pd((double*)(outptr + 5 * outstride), _mm_castsi128_pd(_r2));
+    _mm_storel_epi64((__m128i*)(outptr + 5 * outstride), _mm_srli_si128(_r2, 8));
     _mm_storel_epi64((__m128i*)(outptr + 6 * outstride), _r3);
-    _mm_storeh_pd((double*)(outptr + 7 * outstride), _mm_castsi128_pd(_r3));
+    _mm_storel_epi64((__m128i*)(outptr + 7 * outstride), _mm_srli_si128(_r3, 8));
 }
 
 #if __AVX__
