@@ -82,7 +82,7 @@ void convert_reshape_interp_expression(Graph& graph)
         for (Operator* op : graph.ops)
         {
             if (op->type != "Tensor.reshape"
-                && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
+                    && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
                 continue;
 
             if (op->inputs.size() != 2)

@@ -98,11 +98,11 @@ static int test_shape_references(const char* expression, int data_batch, int wid
 {
     char param[512];
     snprintf(param, sizeof(param), "7767517\n"
-                                   "4 4\n"
-                                   "Input data 0 1 data\n"
-                                   "Input ref1 0 1 ref1\n"
-                                   "Input ref2 0 1 ref2\n"
-                                   "Reshape reshape 3 1 data ref1 ref2 out 6=\"%s\" %s\n",
+             "4 4\n"
+             "Input data 0 1 data\n"
+             "Input ref1 0 1 ref1\n"
+             "Input ref2 0 1 ref2\n"
+             "Reshape reshape 3 1 data ref1 ref2 out 6=\"%s\" %s\n",
              expression, explicit_batch ? "12=0 13=0" : "");
 
     ncnn::Net net;
@@ -146,11 +146,11 @@ static int test_shape_references(const char* expression, int data_batch, int wid
 static int test_batch_reshape()
 {
     if (test_partition(3, 2, 8, 1, 4, 2, 6, 1)
-        || test_partition(4, 2, 24, 1, 8, 2, 12, 1)
-        || test_partition(16, 2, 24, 1, 8, 2, 48, 1)
-        || test_partition(3, 1, 8, 1, 4, 1, 6, 1)
-        || test_partition(2, 3, 4, 0, 1, 2, 12, 1)
-        || test_partition(4, 3, 2, 2, 2, 2, 6, 1))
+            || test_partition(4, 2, 24, 1, 8, 2, 12, 1)
+            || test_partition(16, 2, 24, 1, 8, 2, 48, 1)
+            || test_partition(3, 1, 8, 1, 4, 1, 6, 1)
+            || test_partition(2, 3, 4, 0, 1, 2, 12, 1)
+            || test_partition(4, 3, 2, 2, 2, 2, 6, 1))
         return -1;
 
     for (int vulkan = 0; vulkan < 2; vulkan++)
@@ -165,11 +165,11 @@ static int test_batch_reshape()
         for (int packing = 0; packing < 2; packing++)
         {
             if (test_shape_references("1w,-1", 1, 12, 2, false, vulkan, packing)
-                || test_shape_references("1w,2w", 1, 12, 2, false, vulkan, packing)
-                || test_shape_references("*(1n,2n),-1", 1, 6, 4, false, vulkan, packing)
-                || test_shape_references("1w,2w", 2, 12, 2, false, vulkan, packing)
-                || test_shape_references("0n,-1", 2, 2, 12, false, vulkan, packing)
-                || test_shape_references("//(0w,1n),1n,0n", 2, 12, 2, true, vulkan, packing))
+                    || test_shape_references("1w,2w", 1, 12, 2, false, vulkan, packing)
+                    || test_shape_references("*(1n,2n),-1", 1, 6, 4, false, vulkan, packing)
+                    || test_shape_references("1w,2w", 2, 12, 2, false, vulkan, packing)
+                    || test_shape_references("0n,-1", 2, 2, 12, false, vulkan, packing)
+                    || test_shape_references("//(0w,1n),1n,0n", 2, 12, 2, true, vulkan, packing))
                 return -1;
         }
     }
