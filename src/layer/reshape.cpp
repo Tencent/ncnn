@@ -21,6 +21,9 @@ Reshape::Reshape()
 
 int Reshape::load_param(const ParamDict& pd)
 {
+    one_blob_only = true;
+    support_batch = false;
+
     w = pd.get(0, -233);
     h = pd.get(1, -233);
     d = pd.get(11, -233);
@@ -56,18 +59,26 @@ int Reshape::load_param(const ParamDict& pd)
     // count reference blobs
     if (!shape_expr.empty())
     {
-        const int blob_count = count_expression_blobs(shape_expr);
+        int blob_count;
+        bool has_batch;
+        if (analyze_list_expression(shape_expr, ndim, blob_count, has_batch) != 0)
+            return -1;
+#if NCNN_BATCH
+        // only input0 is data, the other inputs provide shape information
+        if (blob_count > 1 || has_batch)
+            support_batch = true;
+#else
+        if (has_batch)
+        {
+            NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch dimension expressions");
+            return -1;
+        }
+#endif
         if (blob_count > 1)
             one_blob_only = false;
 
-        // resolve ndim from expression
-        std::vector<Mat> blobs(blob_count);
-        std::vector<int> outshape;
-        int er = eval_list_expression(shape_expr, blobs, outshape);
-        if (er != 0)
+        if (ndim < 1 || ndim > (support_batch ? 5 : 4))
             return -1;
-
-        ndim = (int)outshape.size();
     }
 
     return 0;
@@ -89,7 +100,7 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     Mat& top_blob = top_blobs[0];
 
 #if NCNN_BATCH
-    if (input_batch_axis != 233 || output_batch_axis != 233)
+    if (support_batch)
         return forward_batch(bottom_blobs, top_blobs, opt);
 #endif
 
@@ -101,7 +112,8 @@ int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     if (!shape_expr.empty())
     {
-        eval_shape_expr(bottom_blobs, outw, outh, outd, outc);
+        if (eval_shape_expr(bottom_blobs, outw, outh, outd, outc) != 0)
+            return -1;
     }
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
@@ -348,6 +360,44 @@ static size_t get_batch_reshape_offset(const Mat& m, const Mat& shape, int batch
     }
 }
 
+static size_t batch_suffix_size(const Mat& shape, int axis)
+{
+    int dims[4] = {shape.w, 1, 1, 1};
+    if (shape.dims == 2)
+    {
+        dims[0] = shape.h;
+        dims[1] = shape.w;
+    }
+    if (shape.dims == 3)
+    {
+        dims[0] = shape.c;
+        dims[1] = shape.h;
+        dims[2] = shape.w;
+    }
+    if (shape.dims == 4)
+    {
+        dims[0] = shape.c;
+        dims[1] = shape.d;
+        dims[2] = shape.h;
+        dims[3] = shape.w;
+    }
+
+    size_t size = 1;
+    for (int i = axis; i < shape.dims; i++)
+        size *= dims[i];
+    return size;
+}
+
+bool Reshape::same_batch_partition(const Mat& input_shape, int input_axis, const Mat& output_shape, int output_axis)
+{
+    if (input_shape.n != output_shape.n)
+        return false;
+    if (input_shape.n == 1)
+        return true;
+
+    return batch_suffix_size(input_shape, input_axis) == batch_suffix_size(output_shape, output_axis);
+}
+
 int Reshape::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -364,7 +414,7 @@ int Reshape::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     if (resolve_batch_shape(bottom_blobs, input_shape, output_shape, input_axis, output_axis, input_total) != 0)
         return -1;
 
-    if (input_axis == output_axis && output_shape.n == bottom_blob.n)
+    if (same_batch_partition(input_shape, input_axis, output_shape, output_axis))
     {
         if (output_shape.dims == 1)
             top_blob = bottom_blob.reshape(output_shape.w, opt.blob_allocator);
@@ -449,6 +499,9 @@ int Reshape::resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
     const Mat& bottom_blob = bottom_blobs[0];
     input_shape = bottom_blob.shape();
 
+    // an ordinary reshape preserves input0's outer batch and reshapes each sample
+    const bool implicit_batch = input_batch_axis == 233 && output_batch_axis == 233;
+
     // build logical input shape
     int input_dims = input_shape.dims;
     int input_shape_array[5] = {0, 0, 0, 0, 0};
@@ -475,7 +528,7 @@ int Reshape::resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
             physical_input_shape[3] = input_shape.w;
         }
 
-        input_axis = input_batch_axis;
+        input_axis = implicit_batch ? 0 : input_batch_axis;
         if (input_axis < 0)
             input_axis += input_shape.dims + 1;
 
@@ -546,11 +599,28 @@ int Reshape::resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
         }
     }
 
+    if (implicit_batch)
+    {
+        if (outshape.empty() || outshape.size() > 4)
+            return -1;
+
+        // ordinary zero dimensions copy physical w/h/d/c, not logical positions
+        for (size_t i = 0; i < outshape.size(); i++)
+        {
+            if (outshape[i] != 0)
+                continue;
+            const int trailing_dims = (int)outshape.size() - 1 - i;
+            outshape[i] = trailing_dims == 0 ? input_shape.w : trailing_dims == 1 ? input_shape.h : trailing_dims == 2 && outshape.size() == 4 ? input_shape.d : input_shape.c;
+        }
+        int batch_size = input_shape.n;
+        outshape.insert(outshape.begin(), &batch_size, &batch_size + 1);
+    }
+
     int output_dims = (int)outshape.size();
     if (output_dims == 0 || output_dims > 5)
         return -1;
 
-    output_axis = output_batch_axis;
+    output_axis = implicit_batch ? 0 : output_batch_axis;
     if (output_axis < 0)
         output_axis += output_dims;
 

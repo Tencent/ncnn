@@ -32,11 +32,12 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
 #if NCNN_BATCH
-    if (input_batch_axis != 233 || output_batch_axis != 233)
+    if (support_batch)
     {
         std::vector<vk_specialization_type> specializations(2);
-        specializations[0].i = input_batch_axis;
-        specializations[1].i = output_batch_axis;
+        const bool implicit_batch = input_batch_axis == 233 && output_batch_axis == 233;
+        specializations[0].i = implicit_batch ? 0 : input_batch_axis;
+        specializations[1].i = implicit_batch ? 0 : output_batch_axis;
 
         // batch reshape may choose output packing at runtime
         pipeline_reshape_batch_reorder = new Pipeline(vkdev);
@@ -213,7 +214,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int out_elempack = 0;
 
 #if NCNN_BATCH
-    if (input_batch_axis != 233 || output_batch_axis != 233)
+    if (support_batch)
     {
         std::vector<Mat> bottom_blob_mats(bottom_blobs.size());
         for (size_t i = 0; i < bottom_blobs.size(); i++)
@@ -233,7 +234,7 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         const size_t scalar_elemsize = elemsize / elempack;
         const size_t out_elemsize = scalar_elemsize * out_elempack;
 
-        bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && elempack == out_elempack;
+        bool reshape_zero_copy = same_batch_partition(input_shape, input_axis, output_shape, output_axis) && elempack == out_elempack;
         if (reshape_zero_copy && elempack != 1)
         {
             const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * elempack : bottom_blob.dims == 2 ? bottom_blob.h * elempack : bottom_blob.c * elempack;
