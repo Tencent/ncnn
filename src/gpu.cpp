@@ -5613,6 +5613,17 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_fp16_arithmetic)
     {
         option_defines.append("NCNN_fp16_arithmetic", 1);
+
+        // a narrow fp16 arithmetic type drifts and can saturate when a long
+        // reduction or an exp is evaluated in it, so the operators use the
+        // wfp/wfpvec types, which are fp32 when this is defined.
+        option_defines.append("NCNN_fp16_arithmetic_f32acc", 1);
+
+        // the gemm keeps the inner product and the running sum of one K-tile in
+        // fp16 (half2) and flushes it to the fp32 accumulator at each tile
+        // boundary.  Only the long accumulation, where the precision is really
+        // lost, stays fp32; the products run as half2 instead of fp32.
+        option_defines.append("NCNN_fp16_gemm_mixed", 1);
     }
 
     if (opt.use_int8_storage)

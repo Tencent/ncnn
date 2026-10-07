@@ -63,6 +63,38 @@
 #define afpmat4 mat4
 #endif
 
+// wide storage types: use these for a 16-bit storage buffer whose value can
+// overflow the narrow fp16 exponent (a square grows twice as fast as its
+// input), so it must hold more than the storage type gives.  bf16 (8-bit
+// exponent) keeps its 16-bit buffer and results, everything else is fp32.
+#if NCNN_bf16_storage || NCNN_bf16_packed
+#define wsfp sfp
+#define wsfpvec2 sfpvec2
+#define wsfpvec4 sfpvec4
+#else
+#define wsfp float
+#define wsfpvec2 vec2
+#define wsfpvec4 vec4
+#endif
+
+// wide arithmetic types: use these where a narrow fp16 arithmetic type would
+// overflow or lose precision - the accumulation over a long reduction (gemm K,
+// convolution taps), swish's exp(-v) and the rotaryembed rotation.  They are
+// fp32 whenever NCNN_fp16_arithmetic_f32acc is set (the runtime defines it with
+// fp16 arithmetic); in every other configuration the alias resolves to the type
+// the operator already used, so the generated shader is unchanged.
+#if NCNN_fp16_arithmetic_f32acc
+#define wfp float
+#define wfpvec2 vec2
+#define wfpvec4 vec4
+#define wfpmat4 mat4
+#else
+#define wfp afp
+#define wfpvec2 afpvec2
+#define wfpvec4 afpvec4
+#define wfpmat4 afpmat4
+#endif
+
 // shared local-memory types
 #if NCNN_bf16_storage
 #define lfp bfloat16_t
@@ -205,14 +237,14 @@
 #define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #elif NCNN_fp16_storage && NCNN_fp16_arithmetic
 #define buffer_ld1(buf,i) buf[i]
-#define buffer_st1(buf,i,v) {buf[i]=v;}
+#define buffer_st1(buf,i,v) {buf[i]=float16_t(v);}
 #define buffer_cp1(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_cp1to4(buf,i,sbuf,si4) {buf[i]=f16vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}
 #define buffer_ld2(buf,i) buf[i]
-#define buffer_st2(buf,i,v) {buf[i]=v;}
+#define buffer_st2(buf,i,v) {buf[i]=f16vec2(v);}
 #define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_ld4(buf,i) buf[i]
-#define buffer_st4(buf,i,v) {buf[i]=v;}
+#define buffer_st4(buf,i,v) {buf[i]=f16vec4(v);}
 #define buffer_cp4(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_cp4to1(buf,i4,sbuf,si) {buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}
 #define sfp2afpmat4(v) v

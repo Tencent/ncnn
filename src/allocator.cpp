@@ -455,7 +455,13 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
     VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
     if (ret != VK_SUCCESS)
     {
-        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        const VkPhysicalDeviceMemoryProperties& mp = vkdev->info.physicalDeviceMemoryProperties();
+        const VkMemoryType& mt = mp.memoryTypes[memory_type_index];
+        NCNN_LOGE("vkAllocateMemory failed %d size=%zu MB=%zu type=%u heap=%u flags=0x%x %s%s%s", ret,
+                  size, size / (1024 * 1024), memory_type_index, mt.heapIndex, mt.propertyFlags,
+                  (mt.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? "DEVICE_LOCAL " : "",
+                  (mt.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ? "HOST_VISIBLE " : "",
+                  mt.heapIndex == 0 ? "(heap0)" : "(heapNonZero)");
         return 0;
     }
 

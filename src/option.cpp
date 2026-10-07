@@ -75,6 +75,7 @@ Option::Option()
 
     use_int16_packed = true;
     use_int16_storage = true;
+    sdpa_score_budget_mb = 0;
     use_reserved_11 = false;
 }
 

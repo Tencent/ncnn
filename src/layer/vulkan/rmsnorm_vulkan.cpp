@@ -197,7 +197,11 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     int num_groups_total = num_groups_per_channel * channels;
 
     // 1) x -> x^2
-    VkMat square_workspace(w, h, channels, elemsize, elempack, opt.workspace_vkallocator);
+    // With narrow-exponent fp16 storage x^2 can exceed 65504 even when x fits, so
+    // keep the square in fp32 there; bf16/fp32 keep the original buffer.
+    const bool fp32_square = !(opt.use_bf16_storage || opt.use_bf16_packed);
+    const size_t square_elemsize = fp32_square ? 4u * elempack : elemsize;
+    VkMat square_workspace(w, h, channels, square_elemsize, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = bottom_top_blob;
@@ -240,8 +244,11 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
             dispatcher.w = reduced_w;
             dispatcher.h = num_groups_per_channel;
             dispatcher.c = channels;
-            const Pipeline* p_reduce = elempack == 4 ? pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4
-                                       : pipeline_rmsnorm_reduce_sum4_fp16_to_fp32;
+            const Pipeline* p_reduce;
+            if (fp32_square)
+                p_reduce = elempack == 4 ? pipeline_rmsnorm_reduce_sum4_fp32_pack4[0] : pipeline_rmsnorm_reduce_sum4_fp32[0];
+            else
+                p_reduce = elempack == 4 ? pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_rmsnorm_reduce_sum4_fp16_to_fp32;
             cmd.record_pipeline(p_reduce, bindings, constants, dispatcher);
         }
         int pb = 1;

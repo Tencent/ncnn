@@ -38,13 +38,30 @@ void main()
 
     const int cache_offset = gy * halfdim + gx;
 
+#if NCNN_fp16_arithmetic
+    // keep the rotation in wide internal state (the x*cos - y*sin difference
+    // loses precision when both products are rounded to 16 bit first)
+    wfp cosv = wfp(buffer_ld1(cos_cache_data, cache_offset));
+    wfp sinv = wfp(buffer_ld1(sin_cache_data, cache_offset));
+#else
     afp cosv = buffer_ld1(cos_cache_data, cache_offset);
     afp sinv = buffer_ld1(sin_cache_data, cache_offset);
+#endif
 
     if (interleaved == 1)
     {
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx * 2;
 
+#if NCNN_fp16_arithmetic
+        wfpvec4 x0 = wfpvec4(buffer_ld4(bottom_blob_data, gi));
+        wfpvec4 x1 = wfpvec4(buffer_ld4(bottom_blob_data, gi + 1));
+
+        wfpvec4 y0 = x0 * cosv - x1 * sinv;
+        wfpvec4 y1 = x0 * sinv + x1 * cosv;
+
+        buffer_st4(top_blob_data, gi, afpvec4(y0));
+        buffer_st4(top_blob_data, gi + 1, afpvec4(y1));
+#else
         afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
         afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + 1);
 
@@ -53,11 +70,22 @@ void main()
 
         buffer_st4(top_blob_data, gi, y0);
         buffer_st4(top_blob_data, gi + 1, y1);
+#endif
     }
     else
     {
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 
+#if NCNN_fp16_arithmetic
+        wfpvec4 x0 = wfpvec4(buffer_ld4(bottom_blob_data, gi));
+        wfpvec4 x1 = wfpvec4(buffer_ld4(bottom_blob_data, gi + halfdim));
+
+        wfpvec4 y0 = x0 * cosv - x1 * sinv;
+        wfpvec4 y1 = x0 * sinv + x1 * cosv;
+
+        buffer_st4(top_blob_data, gi, afpvec4(y0));
+        buffer_st4(top_blob_data, gi + halfdim, afpvec4(y1));
+#else
         afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
         afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + halfdim);
 
@@ -66,5 +94,6 @@ void main()
 
         buffer_st4(top_blob_data, gi, y0);
         buffer_st4(top_blob_data, gi + halfdim, y1);
+#endif
     }
 }

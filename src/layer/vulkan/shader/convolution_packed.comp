@@ -74,14 +74,14 @@ void main()
     const ivec2 gy2 = gy + ivec2(0, 1);
     const ivec2 gz2 = gz + ivec2(0, 1);
 
-    afpvec4 sum0;
-    afpvec4 sum1;
-    afpvec4 sum2;
-    afpvec4 sum3;
-    afpvec4 sum4;
-    afpvec4 sum5;
-    afpvec4 sum6;
-    afpvec4 sum7;
+    wfpvec4 sum0;
+    wfpvec4 sum1;
+    wfpvec4 sum2;
+    wfpvec4 sum3;
+    wfpvec4 sum4;
+    wfpvec4 sum5;
+    wfpvec4 sum6;
+    wfpvec4 sum7;
 
     if (bias_term == 1)
     {
@@ -97,14 +97,14 @@ void main()
     }
     else
     {
-        sum0 = afpvec4(0.f);
-        sum1 = afpvec4(0.f);
-        sum2 = afpvec4(0.f);
-        sum3 = afpvec4(0.f);
-        sum4 = afpvec4(0.f);
-        sum5 = afpvec4(0.f);
-        sum6 = afpvec4(0.f);
-        sum7 = afpvec4(0.f);
+        sum0 = wfpvec4(0.f);
+        sum1 = wfpvec4(0.f);
+        sum2 = wfpvec4(0.f);
+        sum3 = wfpvec4(0.f);
+        sum4 = wfpvec4(0.f);
+        sum5 = wfpvec4(0.f);
+        sum6 = wfpvec4(0.f);
+        sum7 = wfpvec4(0.f);
     }
 
     // weight layout: (maxk, c, outc_pack4), each element is 4*elempack floats
@@ -177,14 +177,14 @@ void main()
         }
     }
 
-    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
-    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
-    sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
-    sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
-    sum4 = activation_afpvec4(sum4, activation_type, activation_param_0, activation_param_1);
-    sum5 = activation_afpvec4(sum5, activation_type, activation_param_0, activation_param_1);
-    sum6 = activation_afpvec4(sum6, activation_type, activation_param_0, activation_param_1);
-    sum7 = activation_afpvec4(sum7, activation_type, activation_param_0, activation_param_1);
+    sum0 = wfpvec4(activation_afpvec4(afpvec4(sum0), activation_type, activation_param_0, activation_param_1));
+    sum1 = wfpvec4(activation_afpvec4(afpvec4(sum1), activation_type, activation_param_0, activation_param_1));
+    sum2 = wfpvec4(activation_afpvec4(afpvec4(sum2), activation_type, activation_param_0, activation_param_1));
+    sum3 = wfpvec4(activation_afpvec4(afpvec4(sum3), activation_type, activation_param_0, activation_param_1));
+    sum4 = wfpvec4(activation_afpvec4(afpvec4(sum4), activation_type, activation_param_0, activation_param_1));
+    sum5 = wfpvec4(activation_afpvec4(afpvec4(sum5), activation_type, activation_param_0, activation_param_1));
+    sum6 = wfpvec4(activation_afpvec4(afpvec4(sum6), activation_type, activation_param_0, activation_param_1));
+    sum7 = wfpvec4(activation_afpvec4(afpvec4(sum7), activation_type, activation_param_0, activation_param_1));
 
     if (out_elempack == 4)
     {

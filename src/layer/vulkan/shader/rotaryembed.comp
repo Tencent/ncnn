@@ -41,30 +41,35 @@ void main()
     afp cosv = buffer_ld1(cos_cache_data, cache_offset);
     afp sinv = buffer_ld1(sin_cache_data, cache_offset);
 
+    // keep the rotation in wide internal state (the x*cos - y*sin difference
+    // loses precision when both products are rounded to 16 bit first)
+    const wfp cv = wfp(cosv);
+    const wfp sv = wfp(sinv);
+
     if (interleaved == 1)
     {
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx * 2;
 
-        afp x0 = buffer_ld1(bottom_blob_data, gi);
-        afp x1 = buffer_ld1(bottom_blob_data, gi + 1);
+        const wfp x0 = wfp(buffer_ld1(bottom_blob_data, gi));
+        const wfp x1 = wfp(buffer_ld1(bottom_blob_data, gi + 1));
 
-        afp y0 = x0 * cosv - x1 * sinv;
-        afp y1 = x0 * sinv + x1 * cosv;
+        const wfp y0 = x0 * cv - x1 * sv;
+        const wfp y1 = x0 * sv + x1 * cv;
 
-        buffer_st1(top_blob_data, gi, y0);
-        buffer_st1(top_blob_data, gi + 1, y1);
+        buffer_st1(top_blob_data, gi, afp(y0));
+        buffer_st1(top_blob_data, gi + 1, afp(y1));
     }
     else
     {
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 
-        afp x0 = buffer_ld1(bottom_blob_data, gi);
-        afp x1 = buffer_ld1(bottom_blob_data, gi + halfdim);
+        const wfp x0 = wfp(buffer_ld1(bottom_blob_data, gi));
+        const wfp x1 = wfp(buffer_ld1(bottom_blob_data, gi + halfdim));
 
-        afp y0 = x0 * cosv - x1 * sinv;
-        afp y1 = x0 * sinv + x1 * cosv;
+        const wfp y0 = x0 * cv - x1 * sv;
+        const wfp y1 = x0 * sv + x1 * cv;
 
-        buffer_st1(top_blob_data, gi, y0);
-        buffer_st1(top_blob_data, gi + halfdim, y1);
+        buffer_st1(top_blob_data, gi, afp(y0));
+        buffer_st1(top_blob_data, gi + halfdim, afp(y1));
     }
 }

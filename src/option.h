@@ -157,6 +157,10 @@ public:
     // enable int16 layout options for vulkan int8 shader intermediate data
     bool use_int16_packed;
     bool use_int16_storage;
+    // per-call budget (MB) for the plain (non-flash) sdpa attention score
+    // matrix, which is chunked over heads to stay within it; 0 = the layer's
+    // built-in default (768 MB).
+    int sdpa_score_budget_mb;
     bool use_reserved_11;
 };
 
