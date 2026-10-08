@@ -20,19 +20,19 @@ namespace ncnn {
 #include "innerproduct_gemm_fp.h"
 #undef NCNN_IMPL_FP16S
 
-void innerproduct_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+void innerproduct_fp16s_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    innerproduct_fp16s_sse(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+    innerproduct_fp16s(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
 }
 
-void innerproduct_gemm_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+void innerproduct_gemm_fp16s_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    innerproduct_gemm_fp16s_sse(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+    innerproduct_gemm_fp16s(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
 }
 
-void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+void innerproduct_transform_kernel_fp16s_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 {
-    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel_fp16s(weight_data, weight_data_tm, num_input, num_output, opt);
 }
 
 } // namespace ncnn

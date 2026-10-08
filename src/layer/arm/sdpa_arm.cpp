@@ -51,20 +51,20 @@ int SDPA_arm::create_pipeline(const Option& _opt)
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, scale);               // alpha
-        pd.set(1, 1.f / scale);         // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
+        pd.set(0, scale);                         // alpha
+        pd.set(1, 1.f / scale);                   // beta
+        pd.set(2, 0);                             // transA (Q: Seq x Embed)
+        pd.set(3, 1);                             // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, attn_mask ? 0 : 1);             // constantC (if mask exists, use it)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, attn_mask ? 3 : -1);           // constant_broadcast_type_C (MxN)
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -79,21 +79,21 @@ int SDPA_arm::create_pipeline(const Option& _opt)
     {
         qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, 1.f); // alpha
-        pd.set(1, 1.f); // beta
-        pd.set(2, 0);   // transA (Attn: Seq x Seq)
-        pd.set(3, 0);   // transB (V: Seq x Embed) => Attn * V
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC (None)
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 0);  // output_transpose
+        pd.set(0, 1.f);                           // alpha
+        pd.set(1, 1.f);                           // beta
+        pd.set(2, 0);                             // transA (Attn: Seq x Seq)
+        pd.set(3, 0);                             // transB (V: Seq x Embed) => Attn * V
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, 1);                             // constantC (None)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, -1);                           // constant_broadcast_type_C
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
+        pd.set(14, 0);                            // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -144,6 +144,11 @@ int SDPA_arm::destroy_pipeline(const Option& _opt)
 
 int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     Option opt = _opt;
     opt.use_fp16_storage &= support_fp16_storage;
     opt.use_bf16_storage &= support_bf16_storage;
@@ -172,48 +177,35 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const size_t elemsize = query.elemsize;
 
     Mat key;
-    if (past_seqlen > 0)
+    Mat value;
+    if (kv_cache)
     {
-        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
-        if (key.empty())
-            return -100;
+        Mat& cached_key = top_blobs[1];
+        Mat& cached_value = top_blobs[2];
+
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
+        if (retk != 0)
+            return retk;
+
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
+        if (retv != 0)
+            return retv;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_key_head = past_key.channel(q);
-            const Mat cur_key_head = cur_key.channel(q);
-            Mat key_head = key.channel(q);
-
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * elemsize);
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * elemsize);
+            Mat key_head = cached_key.channel(q);
+            Mat value_head = cached_value.channel(q);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
+
+        key = cached_key;
+        value = cached_value;
     }
     else
     {
         key = cur_key;
-    }
-
-    Mat value;
-    if (past_seqlen > 0)
-    {
-        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
-        if (value.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
-        {
-            const Mat past_value_head = past_value.channel(q);
-            const Mat cur_value_head = cur_value.channel(q);
-            Mat value_head = value.channel(q);
-
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * elemsize);
-        }
-    }
-    else
-    {
         value = cur_value;
     }
 
@@ -244,20 +236,20 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, _scale);              // alpha
-        pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
+        pd.set(0, _scale);                        // alpha
+        pd.set(1, 1.f / _scale);                  // beta
+        pd.set(2, 0);                             // transA (Q: Seq x Embed)
+        pd.set(3, 1);                             // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                             // constantA
+        pd.set(5, 0);                             // constantB
+        pd.set(6, attn_mask ? 0 : 1);             // constantC (if mask exists, use it)
+        pd.set(7, 0);                             // M
+        pd.set(8, 0);                             // N
+        pd.set(9, 0);                             // K
+        pd.set(10, attn_mask ? 3 : -1);           // constant_broadcast_type_C (MxN)
+        pd.set(11, 0);                            // output_N1M
+        pd.set(12, 1);                            // output_elempack
+        pd.set(13, opt.use_fp16_storage ? 0 : 1); // output_elemtype = auto/fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -360,12 +352,6 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     value_fp32.release();
-
-    if (kv_cache)
-    {
-        top_blobs[1] = key;
-        top_blobs[2] = value;
-    }
 
     return 0;
 }

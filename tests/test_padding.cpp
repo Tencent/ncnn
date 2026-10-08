@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int right, int front, int behind, int type, float value, int per_channel_pad_data_size)
 {
     ncnn::ParamDict pd;
@@ -29,189 +33,213 @@ static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int r
     return ret;
 }
 
-static int test_padding_0()
+static int test_padding_float_4d()
 {
     ncnn::Mat a = RandomMat(9, 10, 11, 96);
     ncnn::Mat b = RandomMat(10, 12, 13, 44);
     ncnn::Mat c = RandomMat(8, 7, 9, 13);
 
     return 0
-           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // constant border across scalar and packed channels
            || test_padding(a, 2, 2, 2, 2, 2, 2, 0, 1.f, 0)
            || test_padding(b, 2, 2, 2, 2, 2, 2, 0, 2.f, 0)
            || test_padding(c, 2, 2, 2, 2, 2, 2, 0, -3.f, 0)
 
+           // per-channel constant border
            || test_padding(a, 2, 1, 2, 1, 2, 1, 0, 0.f, a.c)
            || test_padding(b, 2, 1, 2, 1, 2, 1, 0, 0.f, b.c)
            || test_padding(c, 2, 1, 2, 1, 2, 1, 0, 0.f, c.c)
 
+           // one-sided border
            || test_padding(a, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
-           || test_padding(b, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
            || test_padding(c, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
 
+           // asymmetric border
            || test_padding(a, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
-           || test_padding(b, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
            || test_padding(c, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
 
-           || test_padding(a, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
+           // alternate border extents
            || test_padding(b, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
-           || test_padding(c, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
 
-           || test_padding(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
-           || test_padding(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
+           // opposite signed constant
            || test_padding(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
 
+           // replicate border across channel packs
            || test_padding(a, 1, 2, 3, 1, 2, 1, 1, 0.f, 0)
            || test_padding(b, 2, 1, 1, 3, 1, 2, 1, 0.f, 0)
            || test_padding(c, 1, 1, 2, 1, 1, 1, 1, 0.f, 0)
 
+           // reflect border across channel packs
            || test_padding(a, 2, 1, 1, 2, 1, 2, 2, 0.f, 0)
            || test_padding(b, 1, 2, 2, 1, 2, 1, 2, 0.f, 0)
            || test_padding(c, 1, 1, 1, 2, 1, 1, 2, 0.f, 0);
 }
 
-static int test_padding_1()
+static int test_padding_float_3d()
 {
     ncnn::Mat a = RandomMat(9, 11, 96);
     ncnn::Mat b = RandomMat(10, 13, 44);
     ncnn::Mat c = RandomMat(8, 9, 13);
 
     return 0
-           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // constant spatial border
            || test_padding(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // per-channel spatial border
            || test_padding(a, 2, 1, 2, 1, 0, 0, 0, 0.f, a.c)
            || test_padding(b, 2, 1, 2, 1, 0, 0, 0, 0.f, b.c)
            || test_padding(c, 2, 1, 2, 1, 0, 0, 0, 0.f, c.c)
 
+           // one-sided replicate border
            || test_padding(a, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(b, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(c, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // spatial replicate with unchanged channel packing
            || test_padding(a, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding(b, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding(c, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
 
+           // reflect spatial border
            || test_padding(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
 
+           // constant channel extension
            || test_padding(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
            || test_padding(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
            || test_padding(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
 
+           // per-channel unaligned channel extension
            || test_padding(a, 2, 1, 0, 0, 2, 3, 0, 0.f, a.c + 5)
            || test_padding(b, 2, 1, 0, 0, 2, 3, 0, 0.f, b.c + 5)
            || test_padding(c, 2, 1, 0, 0, 2, 3, 0, 0.f, c.c + 5)
 
+           // per-channel large aligned channel extension
            || test_padding(a, 1, 2, 3, 4, 32, 16, 0, 0.f, a.c + 48)
            || test_padding(b, 1, 2, 3, 4, 32, 16, 0, 0.f, b.c + 48)
            || test_padding(c, 1, 2, 3, 4, 32, 16, 0, 0.f, c.c + 48)
 
+           // channel-only replicate extension
            || test_padding(a, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
            || test_padding(b, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
            || test_padding(c, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
 
+           // aligned channel and spatial replicate border
            || test_padding(a, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
            || test_padding(b, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
            || test_padding(c, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
 
+           // one-sided reflect channel extension
            || test_padding(a, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
            || test_padding(b, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
            || test_padding(c, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
 
+           // aligned output with unaligned reflect offset
            || test_padding(a, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
            || test_padding(b, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
            || test_padding(c, 4, 2, 1, 3, 3, 5, 2, 0.f, 0);
 }
 
-static int test_padding_2()
+static int test_padding_float_2d()
 {
     ncnn::Mat a = RandomMat(15, 96);
     ncnn::Mat b = RandomMat(19, 44);
     ncnn::Mat c = RandomMat(17, 15);
 
     return 0
-           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
-           || test_padding(a, 0, 0, 1, 1, 0, 0, 0, 1.f, 0)
-           || test_padding(b, 0, 0, 1, 1, 0, 0, 0, 2.f, 0)
+           // identity
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // scalar horizontal constant border
            || test_padding(c, 0, 0, 1, 1, 0, 0, 0, -3.f, 0)
 
+           // horizontal replicate border
            || test_padding(a, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding(b, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding(c, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
 
+           // horizontal reflect border
            || test_padding(a, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
            || test_padding(b, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
            || test_padding(c, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
 
+           // constant border with unaligned row offset
            || test_padding(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // large aligned row extension
            || test_padding(a, 16, 16, 2, 5, 0, 0, 0, -1.f, 0)
            || test_padding(b, 16, 16, 2, 5, 0, 0, 0, -2.f, 0)
            || test_padding(c, 16, 16, 2, 5, 0, 0, 0, 3.f, 0)
 
+           // unaligned row offset with scalar and packed replicate output
            || test_padding(a, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
-           || test_padding(b, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
            || test_padding(c, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
 
+           // aligned row and one-sided column replicate border
            || test_padding(a, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(b, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(c, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // unaligned row reflect border
            || test_padding(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
 
-           || test_padding(a, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
-           || test_padding(b, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
+           // scalar reflect geometry with aligned output
            || test_padding(c, 2, 6, 1, 0, 0, 0, 2, 0.f, 0);
 }
 
-static int test_padding_3()
+static int test_padding_float_1d()
 {
     ncnn::Mat a = RandomMat(128);
     ncnn::Mat b = RandomMat(124);
     ncnn::Mat c = RandomMat(127);
 
     return 0
-           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // unaligned constant offset and aligned output
            || test_padding(a, 0, 0, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding(b, 0, 0, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding(c, 0, 0, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // large aligned constant offset
            || test_padding(a, 0, 0, 32, 16, 0, 0, 0, -1.f, 0)
            || test_padding(b, 0, 0, 32, 16, 0, 0, 0, -2.f, 0)
            || test_padding(c, 0, 0, 32, 16, 0, 0, 0, 3.f, 0)
 
+           // one-sided replicate output packing
            || test_padding(a, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(b, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding(c, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // aligned replicate offset
            || test_padding(a, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
            || test_padding(b, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
            || test_padding(c, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
 
+           // unaligned reflect offset
            || test_padding(a, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(b, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding(c, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
 
+           // aligned reflect offset
            || test_padding(a, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
            || test_padding(b, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
            || test_padding(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
@@ -247,204 +275,258 @@ static int test_padding_int8(const ncnn::Mat& a, int top, int bottom, int left, 
     return ret;
 }
 
-static int test_padding_4()
+static int test_padding_int8_4d()
 {
     ncnn::Mat a = RandomS8Mat(9, 10, 11, 96);
     ncnn::Mat b = RandomS8Mat(10, 12, 13, 44);
     ncnn::Mat c = RandomS8Mat(8, 7, 9, 13);
 
     return 0
-           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // constant border across scalar and packed channels
            || test_padding_int8(a, 2, 2, 2, 2, 1, 1, 0, 1.f, 0)
            || test_padding_int8(b, 2, 2, 2, 2, 1, 1, 0, 2.f, 0)
            || test_padding_int8(c, 2, 2, 2, 2, 1, 1, 0, -3.f, 0)
 
+           // per-channel constant border
            || test_padding_int8(a, 2, 1, 2, 1, 2, 1, 0, 0.f, a.c)
            || test_padding_int8(b, 2, 1, 2, 1, 2, 1, 0, 0.f, b.c)
            || test_padding_int8(c, 2, 1, 2, 1, 2, 1, 0, 0.f, c.c)
 
+           // one-sided border
            || test_padding_int8(a, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
-           || test_padding_int8(b, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
            || test_padding_int8(c, 0, 1, 0, 1, 0, 1, 0, 0.f, 0)
 
+           // asymmetric border
            || test_padding_int8(a, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
-           || test_padding_int8(b, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
            || test_padding_int8(c, 1, 2, 3, 4, 5, 6, 0, 0.f, 0)
 
-           || test_padding_int8(a, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
+           // alternate border extents
            || test_padding_int8(b, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
-           || test_padding_int8(c, 2, 3, 2, 3, 2, 3, 0, 0.f, 0)
 
-           || test_padding_int8(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
-           || test_padding_int8(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
+           // opposite signed constant
            || test_padding_int8(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
 
+           // replicate border across channel packs
            || test_padding_int8(a, 1, 2, 3, 1, 2, 1, 1, 0.f, 0)
            || test_padding_int8(b, 2, 1, 1, 3, 1, 2, 1, 0.f, 0)
            || test_padding_int8(c, 1, 1, 2, 1, 1, 1, 1, 0.f, 0)
 
+           // reflect border across channel packs
            || test_padding_int8(a, 2, 1, 1, 2, 1, 2, 2, 0.f, 0)
            || test_padding_int8(b, 1, 2, 2, 1, 2, 1, 2, 0.f, 0)
            || test_padding_int8(c, 1, 1, 1, 2, 1, 1, 2, 0.f, 0);
 }
 
-static int test_padding_5()
+static int test_padding_int8_3d()
 {
     ncnn::Mat a = RandomS8Mat(9, 11, 96);
     ncnn::Mat b = RandomS8Mat(10, 13, 44);
     ncnn::Mat c = RandomS8Mat(8, 9, 13);
 
     return 0
-           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // constant spatial border
            || test_padding_int8(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding_int8(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding_int8(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // per-channel spatial border
            || test_padding_int8(a, 2, 1, 2, 1, 0, 0, 0, 0.f, a.c)
            || test_padding_int8(b, 2, 1, 2, 1, 0, 0, 0, 0.f, b.c)
            || test_padding_int8(c, 2, 1, 2, 1, 0, 0, 0, 0.f, c.c)
 
+           // one-sided replicate border
            || test_padding_int8(a, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // spatial replicate with unchanged channel packing
            || test_padding_int8(a, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
 
+           // reflect spatial border
            || test_padding_int8(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
 
+           // constant channel extension
            || test_padding_int8(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
            || test_padding_int8(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
            || test_padding_int8(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
 
+           // per-channel unaligned channel extension
            || test_padding_int8(a, 2, 1, 0, 0, 2, 3, 0, 0.f, a.c + 5)
            || test_padding_int8(b, 2, 1, 0, 0, 2, 3, 0, 0.f, b.c + 5)
            || test_padding_int8(c, 2, 1, 0, 0, 2, 3, 0, 0.f, c.c + 5)
 
+           // per-channel large aligned channel extension
            || test_padding_int8(a, 1, 2, 3, 4, 8, 4, 0, 0.f, a.c + 12)
            || test_padding_int8(b, 1, 2, 3, 4, 8, 4, 0, 0.f, b.c + 12)
            || test_padding_int8(c, 1, 2, 3, 4, 8, 4, 0, 0.f, c.c + 12)
 
+           // channel-only replicate extension
            || test_padding_int8(a, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
            || test_padding_int8(b, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
            || test_padding_int8(c, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
 
+           // aligned channel and spatial replicate border
            || test_padding_int8(a, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
            || test_padding_int8(b, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
            || test_padding_int8(c, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
 
+           // one-sided reflect channel extension
            || test_padding_int8(a, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
            || test_padding_int8(b, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
            || test_padding_int8(c, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
 
+           // aligned output with unaligned reflect offset
            || test_padding_int8(a, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
            || test_padding_int8(b, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
            || test_padding_int8(c, 4, 2, 1, 3, 3, 5, 2, 0.f, 0);
 }
 
-static int test_padding_6()
+static int test_padding_int8_2d()
 {
     ncnn::Mat a = RandomS8Mat(15, 96);
     ncnn::Mat b = RandomS8Mat(19, 44);
     ncnn::Mat c = RandomS8Mat(17, 15);
 
     return 0
-           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // horizontal constant border and aligned row packs
            || test_padding_int8(a, 0, 0, 1, 1, 0, 0, 0, 1.f, 0)
-           || test_padding_int8(b, 0, 0, 1, 1, 0, 0, 0, 2.f, 0)
            || test_padding_int8(c, 0, 0, 1, 1, 0, 0, 0, -3.f, 0)
 
+           // horizontal replicate border
            || test_padding_int8(a, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
 
+           // horizontal reflect border
            || test_padding_int8(a, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
            || test_padding_int8(b, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
            || test_padding_int8(c, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
 
+           // constant border with unaligned row offset
            || test_padding_int8(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding_int8(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding_int8(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // large aligned row extension
            || test_padding_int8(a, 8, 8, 2, 5, 0, 0, 0, -1.f, 0)
            || test_padding_int8(b, 8, 8, 2, 5, 0, 0, 0, -2.f, 0)
            || test_padding_int8(c, 8, 8, 2, 5, 0, 0, 0, 3.f, 0)
 
+           // unaligned row offset with scalar and packed replicate output
            || test_padding_int8(a, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
-           || test_padding_int8(b, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
 
+           // aligned row and one-sided column replicate border
            || test_padding_int8(a, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // unaligned row reflect border
            || test_padding_int8(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
 
-           || test_padding_int8(a, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
-           || test_padding_int8(b, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
+           // scalar reflect geometry with aligned output
            || test_padding_int8(c, 2, 6, 1, 0, 0, 0, 2, 0.f, 0);
 }
 
-static int test_padding_7()
+static int test_padding_int8_1d()
 {
     ncnn::Mat a = RandomS8Mat(128);
     ncnn::Mat b = RandomS8Mat(124);
     ncnn::Mat c = RandomS8Mat(127);
 
     return 0
-           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
-           || test_padding_int8(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
 
+           // identity
+           || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           // unaligned constant offset and aligned output
            || test_padding_int8(a, 0, 0, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding_int8(b, 0, 0, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding_int8(c, 0, 0, 2, 2, 0, 0, 0, -3.f, 0)
 
+           // large aligned constant offset
            || test_padding_int8(a, 0, 0, 16, 8, 0, 0, 0, -1.f, 0)
            || test_padding_int8(b, 0, 0, 16, 8, 0, 0, 0, -2.f, 0)
            || test_padding_int8(c, 0, 0, 16, 8, 0, 0, 0, 3.f, 0)
 
+           // one-sided replicate output packing
            || test_padding_int8(a, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
 
+           // aligned replicate offset
            || test_padding_int8(a, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
            || test_padding_int8(b, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
            || test_padding_int8(c, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
 
+           // unaligned reflect offset
            || test_padding_int8(a, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(b, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
            || test_padding_int8(c, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
 
+           // aligned reflect offset
            || test_padding_int8(a, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
            || test_padding_int8(b, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
            || test_padding_int8(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
 }
 
+#if NCNN_VALIDATION
+static int test_padding_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Padding, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 2; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Padding, base, 4, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 3, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Padding, base, 4, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_padding_0()
-           || test_padding_1()
-           || test_padding_2()
-           || test_padding_3()
-           || test_padding_4()
-           || test_padding_5()
-           || test_padding_6()
-           || test_padding_7();
+    return 0
+           || test_padding_float_4d()
+           || test_padding_float_3d()
+           || test_padding_float_2d()
+           || test_padding_float_1d()
+           || test_padding_int8_4d()
+           || test_padding_int8_3d()
+           || test_padding_int8_2d()
+           || test_padding_int8_1d()
+#if NCNN_VALIDATION
+           || test_padding_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }
