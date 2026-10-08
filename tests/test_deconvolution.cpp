@@ -487,6 +487,84 @@ static int test_deconvolution_load_param_text()
 }
 #endif // NCNN_VALIDATION
 
+static int test_deconvolution_nonoverlap_case(int kw, int kh, int outch, int h, int bias, int output_pad_right, int output_pad_bottom, int pad = 0, int activation_type = 0)
+{
+    ncnn::Mat a = RandomMat(7, h, 8);
+    ncnn::ParamDict pd;
+    pd.set(0, outch);
+    pd.set(1, kw);
+    pd.set(11, kh);
+    pd.set(3, kw);
+    pd.set(13, kh);
+    pd.set(4, pad);
+    pd.set(5, bias);
+    pd.set(6, outch * 8 * kw * kh);
+    pd.set(18, output_pad_right);
+    pd.set(19, output_pad_bottom);
+    pd.set(9, activation_type);
+
+    ncnn::Mat activation_params(2);
+    activation_params[0] = activation_type == 2 ? 0.1f : -0.5f;
+    activation_params[1] = 0.25f;
+    pd.set(10, activation_params);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = RandomMat(outch * 8 * kw * kh);
+    weights[1] = RandomMat(outch);
+    for (int threaded = 0; threaded < 2; threaded++)
+    {
+        const int flag = threaded ? TEST_LAYER_ENABLE_THREADING : 0;
+        for (int packed = 0; packed < 2; packed++)
+        {
+            ncnn::Option opt;
+            opt.num_threads = 1;
+            opt.use_packing_layout = packed;
+            opt.use_sgemm_convolution = true;
+            opt.use_fp16_packed = false;
+            opt.use_fp16_storage = false;
+            opt.use_fp16_arithmetic = false;
+            opt.use_bf16_packed = false;
+            opt.use_bf16_storage = false;
+            if (test_layer_opt("Deconvolution", pd, weights, opt, a, 0.001f, flag) != 0)
+            {
+                fprintf(stderr, "test_deconvolution_nonoverlap failed kw=%d kh=%d outch=%d h=%d bias=%d output_pad_right=%d output_pad_bottom=%d pad=%d activation=%d threaded=%d packed=%d\n", kw, kh, outch, h, bias, output_pad_right, output_pad_bottom, pad, activation_type, threaded, packed);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int test_deconvolution_nonoverlap()
+{
+    const int shapes[][4] = {
+        {1, 1, 1, 1},
+        {2, 2, 8, 3},
+        {2, 3, 4, 1},
+        {3, 2, 8, 3},
+        {3, 3, 16, 5},
+        {4, 4, 16, 7},
+        {1, 5, 3, 9},
+        {5, 1, 4, 3}
+    };
+    for (size_t i = 0; i < sizeof(shapes) / sizeof(shapes[0]); i++)
+    {
+        const int* s = shapes[i];
+        if (test_deconvolution_nonoverlap_case(s[0], s[1], s[2], s[3], i % 2, i % 2, (i / 2) % 2) != 0)
+            return -1;
+    }
+
+    // one output group and odd height exercise row splitting with two or more threads
+    // retain right and bottom padding, then combine crop with activation
+    return 0
+           || test_deconvolution_nonoverlap_case(2, 3, 1, 5, 0, 1, 1)
+           || test_deconvolution_nonoverlap_case(2, 3, 4, 5, 1, 1, 1)
+           || test_deconvolution_nonoverlap_case(2, 3, 8, 5, 0, 1, 1)
+           || test_deconvolution_nonoverlap_case(3, 2, 1, 5, 1, 1, 1, 1, 1)
+           || test_deconvolution_nonoverlap_case(3, 2, 4, 5, 0, 1, 1, 1, 3)
+           || test_deconvolution_nonoverlap_case(3, 2, 8, 5, 1, 1, 1, 1, 2);
+}
+
 static int test_deconvolution_activation_boundaries()
 {
     // generic kernels exercise activation fusion across input and output packing
@@ -519,6 +597,7 @@ int main()
     return 0
            || test_deconvolution_0()
            || test_deconvolution_1()
+           || test_deconvolution_nonoverlap()
            || test_deconvolution_activation_params_text()
 #if NCNN_VALIDATION
            || test_deconvolution_load_param()
