@@ -3214,7 +3214,8 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         // size. Inside a Net the input is cast to fp16 before this point; a bare
         // layer driven directly has to do the same, or turn fp16 storage off.
         NCNN_LOGE("Gemm: layer was built for fp16 input but the input blob is %d-bit; "
-                  "cast the input to fp16 or set opt.use_fp16_storage = false", elembits);
+                  "cast the input to fp16 or set opt.use_fp16_storage = false",
+                  elembits);
         return -100;
     }
 #endif
