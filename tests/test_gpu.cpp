@@ -7,6 +7,81 @@
 #include <stdio.h>
 #include <string.h>
 
+#if NCNN_THREADS
+struct GpuInstanceThreadContext
+{
+    ncnn::Mutex mutex;
+    ncnn::ConditionVariable condition;
+    bool start;
+    int ret;
+};
+
+static void* create_gpu_instance_thread(void* args)
+{
+    GpuInstanceThreadContext* context = (GpuInstanceThreadContext*)args;
+    {
+        ncnn::MutexLockGuard lock(context->mutex);
+        while (!context->start)
+            context->condition.wait(context->mutex);
+    }
+
+    int ret = ncnn::create_gpu_instance();
+    if (ret != 0)
+    {
+        ncnn::MutexLockGuard lock(context->mutex);
+        context->ret = ret;
+    }
+
+    return 0;
+}
+#endif // NCNN_THREADS
+
+static int test_gpu_instance()
+{
+    ncnn::destroy_gpu_instance();
+    ncnn::destroy_gpu_instance();
+    if (ncnn::get_gpu_instance())
+    {
+        fprintf(stderr, "test_gpu_instance failed to destroy instance\n");
+        return -1;
+    }
+
+#if NCNN_THREADS
+    GpuInstanceThreadContext context;
+    context.start = false;
+    context.ret = 0;
+
+    const int thread_count = 24;
+    ncnn::Thread* threads[thread_count];
+    for (int i = 0; i < thread_count; i++)
+        threads[i] = new ncnn::Thread(create_gpu_instance_thread, &context);
+
+    {
+        ncnn::MutexLockGuard lock(context.mutex);
+        context.start = true;
+        context.condition.broadcast();
+    }
+
+    for (int i = 0; i < thread_count; i++)
+    {
+        threads[i]->join();
+        delete threads[i];
+    }
+
+    int ret = context.ret;
+#else
+    int ret = ncnn::create_gpu_instance();
+#endif // NCNN_THREADS
+
+    if (ret != 0 || !ncnn::get_gpu_instance() || ncnn::get_gpu_count() == 0)
+    {
+        fprintf(stderr, "test_gpu_instance failed to recreate instance ret=%d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_compile_spirv_module(const char* source, int expected, int comp_data_size = -1)
 {
     const int source_size = strlen(source);
@@ -69,6 +144,7 @@ int main()
         return 0;
 
     return 0
+           || test_gpu_instance()
            || test_compile_spirv_module_0()
            || test_compile_spirv_module_1();
 }

@@ -46,6 +46,29 @@ void bind_shader_coverage_descriptorset(const VulkanShaderCoverage* coverage, Vk
 void record_shader_coverage_barrier(const VulkanShaderCoverage* coverage, VkCommandBuffer command_buffer);
 #endif // NCNN_COVERAGE
 
+#if defined _WIN32
+// RtlDllShutdownInProgress from ntdll.dll is not declared in the public sdk headers
+// it returns true when called within dll detach during process termination
+// but false when the dll is unloaded via FreeLibrary at runtime
+typedef BOOLEAN(WINAPI* RtlDllShutdownInProgressType)(VOID);
+static RtlDllShutdownInProgressType resolve_dll_shutdown_in_progress()
+{
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll)
+        return 0;
+
+    return (RtlDllShutdownInProgressType)GetProcAddress(ntdll, "RtlDllShutdownInProgress");
+}
+
+// resolve during library initialization so shutdown never queries the loader
+static const RtlDllShutdownInProgressType g_dll_shutdown_in_progress = resolve_dll_shutdown_in_progress();
+
+static int is_process_shutdown_in_progress()
+{
+    return g_dll_shutdown_in_progress && g_dll_shutdown_in_progress() != 0;
+}
+#endif // defined _WIN32
+
 // global
 static Mutex g_instance_lock;
 
@@ -2972,32 +2995,12 @@ static int find_default_vulkan_device_index()
     return -1;
 }
 
-#if defined _WIN32
-// RtlDllShutdownInProgress from ntdll.dll is not declared in the public sdk headers
-// it returns true when called within dll detach during process termination
-// but false when the dll is unloaded via FreeLibrary at runtime
-typedef BOOLEAN(WINAPI* RtlDllShutdownInProgressType)(VOID);
-static int is_process_shutdown_in_progress()
-{
-    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-    if (!ntdll)
-        return 0;
-
-    RtlDllShutdownInProgressType RtlDllShutdownInProgress = (RtlDllShutdownInProgressType)GetProcAddress(ntdll, "RtlDllShutdownInProgress");
-    if (!RtlDllShutdownInProgress)
-        return 0;
-
-    return RtlDllShutdownInProgress() != 0;
-}
-#endif // defined _WIN32
-
 int create_gpu_instance(const char* driver_path)
 {
 #if defined _WIN32
     // refuse to create the vulkan instance during process termination
     // the driver icd may have been detached already
-    // an already-created instance is still reported as valid below
-    if (g_instance.created == 0 && is_process_shutdown_in_progress())
+    if (is_process_shutdown_in_progress())
         return -1;
 #endif // defined _WIN32
 
@@ -3706,6 +3709,11 @@ void destroy_gpu_instance()
 
 static void try_create_gpu_instance()
 {
+#if defined _WIN32
+    if (is_process_shutdown_in_progress())
+        return;
+#endif // defined _WIN32
+
     {
         MutexLockGuard lock(g_instance_lock);
 
@@ -5408,6 +5416,11 @@ int VulkanDevice::init_device_extension()
 
 VulkanDevice* get_gpu_device(int device_index)
 {
+#if defined _WIN32
+    if (is_process_shutdown_in_progress())
+        return 0;
+#endif // defined _WIN32
+
     try_create_gpu_instance();
 
     if (device_index < 0 || device_index >= g_gpu_count)
