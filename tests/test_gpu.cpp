@@ -11,8 +11,6 @@
 struct GpuInstanceThreadContext
 {
     ncnn::Mutex mutex;
-    ncnn::ConditionVariable condition;
-    bool start;
     int ret;
 };
 
@@ -20,9 +18,8 @@ static void* create_gpu_instance_thread(void* args)
 {
     GpuInstanceThreadContext* context = (GpuInstanceThreadContext*)args;
     {
+        // wait for the main thread to finish starting the workers
         ncnn::MutexLockGuard lock(context->mutex);
-        while (!context->start)
-            context->condition.wait(context->mutex);
     }
 
     int ret = ncnn::create_gpu_instance();
@@ -48,18 +45,14 @@ static int test_gpu_instance()
 
 #if NCNN_THREADS
     GpuInstanceThreadContext context;
-    context.start = false;
     context.ret = 0;
 
     const int thread_count = 24;
     ncnn::Thread* threads[thread_count];
-    for (int i = 0; i < thread_count; i++)
-        threads[i] = new ncnn::Thread(create_gpu_instance_thread, &context);
-
     {
         ncnn::MutexLockGuard lock(context.mutex);
-        context.start = true;
-        context.condition.broadcast();
+        for (int i = 0; i < thread_count; i++)
+            threads[i] = new ncnn::Thread(create_gpu_instance_thread, &context);
     }
 
     for (int i = 0; i < thread_count; i++)
