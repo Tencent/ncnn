@@ -21,21 +21,13 @@ void insert_reshape_linear(Graph& graph)
             if (op->type != "nn.Linear")
                 continue;
 
-            int input_rank = op->inputs[0]->shape.size();
-            if (input_rank == 0)
+            const int input_rank = (int)op->inputs[0]->shape.size();
+            const int ncnn_batch_axis = op->inputs[0]->params.at("__ncnn_batch_axis").i;
+            const int physical_rank = input_rank - (ncnn_batch_axis != 233 ? 1 : 0);
+            if (physical_rank <= 2 || physical_rank > 4)
                 continue;
 
-            // nn.Linear    4d-2d-4d
-            // nn.Linear    5d-2d-5d
-            bool insert_reshape = false;
-            if (op->type == "nn.Linear" && (input_rank == 4 || input_rank == 5))
-            {
-                insert_reshape = true;
-            }
-
-            if (!insert_reshape)
-                continue;
-
+            // linear applies to the last dimension, flatten the physical leading dimensions
             fprintf(stderr, "insert_reshape_linear %d\n", input_rank);
 
             matched = true;
@@ -44,10 +36,9 @@ void insert_reshape_linear(Graph& graph)
             Operand* linear_out = op->outputs[0];
 
             const int batch_index = linear_in->params["__batch_index"].i;
-            const int ncnn_batch_axis = linear_in->params["__ncnn_batch_axis"].i;
 
-            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
-            Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
+            Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
+            Operator* reshape1 = graph.new_operator_after("Reshape", op->name + "_ncnnreshape1", op);
 
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
             Operand* reshape1_in = graph.new_operand(op->name + "_ncnnreshape1_in");
@@ -55,6 +46,7 @@ void insert_reshape_linear(Graph& graph)
             reshape0->inputs.push_back(linear_in);
             reshape0->outputs.push_back(reshape0_out);
             reshape1->inputs.push_back(reshape1_in);
+            reshape1->inputs.push_back(linear_in);
             reshape1->outputs.push_back(linear_out);
 
             for (size_t j = 0; j < linear_in->consumers.size(); j++)
@@ -65,6 +57,7 @@ void insert_reshape_linear(Graph& graph)
                     break;
                 }
             }
+            linear_in->consumers.push_back(reshape1);
             linear_out->producer = reshape1;
 
             op->inputs[0] = reshape0_out;
@@ -83,7 +76,9 @@ void insert_reshape_linear(Graph& graph)
             int reshape_h = 1;
             for (size_t j = 0; j < linear_in->shape.size() - 1; j++)
             {
-                if (linear_in->shape[j] == -1)
+                if ((int)j == ncnn_batch_axis)
+                    continue;
+                if (linear_in->shape[j] <= 0 || reshape_h > INT_MAX / linear_in->shape[j])
                 {
                     reshape_h = -1;
                     break;
@@ -95,18 +90,16 @@ void insert_reshape_linear(Graph& graph)
             std::vector<int> reshape1_in_shape;
             if (ncnn_batch_axis == 0)
             {
-                reshape0_out_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
-                reshape1_in_shape = {1, reshape_h, linear_out->shape[input_rank - 1]};
+                reshape0_out_shape = {linear_in->shape[0], reshape_h, linear_in->shape[input_rank - 1]};
+                reshape1_in_shape = {linear_out->shape[0], reshape_h, linear_out->shape[input_rank - 1]};
             }
             else
             {
                 reshape0_out_shape = {reshape_h, linear_in->shape[input_rank - 1]};
                 reshape1_in_shape = {reshape_h, linear_out->shape[input_rank - 1]};
             }
-            std::vector<int> reshape1_out_shape = linear_out->shape;
-
-            reshape0->params["shape"] = reshape0_out_shape;
-            reshape1->params["shape"] = reshape1_out_shape;
+            reshape0->params["6"] = "0w,-1";
+            reshape1->params["6"] = physical_rank == 3 ? "0w,1h,1c" : "0w,1h,1d,1c";
             reshape0_out->type = linear_in->type;
             reshape0_out->shape = reshape0_out_shape;
             reshape1_in->type = linear_out->type;

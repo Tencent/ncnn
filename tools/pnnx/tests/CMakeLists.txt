@@ -371,6 +371,7 @@ pnnx_add_test(pnnx_fuse_asymmetric_pad_conv2d)
 pnnx_add_test(pnnx_fuse_pad_conv2d)
 pnnx_add_test(pnnx_fuse_pixel_shuffle)
 pnnx_add_test(pnnx_fuse_pixel_unshuffle)
+pnnx_add_test(pnnx_reshape_semantics)
 
 if(TorchVision_FOUND)
     pnnx_add_test(torchvision_DeformConv2d)
@@ -379,7 +380,9 @@ endif()
 
 pnnx_add_test(torchaudio_F_inverse_spectrogram)
 pnnx_add_test(torchaudio_F_spectrogram)
+pnnx_add_test(torchaudio_F_spectrogram_reshape)
 pnnx_add_test(torchaudio_InverseSpectrogram)
+pnnx_add_test(torchaudio_MelSpectrogram)
 pnnx_add_test(torchaudio_Spectrogram)
 
 pnnx_add_test(transformers_albert_attention)
