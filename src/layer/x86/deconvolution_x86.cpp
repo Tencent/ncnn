@@ -266,9 +266,12 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                 _mm256_store_ps(dst + j * 8, bias);
                         }
                     }
-                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
-                        for (int j = 0; j < outw; j++)
-                            _mm256_store_ps(outm.row(i) + j * 8, bias);
+                    if (end == h)
+                    {
+                        for (int i = h * kernel_h; i < outh; i++)
+                            for (int j = 0; j < outw; j++)
+                                _mm256_store_ps(outm.row(i) + j * 8, bias);
+                    }
                     continue;
                 }
 #endif
@@ -300,9 +303,12 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                 _mm_store_ps(dst + j * 4, bias);
                         }
                     }
-                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
-                        for (int j = 0; j < outw; j++)
-                            _mm_store_ps(outm.row(i) + j * 4, bias);
+                    if (end == h)
+                    {
+                        for (int i = h * kernel_h; i < outh; i++)
+                            for (int j = 0; j < outw; j++)
+                                _mm_store_ps(outm.row(i) + j * 4, bias);
+                    }
                     continue;
                 }
 #endif
@@ -332,9 +338,12 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                 dst[j] = bias;
                         }
                     }
-                    for (int i = end == h ? h * kernel_h : outh; i < outh; i++)
-                        for (int j = 0; j < outw; j++)
-                            outm.row(i)[j] = bias;
+                    if (end == h)
+                    {
+                        for (int i = h * kernel_h; i < outh; i++)
+                            for (int j = 0; j < outw; j++)
+                                outm.row(i)[j] = bias;
+                    }
                 }
             }
         }
