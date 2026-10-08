@@ -19,7 +19,6 @@ std::vector<std::string> get_logical_shape_expr(int rank, int native_batch_axis,
 std::vector<std::string> get_logical_shape_expr(const Operand* operand, int reference_index);
 std::vector<std::string> split_shape_expression(const std::string& expression);
 std::string make_shape_product_expr(const std::vector<std::string>& dimensions);
-std::string make_shape_quotient_expr(const std::string& numerator, const std::string& denominator);
 bool resolve_reshape_params(const std::vector<std::string>& input_shape, int input_axis, std::vector<std::string> shape, int output_axis, int input_count, std::map<std::string, Parameter>& params);
 bool resolve_reshape_params(const Operator* op, const std::vector<std::string>& shape, std::map<std::string, Parameter>& params);
 // write parameters and remove unused shape reference inputs

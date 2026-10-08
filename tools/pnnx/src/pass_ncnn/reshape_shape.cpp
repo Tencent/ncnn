@@ -152,7 +152,7 @@ std::string make_shape_product_expr(const std::vector<std::string>& dimensions)
     return make_product(constant, factors);
 }
 
-std::string make_shape_quotient_expr(const std::string& numerator, const std::string& denominator)
+static std::string make_shape_quotient_expr(const std::string& numerator, const std::string& denominator)
 {
     if (numerator.empty() || denominator.empty())
         return std::string();

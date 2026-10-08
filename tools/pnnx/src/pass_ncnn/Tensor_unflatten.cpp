@@ -58,28 +58,22 @@ pnnx.Output             output      1 0 out
             return std::vector<std::string>();
         }
 
-        int infer_count = 0;
-        std::vector<std::string> known_sizes;
+        if (sizes.empty())
+        {
+            fprintf(stderr, "reshape %s: unflatten sizes must not be empty\n", op->name.c_str());
+            return std::vector<std::string>();
+        }
+
+        std::vector<std::string> expanded;
         for (int size : sizes)
         {
-            if (size == -1)
-                infer_count++;
-            else if (size > 0)
-                known_sizes.push_back(std::to_string(size));
-            else
+            if (size != -1 && size <= 0)
             {
                 fprintf(stderr, "reshape %s: unflatten sizes must be positive or inferred\n", op->name.c_str());
                 return std::vector<std::string>();
             }
+            expanded.push_back(std::to_string(size));
         }
-        if (infer_count > 1 || sizes.empty())
-        {
-            fprintf(stderr, "reshape %s: unflatten sizes require at most one infer dimension\n", op->name.c_str());
-            return std::vector<std::string>();
-        }
-        std::vector<std::string> expanded;
-        for (int size : sizes)
-            expanded.push_back(size == -1 ? make_shape_quotient_expr(shape[dim], make_shape_product_expr(known_sizes)) : std::to_string(size));
         shape.erase(shape.begin() + dim);
         shape.insert(shape.begin() + dim, expanded.begin(), expanded.end());
         return shape;

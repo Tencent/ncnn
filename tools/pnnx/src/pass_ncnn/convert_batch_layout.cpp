@@ -397,8 +397,13 @@ static Operator* insert_batch_to_dim(Graph& graph, Operator* op, int input_index
     reshape->outputs.push_back(reshape_out);
     in->consumers.push_back(reshape);
 
-    // a layout conversion preserves every logical extent at runtime
-    reshape->params["shape"] = std::vector<int>(in->shape.size(), 0);
+    std::vector<int> shape = in->shape;
+    for (int& s : shape)
+    {
+        if (s == -1)
+            s = 0;
+    }
+    reshape->params["shape"] = shape;
 
     reshape_out->producer = reshape;
     reshape_out->type = in->type;
@@ -429,8 +434,13 @@ static Operator* insert_dim_to_batch(Graph& graph, Operator* op, int input_index
     reshape->outputs.push_back(reshape_out);
     in->consumers.push_back(reshape);
 
-    // a layout conversion preserves every logical extent at runtime
-    reshape->params["shape"] = std::vector<int>(in->shape.size(), 0);
+    std::vector<int> shape = in->shape;
+    for (int& s : shape)
+    {
+        if (s == -1)
+            s = 0;
+    }
+    reshape->params["shape"] = shape;
 
     reshape_out->producer = reshape;
     reshape_out->type = in->type;

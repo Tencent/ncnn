@@ -49,6 +49,7 @@ void insert_reshape_pooling(Graph& graph)
             target0.insert(target0.begin(), "1");
 
             auto pooled_shape = get_logical_shape_expr((int)pooling_out->shape.size() + 1, 0, 0);
+            pooled_shape[0] = "1";
             auto target1 = pooled_shape;
             target1.erase(target1.begin());
             std::map<std::string, Parameter> params0;
