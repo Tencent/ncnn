@@ -116,6 +116,16 @@ pnnx.Output             output      1 0 out
         const std::string merged = make_shape_product_expr(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
         shape.erase(shape.begin() + start, shape.begin() + end + 1);
         shape.insert(shape.begin() + start, merged);
+
+        const auto& output_shape = op->outputs[0]->shape;
+        if (output_shape.size() == shape.size())
+        {
+            for (size_t i = 0; i < shape.size(); i++)
+            {
+                if (output_shape[i] > 0)
+                    shape[i] = std::to_string(output_shape[i]);
+            }
+        }
         return shape;
     }
 };
