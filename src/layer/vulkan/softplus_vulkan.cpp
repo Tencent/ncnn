@@ -19,8 +19,10 @@ int Softplus_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    std::vector<vk_specialization_type> specializations(1);
+    std::vector<vk_specialization_type> specializations(3);
     specializations[0].u32 = shape.total() * shape.elempack / 4;
+    specializations[1].f = threshold;
+    specializations[2].i = has_threshold;
 
     const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 

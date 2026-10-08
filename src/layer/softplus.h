@@ -13,7 +13,13 @@ class Softplus : public Layer
 public:
     Softplus();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+public:
+    float threshold;
+    int has_threshold;
 };
 
 } // namespace ncnn
