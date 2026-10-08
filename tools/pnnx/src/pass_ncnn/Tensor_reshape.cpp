@@ -35,12 +35,14 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         std::map<std::string, Parameter> params;
-        return resolve_reshape_shape(op->inputs, op->outputs[0], get_shape(op, captured_params), params);
+        return resolve_reshape_params(op, get_shape(op, captured_params), params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        write_reshape_shape(op, get_shape(op, captured_params));
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_shape(op, captured_params), params))
+            write_reshape_params(op, params);
     }
 
     std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -50,7 +52,7 @@ pnnx.Output             output      1 0 out
         for (int i = 0; i < (int)dimensions.size(); i++)
         {
             // layout conversions use zero to copy the corresponding logical dimension
-            shape.push_back(dimensions[i] == 0 ? logical_dim_reference(op->inputs[0], 0, i) : std::to_string(dimensions[i]));
+            shape.push_back(dimensions[i] == 0 ? get_logical_dim_expr(op->inputs[0], 0, i) : std::to_string(dimensions[i]));
         }
         return shape;
     }

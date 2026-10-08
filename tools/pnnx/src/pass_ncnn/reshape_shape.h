@@ -10,15 +10,20 @@ namespace pnnx {
 
 namespace ncnn {
 
+int get_ncnn_batch_axis(const Operand* operand);
+
 // dimensions are in logical order, before removing the native batch axis
-std::string logical_dim_reference(const Operand* operand, int reference_index, int axis);
-std::vector<std::string> logical_shape(const Operand* operand, int reference_index);
+std::string get_logical_dim_expr(const Operand* operand, int reference_index, int axis);
+// describe a runtime shape without creating a graph operand
+std::vector<std::string> get_logical_shape_expr(int rank, int native_batch_axis, int reference_index);
+std::vector<std::string> get_logical_shape_expr(const Operand* operand, int reference_index);
 std::vector<std::string> split_shape_expression(const std::string& expression);
-std::string shape_product(const std::vector<std::string>& dimensions);
-std::string shape_quotient(const std::string& numerator, const std::string& denominator);
-bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* output, std::vector<std::string> shape, std::map<std::string, Parameter>& params);
-bool write_reshape_shape(Operator* op, const std::vector<std::string>& shape);
-void write_reshape_shape(Operator* op, const std::map<std::string, Parameter>& params);
+std::string make_shape_product_expr(const std::vector<std::string>& dimensions);
+std::string make_shape_quotient_expr(const std::string& numerator, const std::string& denominator);
+bool resolve_reshape_params(const std::vector<std::string>& input_shape, int input_axis, std::vector<std::string> shape, int output_axis, int input_count, std::map<std::string, Parameter>& params);
+bool resolve_reshape_params(const Operator* op, const std::vector<std::string>& shape, std::map<std::string, Parameter>& params);
+// write parameters and remove unused shape reference inputs
+void write_reshape_params(Operator* op, const std::map<std::string, Parameter>& params);
 
 } // namespace ncnn
 

@@ -35,19 +35,21 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         std::map<std::string, Parameter> params;
-        return resolve_reshape_shape(op->inputs, op->outputs[0], get_shape(op, captured_params), params);
+        return resolve_reshape_params(op, get_shape(op, captured_params), params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        write_reshape_shape(op, get_shape(op, captured_params));
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_shape(op, captured_params), params))
+            write_reshape_params(op, params);
     }
 
     std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim = captured_params.at("dim").i;
         const auto& sizes = captured_params.at("sizes").ai;
-        auto shape = logical_shape(op->inputs[0], 0);
+        auto shape = get_logical_shape_expr(op->inputs[0], 0);
         if (dim < 0)
             dim += (int)shape.size();
         if (dim < 0 || dim >= (int)shape.size())
@@ -77,7 +79,7 @@ pnnx.Output             output      1 0 out
         }
         std::vector<std::string> expanded;
         for (int size : sizes)
-            expanded.push_back(size == -1 ? shape_quotient(shape[dim], shape_product(known_sizes)) : std::to_string(size));
+            expanded.push_back(size == -1 ? make_shape_quotient_expr(shape[dim], make_shape_product_expr(known_sizes)) : std::to_string(size));
         shape.erase(shape.begin() + dim);
         shape.insert(shape.begin() + dim, expanded.begin(), expanded.end());
         return shape;

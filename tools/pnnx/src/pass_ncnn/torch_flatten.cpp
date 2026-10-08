@@ -88,19 +88,21 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         std::map<std::string, Parameter> params;
-        return resolve_reshape_shape(op->inputs, op->outputs[0], get_shape(op, captured_params), params);
+        return resolve_reshape_params(op, get_shape(op, captured_params), params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        write_reshape_shape(op, get_shape(op, captured_params));
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_shape(op, captured_params), params))
+            write_reshape_params(op, params);
     }
 
     std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int start = captured_params.at("start_dim").i;
         int end = captured_params.at("end_dim").i;
-        auto shape = logical_shape(op->inputs[0], 0);
+        auto shape = get_logical_shape_expr(op->inputs[0], 0);
         if (start < 0)
             start += (int)shape.size();
         if (end < 0)
@@ -111,7 +113,7 @@ pnnx.Output             output      1 0 out
             return std::vector<std::string>();
         }
 
-        const std::string merged = shape_product(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
+        const std::string merged = make_shape_product_expr(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
         shape.erase(shape.begin() + start, shape.begin() + end + 1);
         shape.insert(shape.begin() + start, merged);
         return shape;

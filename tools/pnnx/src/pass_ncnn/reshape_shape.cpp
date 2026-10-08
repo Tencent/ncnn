@@ -12,7 +12,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-static int batch_axis(const Operand* operand)
+int get_ncnn_batch_axis(const Operand* operand)
 {
     const auto it = operand->params.find("__ncnn_batch_axis");
     int axis = it == operand->params.end() ? 233 : it->second.i;
@@ -21,18 +21,16 @@ static int batch_axis(const Operand* operand)
     return axis;
 }
 
-std::string logical_dim_reference(const Operand* operand, int reference_index, int axis)
+static std::string get_logical_dim_expr(int rank, int native_batch_axis, int reference_index, int axis)
 {
-    int rank = (int)operand->shape.size();
     if (axis < 0)
         axis += rank;
     if (axis < 0 || axis >= rank || reference_index < 0 || reference_index > 9)
     {
-        fprintf(stderr, "reshape %s has unsupported logical dimension %d or reference %d\n", operand->name.c_str(), axis, reference_index);
+        fprintf(stderr, "reshape has unsupported logical dimension %d or reference %d\n", axis, reference_index);
         return std::string();
     }
 
-    const int native_batch_axis = batch_axis(operand);
     if (axis == native_batch_axis)
         return std::to_string(reference_index) + "n";
     if (native_batch_axis != 233)
@@ -45,13 +43,26 @@ std::string logical_dim_reference(const Operand* operand, int reference_index, i
     static const char* dimensions[] = {"", "w", "hw", "chw", "cdhw"};
     if (rank < 1 || rank > 4 || axis >= rank)
     {
-        fprintf(stderr, "reshape %s has unsupported physical rank %d\n", operand->name.c_str(), rank);
+        fprintf(stderr, "reshape has unsupported physical rank %d\n", rank);
         return std::string();
     }
     return std::to_string(reference_index) + dimensions[rank][axis];
 }
 
-std::vector<std::string> logical_shape(const Operand* operand, int reference_index)
+std::string get_logical_dim_expr(const Operand* operand, int reference_index, int axis)
+{
+    return get_logical_dim_expr((int)operand->shape.size(), get_ncnn_batch_axis(operand), reference_index, axis);
+}
+
+std::vector<std::string> get_logical_shape_expr(int rank, int native_batch_axis, int reference_index)
+{
+    std::vector<std::string> shape;
+    for (int i = 0; i < rank; i++)
+        shape.push_back(get_logical_dim_expr(rank, native_batch_axis, reference_index, i));
+    return shape;
+}
+
+std::vector<std::string> get_logical_shape_expr(const Operand* operand, int reference_index)
 {
     const std::string& producer_type = operand->producer->type;
     const bool static_source = producer_type == "pnnx.Input" || producer_type == "Input" || producer_type == "pnnx.Attribute" || producer_type == "MemoryData";
@@ -60,7 +71,7 @@ std::vector<std::string> logical_shape(const Operand* operand, int reference_ind
     {
         // input specifications and constant tensors establish static extents
         // intermediate metadata only records observations from shape inference
-        shape.push_back(reference_index == 0 && static_source && operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : logical_dim_reference(operand, reference_index, i));
+        shape.push_back(reference_index == 0 && static_source && operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : get_logical_dim_expr(operand, reference_index, i));
     }
     return shape;
 }
@@ -85,7 +96,8 @@ std::vector<std::string> split_shape_expression(const std::string& expression)
     return dimensions;
 }
 
-static int integer_dimension(const std::string& expression, long long& value)
+// 1 = integer, 0 = expression, -1 = integer overflow
+static int parse_integer_dimension(const std::string& expression, long long& value)
 {
     errno = 0;
     char* end = 0;
@@ -98,7 +110,7 @@ static int integer_dimension(const std::string& expression, long long& value)
 static bool product_factors(const std::string& expression, long long& constant, std::vector<std::string>& factors)
 {
     long long value;
-    const int integer = integer_dimension(expression, value);
+    const int integer = parse_integer_dimension(expression, value);
     if (integer < 0 || (integer == 1 && value > 0 && constant > LLONG_MAX / value))
     {
         fprintf(stderr, "reshape dimension product exceeds integer range\n");
@@ -130,7 +142,7 @@ static std::string make_product(long long constant, std::vector<std::string> fac
     return expression;
 }
 
-std::string shape_product(const std::vector<std::string>& dimensions)
+std::string make_shape_product_expr(const std::vector<std::string>& dimensions)
 {
     long long constant = 1;
     std::vector<std::string> factors;
@@ -144,7 +156,7 @@ std::string shape_product(const std::vector<std::string>& dimensions)
     return make_product(constant, factors);
 }
 
-std::string shape_quotient(const std::string& numerator, const std::string& denominator)
+std::string make_shape_quotient_expr(const std::string& numerator, const std::string& denominator)
 {
     if (numerator.empty() || denominator.empty())
         return std::string();
@@ -176,14 +188,7 @@ std::string shape_quotient(const std::string& numerator, const std::string& deno
     return d == "1" ? n : "//(" + n + "," + d + ")";
 }
 
-enum PartitionRelation
-{
-    PartitionSame,
-    PartitionDifferent,
-    PartitionUnknown
-};
-
-static std::vector<size_t> dimension_references(const std::string& expression)
+static std::vector<size_t> find_shape_expr_references(const std::string& expression)
 {
     std::vector<size_t> positions;
     size_t start = 0;
@@ -211,37 +216,27 @@ static std::string partition_size(const std::vector<std::string>& shape, int axi
 
 static std::string partition_suffix(const std::vector<std::string>& shape, int axis)
 {
-    return axis == 233 ? "1" : shape_product(std::vector<std::string>(shape.begin() + axis + 1, shape.end()));
+    return axis == 233 ? "1" : make_shape_product_expr(std::vector<std::string>(shape.begin() + axis + 1, shape.end()));
 }
 
-static bool dimension_differs(const std::string& a, const std::string& b)
-{
-    long long av;
-    long long bv;
-    return integer_dimension(a, av) == 1 && integer_dimension(b, bv) == 1 && av != bv;
-}
-
-bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* output, std::vector<std::string> shape, std::map<std::string, Parameter>& params)
+bool resolve_reshape_params(const std::vector<std::string>& input_shape, int input_axis, std::vector<std::string> shape, int output_axis, int input_count, std::map<std::string, Parameter>& params)
 {
     if (shape.empty())
     {
-        fprintf(stderr, "reshape %s: target rank is unknown\n", output->name.c_str());
+        fprintf(stderr, "reshape: target rank is unknown\n");
         return false;
     }
 
-    const auto input_shape = logical_shape(inputs[0], 0);
-    const int input_axis = batch_axis(inputs[0]);
-    const int output_axis = batch_axis(output);
     if ((input_axis != 233 && (input_axis < 0 || input_axis >= (int)input_shape.size()))
             || (output_axis != 233 && (output_axis < 0 || output_axis >= (int)shape.size())))
     {
-        fprintf(stderr, "reshape %s: batch axis is outside logical rank\n", output->name.c_str());
+        fprintf(stderr, "reshape: batch axis is outside logical rank\n");
         return false;
     }
     if (std::find(input_shape.begin(), input_shape.end(), std::string()) != input_shape.end()
             || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
     {
-        fprintf(stderr, "reshape %s: unsupported dimension reference\n", output->name.c_str());
+        fprintf(stderr, "reshape: unsupported dimension reference\n");
         return false;
     }
 
@@ -254,7 +249,7 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
         {
             if (infer != -1)
             {
-                fprintf(stderr, "reshape %s: target has multiple infer dimensions\n", output->name.c_str());
+                fprintf(stderr, "reshape: target has multiple infer dimensions\n");
                 return false;
             }
             infer = i;
@@ -264,43 +259,39 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
     }
     if (infer != -1 && !input_shape.empty())
     {
-        shape[infer] = shape_quotient(shape_product(input_shape), shape_product(known_dimensions));
+        shape[infer] = make_shape_quotient_expr(make_shape_product_expr(input_shape), make_shape_product_expr(known_dimensions));
         if (shape[infer].empty())
             return false;
     }
 
-    PartitionRelation partition = PartitionUnknown;
     const std::string input_n = partition_size(input_shape, input_axis);
     const std::string output_n = partition_size(shape, output_axis);
     const std::string input_suffix = partition_suffix(input_shape, input_axis);
     const std::string output_suffix = partition_suffix(shape, output_axis);
     if (input_suffix.empty() || output_suffix.empty())
         return false;
-    if ((input_n == "1" && output_n == "1") || (input_n == output_n && input_suffix == output_suffix))
-        partition = PartitionSame;
-    else if (dimension_differs(input_n, output_n) || (input_n == output_n && input_n != "1" && dimension_differs(input_suffix, output_suffix)))
-        partition = PartitionDifferent;
+    const bool same_batch_partition = (input_n == "1" && output_n == "1") || (input_n == output_n && input_suffix == output_suffix);
 
     // only the physical target needs to be evaluated by an ordinary reshape
-    bool full_context = false;
+    bool requires_batch_context = false;
     for (int i = 0; i < (int)shape.size(); i++)
     {
         if (i == output_axis)
             continue;
-        for (size_t j : dimension_references(shape[i]))
+        for (size_t j : find_shape_expr_references(shape[i]))
         {
             if (shape[i][j + 1] == 'n' || shape[i][j] != '0')
-                full_context = true;
+                requires_batch_context = true;
         }
     }
 
-    const bool explicit_batch = (partition != PartitionSame || full_context) && (input_axis != 233 || output_axis != 233);
+    const bool explicit_batch = (!same_batch_partition || requires_batch_context) && (input_axis != 233 || output_axis != 233);
     if (!explicit_batch && output_axis != 233)
         shape.erase(shape.begin() + output_axis);
 
     if (shape.empty() || shape.size() > (explicit_batch && output_axis != 233 ? 5u : 4u))
     {
-        fprintf(stderr, "reshape %s: target exceeds ncnn physical rank\n", output->name.c_str());
+        fprintf(stderr, "reshape: target exceeds ncnn physical rank\n");
         return false;
     }
 
@@ -309,10 +300,10 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
     for (const auto& dim : shape)
     {
         long long value;
-        const int integer = integer_dimension(dim, value);
+        const int integer = parse_integer_dimension(dim, value);
         if (integer < 0 || (integer == 1 && (value < -1 || value == 0 || value > INT_MAX)))
         {
-            fprintf(stderr, "reshape %s: dimension exceeds ncnn integer range\n", output->name.c_str());
+            fprintf(stderr, "reshape: dimension exceeds ncnn integer range\n");
             return false;
         }
         if (integer == 1)
@@ -329,20 +320,20 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
             if (i != dim.size() && dim[i] != '(' && dim[i] != ')' && dim[i] != ',')
                 continue;
             long long constant;
-            const int integer = integer_dimension(dim.substr(start, i - start), constant);
+            const int integer = parse_integer_dimension(dim.substr(start, i - start), constant);
             if (integer < 0 || (integer == 1 && (constant < INT_MIN || constant > INT_MAX)))
             {
-                fprintf(stderr, "reshape %s: expression constant exceeds ncnn integer range\n", output->name.c_str());
+                fprintf(stderr, "reshape: expression constant exceeds ncnn integer range\n");
                 return false;
             }
             start = i + 1;
         }
 
-        for (size_t i : dimension_references(dim))
+        for (size_t i : find_shape_expr_references(dim))
         {
-            if ((size_t)(dim[i] - '0') >= inputs.size())
+            if (dim[i] - '0' >= input_count)
             {
-                fprintf(stderr, "reshape %s: missing shape reference\n", output->name.c_str());
+                fprintf(stderr, "reshape: missing shape reference\n");
                 return false;
             }
         }
@@ -374,17 +365,12 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
     return true;
 }
 
-bool write_reshape_shape(Operator* op, const std::vector<std::string>& shape)
+bool resolve_reshape_params(const Operator* op, const std::vector<std::string>& shape, std::map<std::string, Parameter>& params)
 {
-    std::map<std::string, Parameter> params;
-    if (!resolve_reshape_shape(op->inputs, op->outputs[0], shape, params))
-        return false;
-
-    write_reshape_shape(op, params);
-    return true;
+    return resolve_reshape_params(get_logical_shape_expr(op->inputs[0], 0), get_ncnn_batch_axis(op->inputs[0]), shape, get_ncnn_batch_axis(op->outputs[0]), (int)op->inputs.size(), params);
 }
 
-void write_reshape_shape(Operator* op, const std::map<std::string, Parameter>& params)
+void write_reshape_params(Operator* op, const std::map<std::string, Parameter>& params)
 {
     op->params = params;
 
@@ -392,7 +378,7 @@ void write_reshape_shape(Operator* op, const std::map<std::string, Parameter>& p
     std::vector<int> indices(op->inputs.size(), -1);
     indices[0] = 0;
     std::string expression = op->has_param("6") ? op->params.at("6").s : std::string();
-    const auto references = dimension_references(expression);
+    const auto references = find_shape_expr_references(expression);
     for (size_t i : references)
         indices[expression[i] - '0'] = 0;
     std::vector<Operand*> inputs;

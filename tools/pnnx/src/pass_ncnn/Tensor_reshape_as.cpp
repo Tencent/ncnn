@@ -36,12 +36,14 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         std::map<std::string, Parameter> params;
-        return resolve_reshape_shape(op->inputs, op->outputs[0], logical_shape(op->inputs[1], 1), params);
+        return resolve_reshape_params(op, get_logical_shape_expr(op->inputs[1], 1), params);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        write_reshape_shape(op, logical_shape(op->inputs[1], 1));
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_logical_shape_expr(op->inputs[1], 1), params))
+            write_reshape_params(op, params);
     }
 };
 

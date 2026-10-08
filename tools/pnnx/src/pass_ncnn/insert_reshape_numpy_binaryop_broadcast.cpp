@@ -100,12 +100,8 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
 
             Operand* binaryop_lower_rank_in = op->inputs[binaryop_lower_rank_in_index];
 
-            Operand output_shape = *binaryop_lower_rank_in;
             const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
             const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
-
-            output_shape.params["__batch_index"] = lower_batch_index;
-            output_shape.params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
 
             // insert explicit broadcast index for missing ranks
             std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
@@ -119,9 +115,8 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
             }
 
-            output_shape.shape = reshape0_shape;
-            output_shape.type = binaryop_lower_rank_in->type;
-            auto target = logical_shape(binaryop_lower_rank_in, 0);
+            const auto input_shape = get_logical_shape_expr(binaryop_lower_rank_in, 0);
+            auto target = input_shape;
             std::string batch;
             if (lower_ncnn_batch_axis != 233)
             {
@@ -132,7 +127,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             if (lower_ncnn_batch_axis != 233)
                 target.insert(target.begin() + lower_ncnn_batch_axis, batch);
             std::map<std::string, Parameter> params;
-            if (!resolve_reshape_shape({binaryop_lower_rank_in}, &output_shape, target, params))
+            if (!resolve_reshape_params(input_shape, get_ncnn_batch_axis(binaryop_lower_rank_in), target, lower_ncnn_batch_axis, 1, params))
                 continue;
 
             matched = true;
@@ -158,10 +153,12 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             reshape0_out->producer = reshape0;
             reshape0_out->consumers.push_back(op);
 
-            reshape0_out->params = output_shape.params;
-            reshape0_out->shape = output_shape.shape;
-            reshape0_out->type = output_shape.type;
-            write_reshape_shape(reshape0, params);
+            reshape0_out->params = binaryop_lower_rank_in->params;
+            reshape0_out->params["__batch_index"] = lower_batch_index;
+            reshape0_out->params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
+            reshape0_out->shape = reshape0_shape;
+            reshape0_out->type = binaryop_lower_rank_in->type;
+            write_reshape_params(reshape0, params);
 
             break;
         }

@@ -64,24 +64,11 @@ void convert_torch_unbind(Graph& graph)
             if (axis0 < 0 || axis0 >= (int)op->inputs[0]->shape.size())
                 continue;
 
-            Operand reshape_shape = *op->inputs[0];
-            reshape_shape.producer = op;
-            reshape_shape.shape[axis0] = 1;
-            auto shape = logical_shape(&reshape_shape, 0);
-            shape.erase(shape.begin() + axis0);
-            std::vector<std::map<std::string, Parameter> > reshape_params(output_size);
-            bool supported = true;
-            for (int i = 0; i < output_size; i++)
-            {
-                Operand output_shape = *op->outputs[i];
-                output_shape.params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
-                if (!resolve_reshape_shape({&reshape_shape}, &output_shape, shape, reshape_params[i]))
-                {
-                    supported = false;
-                    break;
-                }
-            }
-            if (!supported)
+            const auto input_shape = get_logical_shape_expr((int)op->inputs[0]->shape.size(), ncnn_batch_axis, 0);
+            auto target = input_shape;
+            target.erase(target.begin() + axis0);
+            std::map<std::string, Parameter> reshape_params;
+            if (!resolve_reshape_params(input_shape, ncnn_batch_axis, target, output_ncnn_batch_axis, 1, reshape_params))
                 continue;
 
             matched = true;
@@ -120,7 +107,7 @@ void convert_torch_unbind(Graph& graph)
                 out->params["__batch_index"] = output_batch_index;
                 out->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
 
-                write_reshape_shape(reshape, reshape_params[i]);
+                write_reshape_params(reshape, reshape_params);
             }
 
             break;

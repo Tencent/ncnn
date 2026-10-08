@@ -266,7 +266,7 @@ void convert_reshape_interp_expression(Graph& graph)
                                 if (bi < 0)
                                     bi = a_rank0 + bi;
 
-                                const std::string reference = logical_dim_reference(ordered_references[input_index], input_index, bi);
+                                const std::string reference = get_logical_dim_expr(ordered_references[input_index], input_index, bi);
                                 if (reference.empty())
                                 {
                                     fprintf(stderr, "reshape %s: unsupported dimension reference\n", op->name.c_str());
@@ -401,7 +401,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 std::reverse(shape.begin(), shape.end());
                 if (is_tensor_unflatten)
                 {
-                    auto input_shape = logical_shape(op->inputs[0], 0);
+                    auto input_shape = get_logical_shape_expr(op->inputs[0], 0);
                     int dim = unflatten_dim;
                     if (dim < 0)
                         dim += (int)input_shape.size();
@@ -422,7 +422,7 @@ void convert_reshape_interp_expression(Graph& graph)
             std::map<std::string, Parameter> reshape_params;
             if (is_tensor_reshape)
             {
-                if (!resolve_reshape_shape(ordered_references, op->outputs[0], shape, reshape_params))
+                if (!resolve_reshape_params(get_logical_shape_expr(ordered_references[0], 0), get_ncnn_batch_axis(ordered_references[0]), shape, get_ncnn_batch_axis(op->outputs[0]), (int)ordered_references.size(), reshape_params))
                     continue;
             }
 
@@ -486,7 +486,7 @@ void convert_reshape_interp_expression(Graph& graph)
 
             if (is_tensor_reshape)
             {
-                write_reshape_shape(op, reshape_params);
+                write_reshape_params(op, reshape_params);
             }
 
             // drop expression

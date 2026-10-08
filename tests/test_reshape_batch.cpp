@@ -86,31 +86,17 @@ static int test_partition(int a, int b, int c, int axis, int x, int y, int z, in
     ncnn::Mat naive;
     int ret = test_layer_naive(ncnn::layer_to_index("Reshape"), pd, weights, input, naive, 0);
     if (ret != 0 || naive.n != expected.n || CompareMat(expected, naive, 0.f) != 0)
-        return -1;
-
-    for (int packing = 0; packing < 2; packing++)
     {
-        ncnn::Option opt;
-        opt.num_threads = 1;
-        opt.use_packing_layout = packing;
-        opt.use_fp16_packed = false;
-        opt.use_fp16_storage = false;
-        opt.use_fp16_arithmetic = false;
-        opt.use_bf16_storage = false;
-        ncnn::Mat output;
-        ret = test_layer_cpu(ncnn::layer_to_index("Reshape"), pd, weights, opt, input, output, ncnn::Mat(), 0);
-        if (ret != 0 || output.n != expected.n || CompareMat(expected, output, 0.f) != 0)
-            return -1;
-#if NCNN_VULKAN
-        if (packing && ncnn::get_gpu_count() > 0)
-        {
-            ret = test_layer_gpu(ncnn::layer_to_index("Reshape"), pd, weights, opt, input, output, ncnn::Mat(), 0);
-            if (ret != 0 || output.n != expected.n || CompareMat(expected, output, 0.f) != 0)
-                return -1;
-        }
-#endif
+        fprintf(stderr, "test_reshape_batch_partition reference failed input=(%d %d %d) input_axis=%d output=(%d %d %d) output_axis=%d ret=%d output.n=%d expected.n=%d\n", a, b, c, axis, x, y, z, out_axis, ret, naive.n, expected.n);
+        return -1;
     }
-    return 0;
+
+    ret = test_layer("Reshape", pd, weights, input);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_reshape_batch_partition failed input=(%d %d %d) input_axis=%d output=(%d %d %d) output_axis=%d ret=%d\n", a, b, c, axis, x, y, z, out_axis, ret);
+    }
+    return ret;
 }
 
 static int test_shape_references(const char* expression, int data_batch, int width, int height, bool explicit_batch, bool vulkan, bool packing)

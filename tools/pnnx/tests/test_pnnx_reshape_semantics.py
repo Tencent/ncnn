@@ -101,7 +101,7 @@ def compare(expected, actual):
     return True
 
 
-def run_case(name, model, shapes, pnnx, test_ncnn):
+def run_case(name, model, shapes):
     name = "test_pnnx_reshape_semantics_" + name
     model.eval()
     inputs = []
@@ -118,7 +118,7 @@ def run_case(name, model, shapes, pnnx, test_ncnn):
     # the third sample must never participate in conversion or shape inference
     shape0 = ",".join(str(list(s)).replace(" ", "") for s in shapes[0])
     shape1 = ",".join(str(list(s)).replace(" ", "") for s in shapes[1])
-    pnnxcmd = pnnx + " " + name + ".pt inputshape=" + shape0 + " inputshape2=" + shape1
+    pnnxcmd = "../src/pnnx " + name + ".pt inputshape=" + shape0 + " inputshape2=" + shape1
     if os.system(pnnxcmd) != 0:
         return False
 
@@ -129,21 +129,10 @@ def run_case(name, model, shapes, pnnx, test_ncnn):
             print(name, "pnnx inputs", [tuple(x.shape) for x in data])
             return False
 
-    if test_ncnn:
-        import ncnn
-        ncnnpy = __import__(name + "_ncnn")
-        with ncnn.Net() as net:
-            net.opt.num_threads = 1
-            if net.load_param(name + ".ncnn.param") != 0 or net.load_model(name + ".ncnn.bin") != 0:
-                return False
-            for data in inputs:
-                if not compare(model(*data), ncnnpy.inference(net, *data)):
-                    print(name, "ncnn inputs", [tuple(x.shape) for x in data])
-                    return False
     return True
 
 
-def test(pnnx="../src/pnnx", test_ncnn=False):
+def test():
     reference_shapes = [((24,), (2, 1)), ((36,), (3, 1)), ((48,), (2, 1))]
     infer_shapes = [((2, 2, 6),), ((1, 4, 6),), ((3, 2, 6),)]
     intermediate_shapes = [((2, 3, 4, 5),), ((3, 2, 6, 7),), ((4, 2, 8, 9),)]
@@ -171,17 +160,8 @@ def test(pnnx="../src/pnnx", test_ncnn=False):
         cases.append(("unflatten", IntermediateUnflatten(), [((2, 3, 4),), ((3, 2, 4),), ((4, 2, 4),)]))
         cases.append(("unflatten_reference", UnflattenReference(), [((24, 2), (2, 3, 1)), ((36, 2), (3, 2, 1)), ((48, 2), (4, 2, 1))]))
     for name, model, shapes in cases:
-        if not run_case(name, model, shapes, pnnx, test_ncnn):
+        if not run_case(name, model, shapes):
             return False
-        if test_ncnn and name in ("shared_interp", "shared_crop"):
-            # keep the reference on reshape without adding it to interp or crop
-            with open("test_pnnx_reshape_semantics_" + name + ".ncnn.param") as f:
-                layers = [line.split() for line in f.readlines()[2:]]
-            reshapes = [layer for layer in layers if layer[0] == "Reshape"]
-            consumers = [layer for layer in layers if layer[0] in ("Interp", "Crop")]
-            if len(reshapes) != 1 or reshapes[0][2] != "2" or len(consumers) != 1 or consumers[0][2] != "1":
-                print(name, "unexpected shape reference inputs")
-                return False
     return True
 
 

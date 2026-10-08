@@ -201,30 +201,28 @@ void convert_Tensor_slice_copy(Graph& graph)
                 starts = std::vector<int> {0};
             }
 
-            Operand reshape_shape = *op->outputs[0];
+            std::vector<int> reshape_output_shape;
             std::map<std::string, Parameter> reshape_params;
             if (has_select)
             {
                 Operand* in = op->inputs[1];
-                reshape_shape.params["__ncnn_batch_axis"] = ncnn_batch_axis;
-                std::vector<int> shape = in->shape;
-                auto target = logical_shape(in, 0);
+                reshape_output_shape = in->shape;
+                const auto input_shape = get_logical_shape_expr(in, 0);
+                auto target = input_shape;
                 for (auto si : selected_axis_indices)
                 {
                     // unsqueeze
                     int sa = axes_in_shape[si];
-                    if (shape.empty())
+                    if (reshape_output_shape.empty())
                         continue;
-                    if (sa < 0 || sa > (int)shape.size())
+                    if (sa < 0 || sa > (int)reshape_output_shape.size())
                         continue;
 
-                    shape.insert(shape.begin() + sa, 1);
+                    reshape_output_shape.insert(reshape_output_shape.begin() + sa, 1);
                     target.insert(target.begin() + sa, "1");
                 }
 
-                reshape_shape.shape = shape;
-                reshape_shape.type = in->type;
-                if (!resolve_reshape_shape({in}, &reshape_shape, target, reshape_params))
+                if (!resolve_reshape_params(input_shape, get_ncnn_batch_axis(in), target, ncnn_batch_axis, 1, reshape_params))
                     continue;
             }
 
@@ -274,9 +272,9 @@ void convert_Tensor_slice_copy(Graph& graph)
                 in->remove_consumer(op);
                 in->consumers.push_back(reshape);
 
-                reshape_out->shape = reshape_shape.shape;
-                reshape_out->type = reshape_shape.type;
-                write_reshape_shape(reshape, reshape_params);
+                reshape_out->shape = reshape_output_shape;
+                reshape_out->type = in->type;
+                write_reshape_params(reshape, reshape_params);
             }
 
             break;
