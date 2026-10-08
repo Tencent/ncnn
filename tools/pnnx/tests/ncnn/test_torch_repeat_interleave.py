@@ -10,21 +10,21 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, w, x, y, z):
-        # 1d：dim 省略（flatten 后再重复）与普通一维重复
+        # 1d: dim omitted (torch flattens first) and a plain 1d repeat
         w0 = torch.repeat_interleave(w, 2)
         w1 = torch.repeat_interleave(w, 3, dim=0)
-        # 2d：ncnn 里没有通道维，只能走切片拼接
+        # 2d: there is no channel axis in ncnn here, so the slice+concat path is used
         x0 = torch.repeat_interleave(x, 2, dim=0)
         x1 = torch.repeat_interleave(x, 2, dim=1)
         x2 = torch.repeat_interleave(x, 2)
-        # 3d：dim0 是通道轴，dim1/dim2 需要先置换；dim0 另测逐元素 repeats
+        # 3d: dim0 is the channel axis, dim1/dim2 need a permute first; dim0 also tests per-element repeats
         y0 = torch.repeat_interleave(y, 2, dim=0)
         y1 = torch.repeat_interleave(y, 3, dim=1)
         y2 = torch.repeat_interleave(y, 2, dim=-1)
         y3 = torch.repeat_interleave(y, torch.tensor([2, 1, 3]), dim=0)
         y4 = torch.repeat_interleave(y, 2)
         y5 = torch.repeat_interleave(y, 1, dim=1)
-        # 4d：dim0 长度为 1（基础情形），dim1/dim2/dim3 分别落在 d/h/w 槽
+        # 4d: dim0 has length 1 (the base case), dim1/dim2/dim3 land in the d/h/w slots
         z0 = torch.repeat_interleave(z, 2, dim=0)
         z1 = torch.repeat_interleave(z, 2, dim=1)
         z2 = torch.repeat_interleave(z, 2, dim=2)

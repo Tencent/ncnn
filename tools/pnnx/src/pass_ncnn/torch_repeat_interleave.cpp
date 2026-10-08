@@ -9,23 +9,14 @@ namespace pnnx {
 
 namespace ncnn {
 
-// torch.repeat_interleave 在 ncnn 里没有对应层，这里把它分解成已有算子的组合：
+// ncnn has no repeat_interleave layer, decompose the op into existing layers:
 //
-//   A 通道轴    Tile + ShuffleChannel                        (2 层，目标轴是通道轴时最优)
-//   B 其它轴    Permute + Tile + ShuffleChannel + Permute     (dims==3 或 4)
-//   C 兜底      Slice + Tile + Concat                        (任意轴/维，支持逐元素 repeats)
-//   退化        Tile(1) / 恒等
-//   dim 省略    Reshape 插单位轴 + Tile + Reshape 合并（O(1) 层）或先 flatten 再走 C
+//   channel axis : Tile + ShuffleChannel                          (2 layers)
+//   other axes   : Permute + Tile + ShuffleChannel + Permute       (dims 3 or 4)
+//   fallback     : Slice + Tile + Concat                           (any axis, per element repeats)
+//   dim omitted  : Reshape + Tile + Reshape, or flatten and use the fallback
 //
-// A/B/退化/dim 省略这几种层数固定的情形用 GraphRewriterPass 实现；C 的层数随轴长变化，
-// 用 expand_repeat_interleave() 手工建图展开。
-//
-// 为什么要分开：pattern 重写器的替换图里如果又出现被匹配的类型，pass 就会反复匹配自己
-// 刚创建的 op，而 pass_level2.cpp 的 new_ops 里仍留着这些指针，op 被下一轮删掉后收尾
-// 命名就会 use-after-free。所以可变层数的展开不走重写器，直接建图（同 pass_level5/unroll_rnn_op.cpp）。
-//
-// 另外注意：pass_ncnn 里这些重写 pass 是**按注册顺序单次扫描**的，注册顺序就是依赖顺序 ——
-// 先做 flatten 的规整，再按 A -> B 的优先级匹配，最后才是退化情形。
+// the fixed layer count cases use GraphRewriterPass, the fallback is expanded manually
 
 static int default_ncnn_batch_axis(int batch_index)
 {
@@ -52,7 +43,7 @@ static void propagate_ncnn_batch_axis(const Operand* from, Operand* to)
         to->params["__batch_index"] = from->params.at("__batch_index").i;
 }
 
-// 把 torch 的 dim 换算成 ncnn 层的 axis 参数：去掉 batch 轴后，剩下的维按 torch 顺序编号
+// map the torch dim to the ncnn layer axis, the remaining dims keep the torch order
 static bool resolve_ncnn_axis(const Operand* in, int dim, int& axis, int& mat_dims, int& axis_length)
 {
     if (in->shape.empty())
@@ -66,7 +57,7 @@ static bool resolve_ncnn_axis(const Operand* in, int dim, int& axis, int& mat_di
 
     const int batch_axis = get_ncnn_batch_axis(in);
 
-    // 沿 batch 轴重复没法用 ncnn 层的 axis 参数表达
+    // repeating along the batch axis cannot be expressed with a layer axis param
     if (batch_axis != 233 && dim == batch_axis)
         return false;
 
@@ -80,7 +71,7 @@ static bool resolve_ncnn_axis(const Operand* in, int dim, int& axis, int& mat_di
     return mat_dims >= 1 && mat_dims <= 4 && axis_length > 0;
 }
 
-// repeats 必须是正整数的常量：标量（统一重复）或一维数组（逐元素重复）
+// repeats must be a positive constant, a scalar or a 1d per element array
 static bool get_repeats(const Parameter& p, std::vector<int>& repeats)
 {
     if (p.type == 2)
@@ -153,7 +144,7 @@ static bool get_repeats_from_attribute(const Attribute& a, std::vector<int>& rep
     return true;
 }
 
-// repeats 也可能是常量张量（pnnx.Attribute）
+// repeats may also be a constant tensor (pnnx.Attribute)
 static bool get_repeats_from_operand(const Operand* r, std::vector<int>& repeats)
 {
     const Operator* op = r->producer;
@@ -183,7 +174,7 @@ static int total_shape(const std::vector<int>& shape)
     return total;
 }
 
-// repeats 全为 1 时整个算子就是恒等
+// all repeats equal to 1 makes the whole op an identity
 static bool all_repeats_one(const std::vector<int>& repeats)
 {
     for (size_t i = 0; i < repeats.size(); i++)
@@ -194,13 +185,12 @@ static bool all_repeats_one(const std::vector<int>& repeats)
     return true;
 }
 
-// Permute 的 order_type 枚举见 src/layer/permute.cpp。
-// 这里给出把目标轴搬到 Mat 通道槽（Tile/ShuffleChannel 只能作用在通道轴）所用的置换对：
+// permutations that move the target axis into the Mat channel slot, since Tile and
+// ShuffleChannel only work on the channel axis (see src/layer/permute.cpp for the order_type
+// enum), order_out is the inverse that restores the axis order:
 //
-//   dims==3 (w h c): 轴 1=h -> order 2  轴 2=w -> order 4
-//   dims==4 (w h d c): 轴 1=d -> order 6  轴 2=h -> order 12  轴 3=w -> order 18
-//
-// 返回的 order_out 是还原轴序的逆置换（已在 ncnn 上逐一对拍验证）。
+//   dims==3 (w h c)  : axis 1 -> 2/2,  axis 2 -> 4/3
+//   dims==4 (w h d c): axis 1 -> 6/6,  axis 2 -> 12/8,  axis 3 -> 18/9
 static bool get_permute_orders(int mat_dims, int axis, int& order_in, int& order_out)
 {
     if (mat_dims == 3)
@@ -246,9 +236,8 @@ static bool get_permute_orders(int mat_dims, int axis, int& order_in, int& order
     return false;
 }
 
-// dim 省略时 torch 会先把输入 flatten 成一维再做重复，
-// 先用 Reshape 拆出 (c=T,d=1,h=1,w=1)，沿 d 复制 r 份等价于逐元素重复，最后再合并回一维。
-// 这个分解不依赖具体尺寸（Tile 的倍数与 Reshape 的目标形状都是常量）
+// dim omitted: torch flattens first, so reshape to (c=T,d=1,h=1,w=1), copy r times along d
+// (the same as per element repeats) and reshape back, both params are constants
 class torch_repeat_interleave_nodim : public GraphRewriterPass
 {
 public:
@@ -300,7 +289,7 @@ pnnx.Output             output   1 0 out
         Operand* mid2 = ops.at("tile")->outputs[0];
         Operand* out = ops.at("reshape2")->outputs[0];
 
-        // flatten + 沿 d 轴复制，中间 blob 是 4 维的
+        // flatten and copy along d, the intermediate blobs are 4d
         if (!in->shape.empty())
         {
             const int total = total_shape(in->shape);
@@ -308,7 +297,7 @@ pnnx.Output             output   1 0 out
             mid2->shape = std::vector<int>{total, repeats, 1, 1};
         }
 
-        // flatten 之后就没有 batch 轴了
+        // there is no batch axis after the flatten
         mid->params["__ncnn_batch_axis"] = 233;
         mid2->params["__ncnn_batch_axis"] = 233;
         out->params["__ncnn_batch_axis"] = 233;
@@ -317,7 +306,7 @@ pnnx.Output             output   1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_repeat_interleave_nodim, 20)
 
-// dim 省略 + 逐元素 repeats：同样先 flatten 成一维，剩下的交给 expand_repeat_interleave()
+// dim omitted + per element repeats: flatten to 1d first and let the fallback do the rest
 class torch_repeat_interleave_nodim_attribute : public GraphRewriterPass
 {
 public:
@@ -356,7 +345,7 @@ pnnx.Output             output   1 0 out
         if (in->shape.empty())
             return false;
 
-        // flatten 之后 repeats 的长度必须等于元素总数
+        // after the flatten the repeats length must match the element count
         return (int)repeats.size() == total_shape(in->shape);
     }
 
@@ -382,7 +371,7 @@ pnnx.Output             output   1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_repeat_interleave_nodim_attribute, 20)
 
-// A 路径：目标轴就是通道轴时，Tile 沿通道整块复制，再用 ShuffleChannel 交错
+// target axis is the channel axis: Tile copies the channel block, ShuffleChannel interleaves it
 class torch_repeat_interleave_channel : public GraphRewriterPass
 {
 public:
@@ -420,7 +409,7 @@ pnnx.Output     output  1 0 out
         if (!resolve_ncnn_axis(matched_operators.at("op_0")->inputs[0], captured_params.at("dim").i, axis, mat_dims, axis_length))
             return false;
 
-        // 需要 Mat 至少有通道维，且 ShuffleChannel 的 group 必须是静态的；重复 1 次留给退化分支
+        // the Mat needs a channel axis and a static ShuffleChannel group
         return axis == 0 && mat_dims >= 3 && axis_length >= 2 && repeats[0] >= 2;
     }
 
@@ -436,7 +425,7 @@ pnnx.Output     output  1 0 out
         int axis, mat_dims, axis_length;
         resolve_ncnn_axis(in, dim, axis, mat_dims, axis_length);
 
-        // Tile 得到 [c0,c1,...,c0,c1,...]，ShuffleChannel(reverse) 再交错成 [c0,c0,c1,c1,...]
+        // Tile gives [c0,c1,c0,c1,...], ShuffleChannel(reverse) interleaves it into [c0,c0,c1,c1,...]
         ops.at("tile")->params["0"] = axis;
         ops.at("tile")->params["1"] = repeats;
         ops.at("sc")->params["0"] = axis_length;
@@ -453,7 +442,7 @@ pnnx.Output     output  1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_repeat_interleave_channel, 20)
 
-// B 路径：先把目标轴置换到通道位，复用 A 的组合，再置换回来（dims==3 或 4）
+// other axes: permute the axis into the channel slot, reuse Tile + ShuffleChannel, permute back
 class torch_repeat_interleave_permute : public GraphRewriterPass
 {
 public:
@@ -512,7 +501,7 @@ pnnx.Output     output  1 0 out
         int axis, mat_dims, axis_length;
         resolve_ncnn_axis(in, dim, axis, mat_dims, axis_length);
 
-        // match() 已经校验过，这里必定能取到置换对
+        // the pair is validated by match()
         int order_in = 0;
         int order_out = 0;
         get_permute_orders(mat_dims, axis, order_in, order_out);
@@ -524,7 +513,7 @@ pnnx.Output     output  1 0 out
         ops.at("sc")->params["1"] = 1;
         ops.at("p1")->params["0"] = order_out;
 
-        // 中间几个 blob 的轴序被置换过，shape 留空（与 torch.roll 的做法一致），只传 batch 轴信息
+        // the axis order is permuted so the blob shape is left empty (same as torch.roll)
         propagate_ncnn_batch_axis(in, ops.at("p0")->outputs[0]);
         propagate_ncnn_batch_axis(in, ops.at("tile")->outputs[0]);
         propagate_ncnn_batch_axis(in, ops.at("sc")->outputs[0]);
@@ -534,8 +523,7 @@ pnnx.Output     output  1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_repeat_interleave_permute, 20)
 
-// 退化情形：目标轴长度为 1 时整块复制与逐元素重复等价；repeats 全为 1 时算子就是恒等。
-// 两种都退化成单个 Tile（tiles 为 1 时 Tile 是恒等）
+// an axis length of 1 or all repeats equal to 1 is a plain block copy, a single Tile covers both
 class torch_repeat_interleave_trivial : public GraphRewriterPass
 {
 public:
@@ -590,10 +578,8 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_repeat_interleave_trivial, 20)
 
-// C 路径：层数随轴长变化，手工建图展开成 Slice + Tile + Concat
-// 之所以不做成 pattern 替换：替换图里再出现同类型 op 会让 pass 反复匹配自己刚创建的 op，
-// 而 pass_level2.cpp 的 new_ops 里仍留着这些指针（下一轮删掉后收尾命名就 use-after-free）。
-// 这里每次切出轴上的一个元素复制 r 份，最后把各段拼接起来。
+// fallback: slice one element of the axis, repeat it r times and concat the parts. Built by hand
+// since the layer count is dynamic and a replacement graph re-matching itself corrupts new_ops
 void expand_repeat_interleave(Graph& graph)
 {
     for (size_t i = 0; i < graph.ops.size(); i++)
@@ -602,7 +588,7 @@ void expand_repeat_interleave(Graph& graph)
         if (op->type != "torch.repeat_interleave")
             continue;
 
-        // dim 省略的情形由 torch_repeat_interleave_nodim* 处理
+        // the dim omitted case is handled by torch_repeat_interleave_nodim*
         if (op->params.find("dim") == op->params.end() || op->params.at("dim").type != 2)
             continue;
 
@@ -628,7 +614,7 @@ void expand_repeat_interleave(Graph& graph)
         if (!resolve_ncnn_axis(in, op->params.at("dim").i, axis, mat_dims, axis_length))
             continue;
 
-        // 轴长度为 1 或 repeats 全为 1 的情形已经由 torch_repeat_interleave_trivial 处理
+        // an axis length of 1 and all-ones repeats went to the trivial pass
         if (axis_length < 2 || all_repeats_one(repeats))
             continue;
 
@@ -646,7 +632,7 @@ void expand_repeat_interleave(Graph& graph)
             Operand* elem = cur;
             if (k != axis_length - 1)
             {
-                // 切出第一个元素，剩下的留给下一轮
+                // slice out the first element and keep the rest for the next iteration
                 Operator* slice = graph.new_operator_before("Slice", op->name + "_slice_" + std::to_string(k), op);
                 slice->params["0"] = std::vector<int>{1, cur_length - 1};
                 slice->params["1"] = axis;
@@ -672,7 +658,7 @@ void expand_repeat_interleave(Graph& graph)
                 cur_length -= 1;
             }
 
-            // 把切出来的元素沿该轴复制 r 份
+            // repeat the sliced element r times along this axis
             Operator* tile = graph.new_operator_before("Tile", op->name + "_tile_" + std::to_string(k), op);
             tile->params["0"] = axis;
             tile->params["1"] = r;
@@ -689,7 +675,7 @@ void expand_repeat_interleave(Graph& graph)
             parts[k] = part_operand;
         }
 
-        // 按顺序拼回去
+        // concatenate the parts in order
         Operator* concat = graph.new_operator_before("Concat", op->name + "_concat", op);
         concat->params["0"] = axis;
 
@@ -702,8 +688,7 @@ void expand_repeat_interleave(Graph& graph)
         concat->outputs.push_back(op->outputs[0]);
         op->outputs[0]->producer = concat;
 
-        // 摘掉原 op 在所有输入上的反向引用（repeats 是常量张量时，那个 pnnx.Attribute
-        // 也会变成死代码，由后面的 dead_code_elimination 回收）
+        // drop the reverse references of the original op on all its inputs
         for (size_t j = 0; j < op->inputs.size(); j++)
         {
             op->inputs[j]->remove_consumer(op);
