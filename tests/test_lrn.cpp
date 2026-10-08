@@ -32,6 +32,8 @@ static int test_lrn_0()
     ncnn::Mat a = RandomMat(11, 7, 12);
 
     return 0
+           || test_lrn(a, 0, 2, 1.f, 0.75f, 1.f)
+           || test_lrn(a, 0, 4, 2.f, 0.12f, 1.33f)
            || test_lrn(a, 0, 1, 1.f, 0.75f, 1.f)
            || test_lrn(a, 0, 5, 2.f, 0.12f, 1.33f)
            || test_lrn(a, 1, 1, 0.6f, 0.4f, 2.4f)
@@ -43,6 +45,8 @@ static int test_lrn_1()
     ncnn::Mat a = RandomMat(10, 8, 16);
 
     return 0
+           || test_lrn(a, 0, 2, 1.f, 0.75f, 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_lrn(a, 0, 4, 2.f, 0.12f, 1.33f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_lrn(a, 0, 1, 1.f, 0.75f, 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_lrn(a, 0, 5, 2.f, 0.12f, 1.33f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_lrn(a, 1, 1, 0.6f, 0.4f, 2.4f, TEST_LAYER_DISABLE_GPU_TESTING)
@@ -54,10 +58,53 @@ static int test_lrn_2()
     ncnn::Mat a = RandomMat(12, 10, 9);
 
     return 0
+           || test_lrn(a, 0, 2, 1.f, 0.75f, 1.f)
+           || test_lrn(a, 0, 4, 2.f, 0.12f, 1.33f)
            || test_lrn(a, 0, 1, 1.f, 0.75f, 1.f)
            || test_lrn(a, 0, 5, 2.f, 0.12f, 1.33f)
            || test_lrn(a, 1, 1, 0.6f, 0.4f, 2.4f)
            || test_lrn(a, 1, 3, 1.f, 0.75f, 0.5f);
+}
+
+static int test_lrn_even_window()
+{
+    ncnn::Mat a(1, 1, 5);
+    for (int q = 0; q < 5; q++)
+        a.channel(q)[0] = q + 1.f;
+
+    const int local_sizes[] = {2, 4, 8};
+    // Squared channel sums for [q - size / 2, q + (size - 1) / 2],
+    // with zeros outside the five channels containing 1, 2, 3, 4, 5.
+    const float square_sums[][5] = {{1.f, 5.f, 13.f, 25.f, 41.f},
+                                   {5.f, 14.f, 30.f, 54.f, 50.f},
+                                   {30.f, 55.f, 55.f, 55.f, 55.f}};
+
+    for (int i = 0; i < 3; i++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 0);
+        pd.set(1, local_sizes[i]);
+        pd.set(2, 1.f);
+        pd.set(3, 1.f);
+        pd.set(4, 1.f);
+
+        ncnn::Mat expected(1, 1, 5);
+        for (int q = 0; q < 5; q++)
+            expected.channel(q)[0] = (q + 1.f) / (1.f + square_sums[i][q] / local_sizes[i]);
+
+        ncnn::Mat actual;
+        std::vector<ncnn::Mat> weights;
+        if (test_layer_naive(ncnn::LayerType::LRN, pd, weights, a, actual, 0) != 0 || CompareMat(expected, actual, 0.000001f) != 0)
+        {
+            fprintf(stderr, "test_lrn_even_window failed local_size=%d\n", local_sizes[i]);
+            return -1;
+        }
+
+        if (test_lrn(a, 0, local_sizes[i], 1.f, 1.f, 1.f) != 0)
+            return -1;
+    }
+
+    return 0;
 }
 
 #if NCNN_VALIDATION
@@ -89,6 +136,7 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_lrn_even_window()
            || test_lrn_0()
            || test_lrn_1()
            || test_lrn_2()
