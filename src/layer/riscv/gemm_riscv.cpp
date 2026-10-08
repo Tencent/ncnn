@@ -3196,12 +3196,26 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_ZFH
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();
-    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage)
     {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blobs, top_blobs, opt);
+        if (elembits == 16)
+        {
+            if (opt.use_fp16_arithmetic)
+                return forward_fp16sa(bottom_blobs, top_blobs, opt);
 
-        return forward_fp16s(bottom_blobs, top_blobs, opt);
+            return forward_fp16s(bottom_blobs, top_blobs, opt);
+        }
+
+        // create_pipeline() took the fp16 branch on this same condition, without
+        // looking at the input element type, so BT_data holds the fp16 packing.
+        // Falling through to the generic fp32 path would read that buffer with
+        // the wrong element size -- an out-of-bounds read, which shows up either
+        // as SIGSEGV or as silently wrong results depending on the allocation
+        // size. Inside a Net the input is cast to fp16 before this point; a bare
+        // layer driven directly has to do the same, or turn fp16 storage off.
+        NCNN_LOGE("Gemm: layer was built for fp16 input but the input blob is %d-bit; "
+                  "cast the input to fp16 or set opt.use_fp16_storage = false", elembits);
+        return -100;
     }
 #endif
 
