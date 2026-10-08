@@ -436,6 +436,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_convert_rotaryembed.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
+    pass_ncnn/reshape_shape.cpp
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp
@@ -640,7 +641,7 @@ set(pnnx_pass_ncnn_SRCS
 )
 
 if(PROTOBUF_FOUND)
-    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22 AND CMAKE_CXX_STANDARD LESS 17)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 

@@ -288,6 +288,10 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
             float f = t.float_data().at(0);
             memcpy((void*)data.data(), (const void*)&f, data.size());
         }
+        else if (t.data_type() == onnx::TensorProto::BOOL)
+        {
+            data[0] = t.int32_data().at(0) ? 1 : 0;
+        }
         else
         {
             fprintf(stderr, "unknown Attribute tensor scalar type %d\n", type);
@@ -327,6 +331,13 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
         else if (t.data_type() == onnx::TensorProto::FLOAT)
         {
             memcpy((void*)data.data(), (const void*)t.float_data().data(), data.size());
+        }
+        else if (t.data_type() == onnx::TensorProto::BOOL)
+        {
+            for (size_t i = 0; i < data.size(); i++)
+            {
+                data[i] = t.int32_data().at(i) ? 1 : 0;
+            }
         }
         else
         {

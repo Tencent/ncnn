@@ -12,7 +12,7 @@ from onnxscript import FLOAT, script
 from onnxscript import opset19 as op
 
 @script()
-def Model(x: FLOAT["N",12,"H","W"]):
+def Model(x: FLOAT["N",12,"H","W"], y: FLOAT["N",3,"W2"], z: FLOAT["N","C","H2","W3"], u: FLOAT["K"]):
 
     a = op.Reshape(x, shape=[1,-1,1,1])
     b = op.Reshape(x, shape=[1,-1])
@@ -28,6 +28,11 @@ def Model(x: FLOAT["N",12,"H","W"]):
 
         op.Flatten(x),
         op.Flatten(x, axis=-2),
+        op.Flatten(x, axis=0),
+        op.Flatten(x, axis=4),
+        op.Flatten(y, axis=2),
+        op.Flatten(z, axis=2),
+        op.Flatten(u),
 
         op.Pad(x, pads=[0, 0, 0, 0, 0, 1, 1, 1], mode='constant', constant_value=0.0),
         op.Pad(x, pads=[0, 0, 1, 1, 0, 0, 1, 1], mode='reflect'),
@@ -68,14 +73,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 16, 14)
+    y = torch.rand(2, 3, 5)
+    z = torch.rand(2, 3, 5, 7)
+    u = torch.rand(9)
 
     # ort inference
     sess = ort.InferenceSession("test_onnx_layout_ops.onnx")
-    a = tuple(torch.from_numpy(out) for out in sess.run(None, {"x": x.numpy()}))
+    a = tuple(torch.from_numpy(out) for out in sess.run(None, {"x": x.numpy(), "y": y.numpy(), "z": z.numpy(), "u": u.numpy()}))
 
     # onnx to pnnx and ncnn
     import os
-    os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,16,14] inputshape2=[1,12,48,66]")
+    os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,16,14],[2,3,5],[2,3,5,7],[9] inputshape2=[1,12,48,66],[4,3,7],[4,6,8,10],[13]")
 
     # pnnx inference
     import test_onnx_layout_ops_pnnx

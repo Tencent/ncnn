@@ -111,11 +111,14 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     bindings[2] = sin_cache_unpacked;
     bindings[3] = top_blob;
 
-    std::vector<vk_constant_type> constants(4);
+    std::vector<vk_constant_type> constants(5);
     constants[0].i = embed_dim;
     constants[1].i = seqlen;
     constants[2].i = num_heads;
     constants[3].i = (int)bottom_blob.cstep;
+    // cos/sin cache row width: embed_dim => independent cos/sin per half (2D rope);
+    // embed_dim/2 => standard rope whose halves are identical.
+    constants[4].i = cos_cache_unpacked.w;
 
     VkMat dispatcher;
     dispatcher.w = embed_dim / 2;
