@@ -4,6 +4,7 @@
 #include "reduction.h"
 
 #include <float.h>
+#include <limits>
 
 namespace ncnn {
 
@@ -880,6 +881,64 @@ void Reduction::resolve_reduce_flags_and_output_shape(const Mat& blob, bool& red
     }
 }
 
+static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float coeff, const Option& opt)
+{
+    const int out_inner = b.w * b.h * b.d;
+    const int out_size = out_inner * b.c;
+    const float inf = std::numeric_limits<float>::infinity();
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < out_size; i++)
+    {
+        int t = i;
+        const int iw = reduce_w ? 0 : t % a.w;
+        if (!reduce_w) t /= a.w;
+        const int ih = reduce_h ? 0 : t % a.h;
+        if (!reduce_h) t /= a.h;
+        const int id = reduce_d ? 0 : t % a.d;
+        if (!reduce_d) t /= a.d;
+        const int ic = reduce_c ? 0 : t;
+
+        const int end_w = reduce_w ? a.w : iw + 1;
+        const int end_h = reduce_h ? a.h : ih + 1;
+        const int end_d = reduce_d ? a.d : id + 1;
+        const int end_c = reduce_c ? a.c : ic + 1;
+
+        float max_value = -inf;
+        for (int q = ic; q < end_c; q++)
+        {
+            const float* ptr = a.channel(q);
+            for (int z = id; z < end_d; z++)
+                for (int y = ih; y < end_h; y++)
+                    for (int x = iw; x < end_w; x++)
+                    {
+                        const float v = ptr[(z * a.h + y) * a.w + x];
+                        if (v != v || v > max_value) max_value = v;
+                    }
+        }
+
+        float value = max_value;
+        if (max_value != inf && max_value != -inf && max_value == max_value)
+        {
+            float sum = 0.f;
+            for (int q = ic; q < end_c; q++)
+            {
+                const float* ptr = a.channel(q);
+                for (int z = id; z < end_d; z++)
+                    for (int y = ih; y < end_h; y++)
+                        for (int x = iw; x < end_w; x++)
+                            sum += expf(ptr[(z * a.h + y) * a.w + x] - max_value);
+            }
+            value = max_value + logf(sum);
+        }
+
+        float* outptr = b.channel(i / out_inner);
+        outptr[i % out_inner] = value * coeff;
+    }
+
+    return 0;
+}
+
 int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     bool reduce_w, reduce_h, reduce_d, reduce_c;
@@ -910,6 +969,9 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     }
     if (top_blob.empty())
         return -100;
+
+    if (operation == ReductionOp_LogSumExp)
+        return reduction_logsumexp(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, coeff, opt);
 
     return reduction_op(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, keepdims, operation, coeff, opt);
 }

@@ -46,6 +46,7 @@ layout(push_constant) uniform parameter
 } p;
 
 shared afp sdata[256];
+shared float sdata_logsumexp[256];
 
 const float FLT_MAX_VALUE = 3.402823466e+38;
 const float FLT_MIN_VALUE = 1.175494351e-38;
@@ -174,6 +175,89 @@ void main()
     if (p.reduce_h != 0) reduce_size *= in_h;
     if (p.in_dims == 4 && p.reduce_d != 0) reduce_size *= in_d;
     if (p.in_dims >= 3 && p.reduce_c != 0) reduce_size *= in_c;
+
+    if (op == 10)
+    {
+        float max_value = uintBitsToFloat(0xff800000u);
+        for (int t = tid; t < reduce_size; t += 256)
+        {
+            int tt = t;
+            int iw = in_coord[3];
+            int ih = in_coord[2];
+            int id = in_coord[1];
+            int ic = in_coord[0];
+            if (p.reduce_w != 0)
+            {
+                iw = tt % in_w;
+                tt /= in_w;
+            }
+            if (p.reduce_h != 0)
+            {
+                ih = tt % in_h;
+                tt /= in_h;
+            }
+            if (p.in_dims == 4 && p.reduce_d != 0)
+            {
+                id = tt % in_d;
+                tt /= in_d;
+            }
+            if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
+            float v = float(buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic)));
+            max_value = max(max_value, v);
+        }
+        sdata_logsumexp[tid] = max_value;
+        barrier();
+        for (int stride = 128; stride > 0; stride >>= 1)
+        {
+            if (tid < stride) sdata_logsumexp[tid] = max(sdata_logsumexp[tid], sdata_logsumexp[tid + stride]);
+            barrier();
+        }
+        float max_shift = sdata_logsumexp[0];
+        if (isinf(max_shift)) max_shift = 0.f;
+
+        float sum = 0.f;
+        for (int t = tid; t < reduce_size; t += 256)
+        {
+            int tt = t;
+            int iw = in_coord[3];
+            int ih = in_coord[2];
+            int id = in_coord[1];
+            int ic = in_coord[0];
+            if (p.reduce_w != 0)
+            {
+                iw = tt % in_w;
+                tt /= in_w;
+            }
+            if (p.reduce_h != 0)
+            {
+                ih = tt % in_h;
+                tt /= in_h;
+            }
+            if (p.in_dims == 4 && p.reduce_d != 0)
+            {
+                id = tt % in_d;
+                tt /= in_d;
+            }
+            if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
+            float v = float(buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic)));
+            sum += exp(v - max_shift);
+        }
+        // Every thread must read the maximum before reusing shared memory.
+        barrier();
+        sdata_logsumexp[tid] = sum;
+        barrier();
+        for (int stride = 128; stride > 0; stride >>= 1)
+        {
+            if (tid < stride) sdata_logsumexp[tid] += sdata_logsumexp[tid + stride];
+            barrier();
+        }
+        if (tid == 0)
+        {
+            float outv = (log(sdata_logsumexp[0]) + max_shift) * p.coeff;
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
+        }
+        return;
+    }
 
     afp acc = init_acc();
 
