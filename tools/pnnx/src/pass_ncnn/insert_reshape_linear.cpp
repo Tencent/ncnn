@@ -65,7 +65,7 @@ void insert_reshape_linear(Graph& graph)
             std::map<std::string, Parameter> params0;
             std::map<std::string, Parameter> params1;
             if (!resolve_reshape_shape({linear_in}, &reshape0_shape, folded_shape, params0)
-                || !resolve_reshape_shape({&reshape1_shape, linear_in}, linear_out, output_shape, params1))
+                    || !resolve_reshape_shape({&reshape1_shape, linear_in}, linear_out, output_shape, params1))
                 continue;
 
             matched = true;

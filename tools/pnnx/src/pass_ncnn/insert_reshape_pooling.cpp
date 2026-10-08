@@ -67,7 +67,7 @@ void insert_reshape_pooling(Graph& graph)
             std::map<std::string, Parameter> params0;
             std::map<std::string, Parameter> params1;
             if (!resolve_reshape_shape({pooling_in}, &reshape0_shape, input_shape, params0)
-                || !resolve_reshape_shape({&reshape1_shape}, pooling_out, output_shape, params1))
+                    || !resolve_reshape_shape({&reshape1_shape}, pooling_out, output_shape, params1))
                 continue;
 
             matched = true;

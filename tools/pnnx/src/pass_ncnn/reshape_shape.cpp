@@ -233,13 +233,13 @@ bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* o
     const int input_axis = batch_axis(inputs[0]);
     const int output_axis = batch_axis(output);
     if ((input_axis != 233 && (input_axis < 0 || input_axis >= (int)input_shape.size()))
-        || (output_axis != 233 && (output_axis < 0 || output_axis >= (int)shape.size())))
+            || (output_axis != 233 && (output_axis < 0 || output_axis >= (int)shape.size())))
     {
         fprintf(stderr, "reshape %s: batch axis is outside logical rank\n", output->name.c_str());
         return false;
     }
     if (std::find(input_shape.begin(), input_shape.end(), std::string()) != input_shape.end()
-        || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
+            || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
     {
         fprintf(stderr, "reshape %s: unsupported dimension reference\n", output->name.c_str());
         return false;
