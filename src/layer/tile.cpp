@@ -17,6 +17,27 @@ int Tile::load_param(const ParamDict& pd)
     tiles = pd.get(1, 1);
     repeats = pd.get(2, Mat());
 
+#if NCNN_VALIDATION
+    {
+        const int repeats_type = pd.type(2);
+        if (repeats_type != 0 && repeats_type != 4 && repeats_type != 5)
+            return -1;
+
+        if ((repeats.dims != 0 || repeats.w != 0 || repeats.data) && (repeats.dims != 1 || repeats.w < 0 || repeats.elempack != 1 || repeats.elemsize != 4u || (repeats.w > 0 && !repeats.data)))
+            return -1;
+    }
+
+    if (repeats.w > 4 || (repeats.empty() && (axis < 0 || axis > 3 || tiles <= 0)))
+        return -1;
+
+    const int* repeats_ptr = repeats;
+    for (int i = 0; i < repeats.w; i++)
+    {
+        if (repeats_ptr[i] <= 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 

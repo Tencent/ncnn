@@ -449,6 +449,11 @@ int MultiHeadAttention_vulkan::create_or_grow_kvcache(const VkMat& cache, VkMat&
 
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_BATCH
+    if (kv_cache && bottom_blobs[0].n > 1)
+        return -1;
+#endif // NCNN_BATCH
+
     if (weight_block_quantize)
     {
         NCNN_LOGE("MultiHeadAttention weight block quantization is not supported by Vulkan");
@@ -625,7 +630,16 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             k_affine = tmp;
         }
         VkMat attn_mask_blob_unpacked = attn_mask_blob;
-        if (M_elempack < attn_mask_blob.elempack)
+        if (attn_mask_blob.dims == 3)
+        {
+            if (attn_mask_blob.elempack != 1)
+            {
+                vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, cmd, opt);
+                if (attn_mask_blob_unpacked.empty())
+                    return -100;
+            }
+        }
+        else if (M_elempack < attn_mask_blob.elempack)
         {
             vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, M_elempack, cmd, opt);
         }
@@ -640,12 +654,13 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         bindings[2] = qk_cross;
         bindings[3] = attn_mask_blob_unpacked;
 
-        std::vector<vk_constant_type> constants(5);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = M / M_elempack;
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
         constants[4].i = attn_mask_blob_unpacked.dims;
+        constants[5].i = attn_mask_blob_unpacked.cstep;
 
         VkMat dispatcher;
         dispatcher.w = N;

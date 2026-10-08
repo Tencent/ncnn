@@ -1,6 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "expression.h"
 #include "net.h"
 #include "testutil.h"
 
@@ -96,14 +97,16 @@ static int test_partition(int a, int b, int c, int axis, int x, int y, int z, in
 
 static int test_shape_references(const char* expression, int data_batch, int width, int height, bool explicit_batch, bool vulkan, bool packing)
 {
+    const int input_count = ncnn::count_expression_blobs(expression);
+    const char* input_names[] = {"data", "data ref1", "data ref1 ref2"};
     char param[512];
     snprintf(param, sizeof(param), "7767517\n"
              "4 4\n"
              "Input data 0 1 data\n"
              "Input ref1 0 1 ref1\n"
              "Input ref2 0 1 ref2\n"
-             "Reshape reshape 3 1 data ref1 ref2 out 6=\"%s\" %s\n",
-             expression, explicit_batch ? "12=0 13=0" : "");
+             "Reshape reshape %d 1 %s out 6=\"%s\" %s\n",
+             input_count, input_names[input_count - 1], expression, explicit_batch ? "12=0 13=0" : "");
 
     ncnn::Net net;
     net.opt.num_threads = 1;

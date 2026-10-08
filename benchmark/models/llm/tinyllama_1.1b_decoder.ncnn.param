@@ -1,5 +1,5 @@
 7767517
-757 1061
+625 929
 Input                    in0                      0 1 in0
 Split                    splitncnn_0              1 2 in0 1 2
 Input                    in1                      0 1 in1
@@ -22,13 +22,7 @@ Reshape                  reshape_267              1 1 126 127 0=64 1=4 2=-1
 Permute                  transpose_399            1 1 127 128 0=2
 RotaryEmbed              rope_0                   3 1 122 70 115 129 0=0
 RotaryEmbed              rope_1                   3 1 125 69 114 130 0=0
-ExpandDims               unsqueeze_485            1 1 130 131 -23303=1,1
-Tile                     expand_221               1 1 131 132 -23302=4,1,8,1,1
-Reshape                  reshape_268              1 1 132 133 0=64 1=-1 2=32
-ExpandDims               unsqueeze_486            1 1 128 134 -23303=1,1
-Tile                     expand_222               1 1 134 135 -23302=4,1,8,1,1
-Reshape                  reshape_269              1 1 135 136 0=64 1=-1 2=32
-SDPA                     sdpa_529                 6 3 129 133 136 25 cache_k0 cache_v0 137 out_cache_k0 out_cache_v0 5=1 6=0.125 7=1
+SDPA                     sdpa_529                 6 3 129 130 128 25 cache_k0 cache_v0 137 out_cache_k0 out_cache_v0 5=1 6=0.125 7=1
 Permute                  transpose_400            1 1 137 138 0=2
 Reshape                  reshape_270              1 1 138 139 0=2048 1=-1
 Gemm                     gemm_3                   1 1 139 140 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -56,13 +50,7 @@ Reshape                  reshape_273              1 1 165 166 0=64 1=4 2=-1
 Permute                  transpose_403            1 1 166 167 0=2
 RotaryEmbed              rope_2                   3 1 161 68 113 168 0=0
 RotaryEmbed              rope_3                   3 1 164 67 112 169 0=0
-ExpandDims               unsqueeze_487            1 1 169 170 -23303=1,1
-Tile                     expand_223               1 1 170 171 -23302=4,1,8,1,1
-Reshape                  reshape_274              1 1 171 172 0=64 1=-1 2=32
-ExpandDims               unsqueeze_488            1 1 167 173 -23303=1,1
-Tile                     expand_224               1 1 173 174 -23302=4,1,8,1,1
-Reshape                  reshape_275              1 1 174 175 0=64 1=-1 2=32
-SDPA                     sdpa_530                 6 3 168 172 175 24 cache_k1 cache_v1 176 out_cache_k1 out_cache_v1 5=1 6=0.125 7=1
+SDPA                     sdpa_530                 6 3 168 169 167 24 cache_k1 cache_v1 176 out_cache_k1 out_cache_v1 5=1 6=0.125 7=1
 Permute                  transpose_404            1 1 176 177 0=2
 Reshape                  reshape_276              1 1 177 178 0=2048 1=-1
 Gemm                     gemm_10                  1 1 178 179 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -90,13 +78,7 @@ Reshape                  reshape_279              1 1 204 205 0=64 1=4 2=-1
 Permute                  transpose_407            1 1 205 206 0=2
 RotaryEmbed              rope_4                   3 1 200 66 111 207 0=0
 RotaryEmbed              rope_5                   3 1 203 65 110 208 0=0
-ExpandDims               unsqueeze_489            1 1 208 209 -23303=1,1
-Tile                     expand_225               1 1 209 210 -23302=4,1,8,1,1
-Reshape                  reshape_280              1 1 210 211 0=64 1=-1 2=32
-ExpandDims               unsqueeze_490            1 1 206 212 -23303=1,1
-Tile                     expand_226               1 1 212 213 -23302=4,1,8,1,1
-Reshape                  reshape_281              1 1 213 214 0=64 1=-1 2=32
-SDPA                     sdpa_531                 6 3 207 211 214 23 cache_k2 cache_v2 215 out_cache_k2 out_cache_v2 5=1 6=0.125 7=1
+SDPA                     sdpa_531                 6 3 207 208 206 23 cache_k2 cache_v2 215 out_cache_k2 out_cache_v2 5=1 6=0.125 7=1
 Permute                  transpose_408            1 1 215 216 0=2
 Reshape                  reshape_282              1 1 216 217 0=2048 1=-1
 Gemm                     gemm_17                  1 1 217 218 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -124,13 +106,7 @@ Reshape                  reshape_285              1 1 243 244 0=64 1=4 2=-1
 Permute                  transpose_411            1 1 244 245 0=2
 RotaryEmbed              rope_6                   3 1 239 64 109 246 0=0
 RotaryEmbed              rope_7                   3 1 242 63 108 247 0=0
-ExpandDims               unsqueeze_491            1 1 247 248 -23303=1,1
-Tile                     expand_227               1 1 248 249 -23302=4,1,8,1,1
-Reshape                  reshape_286              1 1 249 250 0=64 1=-1 2=32
-ExpandDims               unsqueeze_492            1 1 245 251 -23303=1,1
-Tile                     expand_228               1 1 251 252 -23302=4,1,8,1,1
-Reshape                  reshape_287              1 1 252 253 0=64 1=-1 2=32
-SDPA                     sdpa_532                 6 3 246 250 253 22 cache_k3 cache_v3 254 out_cache_k3 out_cache_v3 5=1 6=0.125 7=1
+SDPA                     sdpa_532                 6 3 246 247 245 22 cache_k3 cache_v3 254 out_cache_k3 out_cache_v3 5=1 6=0.125 7=1
 Permute                  transpose_412            1 1 254 255 0=2
 Reshape                  reshape_288              1 1 255 256 0=2048 1=-1
 Gemm                     gemm_24                  1 1 256 257 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -158,13 +134,7 @@ Reshape                  reshape_291              1 1 282 283 0=64 1=4 2=-1
 Permute                  transpose_415            1 1 283 284 0=2
 RotaryEmbed              rope_8                   3 1 278 62 107 285 0=0
 RotaryEmbed              rope_9                   3 1 281 61 106 286 0=0
-ExpandDims               unsqueeze_493            1 1 286 287 -23303=1,1
-Tile                     expand_229               1 1 287 288 -23302=4,1,8,1,1
-Reshape                  reshape_292              1 1 288 289 0=64 1=-1 2=32
-ExpandDims               unsqueeze_494            1 1 284 290 -23303=1,1
-Tile                     expand_230               1 1 290 291 -23302=4,1,8,1,1
-Reshape                  reshape_293              1 1 291 292 0=64 1=-1 2=32
-SDPA                     sdpa_533                 6 3 285 289 292 21 cache_k4 cache_v4 293 out_cache_k4 out_cache_v4 5=1 6=0.125 7=1
+SDPA                     sdpa_533                 6 3 285 286 284 21 cache_k4 cache_v4 293 out_cache_k4 out_cache_v4 5=1 6=0.125 7=1
 Permute                  transpose_416            1 1 293 294 0=2
 Reshape                  reshape_294              1 1 294 295 0=2048 1=-1
 Gemm                     gemm_31                  1 1 295 296 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -192,13 +162,7 @@ Reshape                  reshape_297              1 1 321 322 0=64 1=4 2=-1
 Permute                  transpose_419            1 1 322 323 0=2
 RotaryEmbed              rope_10                  3 1 317 60 105 324 0=0
 RotaryEmbed              rope_11                  3 1 320 59 104 325 0=0
-ExpandDims               unsqueeze_495            1 1 325 326 -23303=1,1
-Tile                     expand_231               1 1 326 327 -23302=4,1,8,1,1
-Reshape                  reshape_298              1 1 327 328 0=64 1=-1 2=32
-ExpandDims               unsqueeze_496            1 1 323 329 -23303=1,1
-Tile                     expand_232               1 1 329 330 -23302=4,1,8,1,1
-Reshape                  reshape_299              1 1 330 331 0=64 1=-1 2=32
-SDPA                     sdpa_534                 6 3 324 328 331 20 cache_k5 cache_v5 332 out_cache_k5 out_cache_v5 5=1 6=0.125 7=1
+SDPA                     sdpa_534                 6 3 324 325 323 20 cache_k5 cache_v5 332 out_cache_k5 out_cache_v5 5=1 6=0.125 7=1
 Permute                  transpose_420            1 1 332 333 0=2
 Reshape                  reshape_300              1 1 333 334 0=2048 1=-1
 Gemm                     gemm_38                  1 1 334 335 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -226,13 +190,7 @@ Reshape                  reshape_303              1 1 360 361 0=64 1=4 2=-1
 Permute                  transpose_423            1 1 361 362 0=2
 RotaryEmbed              rope_12                  3 1 356 58 103 363 0=0
 RotaryEmbed              rope_13                  3 1 359 57 102 364 0=0
-ExpandDims               unsqueeze_497            1 1 364 365 -23303=1,1
-Tile                     expand_233               1 1 365 366 -23302=4,1,8,1,1
-Reshape                  reshape_304              1 1 366 367 0=64 1=-1 2=32
-ExpandDims               unsqueeze_498            1 1 362 368 -23303=1,1
-Tile                     expand_234               1 1 368 369 -23302=4,1,8,1,1
-Reshape                  reshape_305              1 1 369 370 0=64 1=-1 2=32
-SDPA                     sdpa_535                 6 3 363 367 370 19 cache_k6 cache_v6 371 out_cache_k6 out_cache_v6 5=1 6=0.125 7=1
+SDPA                     sdpa_535                 6 3 363 364 362 19 cache_k6 cache_v6 371 out_cache_k6 out_cache_v6 5=1 6=0.125 7=1
 Permute                  transpose_424            1 1 371 372 0=2
 Reshape                  reshape_306              1 1 372 373 0=2048 1=-1
 Gemm                     gemm_45                  1 1 373 374 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -260,13 +218,7 @@ Reshape                  reshape_309              1 1 399 400 0=64 1=4 2=-1
 Permute                  transpose_427            1 1 400 401 0=2
 RotaryEmbed              rope_14                  3 1 395 56 101 402 0=0
 RotaryEmbed              rope_15                  3 1 398 55 100 403 0=0
-ExpandDims               unsqueeze_499            1 1 403 404 -23303=1,1
-Tile                     expand_235               1 1 404 405 -23302=4,1,8,1,1
-Reshape                  reshape_310              1 1 405 406 0=64 1=-1 2=32
-ExpandDims               unsqueeze_500            1 1 401 407 -23303=1,1
-Tile                     expand_236               1 1 407 408 -23302=4,1,8,1,1
-Reshape                  reshape_311              1 1 408 409 0=64 1=-1 2=32
-SDPA                     sdpa_536                 6 3 402 406 409 18 cache_k7 cache_v7 410 out_cache_k7 out_cache_v7 5=1 6=0.125 7=1
+SDPA                     sdpa_536                 6 3 402 403 401 18 cache_k7 cache_v7 410 out_cache_k7 out_cache_v7 5=1 6=0.125 7=1
 Permute                  transpose_428            1 1 410 411 0=2
 Reshape                  reshape_312              1 1 411 412 0=2048 1=-1
 Gemm                     gemm_52                  1 1 412 413 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -294,13 +246,7 @@ Reshape                  reshape_315              1 1 438 439 0=64 1=4 2=-1
 Permute                  transpose_431            1 1 439 440 0=2
 RotaryEmbed              rope_16                  3 1 434 54 99 441 0=0
 RotaryEmbed              rope_17                  3 1 437 53 98 442 0=0
-ExpandDims               unsqueeze_501            1 1 442 443 -23303=1,1
-Tile                     expand_237               1 1 443 444 -23302=4,1,8,1,1
-Reshape                  reshape_316              1 1 444 445 0=64 1=-1 2=32
-ExpandDims               unsqueeze_502            1 1 440 446 -23303=1,1
-Tile                     expand_238               1 1 446 447 -23302=4,1,8,1,1
-Reshape                  reshape_317              1 1 447 448 0=64 1=-1 2=32
-SDPA                     sdpa_537                 6 3 441 445 448 17 cache_k8 cache_v8 449 out_cache_k8 out_cache_v8 5=1 6=0.125 7=1
+SDPA                     sdpa_537                 6 3 441 442 440 17 cache_k8 cache_v8 449 out_cache_k8 out_cache_v8 5=1 6=0.125 7=1
 Permute                  transpose_432            1 1 449 450 0=2
 Reshape                  reshape_318              1 1 450 451 0=2048 1=-1
 Gemm                     gemm_59                  1 1 451 452 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -328,13 +274,7 @@ Reshape                  reshape_321              1 1 477 478 0=64 1=4 2=-1
 Permute                  transpose_435            1 1 478 479 0=2
 RotaryEmbed              rope_18                  3 1 473 52 97 480 0=0
 RotaryEmbed              rope_19                  3 1 476 51 96 481 0=0
-ExpandDims               unsqueeze_503            1 1 481 482 -23303=1,1
-Tile                     expand_239               1 1 482 483 -23302=4,1,8,1,1
-Reshape                  reshape_322              1 1 483 484 0=64 1=-1 2=32
-ExpandDims               unsqueeze_504            1 1 479 485 -23303=1,1
-Tile                     expand_240               1 1 485 486 -23302=4,1,8,1,1
-Reshape                  reshape_323              1 1 486 487 0=64 1=-1 2=32
-SDPA                     sdpa_538                 6 3 480 484 487 16 cache_k9 cache_v9 488 out_cache_k9 out_cache_v9 5=1 6=0.125 7=1
+SDPA                     sdpa_538                 6 3 480 481 479 16 cache_k9 cache_v9 488 out_cache_k9 out_cache_v9 5=1 6=0.125 7=1
 Permute                  transpose_436            1 1 488 489 0=2
 Reshape                  reshape_324              1 1 489 490 0=2048 1=-1
 Gemm                     gemm_66                  1 1 490 491 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -362,13 +302,7 @@ Reshape                  reshape_327              1 1 516 517 0=64 1=4 2=-1
 Permute                  transpose_439            1 1 517 518 0=2
 RotaryEmbed              rope_20                  3 1 512 50 95 519 0=0
 RotaryEmbed              rope_21                  3 1 515 49 94 520 0=0
-ExpandDims               unsqueeze_505            1 1 520 521 -23303=1,1
-Tile                     expand_241               1 1 521 522 -23302=4,1,8,1,1
-Reshape                  reshape_328              1 1 522 523 0=64 1=-1 2=32
-ExpandDims               unsqueeze_506            1 1 518 524 -23303=1,1
-Tile                     expand_242               1 1 524 525 -23302=4,1,8,1,1
-Reshape                  reshape_329              1 1 525 526 0=64 1=-1 2=32
-SDPA                     sdpa_539                 6 3 519 523 526 15 cache_k10 cache_v10 527 out_cache_k10 out_cache_v10 5=1 6=0.125 7=1
+SDPA                     sdpa_539                 6 3 519 520 518 15 cache_k10 cache_v10 527 out_cache_k10 out_cache_v10 5=1 6=0.125 7=1
 Permute                  transpose_440            1 1 527 528 0=2
 Reshape                  reshape_330              1 1 528 529 0=2048 1=-1
 Gemm                     gemm_73                  1 1 529 530 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -396,13 +330,7 @@ Reshape                  reshape_333              1 1 555 556 0=64 1=4 2=-1
 Permute                  transpose_443            1 1 556 557 0=2
 RotaryEmbed              rope_22                  3 1 551 48 93 558 0=0
 RotaryEmbed              rope_23                  3 1 554 47 92 559 0=0
-ExpandDims               unsqueeze_507            1 1 559 560 -23303=1,1
-Tile                     expand_243               1 1 560 561 -23302=4,1,8,1,1
-Reshape                  reshape_334              1 1 561 562 0=64 1=-1 2=32
-ExpandDims               unsqueeze_508            1 1 557 563 -23303=1,1
-Tile                     expand_244               1 1 563 564 -23302=4,1,8,1,1
-Reshape                  reshape_335              1 1 564 565 0=64 1=-1 2=32
-SDPA                     sdpa_540                 6 3 558 562 565 14 cache_k11 cache_v11 566 out_cache_k11 out_cache_v11 5=1 6=0.125 7=1
+SDPA                     sdpa_540                 6 3 558 559 557 14 cache_k11 cache_v11 566 out_cache_k11 out_cache_v11 5=1 6=0.125 7=1
 Permute                  transpose_444            1 1 566 567 0=2
 Reshape                  reshape_336              1 1 567 568 0=2048 1=-1
 Gemm                     gemm_80                  1 1 568 569 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -430,13 +358,7 @@ Reshape                  reshape_339              1 1 594 595 0=64 1=4 2=-1
 Permute                  transpose_447            1 1 595 596 0=2
 RotaryEmbed              rope_24                  3 1 590 46 91 597 0=0
 RotaryEmbed              rope_25                  3 1 593 45 90 598 0=0
-ExpandDims               unsqueeze_509            1 1 598 599 -23303=1,1
-Tile                     expand_245               1 1 599 600 -23302=4,1,8,1,1
-Reshape                  reshape_340              1 1 600 601 0=64 1=-1 2=32
-ExpandDims               unsqueeze_510            1 1 596 602 -23303=1,1
-Tile                     expand_246               1 1 602 603 -23302=4,1,8,1,1
-Reshape                  reshape_341              1 1 603 604 0=64 1=-1 2=32
-SDPA                     sdpa_541                 6 3 597 601 604 13 cache_k12 cache_v12 605 out_cache_k12 out_cache_v12 5=1 6=0.125 7=1
+SDPA                     sdpa_541                 6 3 597 598 596 13 cache_k12 cache_v12 605 out_cache_k12 out_cache_v12 5=1 6=0.125 7=1
 Permute                  transpose_448            1 1 605 606 0=2
 Reshape                  reshape_342              1 1 606 607 0=2048 1=-1
 Gemm                     gemm_87                  1 1 607 608 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -464,13 +386,7 @@ Reshape                  reshape_345              1 1 633 634 0=64 1=4 2=-1
 Permute                  transpose_451            1 1 634 635 0=2
 RotaryEmbed              rope_26                  3 1 629 44 89 636 0=0
 RotaryEmbed              rope_27                  3 1 632 43 88 637 0=0
-ExpandDims               unsqueeze_511            1 1 637 638 -23303=1,1
-Tile                     expand_247               1 1 638 639 -23302=4,1,8,1,1
-Reshape                  reshape_346              1 1 639 640 0=64 1=-1 2=32
-ExpandDims               unsqueeze_512            1 1 635 641 -23303=1,1
-Tile                     expand_248               1 1 641 642 -23302=4,1,8,1,1
-Reshape                  reshape_347              1 1 642 643 0=64 1=-1 2=32
-SDPA                     sdpa_542                 6 3 636 640 643 12 cache_k13 cache_v13 644 out_cache_k13 out_cache_v13 5=1 6=0.125 7=1
+SDPA                     sdpa_542                 6 3 636 637 635 12 cache_k13 cache_v13 644 out_cache_k13 out_cache_v13 5=1 6=0.125 7=1
 Permute                  transpose_452            1 1 644 645 0=2
 Reshape                  reshape_348              1 1 645 646 0=2048 1=-1
 Gemm                     gemm_94                  1 1 646 647 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -498,13 +414,7 @@ Reshape                  reshape_351              1 1 672 673 0=64 1=4 2=-1
 Permute                  transpose_455            1 1 673 674 0=2
 RotaryEmbed              rope_28                  3 1 668 42 87 675 0=0
 RotaryEmbed              rope_29                  3 1 671 41 86 676 0=0
-ExpandDims               unsqueeze_513            1 1 676 677 -23303=1,1
-Tile                     expand_249               1 1 677 678 -23302=4,1,8,1,1
-Reshape                  reshape_352              1 1 678 679 0=64 1=-1 2=32
-ExpandDims               unsqueeze_514            1 1 674 680 -23303=1,1
-Tile                     expand_250               1 1 680 681 -23302=4,1,8,1,1
-Reshape                  reshape_353              1 1 681 682 0=64 1=-1 2=32
-SDPA                     sdpa_543                 6 3 675 679 682 11 cache_k14 cache_v14 683 out_cache_k14 out_cache_v14 5=1 6=0.125 7=1
+SDPA                     sdpa_543                 6 3 675 676 674 11 cache_k14 cache_v14 683 out_cache_k14 out_cache_v14 5=1 6=0.125 7=1
 Permute                  transpose_456            1 1 683 684 0=2
 Reshape                  reshape_354              1 1 684 685 0=2048 1=-1
 Gemm                     gemm_101                 1 1 685 686 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -532,13 +442,7 @@ Reshape                  reshape_357              1 1 711 712 0=64 1=4 2=-1
 Permute                  transpose_459            1 1 712 713 0=2
 RotaryEmbed              rope_30                  3 1 707 40 85 714 0=0
 RotaryEmbed              rope_31                  3 1 710 39 84 715 0=0
-ExpandDims               unsqueeze_515            1 1 715 716 -23303=1,1
-Tile                     expand_251               1 1 716 717 -23302=4,1,8,1,1
-Reshape                  reshape_358              1 1 717 718 0=64 1=-1 2=32
-ExpandDims               unsqueeze_516            1 1 713 719 -23303=1,1
-Tile                     expand_252               1 1 719 720 -23302=4,1,8,1,1
-Reshape                  reshape_359              1 1 720 721 0=64 1=-1 2=32
-SDPA                     sdpa_544                 6 3 714 718 721 10 cache_k15 cache_v15 722 out_cache_k15 out_cache_v15 5=1 6=0.125 7=1
+SDPA                     sdpa_544                 6 3 714 715 713 10 cache_k15 cache_v15 722 out_cache_k15 out_cache_v15 5=1 6=0.125 7=1
 Permute                  transpose_460            1 1 722 723 0=2
 Reshape                  reshape_360              1 1 723 724 0=2048 1=-1
 Gemm                     gemm_108                 1 1 724 725 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -566,13 +470,7 @@ Reshape                  reshape_363              1 1 750 751 0=64 1=4 2=-1
 Permute                  transpose_463            1 1 751 752 0=2
 RotaryEmbed              rope_32                  3 1 746 38 83 753 0=0
 RotaryEmbed              rope_33                  3 1 749 37 82 754 0=0
-ExpandDims               unsqueeze_517            1 1 754 755 -23303=1,1
-Tile                     expand_253               1 1 755 756 -23302=4,1,8,1,1
-Reshape                  reshape_364              1 1 756 757 0=64 1=-1 2=32
-ExpandDims               unsqueeze_518            1 1 752 758 -23303=1,1
-Tile                     expand_254               1 1 758 759 -23302=4,1,8,1,1
-Reshape                  reshape_365              1 1 759 760 0=64 1=-1 2=32
-SDPA                     sdpa_545                 6 3 753 757 760 9 cache_k16 cache_v16 761 out_cache_k16 out_cache_v16 5=1 6=0.125 7=1
+SDPA                     sdpa_545                 6 3 753 754 752 9 cache_k16 cache_v16 761 out_cache_k16 out_cache_v16 5=1 6=0.125 7=1
 Permute                  transpose_464            1 1 761 762 0=2
 Reshape                  reshape_366              1 1 762 763 0=2048 1=-1
 Gemm                     gemm_115                 1 1 763 764 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -600,13 +498,7 @@ Reshape                  reshape_369              1 1 789 790 0=64 1=4 2=-1
 Permute                  transpose_467            1 1 790 791 0=2
 RotaryEmbed              rope_34                  3 1 785 36 81 792 0=0
 RotaryEmbed              rope_35                  3 1 788 35 80 793 0=0
-ExpandDims               unsqueeze_519            1 1 793 794 -23303=1,1
-Tile                     expand_255               1 1 794 795 -23302=4,1,8,1,1
-Reshape                  reshape_370              1 1 795 796 0=64 1=-1 2=32
-ExpandDims               unsqueeze_520            1 1 791 797 -23303=1,1
-Tile                     expand_256               1 1 797 798 -23302=4,1,8,1,1
-Reshape                  reshape_371              1 1 798 799 0=64 1=-1 2=32
-SDPA                     sdpa_546                 6 3 792 796 799 8 cache_k17 cache_v17 800 out_cache_k17 out_cache_v17 5=1 6=0.125 7=1
+SDPA                     sdpa_546                 6 3 792 793 791 8 cache_k17 cache_v17 800 out_cache_k17 out_cache_v17 5=1 6=0.125 7=1
 Permute                  transpose_468            1 1 800 801 0=2
 Reshape                  reshape_372              1 1 801 802 0=2048 1=-1
 Gemm                     gemm_122                 1 1 802 803 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -634,13 +526,7 @@ Reshape                  reshape_375              1 1 828 829 0=64 1=4 2=-1
 Permute                  transpose_471            1 1 829 830 0=2
 RotaryEmbed              rope_36                  3 1 824 34 79 831 0=0
 RotaryEmbed              rope_37                  3 1 827 33 78 832 0=0
-ExpandDims               unsqueeze_521            1 1 832 833 -23303=1,1
-Tile                     expand_257               1 1 833 834 -23302=4,1,8,1,1
-Reshape                  reshape_376              1 1 834 835 0=64 1=-1 2=32
-ExpandDims               unsqueeze_522            1 1 830 836 -23303=1,1
-Tile                     expand_258               1 1 836 837 -23302=4,1,8,1,1
-Reshape                  reshape_377              1 1 837 838 0=64 1=-1 2=32
-SDPA                     sdpa_547                 6 3 831 835 838 7 cache_k18 cache_v18 839 out_cache_k18 out_cache_v18 5=1 6=0.125 7=1
+SDPA                     sdpa_547                 6 3 831 832 830 7 cache_k18 cache_v18 839 out_cache_k18 out_cache_v18 5=1 6=0.125 7=1
 Permute                  transpose_472            1 1 839 840 0=2
 Reshape                  reshape_378              1 1 840 841 0=2048 1=-1
 Gemm                     gemm_129                 1 1 841 842 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -668,13 +554,7 @@ Reshape                  reshape_381              1 1 867 868 0=64 1=4 2=-1
 Permute                  transpose_475            1 1 868 869 0=2
 RotaryEmbed              rope_38                  3 1 863 32 77 870 0=0
 RotaryEmbed              rope_39                  3 1 866 31 76 871 0=0
-ExpandDims               unsqueeze_523            1 1 871 872 -23303=1,1
-Tile                     expand_259               1 1 872 873 -23302=4,1,8,1,1
-Reshape                  reshape_382              1 1 873 874 0=64 1=-1 2=32
-ExpandDims               unsqueeze_524            1 1 869 875 -23303=1,1
-Tile                     expand_260               1 1 875 876 -23302=4,1,8,1,1
-Reshape                  reshape_383              1 1 876 877 0=64 1=-1 2=32
-SDPA                     sdpa_548                 6 3 870 874 877 6 cache_k19 cache_v19 878 out_cache_k19 out_cache_v19 5=1 6=0.125 7=1
+SDPA                     sdpa_548                 6 3 870 871 869 6 cache_k19 cache_v19 878 out_cache_k19 out_cache_v19 5=1 6=0.125 7=1
 Permute                  transpose_476            1 1 878 879 0=2
 Reshape                  reshape_384              1 1 879 880 0=2048 1=-1
 Gemm                     gemm_136                 1 1 880 881 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -702,13 +582,7 @@ Reshape                  reshape_387              1 1 906 907 0=64 1=4 2=-1
 Permute                  transpose_479            1 1 907 908 0=2
 RotaryEmbed              rope_40                  3 1 902 30 75 909 0=0
 RotaryEmbed              rope_41                  3 1 905 29 74 910 0=0
-ExpandDims               unsqueeze_525            1 1 910 911 -23303=1,1
-Tile                     expand_261               1 1 911 912 -23302=4,1,8,1,1
-Reshape                  reshape_388              1 1 912 913 0=64 1=-1 2=32
-ExpandDims               unsqueeze_526            1 1 908 914 -23303=1,1
-Tile                     expand_262               1 1 914 915 -23302=4,1,8,1,1
-Reshape                  reshape_389              1 1 915 916 0=64 1=-1 2=32
-SDPA                     sdpa_549                 6 3 909 913 916 5 cache_k20 cache_v20 917 out_cache_k20 out_cache_v20 5=1 6=0.125 7=1
+SDPA                     sdpa_549                 6 3 909 910 908 5 cache_k20 cache_v20 917 out_cache_k20 out_cache_v20 5=1 6=0.125 7=1
 Permute                  transpose_480            1 1 917 918 0=2
 Reshape                  reshape_390              1 1 918 919 0=2048 1=-1
 Gemm                     gemm_143                 1 1 919 920 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048
@@ -736,13 +610,7 @@ Reshape                  reshape_393              1 1 945 946 0=64 1=4 2=-1
 Permute                  transpose_483            1 1 946 947 0=2
 RotaryEmbed              rope_42                  3 1 941 28 73 948 0=0
 RotaryEmbed              rope_43                  3 1 944 27 72 949 0=0
-ExpandDims               unsqueeze_527            1 1 949 950 -23303=1,1
-Tile                     expand_263               1 1 950 951 -23302=4,1,8,1,1
-Reshape                  reshape_394              1 1 951 952 0=64 1=-1 2=32
-ExpandDims               unsqueeze_528            1 1 947 953 -23303=1,1
-Tile                     expand_264               1 1 953 954 -23302=4,1,8,1,1
-Reshape                  reshape_395              1 1 954 955 0=64 1=-1 2=32
-SDPA                     sdpa_550                 6 3 948 952 955 4 cache_k21 cache_v21 956 out_cache_k21 out_cache_v21 5=1 6=0.125 7=1
+SDPA                     sdpa_550                 6 3 948 949 947 4 cache_k21 cache_v21 956 out_cache_k21 out_cache_v21 5=1 6=0.125 7=1
 Permute                  transpose_484            1 1 956 957 0=2
 Reshape                  reshape_396              1 1 957 958 0=2048 1=-1
 Gemm                     gemm_150                 1 1 958 959 10=-1 2=0 3=1 4=0 5=1 6=1 7=0 8=2048 9=2048

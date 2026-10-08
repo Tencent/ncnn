@@ -288,6 +288,16 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 continue;
             }
 
+            if (attr.type == 9) // bool
+            {
+                // pad size to 4bytes
+                std::vector<char> data_int8 = attr.data;
+                data_int8.resize(alignSize(data_int8.size(), 4), 0);
+
+                fwrite(data_int8.data(), data_int8.size(), 1, binfp);
+                continue;
+            }
+
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }
 

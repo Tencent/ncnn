@@ -21,21 +21,13 @@ void insert_reshape_linear(Graph& graph)
             if (op->type != "nn.Linear")
                 continue;
 
-            int input_rank = op->inputs[0]->shape.size();
-            if (input_rank == 0)
+            const int input_rank = (int)op->inputs[0]->shape.size();
+            const int ncnn_batch_axis = op->inputs[0]->params.at("__ncnn_batch_axis").i;
+            const int physical_rank = input_rank - (ncnn_batch_axis != 233 ? 1 : 0);
+            if (physical_rank <= 2 || physical_rank > 4)
                 continue;
 
-            // nn.Linear    4d-2d-4d
-            // nn.Linear    5d-2d-5d
-            bool insert_reshape = false;
-            if (op->type == "nn.Linear" && (input_rank == 4 || input_rank == 5))
-            {
-                insert_reshape = true;
-            }
-
-            if (!insert_reshape)
-                continue;
-
+            // linear applies to the last dimension, flatten the physical leading dimensions
             fprintf(stderr, "insert_reshape_linear %d\n", input_rank);
 
             matched = true;
@@ -52,6 +44,7 @@ void insert_reshape_linear(Graph& graph)
             reshape0->inputs.push_back(linear_in);
             reshape0->outputs.push_back(reshape0_out);
             reshape1->inputs.push_back(reshape1_in);
+            reshape1->inputs.push_back(linear_in);
             reshape1->outputs.push_back(linear_out);
 
             for (size_t j = 0; j < linear_in->consumers.size(); j++)
@@ -62,6 +55,7 @@ void insert_reshape_linear(Graph& graph)
                     break;
                 }
             }
+            linear_in->consumers.push_back(reshape1);
             linear_out->producer = reshape1;
 
             op->inputs[0] = reshape0_out;
@@ -73,14 +67,13 @@ void insert_reshape_linear(Graph& graph)
             reshape1_in->consumers.push_back(reshape1);
 
             // fold physical leading dimensions into rows and retain native batch
-            const int batch_axis = linear_in->params["__ncnn_batch_axis"].i;
             const auto input_shape = logical_shape(linear_in, 0);
             auto leading_shape = input_shape;
             leading_shape.pop_back();
-            if (batch_axis != 233)
-                leading_shape.erase(leading_shape.begin() + batch_axis);
+            if (ncnn_batch_axis != 233)
+                leading_shape.erase(leading_shape.begin() + ncnn_batch_axis);
             std::vector<std::string> folded_shape = {shape_product(leading_shape), input_shape.back()};
-            const int folded_batch_axis = batch_axis == 233 ? 233 : 0;
+            const int folded_batch_axis = ncnn_batch_axis == 233 ? 233 : 0;
             reshape0_out->params["__batch_index"] = folded_batch_axis;
             reshape1_in->params["__batch_index"] = folded_batch_axis;
             reshape0_out->params["__ncnn_batch_axis"] = folded_batch_axis;
@@ -89,16 +82,14 @@ void insert_reshape_linear(Graph& graph)
             reshape1_in->type = linear_out->type;
             reshape0_out->shape = {-1, linear_in->shape.back()};
             reshape1_in->shape = {-1, linear_out->shape.back()};
-            if (batch_axis != 233)
+            if (ncnn_batch_axis != 233)
             {
-                folded_shape.insert(folded_shape.begin(), input_shape[batch_axis]);
-                reshape0_out->shape.insert(reshape0_out->shape.begin(), linear_in->shape[batch_axis]);
-                reshape1_in->shape.insert(reshape1_in->shape.begin(), linear_in->shape[batch_axis]);
+                folded_shape.insert(folded_shape.begin(), input_shape[ncnn_batch_axis]);
+                reshape0_out->shape.insert(reshape0_out->shape.begin(), linear_in->shape[ncnn_batch_axis]);
+                reshape1_in->shape.insert(reshape1_in->shape.begin(), linear_in->shape[ncnn_batch_axis]);
             }
             write_reshape_shape(reshape0, folded_shape);
 
-            reshape1->inputs.push_back(linear_in);
-            linear_in->consumers.push_back(reshape1);
             auto output_shape = logical_shape(linear_in, 1);
             output_shape.back() = std::to_string(linear_out->shape.back());
             write_reshape_shape(reshape1, output_shape);
