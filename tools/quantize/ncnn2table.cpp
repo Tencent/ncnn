@@ -672,7 +672,8 @@ void QuantNet::initialize_static_weight_scales(bool initialize_conv_weight_scale
         {
             const float* ptr = (const float*)gemm->B_data;
             float absmax = 0.f;
-            for (int j = 0; j < gemm->B_data.w; j++)
+            const int b_data_size = gemm->B_data.w * gemm->B_data.h;
+            for (int j = 0; j < b_data_size; j++)
             {
                 absmax = std::max(absmax, (float)fabs(ptr[j]));
             }

@@ -149,7 +149,7 @@ int NetQuantize::check_int8scale_table_requirement(const char* int8scale_table_p
         if (type == "Gemm")
         {
             const ncnn::Gemm* gemm = (const ncnn::Gemm*)layers[i];
-            if ((gemm->constantA || gemm->constantB) && !int8scale_table_path)
+            if ((gemm->constantA || gemm->constantB))
             {
                 fprintf(stderr, "%s (%s): calibration table is required for static weight quantization\n", layers[i]->name.c_str(), type.c_str());
                 fprintf(stderr, "run ncnn2table to generate weight scales and pass the table to ncnn2int8\n");
