@@ -64,14 +64,10 @@ std::vector<std::string> get_logical_shape_expr(int rank, int native_batch_axis,
 
 std::vector<std::string> get_logical_shape_expr(const Operand* operand, int reference_index)
 {
-    const std::string& producer_type = operand->producer->type;
-    const bool static_source = producer_type == "pnnx.Input" || producer_type == "Input" || producer_type == "pnnx.Attribute" || producer_type == "MemoryData";
     std::vector<std::string> shape;
     for (int i = 0; i < (int)operand->shape.size(); i++)
     {
-        // input specifications and constant tensors establish static extents
-        // intermediate metadata only records observations from shape inference
-        shape.push_back(reference_index == 0 && static_source && operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : get_logical_dim_expr(operand, reference_index, i));
+        shape.push_back(operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : get_logical_dim_expr(operand, reference_index, i));
     }
     return shape;
 }

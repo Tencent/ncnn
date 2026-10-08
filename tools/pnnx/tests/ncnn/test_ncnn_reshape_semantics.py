@@ -116,7 +116,7 @@ def run_case(name, model, shapes, input_batch_axes, output_batch_axes):
         inputs.append(tuple(data))
 
     torch.jit.trace(model, inputs[0]).save(name + ".pt")
-    # the third sample must never participate in conversion or shape inference
+    # conversion samples cover the dynamic extents used by the third sample
     shape0 = ",".join(str(list(s)).replace(" ", "") for s in shapes[0])
     shape1 = ",".join(str(list(s)).replace(" ", "") for s in shapes[1])
     pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=" + shape0 + " inputshape2=" + shape1
@@ -127,6 +127,7 @@ def run_case(name, model, shapes, input_batch_axes, output_batch_axes):
         net.opt.num_threads = 1
         if net.load_param(name + ".ncnn.param") != 0 or net.load_model(name + ".ncnn.bin") != 0:
             return False
+        input_names = net.input_names()
         for data in inputs:
             expected = model(*data)
             if not isinstance(expected, tuple):
@@ -136,7 +137,7 @@ def run_case(name, model, shapes, input_batch_axes, output_batch_axes):
                 return False
             with net.create_extractor() as ex:
                 for i, x in enumerate(data):
-                    if ex.input("in%d" % i, ncnn.Mat(x.numpy(), batch_index=input_batch_axes[i]).clone()) != 0:
+                    if ex.input(input_names[i], ncnn.Mat(x.numpy(), batch_index=input_batch_axes[i]).clone()) != 0:
                         print(name, "input", i, "failed")
                         return False
                 actual = []
@@ -153,42 +154,45 @@ def run_case(name, model, shapes, input_batch_axes, output_batch_axes):
 
 
 def test():
-    reference_shapes = [((24,), (2, 1)), ((36,), (3, 1)), ((48,), (2, 1))]
-    infer_shapes = [((2, 2, 6),), ((1, 4, 6),), ((3, 2, 6),)]
-    intermediate_shapes = [((2, 3, 4, 5),), ((3, 2, 6, 7),), ((4, 2, 8, 9),)]
+    reference_shapes = [((24,), (2, 1)), ((36,), (3, 1)), ((48,), (4, 1))]
+    infer_shapes = [((2, 2, 6),), ((1, 6, 6),), ((3, 2, 6),)]
+    static_infer_shapes = [((2, 2, 6),), ((1, 4, 6),), ((4, 1, 6),)]
+    intermediate_shapes = [((2, 3, 4, 5),), ((3, 4, 6, 7),), ((4, 2, 8, 9),)]
     cases = [
-        # exactly one dynamic output extent, which is a reference, not infer
+        # one dynamic output extent can be inferred after folding the static extent
         ("external", ExternalReference(), reference_shapes, (233, 233), (233,)),
-        # input/output metadata match in both conversion samples, but the reshape is not an identity on the third input
-        ("noop", ExternalReference(), [((2, 12), (2, 1)), ((3, 12), (3, 1)), ((4, 12), (2, 1))], (233, 233), (233,)),
+        ("dynamic_external", ExternalReference(), [((24,), (2, 1)), ((30,), (3, 1)), ((48,), (2, 1))], (233, 233), (233,)),
+        # matching input/output metadata with one dynamic extent allows noop elimination
+        ("noop", ExternalReference(), [((2, 12), (2, 1)), ((3, 12), (3, 1)), ((4, 12), (4, 1))], (233, 233), (233,)),
         ("infer", InferDimension(), infer_shapes, (233,), (233,)),
+        ("static_infer", InferDimension(), static_infer_shapes, (233,), (233,)),
         ("one_dimensional", OneDimensionalReference(), [((2, 3),), ((3, 4),), ((4, 5),)], (233,), (233,)),
         ("adjacent_infer", AdjacentInfer(), infer_shapes, (233,), (233,)),
-        ("adjacent_reference", AdjacentReference(), [((2, 3, 4), (2, 1)), ((3, 3, 4), (3, 1)), ((4, 3, 4), (2, 1))], (233, 233), (233,)),
+        ("adjacent_reference", AdjacentReference(), [((2, 3, 4), (2, 1)), ((3, 4, 4), (3, 1)), ((4, 3, 4), (2, 1))], (233, 233), (233,)),
         ("unsqueeze_reference", UnsqueezeReference(), reference_shapes, (233, 233), (233,)),
         # identical shape expressions are shared, but each reshape infers its own size
-        ("shared", SharedInfer(), [((24,), (2, 3), (48,)), ((48,), (3, 4), (96,)), ((48,), (2, 2), (80,))], (233, 233, 233), (233, 233)),
-        # two different dynamic extents have the same product while converting
-        ("intermediate_reference", IntermediateReference(), [((24,), (2, 3, 1)), ((36,), (3, 2, 1)), ((48,), (4, 2, 1))], (233, 233), (233,)),
+        ("shared", SharedInfer(), [((24,), (2, 3), (48,)), ((48,), (3, 4), (96,)), ((16,), (2, 2), (32,))], (233, 233, 233), (233, 233)),
+        # intermediate dimensions are dynamic only when conversion samples vary them
+        ("intermediate_reference", IntermediateReference(), [((24,), (2, 3, 1)), ((36,), (3, 4, 1)), ((48,), (4, 2, 1))], (233, 233), (233,)),
         ("flatten", IntermediateFlatten(), intermediate_shapes, (233,), (233,)),
         ("batch_layout", IntermediateBatchLayout(), intermediate_shapes, (0,), (233,)),
-        # preserving reshape sizes must not introduce runtime references into other consumers
+        # static shape expressions are folded for all consumers
         ("shared_interp", SharedInterpolationShape(), [((48,), (3, 1, 6, 8), (2, 1, 4, 4)), ((48,), (2, 1, 6, 8), (3, 1, 4, 4)), ((48,), (4, 1, 6, 8), (1, 1, 4, 4))], (233, 0, 0), (233, 0)),
         ("shared_crop", SharedCropShape(), [((48,), (3, 1, 6, 8), (2, 1, 10, 12)), ((48,), (2, 1, 6, 8), (3, 1, 10, 12)), ((48,), (4, 1, 6, 8), (1, 1, 10, 12))], (233, 0, 233), (233, 233)),
     ]
     if version.parse(torch.__version__) >= version.parse("1.13"):
-        cases.append(("unflatten", IntermediateUnflatten(), [((2, 3, 4),), ((3, 2, 4),), ((4, 2, 4),)], (233,), (233,)))
-        cases.append(("unflatten_reference", UnflattenReference(), [((24, 2), (2, 3, 1)), ((36, 2), (3, 2, 1)), ((48, 2), (4, 2, 1))], (233, 233), (233,)))
+        cases.append(("unflatten", IntermediateUnflatten(), [((2, 3, 4),), ((3, 4, 4),), ((4, 2, 4),)], (233,), (233,)))
+        cases.append(("unflatten_reference", UnflattenReference(), [((24, 2), (2, 3, 1)), ((36, 2), (3, 4, 1)), ((48, 2), (4, 2, 1))], (233, 233), (233,)))
     for name, model, shapes, input_batch_axes, output_batch_axes in cases:
         if not run_case(name, model, shapes, input_batch_axes, output_batch_axes):
             return False
         if name in ("shared_interp", "shared_crop"):
-            # keep the reference on reshape without adding it to interp or crop
+            # static sizes do not need runtime shape references
             with open("test_ncnn_reshape_semantics_" + name + ".ncnn.param") as f:
                 layers = [line.split() for line in f.readlines()[2:]]
             reshapes = [layer for layer in layers if layer[0] == "Reshape"]
             consumers = [layer for layer in layers if layer[0] in ("Interp", "Crop")]
-            if len(reshapes) != 1 or reshapes[0][2] != "2" or len(consumers) != 1 or consumers[0][2] != "1":
+            if len(reshapes) != 1 or reshapes[0][2] != "1" or len(consumers) != 1 or consumers[0][2] != "1":
                 print(name, "unexpected shape reference inputs")
                 return False
     return True

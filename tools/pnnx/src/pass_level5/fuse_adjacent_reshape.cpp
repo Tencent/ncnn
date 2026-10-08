@@ -18,14 +18,13 @@ void fuse_adjacent_reshape(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            // a parameter-backed final reshape depends only on the element count
-            // keep its original target, including the infer dimension
-            // expression-backed targets and squeeze/unsqueeze would require composing their dimensions with the preceding operations
-            if (op->type != "Tensor.reshape" || op->inputs.size() != 1 || !op->has_param("shape"))
+            // look for Tensor.reshape / torch.squeeze / torch.unsqueeze chain
+            if (op->type != "Tensor.reshape" && op->type != "torch.squeeze" && op->type != "torch.unsqueeze")
                 continue;
 
-            const auto& target_shape = op->params.at("shape").ai;
-            if (target_shape.empty() || std::count(target_shape.begin(), target_shape.end(), -1) > 1 || std::count(target_shape.begin(), target_shape.end(), 0) != 0)
+            // only one unknown extent can be inferred from the element count
+            const auto& target_shape = op->outputs[0]->shape;
+            if (target_shape.empty() || std::count(target_shape.begin(), target_shape.end(), -1) > 1)
                 continue;
 
             std::vector<Operator*> reshapes_to_delete;
@@ -41,6 +40,14 @@ void fuse_adjacent_reshape(Graph& graph)
 
             // keep the last reshape only
             matched = true;
+
+            op->type = "Tensor.reshape";
+
+            if (!op->outputs[0]->shape.empty())
+            {
+                op->params.clear();
+                op->params["shape"] = op->outputs[0]->shape;
+            }
 
             for (auto& op0 : reshapes_to_delete)
             {

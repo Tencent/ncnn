@@ -21,31 +21,25 @@ void eliminate_noop_reshape(Graph& graph)
             if (op->type != "Tensor.reshape")
                 continue;
 
-            // matching input/output metadata does not prove identity
-            // an external shape reference or infer may change on another input
-            if (op->inputs.size() != 1 || !op->has_param("shape"))
+            const std::vector<int>& input_shape = op->inputs[0]->shape;
+            const std::vector<int>& output_shape = op->outputs[0]->shape;
+            if (input_shape != output_shape)
                 continue;
 
-            const Operand* input = op->inputs[0];
-            const std::vector<int>& target_shape = op->params.at("shape").ai;
-            if (target_shape.empty())
+            if (input_shape.empty())
                 continue;
 
-            bool identity = input->shape.size() == 1 && target_shape.size() == 1 && target_shape[0] == -1;
-            if (!identity && (input->producer->type == "pnnx.Input" || input->producer->type == "pnnx.Attribute") && target_shape == input->shape)
+            // if only one dynamic dim-size
+            int dynamic_dim_count = 0;
+            for (size_t j = 0; j < output_shape.size(); j++)
             {
-                identity = true;
-                for (int s : target_shape)
+                if (output_shape[j] == -1)
                 {
-                    if (s <= 0)
-                    {
-                        identity = false;
-                        break;
-                    }
+                    dynamic_dim_count += 1;
                 }
             }
 
-            if (!identity)
+            if (dynamic_dim_count > 1)
                 continue;
 
             matched = true;
