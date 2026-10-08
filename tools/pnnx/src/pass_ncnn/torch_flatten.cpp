@@ -4,8 +4,6 @@
 #include "pass_ncnn.h"
 #include "reshape_shape.h"
 
-#include <stdexcept>
-
 namespace pnnx {
 
 namespace ncnn {
@@ -96,7 +94,10 @@ pnnx.Output             output      1 0 out
         if (end < 0)
             end += (int)shape.size();
         if (start < 0 || end < start || end >= (int)shape.size())
-            throw std::runtime_error("flatten input rank is unknown");
+        {
+            fprintf(stderr, "reshape %s: flatten input rank is unknown\n", op->name.c_str());
+            return;
+        }
 
         const std::string merged = shape_product(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
         shape.erase(shape.begin() + start, shape.begin() + end + 1);

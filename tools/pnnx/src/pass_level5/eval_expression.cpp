@@ -202,8 +202,12 @@ static std::string eval_expression(const Operator* op)
                             exprstack.push(typed_expr(r, 0));
                             continue;
                         }
-                        int r = op->inputs[input_index]->shape[bi];
-                        if (r == -1)
+                        const Operand* operand = op->inputs[input_index];
+                        int r = operand->shape[bi];
+                        // only input specifications and constant tensors establish static extents
+                        // equal intermediate extents in two shape inference runs may still depend on dynamic inputs
+                        const bool static_source = operand->producer->type == "pnnx.Input" || operand->producer->type == "pnnx.Attribute";
+                        if (r == -1 || !static_source)
                         {
                             // do not evaluate dynamic size info as -1
                             // just keep the size expression

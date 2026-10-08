@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <stdexcept>
 
 namespace pnnx {
 
@@ -25,8 +24,11 @@ std::string logical_dim_reference(const Operand* operand, int reference_index, i
     int rank = (int)operand->shape.size();
     if (axis < 0)
         axis += rank;
-    if (axis < 0 || axis >= rank || reference_index > 9)
-        throw std::runtime_error("unsupported logical dimension in reshape");
+    if (axis < 0 || axis >= rank || reference_index < 0 || reference_index > 9)
+    {
+        fprintf(stderr, "reshape %s has unsupported logical dimension %d or reference %d\n", operand->name.c_str(), axis, reference_index);
+        return std::string();
+    }
 
     const int native_batch_axis = batch_axis(operand);
     if (axis == native_batch_axis)
@@ -40,15 +42,24 @@ std::string logical_dim_reference(const Operand* operand, int reference_index, i
 
     static const char* dimensions[] = {"", "w", "hw", "chw", "cdhw"};
     if (rank < 1 || rank > 4 || axis >= rank)
-        throw std::runtime_error("unsupported physical rank in reshape");
+    {
+        fprintf(stderr, "reshape %s has unsupported physical rank %d\n", operand->name.c_str(), rank);
+        return std::string();
+    }
     return std::to_string(reference_index) + dimensions[rank][axis];
 }
 
 std::vector<std::string> logical_shape(const Operand* operand, int reference_index)
 {
+    const std::string& producer_type = operand->producer->type;
+    const bool static_source = producer_type == "pnnx.Input" || producer_type == "Input" || producer_type == "pnnx.Attribute" || producer_type == "MemoryData";
     std::vector<std::string> shape;
     for (int i = 0; i < (int)operand->shape.size(); i++)
-        shape.push_back(reference_index == 0 && operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : logical_dim_reference(operand, reference_index, i));
+    {
+        // input specifications and constant tensors establish static extents
+        // intermediate metadata only records observations from shape inference
+        shape.push_back(reference_index == 0 && static_source && operand->shape[i] > 0 ? std::to_string(operand->shape[i]) : logical_dim_reference(operand, reference_index, i));
+    }
     return shape;
 }
 
@@ -114,12 +125,19 @@ std::string shape_product(const std::vector<std::string>& dimensions)
     long long constant = 1;
     std::vector<std::string> factors;
     for (const auto& dim : dimensions)
+    {
+        if (dim.empty())
+            return std::string();
         product_factors(dim, constant, factors);
+    }
     return make_product(constant, factors);
 }
 
 std::string shape_quotient(const std::string& numerator, const std::string& denominator)
 {
+    if (numerator.empty() || denominator.empty())
+        return std::string();
+
     long long nc = 1;
     long long dc = 1;
     std::vector<std::string> nf;
@@ -185,8 +203,6 @@ static std::string partition_size(const std::vector<std::string>& shape, int axi
 {
     if (axis == 233)
         return "1";
-    if (axis < 0 || axis >= (int)shape.size())
-        throw std::runtime_error("reshape batch axis is outside logical rank");
     return shape[axis];
 }
 
@@ -205,10 +221,25 @@ static bool dimension_differs(const std::string& a, const std::string& b)
 void write_reshape_shape(Operator* op, std::vector<std::string> shape)
 {
     if (shape.empty())
-        throw std::runtime_error("reshape target rank is unknown");
+    {
+        fprintf(stderr, "reshape %s: target rank is unknown\n", op->name.c_str());
+        return;
+    }
 
     const auto input_shape = logical_shape(op->inputs[0], 0);
     ReshapePlan plan = {batch_axis(op->inputs[0]), batch_axis(op->outputs[0]), PartitionUnknown, false};
+    if ((plan.input_axis != 233 && (plan.input_axis < 0 || plan.input_axis >= (int)input_shape.size()))
+            || (plan.output_axis != 233 && (plan.output_axis < 0 || plan.output_axis >= (int)shape.size())))
+    {
+        fprintf(stderr, "reshape %s: batch axis is outside logical rank\n", op->name.c_str());
+        return;
+    }
+    if (std::find(input_shape.begin(), input_shape.end(), std::string()) != input_shape.end()
+            || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
+    {
+        fprintf(stderr, "reshape %s: unsupported dimension reference\n", op->name.c_str());
+        return;
+    }
 
     // resolve the single infer dimension from the full logical element count
     int infer = -1;
@@ -218,7 +249,10 @@ void write_reshape_shape(Operator* op, std::vector<std::string> shape)
         if (shape[i] == "-1")
         {
             if (infer != -1)
-                throw std::runtime_error("reshape target has multiple infer dimensions");
+            {
+                fprintf(stderr, "reshape %s: target has multiple infer dimensions\n", op->name.c_str());
+                return;
+            }
             infer = i;
         }
         else
@@ -253,7 +287,10 @@ void write_reshape_shape(Operator* op, std::vector<std::string> shape)
         shape.erase(shape.begin() + plan.output_axis);
 
     if (shape.empty() || shape.size() > (explicit_batch && plan.output_axis != 233 ? 5u : 4u))
-        throw std::runtime_error("reshape target exceeds ncnn physical rank");
+    {
+        fprintf(stderr, "reshape %s: target exceeds ncnn physical rank\n", op->name.c_str());
+        return;
+    }
 
     op->params.clear();
     bool static_shape = shape.size() <= 4;

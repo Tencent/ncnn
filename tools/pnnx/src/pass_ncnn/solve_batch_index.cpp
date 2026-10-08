@@ -577,8 +577,18 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "Tensor.unflatten")
         {
+            if (operand != op->inputs[0])
+                continue;
+
             int dim = op->params.at("dim").i;
-            const int sizes_rank = (int)op->params.at("sizes").ai.size();
+            // expression-backed sizes still have a known number of dimensions
+            int sizes_rank = 0;
+            if (op->has_param("sizes"))
+                sizes_rank = (int)op->params.at("sizes").ai.size();
+            else if (input_rank0 > 0 && output_rank0 > 0)
+                sizes_rank = output_rank0 - input_rank0 + 1;
+            if (sizes_rank <= 0)
+                continue;
             if (dim < 0)
                 dim += input_rank0;
 
@@ -1067,7 +1077,14 @@ static void solve_batch_index_backward(Operand* operand)
     else if (op->type == "Tensor.unflatten")
     {
         int dim = op->params.at("dim").i;
-        const int sizes_rank = (int)op->params.at("sizes").ai.size();
+        // expression-backed sizes still have a known number of dimensions
+        int sizes_rank = 0;
+        if (op->has_param("sizes"))
+            sizes_rank = (int)op->params.at("sizes").ai.size();
+        else if (input_rank0 > 0 && output_rank0 > 0)
+            sizes_rank = output_rank0 - input_rank0 + 1;
+        if (sizes_rank <= 0)
+            return;
         if (dim < 0)
             dim += input_rank0;
 

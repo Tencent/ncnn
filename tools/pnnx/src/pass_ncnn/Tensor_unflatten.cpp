@@ -4,8 +4,6 @@
 #include "pass_ncnn.h"
 #include "reshape_shape.h"
 
-#include <stdexcept>
-
 namespace pnnx {
 
 namespace ncnn {
@@ -41,7 +39,10 @@ pnnx.Output             output      1 0 out
         if (dim < 0)
             dim += (int)shape.size();
         if (dim < 0 || dim >= (int)shape.size())
-            throw std::runtime_error("unflatten input rank is unknown");
+        {
+            fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+            return;
+        }
 
         int infer_count = 0;
         std::vector<std::string> known_sizes;
@@ -52,10 +53,16 @@ pnnx.Output             output      1 0 out
             else if (size > 0)
                 known_sizes.push_back(std::to_string(size));
             else
-                throw std::runtime_error("unflatten sizes must be positive or inferred");
+            {
+                fprintf(stderr, "reshape %s: unflatten sizes must be positive or inferred\n", op->name.c_str());
+                return;
+            }
         }
         if (infer_count > 1 || sizes.empty())
-            throw std::runtime_error("unflatten sizes require at most one infer dimension");
+        {
+            fprintf(stderr, "reshape %s: unflatten sizes require at most one infer dimension\n", op->name.c_str());
+            return;
+        }
         std::vector<std::string> expanded;
         for (int size : sizes)
             expanded.push_back(size == -1 ? shape_quotient(shape[dim], shape_product(known_sizes)) : std::to_string(size));

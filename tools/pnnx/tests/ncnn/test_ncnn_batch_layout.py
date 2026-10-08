@@ -548,7 +548,7 @@ def run_model(name, net, inputs, inputs2=None):
     return True
 
 
-def run_convert_only(name, net, inputs):
+def run_convert_warning(name, net, inputs, warning):
     net.eval()
 
     if not isinstance(inputs, tuple):
@@ -558,10 +558,16 @@ def run_convert_only(name, net, inputs):
     mod.save(name + ".pt")
 
     inputshape = ",".join([str(list(x.shape)).replace(" ", "") for x in inputs])
-    if os.system("../../src/pnnx " + name + ".pt inputshape=" + inputshape) != 0:
+    logpath = name + ".log"
+    pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=" + inputshape + " 2>" + logpath
+    ret = os.system(pnnxcmd)
+    with open(logpath) as f:
+        log = f.read()
+    print(log, end="")
+    if ret != 0:
         return False
 
-    return True
+    return warning in log
 
 
 def test():
@@ -694,7 +700,7 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(720)
-    if run_convert_only("test_ncnn_batch_layout_physical5d_reshape", ModelPhysical5DReshape(), x):
+    if not run_convert_warning("test_ncnn_batch_layout_physical5d_reshape", ModelPhysical5DReshape(), x, "target exceeds ncnn physical rank"):
         return False
 
     torch.manual_seed(0)
@@ -782,7 +788,7 @@ def test():
         name = "test_ncnn_batch_layout_unflatten_after_conv1d"
         if not run_model(name, ModelBatchUnflattenAfterConv1d(), x):
             return False
-        if not has_batch_reshape_param(name, layer_prefix="unflatten_"):
+        if not has_batch_reshape_param(name, layer_prefix=("unflatten_", "Tensor.unflatten_")):
             return False
 
     for mode in ("flatten", "reshape"):
@@ -799,7 +805,7 @@ def test():
         name = "test_ncnn_batch_layout_dynamic_unflatten"
         if not run_model(name, ModelDynamicBatchUnflatten(), torch.rand(4, 4, 16), torch.rand(6, 4, 19)):
             return False
-        if not has_batch_reshape_param(name, layer_prefix="unflatten_"):
+        if not has_batch_reshape_param(name, layer_prefix=("unflatten_", "Tensor.unflatten_")):
             return False
 
     name = "test_ncnn_batch_layout_middle_partition"

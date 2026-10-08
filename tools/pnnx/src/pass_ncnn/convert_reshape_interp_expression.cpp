@@ -81,7 +81,7 @@ void convert_reshape_interp_expression(Graph& graph)
 
         for (Operator* op : graph.ops)
         {
-            if (op->type != "Tensor.reshape"
+            if (op->type != "Tensor.reshape" && op->type != "Tensor.unflatten"
                     && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
                 continue;
 
@@ -187,7 +187,9 @@ void convert_reshape_interp_expression(Graph& graph)
                 ordered_references[x.second] = x.first;
             }
 
-            const bool is_tensor_reshape = op->type == "Tensor.reshape";
+            const bool is_tensor_unflatten = op->type == "Tensor.unflatten";
+            const int unflatten_dim = is_tensor_unflatten ? op->params.at("dim").i : 0;
+            const bool is_tensor_reshape = op->type == "Tensor.reshape" || is_tensor_unflatten;
             struct typed_value
             {
                 int type; // 0=i 1=f
@@ -266,7 +268,13 @@ void convert_reshape_interp_expression(Graph& graph)
                                 if (bi < 0)
                                     bi = a_rank0 + bi;
 
-                                exprstack.push(logical_dim_reference(ordered_references[input_index], input_index, bi));
+                                const std::string reference = logical_dim_reference(ordered_references[input_index], input_index, bi);
+                                if (reference.empty())
+                                {
+                                    fprintf(stderr, "reshape %s: unsupported dimension reference\n", op->name.c_str());
+                                    return;
+                                }
+                                exprstack.push(reference);
                             }
                         }
                         else
@@ -388,6 +396,31 @@ void convert_reshape_interp_expression(Graph& graph)
                 exprstack.pop();
             }
 
+            std::vector<std::string> shape;
+            if (is_tensor_reshape)
+            {
+                shape = split_shape_expression(r);
+                std::reverse(shape.begin(), shape.end());
+                if (is_tensor_unflatten)
+                {
+                    auto input_shape = logical_shape(op->inputs[0], 0);
+                    int dim = unflatten_dim;
+                    if (dim < 0)
+                        dim += (int)input_shape.size();
+                    if (dim < 0 || dim >= (int)input_shape.size())
+                    {
+                        fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+                        return;
+                    }
+
+                    // the size expression expands one logical dimension
+                    // the shared planner resolves infer after the untouched dimensions have been included in the complete target
+                    input_shape.erase(input_shape.begin() + dim);
+                    input_shape.insert(input_shape.begin() + dim, shape.begin(), shape.end());
+                    shape = input_shape;
+                }
+            }
+
             if (is_tensor_reshape)
             {
                 fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
@@ -446,8 +479,6 @@ void convert_reshape_interp_expression(Graph& graph)
 
             if (is_tensor_reshape)
             {
-                auto shape = split_shape_expression(r);
-                std::reverse(shape.begin(), shape.end());
                 write_reshape_shape(op, shape);
             }
 
