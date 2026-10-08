@@ -76,8 +76,9 @@ static int test_lrn_even_window()
     // Squared channel sums for [q - size / 2, q + (size - 1) / 2],
     // with zeros outside the five channels containing 1, 2, 3, 4, 5.
     const float square_sums[][5] = {{1.f, 5.f, 13.f, 25.f, 41.f},
-                                   {5.f, 14.f, 30.f, 54.f, 50.f},
-                                   {30.f, 55.f, 55.f, 55.f, 55.f}};
+        {5.f, 14.f, 30.f, 54.f, 50.f},
+        {30.f, 55.f, 55.f, 55.f, 55.f}
+    };
 
     for (int i = 0; i < 3; i++)
     {
