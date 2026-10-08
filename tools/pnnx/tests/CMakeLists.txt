@@ -370,6 +370,7 @@ pnnx_add_test(pnnx_fuse_asymmetric_pad_conv2d)
 pnnx_add_test(pnnx_fuse_pad_conv2d)
 pnnx_add_test(pnnx_fuse_pixel_shuffle)
 pnnx_add_test(pnnx_fuse_pixel_unshuffle)
+pnnx_add_test(pnnx_reshape_semantics)
 
 if(TorchVision_FOUND)
     pnnx_add_test(torchvision_DeformConv2d)

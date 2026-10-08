@@ -284,7 +284,7 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
     if (op->type == "pnnx.Expression" || op->type == "pnnx.SliceIndexes")
         return get_ncnn_batch_axis(r);
 
-    if ((op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as") && input_index != 0)
+    if ((op->type == "Tensor.reshape" || op->type == "Tensor.reshape_as" || op->type == "Tensor.unflatten") && input_index != 0)
         return get_ncnn_batch_axis(r);
 
     if ((op->type == "Tensor.slice" || op->type == "Tensor.select") && input_index != 0)
@@ -343,7 +343,9 @@ static int get_consumer_ncnn_batch_axis(const Operator* op, int input_index, con
     if (is_layout_op(op) && r->params.at("__batch_index").i != 233)
         return r->params.at("__batch_index").i;
 
-    if (is_axis_op(op))
+    // these operators remap the logical batch axis below
+    // folding it into physical dimensions first can create an unsupported physical rank 5
+    if (is_axis_op(op) || op->type == "torch.squeeze" || op->type == "torch.unsqueeze")
         return get_ncnn_batch_axis(r);
 
     if (is_reshape_op(op) && input_index == 0 && get_ncnn_batch_axis(r) != 233)

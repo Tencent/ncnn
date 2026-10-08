@@ -140,7 +140,9 @@ void eliminate_reshape_shape_expression(Graph& graph)
 
             if (dynamic_dim_count > 1)
             {
-                op_expr->params["expr"] = build_expr(expr_tokens);
+                // inferred sizes may differ between consumers of a shared expression
+                if (op_expr->outputs[0]->consumers.size() == 1)
+                    op_expr->params["expr"] = build_expr(expr_tokens);
                 continue;
             }
 

@@ -250,6 +250,7 @@ pnnx_ncnn_add_test(ncnn_global_pooling_layout)
 pnnx_ncnn_add_test(ncnn_interp_expr)
 pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 pnnx_ncnn_add_test(ncnn_reshape_expr)
+pnnx_ncnn_add_test(ncnn_reshape_semantics)
 pnnx_ncnn_add_test(ncnn_slice_expr)
 pnnx_ncnn_add_test(ncnn_solve_batch_index)
 
