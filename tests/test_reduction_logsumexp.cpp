@@ -92,8 +92,7 @@ static int test_logsumexp_mixed_and_nonfinite()
             if (ret == 0) ret = op->forward(a, out, opt);
             op->destroy_pipeline(opt);
             delete op;
-            if (ret != 0 || out.empty() || (t < 3 ? !NearlyEqual(out[0], expected[t], 0.00001f) : t == 5 ? out[0] == out[0]
-                                            : out[0] != expected[t]))
+            if (ret != 0 || out.empty() || (t < 3 ? !NearlyEqual(out[0], expected[t], 0.00001f) : t == 5 ? out[0] == out[0] : out[0] != expected[t]))
             {
                 fprintf(stderr, "logsumexp mixed/nonfinite mismatch case=%d naive=%d\n", t, naive);
                 return -1;
