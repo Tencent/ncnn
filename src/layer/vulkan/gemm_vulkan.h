@@ -39,6 +39,7 @@ public:
     VkMat C_data_gpu;
 
     Pipeline* pipeline_gemm;
+    Pipeline* pipeline_gemm_pack4;
 
     // subgroup
     bool use_subgroup_ops;

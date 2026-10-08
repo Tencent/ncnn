@@ -57,7 +57,7 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size + NCNN_MALLOC_OVERREAD, NCNN_MALLOC_ALIGN);
-#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif ((defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)) || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD))
         ptr = 0;
@@ -80,7 +80,7 @@ static NCNN_FORCEINLINE void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif ((defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)) || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
 #elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);

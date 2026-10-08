@@ -13,6 +13,7 @@
 #include "x86_activation.h"
 #include "x86_usability.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -23,6 +24,7 @@ namespace ncnn {
 #if __AVX__
 #include "convolutiondepthwise_3x3_pack8.h"
 #include "convolutiondepthwise_5x5_pack8.h"
+#include "convolutiondepthwise_packed.h"
 #if __AVX512F__
 #include "convolutiondepthwise_3x3_pack16.h"
 #include "convolutiondepthwise_5x5_pack16.h"
@@ -464,60 +466,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
             else
             {
-                const int maxk = kernel_w * kernel_h;
-
-                // kernel offsets
-                std::vector<int> _space_ofs(maxk);
-                int* space_ofs = &_space_ofs[0];
-                {
-                    int p1 = 0;
-                    int p2 = 0;
-                    int gap = w * dilation_h - kernel_w * dilation_w;
-                    for (int i = 0; i < kernel_h; i++)
-                    {
-                        for (int j = 0; j < kernel_w; j++)
-                        {
-                            space_ofs[p1] = p2;
-                            p1++;
-                            p2 += dilation_w;
-                        }
-                        p2 += gap;
-                    }
-                }
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++)
-                {
-                    float* outptr = top_blob.channel(g);
-                    const float* kptr = (const float*)weight_data_tm + maxk * g * 8;
-                    const Mat m = bottom_blob_bordered.channel(g);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            __m256 _sum = _mm256_set1_ps(0.f);
-
-                            if (bias_term)
-                            {
-                                _sum = _mm256_loadu_ps(((const float*)bias_data) + g * 8);
-                            }
-
-                            const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                __m256 _val = _mm256_loadu_ps(sptr + space_ofs[k] * 8);
-                                __m256 _w = _mm256_loadu_ps(kptr + k * 8);
-                                _sum = _mm256_comp_fmadd_ps(_val, _w, _sum);
-                            }
-
-                            _mm256_storeu_ps(outptr + j * 8, _sum);
-                        }
-
-                        outptr += outw * 8;
-                    }
-                }
+                convolutiondepthwise_packed8(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, bias_term, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
 
                 if (activation)
                 {

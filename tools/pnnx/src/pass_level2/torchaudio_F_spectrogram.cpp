@@ -76,6 +76,213 @@ pnnx.Output             output      1 0 out
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram, 140)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_0, 140)
 
+// match static dimensions as well as dimensions read from the original tensor
+static bool match_spectrogram_dimension(const Operand* r, const Operand* tensor, int dim)
+{
+    const Operator* op = r->producer;
+    if (op->type == "prim::Constant")
+    {
+        const Parameter& value = op->params.at("value");
+        return value.type == 2 && tensor->shape[dim] > 0 && value.i == tensor->shape[dim];
+    }
+
+    if (op->type != "Tensor.size" || op->inputs.size() != 1 || op->inputs[0] != tensor)
+        return false;
+
+    int axis = op->params.at("dim").i;
+    if (axis < 0)
+        axis += (int)tensor->shape.size();
+    return axis == dim;
+}
+
+static bool match_spectrogram_packed_shape(const Operand* shape, const Operand* waveform)
+{
+    const Operator* op = shape->producer;
+    const int dim = (int)waveform->shape.size() - 1;
+    if (op->type == "prim::Constant")
+    {
+        const Parameter& value = op->params.at("value");
+        if (value.type != 5 || value.ai.size() != 2 || value.ai[0] != -1)
+            return false;
+        return waveform->shape[dim] > 0 && value.ai[1] == waveform->shape[dim];
+    }
+
+    if (op->type != "prim::ListConstruct" || op->inputs.size() != 2)
+        return false;
+
+    const Operator* batch = op->inputs[0]->producer;
+    if (batch->type != "prim::Constant")
+        return false;
+    const Parameter& value = batch->params.at("value");
+    if (value.type != 2 || value.i != -1)
+        return false;
+    return match_spectrogram_dimension(op->inputs[1], waveform, dim);
+}
+
+class torchaudio_F_spectrogram_reshape : public torchaudio_F_spectrogram
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+prim::Constant          shape       0 1 unpacked_shape value=%unpacked_shape
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* pack = matched_operators.at("op_0");
+        const Operator* stft = matched_operators.at("op_1");
+        const Operator* unpack = matched_operators.at("op_2");
+        const Operand* waveform = pack->inputs[0];
+        const Operand* spec = stft->outputs[0];
+        const int rank = (int)waveform->shape.size();
+        if (rank == 0 || spec->shape.size() != 3 || !match_spectrogram_packed_shape(pack->inputs[1], waveform))
+            return false;
+
+        const Operand* shape = unpack->inputs[1];
+        const Operator* shape_op = shape->producer;
+        if (shape_op->type == "prim::Constant")
+        {
+            const Parameter& value = shape_op->params.at("value");
+            if (value.type != 5 || (int)value.ai.size() != rank + 1)
+                return false;
+            for (int i = 0; i < rank + 1; i++)
+            {
+                const int expected = i < rank - 1 ? waveform->shape[i] : spec->shape[i - rank + 2];
+                if (expected <= 0 || value.ai[i] != expected)
+                    return false;
+            }
+            return true;
+        }
+
+        if (shape_op->type != "prim::ListConstruct" || (int)shape_op->inputs.size() != rank + 1)
+            return false;
+        for (int i = 0; i < rank - 1; i++)
+        {
+            if (!match_spectrogram_dimension(shape_op->inputs[i], waveform, i))
+                return false;
+        }
+        return match_spectrogram_dimension(shape_op->inputs[rank - 1], spec, 1)
+               && match_spectrogram_dimension(shape_op->inputs[rank], spec, 2);
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        torchaudio_F_spectrogram::write(op, captured_params);
+        op->params.erase("unpacked_shape");
+        for (size_t i = 2; i < op->inputs.size(); i++)
+            op->inputs[i]->remove_consumer(op);
+        op->inputs.resize(2);
+        op->inputnames.resize(2);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape, 140)
+
+class torchaudio_F_spectrogram_reshape_1 : public torchaudio_F_spectrogram_reshape
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.size             freq        1 1 spec freq_size dim=1
+Tensor.size             time        1 1 spec time_size dim=2
+prim::ListConstruct     shape       2 1 freq_size time_size unpacked_shape
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class torchaudio_F_spectrogram_reshape_2 : public torchaudio_F_spectrogram_reshape
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+11 10
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+pnnx.Input              input_3     0 1 leading0
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.size             freq        1 1 spec freq_size dim=1
+Tensor.size             time        1 1 spec time_size dim=2
+prim::ListConstruct     shape       3 1 leading0 freq_size time_size unpacked_shape
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class torchaudio_F_spectrogram_reshape_3 : public torchaudio_F_spectrogram_reshape
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+12 11
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+pnnx.Input              input_3     0 1 leading0
+pnnx.Input              input_4     0 1 leading1
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.size             freq        1 1 spec freq_size dim=1
+Tensor.size             time        1 1 spec time_size dim=2
+prim::ListConstruct     shape       4 1 leading0 leading1 freq_size time_size unpacked_shape
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class torchaudio_F_spectrogram_reshape_4 : public torchaudio_F_spectrogram_reshape
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+13 12
+pnnx.Input              input_0     0 1 waveform
+pnnx.Input              input_1     0 1 window
+pnnx.Input              input_2     0 1 packed_shape
+pnnx.Input              input_3     0 1 leading0
+pnnx.Input              input_4     0 1 leading1
+pnnx.Input              input_5     0 1 leading2
+Tensor.reshape          op_0        2 1 waveform packed_shape packed
+torch.stft              op_1        2 1 packed window spec n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
+Tensor.size             freq        1 1 spec freq_size dim=1
+Tensor.size             time        1 1 spec time_size dim=2
+prim::ListConstruct     shape       5 1 leading0 leading1 leading2 freq_size time_size unpacked_shape
+Tensor.reshape          op_2        2 1 spec unpacked_shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_1, 140)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_2, 140)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_3, 140)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torchaudio_F_spectrogram_reshape_4, 140)
+
 class torchaudio_F_spectrogram_1 : public GraphRewriterPass
 {
 public:
