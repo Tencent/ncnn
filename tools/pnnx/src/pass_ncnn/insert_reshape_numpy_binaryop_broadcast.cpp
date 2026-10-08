@@ -96,11 +96,46 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
 
             // fprintf(stderr, "insert_reshape_numpy_binaryop_broadcast %d %d\n", input_rank0, input_rank1);
 
-            matched = true;
-
             const int binaryop_lower_rank_in_index = input_rank0 < input_rank1 ? 0 : 1;
 
             Operand* binaryop_lower_rank_in = op->inputs[binaryop_lower_rank_in_index];
+
+            Operand output_shape = *binaryop_lower_rank_in;
+            const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
+            const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
+
+            output_shape.params["__batch_index"] = lower_batch_index;
+            output_shape.params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
+
+            // insert explicit broadcast index for missing ranks
+            std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
+            for (int j = 0; j < std::abs(input_rank0 - input_rank1); j++)
+            {
+                reshape0_shape.insert(reshape0_shape.begin(), 1);
+            }
+
+            if (lower_ncnn_batch_axis != 233)
+            {
+                reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
+            }
+
+            output_shape.shape = reshape0_shape;
+            output_shape.type = binaryop_lower_rank_in->type;
+            auto target = logical_shape(binaryop_lower_rank_in, 0);
+            std::string batch;
+            if (lower_ncnn_batch_axis != 233)
+            {
+                batch = target[lower_ncnn_batch_axis];
+                target.erase(target.begin() + lower_ncnn_batch_axis);
+            }
+            target.insert(target.begin(), std::abs(input_rank0 - input_rank1), "1");
+            if (lower_ncnn_batch_axis != 233)
+                target.insert(target.begin() + lower_ncnn_batch_axis, batch);
+            std::map<std::string, Parameter> params;
+            if (!resolve_reshape_shape({binaryop_lower_rank_in}, &output_shape, target, params))
+                continue;
+
+            matched = true;
 
             Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
 
@@ -123,37 +158,10 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             reshape0_out->producer = reshape0;
             reshape0_out->consumers.push_back(op);
 
-            const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
-            const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
-
-            reshape0_out->params["__batch_index"] = lower_batch_index;
-            reshape0_out->params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
-
-            // insert explicit broadcast index for missing ranks
-            std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
-            for (int j = 0; j < std::abs(input_rank0 - input_rank1); j++)
-            {
-                reshape0_shape.insert(reshape0_shape.begin(), 1);
-            }
-
-            if (lower_ncnn_batch_axis != 233)
-            {
-                reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
-            }
-
-            reshape0_out->shape = reshape0_shape;
-            reshape0_out->type = binaryop_lower_rank_in->type;
-            auto target = logical_shape(binaryop_lower_rank_in, 0);
-            std::string batch;
-            if (lower_ncnn_batch_axis != 233)
-            {
-                batch = target[lower_ncnn_batch_axis];
-                target.erase(target.begin() + lower_ncnn_batch_axis);
-            }
-            target.insert(target.begin(), std::abs(input_rank0 - input_rank1), "1");
-            if (lower_ncnn_batch_axis != 233)
-                target.insert(target.begin() + lower_ncnn_batch_axis, batch);
-            write_reshape_shape(reshape0, target);
+            reshape0_out->params = output_shape.params;
+            reshape0_out->shape = output_shape.shape;
+            reshape0_out->type = output_shape.type;
+            write_reshape_shape(reshape0, params);
 
             break;
         }

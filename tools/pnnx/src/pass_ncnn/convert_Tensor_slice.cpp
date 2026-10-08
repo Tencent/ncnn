@@ -176,6 +176,27 @@ void convert_Tensor_slice(Graph& graph)
                 if (ends[i] == INT_MAX)
                     ends[i] = -233;
             }
+            Operand reshape_shape = *op->outputs[0];
+            std::map<std::string, Parameter> reshape_params;
+            if (select_count > 0)
+            {
+                reshape_shape.producer = op;
+                reshape_shape.params["__ncnn_batch_axis"] = ncnn_batch_axis;
+                reshape_shape.type = op->outputs[0]->type;
+                reshape_shape.shape = op->outputs[0]->shape;
+                std::sort(select_logical_axes.begin(), select_logical_axes.end());
+                if (reshape_shape.shape.empty())
+                    reshape_shape.shape.resize(input_rank0 - select_count, -1);
+                for (int axis : select_logical_axes)
+                    reshape_shape.shape.insert(reshape_shape.shape.begin() + axis, 1);
+
+                auto shape = logical_shape(&reshape_shape, 0);
+                for (auto it = select_logical_axes.rbegin(); it != select_logical_axes.rend(); ++it)
+                    shape.erase(shape.begin() + *it);
+                if (!resolve_reshape_shape({&reshape_shape}, op->outputs[0], shape, reshape_params))
+                    continue;
+            }
+
             matched = true;
 
             op->type = "Crop";
@@ -242,18 +263,9 @@ void convert_Tensor_slice(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape_in->type = out->type;
-                reshape_in->shape = out->shape;
-                std::sort(select_logical_axes.begin(), select_logical_axes.end());
-                if (reshape_in->shape.empty())
-                    reshape_in->shape.resize(input_rank0 - select_count, -1);
-                for (int axis : select_logical_axes)
-                    reshape_in->shape.insert(reshape_in->shape.begin() + axis, 1);
-
-                auto shape = logical_shape(reshape_in, 0);
-                for (auto it = select_logical_axes.rbegin(); it != select_logical_axes.rend(); ++it)
-                    shape.erase(shape.begin() + *it);
-                write_reshape_shape(reshape, shape);
+                reshape_in->type = reshape_shape.type;
+                reshape_in->shape = reshape_shape.shape;
+                write_reshape_shape(reshape, reshape_params);
             }
 
             break;

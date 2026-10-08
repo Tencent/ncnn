@@ -524,8 +524,6 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             fprintf(stderr, "----------------------------convert_slice_expression_single_axis_ranged\n");
 
-            matched = true;
-
             std::string start_expr = op_start ? op_start->params["expr"].s : std::to_string(start);
             std::string end_expr = op_end ? op_end->params["expr"].s : std::to_string(end);
             std::string step_expr = op_step ? op_step->params["expr"].s : std::to_string(step);
@@ -631,6 +629,23 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
                 fprintf(stderr, "slice with step expression %s is not supported\n", steps_expr.c_str());
             }
 
+            Operand reshape_shape = *op->outputs[0];
+            std::map<std::string, Parameter> reshape_params;
+            if (has_select)
+            {
+                reshape_shape.producer = op;
+                reshape_shape.params["__ncnn_batch_axis"] = ncnn_batch_axis;
+                reshape_shape.type = op->outputs[0]->type;
+                reshape_shape.shape = op->outputs[0]->shape;
+                reshape_shape.shape.insert(reshape_shape.shape.begin() + dim, 1);
+                auto target = logical_shape(&reshape_shape, 0);
+                target.erase(target.begin() + dim);
+                if (!resolve_reshape_shape({&reshape_shape}, op->outputs[0], target, reshape_params))
+                    continue;
+            }
+
+            matched = true;
+
             op->type = "Crop";
             op->name = std::string("slice1_") + std::to_string(op_index++);
 
@@ -676,12 +691,9 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape_in->type = out->type;
-                reshape_in->shape = out->shape;
-                reshape_in->shape.insert(reshape_in->shape.begin() + dim, 1);
-                auto target = logical_shape(reshape_in, 0);
-                target.erase(target.begin() + dim);
-                write_reshape_shape(reshape, target);
+                reshape_in->type = reshape_shape.type;
+                reshape_in->shape = reshape_shape.shape;
+                write_reshape_shape(reshape, reshape_params);
             }
 
             break;
@@ -1103,8 +1115,6 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
             fprintf(stderr, "----------------------------convert_slice_expression_multi_axis_ranged\n");
 
-            matched = true;
-
             std::vector<std::string> starts_expr;
             std::vector<std::string> ends_expr;
             std::vector<std::string> steps_expr;
@@ -1359,6 +1369,26 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 }
             }
 
+            Operand reshape_shape = *op->outputs[0];
+            std::map<std::string, Parameter> reshape_params;
+            if (has_select)
+            {
+                reshape_shape.producer = op;
+                reshape_shape.params["__ncnn_batch_axis"] = ncnn_batch_axis;
+                reshape_shape.type = op->outputs[0]->type;
+                reshape_shape.shape = op->outputs[0]->shape;
+                std::sort(selected_axes.begin(), selected_axes.end());
+                for (int axis : selected_axes)
+                    reshape_shape.shape.insert(reshape_shape.shape.begin() + axis, 1);
+                auto target = logical_shape(&reshape_shape, 0);
+                for (auto it = selected_axes.rbegin(); it != selected_axes.rend(); ++it)
+                    target.erase(target.begin() + *it);
+                if (!resolve_reshape_shape({&reshape_shape}, op->outputs[0], target, reshape_params))
+                    continue;
+            }
+
+            matched = true;
+
             op->type = "Crop";
             op->name = std::string("slice3_") + std::to_string(op_index++);
 
@@ -1404,15 +1434,9 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 reshape_in->producer = op;
                 reshape_in->consumers.push_back(reshape);
 
-                reshape_in->type = out->type;
-                reshape_in->shape = out->shape;
-                std::sort(selected_axes.begin(), selected_axes.end());
-                for (int axis : selected_axes)
-                    reshape_in->shape.insert(reshape_in->shape.begin() + axis, 1);
-                auto target = logical_shape(reshape_in, 0);
-                for (auto it = selected_axes.rbegin(); it != selected_axes.rend(); ++it)
-                    target.erase(target.begin() + *it);
-                write_reshape_shape(reshape, target);
+                reshape_in->type = reshape_shape.type;
+                reshape_in->shape = reshape_shape.shape;
+                write_reshape_shape(reshape, reshape_params);
             }
 
             break;

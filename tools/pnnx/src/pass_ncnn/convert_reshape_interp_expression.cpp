@@ -91,8 +91,6 @@ void convert_reshape_interp_expression(Graph& graph)
             if (op->inputs[1]->producer->type != "pnnx.Expression")
                 continue;
 
-            matched = true;
-
             Operator* op_expr = op->inputs[1]->producer;
             const std::string& expr = op_expr->params["expr"].s;
 
@@ -421,6 +419,15 @@ void convert_reshape_interp_expression(Graph& graph)
                 }
             }
 
+            std::map<std::string, Parameter> reshape_params;
+            if (is_tensor_reshape)
+            {
+                if (!resolve_reshape_shape(ordered_references, op->outputs[0], shape, reshape_params))
+                    continue;
+            }
+
+            matched = true;
+
             if (is_tensor_reshape)
             {
                 fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
@@ -479,7 +486,7 @@ void convert_reshape_interp_expression(Graph& graph)
 
             if (is_tensor_reshape)
             {
-                write_reshape_shape(op, shape);
+                write_reshape_shape(op, reshape_params);
             }
 
             // drop expression

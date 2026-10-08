@@ -21,11 +21,6 @@ void convert_torch_unbind(Graph& graph)
             if (op->type != "torch.unbind")
                 continue;
 
-            matched = true;
-
-            op->type = "Slice";
-            op->name = std::string("unbind_") + std::to_string(op_index++);
-
             const int batch_index = op->inputs[0]->params.at("__batch_index").i;
             const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
@@ -51,18 +46,7 @@ void convert_torch_unbind(Graph& graph)
             }
 
             if (axis_is_batch)
-            {
-                // keep Slice op for future across-batch support
-                int output_size = (int)op->outputs.size();
-
-                op->params["0"].type = 5;
-                op->params["0"].ai.resize(output_size, -233);
-
-                op->params["1"] = -233;
-
-                op->params.erase("dim");
-                break;
-            }
+                continue;
 
             int output_size = (int)op->outputs.size();
 
@@ -76,6 +60,33 @@ void convert_torch_unbind(Graph& graph)
             int output_ncnn_batch_axis = ncnn_batch_axis;
             if (ncnn_batch_axis != 233 && axis0 >= 0 && axis0 < ncnn_batch_axis)
                 output_ncnn_batch_axis -= 1;
+
+            if (axis0 < 0 || axis0 >= (int)op->inputs[0]->shape.size())
+                continue;
+
+            Operand reshape_shape = *op->inputs[0];
+            reshape_shape.producer = op;
+            reshape_shape.shape[axis0] = 1;
+            auto shape = logical_shape(&reshape_shape, 0);
+            shape.erase(shape.begin() + axis0);
+            std::vector<std::map<std::string, Parameter> > reshape_params(output_size);
+            bool supported = true;
+            for (int i = 0; i < output_size; i++)
+            {
+                Operand output_shape = *op->outputs[i];
+                output_shape.params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
+                if (!resolve_reshape_shape({&reshape_shape}, &output_shape, shape, reshape_params[i]))
+                {
+                    supported = false;
+                    break;
+                }
+            }
+            if (!supported)
+                continue;
+
+            matched = true;
+            op->type = "Slice";
+            op->name = std::string("unbind_") + std::to_string(op_index++);
 
             op->params["0"].type = 5;
             op->params["0"].ai.resize(output_size, -233);
@@ -109,9 +120,7 @@ void convert_torch_unbind(Graph& graph)
                 out->params["__batch_index"] = output_batch_index;
                 out->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
 
-                auto shape = logical_shape(reshape_in, 0);
-                shape.erase(shape.begin() + axis0);
-                write_reshape_shape(reshape, shape);
+                write_reshape_shape(reshape, reshape_params[i]);
             }
 
             break;

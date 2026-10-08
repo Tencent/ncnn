@@ -84,7 +84,19 @@ pnnx.Output             output      1 0 out
         return "flatten";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        std::map<std::string, Parameter> params;
+        return resolve_reshape_shape(op->inputs, op->outputs[0], get_shape(op, captured_params), params);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        write_reshape_shape(op, get_shape(op, captured_params));
+    }
+
+    std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int start = captured_params.at("start_dim").i;
         int end = captured_params.at("end_dim").i;
@@ -96,13 +108,13 @@ pnnx.Output             output      1 0 out
         if (start < 0 || end < start || end >= (int)shape.size())
         {
             fprintf(stderr, "reshape %s: flatten input rank is unknown\n", op->name.c_str());
-            return;
+            return std::vector<std::string>();
         }
 
         const std::string merged = shape_product(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
         shape.erase(shape.begin() + start, shape.begin() + end + 1);
         shape.insert(shape.begin() + start, merged);
-        write_reshape_shape(op, shape);
+        return shape;
     }
 };
 

@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cerrno>
+#include <climits>
 
 namespace pnnx {
 
@@ -83,32 +85,40 @@ std::vector<std::string> split_shape_expression(const std::string& expression)
     return dimensions;
 }
 
-static bool integer_dimension(const std::string& expression, long long& value)
+static int integer_dimension(const std::string& expression, long long& value)
 {
+    errno = 0;
     char* end = 0;
     value = strtoll(expression.c_str(), &end, 10);
-    return end != expression.c_str() && *end == 0;
+    if (end == expression.c_str() || *end != 0)
+        return 0;
+    return errno == ERANGE ? -1 : 1;
 }
 
-static void product_factors(const std::string& expression, long long& constant, std::vector<std::string>& factors)
+static bool product_factors(const std::string& expression, long long& constant, std::vector<std::string>& factors)
 {
     long long value;
-    if (integer_dimension(expression, value) && value > 0)
+    const int integer = integer_dimension(expression, value);
+    if (integer < 0 || (integer == 1 && value > 0 && constant > LLONG_MAX / value))
+    {
+        fprintf(stderr, "reshape dimension product exceeds integer range\n");
+        return false;
+    }
+    if (integer == 1 && value > 0)
     {
         constant *= value;
-        return;
+        return true;
     }
     if (expression.compare(0, 2, "*(") == 0 && expression.back() == ')')
     {
         const auto operands = split_shape_expression(expression.substr(2, expression.size() - 3));
         if (operands.size() == 2)
         {
-            product_factors(operands[0], constant, factors);
-            product_factors(operands[1], constant, factors);
-            return;
+            return product_factors(operands[0], constant, factors) && product_factors(operands[1], constant, factors);
         }
     }
     factors.push_back(expression);
+    return true;
 }
 
 static std::string make_product(long long constant, std::vector<std::string> factors)
@@ -128,7 +138,8 @@ std::string shape_product(const std::vector<std::string>& dimensions)
     {
         if (dim.empty())
             return std::string();
-        product_factors(dim, constant, factors);
+        if (!product_factors(dim, constant, factors))
+            return std::string();
     }
     return make_product(constant, factors);
 }
@@ -142,8 +153,8 @@ std::string shape_quotient(const std::string& numerator, const std::string& deno
     long long dc = 1;
     std::vector<std::string> nf;
     std::vector<std::string> df;
-    product_factors(numerator, nc, nf);
-    product_factors(denominator, dc, df);
+    if (!product_factors(numerator, nc, nf) || !product_factors(denominator, dc, df))
+        return std::string();
     for (auto it = df.begin(); it != df.end();)
     {
         auto n = std::find(nf.begin(), nf.end(), *it);
@@ -170,14 +181,6 @@ enum PartitionRelation
     PartitionSame,
     PartitionDifferent,
     PartitionUnknown
-};
-
-struct ReshapePlan
-{
-    int input_axis;
-    int output_axis;
-    PartitionRelation partition;
-    bool full_context;
 };
 
 static std::vector<size_t> dimension_references(const std::string& expression)
@@ -215,30 +218,31 @@ static bool dimension_differs(const std::string& a, const std::string& b)
 {
     long long av;
     long long bv;
-    return integer_dimension(a, av) && integer_dimension(b, bv) && av != bv;
+    return integer_dimension(a, av) == 1 && integer_dimension(b, bv) == 1 && av != bv;
 }
 
-void write_reshape_shape(Operator* op, std::vector<std::string> shape)
+bool resolve_reshape_shape(const std::vector<Operand*>& inputs, const Operand* output, std::vector<std::string> shape, std::map<std::string, Parameter>& params)
 {
     if (shape.empty())
     {
-        fprintf(stderr, "reshape %s: target rank is unknown\n", op->name.c_str());
-        return;
+        fprintf(stderr, "reshape %s: target rank is unknown\n", output->name.c_str());
+        return false;
     }
 
-    const auto input_shape = logical_shape(op->inputs[0], 0);
-    ReshapePlan plan = {batch_axis(op->inputs[0]), batch_axis(op->outputs[0]), PartitionUnknown, false};
-    if ((plan.input_axis != 233 && (plan.input_axis < 0 || plan.input_axis >= (int)input_shape.size()))
-            || (plan.output_axis != 233 && (plan.output_axis < 0 || plan.output_axis >= (int)shape.size())))
+    const auto input_shape = logical_shape(inputs[0], 0);
+    const int input_axis = batch_axis(inputs[0]);
+    const int output_axis = batch_axis(output);
+    if ((input_axis != 233 && (input_axis < 0 || input_axis >= (int)input_shape.size()))
+        || (output_axis != 233 && (output_axis < 0 || output_axis >= (int)shape.size())))
     {
-        fprintf(stderr, "reshape %s: batch axis is outside logical rank\n", op->name.c_str());
-        return;
+        fprintf(stderr, "reshape %s: batch axis is outside logical rank\n", output->name.c_str());
+        return false;
     }
     if (std::find(input_shape.begin(), input_shape.end(), std::string()) != input_shape.end()
-            || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
+        || std::find(shape.begin(), shape.end(), std::string()) != shape.end())
     {
-        fprintf(stderr, "reshape %s: unsupported dimension reference\n", op->name.c_str());
-        return;
+        fprintf(stderr, "reshape %s: unsupported dimension reference\n", output->name.c_str());
+        return false;
     }
 
     // resolve the single infer dimension from the full logical element count
@@ -250,8 +254,8 @@ void write_reshape_shape(Operator* op, std::vector<std::string> shape)
         {
             if (infer != -1)
             {
-                fprintf(stderr, "reshape %s: target has multiple infer dimensions\n", op->name.c_str());
-                return;
+                fprintf(stderr, "reshape %s: target has multiple infer dimensions\n", output->name.c_str());
+                return false;
             }
             infer = i;
         }
@@ -259,77 +263,138 @@ void write_reshape_shape(Operator* op, std::vector<std::string> shape)
             known_dimensions.push_back(shape[i]);
     }
     if (infer != -1 && !input_shape.empty())
+    {
         shape[infer] = shape_quotient(shape_product(input_shape), shape_product(known_dimensions));
+        if (shape[infer].empty())
+            return false;
+    }
 
-    const std::string input_n = partition_size(input_shape, plan.input_axis);
-    const std::string output_n = partition_size(shape, plan.output_axis);
-    const std::string input_suffix = partition_suffix(input_shape, plan.input_axis);
-    const std::string output_suffix = partition_suffix(shape, plan.output_axis);
+    PartitionRelation partition = PartitionUnknown;
+    const std::string input_n = partition_size(input_shape, input_axis);
+    const std::string output_n = partition_size(shape, output_axis);
+    const std::string input_suffix = partition_suffix(input_shape, input_axis);
+    const std::string output_suffix = partition_suffix(shape, output_axis);
+    if (input_suffix.empty() || output_suffix.empty())
+        return false;
     if ((input_n == "1" && output_n == "1") || (input_n == output_n && input_suffix == output_suffix))
-        plan.partition = PartitionSame;
+        partition = PartitionSame;
     else if (dimension_differs(input_n, output_n) || (input_n == output_n && input_n != "1" && dimension_differs(input_suffix, output_suffix)))
-        plan.partition = PartitionDifferent;
+        partition = PartitionDifferent;
 
     // only the physical target needs to be evaluated by an ordinary reshape
+    bool full_context = false;
     for (int i = 0; i < (int)shape.size(); i++)
     {
-        if (i == plan.output_axis)
+        if (i == output_axis)
             continue;
         for (size_t j : dimension_references(shape[i]))
         {
             if (shape[i][j + 1] == 'n' || shape[i][j] != '0')
-                plan.full_context = true;
+                full_context = true;
         }
     }
 
-    const bool explicit_batch = (plan.partition != PartitionSame || plan.full_context) && (plan.input_axis != 233 || plan.output_axis != 233);
-    if (!explicit_batch && plan.output_axis != 233)
-        shape.erase(shape.begin() + plan.output_axis);
+    const bool explicit_batch = (partition != PartitionSame || full_context) && (input_axis != 233 || output_axis != 233);
+    if (!explicit_batch && output_axis != 233)
+        shape.erase(shape.begin() + output_axis);
 
-    if (shape.empty() || shape.size() > (explicit_batch && plan.output_axis != 233 ? 5u : 4u))
+    if (shape.empty() || shape.size() > (explicit_batch && output_axis != 233 ? 5u : 4u))
     {
-        fprintf(stderr, "reshape %s: target exceeds ncnn physical rank\n", op->name.c_str());
-        return;
+        fprintf(stderr, "reshape %s: target exceeds ncnn physical rank\n", output->name.c_str());
+        return false;
     }
 
-    op->params.clear();
     bool static_shape = shape.size() <= 4;
+    std::vector<int> dimensions;
     for (const auto& dim : shape)
     {
         long long value;
-        if (!integer_dimension(dim, value))
-            static_shape = false;
+        const int integer = integer_dimension(dim, value);
+        if (integer < 0 || (integer == 1 && (value < -1 || value == 0 || value > INT_MAX)))
+        {
+            fprintf(stderr, "reshape %s: dimension exceeds ncnn integer range\n", output->name.c_str());
+            return false;
+        }
+        if (integer == 1)
+        {
+            dimensions.push_back((int)value);
+            continue;
+        }
+        static_shape = false;
+
+        // constants inside a dynamic expression also use ncnn integer dimensions
+        size_t start = 0;
+        for (size_t i = 0; i <= dim.size(); i++)
+        {
+            if (i != dim.size() && dim[i] != '(' && dim[i] != ')' && dim[i] != ',')
+                continue;
+            long long constant;
+            const int integer = integer_dimension(dim.substr(start, i - start), constant);
+            if (integer < 0 || (integer == 1 && (constant < INT_MIN || constant > INT_MAX)))
+            {
+                fprintf(stderr, "reshape %s: expression constant exceeds ncnn integer range\n", output->name.c_str());
+                return false;
+            }
+            start = i + 1;
+        }
+
+        for (size_t i : dimension_references(dim))
+        {
+            if ((size_t)(dim[i] - '0') >= inputs.size())
+            {
+                fprintf(stderr, "reshape %s: missing shape reference\n", output->name.c_str());
+                return false;
+            }
+        }
     }
+    params.clear();
     if (static_shape)
     {
-        op->params["0"] = std::stoi(shape.back());
-        if (shape.size() >= 2)
-            op->params["1"] = std::stoi(shape[shape.size() - 2]);
-        if (shape.size() >= 3)
-            op->params["2"] = std::stoi(shape[0]);
-        if (shape.size() == 4)
-            op->params["11"] = std::stoi(shape[1]);
+        params["0"] = dimensions.back();
+        if (dimensions.size() >= 2)
+            params["1"] = dimensions[dimensions.size() - 2];
+        if (dimensions.size() >= 3)
+            params["2"] = dimensions[0];
+        if (dimensions.size() == 4)
+            params["11"] = dimensions[1];
     }
     else
     {
         std::string expression;
         for (auto it = shape.rbegin(); it != shape.rend(); ++it)
             expression += (expression.empty() ? "" : ",") + *it;
-        op->params["6"] = expression;
+        params["6"] = expression;
     }
     if (explicit_batch)
     {
-        op->params["12"] = plan.input_axis;
-        op->params["13"] = plan.output_axis;
+        params["12"] = input_axis;
+        params["13"] = output_axis;
     }
+
+    return true;
+}
+
+bool write_reshape_shape(Operator* op, const std::vector<std::string>& shape)
+{
+    std::map<std::string, Parameter> params;
+    if (!resolve_reshape_shape(op->inputs, op->outputs[0], shape, params))
+        return false;
+
+    write_reshape_shape(op, params);
+    return true;
+}
+
+void write_reshape_shape(Operator* op, const std::map<std::string, Parameter>& params)
+{
+    op->params = params;
 
     // retain only shape references used by the emitted target
     std::vector<int> indices(op->inputs.size(), -1);
     indices[0] = 0;
-    std::string expression = static_shape ? std::string() : op->params["6"].s;
+    std::string expression = op->has_param("6") ? op->params.at("6").s : std::string();
     const auto references = dimension_references(expression);
     for (size_t i : references)
-        indices.at(expression[i] - '0') = 0;
+        indices[expression[i] - '0'] = 0;
     std::vector<Operand*> inputs;
     for (size_t i = 0; i < indices.size(); i++)
     {
@@ -342,8 +407,8 @@ void write_reshape_shape(Operator* op, std::vector<std::string> shape)
         }
     }
     for (size_t i : references)
-        expression[i] = '0' + indices.at(expression[i] - '0');
-    if (!static_shape)
+        expression[i] = '0' + indices[expression[i] - '0'];
+    if (!expression.empty())
         op->params["6"] = expression;
     op->inputs = inputs;
     op->inputnames.clear();

@@ -73,6 +73,20 @@ class IntermediateBatchLayout(nn.Module):
         return x.transpose(0, 1).flatten(1, 2)
 
 
+class SharedInterpolationShape(nn.Module):
+    def forward(self, x, y, z):
+        reference = F.max_pool2d(y, 1)
+        shape = (reference.size(2), reference.size(3))
+        return x.reshape(shape), F.interpolate(z, size=shape, mode="nearest")
+
+
+class SharedCropShape(nn.Module):
+    def forward(self, x, y, z):
+        reference = F.max_pool2d(y, 1)
+        height, width = reference.size(2), reference.size(3)
+        return x.reshape(height, width), z[:, :, :height, :width]
+
+
 def compare(expected, actual):
     if not isinstance(expected, tuple):
         expected = (expected,)
@@ -149,6 +163,9 @@ def test(pnnx="../src/pnnx", test_ncnn=False):
         ("intermediate_reference", IntermediateReference(), [((24,), (2, 3, 1)), ((36,), (3, 2, 1)), ((48,), (4, 2, 1))]),
         ("flatten", IntermediateFlatten(), intermediate_shapes),
         ("batch_layout", IntermediateBatchLayout(), intermediate_shapes),
+        # preserving reshape sizes must not introduce runtime references into other consumers
+        ("shared_interp", SharedInterpolationShape(), [((48,), (3, 1, 6, 8), (2, 1, 4, 4)), ((48,), (2, 1, 6, 8), (3, 1, 4, 4)), ((48,), (4, 1, 6, 8), (1, 1, 4, 4))]),
+        ("shared_crop", SharedCropShape(), [((48,), (3, 1, 6, 8), (2, 1, 10, 12)), ((48,), (2, 1, 6, 8), (3, 1, 10, 12)), ((48,), (4, 1, 6, 8), (1, 1, 10, 12))]),
     ]
     if version.parse(torch.__version__) >= version.parse("1.13"):
         cases.append(("unflatten", IntermediateUnflatten(), [((2, 3, 4),), ((3, 2, 4),), ((4, 2, 4),)]))
@@ -156,6 +173,15 @@ def test(pnnx="../src/pnnx", test_ncnn=False):
     for name, model, shapes in cases:
         if not run_case(name, model, shapes, pnnx, test_ncnn):
             return False
+        if test_ncnn and name in ("shared_interp", "shared_crop"):
+            # keep the reference on reshape without adding it to interp or crop
+            with open("test_pnnx_reshape_semantics_" + name + ".ncnn.param") as f:
+                layers = [line.split() for line in f.readlines()[2:]]
+            reshapes = [layer for layer in layers if layer[0] == "Reshape"]
+            consumers = [layer for layer in layers if layer[0] in ("Interp", "Crop")]
+            if len(reshapes) != 1 or reshapes[0][2] != "2" or len(consumers) != 1 or consumers[0][2] != "1":
+                print(name, "unexpected shape reference inputs")
+                return False
     return True
 
 

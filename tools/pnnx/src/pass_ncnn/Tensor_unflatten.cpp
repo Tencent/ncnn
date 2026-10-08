@@ -31,7 +31,19 @@ pnnx.Output             output      1 0 out
         return "unflatten";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        std::map<std::string, Parameter> params;
+        return resolve_reshape_shape(op->inputs, op->outputs[0], get_shape(op, captured_params), params);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        write_reshape_shape(op, get_shape(op, captured_params));
+    }
+
+    std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim = captured_params.at("dim").i;
         const auto& sizes = captured_params.at("sizes").ai;
@@ -41,7 +53,7 @@ pnnx.Output             output      1 0 out
         if (dim < 0 || dim >= (int)shape.size())
         {
             fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
-            return;
+            return std::vector<std::string>();
         }
 
         int infer_count = 0;
@@ -55,20 +67,20 @@ pnnx.Output             output      1 0 out
             else
             {
                 fprintf(stderr, "reshape %s: unflatten sizes must be positive or inferred\n", op->name.c_str());
-                return;
+                return std::vector<std::string>();
             }
         }
         if (infer_count > 1 || sizes.empty())
         {
             fprintf(stderr, "reshape %s: unflatten sizes require at most one infer dimension\n", op->name.c_str());
-            return;
+            return std::vector<std::string>();
         }
         std::vector<std::string> expanded;
         for (int size : sizes)
             expanded.push_back(size == -1 ? shape_quotient(shape[dim], shape_product(known_sizes)) : std::to_string(size));
         shape.erase(shape.begin() + dim);
         shape.insert(shape.begin() + dim, expanded.begin(), expanded.end());
-        write_reshape_shape(op, shape);
+        return shape;
     }
 };
 

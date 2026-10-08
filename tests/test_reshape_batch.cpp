@@ -25,6 +25,24 @@ static int test_batch_expression_support()
             return -1;
         }
     }
+    ncnn::Layer* layer = ncnn::create_layer("Reshape");
+    ncnn::ParamDict pd;
+    pd.set(6, "1w,1h,1d,1c,-1");
+    int ret = layer->load_param(pd);
+    delete layer;
+    if (ret == 0)
+    {
+        fprintf(stderr, "ordinary reshape accepted a five-dimensional target\n");
+        return -1;
+    }
+#if NCNN_BATCH
+    layer = ncnn::create_layer("Reshape");
+    pd.set(13, 0);
+    ret = layer->load_param(pd);
+    delete layer;
+    if (ret != 0)
+        return -1;
+#endif
     return 0;
 }
 

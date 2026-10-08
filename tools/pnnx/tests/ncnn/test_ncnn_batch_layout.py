@@ -473,6 +473,23 @@ class ModelDynamicLinear(nn.Module):
         return self.linear(F.max_pool2d(x, 1))
 
 
+class ModelMiddleBatchSqueeze(nn.Module):
+    def __init__(self, dim):
+        super(ModelMiddleBatchSqueeze, self).__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        x = F.max_pool2d(x, 1).transpose(0, 1)
+        # keep another consumer to check that squeezing does not change its layout
+        return torch.squeeze(x, dim=self.dim), x + 1
+
+
+class ModelMiddleBatchSqueezeUnsqueeze(nn.Module):
+    def forward(self, x):
+        x = F.max_pool2d(x, 1).transpose(0, 1)
+        return torch.squeeze(x, dim=(1,)).unsqueeze(1)
+
+
 def compare(a, b):
     if not isinstance(a, tuple):
         a = (a,)
@@ -567,7 +584,12 @@ def run_convert_warning(name, net, inputs, warning):
     if ret != 0:
         return False
 
-    return warning in log
+    if warning not in log:
+        return False
+    with open(name + ".ncnn.param") as f:
+        lines = f.read().splitlines()[2:]
+    # unsupported targets retain the original operation instead of an empty reshape
+    return any(line.startswith("Tensor.reshape ") for line in lines) and not any(line.startswith("Reshape ") for line in lines)
 
 
 def test():
@@ -828,6 +850,15 @@ def test():
         return False
     if not run_model("test_ncnn_batch_layout_dynamic_slice", ModelSliceMultiSelectLayout(), torch.rand(2, 3, 5, 7), torch.rand(4, 6, 8, 10)):
         return False
+
+    if version.parse(torch.__version__) >= version.parse('2.0'):
+        for batch in (1, 2):
+            for i, dim in enumerate((1, (1,), (-3,), (1, 2), (2, -3), ())):
+                name = "test_ncnn_batch_layout_middle_squeeze_" + str(batch) + "_" + str(i)
+                if not run_model(name, ModelMiddleBatchSqueeze(dim), torch.rand(batch, 2, 1, 3), torch.rand(batch, 4, 1, 5)):
+                    return False
+        if not run_model("test_ncnn_batch_layout_middle_squeeze_unsqueeze", ModelMiddleBatchSqueezeUnsqueeze(), torch.rand(1, 2, 1, 3), torch.rand(1, 4, 1, 5)):
+            return False
 
     return True
 

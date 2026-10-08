@@ -41,10 +41,36 @@ void insert_reshape_pooling(Graph& graph)
 
             fprintf(stderr, "insert_reshape_pooling %d\n", input_rank);
 
-            matched = true;
-
             Operand* pooling_in = op->inputs[0];
             Operand* pooling_out = op->outputs[0];
+
+            Operand reshape0_shape = *pooling_in;
+            Operand reshape1_shape = *pooling_out;
+            reshape0_shape.producer = op;
+            reshape1_shape.producer = op;
+            reshape0_shape.params["__batch_index"] = 0;
+            reshape1_shape.params["__batch_index"] = 0;
+            reshape0_shape.params["__ncnn_batch_axis"] = 0;
+            reshape1_shape.params["__ncnn_batch_axis"] = 0;
+            reshape0_shape.type = pooling_in->type;
+            reshape1_shape.type = pooling_out->type;
+            reshape0_shape.shape = pooling_in->shape;
+            reshape0_shape.shape.insert(reshape0_shape.shape.begin(), 1);
+            reshape1_shape.shape = pooling_out->shape;
+            reshape1_shape.shape.insert(reshape1_shape.shape.begin(), 1);
+
+            auto input_shape = logical_shape(pooling_in, 0);
+            input_shape.insert(input_shape.begin(), "1");
+
+            auto output_shape = logical_shape(&reshape1_shape, 0);
+            output_shape.erase(output_shape.begin());
+            std::map<std::string, Parameter> params0;
+            std::map<std::string, Parameter> params1;
+            if (!resolve_reshape_shape({pooling_in}, &reshape0_shape, input_shape, params0)
+                || !resolve_reshape_shape({&reshape1_shape}, pooling_out, output_shape, params1))
+                continue;
+
+            matched = true;
 
             Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
             Operator* reshape1 = graph.new_operator_after("Reshape", op->name + "_ncnnreshape1", op);
@@ -75,23 +101,14 @@ void insert_reshape_pooling(Graph& graph)
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
 
-            reshape0_out->params["__batch_index"] = 0;
-            reshape1_in->params["__batch_index"] = 0;
-            reshape0_out->params["__ncnn_batch_axis"] = 0;
-            reshape1_in->params["__ncnn_batch_axis"] = 0;
-            reshape0_out->type = pooling_in->type;
-            reshape1_in->type = pooling_out->type;
-            reshape0_out->shape = pooling_in->shape;
-            reshape0_out->shape.insert(reshape0_out->shape.begin(), 1);
-            reshape1_in->shape = pooling_out->shape;
-            reshape1_in->shape.insert(reshape1_in->shape.begin(), 1);
-
-            auto input_shape = logical_shape(pooling_in, 0);
-            input_shape.insert(input_shape.begin(), "1");
-            write_reshape_shape(reshape0, input_shape);
-            auto output_shape = logical_shape(reshape1_in, 0);
-            output_shape.erase(output_shape.begin());
-            write_reshape_shape(reshape1, output_shape);
+            reshape0_out->params = reshape0_shape.params;
+            reshape0_out->shape = reshape0_shape.shape;
+            reshape0_out->type = reshape0_shape.type;
+            reshape1_in->params = reshape1_shape.params;
+            reshape1_in->shape = reshape1_shape.shape;
+            reshape1_in->type = reshape1_shape.type;
+            write_reshape_shape(reshape0, params0);
+            write_reshape_shape(reshape1, params1);
 
             break;
         }

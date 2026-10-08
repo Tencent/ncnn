@@ -60,6 +60,12 @@ int Reshape::load_param(const ParamDict& pd)
     }
 #endif
 
+    int max_ndim = 4;
+#if NCNN_BATCH
+    if (output_batch_axis != 233)
+        max_ndim = 5;
+#endif
+
     // count reference blobs
     if (!shape_expr.empty())
     {
@@ -81,16 +87,11 @@ int Reshape::load_param(const ParamDict& pd)
         if (blob_count > 1)
             one_blob_only = false;
 
-        if (ndim < 1 || ndim > (support_batch ? 5 : 4))
+        if (ndim < 1 || ndim > max_ndim)
             return -1;
     }
 
 #if NCNN_VALIDATION
-    int max_ndim = 4;
-#if NCNN_BATCH
-    if (output_batch_axis != 233)
-        max_ndim = 5;
-#endif
     if (ndim < 1 || ndim > max_ndim)
         return -1;
 #endif // NCNN_VALIDATION

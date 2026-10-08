@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <set>
 #include <stack>
 #include <vector>
 #include <string>
@@ -68,7 +69,7 @@ static bool token_is_interger_literal(const std::string& t)
     return iss.eof() && !iss.fail();
 }
 
-static std::string eval_expression(const Operator* op)
+static std::string eval_expression(const Operator* op, bool reshape_shape)
 {
     std::string expr = op->params.at("expr").s;
 
@@ -212,10 +213,9 @@ static std::string eval_expression(const Operator* op)
                         }
                         const Operand* operand = op->inputs[input_index];
                         int r = operand->shape[bi];
-                        // only input specifications and constant tensors establish static extents
-                        // equal intermediate extents in two shape inference runs may still depend on dynamic inputs
+                        // reshape targets must preserve sizes observed on intermediate tensors
                         const bool static_source = operand->producer->type == "pnnx.Input" || operand->producer->type == "pnnx.Attribute";
-                        if (r == -1 || !static_source)
+                        if (r == -1 || (reshape_shape && !static_source))
                         {
                             // do not evaluate dynamic size info as -1
                             // just keep the size expression
@@ -849,14 +849,99 @@ static std::string canonicalize_arguments(const Operator* op, std::vector<Operan
     return r;
 }
 
+static bool is_reshape_shape_input(const Operator* op, size_t i)
+{
+    return (op->type == "Tensor.reshape" && i == 1)
+           || (op->type == "Tensor.unflatten" && i == (op->has_param("dim") ? 1u : 2u));
+}
+
+static void prepare_reshape_expressions(Graph& graph, std::set<Operator*>& reshape_expressions)
+{
+    std::vector<Operator*> pending;
+    for (Operator* op : graph.ops)
+    {
+        for (size_t i = 1; i < op->inputs.size(); i++)
+        {
+            if (is_reshape_shape_input(op, i))
+                pending.push_back(op->inputs[i]->producer);
+        }
+    }
+
+    for (size_t i = 0; i < pending.size(); i++)
+    {
+        Operator* op = pending[i];
+        if (op->type != "pnnx.Expression" || !reshape_expressions.insert(op).second)
+            continue;
+
+        for (Operand* input : op->inputs)
+            pending.push_back(input->producer);
+    }
+
+    // split shared expressions in reverse order so their dependencies are split as needed
+    const std::vector<Operator*> ops = graph.ops;
+    for (auto it = ops.rbegin(); it != ops.rend(); ++it)
+    {
+        Operator* op = *it;
+        if (reshape_expressions.find(op) == reshape_expressions.end())
+            continue;
+
+        Operand* output = op->outputs[0];
+        bool shared = false;
+        for (Operator* consumer : output->consumers)
+        {
+            for (size_t i = 0; i < consumer->inputs.size(); i++)
+            {
+                if (consumer->inputs[i] == output && reshape_expressions.find(consumer) == reshape_expressions.end() && !is_reshape_shape_input(consumer, i))
+                    shared = true;
+            }
+        }
+        if (!shared)
+            continue;
+
+        Operator* reshape_expr = graph.new_operator_after(op->type, op->name + "_reshape", op);
+        reshape_expr->params = op->params;
+        reshape_expr->attrs = op->attrs;
+        reshape_expr->inputs = op->inputs;
+        reshape_expr->inputnames = op->inputnames;
+        for (Operand* input : reshape_expr->inputs)
+            input->consumers.push_back(reshape_expr);
+
+        Operand* reshape_output = graph.new_operand(output->name + "_reshape");
+        reshape_output->producer = reshape_expr;
+        reshape_output->type = output->type;
+        reshape_output->shape = output->shape;
+        reshape_output->params = output->params;
+        reshape_expr->outputs.push_back(reshape_output);
+        reshape_expressions.erase(op);
+        reshape_expressions.insert(reshape_expr);
+
+        const std::vector<Operator*> consumers = output->consumers;
+        for (Operator* consumer : consumers)
+        {
+            for (size_t i = 0; i < consumer->inputs.size(); i++)
+            {
+                if (consumer->inputs[i] == output && (reshape_expressions.find(consumer) != reshape_expressions.end() || is_reshape_shape_input(consumer, i)))
+                {
+                    consumer->inputs[i] = reshape_output;
+                    reshape_output->consumers.push_back(consumer);
+                    output->remove_consumer(consumer);
+                }
+            }
+        }
+    }
+}
+
 void eval_expression(Graph& graph)
 {
+    std::set<Operator*> reshape_expressions;
+    prepare_reshape_expressions(graph, reshape_expressions);
+
     for (Operator* op : graph.ops)
     {
         if (op->type != "pnnx.Expression")
             continue;
 
-        std::string expr_eval = eval_expression(op);
+        std::string expr_eval = eval_expression(op, reshape_expressions.find(op) != reshape_expressions.end());
 
         op->params["expr"] = expr_eval;
 
