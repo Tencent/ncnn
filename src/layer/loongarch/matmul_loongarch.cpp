@@ -58,6 +58,13 @@ int MatMul_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
     const int Adims = A.dims;
     const int Bdims = B.dims;
+    const int BK = Bdims == 1 || transB ? B.w : B.h;
+    if (A.w != BK)
+    {
+        NCNN_LOGE("matmul inner dimension mismatch %d %d", A.w, BK);
+        return -1;
+    }
+
     const int max_ABdims = std::max(Adims, Bdims);
     const size_t elemsize = A.elemsize;
 
