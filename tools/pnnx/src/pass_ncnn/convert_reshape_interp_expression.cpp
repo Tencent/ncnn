@@ -222,6 +222,7 @@ void convert_reshape_interp_expression(Graph& graph)
 
             // scan and stack
             std::stack<std::string> exprstack;
+            bool supported = true;
             for (int i = (int)tokens.size() - 1; i >= 0; i--)
             {
                 const std::string& t = tokens[i];
@@ -269,8 +270,9 @@ void convert_reshape_interp_expression(Graph& graph)
                                 const std::string reference = get_logical_dim_expr(ordered_references[input_index], input_index, bi);
                                 if (reference.empty())
                                 {
-                                    fprintf(stderr, "reshape %s: unsupported dimension reference\n", op->name.c_str());
-                                    return;
+                                    fprintf(stderr, "%s %s: unsupported dimension reference\n", op->type.c_str(), op->name.c_str());
+                                    supported = false;
+                                    break;
                                 }
                                 exprstack.push(reference);
                             }
@@ -386,6 +388,9 @@ void convert_reshape_interp_expression(Graph& graph)
                 }
             }
 
+            if (!supported)
+                continue;
+
             std::string r = exprstack.top();
             exprstack.pop();
             while (!exprstack.empty())
@@ -402,17 +407,22 @@ void convert_reshape_interp_expression(Graph& graph)
                 if (is_tensor_unflatten)
                 {
                     auto input_shape = get_logical_shape_expr(op->inputs[0], 0);
+                    if (input_shape.empty())
+                    {
+                        fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+                        continue;
+                    }
+
                     int dim = unflatten_dim;
                     if (dim < 0)
                         dim += (int)input_shape.size();
                     if (dim < 0 || dim >= (int)input_shape.size())
                     {
-                        fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
-                        return;
+                        fprintf(stderr, "reshape %s: unflatten dim %d is out of range for input rank %d\n", op->name.c_str(), unflatten_dim, (int)input_shape.size());
+                        continue;
                     }
 
-                    // the size expression expands one logical dimension
-                    // the shared planner resolves infer after the untouched dimensions have been included in the complete target
+                    // expand the logical dimension before resolving infer from the complete target
                     input_shape.erase(input_shape.begin() + dim);
                     input_shape.insert(input_shape.begin() + dim, shape.begin(), shape.end());
                     shape = input_shape;
@@ -422,7 +432,11 @@ void convert_reshape_interp_expression(Graph& graph)
             std::map<std::string, Parameter> reshape_params;
             if (is_tensor_reshape)
             {
-                if (!resolve_reshape_params(get_logical_shape_expr(ordered_references[0], 0), get_ncnn_batch_axis(ordered_references[0]), shape, get_ncnn_batch_axis(op->outputs[0]), (int)ordered_references.size(), reshape_params))
+                const auto input_shape = get_logical_shape_expr(ordered_references[0], 0);
+                const int input_axis = get_ncnn_batch_axis(ordered_references[0]);
+                const int output_axis = get_ncnn_batch_axis(op->outputs[0]);
+                const int input_count = (int)ordered_references.size();
+                if (!resolve_reshape_params(input_shape, input_axis, shape, output_axis, input_count, reshape_params))
                     continue;
             }
 
@@ -433,8 +447,6 @@ void convert_reshape_interp_expression(Graph& graph)
                 fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
 
                 op->type = "Reshape";
-
-                op->params.clear();
             }
             else
             {

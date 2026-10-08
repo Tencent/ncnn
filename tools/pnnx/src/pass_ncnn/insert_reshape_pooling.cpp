@@ -89,13 +89,11 @@ void insert_reshape_pooling(Graph& graph)
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
 
-            reshape0_out->params = pooling_in->params;
             reshape0_out->params["__batch_index"] = 0;
             reshape0_out->params["__ncnn_batch_axis"] = 0;
             reshape0_out->shape = pooling_in->shape;
             reshape0_out->shape.insert(reshape0_out->shape.begin(), 1);
             reshape0_out->type = pooling_in->type;
-            reshape1_in->params = pooling_out->params;
             reshape1_in->params["__batch_index"] = 0;
             reshape1_in->params["__ncnn_batch_axis"] = 0;
             reshape1_in->shape = pooling_out->shape;

@@ -103,13 +103,19 @@ pnnx.Output             output      1 0 out
         int start = captured_params.at("start_dim").i;
         int end = captured_params.at("end_dim").i;
         auto shape = get_logical_shape_expr(op->inputs[0], 0);
+        if (shape.empty())
+        {
+            fprintf(stderr, "reshape %s: flatten input rank is unknown\n", op->name.c_str());
+            return std::vector<std::string>();
+        }
+
         if (start < 0)
             start += (int)shape.size();
         if (end < 0)
             end += (int)shape.size();
         if (start < 0 || end < start || end >= (int)shape.size())
         {
-            fprintf(stderr, "reshape %s: flatten input rank is unknown\n", op->name.c_str());
+            fprintf(stderr, "reshape %s: flatten range %d to %d is invalid for input rank %d\n", op->name.c_str(), captured_params.at("start_dim").i, captured_params.at("end_dim").i, (int)shape.size());
             return std::vector<std::string>();
         }
 

@@ -50,11 +50,17 @@ pnnx.Output             output      1 0 out
         int dim = captured_params.at("dim").i;
         const auto& sizes = captured_params.at("sizes").ai;
         auto shape = get_logical_shape_expr(op->inputs[0], 0);
+        if (shape.empty())
+        {
+            fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+            return std::vector<std::string>();
+        }
+
         if (dim < 0)
             dim += (int)shape.size();
         if (dim < 0 || dim >= (int)shape.size())
         {
-            fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+            fprintf(stderr, "reshape %s: unflatten dim %d is out of range for input rank %d\n", op->name.c_str(), captured_params.at("dim").i, (int)shape.size());
             return std::vector<std::string>();
         }
 

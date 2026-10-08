@@ -153,7 +153,6 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             reshape0_out->producer = reshape0;
             reshape0_out->consumers.push_back(op);
 
-            reshape0_out->params = binaryop_lower_rank_in->params;
             reshape0_out->params["__batch_index"] = lower_batch_index;
             reshape0_out->params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
             reshape0_out->shape = reshape0_shape;

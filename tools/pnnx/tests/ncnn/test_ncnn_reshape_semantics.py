@@ -14,6 +14,11 @@ class ExternalReference(nn.Module):
         return x.reshape(y.size(0), -1)
 
 
+class UnsupportedReference(nn.Module):
+    def forward(self, x, y):
+        return x.reshape(y.size(0), -1), x.reshape(x.size(1), -1)
+
+
 class InferDimension(nn.Module):
     def forward(self, x):
         return x.reshape(-1, 12)
@@ -150,6 +155,45 @@ def run_case(name, model, shapes, input_batch_axes, output_batch_axes):
     return True
 
 
+def test_flatten(name, model, shapes, batch_axis, expected_params):
+    if not run_case(name, model, shapes, (batch_axis,), (batch_axis,)):
+        return False
+    with open("test_ncnn_reshape_semantics_" + name + ".ncnn.param") as f:
+        reshapes = [line.split() for line in f if line.startswith("Reshape ") and line.split()[1].startswith("flatten_")]
+    if len(reshapes) != 1:
+        print(name, "expected one flatten reshape")
+        return False
+    fields = reshapes[0]
+    param_start = 4 + int(fields[2]) + int(fields[3])
+    params = dict(x.split("=", 1) for x in fields[param_start:])
+    if params != expected_params:
+        print(name, "unexpected flatten parameters", params)
+        return False
+    return True
+
+
+def test_unsupported_reference():
+    name = "test_ncnn_reshape_semantics_unsupported_reference"
+    model = UnsupportedReference().eval()
+    inputs = (torch.zeros(2, 3, 4), torch.zeros(2, 1, 1, 1, 1))
+    torch.jit.trace(model, inputs).save(name + ".pt")
+    pnnxcmd = "../../src/pnnx " + name + ".pt inputshape=[2,3,4],[2,1,1,1,1] inputshape2=[3,4,5],[3,1,1,1,1]"
+    if os.system(pnnxcmd) != 0:
+        return False
+
+    # an unsupported shape reference must not prevent later reshapes from converting
+    output_types = {}
+    with open(name + ".ncnn.param") as f:
+        for line in f:
+            fields = line.split()
+            if fields and fields[0] in ("Tensor.reshape", "Reshape"):
+                output_types[fields[4 + int(fields[2])]] = fields[0]
+    if output_types.get("out0") != "Tensor.reshape" or output_types.get("out1") != "Reshape":
+        print(name, "unexpected reshape conversions", output_types)
+        return False
+    return True
+
+
 def test():
     reference_shapes = [((24,), (2, 1)), ((36,), (3, 1)), ((48,), (4, 1))]
     infer_shapes = [((2, 2, 6),), ((1, 6, 6),), ((3, 2, 6),)]
@@ -172,36 +216,24 @@ def test():
         # intermediate dimensions are dynamic only when conversion samples vary them
         ("intermediate_reference", IntermediateReference(), [((24,), (2, 3, 1)), ((36,), (3, 4, 1)), ((48,), (4, 2, 1))], (233, 233), (233,)),
         ("flatten", IntermediateFlatten(), intermediate_shapes, (233,), (233,)),
-        # varying input dimensions can still produce a static flattened dimension
-        ("static_flatten", PartialFlatten(), [((2, 3, 4),), ((3, 2, 4),), ((1, 6, 4),)], (233,), (233,)),
-        ("mixed_flatten", PartialFlatten(), [((2, 3, 4),), ((3, 2, 5),), ((1, 6, 7),)], (233,), (233,)),
-        ("batch_flatten", BatchFlatten(), [((2, 3, 4, 5),), ((3, 2, 4, 7),), ((1, 6, 4, 9),)], (0,), (0,)),
         ("batch_layout", IntermediateBatchLayout(), intermediate_shapes, (0,), (233,)),
     ]
     if version.parse(torch.__version__) >= version.parse("1.13"):
         cases.append(("unflatten", IntermediateUnflatten(), [((2, 3, 4),), ((3, 4, 4),), ((4, 2, 4),)], (233,), (233,)))
         cases.append(("unflatten_reference", UnflattenReference(), [((24, 2), (2, 3, 1)), ((36, 2), (3, 4, 1)), ((48, 2), (4, 2, 1))], (233, 233), (233,)))
-    flatten_params = {
-        "static_flatten": {"0": "4", "1": "6"},
-        "mixed_flatten": {"6": '"0w,6"'},
-        "batch_flatten": {"6": '"0w,4,6"', "12": "0", "13": "0"},
-    }
     for name, model, shapes, input_batch_axes, output_batch_axes in cases:
         if not run_case(name, model, shapes, input_batch_axes, output_batch_axes):
             return False
-        if name in flatten_params:
-            with open("test_ncnn_reshape_semantics_" + name + ".ncnn.param") as f:
-                reshapes = [line.split() for line in f if line.startswith("Reshape ") and line.split()[1].startswith("flatten_")]
-            if len(reshapes) != 1:
-                print(name, "expected one flatten reshape")
-                return False
-            fields = reshapes[0]
-            param_start = 4 + int(fields[2]) + int(fields[3])
-            params = dict(x.split("=", 1) for x in fields[param_start:])
-            if params != flatten_params[name]:
-                print(name, "unexpected flatten parameters", params)
-                return False
-    return True
+
+    # varying input dimensions can still produce a static flattened dimension
+    if not test_flatten("static_flatten", PartialFlatten(), [((2, 3, 4),), ((3, 2, 4),), ((1, 6, 4),)], 233, {"0": "4", "1": "6"}):
+        return False
+    if not test_flatten("mixed_flatten", PartialFlatten(), [((2, 3, 4),), ((3, 2, 5),), ((1, 6, 7),)], 233, {"6": '"0w,6"'}):
+        return False
+    if not test_flatten("batch_flatten", BatchFlatten(), [((2, 3, 4, 5),), ((3, 2, 4, 7),), ((1, 6, 4, 9),)], 0, {"6": '"0w,4,6"', "12": "0", "13": "0"}):
+        return False
+
+    return test_unsupported_reference()
 
 
 if __name__ == "__main__":

@@ -255,7 +255,9 @@ bool resolve_reshape_params(const std::vector<std::string>& input_shape, int inp
     }
     if (infer != -1 && !input_shape.empty())
     {
-        shape[infer] = make_shape_quotient_expr(make_shape_product_expr(input_shape), make_shape_product_expr(known_dimensions));
+        const std::string input_total = make_shape_product_expr(input_shape);
+        const std::string known_total = make_shape_product_expr(known_dimensions);
+        shape[infer] = make_shape_quotient_expr(input_total, known_total);
         if (shape[infer].empty())
             return false;
     }
@@ -363,7 +365,11 @@ bool resolve_reshape_params(const std::vector<std::string>& input_shape, int inp
 
 bool resolve_reshape_params(const Operator* op, const std::vector<std::string>& shape, std::map<std::string, Parameter>& params)
 {
-    return resolve_reshape_params(get_logical_shape_expr(op->inputs[0], 0), get_ncnn_batch_axis(op->inputs[0]), shape, get_ncnn_batch_axis(op->outputs[0]), (int)op->inputs.size(), params);
+    const auto input_shape = get_logical_shape_expr(op->inputs[0], 0);
+    const int input_axis = get_ncnn_batch_axis(op->inputs[0]);
+    const int output_axis = get_ncnn_batch_axis(op->outputs[0]);
+    const int input_count = (int)op->inputs.size();
+    return resolve_reshape_params(input_shape, input_axis, shape, output_axis, input_count, params);
 }
 
 void write_reshape_params(Operator* op, const std::map<std::string, Parameter>& params)
