@@ -29,15 +29,19 @@ class Model(nn.Module):
                 F.interpolate(y, scale_factor=0.8, mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=1.5, mode=mode, align_corners=False, recompute_scale_factor=True),
                 F.interpolate(y, scale_factor=0.8, mode=mode, align_corners=False, recompute_scale_factor=True),
-                F.interpolate(y, scale_factor=1.1, mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=(1.1, 1.5), mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=(1.5, 1.1), mode=mode, align_corners=False),
                 F.interpolate(y, size=(10, 10), mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=1.5, mode=mode, align_corners=True),
                 F.interpolate(y, scale_factor=0.2, mode=mode, align_corners=True),
-                F.interpolate(z, scale_factor=1.1, mode=mode, align_corners=False),
                 F.interpolate(z, scale_factor=1.5, mode=mode, align_corners=False),
             ]
+            # pytorch before 1.9 copies same-size bicubic outputs without applying the scale
+            if mode != 'bicubic' or version.parse(torch.__version__) >= version.parse('1.9'):
+                outputs += [
+                    F.interpolate(y, scale_factor=1.1, mode=mode, align_corners=False),
+                    F.interpolate(z, scale_factor=1.1, mode=mode, align_corners=False),
+                ]
         if self.up_recompute is not None:
             outputs.append(self.up_recompute(y))
         return tuple(outputs)
