@@ -3038,12 +3038,18 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 #endif
 
 #if NCNN_ZFH
-    // 修正「静态初始化顺序」缺陷：support_fp16_storage 在构造函数里由
-    // cpu_support_riscv_zfh() 赋值，但某些编译器（实测 clang 24）下层对象构造时
-    // ncnn 的 CPU 特性全局量尚未初始化，导致该成员被永久写成 0，整个 fp16 路径
-    // （含 IME2）被静默跳过。这里在使用点实时刷新（cpu_support_riscv_zfh() 是
-    // 幂等的运行时查询）。
-    support_fp16_storage = cpu_support_riscv_zfh();
+    // 修正「静态初始化顺序」缺陷：support_fp16_storage 在构造函数里赋值，但某些
+    // 编译器（实测 clang 24）下层对象构造时 ncnn 的 CPU 特性全局量尚未初始化，
+    // 导致该成员被永久写成 0，整个 fp16 路径（含 IME2）被静默跳过。
+    // 在使用点实时刷新。谓词必须与构造函数【完全一致】（RVV 变体看 zvfh，
+    // 基础变体看 zfh），否则在只有 ZFH 的机器上会把 RVV 变体的 fp16 错误打开。
+    {
+#if __riscv_vector
+        support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+        support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+    }
     if (support_fp16_storage && opt.use_fp16_storage)
     {
 #if NCNN_RISCV_SPACEMIT_IME2
@@ -3072,7 +3078,13 @@ int Gemm_riscv::create_pipeline(const Option& opt)
             }
         }
         if (!ime2_full_takeover)
+        {
+            // IME2 不接管时，保持上游原有的 fp16 管线选择（fp16 算术可用则走 fp16sa）
+            if (opt.use_fp16_arithmetic)
+                return create_pipeline_fp16sa(opt);
+
             return create_pipeline_fp16s(opt);
+        }
         // ime2_full_takeover：fp16 输入走 IME2，继续向下构建 fp32 回退管线
 #else
         if (opt.use_fp16_arithmetic)
