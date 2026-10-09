@@ -81,6 +81,13 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const size_t elemsize = bottom_blob.elemsize;
     const int elempack = bottom_blob.elempack;
 
+    if ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+        || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
+    {
+        if (dims == 2 || dims == 3)
+            return forward_small(bottom_blob, top_blob, outw, outh, opt);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -89,7 +96,7 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
     else if (dims == 2)
     {
-        if (outw == w)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -101,7 +108,7 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
     else // dims == 3
     {
-        if (outw == w && outh == h)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -112,7 +119,7 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return -100;
     }
 
-    interp_fp32(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), opt);
+    interp_fp32(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, dynamic_target_size || !size_expr.empty(), opt);
 
     return 0;
 }
@@ -146,6 +153,13 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
         eval_size_expr(bottom_blob_shapes, outw, outh);
     }
 
+    if ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+        || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
+    {
+        if (dims == 2 || dims == 3)
+            return forward_small(bottom_blob, top_blob, outw, outh, opt);
+    }
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -154,7 +168,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
     else if (dims == 2)
     {
-        if (outw == w)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -166,7 +180,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
     else // dims == 3
     {
-        if (outw == w && outh == h)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -177,7 +191,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return -100;
     }
 
-    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, !size_expr.empty(), opt);
+    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, dynamic_target_size || !size_expr.empty(), opt);
 
     return 0;
 }
