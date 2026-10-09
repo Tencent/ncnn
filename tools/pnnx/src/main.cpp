@@ -22,6 +22,7 @@
 #include "utils.h"
 
 #if BUILD_TORCH2PNNX
+#include "load_exported_program.h"
 #include "load_torchscript.h"
 #endif
 #if BUILD_ONNX2PNNX
@@ -259,7 +260,7 @@ static bool model_file_maybe_tnnproto(const std::string& path)
 
 static void show_usage()
 {
-    fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
+    fprintf(stderr, "Usage: pnnx [model.pt | model.pt2] [(key=value)...]\n");
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
@@ -281,6 +282,7 @@ static void show_usage()
 #endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
+    fprintf(stderr, "              pnnx exported_model.pt2\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
 
@@ -477,11 +479,20 @@ int main(int argc, char** argv)
         if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
             return -1;
 
-        int ret = load_torchscript(ptpath, pnnx_graph,
+        int ret = 0;
+        const bool has_pt2_extension = ptpath.size() >= 4 && ptpath.compare(ptpath.size() - 4, 4, ".pt2") == 0;
+        if (pnnx::model_file_is_exported_program(ptpath) || has_pt2_extension)
+        {
+            ret = pnnx::load_exported_program(ptpath, pnnx_graph, input_shapes, input_types);
+        }
+        else
+        {
+            ret = load_torchscript(ptpath, pnnx_graph,
                                    device, input_shapes, input_types, input_contents,
                                    input_shapes2, input_types2, input_contents2,
                                    customop_modules, module_operators,
                                    foldable_constants_zippath, foldable_constants);
+        }
         if (ret != 0)
             return ret;
     }
