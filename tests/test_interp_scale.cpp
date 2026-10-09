@@ -160,8 +160,8 @@ static int test_interp_scale_0()
         for (int target = 0; target < 4; target++)
         {
             if (test_interp_scale(a, type, 1.5f, 1.5f, target)
-                || test_interp_scale(b, type, 0.8f, 0.8f, target)
-                || test_interp_scale(c, type, 1.f, 1.5f, target))
+                    || test_interp_scale(b, type, 0.8f, 0.8f, target)
+                    || test_interp_scale(c, type, 1.f, 1.5f, target))
                 return -1;
         }
     }
@@ -175,12 +175,12 @@ static int test_interp_scale_1()
     for (int type = 2; type <= 3; type++)
     {
         if (test_interp_scale(a, type, 1.1f, 1.1f)
-            || test_interp_scale(a, type, 1.1f, 1.5f)
-            || test_interp_scale(a, type, 1.5f, 1.1f)
-            || test_interp_scale(b, type, 1.f, 1.1f)
-            || test_interp_scale(a, type, 1.5f, 1.5f, 0, 1)
-            || test_interp_scale(a, type, 0.2f, 0.2f, 0, 1)
-            || test_interp_scale(a, type, 1.f, 1.f))
+                || test_interp_scale(a, type, 1.1f, 1.5f)
+                || test_interp_scale(a, type, 1.5f, 1.1f)
+                || test_interp_scale(b, type, 1.f, 1.1f)
+                || test_interp_scale(a, type, 1.5f, 1.5f, 0, 1)
+                || test_interp_scale(a, type, 0.2f, 0.2f, 0, 1)
+                || test_interp_scale(a, type, 1.f, 1.f))
             return -1;
     }
     return 0;
@@ -195,10 +195,10 @@ static int test_interp_scale_2()
     for (int type = 2; type <= 3; type++)
     {
         if (test_interp_scale(a, type, 1.5f, 2.f)
-            || test_interp_scale(b, type, 2.f, 1.5f)
-            || test_interp_scale(c, type, 1.1f, 1.1f)
-            || test_interp_scale(c, type, 1.5f, 1.5f)
-            || test_interp_scale(d, type, 1.f, 1.1f))
+                || test_interp_scale(b, type, 2.f, 1.5f)
+                || test_interp_scale(c, type, 1.1f, 1.1f)
+                || test_interp_scale(c, type, 1.5f, 1.5f)
+                || test_interp_scale(d, type, 1.f, 1.1f))
             return -1;
     }
     return 0;

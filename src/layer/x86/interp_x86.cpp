@@ -82,7 +82,7 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const int elempack = bottom_blob.elempack;
 
     if ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
-        || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
+            || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
     {
         if (dims == 2 || dims == 3)
             return forward_small(bottom_blob, top_blob, outw, outh, opt);
@@ -154,7 +154,7 @@ int Interp_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     if ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
-        || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
+            || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
     {
         if (dims == 2 || dims == 3)
             return forward_small(bottom_blob, top_blob, outw, outh, opt);
