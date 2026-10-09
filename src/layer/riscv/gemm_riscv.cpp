@@ -3039,6 +3039,20 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 #endif
 
 #if NCNN_ZFH
+    // Refresh at the use point: support_fp16_storage is assigned in the constructor,
+    // where ncnn's global CPU feature state is not necessarily initialised yet for
+    // layers built before it (observed with clang 24), which leaves the member
+    // permanently 0 and silently skips the whole fp16 path -- including IME2.
+    // The predicate must match the constructor exactly (zvfh in the rvv variant,
+    // zfh otherwise); using zfh unconditionally would wrongly re-enable fp16 in the
+    // rvv variant on a ZFH-only machine.
+    {
+#if __riscv_vector
+        support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+        support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+    }
     if (support_fp16_storage && opt.use_fp16_storage)
     {
 #if NCNN_RISCV_SPACEMIT_IME2
