@@ -324,6 +324,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
+    // make_padding may unpack the bordered blob, stale elempack/elemsize would mis-route the kernel dispatch
+    elemsize = bottom_blob_bordered.elemsize;
+    elempack = bottom_blob_bordered.elempack;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
@@ -699,6 +702,9 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
+    // make_padding may unpack the bordered blob, stale elempack/elemsize would mis-route the kernel dispatch
+    elemsize = bottom_blob_bordered.elemsize;
+    elempack = bottom_blob_bordered.elempack;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;

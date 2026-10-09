@@ -407,6 +407,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
+    const int num_input = channels * elempack;
+
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
@@ -414,6 +416,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
+    // make_padding may unpack the bordered blob, stale elempack/elemsize would mis-route the kernel dispatch
+    elemsize = bottom_blob_bordered.elemsize;
+    elempack = bottom_blob_bordered.elempack;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
@@ -437,8 +442,6 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
         }
     }
-
-    const int num_input = channels * elempack;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input >= 8 || num_output >= 8);
 
@@ -998,6 +1001,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
+    const int num_input = channels * elempack;
+
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
@@ -1005,6 +1010,9 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
+    // make_padding may unpack the bordered blob, stale elempack/elemsize would mis-route the kernel dispatch
+    elemsize = bottom_blob_bordered.elemsize;
+    elempack = bottom_blob_bordered.elempack;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
@@ -1026,8 +1034,6 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     //     {
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
     //     }
-
-    const int num_input = channels * elempack;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input >= 8 || num_output >= 8);
 
