@@ -53,20 +53,25 @@ def test():
     return True
 
 class NormalizeContractModel(nn.Module):
-    def __init__(self, p, dim, batched):
+    def __init__(self, p, dim, batched, legacy_fro=False):
         super(NormalizeContractModel, self).__init__()
         self.p = p
         self.dim = dim
         self.batched = batched
+        self.legacy_fro = legacy_fro
 
     def forward(self, x):
         if self.batched:
             x = F.max_pool2d(x, 1)
+        if self.legacy_fro:
+            # Older TorchScript exports retain this operator and its "fro" alias.
+            denom = torch.ops.aten.frobenius_norm.dim(x, [self.dim], True).clamp_min(1e-3).expand_as(x)
+            return x / denom
         return F.normalize(x, p=self.p, dim=self.dim, eps=1e-3)
 
-def convert_contract_case(name, shape, p, dim, batched):
+def convert_contract_case(name, shape, p, dim, batched, legacy_fro=False):
     import subprocess
-    net = NormalizeContractModel(p, dim, batched).eval()
+    net = NormalizeContractModel(p, dim, batched, legacy_fro).eval()
     torch.manual_seed(0)
     x = torch.rand(*shape)
     mod = torch.jit.trace(net, x)
@@ -91,6 +96,26 @@ def test_supported_negative_axes():
             return False
     return True
 
+def test_frobenius_alias():
+    import importlib
+    cases = [
+        ((11,), "fro", 0, False),
+        ((11,), "fro", -1, False),
+        ((5, 3, 7), "fro", 0, False),
+        ((5, 3, 7), "fro", -3, False),
+        ((5, 2, 3, 7), "fro", 0, False),
+        ((5, 2, 3, 7), "fro", -4, False),
+        ((2, 5, 3, 7), "fro", 1, True),
+        ((2, 5, 3, 7), "fro", -3, True),
+    ]
+    for i, (shape, p, dim, batched) in enumerate(cases):
+        name = "test_F_normalize_fro_" + str(i)
+        expected = convert_contract_case(name, shape, p, dim, batched, legacy_fro=True)
+        actual = importlib.import_module(name + "_ncnn").test_inference()
+        if not torch.allclose(expected, actual, 1e-4, 1e-4):
+            return False
+    return True
+
 def test_unsupported():
     import ncnn
     cases = [
@@ -102,10 +127,13 @@ def test_unsupported():
         ((5, 2, 3, 7), 2, -1, False),
         ((2, 5, 3, 7), 2, 0, True),
         ((2, 5, 3, 7), 2, -4, True),
+        ((5, 7), "fro", 0, False),
+        ((5, 3, 7), "fro", 1, False),
+        ((2, 5, 3, 7), "fro", 0, True),
     ]
     for i, (shape, p, dim, batched) in enumerate(cases):
         name = "test_F_normalize_unsupported_" + str(i)
-        convert_contract_case(name, shape, p, dim, batched)
+        convert_contract_case(name, shape, p, dim, batched, legacy_fro=(p == "fro"))
         with open(name + ".ncnn.param") as f:
             layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
         if "F.normalize" not in layers or "Normalize" in layers:
@@ -116,7 +144,7 @@ def test_unsupported():
     return True
 
 if __name__ == "__main__":
-    if test() and test_supported_negative_axes() and test_unsupported():
+    if test() and test_supported_negative_axes() and test_frobenius_alias() and test_unsupported():
         exit(0)
     else:
         exit(1)

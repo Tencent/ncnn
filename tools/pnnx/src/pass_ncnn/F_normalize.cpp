@@ -33,7 +33,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Parameter& p = captured_params.at("p");
-        if (!((p.type == 2 && p.i == 2) || (p.type == 3 && p.f == 2.f)))
+        if (!((p.type == 2 && p.i == 2) || (p.type == 3 && p.f == 2.f) || (p.type == 4 && p.s == "fro")))
             return false;
 
         const Operator* op = matched_operators.at("op_0");
@@ -91,6 +91,8 @@ pnnx.Output             output      1 0 out
             p = captured_params.at("p").i;
         if (captured_params.at("p").type == 3)
             p = captured_params.at("p").f;
+        if (captured_params.at("p").type == 4 && captured_params.at("p").s == "fro")
+            p = 2.f;
 
         if (p != 2.f)
         {
