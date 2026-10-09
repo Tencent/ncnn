@@ -1,17 +1,17 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef LAYER_SWISH_RISCV_H
-#define LAYER_SWISH_RISCV_H
+#ifndef LAYER_RMSNORM_RISCV_H
+#define LAYER_RMSNORM_RISCV_H
 
-#include "swish.h"
+#include "rmsnorm.h"
 
 namespace ncnn {
 
-class Swish_riscv : public Swish
+class RMSNorm_riscv : public RMSNorm
 {
 public:
-    Swish_riscv();
+    RMSNorm_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
@@ -23,4 +23,4 @@ protected:
 
 } // namespace ncnn
 
-#endif // LAYER_SWISH_RISCV_H
+#endif // LAYER_RMSNORM_RISCV_H
