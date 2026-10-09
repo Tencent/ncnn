@@ -190,6 +190,10 @@ static int test_interp_scale_2()
     ncnn::Mat b = RandomMat(7, 1, 8);
     ncnn::Mat c = RandomMat(3, 2, 8);
     ncnn::Mat d = RandomMat(3, 8);
+    ncnn::Mat e = RandomMat(1, 7, 3);
+    ncnn::Mat f = RandomMat(7, 1, 3);
+    ncnn::Mat g = RandomMat(3, 2, 3);
+    ncnn::Mat h = RandomMat(3, 3);
     for (int type = 2; type <= 3; type++)
     {
         for (int target = 0; target < 4; target++)
@@ -206,6 +210,12 @@ static int test_interp_scale_2()
         }
         if (test_interp_scale(c, type, 1.1f, 1.1f)
                 || test_interp_scale(d, type, 1.f, 1.1f))
+            return -1;
+        // pack1 vulkan paths for short spatial axes
+        if (test_interp_scale(e, type, 1.5f, 2.f)
+                || test_interp_scale(f, type, 2.f, 1.5f)
+                || test_interp_scale(g, type, 1.5f, 1.5f)
+                || test_interp_scale(h, type, 1.f, 1.5f))
             return -1;
     }
     return 0;
