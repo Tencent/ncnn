@@ -1,21 +1,53 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+void innerproduct_fp16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
-void innerproduct_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
+void innerproduct_fp16s_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_transform_kernel_fp16s_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
 #if NCNN_IMPL_FP16S
-static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct_fp16s(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #else
-static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #endif
 {
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        innerproduct_fma4(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_fp16s_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        innerproduct_fp16s_sse_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_fp16s_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #else // NCNN_RUNTIME_CPU
@@ -460,7 +492,13 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = pp * 8;
 
-            float sums[8] = {0.0f};
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float sums[8]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];
@@ -586,7 +624,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
             }
 
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-            __m256 _sums_f = _mm256_loadu_ps(sums);
+            __m256 _sums_f = _mm256_load_ps(sums);
             _sums = _mm256_add_ps(_sums_f, _sums);
             _sums = activation_avx(_sums, activation_type, activation_params);
 
@@ -606,7 +644,13 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = remain_outw_start + (pp * 4);
 
-            float sums[4] = {0.0f};
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
+            float sums[4]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];
@@ -715,7 +759,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 w3++;
             }
 
-            __m128 _sums = _mm_loadu_ps(sums);
+            __m128 _sums = _mm_load_ps(sums);
 #if __AVX__
             _sums = _mm_add_ps(HorizontalSums(_sum0, _sum1, _sum2, _sum3), _sums);
 #endif
@@ -812,15 +856,15 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
 }
 
 #if NCNN_IMPL_FP16S
-static void innerproduct_transform_kernel_fp16s_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+static void innerproduct_transform_kernel_fp16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 #else
-static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+static void innerproduct_transform_kernel(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 #endif
 {
 #if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        innerproduct_transform_kernel_fp16s_sse_f16c(weight_data, weight_data_tm, num_input, num_output, opt);
+        innerproduct_transform_kernel_fp16s_f16c(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
 #else // NCNN_RUNTIME_CPU

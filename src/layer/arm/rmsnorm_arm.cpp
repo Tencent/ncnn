@@ -167,6 +167,7 @@ int RMSNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int elempack = bottom_top_blob.elempack;
 
@@ -211,6 +212,46 @@ int RMSNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 float* ptr = bottom_top_blob.channel(q);
                 rmsnorm(ptr, gamma_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        float* ptr = bottom_top_blob.channel(q).depth(z).row(i);
+                        rmsnorm(ptr, gamma_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    float* ptr = bottom_top_blob.channel(q).depth(z);
+                    rmsnorm(ptr, gamma_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                rmsnorm(ptr, gamma_data, eps, w * h * d, elempack);
             }
         }
     }
@@ -351,6 +392,7 @@ int RMSNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int elempack = bottom_top_blob.elempack;
 
@@ -395,6 +437,46 @@ int RMSNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
                 rmsnorm_bf16s(ptr, gamma_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        unsigned short* ptr = bottom_top_blob.channel(q).depth(z).row<unsigned short>(i);
+                        rmsnorm_bf16s(ptr, gamma_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    unsigned short* ptr = bottom_top_blob.channel(q).depth(z);
+                    rmsnorm_bf16s(ptr, gamma_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q);
+                rmsnorm_bf16s(ptr, gamma_data, eps, w * h * d, elempack);
             }
         }
     }

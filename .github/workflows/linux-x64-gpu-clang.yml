@@ -14,6 +14,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
   pull_request:
     branches: [master]
@@ -29,6 +31,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
     - 'glslang'
 concurrency:
   group: linux-x64-gpu-clang-${{ github.ref }}
@@ -40,23 +44,23 @@ jobs:
   linux-clang-gpu:
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20250508
+        key: swiftshader-linux-install-20260917
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 930d46d31b5d637f313fd5ef55da2bbf053c26c1
+        ref: 1e80438d2b93ef36a7c05f8d2b81233bac0e3d16
     - name: swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |

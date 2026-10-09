@@ -117,17 +117,11 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         float* rows1p = rows1;
         float* Dp = dst.row(dy);
 
-#if __loongarch_sx
-        int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = w - (nn << 3);
-
+        int i = 0;
 #if __loongarch_sx
         __m128 _b0 = __lsx_vreplfr2vr_s(b0);
         __m128 _b1 = __lsx_vreplfr2vr_s(b1);
-        for (; nn > 0; nn--)
+        for (; i + 7 < w; i += 8)
         {
             __m128 _rows0 = (__m128)__lsx_vld(rows0p, 0);
             __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
@@ -150,7 +144,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             rows1p += 8;
         }
 #endif // __loongarch_sx
-        for (; remain; --remain)
+        for (; i < w; i++)
         {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;

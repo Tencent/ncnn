@@ -18,6 +18,11 @@ int UnaryOp::load_param(const ParamDict& pd)
 {
     op_type = pd.get(0, 0);
 
+#if NCNN_VALIDATION
+    if (op_type < Operation_ABS || op_type > Operation_LOG1P)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 
@@ -197,6 +202,70 @@ struct unary_op_trunc
     }
 };
 
+struct unary_op_sign
+{
+    float operator()(const float& x) const
+    {
+        return x > 0.f ? 1.f : x < 0.f ? -1.f : 0.f;
+    }
+};
+
+struct unary_op_expm1
+{
+    float operator()(const float& x) const
+    {
+        return (float)expm1f(x);
+    }
+};
+
+struct unary_op_sinh
+{
+    float operator()(const float& x) const
+    {
+        return (float)sinhf(x);
+    }
+};
+
+struct unary_op_asinh
+{
+    float operator()(const float& x) const
+    {
+        return (float)asinhf(x);
+    }
+};
+
+struct unary_op_cosh
+{
+    float operator()(const float& x) const
+    {
+        return (float)coshf(x);
+    }
+};
+
+struct unary_op_acosh
+{
+    float operator()(const float& x) const
+    {
+        return (float)acoshf(x);
+    }
+};
+
+struct unary_op_atanh
+{
+    float operator()(const float& x) const
+    {
+        return (float)atanhf(x);
+    }
+};
+
+struct unary_op_log1p
+{
+    float operator()(const float& x) const
+    {
+        return (float)log1pf(x);
+    }
+};
+
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
@@ -269,6 +338,30 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }

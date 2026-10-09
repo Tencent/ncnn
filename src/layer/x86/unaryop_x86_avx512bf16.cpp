@@ -12,6 +12,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 namespace UnaryOp_x86_functor {
 
 #include "unaryop_functor.h"
@@ -20,7 +22,7 @@ namespace UnaryOp_x86_functor {
 
 #include "unaryop_bf16s.h"
 
-int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt)
+int unaryop_bf16s_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
     using namespace UnaryOp_x86_functor;
     if (op_type == UnaryOp::Operation_ABS)
@@ -94,7 +96,33 @@ int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option
     if (op_type == UnaryOp::Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
 
+    if (op_type == UnaryOp::Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == UnaryOp::Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
+
     return 0;
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

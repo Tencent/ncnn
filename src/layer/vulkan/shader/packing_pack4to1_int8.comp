@@ -35,12 +35,6 @@ void main()
 
     const uvec4 gi4 = (gy * 4 + uvec4(0, 1, 2, 3)) * psc(stride) + gx;
 
-    //     if (cast_type_from == cast_type_to)
-    //     {
-    //         buffer_cp4to1(top_blob_data, gi4, bottom_blob_data, gi);
-    //         return;
-    //     }
-
     ivec4 v;
     if (cast_type_from == 3)
     {
@@ -48,7 +42,15 @@ void main()
     }
     else
     {
-        v = i8buffer_ld4(bottom_blob_data, gi);
+        if (cast_type_to == 3)
+        {
+            v = i8buffer_ld4(bottom_blob_data, gi);
+        }
+        else
+        {
+            i8buffer_cp4to1(top_blob_data, ivec4(gi4), bottom_blob_data, int(gi));
+            return;
+        }
     }
 
     if (cast_type_to == 3)

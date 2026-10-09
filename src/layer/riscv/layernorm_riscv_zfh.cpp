@@ -288,6 +288,7 @@ int LayerNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
 
     if (dims == 1)
@@ -327,6 +328,46 @@ int LayerNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
                 layernorm_fp16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        __fp16* ptr = bottom_top_blob.channel(q).depth(z).row<__fp16>(i);
+                        layernorm_fp16s(ptr, gamma_data, beta_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    __fp16* ptr = bottom_top_blob.channel(q).depth(z);
+                    layernorm_fp16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                __fp16* ptr = bottom_top_blob.channel(q);
+                layernorm_fp16s(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
             }
         }
     }

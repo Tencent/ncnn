@@ -23,6 +23,13 @@ public:
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
+protected:
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_INT8
+
 public:
     VkMat per_channel_pad_data_gpu;
 
@@ -33,6 +40,19 @@ public:
 
     Pipeline* pipeline_padding_3d;
     Pipeline* pipeline_padding_3d_pack4;
+
+#if NCNN_INT8
+    Mat per_channel_pad_data_int8;
+    VkMat per_channel_pad_data_int8_gpu;
+
+    Pipeline* pipeline_padding_int8;
+    Pipeline* pipeline_padding_pack4_int8;
+    Pipeline* pipeline_padding_pack1to4_int8;
+    Pipeline* pipeline_padding_pack4to1_int8;
+
+    Pipeline* pipeline_padding_3d_int8;
+    Pipeline* pipeline_padding_3d_pack4_int8;
+#endif // NCNN_INT8
 };
 
 } // namespace ncnn

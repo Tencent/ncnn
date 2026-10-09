@@ -25,8 +25,9 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     size_t elemsize = bottom_blob.elemsize;
 
     int out_channels = channels;
@@ -47,7 +48,7 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             mean += ptr[i];
         }
-        top_blob[q] = mean / w / h;
+        top_blob[q] = mean / size;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -58,9 +59,10 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         float std = 0.f;
         for (int i = 0; i < size; i++)
         {
-            std += powf((ptr[i] - top_blob[q - channels]), 2);
+            float v = ptr[i] - top_blob[q - channels];
+            std += v * v;
         }
-        top_blob[q] = sqrtf(std / w / h);
+        top_blob[q] = sqrtf(std / size);
     }
 
     return 0;

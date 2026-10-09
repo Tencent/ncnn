@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -34,10 +35,13 @@ pnnx.Output             output      1 0 out
     {
         const Operator* op = matched_operators.at("op_0");
         const int input_rank = op->inputs[0]->shape.size();
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+
+        if (op->outputs[0]->params["__ncnn_batch_axis"].i != ncnn_batch_axis)
+            return false;
 
         const int start_dim = captured_params.at("start_dim").i;
-        if (start_dim == 0 || (start_dim == 1 && batch_index == 0))
+        if ((start_dim == 0 && ncnn_batch_axis == 233) || (start_dim == 1 && ncnn_batch_axis == 0))
         {
             const int end_dim = captured_params.at("end_dim").i;
             if (end_dim == -1)
@@ -80,163 +84,55 @@ pnnx.Output             output      1 0 out
         return "flatten";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        std::map<std::string, Parameter> params;
+        return resolve_reshape_params(op, get_shape(op, captured_params), params);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int start_dim = captured_params.at("start_dim").i;
-        int end_dim = captured_params.at("end_dim").i;
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_shape(op, captured_params), params))
+            write_reshape_params(op, params);
+    }
 
-        const int input_rank = op->inputs[0]->shape.size();
-
-        if (start_dim < 0)
-            start_dim += input_rank;
-
-        if (end_dim < 0)
-            end_dim += input_rank;
-
-        if (input_rank <= start_dim || input_rank <= end_dim)
+    std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        int start = captured_params.at("start_dim").i;
+        int end = captured_params.at("end_dim").i;
+        auto shape = get_logical_shape_expr(op->inputs[0], 0);
+        if (shape.empty())
         {
-            fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor\n", start_dim, end_dim, input_rank);
-            return;
+            fprintf(stderr, "reshape %s: flatten input rank is unknown\n", op->name.c_str());
+            return std::vector<std::string>();
         }
 
-        std::vector<int> shape_flattened;
-        for (int i = 0; i < start_dim; i++)
+        if (start < 0)
+            start += (int)shape.size();
+        if (end < 0)
+            end += (int)shape.size();
+        if (start < 0 || end < start || end >= (int)shape.size())
         {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
+            fprintf(stderr, "reshape %s: flatten range %d to %d is invalid for input rank %d\n", op->name.c_str(), captured_params.at("start_dim").i, captured_params.at("end_dim").i, (int)shape.size());
+            return std::vector<std::string>();
         }
-        int flattened_dimsize = 1;
-        for (int i = start_dim; i <= end_dim; i++)
+
+        const std::string merged = make_shape_product_expr(std::vector<std::string>(shape.begin() + start, shape.begin() + end + 1));
+        shape.erase(shape.begin() + start, shape.begin() + end + 1);
+        shape.insert(shape.begin() + start, merged);
+
+        const auto& output_shape = op->outputs[0]->shape;
+        if (output_shape.size() == shape.size())
         {
-            if (op->inputs[0]->shape[i] == -1)
+            for (size_t i = 0; i < shape.size(); i++)
             {
-                // flatten includes dynamic axis
-                flattened_dimsize = -1;
-                break;
-            }
-
-            flattened_dimsize *= op->inputs[0]->shape[i];
-        }
-        shape_flattened.push_back(flattened_dimsize);
-        for (int i = end_dim + 1; i < input_rank; i++)
-        {
-            shape_flattened.push_back(op->inputs[0]->shape[i]);
-        }
-
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
-
-        std::vector<int> new_shape;
-        for (int i = 0; i < (int)shape_flattened.size(); i++)
-        {
-            if (i == batch_index && shape_flattened[i] == 1)
-                continue;
-
-            new_shape.push_back(shape_flattened[i]);
-        }
-
-        if (new_shape.size() == 5 && batch_index == 233)
-        {
-            if (new_shape[0] == 1)
-            {
-                fprintf(stderr, "assume flatten 5-rank tensor has batch_index 0\n");
-                new_shape.erase(new_shape.begin());
+                if (output_shape[i] > 0)
+                    shape[i] = std::to_string(output_shape[i]);
             }
         }
-
-        const int shape_rank = (int)new_shape.size();
-
-        if (shape_rank > 5)
-        {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
-        }
-
-        // handle multiple dynamic dimension
-        int dynamic_dimension_count = 0;
-        for (size_t i = 0; i < new_shape.size(); i++)
-        {
-            if (new_shape[i] == -1)
-                dynamic_dimension_count++;
-        }
-
-        if (dynamic_dimension_count > 1)
-        {
-            const int flattened_index = start_dim > batch_index ? start_dim - 1 : start_dim;
-
-            int in_batch_index = op->inputs[0]->params["__batch_index"].i;
-            int in_shape_rank = op->inputs[0]->shape.size();
-            if (in_batch_index != 233)
-                in_shape_rank -= 1;
-
-            std::string shape_expr;
-            if (shape_rank == 1)
-            {
-                // flatten style
-                shape_expr = "-1";
-            }
-            if (shape_rank == 2)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    if (in_shape_rank == 2)
-                        shape_expr = "-1,0h";
-                    else // if (in_shape_rank == 3 || in_shape_rank == 4)
-                        shape_expr = "-1,0c";
-                }
-            }
-            if (shape_rank == 3)
-            {
-                if (flattened_index == 0)
-                {
-                    shape_expr = "0w,0h,-1";
-                }
-                if (flattened_index == 1)
-                {
-                    shape_expr = "0w,-1,0c";
-                }
-                if (flattened_index == 2)
-                {
-                    if (in_shape_rank == 3)
-                        shape_expr = "-1,0h,0c";
-                    else // if (in_shape_rank == 4)
-                        shape_expr = "-1,0d,0c";
-                }
-            }
-            if (shape_rank == 4)
-            {
-                // noop style
-                shape_expr = "0w,0h,0d,0c";
-            }
-
-            op->params["6"] = shape_expr;
-            return;
-        }
-
-        if (shape_rank == 1)
-        {
-            op->params["0"] = new_shape[0];
-        }
-        if (shape_rank == 2)
-        {
-            op->params["0"] = new_shape[1];
-            op->params["1"] = new_shape[0];
-        }
-        if (shape_rank == 3)
-        {
-            op->params["0"] = new_shape[2];
-            op->params["1"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
-        if (shape_rank == 4)
-        {
-            op->params["0"] = new_shape[3];
-            op->params["1"] = new_shape[2];
-            op->params["11"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
+        return shape;
     }
 };
 

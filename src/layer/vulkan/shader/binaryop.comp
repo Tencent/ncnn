@@ -98,8 +98,22 @@ void main()
     if (op_type == 10) res = afp(atan(float(v1), float(v2)));
     if (op_type == 11) res = afp(atan(float(v2), float(v1)));
 #else
+#if ncnn_driverID == 13
+    // llvmpipe driver (VK_DRIVER_ID_MESA_LLVMPIPE = 13) workaround for atan(0, 0), match atan2f(0, 0) == 0
+    if (op_type == 10)
+    {
+        afp v2_safe = (v1 == afp(0.f) && v2 == afp(0.f)) ? afp(1.f) : v2;
+        res = atan(v1, v2_safe);
+    }
+    if (op_type == 11)
+    {
+        afp v1_safe = (v1 == afp(0.f) && v2 == afp(0.f)) ? afp(1.f) : v1;
+        res = atan(v2, v1_safe);
+    }
+#else
     if (op_type == 10) res = atan(v1, v2);
     if (op_type == 11) res = atan(v2, v1);
+#endif
 #endif
     if (op_type == 12) res = v1 - trunc(v1 / v2) * v2;
     if (op_type == 13) res = v2 - trunc(v2 / v1) * v1;

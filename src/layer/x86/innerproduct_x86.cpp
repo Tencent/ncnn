@@ -83,7 +83,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -113,6 +113,9 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
         }
 #endif
@@ -147,7 +150,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -186,7 +189,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (top_blob.empty())
         return -100;
 
-    innerproduct_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -196,7 +199,7 @@ int InnerProduct_x86::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_bf16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel_bf16s(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -219,7 +222,7 @@ int InnerProduct_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_bf16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm_bf16s(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -258,7 +261,7 @@ int InnerProduct_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    innerproduct_bf16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct_bf16s(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -269,7 +272,7 @@ int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel_fp16s(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -292,7 +295,7 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_fp16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm_fp16s(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -327,7 +330,7 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    innerproduct_fp16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct_fp16s(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -464,9 +467,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     int i = 0;
                     for (; i < num_input; i++)
                     {
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _val0 = _mm_set1_epi16((short)m0[0]);
                         __m128i _val1 = _mm_set1_epi16((short)m1[0]);
@@ -643,9 +649,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
                     {
                         __m128i _val = _mm_set1_epi16((short)m[0]);
 
-                        // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                        __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                         __m128i _sl = _mm_mullo_epi16(_val, _w);
                         __m128i _sh = _mm_mulhi_epi16(_val, _w);
@@ -767,9 +776,12 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
             {
                 __m128i _val = _mm_set1_epi16((short)sptr[0]);
 
-                // TODO use _mm_cvtepi8_epi16 on sse4.1
+#if __SSE4_1__
+                __m128i _w = _mm_cvtepi8_epi16(_mm_loadl_epi64((const __m128i*)kptr));
+#else
                 __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
                 _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+#endif
 
                 __m128i _sl = _mm_mullo_epi16(_val, _w);
                 __m128i _sh = _mm_mulhi_epi16(_val, _w);

@@ -24,6 +24,9 @@ static int test_exp(const ncnn::Mat& a, float base, float scale, float shift)
 static int test_exp_0()
 {
     return 0
+           || test_exp(RandomMat(5, 6, 7, 24, -1.f, 1.f), -1.f, 1.f, 0.f)
+           || test_exp(RandomMat(7, 8, 9, 12, -1.f, 1.f), -1.f, 0.75f, -0.25f)
+           || test_exp(RandomMat(3, 4, 5, 13, -1.f, 1.f), 2.f, 0.5f, 0.125f)
            || test_exp(RandomMat(5, 7, 24, -1.f, 1.f), -1.f, 1.f, 0.f)
            || test_exp(RandomMat(7, 9, 12, -1.f, 1.f), -1.f, 0.75f, -0.25f)
            || test_exp(RandomMat(3, 5, 13, -1.f, 1.f), 2.f, 0.5f, 0.125f);

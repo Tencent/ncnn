@@ -27,6 +27,8 @@ Layer::Layer()
     support_any_packing = false;
     support_vulkan_any_packing = false;
 
+    support_batch = false;
+
     featmask = 0;
 
 #if NCNN_VULKAN
@@ -240,6 +242,7 @@ public:
         support_fp16_storage = layer_cpu->support_fp16_storage;
         support_int8_storage = layer_cpu->support_int8_storage;
         support_any_packing = layer_cpu->support_any_packing;
+        support_batch = layer_cpu->support_batch;
 
         support_vulkan = false;
         support_tensor_storage = false;
@@ -451,13 +454,6 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif// NCNN_RUNTIME_CPU && NCNN_AVX512
-#if NCNN_RUNTIME_CPU && NCNN_FMA
-    if (ncnn::cpu_support_x86_fma())
-    {
-        layer_creator = layer_registry_fma[index].creator;
-    }
-    else
-#endif// NCNN_RUNTIME_CPU && NCNN_FMA
 #if NCNN_RUNTIME_CPU && NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
     {

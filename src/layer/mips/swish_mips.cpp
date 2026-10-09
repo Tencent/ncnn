@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
@@ -14,7 +15,11 @@ Swish_mips::Swish_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -25,6 +30,11 @@ int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
     int size = w * h * d * elempack;
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -53,5 +63,55 @@ int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Swish_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            _p0 = __msa_fdiv_w(_p0, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_p0, 31))));
+            _p1 = __msa_fdiv_w(_p1, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_p1, 31))));
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa(ptr);
+            _p = __msa_fdiv_w(_p, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_p, 31))));
+            *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
+            ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            v = v / (1.f + expf(-v));
+            *ptr = float32_to_bfloat16(v);
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

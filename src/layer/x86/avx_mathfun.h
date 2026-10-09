@@ -1175,6 +1175,65 @@ static NCNN_FORCEINLINE __m256 logaddexp256_ps(const __m256& x, const __m256& y)
     return _mm256_add_ps(max_xy, log_result);
 }
 
+static NCNN_FORCEINLINE __m256 expm1256_ps(const __m256& x)
+{
+    __m256 x2 = _mm256_mul_ps(x, x);
+    __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 6.0f)))));
+    __m256 y = _mm256_sub_ps(exp256_ps(x), _mm256_set1_ps(1.f));
+    __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 log1p256_ps(const __m256& x)
+{
+    __m256 x2 = _mm256_mul_ps(x, x);
+    __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(-0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 3.0f)))));
+    __m256 y = log256_ps(_mm256_add_ps(_mm256_set1_ps(1.f), x));
+    __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 sinh256_ps(const __m256& x)
+{
+    __m256 expm1_x = expm1256_ps(x);
+    __m256 expm1_neg_x = expm1256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_sub_ps(expm1_x, expm1_neg_x), _mm256_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 asinh256_ps(const __m256& x)
+{
+    __m256 ax = abs256_ps(x);
+    __m256 x2 = _mm256_mul_ps(ax, ax);
+    __m256 y = log256_ps(_mm256_add_ps(ax, _mm256_sqrt_ps(_mm256_add_ps(x2, _mm256_set1_ps(1.f)))));
+    __m256 y_large = _mm256_add_ps(log256_ps(ax), _mm256_set1_ps(0.6931471805599453f));
+    __m256 mask = _mm256_cmp_ps(ax, _mm256_set1_ps(1e19f), _CMP_GT_OQ);
+    y = _mm256_or_ps(_mm256_and_ps(mask, y_large), _mm256_andnot_ps(mask, y));
+    return _mm256_or_ps(y, _mm256_and_ps(x, _mm256_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m256 cosh256_ps(const __m256& x)
+{
+    __m256 exp_x = exp256_ps(x);
+    __m256 exp_neg_x = exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_add_ps(exp_x, exp_neg_x), _mm256_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 acosh256_ps(const __m256& x)
+{
+    __m256 one = _mm256_set1_ps(1.f);
+    __m256 y = log256_ps(_mm256_add_ps(x, _mm256_mul_ps(_mm256_sqrt_ps(_mm256_sub_ps(x, one)), _mm256_sqrt_ps(_mm256_add_ps(x, one)))));
+    __m256 y_large = _mm256_add_ps(log256_ps(x), _mm256_set1_ps(0.6931471805599453f));
+    __m256 mask = _mm256_cmp_ps(x, _mm256_set1_ps(1e19f), _CMP_GT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, y_large), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 atanh256_ps(const __m256& x)
+{
+    __m256 log_pos = log1p256_ps(x);
+    __m256 log_neg = log1p256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_sub_ps(log_pos, log_neg), _mm256_set1_ps(0.5f));
+}
+
 static NCNN_FORCEINLINE __m256 floor_divide256_ps(const __m256& x, const __m256& y)
 {
     __m256 q = _mm256_div_ps(x, y);

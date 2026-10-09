@@ -24,6 +24,9 @@ static int test_log(const ncnn::Mat& a, float base, float scale, float shift)
 static int test_log_0()
 {
     return 0
+           || test_log(RandomMat(5, 6, 7, 24, 0.001f, 2.f), -1.f, 1.f, 0.f)
+           || test_log(RandomMat(7, 8, 9, 12, 0.001f, 2.f), -1.f, 0.75f, 0.25f)
+           || test_log(RandomMat(3, 4, 5, 13, 0.001f, 2.f), 2.f, 0.5f, 0.125f)
            || test_log(RandomMat(5, 7, 24, 0.001f, 2.f), -1.f, 1.f, 0.f)
            || test_log(RandomMat(7, 9, 12, 0.001f, 2.f), -1.f, 0.75f, 0.25f)
            || test_log(RandomMat(3, 5, 13, 0.001f, 2.f), 2.f, 0.5f, 0.125f);

@@ -830,7 +830,7 @@ static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 
 // MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
 // This function still be inlined compiled by MSVC 2017 even without that.
-#if _MSC_VER < 1920
+#if defined(_MSC_VER) && _MSC_VER < 1920
 static __m512 atan2512_ps(const __m512& y, const __m512& x)
 #else
 static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
@@ -898,8 +898,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
 
 static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
 {
-    const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
-    return _mm512_and_ps(abs_mask, x);
+    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
 }
 
 static NCNN_FORCEINLINE __m512 trunc512_ps(const __m512& x)
@@ -931,6 +930,65 @@ static NCNN_FORCEINLINE __m512 logaddexp512_ps(const __m512& x, const __m512& y)
     __m512 one_plus_exp = _mm512_add_ps(magic_one, exp_diff);
     __m512 log_result = log512_ps(one_plus_exp);
     return _mm512_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m512 expm1512_ps(const __m512& x)
+{
+    __m512 x2 = _mm512_mul_ps(x, x);
+    __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 6.0f)))));
+    __m512 y = _mm512_sub_ps(exp512_ps(x), _mm512_set1_ps(1.f));
+    __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm512_mask_blend_ps(mask, y, poly);
+}
+
+static NCNN_FORCEINLINE __m512 log1p512_ps(const __m512& x)
+{
+    __m512 x2 = _mm512_mul_ps(x, x);
+    __m512 poly = _mm512_add_ps(x, _mm512_mul_ps(x2, _mm512_add_ps(_mm512_set1_ps(-0.5f), _mm512_mul_ps(x, _mm512_set1_ps(1.0f / 3.0f)))));
+    __m512 y = log512_ps(_mm512_add_ps(_mm512_set1_ps(1.f), x));
+    __mmask16 mask = _mm512_cmp_ps_mask(abs512_ps(x), _mm512_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm512_mask_blend_ps(mask, y, poly);
+}
+
+static NCNN_FORCEINLINE __m512 sinh512_ps(const __m512& x)
+{
+    __m512 expm1_x = expm1512_ps(x);
+    __m512 expm1_neg_x = expm1512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_sub_ps(expm1_x, expm1_neg_x), _mm512_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m512 asinh512_ps(const __m512& x)
+{
+    __m512 ax = abs512_ps(x);
+    __m512 x2 = _mm512_mul_ps(ax, ax);
+    __m512 y = log512_ps(_mm512_add_ps(ax, _mm512_sqrt_ps(_mm512_add_ps(x2, _mm512_set1_ps(1.f)))));
+    __m512 y_large = _mm512_add_ps(log512_ps(ax), _mm512_set1_ps(0.6931471805599453f));
+    __mmask16 mask = _mm512_cmp_ps_mask(ax, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
+    y = _mm512_mask_blend_ps(mask, y, y_large);
+    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m512 cosh512_ps(const __m512& x)
+{
+    __m512 exp_x = exp512_ps(x);
+    __m512 exp_neg_x = exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_add_ps(exp_x, exp_neg_x), _mm512_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m512 acosh512_ps(const __m512& x)
+{
+    __m512 one = _mm512_set1_ps(1.f);
+    __m512 y = log512_ps(_mm512_add_ps(x, _mm512_mul_ps(_mm512_sqrt_ps(_mm512_sub_ps(x, one)), _mm512_sqrt_ps(_mm512_add_ps(x, one)))));
+    __m512 y_large = _mm512_add_ps(log512_ps(x), _mm512_set1_ps(0.6931471805599453f));
+    __mmask16 mask = _mm512_cmp_ps_mask(x, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
+    return _mm512_mask_blend_ps(mask, y, y_large);
+}
+
+static NCNN_FORCEINLINE __m512 atanh512_ps(const __m512& x)
+{
+    __m512 log_pos = log1p512_ps(x);
+    __m512 log_neg = log1p512_ps(_mm512_sub_ps(_mm512_setzero_ps(), x));
+    return _mm512_mul_ps(_mm512_sub_ps(log_pos, log_neg), _mm512_set1_ps(0.5f));
 }
 
 static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512& y)

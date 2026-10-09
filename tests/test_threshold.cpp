@@ -3,8 +3,31 @@
 
 #include "testutil.h"
 
-static int test_threshold(const ncnn::Mat& a, float threshold)
+static void RandomizeThreshold(ncnn::Mat& m, float threshold)
 {
+    for (size_t i = 0; i < m.total(); i++)
+    {
+        float v = RandomFloat();
+
+        float hv = ncnn::float16_to_float32(ncnn::float32_to_float16(v));
+        float bv = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(v));
+
+        while (fabs(v - threshold) < 0.01f || fabs(hv - threshold) < 0.01f || fabs(bv - threshold) < 0.01f)
+        {
+            v = RandomFloat();
+
+            hv = ncnn::float16_to_float32(ncnn::float32_to_float16(v));
+            bv = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(v));
+        }
+
+        m[i] = v;
+    }
+}
+
+static int test_threshold(ncnn::Mat a, float threshold)
+{
+    RandomizeThreshold(a, threshold);
+
     ncnn::ParamDict pd;
     pd.set(0, threshold);
 

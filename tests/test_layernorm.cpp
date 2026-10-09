@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int affine)
+static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int affine, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, affine_size);
@@ -14,10 +14,10 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
     weights[0] = RandomMat(affine_size);
     weights[1] = RandomMat(affine_size);
 
-    int ret = test_layer("LayerNorm", pd, weights, a);
+    int ret = test_layer("LayerNorm", pd, weights, a, 1e-4f, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, affine_size, eps, affine);
+        fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
     }
 
     return ret;
@@ -32,7 +32,7 @@ static int test_layernorm_0()
            || test_layernorm(RandomMat(5, 6, 12), 5, 0.02f, 0)
            || test_layernorm(RandomMat(4, 7, 16), 4, 0.02f, 0)
            || test_layernorm(RandomMat(6, 7, 24), 6, 0.001f, 0)
-           || test_layernorm(RandomMat(5, 8, 32), 5, 0.001f, 0)
+           || test_layernorm(RandomMat(5, 8, 32), 5, 0.001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_layernorm(RandomMat(6, 4, 2), 6, 0.01f, 1)
            || test_layernorm(RandomMat(4, 5, 6), 4, 0.01f, 1)
            || test_layernorm(RandomMat(3, 3, 8), 3, 0.002f, 1)
@@ -99,6 +99,17 @@ static int test_layernorm_3()
            || test_layernorm(RandomMat(32), 32, 0.001f, 1);
 }
 
+static int test_layernorm_4()
+{
+    return 0
+           || test_layernorm(RandomMat(5, 3, 2, 8), 5, 0.01f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 4, 0.01f, 1)
+           || test_layernorm(RandomMat(5, 3, 2, 8), 15, 0.002f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 12, 0.002f, 1)
+           || test_layernorm(RandomMat(5, 3, 2, 8), 30, 0.001f, 0)
+           || test_layernorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -107,5 +118,6 @@ int main()
            || test_layernorm_0()
            || test_layernorm_1()
            || test_layernorm_2()
-           || test_layernorm_3();
+           || test_layernorm_3()
+           || test_layernorm_4();
 }

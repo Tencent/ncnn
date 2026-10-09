@@ -59,10 +59,9 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             int w = bottom_blob.w;
             int h = bottom_blob.h;
-            int size = w * h;
-            size_t elemsize = bottom_blob.elemsize;
-
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            int d = bottom_blob.d;
+            int size = w * h * d;
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -106,7 +105,7 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     float32x4_t _p0 = vld1q_f32(ptr0);
                     float32x4_t _p1 = vld1q_f32(ptr1);
@@ -117,6 +116,16 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     ptr0 += 4;
                     ptr1 += 4;
+                    outptr0 += 4;
+                }
+
+                {
+                    outptr0[0] = ptr0[0];
+                    outptr0[1] = ptr1[0];
+                    outptr0[2] = ptr0[1];
+                    outptr0[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
                     outptr0 += 4;
                 }
             }
@@ -147,10 +156,9 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int size = w * h;
-        size_t elemsize = bottom_blob.elemsize;
-
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        int d = bottom_blob.d;
+        int size = w * h * d;
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -306,10 +314,9 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         {
             int w = bottom_blob.w;
             int h = bottom_blob.h;
-            int size = w * h;
-            size_t elemsize = bottom_blob.elemsize;
-
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            int d = bottom_blob.d;
+            int size = w * h * d;
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -397,10 +404,9 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int size = w * h;
-        size_t elemsize = bottom_blob.elemsize;
-
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        int d = bottom_blob.d;
+        int size = w * h * d;
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -540,10 +546,9 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
         {
             int w = bottom_blob.w;
             int h = bottom_blob.h;
-            int size = w * h;
-            size_t elemsize = bottom_blob.elemsize;
-
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            int d = bottom_blob.d;
+            int size = w * h * d;
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -587,7 +592,7 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     uint16x4_t _p0 = vld1_u16(ptr0);
                     uint16x4_t _p1 = vld1_u16(ptr1);
@@ -598,6 +603,16 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
                     ptr0 += 4;
                     ptr1 += 4;
+                    outptr0 += 4;
+                }
+
+                {
+                    outptr0[0] = ptr0[0];
+                    outptr0[1] = ptr1[0];
+                    outptr0[2] = ptr0[1];
+                    outptr0[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
                     outptr0 += 4;
                 }
             }
@@ -630,10 +645,9 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int size = w * h;
-        size_t elemsize = bottom_blob.elemsize;
-
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        int d = bottom_blob.d;
+        int size = w * h * d;
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

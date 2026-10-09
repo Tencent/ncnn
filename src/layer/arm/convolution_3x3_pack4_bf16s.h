@@ -1802,10 +1802,10 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fmla   v12.4s, v9.4s, v6.s[3]      \n"
                         "fmla   v13.4s, v9.4s, v0.s[3]      \n"
 
-                        "shrn   v10.4h, v10.4s, #16         \n"
-                        "shrn   v11.4h, v11.4s, #16         \n"
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v10.4h, v10.4s, #16         \n"
+                        "rshrn  v11.4h, v11.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%0], #32 \n"
 
@@ -2133,10 +2133,10 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
-                        "vshrn.u32  d26, q14, #16       \n"
-                        "vshrn.u32  d27, q15, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
+                        "vrshrn.u32 d26, q14, #16       \n"
+                        "vrshrn.u32 d27, q15, #16       \n"
 
                         "vst1.f32   {d24-d27}, [%0 :64]! \n"
 
@@ -2348,8 +2348,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fadd   v12.4s, v10.4s, v12.4s      \n"
                         "fadd   v13.4s, v11.4s, v13.4s      \n"
 
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v12.4h, v13.4h}, [%0], #16 \n"
 
@@ -2593,8 +2593,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16;
 
-                        "vshrn.u32  d28, q14, #16       \n"
-                        "vshrn.u32  d29, q15, #16       \n"
+                        "vrshrn.u32 d28, q14, #16       \n"
+                        "vrshrn.u32 d29, q15, #16       \n"
 
                         "vst1.f32   {d28-d29}, [%0 :64]! \n"
 
@@ -2758,7 +2758,7 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fadd   v13.4s, v11.4s, v13.4s      \n"
 
                         "add    %4, %4, #16                 \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v13.4h}, [%0], #8          \n"
 
@@ -2963,7 +2963,7 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16 * 2;
 
-                        "vshrn.u32  d31, q15, #16       \n"
+                        "vrshrn.u32 d31, q15, #16       \n"
 
                         "vst1.u16   {d31}, [%0 :64]!    \n"
 

@@ -32,47 +32,44 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
 
         int input_rank = op->inputs[0]->shape.size();
 
         if (input_rank > 5)
         {
             fprintf(stderr, "squeeze %d-rank tensor is not supported yet!\n", input_rank);
+        }
+
+        std::vector<int> axes;
+        if (captured_params.at("dim").type == 2)
+            axes.push_back(captured_params.at("dim").i);
+        else
+            axes = captured_params.at("dim").ai;
+
+        std::vector<int> new_axes;
+        for (size_t i = 0; i < axes.size(); i++)
+        {
+            int dim = axes[i];
+            if (dim < 0 && input_rank > 0)
+                dim += input_rank;
+
+            if (dim == ncnn_batch_axis)
+                continue;
+
+            if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
+                dim -= 1;
+
+            new_axes.push_back(dim);
+        }
+
+        if (new_axes.empty())
+        {
+            op->type = "Noop";
             return;
         }
 
-        if (captured_params.at("dim").type == 2)
-        {
-            int dim = captured_params.at("dim").i;
-            if (dim == batch_index)
-            {
-                fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
-                return;
-            }
-
-            if (dim > batch_index)
-                dim -= 1;
-
-            std::vector<int> axes = {dim};
-            op->params["3"] = axes;
-        }
-        else // if (captured_params.at("dim").type == 5)
-        {
-            std::vector<int> axes = captured_params.at("dim").ai;
-            for (size_t i = 0; i < axes.size(); i++)
-            {
-                if (axes[i] == batch_index)
-                {
-                    fprintf(stderr, "squeeze batch dim %d is not supported yet!\n", batch_index);
-                    return;
-                }
-
-                if (axes[i] > batch_index)
-                    axes[i] -= 1;
-            }
-            op->params["3"] = axes;
-        }
+        op->params["3"] = new_axes;
     }
 };
 

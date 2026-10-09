@@ -73,6 +73,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
     }
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
 
     int channels_per_group = channels / _group;
 
@@ -89,7 +90,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
         // follow arm version
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -115,7 +116,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             _idx = __riscv_vmerge_vvm_u32m4(_idx_shifted, _idx, _mask, vl);
 #endif
 
-            int size = w * h;
+            int size = w * h * d;
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -216,10 +217,13 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 return -100;
             }
             Mat top_blob_unpacked;
-            top_blob_unpacked.create(w, h, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
+            if (bottom_blob_unpacked.dims == 3)
+                top_blob_unpacked.create(w, h, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
+            else
+                top_blob_unpacked.create(w, h, d, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
 
             int channels_unpacked_per_group = channels_unpacked / _group_unpack;
-            const size_t feature_sz = (size_t)w * h;
+            const size_t feature_sz = (size_t)w * h * d;
             for (int i = 0; i < _group_unpack; i++)
             {
                 for (int j = 0; j < channels_unpacked_per_group; j++)
@@ -241,10 +245,10 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
             return 0;
         }
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-        const int size = w * h;
+        const int size = w * h * d;
 #if C906 || __riscv_xtheadvector
         // C906 128 bits
         for (int i = 0; i < _group; i++)
@@ -589,14 +593,14 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             return -100;
         }
 
-        top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
 #if __riscv_vector
-        const size_t feature_sz = (size_t)w * h;
+        const size_t feature_sz = (size_t)w * h * d;
 #else
-        const size_t feature_sz = (size_t)w * h * elemsize;
+        const size_t feature_sz = (size_t)w * h * d * elemsize;
 #endif
         for (int i = 0; i < _group; i++)
         {
@@ -644,6 +648,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
     }
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
 
     int channels_per_group = channels / _group;
 
@@ -660,7 +665,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
         // follow arm version
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -695,7 +700,7 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
             _idx = __riscv_vmerge_vvm_u16m4(_idx_shifted, _idx, _mask, vl);
 #endif
 
-            int size = w * h;
+            int size = w * h * d;
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -805,10 +810,13 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
                 return -100;
             }
             Mat top_blob_unpacked;
-            top_blob_unpacked.create(w, h, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
+            if (bottom_blob_unpacked.dims == 3)
+                top_blob_unpacked.create(w, h, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
+            else
+                top_blob_unpacked.create(w, h, d, channels_unpacked, elemsize_unpacked, opt.blob_allocator);
 
             int channels_unpacked_per_group = channels_unpacked / _group_unpack;
-            const size_t feature_sz = (size_t)w * h;
+            const size_t feature_sz = (size_t)w * h * d;
             for (int i = 0; i < _group_unpack; i++)
             {
                 for (int j = 0; j < channels_unpacked_per_group; j++)
@@ -830,10 +838,10 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
             return 0;
         }
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-        const int size = w * h;
+        const int size = w * h * d;
 #if C906 || __riscv_xtheadvector
         // C906 128 bits, pack8
         for (int i = 0; i < _group; i++)
@@ -1126,14 +1134,14 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
             return -100;
         }
 
-        top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
 #if __riscv_vector
-        const size_t feature_sz = (size_t)w * h;
+        const size_t feature_sz = (size_t)w * h * d;
 #else
-        const size_t feature_sz = (size_t)w * h * elemsize;
+        const size_t feature_sz = (size_t)w * h * d * elemsize;
 #endif
         for (int i = 0; i < _group; i++)
         {

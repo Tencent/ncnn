@@ -1266,7 +1266,11 @@ pnnx.Output             output      1 0 out
         const int64_t* pb = (const int64_t*)ib.data.data();
         const float* pm = (const float*)im.data.data();
 
-        const int w = matched_operators.at("op_0")->inputs[0]->shape[2];
+        const std::vector<int>& shape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (shape.size() < 3 || shape[2] <= 0)
+            return false;
+
+        const int w = shape[2];
 
         align_corners = resolve_align_corners(w, size, pa, pb, pm);
 
@@ -1333,7 +1337,11 @@ pnnx.Output             output      1 0 out
 
         const int64_t* pindex = (const int64_t*)index.data.data();
 
-        const int w = matched_operators.at("op_0")->inputs[0]->shape[2];
+        const std::vector<int>& shape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (shape.size() < 3 || shape[2] <= 0)
+            return false;
+
+        const int w = shape[2];
 
         bool nearest_exact = resolve_nearest_exact_1d(w, size, pindex);
 
@@ -1406,8 +1414,12 @@ pnnx.Output             output      1 0 out
 
         const int64_t* pindex = (const int64_t*)index.data.data();
 
-        const int h = matched_operators.at("op_0")->inputs[0]->shape[2];
-        const int w = matched_operators.at("op_0")->inputs[0]->shape[3];
+        const std::vector<int>& shape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (shape.size() < 4 || shape[2] <= 0 || shape[3] <= 0)
+            return false;
+
+        const int h = shape[2];
+        const int w = shape[3];
 
         bool nearest_exact = resolve_nearest_exact_2d(w, h, size_w, size_h, pindex);
 
@@ -1490,9 +1502,13 @@ pnnx.Output             output      1 0 out
 
         const int64_t* pindex = (const int64_t*)index.data.data();
 
-        const int d = matched_operators.at("op_0")->inputs[0]->shape[2];
-        const int h = matched_operators.at("op_0")->inputs[0]->shape[3];
-        const int w = matched_operators.at("op_0")->inputs[0]->shape[4];
+        const std::vector<int>& shape = matched_operators.at("op_0")->inputs[0]->shape;
+        if (shape.size() < 5 || shape[2] <= 0 || shape[3] <= 0 || shape[4] <= 0)
+            return false;
+
+        const int d = shape[2];
+        const int h = shape[3];
+        const int w = shape[4];
 
         bool nearest_exact = resolve_nearest_exact_3d(w, h, d, size_w, size_h, size_d, pindex);
 

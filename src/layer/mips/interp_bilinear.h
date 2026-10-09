@@ -117,23 +117,17 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         float* rows1p = rows1;
         float* Dp = dst.row(dy);
 
-#if __mips_msa
-        int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = w - (nn << 3);
-
+        int i = 0;
 #if __mips_msa
         v4f32 _b0 = __msa_fill_w_f32(b0);
         v4f32 _b1 = __msa_fill_w_f32(b1);
-        for (; nn > 0; nn--)
+        for (; i + 7 < w; i += 8)
         {
             v4f32 _rows0 = (v4f32)__msa_ld_w(rows0p, 0);
             v4f32 _rows1 = (v4f32)__msa_ld_w(rows1p, 0);
 
             v4f32 _Dp = __msa_fmul_w(_rows0, _b0);
-            _Dp = __msa_fmadd_w(_Dp, _rows1, _b1);
+            _Dp = __ncnn_msa_fmadd_w(_Dp, _rows1, _b1);
 
             __msa_st_w((v4i32)_Dp, Dp, 0);
 
@@ -141,7 +135,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             v4f32 _rows1n = (v4f32)__msa_ld_w(rows1p + 4, 0);
 
             v4f32 _Dpn = __msa_fmul_w(_rows0n, _b0);
-            _Dpn = __msa_fmadd_w(_Dpn, _rows1n, _b1);
+            _Dpn = __ncnn_msa_fmadd_w(_Dpn, _rows1n, _b1);
 
             __msa_st_w((v4i32)_Dpn, Dp + 4, 0);
 
@@ -150,7 +144,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             rows1p += 8;
         }
 #endif // __mips_msa
-        for (; remain; --remain)
+        for (; i < w; i++)
         {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;

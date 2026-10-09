@@ -15,6 +15,15 @@ class Model(nn.Module):
         z = torch.mean(z, dim=(0,3), keepdim=True)
         return x, y, z
 
+class ModelBatch(nn.Module):
+    def __init__(self):
+        super(ModelBatch, self).__init__()
+
+    def forward(self, x):
+        x0 = torch.mean(x, dim=2, keepdim=False)
+        x1 = torch.mean(x, dim=(1,3), keepdim=True)
+        return x0, x1
+
 def test():
     net = Model()
     net.eval()
@@ -37,6 +46,32 @@ def test():
     # ncnn inference
     import test_torch_mean_ncnn
     b = test_torch_mean_ncnn.test_inference()
+
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return test_batch()
+
+def test_batch():
+    net = ModelBatch()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3, 5, 7)
+
+    a = net(x)
+
+    # export torchscript
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_mean_batch.pt")
+
+    # torchscript to pnnx
+    import os
+    os.system("../../src/pnnx test_torch_mean_batch.pt inputshape=[2,3,5,7]")
+
+    # ncnn inference
+    import test_torch_mean_batch_ncnn
+    b = test_torch_mean_batch_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

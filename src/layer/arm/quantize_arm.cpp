@@ -230,6 +230,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -331,7 +332,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __ARM_NEON
@@ -343,7 +344,10 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -359,7 +363,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
         if (elempack == 4 && out_elempack == 1)
@@ -375,7 +379,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h);
+                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
             }
         }
 #endif // __ARM_NEON
@@ -389,7 +393,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }
@@ -592,6 +596,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
@@ -693,7 +698,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int out_elempack = 1;
 #if __ARM_NEON
@@ -705,7 +710,10 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         const int outc = channels * elempack / out_elempack;
         const size_t out_elemsize = out_elempack * 1u;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -721,7 +729,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8_bf16s(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_pack4to8_bf16s(ptr0, ptr1, s8ptr, scale_data_q, w * h * d);
             }
         }
         if (elempack == 4 && out_elempack == 1)
@@ -737,7 +745,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1_bf16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h);
+                quantize_pack4to1_bf16s(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h * d);
             }
         }
 #endif // __ARM_NEON
@@ -751,7 +759,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_bf16s(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize_bf16s(ptr, s8ptr, scale_data_q, w * h * d, elempack);
             }
         }
     }

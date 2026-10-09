@@ -25,11 +25,9 @@ layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
 
 layout(constant_id = shape_constant_id_offset + 4) const int num_output = 0;
 
-// scalar view (for pack1 input/output access)
 layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 
-// vec4 view (for pack4 input/output access, weight/bias always vec4)
 layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sfpvec4 weight_data[]; };
@@ -71,10 +69,10 @@ void main()
     }
     else
     {
-        sum0 = afpvec4(0.0f);
-        sum1 = afpvec4(0.0f);
-        sum2 = afpvec4(0.0f);
-        sum3 = afpvec4(0.0f);
+        sum0 = afpvec4(0.f);
+        sum1 = afpvec4(0.f);
+        sum2 = afpvec4(0.f);
+        sum3 = afpvec4(0.f);
     }
 
     ivec2 v_offset = gx2 * stride_w;
@@ -89,7 +87,6 @@ void main()
                 afpvec4 v0 = buffer_ld4(bottom_blob_data_4, v_offset.x + x * dilation_w);
                 afpvec4 v1 = buffer_ld4(bottom_blob_data_4, v_offset.y + x * dilation_w);
 
-                // weight is 4x4 mat, stored as 4 consecutive vec4
                 afpmat4 k0 = afpmat4(
                     buffer_ld4(weight_data, (w_offset.x + x) * 4 + 0),
                     buffer_ld4(weight_data, (w_offset.x + x) * 4 + 1),
@@ -106,12 +103,11 @@ void main()
                 sum2 += v0 * k1;
                 sum3 += v1 * k1;
             }
-            else // elempack == 1
+            else
             {
                 afp v0 = buffer_ld1(bottom_blob_data_1, v_offset.x + x * dilation_w);
                 afp v1 = buffer_ld1(bottom_blob_data_1, v_offset.y + x * dilation_w);
 
-                // weight is vec4 (4 output channels per input channel)
                 afpvec4 k0 = buffer_ld4(weight_data, w_offset.x + x);
                 afpvec4 k1 = buffer_ld4(weight_data, w_offset.y + x);
 
@@ -139,9 +135,8 @@ void main()
         if (gy + 1 < psc(outh)) buffer_st4(top_blob_data_4, gi + psc(outw), sum2);
         if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st4(top_blob_data_4, gi + psc(outw) + 1, sum3);
     }
-    else // out_elempack == 1
+    else
     {
-        // outh is num_output_packed/4, outcstep is outw * 4 scalar channels
         const int outcstep = psc(outw);
         const int gi = gy * outcstep * 4 + gx;
 

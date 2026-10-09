@@ -9,12 +9,13 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, w):
+    def forward(self, x, w, q):
         x = F.upsample_nearest(x, size=(12,12))
         x = F.upsample_nearest(x, scale_factor=2)
 
         w = F.upsample_nearest(w, scale_factor=(2.976744,2.976744))
-        return x, w
+        q = F.upsample_nearest(q, scale_factor=2)
+        return x, w, q
 
 def test():
     net = Model()
@@ -23,16 +24,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 12, 24, 64)
     w = torch.rand(1, 8, 86, 86)
+    q = torch.rand(2, 12, 24, 64)
 
-    a = net(x, w)
+    a = net(x, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, w))
+    mod = torch.jit.trace(net, (x, w, q))
     mod.save("test_F_upsample_nearest.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_upsample_nearest.pt inputshape=[1,12,24,64],[1,8,86,86]")
+    os.system("../../src/pnnx test_F_upsample_nearest.pt inputshape=[1,12,24,64],[1,8,86,86],[2,12,24,64]")
 
     # ncnn inference
     import test_F_upsample_nearest_ncnn

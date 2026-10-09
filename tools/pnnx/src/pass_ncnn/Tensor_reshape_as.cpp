@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -31,70 +32,18 @@ pnnx.Output             output      1 0 out
         return "reshape_as";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        std::map<std::string, Parameter> params;
+        return resolve_reshape_params(op, get_logical_shape_expr(op->inputs[1], 1), params);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        const int shape_rank = (int)op->outputs[0]->shape.size();
-
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
-
-        if (batch_index != 0 && batch_index != 233)
-        {
-            if (shape_rank == 0 || op->outputs[0]->shape[batch_index] != 1)
-                fprintf(stderr, "reshape_as tensor with batch index %d is not supported yet!\n", batch_index);
-        }
-
-        if (shape_rank == 1)
-        {
-            op->params["0"] = -1;
-        }
-        else if (shape_rank == 2)
-        {
-            if (batch_index == 233)
-            {
-                op->params["6"] = "1w,1h";
-            }
-            else
-            {
-                op->params["0"] = -1;
-            }
-        }
-        else if (shape_rank == 3)
-        {
-            if (batch_index == 233)
-            {
-                op->params["6"] = "1w,1h,1c";
-            }
-            else
-            {
-                op->params["6"] = "1w,1h";
-            }
-        }
-        else if (shape_rank == 4)
-        {
-            if (batch_index == 233)
-            {
-                op->params["6"] = "1w,1h,1d,1c";
-            }
-            else
-            {
-                op->params["6"] = "1w,1h,1c";
-            }
-        }
-        else if (shape_rank == 5)
-        {
-            if (batch_index == 233)
-            {
-                fprintf(stderr, "reshape_as tensor with unbatched 5 rank tensor is not supported yet!\n");
-            }
-            else
-            {
-                op->params["6"] = "1w,1h,1d,1c";
-            }
-        }
-        else
-        {
-            fprintf(stderr, "reshape_as tensor with over 5 / unknown rank tensor is not supported yet!\n");
-        }
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_logical_shape_expr(op->inputs[1], 1), params))
+            write_reshape_params(op, params);
     }
 };
 

@@ -2,150 +2,128 @@ name: compare-binary-size-pr-comment
 on:
   workflow_run:
     workflows: ["compare-binary-size"]
-    types:
-      - completed
+    types: [completed]
 
 permissions:
   actions: read
-  contents: read
   pull-requests: write
 
 jobs:
   pr-comment:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-    - name: Setup tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq unzip
-
-    - name: Ensure workflow_run is for a PR
-      id: validate
-      run: |
-        # Use the event payload file provided by GitHub Actions directly
-        echo "Using event payload from: $GITHUB_EVENT_PATH"
-        echo "Event file size: $(wc -c < "$GITHUB_EVENT_PATH") bytes"
-
-        # Safely compute number of associated PRs (use // 0 to default if missing)
-        PR_COUNT=$(jq -r '.workflow_run.pull_requests | length // 0' "$GITHUB_EVENT_PATH")
-        echo "Associated pull_request count: $PR_COUNT"
-
-        if [ "$PR_COUNT" -eq 0 ]; then
-          echo "No pull_request associated with this workflow_run; nothing to do."
-          echo "skip=true" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        echo "skip=false" >> $GITHUB_OUTPUT
-
-    - name: Download artifact zip for this run
-      if: steps.validate.outputs.skip != 'true'
-      env:
-        RUN_ID: ${{ github.event.workflow_run.id }}
-        OWNER: ${{ github.repository_owner }}
-        REPO: ${{ github.repository }}
-        TOKEN: ${{ secrets.COMMENTER_PAT }}
-        ART_NAME: "compare-binary-size.md"
-      run: |
-        echo "Listing artifacts for run $RUN_ID"
-        API="https://api.github.com/repos/$OWNER/${REPO#*/}/actions/runs/$RUN_ID/artifacts"
-
-        # Save artifact list to a file (avoid pipe/echo issues)
-        curl -s -H "Authorization: token $TOKEN" "$API" -o /tmp/art_list.json
-        echo "Art list size: $(wc -c < /tmp/art_list.json) bytes"
-        if ! jq . /tmp/art_list.json; then
-          echo "Failed to parse /tmp/art_list.json with jq; aborting for safety."
-          exit 1
-        fi
-
-        # find artifact archive_download_url by name (first match)
-        ARCHIVE_URL=$(jq -r --arg name "$ART_NAME" '.artifacts[] | select(.name==$name) | .archive_download_url' /tmp/art_list.json | head -n1)
-        if [ -z "$ARCHIVE_URL" ] || [ "$ARCHIVE_URL" = "null" ]; then
-          echo "Artifact named '$ART_NAME' not found for run $RUN_ID. Exiting."
-          exit 0
-        fi
-        echo "Downloading artifact from: $ARCHIVE_URL"
-
-        # download and unzip to temp dir
-        mkdir -p /tmp/artifact_contents
-        curl -L -H "Authorization: token $TOKEN" -o /tmp/artifact.zip "$ARCHIVE_URL"
-        if ! unzip -q /tmp/artifact.zip -d /tmp/artifact_contents; then
-          echo "Failed to unzip /tmp/artifact.zip"; exit 1
-        fi
-        ls -la /tmp/artifact_contents
-
-    - name: Read compare-binary-size.md content
-      if: steps.validate.outputs.skip != 'true'
-      id: read
-      run: |
-        # find file inside artifact_contents
-        FILE=$(find /tmp/artifact_contents -type f -name "compare-binary-size.md" | head -n1 || true)
-        if [ -z "$FILE" ]; then
-          # If artifact name matched but internal filename differs, try any .md
-          FILE=$(find /tmp/artifact_contents -type f -name "*.md" | head -n1 || true)
-        fi
-
-        if [ -z "$FILE" ]; then
-          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
-          echo "No compare-binary-size.md found in artifact." >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        else
-          # Truncate to avoid overly long comments (adjust lines as needed)
-          head -n 1000 "$FILE" > /tmp/compare-truncated.md || true
-          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
-          cat /tmp/compare-truncated.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Post or update PR comment via actions/github-script
-      if: steps.validate.outputs.skip != 'true'
-      uses: actions/github-script@v8
+    # No checkout or execution of PR code in this privileged workflow.
+    - name: Resolve and validate the PR
+      id: pr
+      uses: actions/github-script@v9
       with:
-        github-token: ${{ secrets.COMMENTER_PAT }}
+        github-token: ${{ github.token }}
         script: |
-          const pr = context.payload.workflow_run.pull_requests[0];
-          if (!pr) {
-            core.info("No pull request found in workflow_run payload; skipping.");
-            return;
+          const run = context.payload.workflow_run;
+          const repository = context.payload.repository;
+          if (run.repository.id !== repository.id ||
+              run.path !== '.github/workflows/compare-binary-size.yml' ||
+              !run.head_repository?.owner?.login || !run.head_branch) {
+            throw new Error('Unexpected triggering workflow or repository');
           }
-
-          const owner = context.repo.owner;
-          const repo = context.repo.repo;
-          const issue_number = pr.number;
-          const marker = '<!-- compare-binary-size-bot -->';
-
-          // Read the compare content from env (set in previous step outputs)
-          const compare = process.env.COMPARE_CONTENT || "";
-
-          const body = `${marker}\n**Binary size comparison** (from artifact)\n\n\`\`\`markdown\n${compare}\n\`\`\``;
-
-          // List existing comments and find our bot comment (by marker)
-          const { data: comments } = await github.rest.issues.listComments({
-            owner,
-            repo,
-            issue_number,
+          // workflow_run.pull_requests may be empty for fork PRs.
+          // Query by source branch, then verify the source repo and exact SHA.
+          const candidates = await github.paginate(github.rest.pulls.list, {
+            ...context.repo,
+            state: 'open',
+            base: 'master',
+            head: `${run.head_repository.owner.login}:${run.head_branch}`,
             per_page: 100
           });
+          const matches = candidates.filter(pr =>
+            pr.base.repo.id === repository.id &&
+            pr.base.ref === 'master' &&
+            pr.head.repo?.id === run.head_repository.id &&
+            pr.head.ref === run.head_branch &&
+            pr.head.sha === run.head_sha
+          );
+          if (matches.length === 0) {
+            core.notice('No matching open PR at this SHA; closed or stale runs are skipped.');
+            return;
+          }
+          if (matches.length !== 1) throw new Error('Ambiguous PR association');
+          core.setOutput('number', String(matches[0].number));
 
-          const existing = comments.find(c => c.body && c.body.includes(marker));
+    - name: Download this run's report
+      if: steps.pr.outputs.number != ''
+      uses: actions/download-artifact@v8
+      with:
+        name: compare-binary-size.md
+        run-id: ${{ github.event.workflow_run.id }}
+        repository: ${{ github.repository }}
+        github-token: ${{ github.token }}
+        path: ${{ runner.temp }}/binary-size-report
 
+    - name: Post or update the PR comment
+      if: steps.pr.outputs.number != ''
+      uses: actions/github-script@v9
+      env:
+        PR_NUMBER: ${{ steps.pr.outputs.number }}
+        REPORT_DIR: ${{ runner.temp }}/binary-size-report
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          const run = context.payload.workflow_run;
+          const issue_number = Number(process.env.PR_NUMBER);
+          if (!Number.isSafeInteger(issue_number) || issue_number < 1) {
+            throw new Error('Invalid PR number');
+          }
+          // Artifacts are untrusted input: read one bounded data file only.
+          const file = path.join(process.env.REPORT_DIR, 'compare-binary-size.md');
+          const stat = fs.lstatSync(file);
+          if (!stat.isFile() || stat.size > 8192) throw new Error('Invalid report file');
+          const lines = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/);
+          const archs = ['x86_64', 'armhf', 'aarch64'];
+          if (lines.length !== 6 ||
+              lines[0] !== 'The binary size change of libncnn.so (bytes)' ||
+              lines[1] !== '| architecture | base size | pr size | difference |' ||
+              lines[2] !== '|--------------|-----------|---------|------------|') {
+            throw new Error('Unexpected report format');
+          }
+          const rows = archs.map((arch, index) => {
+            const m = lines[index + 3].match(/^\| (x86_64|armhf|aarch64) \| (\d{1,16}) \| (\d{1,16}) \| ([+-]?\d{1,16}) :(warning|kissing_heart): \|$/);
+            if (!m || m[1] !== arch) throw new Error('Invalid report row');
+            const base = BigInt(m[2]);
+            const current = BigInt(m[3]);
+            const delta = current - base;
+            if (delta !== BigInt(m[4])) throw new Error('Inconsistent size delta');
+            const diff = delta > 0n ? `+${delta} :warning:` : `${delta} :kissing_heart:`;
+            return `| ${arch} | ${base} | ${current} | ${diff} |`;
+          });
+          // Recheck immediately before writing; a newer PR commit makes this stale.
+          const { data: pr } = await github.rest.pulls.get({
+            ...context.repo, pull_number: issue_number
+          });
+          if (pr.state !== 'open' || pr.base.repo.id !== context.payload.repository.id ||
+              pr.base.ref !== 'master' || pr.head.repo?.id !== run.head_repository.id ||
+              pr.head.ref !== run.head_branch || pr.head.sha !== run.head_sha) {
+            core.notice('PR changed or closed; skipping this report.');
+            return;
+          }
+          const marker = '<!-- compare-binary-size-bot -->';
+          const report = [lines[0], '', ...lines.slice(1, 3), ...rows].join('\n');
+          const body = `${marker}\n**Binary size comparison**\n\n${report}\n\nCommit: \`${run.head_sha}\` · [Workflow run](${run.html_url})`;
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            ...context.repo, issue_number, per_page: 100
+          });
+          const existing = comments.find(comment =>
+            comment.user?.login === 'github-actions[bot]' &&
+            comment.user?.type === 'Bot' && comment.body?.startsWith(marker)
+          );
           if (existing) {
             await github.rest.issues.updateComment({
-              owner,
-              repo,
-              comment_id: existing.id,
-              body
+              ...context.repo, comment_id: existing.id, body
             });
-            core.info(`Updated comment id=${existing.id}`);
           } else {
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number,
-              body
-            });
-            core.info("Created new comment");
+            await github.rest.issues.createComment({ ...context.repo, issue_number, body });
           }
-      env:
-        # pass the content from previous step into the github-script environment
-        COMPARE_CONTENT: ${{ steps.read.outputs.compare_content }}

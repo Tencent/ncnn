@@ -29,6 +29,35 @@ int Requantize::load_param(const ParamDict& pd)
     activation_type = pd.get(3, 0);
     activation_params = pd.get(4, Mat());
 
+    const int activation_params_type = pd.type(4);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
+
     return 0;
 }
 
@@ -69,6 +98,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
 
     if (dims == 1)
@@ -111,9 +141,12 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, channels, (size_t)1u, opt.blob_allocator);
+        else
+            top_blob.create(w, h, d, channels, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -127,7 +160,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             const float bias = bias_data_size == 0 ? 0.f : bias_data_size == 1 ? bias_data[0] : bias_data[q];
             const float scale_out = scale_out_data_size == 1 ? scale_out_data[0] : scale_out_data[q];
 
-            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h);
+            requantize(intptr, ptr, scale_in, bias, scale_out, activation_type, activation_params, w * h * d);
         }
     }
 

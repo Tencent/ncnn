@@ -24,14 +24,14 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = reverse ? shape.c * shape.elempack / group : group;
     specializations[1].i = vkdev->info.bug_implicit_fp16_arithmetic();
-    specializations[2 + 0].i = shape.dims;
+    specializations[2 + 0].i = std::min(3, shape.dims);
     specializations[2 + 1].i = shape.w;
-    specializations[2 + 2].i = shape.h;
+    specializations[2 + 2].i = shape.h * shape.d;
     specializations[2 + 3].i = shape.c;
     specializations[2 + 4].i = shape.cstep;
-    specializations[2 + 5].i = out_shape.dims;
+    specializations[2 + 5].i = std::min(3, out_shape.dims);
     specializations[2 + 6].i = out_shape.w;
-    specializations[2 + 7].i = out_shape.h;
+    specializations[2 + 7].i = out_shape.h * out_shape.d;
     specializations[2 + 8].i = out_shape.c;
     specializations[2 + 9].i = out_shape.cstep;
 
@@ -39,7 +39,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims != 0)
     {
         local_size_xyz.w = std::min(4, out_shape.w);
-        local_size_xyz.h = std::min(4, out_shape.h);
+        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
         local_size_xyz.c = std::min(4, out_shape.c);
     }
 
@@ -75,13 +75,10 @@ int ShuffleChannel_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -90,14 +87,14 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     bindings[1] = top_blob;
 
     std::vector<vk_constant_type> constants(11);
-    constants[0].i = bottom_blob.dims;
+    constants[0].i = std::min(3, bottom_blob.dims);
     constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
+    constants[2].i = bottom_blob.h * bottom_blob.d;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
+    constants[5].i = std::min(3, top_blob.dims);
     constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
+    constants[7].i = top_blob.h * top_blob.d;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
     constants[10].i = reverse ? channels * elempack / group : group;

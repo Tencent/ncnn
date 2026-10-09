@@ -9,14 +9,14 @@ namespace ncnn {
 
 #include "cast_bf16.h"
 
-void cast_fp32_to_bf16_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+void cast_fp32_to_bf16_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_fp32_to_bf16_sse(bottom_blob, top_blob, opt);
+    cast_fp32_to_bf16(bottom_blob, top_blob, opt);
 }
 
-void cast_bf16_to_fp32_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+void cast_bf16_to_fp32_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_bf16_to_fp32_sse(bottom_blob, top_blob, opt);
+    cast_bf16_to_fp32(bottom_blob, top_blob, opt);
 }
 
 } // namespace ncnn

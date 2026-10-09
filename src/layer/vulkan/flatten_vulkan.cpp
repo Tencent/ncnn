@@ -15,6 +15,11 @@ Flatten_vulkan::Flatten_vulkan()
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
     pipeline_flatten_pack1to4 = 0;
+#if NCNN_INT8
+    pipeline_flatten_int8 = 0;
+    pipeline_flatten_pack4_int8 = 0;
+    pipeline_flatten_pack1to4_int8 = 0;
+#endif
 }
 
 int Flatten_vulkan::create_pipeline(const Option& opt)
@@ -42,6 +47,34 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         local_size_xyz.c = 1;
     }
 
+#if NCNN_INT8
+    Mat shape_int8;
+    if (shape.dims == 1) shape_int8 = Mat(shape.w, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 2) shape_int8 = Mat(shape.w, shape.h, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 3) shape_int8 = Mat(shape.w, shape.h, shape.c, (void*)0, (size_t)shape.elempack, shape.elempack);
+    if (shape.dims == 4) shape_int8 = Mat(shape.w, shape.h, shape.d, shape.c, (void*)0, (size_t)shape.elempack, shape.elempack);
+
+    Mat out_shape_int8;
+    if (out_shape.dims == 1) out_shape_int8 = Mat(out_shape.w, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 2) out_shape_int8 = Mat(out_shape.w, out_shape.h, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 3) out_shape_int8 = Mat(out_shape.w, out_shape.h, out_shape.c, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+    if (out_shape.dims == 4) out_shape_int8 = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c, (void*)0, (size_t)out_shape.elempack, out_shape.elempack);
+
+    std::vector<vk_specialization_type> specializations_int8 = specializations;
+    specializations_int8[0 + 0].i = std::min(3, shape_int8.dims);
+    specializations_int8[0 + 1].i = shape_int8.w;
+    specializations_int8[0 + 2].i = shape_int8.h * shape_int8.d;
+    specializations_int8[0 + 3].i = shape_int8.c;
+    specializations_int8[0 + 4].i = shape_int8.cstep;
+    specializations_int8[0 + 5].i = std::min(3, out_shape_int8.dims);
+    specializations_int8[0 + 6].i = out_shape_int8.w;
+    specializations_int8[0 + 7].i = out_shape_int8.h * out_shape_int8.d;
+    specializations_int8[0 + 8].i = out_shape_int8.c;
+    specializations_int8[0 + 9].i = out_shape_int8.cstep;
+
+    const bool use_int8_pipeline = opt.use_int8_packed || opt.use_int8_storage;
+#endif
+
     // pack1
     if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 1))
     {
@@ -66,6 +99,32 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         pipeline_flatten_pack1to4->create(LayerShaderType::flatten_pack1to4, opt, specializations);
     }
 
+#if NCNN_INT8
+    if (use_int8_pipeline)
+    {
+        if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 1))
+        {
+            pipeline_flatten_int8 = new Pipeline(vkdev);
+            pipeline_flatten_int8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_flatten_int8->create(LayerShaderType::flatten_int8, opt, specializations_int8);
+        }
+
+        if (shape.dims == 0 || (shape.elempack == 4 && out_shape.elempack == 4))
+        {
+            pipeline_flatten_pack4_int8 = new Pipeline(vkdev);
+            pipeline_flatten_pack4_int8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_flatten_pack4_int8->create(LayerShaderType::flatten_pack4_int8, opt, specializations_int8);
+        }
+
+        if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 4))
+        {
+            pipeline_flatten_pack1to4_int8 = new Pipeline(vkdev);
+            pipeline_flatten_pack1to4_int8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_flatten_pack1to4_int8->create(LayerShaderType::flatten_pack1to4_int8, opt, specializations_int8);
+        }
+    }
+#endif
+
     return 0;
 }
 
@@ -79,6 +138,17 @@ int Flatten_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_flatten_pack1to4;
     pipeline_flatten_pack1to4 = 0;
+
+#if NCNN_INT8
+    delete pipeline_flatten_int8;
+    pipeline_flatten_int8 = 0;
+
+    delete pipeline_flatten_pack4_int8;
+    pipeline_flatten_pack4_int8 = 0;
+
+    delete pipeline_flatten_pack1to4_int8;
+    pipeline_flatten_pack1to4_int8 = 0;
+#endif
 
     return 0;
 }
@@ -138,7 +208,28 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
+#if NCNN_INT8
+    if (bottom_blob.elembits() == 8 && elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_flatten_int8;
+    }
+    else if (bottom_blob.elembits() == 8 && elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_flatten_pack4_int8;
+    }
+    else if (bottom_blob.elembits() == 8 && elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_flatten_pack1to4_int8;
+    }
+    else if (elempack == 1 && out_elempack == 1)
+#else
+    if (bottom_blob.elembits() == 8)
+    {
+        return -1;
+    }
+
     if (elempack == 1 && out_elempack == 1)
+#endif
     {
         pipeline = pipeline_flatten;
     }
@@ -150,6 +241,9 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         pipeline = pipeline_flatten_pack1to4;
     }
+
+    if (!pipeline)
+        return -1;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

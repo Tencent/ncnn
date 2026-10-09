@@ -18,7 +18,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_n3, -3.0f);
 _LOONGARCH_FLOAT_CONST_PS256(c_0p5, 0.5f);
 _LOONGARCH_FLOAT_CONST_PS256(c_eps, 1E-8f);
 
-#define c_inv_mant_mask ~0x7f800000u
+#define c_inv_mant_mask_lasx ~0x7f800000u
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_SQRTHF, 0.707106781186547524);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_p0, 7.0376836292E-2);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_p1, -1.1514610310E-1);
@@ -35,7 +35,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_q2, 0.693359375);
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
-static inline __m256 log256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 log256_ps(__m256 x)
 {
     __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
 
@@ -47,7 +47,7 @@ static inline __m256 log256_ps(__m256 x)
     __m256i emm0 = __lasx_xvsrl_w(ux, __lasx_xvreplgr2vr_w(23));
 
     /* keep only the fractional part */
-    ux = __lasx_xvand_v(ux, __lasx_xvreplgr2vr_w(c_inv_mant_mask));
+    ux = __lasx_xvand_v(ux, __lasx_xvreplgr2vr_w(c_inv_mant_mask_lasx));
     ux = __lasx_xvor_v(ux, __lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
     x = (__m256)(ux);
 
@@ -112,7 +112,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_exp_p4, 1.6666665459E-1);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_exp_p5, 5.0000001201E-1);
 
 /* exp() computed for 4 float at once */
-static inline __m256 exp256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
 {
     __m256 tmp, fx;
 
@@ -173,13 +173,13 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_cos_p1, -1.388731625493765E-003f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_cos_p2, 4.166664568298827E-002f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_FOPI, 1.27323954473516f); // 4/PI
 
-static inline __m256 sin256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
 {
     __m256 y;
     __m256i swap_sign_bit, poly_mask, sign_bit;
     __m256 n0p5 = __lasx_xvfmul_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_n1.i), (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
 
-    sign_bit = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
+    sign_bit = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
     x = (__m256)__lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x7fffffff));
 
     y = __lasx_xvfmul_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_cephes_FOPI.i));
@@ -224,7 +224,7 @@ static inline __m256 sin256_ps(__m256 x)
     return y;
 }
 
-static inline __m256 cos256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
 {
     __m256 y;
     __m256i swap_sign_bit, poly_mask, sign_bit;
@@ -275,13 +275,13 @@ static inline __m256 cos256_ps(__m256 x)
     return y;
 }
 
-static inline void sincos256_ps(__m256 x, __m256* s, __m256* c)
+static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256& s, __m256& c)
 {
     __m256 y;
     __m256i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
     __m256 n0p5 = __lasx_xvfmul_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_n1.i), (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
 
-    sign_bit_sin = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
+    sign_bit_sin = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
     x = (__m256)__lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x7fffffff));
 
     y = __lasx_xvfmul_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_cephes_FOPI.i));
@@ -331,17 +331,16 @@ static inline void sincos256_ps(__m256 x, __m256* s, __m256* c)
     ysin1 = __lasx_xvfadd_s(ysin1, ysin2);
     y = __lasx_xvfadd_s(y, y2);
 
-    *s = (__m256)__lasx_xvxor_v((__m256i)ysin1, sign_bit_sin);
-    *c = (__m256)__lasx_xvxor_v((__m256i)y, sign_bit_cos);
+    s = (__m256)__lasx_xvxor_v((__m256i)ysin1, sign_bit_sin);
+    c = (__m256)__lasx_xvxor_v((__m256i)y, sign_bit_cos);
 }
 
-static inline __m256 tan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
 {
     __m256 ysin, ycos;
     __m256 eps = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_eps.i);
-    __m256 zero = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i);
-    sincos256_ps(x, &ysin, &ycos);
-    __m256i mask = __lasx_xvfcmp_ceq_s(ycos, eps);
+    sincos256_ps(x, ysin, ycos);
+    __m256i mask = __lasx_xvfcmp_ceq_s(ycos, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
     mask = __lasx_xvand_v(mask, (__m256i)eps);
     ycos = __lasx_xvfadd_s(ycos, (__m256)mask);
     __m256 ytan = __lasx_xvfdiv_s(ysin, ycos);
@@ -358,14 +357,14 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_half_pi, 1.5707964f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_pi, 3.1415927f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_npi, -3.1415927f);
 
-static inline __m256 asin256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 asin256_ps(__m256 x)
 {
     __m256 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m256 is_big_input_one, output_approx, final_approx;
     __m256 tmp1, tmp2, tmp3, tmp4;
     __m256i mask, is_small_input, is_big_input;
 
-    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
+    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
     x = (__m256)__lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lasx_xvfcmp_cle_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
@@ -398,15 +397,15 @@ static inline __m256 asin256_ps(__m256 x)
     return final_approx;
 }
 
-static inline __m256 acos256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 acos256_ps(__m256 x)
 {
     __m256 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m256 output_approx, final_approx, small_final_approx, big_final_approx;
     __m256 tmp1, tmp2, tmp3, tmp4;
-    __m256i mask, mask2, is_small_input, is_big_input, lt_zero;
+    __m256i mask, is_small_input, is_big_input, lt_zero;
 
     lt_zero = __lasx_xvfcmp_clt_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
-    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
+    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
     x = (__m256)__lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lasx_xvfcmp_cle_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
@@ -454,13 +453,13 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x6, 0.04269152f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x7, -0.01606863f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x8, 0.0028498897f);
 
-static inline __m256 atan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
 {
     __m256i mask, is_small_input, is_big_input;
     __m256 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
     __m256 square_of_input_approx, fourth_power_of_input_approx;
 
-    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
+    mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
     x = (__m256)__lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x7fffffff));
 
     is_small_input = __lasx_xvfcmp_clt_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i), x);
@@ -492,9 +491,10 @@ static inline __m256 atan256_ps(__m256 x)
     return tmp1;
 }
 
-static inline __m256 atan2256_ps(__m256 y, __m256 x)
+static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 {
     __m256i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
+    __m256i negative_mask_full_x;
     __m256i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
     __m256 pi_additions, tmp1, tmp2, normal_result, special_result, final_result;
 
@@ -502,8 +502,8 @@ static inline __m256 atan2256_ps(__m256 y, __m256 x)
     not_eq_zero_y = __lasx_xvfcmp_cne_s(y, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
     eq_zero_y = __lasx_xvxor_v(not_eq_zero_y, __lasx_xvreplgr2vr_w(0xffffffff));
     normal_mode = __lasx_xvand_v(not_eq_zero_x, not_eq_zero_y);
-    negative_mask_x = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));
-    negative_mask_y = __lasx_xvand_v((__m256i)y, __lasx_xvreplgr2vr_w(0x80000000));
+    negative_mask_x = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000));
+    negative_mask_y = __lasx_xvand_v((__m256i)y, __lasx_xvreplgr2vr_w((int)0x80000000));
 
     lt_zero_mask_x = __lasx_xvfcmp_clt_s(x, (__m256)__lasx_xvreplgr2vr_w(0));
     lt_zero_mask_y = __lasx_xvfcmp_clt_s(y, (__m256)__lasx_xvreplgr2vr_w(0));
@@ -516,8 +516,11 @@ static inline __m256 atan2256_ps(__m256 y, __m256 x)
     normal_result = __lasx_xvfdiv_s(y, x);
     normal_result = __lasx_xvfadd_s(atan256_ps(normal_result), pi_additions);
 
-    tmp1 = (__m256)__lasx_xvand_v(negative_mask_y, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_half_pi.i));
-    tmp2 = (__m256)__lasx_xvand_v(negative_mask_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i));
+    tmp1 = (__m256)__lasx_xvor_v(negative_mask_y, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_half_pi.i));
+    negative_mask_full_x = __lasx_xvfcmp_clt_s(
+                               (__m256)__lasx_xvor_v(negative_mask_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i)),
+                               (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
+    tmp2 = (__m256)__lasx_xvand_v(negative_mask_full_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i));
     special_result = (__m256)__lasx_xvand_v(not_eq_zero_y, (__m256i)tmp1);
     special_result = (__m256)__lasx_xvor_v(__lasx_xvand_v(eq_zero_y, (__m256i)tmp2), (__m256i)special_result);
 
@@ -544,7 +547,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_tanh_beta_4, 1.18534705686654e-4f);
 _LOONGARCH_FLOAT_CONST_PS256(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
-static inline __m256 tanh256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
 {
     __m256 x2 = (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
     __m256i tiny_mask = __lasx_xvfcmp_clt_s((__m256)x2, (__m256)(__m256)__lasx_xvreplgr2vr_w(_ps256_c_tanh_tiny.i));
@@ -586,19 +589,174 @@ static inline __m256 tanh256_ps(__m256 x)
     return y;
 }
 
-static inline __m256 pow256_ps(__m256 a, __m256 b)
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_threshold, 0.927734375f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c0, -1.72853470e-5f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c1, 3.83197126e-4f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c2, -3.88396438e-3f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c3, 2.42546219e-2f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c4, -1.06777877e-1f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c5, -6.34846687e-1f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_c6, -1.28717512e-1f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p0, -5.96761703e-4f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p1, 4.99119423e-3f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p2, -2.67681349e-2f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p3, 1.12819925e-1f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p4, -3.76125336e-1f);
+_LOONGARCH_FLOAT_CONST_PS256(c_erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m256 erf256_ps(__m256 a)
+{
+    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+
+    __m256 t = (__m256)__lasx_xvbitclri_w((__m256i)a, 31);
+    __m256 s = __lasx_xvfmul_s(a, a);
+
+    __m256i mask = __lasx_xvfcmp_clt_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_threshold.i), t);
+
+    __m256 r1 = __lasx_xvfmadd_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c0.i), t, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c1.i));
+    __m256 u = __lasx_xvfmadd_s((__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c2.i), t, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c3.i));
+    r1 = __lasx_xvfmadd_s(r1, s, u);
+    r1 = __lasx_xvfmadd_s(r1, t, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c4.i));
+    r1 = __lasx_xvfmadd_s(r1, t, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c5.i));
+    r1 = __lasx_xvfmadd_s(r1, t, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_c6.i));
+    __m256 neg_t = (__m256)__lasx_xvbitrevi_w((__m256i)t, 31);
+    r1 = __lasx_xvfmadd_s(r1, t, neg_t);
+    r1 = __lasx_xvfsub_s(one, exp256_ps(r1));
+    r1 = (__m256)__lasx_xvor_v((__m256i)r1, __lasx_xvand_v((__m256i)a, __lasx_xvreplgr2vr_w(1 << 31)));
+
+    __m256 r2 = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p0.i);
+    r2 = __lasx_xvfmadd_s(r2, s, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p1.i));
+    r2 = __lasx_xvfmadd_s(r2, s, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p2.i));
+    r2 = __lasx_xvfmadd_s(r2, s, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p3.i));
+    r2 = __lasx_xvfmadd_s(r2, s, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p4.i));
+    r2 = __lasx_xvfmadd_s(r2, s, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_erf_p5.i));
+    r2 = __lasx_xvfmadd_s(r2, a, a);
+
+    __m256 r = (__m256)__lasx_xvbitsel_v((__m256i)r2, (__m256i)r1, mask);
+
+    return r;
+}
+
+static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(__lasx_xvfmul_s(b, log256_ps(a)));
 }
 
-static inline __m256 sigmoid256_ps(__m256 _v)
+static NCNN_FORCEINLINE __m256 sigmoid256_ps(__m256 _v)
 {
     __m256 _one = __lasx_xvreplfr2vr_s(1.f);
     _v = (__m256)__lasx_xvbitrevi_w((__m256i)_v, 31);
     _v = exp256_ps(_v);
     _v = __lasx_xvfadd_s(_v, _one);
     return __lasx_xvfdiv_s(_one, _v);
+}
+
+static NCNN_FORCEINLINE __m256 fmod256_ps(__m256 a, __m256 b)
+{
+    // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    __m256 qf = (__m256)__lasx_xvfrintrz_s(q);
+    return __lasx_xvfsub_s(a, __lasx_xvfmul_s(qf, b));
+}
+
+static NCNN_FORCEINLINE __m256 round256_ps(__m256 x)
+{
+    return (__m256)__lasx_xvfrintrne_s(x);
+}
+
+static NCNN_FORCEINLINE __m256 logaddexp256_ps(__m256 a, __m256 b)
+{
+    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+    __m256 max_xy = __lasx_xvfmax_s(a, b);
+    __m256 min_xy = __lasx_xvfmin_s(a, b);
+    __m256 diff = __lasx_xvfsub_s(min_xy, max_xy);
+    __m256 exp_diff = exp256_ps(diff);
+    __m256 one_plus_exp = __lasx_xvfadd_s(one, exp_diff);
+    __m256 log_result = log256_ps(one_plus_exp);
+    return __lasx_xvfadd_s(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m256 abs256_ps(__m256 x)
+{
+    return (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
+}
+
+static NCNN_FORCEINLINE __m256 expm1256_ps(__m256 x)
+{
+    __m256 x2 = __lasx_xvfmul_s(x, x);
+    __m256 poly = __lasx_xvfadd_s(x, __lasx_xvfmul_s(x2, __lasx_xvfadd_s(__lasx_xvreplfr2vr_s(0.5f), __lasx_xvfmul_s(x, __lasx_xvreplfr2vr_s(1.0f / 6.0f)))));
+    __m256 y = __lasx_xvfsub_s(exp256_ps(x), __lasx_xvreplfr2vr_s(1.f));
+    __m256i mask = __lasx_xvfcmp_clt_s(abs256_ps(x), __lasx_xvreplfr2vr_s(1e-4f));
+    return (__m256)__lasx_xvbitsel_v((__m256i)y, (__m256i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m256 log1p256_ps(__m256 x)
+{
+    __m256 x2 = __lasx_xvfmul_s(x, x);
+    __m256 poly = __lasx_xvfadd_s(x, __lasx_xvfmul_s(x2, __lasx_xvfadd_s(__lasx_xvreplfr2vr_s(-0.5f), __lasx_xvfmul_s(x, __lasx_xvreplfr2vr_s(1.0f / 3.0f)))));
+    __m256 y = log256_ps(__lasx_xvfadd_s(__lasx_xvreplfr2vr_s(1.f), x));
+    __m256i mask = __lasx_xvfcmp_clt_s(abs256_ps(x), __lasx_xvreplfr2vr_s(1e-4f));
+    return (__m256)__lasx_xvbitsel_v((__m256i)y, (__m256i)poly, mask);
+}
+
+static NCNN_FORCEINLINE __m256 sinh256_ps(__m256 x)
+{
+    __m256 expm1_x = expm1256_ps(x);
+    __m256 expm1_neg_x = expm1256_ps(__lasx_xvfsub_s(__lasx_xvreplfr2vr_s(0.f), x));
+    return __lasx_xvfmul_s(__lasx_xvfsub_s(expm1_x, expm1_neg_x), __lasx_xvreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 asinh256_ps(__m256 x)
+{
+    __m256 ax = abs256_ps(x);
+    __m256 x2 = __lasx_xvfmul_s(ax, ax);
+    __m256 y = log256_ps(__lasx_xvfadd_s(ax, __lasx_xvfsqrt_s(__lasx_xvfadd_s(x2, __lasx_xvreplfr2vr_s(1.f)))));
+    __m256 y_large = __lasx_xvfadd_s(log256_ps(ax), __lasx_xvreplfr2vr_s(0.6931471805599453f));
+    __m256i mask = __lasx_xvfcmp_clt_s(__lasx_xvreplfr2vr_s(1e19f), ax);
+    y = (__m256)__lasx_xvbitsel_v((__m256i)y, (__m256i)y_large, mask);
+    return (__m256)__lasx_xvor_v((__m256i)y, __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w((int)0x80000000)));
+}
+
+static NCNN_FORCEINLINE __m256 cosh256_ps(__m256 x)
+{
+    __m256 exp_x = exp256_ps(x);
+    __m256 exp_neg_x = exp256_ps(__lasx_xvfsub_s(__lasx_xvreplfr2vr_s(0.f), x));
+    return __lasx_xvfmul_s(__lasx_xvfadd_s(exp_x, exp_neg_x), __lasx_xvreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 acosh256_ps(__m256 x)
+{
+    __m256 one = __lasx_xvreplfr2vr_s(1.f);
+    __m256 y = log256_ps(__lasx_xvfadd_s(x, __lasx_xvfmul_s(__lasx_xvfsqrt_s(__lasx_xvfsub_s(x, one)), __lasx_xvfsqrt_s(__lasx_xvfadd_s(x, one)))));
+    __m256 y_large = __lasx_xvfadd_s(log256_ps(x), __lasx_xvreplfr2vr_s(0.6931471805599453f));
+    __m256i mask = __lasx_xvfcmp_clt_s(__lasx_xvreplfr2vr_s(1e19f), x);
+    return (__m256)__lasx_xvbitsel_v((__m256i)y, (__m256i)y_large, mask);
+}
+
+static NCNN_FORCEINLINE __m256 atanh256_ps(__m256 x)
+{
+    __m256 log_pos = log1p256_ps(x);
+    __m256 log_neg = log1p256_ps(__lasx_xvfsub_s(__lasx_xvreplfr2vr_s(0.f), x));
+    return __lasx_xvfmul_s(__lasx_xvfsub_s(log_pos, log_neg), __lasx_xvreplfr2vr_s(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 floor256_ps(__m256 x)
+{
+    return (__m256)__lasx_xvfrintrm_s(x);
+}
+
+static NCNN_FORCEINLINE __m256 floor_divide256_ps(__m256 a, __m256 b)
+{
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    return floor256_ps(q);
+}
+
+static NCNN_FORCEINLINE __m256 remainder256_ps(__m256 a, __m256 b)
+{
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    __m256 rq = round256_ps(q);
+    return __lasx_xvfsub_s(a, __lasx_xvfmul_s(rq, b));
 }
 
 #endif // LASX_MATHFUN_H

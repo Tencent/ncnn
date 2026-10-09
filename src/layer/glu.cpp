@@ -201,6 +201,141 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
         return 0;
     } // if (dims == 3 && positive_axis == 2)
 
+    if (dims == 4 && positive_axis == 0)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int c = bottom_blob.c;
+
+        int out_w = w;
+        int out_h = h;
+        int out_d = d;
+        int out_c = c / 2;
+
+        top_blob.create(out_w, out_h, out_d, out_c, sizeof(float), opt.blob_allocator);
+
+        size_t offset = out_c * bottom_blob.cstep;
+        int size = w * h * d;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < out_c; ++q)
+        {
+            const float* in_ptr = bottom_blob.channel(q);
+            float* out_ptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; ++i)
+            {
+                float sigmoid = 1.f / (1.f + expf(-in_ptr[i + offset]));
+                out_ptr[i] = in_ptr[i] * sigmoid;
+            }
+        }
+        return 0;
+    } // if (dims == 4 && positive_axis == 0)
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int c = bottom_blob.c;
+
+        int out_w = w;
+        int out_h = h;
+        int out_d = d / 2;
+        int out_c = c;
+
+        top_blob.create(out_w, out_h, out_d, out_c, sizeof(float), opt.blob_allocator);
+
+        int offset = out_d * out_h * out_w;
+        int size = offset;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; ++q)
+        {
+            const float* in_ptr = bottom_blob.channel(q);
+            float* out_ptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; ++i)
+            {
+                float sigmoid = 1.f / (1.f + expf(-in_ptr[i + offset]));
+                out_ptr[i] = in_ptr[i] * sigmoid;
+            }
+        }
+        return 0;
+    } // if (dims == 4 && positive_axis == 1)
+
+    if (dims == 4 && positive_axis == 2)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int c = bottom_blob.c;
+
+        int out_w = w;
+        int out_h = h / 2;
+        int out_d = d;
+        int out_c = c;
+
+        top_blob.create(out_w, out_h, out_d, out_c, sizeof(float), opt.blob_allocator);
+
+        int offset = out_h * out_w;
+        int size = offset;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; ++q)
+        {
+            for (int z = 0; z < d; ++z)
+            {
+                const float* in_ptr = bottom_blob.channel(q).depth(z);
+                float* out_ptr = top_blob.channel(q).depth(z);
+
+                for (int i = 0; i < size; ++i)
+                {
+                    float sigmoid = 1.f / (1.f + expf(-in_ptr[i + offset]));
+                    out_ptr[i] = in_ptr[i] * sigmoid;
+                }
+            }
+        }
+        return 0;
+    } // if (dims == 4 && positive_axis == 2)
+
+    if (dims == 4 && positive_axis == 3)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int c = bottom_blob.c;
+
+        int out_w = w / 2;
+        int out_h = h;
+        int out_d = d;
+        int out_c = c;
+
+        top_blob.create(out_w, out_h, out_d, out_c, sizeof(float), opt.blob_allocator);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; ++q)
+        {
+            for (int z = 0; z < d; ++z)
+            {
+                const Mat m = bottom_blob.channel(q).depth(z);
+                Mat outm = top_blob.channel(q).depth(z);
+                for (int y = 0; y < h; ++y)
+                {
+                    const float* in_ptr = m.row(y);
+                    float* out_ptr = outm.row(y);
+                    for (int x = 0; x < out_w; ++x)
+                    {
+                        float sigmoid = 1.f / (1.f + expf(-in_ptr[x + out_w]));
+                        out_ptr[x] = in_ptr[x] * sigmoid;
+                    }
+                }
+            }
+        }
+        return 0;
+    } // if (dims == 4 && positive_axis == 3)
+
     return -100;
 }
 

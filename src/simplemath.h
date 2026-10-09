@@ -11,6 +11,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef INFINITY
+#define INFINITY (1.0f / 0.0f)
+#endif
+
 /*
 * ====================================================
 * discrete functions
@@ -64,6 +69,7 @@ NCNN_EXPORT float powf(float, float);
 * ====================================================
 */
 NCNN_EXPORT float expf(float);
+NCNN_EXPORT float expm1f(float);
 NCNN_EXPORT float frexp(float, int*);
 NCNN_EXPORT float logf(float);
 NCNN_EXPORT float log(float);

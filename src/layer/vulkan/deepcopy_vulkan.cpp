@@ -22,9 +22,9 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     std::vector<vk_specialization_type> specializations(0 + 5);
-    specializations[0 + 0].i = shape.dims;
+    specializations[0 + 0].i = std::min(3, shape.dims);
     specializations[0 + 1].i = shape.w;
-    specializations[0 + 2].i = shape.h;
+    specializations[0 + 2].i = shape.h * shape.d;
     specializations[0 + 3].i = shape.c;
     specializations[0 + 4].i = shape.cstep;
 
@@ -45,6 +45,12 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, out_shape.w);
         local_size_xyz.h = std::min(4, out_shape.h);
+        local_size_xyz.c = std::min(4, out_shape.c);
+    }
+    if (out_shape.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
         local_size_xyz.c = std::min(4, out_shape.c);
     }
 
@@ -91,9 +97,9 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     bindings[1] = top_blob;
 
     std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_blob.dims;
+    constants[0].i = std::min(3, bottom_blob.dims);
     constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
+    constants[2].i = bottom_blob.h * bottom_blob.d;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
 

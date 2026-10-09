@@ -38,7 +38,15 @@ public:
         Operation_TANH = 16,
         Operation_LOG10 = 17,
         Operation_ROUND = 18,
-        Operation_TRUNC = 19
+        Operation_TRUNC = 19,
+        Operation_SIGN = 20,
+        Operation_EXPM1 = 21,
+        Operation_SINH = 22,
+        Operation_ASINH = 23,
+        Operation_COSH = 24,
+        Operation_ACOSH = 25,
+        Operation_ATANH = 26,
+        Operation_LOG1P = 27
     };
 
 public:

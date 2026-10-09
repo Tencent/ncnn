@@ -1,4 +1,5 @@
 // Copyright 2019 Leo <leo@nullptr.com.cn>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_ABSVAL_MIPS_H
@@ -14,6 +15,9 @@ public:
     AbsVal_mips();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+    int forward_inplace_bf16s_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

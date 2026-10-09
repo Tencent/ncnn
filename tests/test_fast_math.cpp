@@ -1,201 +1,124 @@
-// Copyright 2021 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "datareader.h"
 #include "gpu.h"
-#include "mat.h"
-#include "net.h"
+#include "layer_shader_type.h"
 #include "testutil.h"
-#include "benchmark.h" // For ncnn::get_current_time()
 
-#include <cstdio>
-#include <vector>
-#include <cstring> // For memset
-
-int device_index = 0;
-
-// A data reader that provides zero-filled data, useful for loading models without actual weights.
-class DataReaderFromEmpty : public ncnn::DataReader
+static int test_fast_math(bool fp16_packed, bool fp16_storage, bool fp16_arithmetic)
 {
-public:
-    virtual int scan(const char* format, void* p) const
-    {
-        (void)format; // unused
-        (void)p;      // unused
-        return 0;
-    }
-    virtual size_t read(void* buf, size_t size) const
-    {
-        memset(buf, 0, size);
-        return size;
-    }
-};
+    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
 
-// The main test function to compare default vs. fast math performance.
-static int test_vulkan_fast_math()
-{
-    // Define model path based on environment
-    // Create a random input matrix
-    ncnn::Mat input = RandomMat(224, 224, 3);
-    DataReaderFromEmpty dr;
+    ncnn::Option opt;
+    opt.use_subgroup_ops = false;
+    opt.use_cooperative_matrix = false;
+    opt.use_fp16_packed = fp16_packed && info.support_fp16_packed();
+    opt.use_fp16_storage = fp16_storage && info.support_fp16_storage();
+    opt.use_fp16_arithmetic = fp16_arithmetic && info.support_fp16_arithmetic();
 
-#ifdef __EMSCRIPTEN__
-#define MODEL_DIR "/working"
-#else
-#define MODEL_DIR "../../benchmark"
-#endif
-
-    // ==================================================
-    // 1. Setup Net with Default Options
-    // ==================================================
-    printf("==================================================\n");
-    printf("         Testing with Default Vulkan Options      \n");
-    printf("==================================================\n");
-    ncnn::Net net_default;
-    net_default.opt.use_vulkan_compute = true;
-    net_default.opt.vulkan_device_index = device_index;
-    net_default.opt.use_fp16_arithmetic = false;
-    net_default.opt.use_fp16_storage = false;
-    net_default.opt.use_fp16_packed = false;
-
-    net_default.load_param(MODEL_DIR "/resnet50.param");
-    net_default.load_model(dr);
-    printf("Default net loaded successfully.\n");
-
-    // ==================================================
-    // 2. Setup Net with Fast Math Options
-    // ==================================================
-    printf("\n==================================================\n");
-    printf("        Testing with Vulkan Fast Math Options     \n");
-    printf("==================================================\n");
-    ncnn::Net net_fast_math;
-    net_fast_math.opt.use_vulkan_compute = true;
-    net_fast_math.opt.vk_fast_math_flag = ncnn::Option::VK_FAST_MATH_FLAG_AllowContract;
-
-    net_fast_math.opt.vulkan_device_index = device_index;
-    net_fast_math.opt.use_fp16_arithmetic = false;
-    net_fast_math.opt.use_fp16_packed = false;
-    net_fast_math.opt.use_fp16_storage = false;
-
-    net_fast_math.load_param(MODEL_DIR "/resnet50.param");
-    net_fast_math.load_model(dr);
-    printf("Fast math net loaded successfully.\n");
-
-    // ==================================================
-    // 3. Warm-up Run
-    // ==================================================
-    printf("\n==================================================\n");
-    printf("             Warming up both networks...          \n");
-    printf("==================================================\n");
-    ncnn::Mat output_default, output_fast_math;
-    {
-        ncnn::Extractor ex = net_default.create_extractor();
-        ex.input("data", input);
-        ex.extract("output", output_default);
-    }
-    {
-        ncnn::Extractor ex = net_fast_math.create_extractor();
-        ex.input("data", input);
-        ex.extract("output", output_fast_math);
-    }
-    printf("Warm-up complete.\n");
-
-    // ==================================================
-    // 4. Benchmark Performance
-    // ==================================================
-    printf("\n==================================================\n");
-    printf("             Benchmarking Performance           \n");
-    printf("==================================================\n");
-    const int loop_count = 10;
-    double time_default = 0;
-    double time_fast_math = 0;
-
-    // Benchmark default net
-    {
-        double start = ncnn::get_current_time();
-        for (int i = 0; i < loop_count; i++)
-        {
-            ncnn::Extractor ex = net_default.create_extractor();
-            ex.input("data", input);
-            ex.extract("output", output_default);
-        }
-        double end = ncnn::get_current_time();
-        time_default = (end - start) / loop_count;
-        printf("Default Net Average Time:      %.2f ms\n", time_default);
-    }
-
-    // Benchmark fast math net
-    {
-        double start = ncnn::get_current_time();
-        for (int i = 0; i < loop_count; i++)
-        {
-            ncnn::Extractor ex = net_fast_math.create_extractor();
-            ex.input("data", input);
-            ex.extract("output", output_fast_math);
-        }
-        double end = ncnn::get_current_time();
-        time_fast_math = (end - start) / loop_count;
-        printf("Fast Math Net Average Time:    %.2f ms\n", time_fast_math);
-    }
-
-    // ==================================================
-    // 5. Verification and Summary
-    // ==================================================
-    printf("\n==================================================\n");
-    printf("              Verification and Summary            \n");
-    printf("==================================================\n");
-
-    // Compare results. A larger tolerance is needed due to fast math optimizations.
-    int ret = CompareMat(output_default, output_fast_math, 0.01f);
-    printf("Output comparison result (0 means success): %d\n", ret);
+    std::vector<uint32_t> spirv;
+    int ret = ncnn::compile_spirv_module(ncnn::LayerShaderType::absval, opt, spirv);
     if (ret != 0)
+        return ret;
+
+    std::vector<uint32_t> float_types;
+    std::vector<uint32_t> fast_math_types;
+    uint32_t fast_math_id = 0;
+    uint32_t fast_math_flags = 0;
+    for (size_t i = 5; i < spirv.size();)
     {
-        fprintf(stderr, "Warning: Output mismatch is larger than tolerance. Fast math might be affecting precision significantly.\n");
-    }
-    else
-    {
-        printf("Output verification: SUCCESS (within tolerance)\n");
+        uint32_t wordcount = spirv[i] >> 16;
+        uint32_t op = spirv[i] & 0xffff;
+
+        if (op == 22) // floating-point type
+        {
+            float_types.push_back(spirv[i + 1]);
+        }
+        else if (op == 331 && spirv[i + 2] == 6028) // default fast math execution mode
+        {
+            fast_math_types.push_back(spirv[i + 3]);
+            fast_math_id = spirv[i + 4];
+        }
+        else if (op == 43 && spirv[i + 2] == fast_math_id) // fast math constant
+        {
+            fast_math_flags = spirv[i + 3];
+        }
+
+        i += wordcount;
     }
 
-    printf("--------------------------------------------------\n");
-    printf("Performance Summary:\n");
-    printf("  - Default Net:   %.2f ms\n", time_default);
-    printf("  - Fast Math Net: %.2f ms\n", time_fast_math);
-
-    if (time_default > 0 && time_fast_math > 0)
+    if (info.support_fp_fast_math())
     {
-        double speedup = (time_default - time_fast_math) / time_default * 100;
-        printf("  - Speedup:       %.2f%%\n", speedup);
+        if (spirv[1] < 0x10200 || float_types.empty() || fast_math_types != float_types || fast_math_flags != 0x7000f)
+        {
+            fprintf(stderr, "test_fast_math failed fp16_packed=%d fp16_storage=%d fp16_arithmetic=%d\n", fp16_packed, fp16_storage, fp16_arithmetic);
+            return -1;
+        }
+    }
+    else if (!fast_math_types.empty())
+    {
+        fprintf(stderr, "test_fast_math enabled on unsupported device\n");
+        return -1;
     }
 
-    printf("\nTest finished.\n");
+    ncnn::ParamDict pd;
+    std::vector<ncnn::Mat> weights;
+    return test_layer_opt("AbsVal", pd, weights, opt, RandomMat(13, 7, 5));
+}
+
+static int test_fast_math_precise()
+{
+    const char shader[] = "#version 450\n"
+                          "layout(binding = 0) buffer data { float values[]; };\n"
+                          "void main()\n"
+                          "{\n"
+                          "    uint i = gl_GlobalInvocationID.x;\n"
+                          "    precise float v = values[i] * 2.0 + values[i];\n"
+                          "    values[i] = v;\n"
+                          "}\n";
+
+    ncnn::Option opt;
+    std::vector<uint32_t> spirv;
+    int ret = ncnn::compile_spirv_module(shader, opt, spirv);
+    if (ret != 0)
+        return ret;
+
+    bool no_contraction = false;
+    for (size_t i = 5; i < spirv.size();)
+    {
+        uint32_t wordcount = spirv[i] >> 16;
+        uint32_t op = spirv[i] & 0xffff;
+        if ((op == 16 || op == 331) && spirv[i + 2] == 6028)
+        {
+            fprintf(stderr, "test_fast_math_precise enabled fast math\n");
+            return -1;
+        }
+        if (op == 71 && spirv[i + 2] == 42)
+            no_contraction = true;
+
+        i += wordcount;
+    }
+
+    if (!no_contraction)
+    {
+        fprintf(stderr, "test_fast_math_precise lost no contraction decoration\n");
+        return -1;
+    }
+
     return 0;
 }
 
-int main(int argc, char** argv)
+int main()
 {
-    if (argc >= 2)
-    {
-        device_index = atoi(argv[1]);
-    }
-
-    int gpu_count = ncnn::get_gpu_count();
-    if (device_index < 0 || device_index >= gpu_count)
-    {
-        fprintf(stderr, "Invalid GPU device index %d. The valid range is [0, %d-1]. Using default device 0.\n", device_index, gpu_count);
-        device_index = 0;
-    }
-    if (!ncnn::get_gpu_device(device_index)->info.support_VK_KHR_shader_float_controls2())
-    {
-        fprintf(stderr, "The selected device does not support VK_KHR_shader_float_controls2. Fast math tests may not be valid.\n");
+    if (ncnn::get_gpu_count() == 0)
         return 0;
-    }
 
-    // Set the default device for all ncnn operations.
-    printf("Using Vulkan Device: %d\n", device_index);
+    SRAND(7767517);
 
-    // Run the performance test.
-    int ret = test_vulkan_fast_math();
-
-    return ret;
+    return 0
+           || test_fast_math(false, false, false)
+           || test_fast_math(true, false, true)
+           || test_fast_math(true, true, false)
+           || test_fast_math(true, true, true)
+           || test_fast_math_precise();
 }

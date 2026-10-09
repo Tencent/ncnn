@@ -47,7 +47,7 @@ void main()
 
         sum = v0 + v1;
     }
-    else if (sx == p.w - 2)
+    else if (sx == p.w - 3)
     {
         float v0 = square_blob_data[v_offset];
         float v1 = square_blob_data[v_offset + 1];

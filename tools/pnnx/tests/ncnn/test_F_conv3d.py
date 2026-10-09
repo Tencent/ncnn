@@ -13,10 +13,12 @@ class Model(nn.Module):
         self.b2 = nn.Parameter(torch.rand(12))
         self.w3 = nn.Parameter(torch.rand(6, 4, 3, 3, 3))
 
-    def forward(self, y):
+    def forward(self, y, q):
         y = F.conv3d(y, self.w2, self.b2, stride=(2,2,2), padding=(2,2,2))
         y = F.conv3d(y, self.w3, None, stride=(2,2,2), padding=(1,1,1), groups=3)
-        return y
+        q = F.conv3d(q, self.w2, self.b2, stride=(2,2,2), padding=(2,2,2))
+        q = F.conv3d(q, self.w3, None, stride=(2,2,2), padding=(1,1,1), groups=3)
+        return y, q
 
 def test():
     net = Model().half().float()
@@ -24,22 +26,26 @@ def test():
 
     torch.manual_seed(0)
     y = torch.rand(1, 6, 12, 11, 10)
+    q = torch.rand(2, 6, 12, 11, 10)
 
-    a = net(y)
+    a = net(y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, y)
+    mod = torch.jit.trace(net, (y, q))
     mod.save("test_F_conv3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_conv3d.pt inputshape=[1,6,12,11,10]")
+    os.system("../../src/pnnx test_F_conv3d.pt inputshape=[1,6,12,11,10],[2,6,12,11,10]")
 
     # ncnn inference
     import test_F_conv3d_ncnn
     b = test_F_conv3d_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

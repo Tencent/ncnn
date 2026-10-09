@@ -115,11 +115,7 @@ static inline float16x4_t activation_ps_f16(float16x4_t _v, int activation_type,
     else if (activation_type == 2)
     {
         const float16x4_t _zero = vdup_n_f16(0.f);
-#if defined(_MSC_VER) && !defined(__clang__)
-        const float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
-#else
         const float16x4_t _slope = vdup_n_f16((__fp16)activation_params[0]);
-#endif
         const uint16x4_t _lemask = vcle_f16(_v, _zero);
         float16x4_t _ps = vmul_f16(_v, _slope);
         _v = vbsl_f16(_lemask, _ps, _v);
@@ -165,12 +161,7 @@ static inline float16x8_t activation_ps_f16(float16x8_t _v, int activation_type,
     else if (activation_type == 2)
     {
         const float16x8_t _zero = vdupq_n_f16(0.f);
-#if defined(_MSC_VER) && !defined(__clang__)
-        const float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
-        const float16x8_t _slope = vcombine_f16(_slope0, _slope0);
-#else
         const float16x8_t _slope = vdupq_n_f16((__fp16)activation_params[0]);
-#endif
         const uint16x8_t _lemask = vcleq_f16(_v, _zero);
         float16x8_t _ps = vmulq_f16(_v, _slope);
         _v = vbslq_f16(_lemask, _ps, _v);
