@@ -42,6 +42,8 @@ find images/ -type f > imagelist.txt
 
 To use percentile calibration, set `method=percentile`. The optional `percentile` argument accepts one value or a list of candidate values in `(0, 1]`; ncnn2table will select the candidate with the lowest quantization error.
 
+Percentile calibration uses the absolute input activation values, including zeros, of Convolution, ConvolutionDepthWise and InnerProduct layers. It does not calibrate the dynamic inputs of Gemm or MultiHeadAttention.
+
 ```shell
 ./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=percentile
 ```
@@ -112,6 +114,8 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ```shell
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
+
+For Gemm layers, ncnn2int8 uses `<layer_name>_param_0` scales for constant A and `<layer_name>_param_1` for constant B when present in the table. If none of the required Gemm scales are present, it computes them using absmax, preserving compatibility with older tables and conversion without a table. If some required scales are present but others are missing, or the number of values is incorrect, conversion fails without saving the output model.
 
 ## Block quantized Gemm and MultiHeadAttention
 

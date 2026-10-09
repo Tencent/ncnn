@@ -53,6 +53,7 @@ public:
         threshold = 0.f;
         absmax = 0.f;
         percentile = 0.f;
+        zero_count = 0;
         total = 0;
     }
 
@@ -60,6 +61,7 @@ public:
     float threshold;
     float absmax;
     float percentile;
+    uint64_t zero_count;
 
     // ACIQ
     int total;
@@ -902,6 +904,7 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         stat.threshold = 0.f;
         stat.absmax = 0.f;
         stat.percentile = 0.f;
+        stat.zero_count = 0;
         stat.histogram.clear();
         stat.histogram_normed.clear();
     }
@@ -1039,6 +1042,7 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
                 const float absmax = quant_blob_stats[j].absmax;
 
                 std::vector<uint64_t> histogram(num_histogram_bins, 0);
+                uint64_t zero_count = 0;
 
                 const int outc = out.c;
                 const int outsize = out.w * out.h;
@@ -1048,7 +1052,10 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
                     for (int k = 0; k < outsize; k++)
                     {
                         if (ptr[k] == 0.f)
+                        {
+                            zero_count++;
                             continue;
+                        }
 
                         const int index = std::min((int)(fabs(ptr[k]) / absmax * num_histogram_bins), (num_histogram_bins - 1));
 
@@ -1060,6 +1067,7 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
                 {
                     QuantBlobStat& stat = quant_blob_stats[j];
 
+                    stat.zero_count += zero_count;
                     for (int k = 0; k < num_histogram_bins; k++)
                     {
                         stat.histogram[k] += histogram[k];
@@ -1300,7 +1308,7 @@ int QuantNet::quantize_percentile(const std::vector<float>& percentiles)
     {
         QuantBlobStat& stat = quant_blob_stats[i];
 
-        uint64_t sum = 0;
+        uint64_t sum = stat.zero_count;
         for (int j = 0; j < num_histogram_bins; j++)
         {
             sum += stat.histogram[j];
@@ -1325,7 +1333,7 @@ int QuantNet::quantize_percentile(const std::vector<float>& percentiles)
             if (target_count == 0)
                 target_count = 1;
 
-            uint64_t cumsum = 0;
+            uint64_t cumsum = stat.zero_count;
             int threshold = num_histogram_bins - 1;
 
             for (int j = 0; j < num_histogram_bins; j++)
