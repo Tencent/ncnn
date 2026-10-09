@@ -5644,12 +5644,12 @@ static void inject_fast_math(std::vector<uint32_t>& spirv)
         i += wordcount;
     }
 
-    if (float_type_ids.empty() || uint32_type_id == 0)
+    if (float_type_ids.empty())
         return;
 
     const uint32_t fast_math_id = spirv[3];
     std::vector<uint32_t> code;
-    code.reserve(spirv.size() + 13 + float_type_ids.size() * 5);
+    code.reserve(spirv.size() + 17 + float_type_ids.size() * 5);
     code.insert(code.end(), spirv.begin(), spirv.begin() + 5);
     code[3] = fast_math_id + 1;
 
@@ -5682,6 +5682,15 @@ static void inject_fast_math(std::vector<uint32_t>& spirv)
         }
         if (i == function_pos)
         {
+            if (uint32_type_id == 0)
+            {
+                uint32_type_id = code[3]++;
+                code.push_back((4u << 16) | 21); // integer type
+                code.push_back(uint32_type_id);
+                code.push_back(32);
+                code.push_back(0);
+            }
+
             // match the default vulkan floating-point environment
             code.push_back((4u << 16) | 43); // constant
             code.push_back(uint32_type_id);
