@@ -1417,6 +1417,103 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
     }
 }
 
+/* M=1（解码 GEMV）专用 int8 内核。
+ * 背景：通用内核的向量化路径要求 max_ii >= packn（A100 上 32）、2 行路径要求 >= 2，
+ * 解码的 M=1 两者都不满足，落到"逐字节标量取权重"的尾部路径
+ * （`pB[0] | pB[1]<<8 | ...`，约 1 字节/周期 ≈ 1.9 GB/s；实测 Gemm 2.22ms/次与之一致）。
+ *
+ * B 的打包布局经经验测定（bench/int8_pack_probe.cpp）：BT[k*8 + c] = B[列 c][第 k 个值]，
+ * 8 列为一组、组跨步 = 8K 字节。于是"同一个 k 的 8 列"正好是连续 8 字节 —— 一次 vle8 取完，
+ * 取代原来的 8 次标量字节 load；乘累加用 vwmacc（i16×i16→i32）。
+ * 数学顺序与通用内核一致：按 block 累加 i32 → 乘 A 的 descale → 再乘该 block 各列的 B descale。
+ */
+static void gemm_transB_packed_tile_wq_int8_m1(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_jj, int k, int max_kk, int K, int block_size)
+{
+    const signed char* pAT = AT_tile;
+    const float* pAT_descales = AT_descales_tile;
+    const signed char* pBT = BT_tile;
+    const float* pBT_descales = BT_descales_tile;
+    float* outptr = topT_tile;
+
+    const int block_count = (K + block_size - 1) / block_size;
+    const int block_start = k / block_size;
+    const int local_block_count = (max_kk + block_size - 1) / block_size;
+
+    /* 驱动侧 topT.w = mr*nr，列间行距 = mr；本内核只处理 M=1，故 mr = 1。
+     * （实测 dump：M=1 时 topT.w = 1*nr）——这与通用内核使用的 packn 行距不同。 */
+    const int packn = 1;
+
+    int jj = 0;
+#if __riscv_vector
+    const size_t vl8 = __riscv_vsetvl_e8m1(8);
+    const size_t vlmax32 = __riscv_vsetvlmax_e32m4();
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const signed char* pB = pBT + (size_t)jj * K + (size_t)8 * k;
+        const float* pD = pBT_descales + (size_t)jj * block_count;
+
+        vfloat32m1_t _fsum;
+        if (k == 0)
+            _fsum = __riscv_vfmv_v_f_f32m1(0.f, vl8);
+        else
+        {
+            /* 列 c 的第 0 行在 outptr[(jj+c)*packn] —— 逐列取（8 次标量，量小） */
+            float tmp[8];
+            for (int c = 0; c < 8; c++) tmp[c] = outptr[(size_t)(jj + c) * packn];
+            _fsum = __riscv_vle32_v_f32m1(tmp, vl8);
+        }
+
+        for (int g = 0; g < local_block_count; g++)
+        {
+            const int max_kk0 = std::min(block_size, max_kk - g * block_size);
+            vint32m4_t _sum = __riscv_vmv_v_x_i32m4(0, vlmax32);
+
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                vint8m1_t _b8 = __riscv_vle8_v_i8m1(pB + (size_t)8 * kk, vl8);
+                vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(_b8, 0, vl8);
+                const int a = (int)pAT[g * block_size + kk];
+                _sum = __riscv_vwmacc_vx_i32m4(_sum, (short)a, _b16, vl8);
+            }
+
+            vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(
+                                  __riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m4_i32m1(_sum, 0), vl8),
+                                  pAT_descales[g], vl8);
+            vfloat32m1_t _bd = __riscv_vle32_v_f32m1(pD + (size_t)8 * (block_start + g), vl8);
+            _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _v, _bd, vl8);
+        }
+        {
+            float tmp[8];
+            __riscv_vse32_v_f32m1(tmp, _fsum, vl8);
+            for (int c = 0; c < 8; c++) outptr[(size_t)(jj + c) * packn] = tmp[c];
+        }
+    }
+#endif // __riscv_vector
+
+    // 尾部（不足 8 列）：沿用通用内核的标量逐列写法，保证正确性
+    for (; jj < max_jj; jj++)
+    {
+        float* orow = outptr + (size_t)jj * packn;
+        float fsum;
+        if (k == 0)
+            fsum = 0.f;
+        else
+            fsum = orow[0];
+
+        for (int g = 0; g < local_block_count; g++)
+        {
+            const int max_kk0 = std::min(block_size, max_kk - g * block_size);
+            int sum = 0;
+            const signed char* pB = pBT + (size_t)jj * K + k + (size_t)g * block_size;
+            for (int kk = 0; kk < max_kk0; kk++)
+                sum += (int)pAT[g * block_size + kk] * (int)pB[kk];
+
+            fsum += pBT_descales[(size_t)jj * block_count + block_start + g] * ((float)sum * pAT_descales[g]);
+        }
+        orow[0] = fsum;
+    }
+}
+
 static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {
     const signed char* pAT = AT_tile;
