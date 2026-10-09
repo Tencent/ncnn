@@ -608,7 +608,49 @@ int NetQuantize::quantize_gemm()
 
         fprintf(stderr, "quantize_gemm %s\n", gemm->name.c_str());
 
-        // TODO move to ncnn2table
+        ncnn::Mat A_data_int8_scales;
+        ncnn::Mat B_data_int8_scales;
+
+        char key_a[256];
+        char key_b[256];
+        snprintf(key_a, 256, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key_b, 256, "%s_param_1", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter_a = weight_int8scale_table.find(key_a);
+        std::map<std::string, ncnn::Mat>::iterator iter_b = weight_int8scale_table.find(key_b);
+
+        const bool has_weight_scales = (gemm->constantA && iter_a != weight_int8scale_table.end()) || (gemm->constantB && iter_b != weight_int8scale_table.end());
+
+        if (has_weight_scales && gemm->constantA)
+        {
+            if (iter_a == weight_int8scale_table.end())
+            {
+                fprintf(stderr, "gemm %s missing scale %s, regenerate the table with ncnn2table\n", gemm->name.c_str(), key_a);
+                return -1;
+            }
+
+            A_data_int8_scales = iter_a->second;
+            if (A_data_int8_scales.w != gemm->constantM)
+            {
+                fprintf(stderr, "gemm %s param_0 scale size mismatch\n", gemm->name.c_str());
+                return -1;
+            }
+        }
+
+        if (has_weight_scales && gemm->constantB)
+        {
+            if (iter_b == weight_int8scale_table.end())
+            {
+                fprintf(stderr, "gemm %s missing scale %s, regenerate the table with ncnn2table\n", gemm->name.c_str(), key_b);
+                return -1;
+            }
+
+            B_data_int8_scales = iter_b->second;
+            if (B_data_int8_scales.w != 1)
+            {
+                fprintf(stderr, "gemm %s param_1 scale size mismatch\n", gemm->name.c_str());
+                return -1;
+            }
+        }
 
         if (gemm->constantA)
         {
@@ -628,19 +670,23 @@ int NetQuantize::quantize_gemm()
                 gemm->transA = 0;
             }
 
-            gemm->A_data_int8_scales.create(gemm->constantM);
-            for (int i = 0; i < gemm->constantM; i++)
+            if (A_data_int8_scales.empty())
             {
-                float absmax = 0.f;
-
-                const float* ptr = (const float*)gemm->A_data + i * gemm->constantK;
-                for (int j = 0; j < gemm->constantK; j++)
+                A_data_int8_scales.create(gemm->constantM);
+                for (int i = 0; i < gemm->constantM; i++)
                 {
-                    absmax = std::max(absmax, (float)fabs(ptr[j]));
-                }
+                    float absmax = 0.f;
+                    const float* ptr = (const float*)gemm->A_data + i * gemm->constantK;
+                    for (int j = 0; j < gemm->constantK; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(ptr[j]));
+                    }
 
-                gemm->A_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+                    A_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
             }
+
+            gemm->A_data_int8_scales = A_data_int8_scales;
 
             ncnn::Mat A_data = gemm->A_data.reshape(gemm->constantK, gemm->constantM);
             ncnn::Mat A_data_int8;
@@ -673,17 +719,21 @@ int NetQuantize::quantize_gemm()
                 gemm->transB = 1;
             }
 
-            const float* ptr = gemm->B_data;
-            float absmax = 0.f;
-            for (int j = 0; j < gemm->B_data.w; j++)
+            if (B_data_int8_scales.empty())
             {
-                absmax = std::max(absmax, (float)fabs(ptr[j]));
+                const float* ptr = gemm->B_data;
+                float absmax = 0.f;
+                const int b_data_size = gemm->B_data.w * gemm->B_data.h;
+                for (int j = 0; j < b_data_size; j++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[j]));
+                }
+
+                B_data_int8_scales.create(1);
+                B_data_int8_scales[0] = absmax == 0.f ? 1.f : 127 / absmax;
             }
 
-            gemm->B_data_int8_scale = absmax == 0.f ? 1.f : 127 / absmax;
-
-            ncnn::Mat B_data_int8_scales(1);
-            B_data_int8_scales[0] = gemm->B_data_int8_scale;
+            gemm->B_data_int8_scale = B_data_int8_scales[0];
 
             ncnn::Mat B_data_int8;
 
@@ -1094,7 +1144,8 @@ int main(int argc, char** argv)
     quantizer.quantize_lstm();
     quantizer.quantize_gru();
     quantizer.quantize_embed();
-    quantizer.quantize_gemm();
+    if (quantizer.quantize_gemm() != 0)
+        return -1;
     quantizer.quantize_multiheadattention();
     quantizer.quantize_sdpa();
 
