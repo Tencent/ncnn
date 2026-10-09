@@ -3,8 +3,6 @@
 
 #include "testutil.h"
 
-#include <math.h>
-
 static float cubic_weight(float x)
 {
     const float A = -0.75f;
