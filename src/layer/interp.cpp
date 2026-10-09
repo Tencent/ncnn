@@ -483,12 +483,10 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -1;
     }
 
-    if ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
-            || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4))))
-    {
-        if (dims == 2 || dims == 3)
-            return forward_small(bottom_blob, top_blob, outw, outh, opt);
-    }
+    if ((dims == 2 || dims == 3)
+            && ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+                || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4)))))
+        return forward_small_input(bottom_blob, top_blob, outw, outh, opt);
 
     if (dims == 1)
     {
@@ -706,7 +704,7 @@ bool Interp::is_identity_resize(int w, int h, int outw, int outh, int dims) cons
     return (output_width || width_scale == 1.f) && (dims == 2 || output_height || height_scale == 1.f);
 }
 
-int Interp::forward_small(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const
+int Interp::forward_small_input(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const
 {
     if (is_identity_resize(bottom_blob.w, bottom_blob.h, outw, outh, bottom_blob.dims))
     {

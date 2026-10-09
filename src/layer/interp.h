@@ -21,7 +21,7 @@ public:
 
 protected:
     bool is_identity_resize(int w, int h, int outw, int outh, int dims) const;
-    int forward_small(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const;
+    int forward_small_input(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const;
 
     int eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh) const;
 
