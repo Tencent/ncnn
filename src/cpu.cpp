@@ -56,6 +56,10 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#if __riscv && defined __linux__
+#include <asm/hwprobe.h>
+#include <asm/unistd.h>
+#endif
 #include <sys/syscall.h>
 #include <unistd.h>
 #endif
@@ -2290,8 +2294,32 @@ static void initialize_global_cpu_info()
 
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector");   // xtheadvector implies zfh
-    g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    /* Prefer the kernel's authoritative ISA report, riscv_hwprobe(2) (Linux >= 6.4),
+     * over ruapu's raw-instruction probing. ruapu embeds instruction words into .text and
+     * catches SIGILL; under LLVM/clang this yields a FALSE NEGATIVE for zvfh. Measured on a
+     * SpaceMiT K3 A100: ruapu built with GCC 17 reports zvfh=1, ruapu built with clang 24
+     * reports zvfh=0, while riscv_hwprobe reports V=1 ZFH=1 ZVFH=1 under both compilers.
+     * cpu_support_riscv_zvfh() gates support_fp16_storage in every RISC-V layer, so the
+     * false negative drops all layers to the fp32 path and disables the IME2 fast path.
+     * Fall back to ruapu when the syscall is unavailable (< 6.4 or non-Linux). */
+    int hwprobe_ok = 0;
+    unsigned long long hwprobe_ima_ext0 = 0;
+#if defined __linux__
+    {
+        struct riscv_hwprobe probe;
+        probe.key = RISCV_HWPROBE_KEY_IMA_EXT_0;
+        probe.value = 0;
+        if (syscall(__NR_riscv_hwprobe, &probe, (long)1, (long)0, (void*)0, (long)0) == 0)
+        {
+            hwprobe_ima_ext0 = (unsigned long long)probe.value;
+            hwprobe_ok = 1;
+        }
+    }
+#endif
+    const int hw_zfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZFH);
+    const int hw_zvfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZVFH);
+    g_cpu_support_riscv_zfh = (hwprobe_ok ? hw_zfh : ruapu_supports("zfh")) || ruapu_supports("xtheadvector");     // xtheadvector implies zfh
+    g_cpu_support_riscv_zvfh = (hwprobe_ok ? hw_zvfh : ruapu_supports("zvfh")) || ruapu_supports("xtheadvector");  // xtheadvector implies zvfh
     g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
