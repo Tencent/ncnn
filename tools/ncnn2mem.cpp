@@ -129,13 +129,17 @@ static int dump_param_values(FILE* fp, FILE* mp)
         if (type == 2)
         {
             const int value = pd.get(id, 0);
-            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(int)))
+            const int scalar_type = 2;
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &scalar_type, sizeof(int))
+                    || !write_param_32(mp, &value, sizeof(int)))
                 return -1;
         }
         else if (type == 3)
         {
             const float value = pd.get(id, 0.f);
-            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(float)))
+            const int scalar_type = 3;
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &scalar_type, sizeof(int))
+                    || !write_param_32(mp, &value, sizeof(float)))
                 return -1;
         }
         else if (type == 4 || type == 5 || type == 6)
@@ -193,7 +197,10 @@ static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, 
         fprintf(stderr, "param is too old, please regenerate\n");
         return -1;
     }
-    if (!write_param_32(mp, &magic, sizeof(int)))
+    // the binary param carries typed scalars (int/float), bump the magic so
+    // runtimes older than this format reject the file with a clear message
+    const int bin_magic = 7767518;
+    if (!write_param_32(mp, &bin_magic, sizeof(int)))
         return -1;
 
     int layer_count = 0;

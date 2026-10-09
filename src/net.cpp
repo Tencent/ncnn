@@ -1943,7 +1943,7 @@ int Net::load_param_bin(const DataReader& dr)
 
     int magic = 0;
     READ_VALUE(magic)
-    if (magic != 7767517)
+    if (magic != 7767517 && magic != 7767518)
     {
         NCNN_LOGE("param is too old, please regenerate");
         return -1;
@@ -2130,7 +2130,7 @@ int Net::load_param_bin(const DataReader& dr)
         int layer_support_vulkan = layer->support_vulkan;
 
         // layer specific params
-        int pdlr = pd.load_param_bin(dr);
+        int pdlr = pd.load_param_bin(dr, magic);
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param_bin %d failed", i);

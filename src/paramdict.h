@@ -60,7 +60,9 @@ protected:
 
     // failed loads may leave partially parsed parameters; discard them or load again
     int load_param(const DataReader& dr);
-    int load_param_bin(const DataReader& dr);
+    // format_version 7767517 keeps the legacy untyped binary scalars
+    // format_version 7767518 reads typed binary scalars (int/float) written by ncnn2mem
+    int load_param_bin(const DataReader& dr, int format_version = 7767517);
 
 private:
     ParamDictPrivate* const d;

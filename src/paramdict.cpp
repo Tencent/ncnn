@@ -660,10 +660,11 @@ int ParamDict::load_param(const DataReader& dr)
 }
 #endif // NCNN_STRING
 
-int ParamDict::load_param_bin(const DataReader& dr)
+int ParamDict::load_param_bin(const DataReader& dr, int format_version)
 {
     clear();
 
+    //     legacy format (magic 7767517), scalars are untyped raw 4 bytes
     //     binary 0
     //     binary 100
     //     binary 1
@@ -675,6 +676,18 @@ int ParamDict::load_param_bin(const DataReader& dr)
     //     binary 0.4
     //     binary 0.8
     //     binary 1.0
+    //     binary -233(EOP)
+
+    //     typed format (magic 7767518), scalars carry an explicit type tag
+    //     binary 0
+    //     binary 100
+    //     binary 2
+    //     binary 1
+    //     binary 3
+    //     binary 1.250000
+    //     binary 3 | array_bit
+    //     binary 5
+    //     binary 0.1
     //     binary -233(EOP)
 
     int id = 0;
@@ -797,18 +810,56 @@ int ParamDict::load_param_bin(const DataReader& dr)
         }
         else
         {
-            nread = dr.read(&d->params[id].f, sizeof(float));
-            if (nread != sizeof(float))
+            if (format_version == 7767518)
             {
-                NCNN_LOGE("ParamDict read value failed %zu", nread);
-                return -1;
-            }
+                int scalar_type = 0;
+                nread = dr.read(&scalar_type, sizeof(int));
+                if (nread != sizeof(int))
+                {
+                    NCNN_LOGE("ParamDict read scalar type failed %zu", nread);
+                    return -1;
+                }
 
 #if __BIG_ENDIAN__
-            swap_endianness_32(&d->params[id].f);
+                swap_endianness_32(&scalar_type);
 #endif
 
-            d->params[id].type = 1;
+#if NCNN_VALIDATION
+                if (scalar_type != 2 && scalar_type != 3)
+                {
+                    NCNN_LOGE("invalid scalar type %d (id=%d)", scalar_type, id);
+                    return -1;
+                }
+#endif // NCNN_VALIDATION
+
+                nread = dr.read(&d->params[id].f, sizeof(float));
+                if (nread != sizeof(float))
+                {
+                    NCNN_LOGE("ParamDict read value failed %zu", nread);
+                    return -1;
+                }
+
+#if __BIG_ENDIAN__
+                swap_endianness_32(&d->params[id].f);
+#endif
+
+                d->params[id].type = scalar_type;
+            }
+            else
+            {
+                nread = dr.read(&d->params[id].f, sizeof(float));
+                if (nread != sizeof(float))
+                {
+                    NCNN_LOGE("ParamDict read value failed %zu", nread);
+                    return -1;
+                }
+
+#if __BIG_ENDIAN__
+                swap_endianness_32(&d->params[id].f);
+#endif
+
+                d->params[id].type = 1;
+            }
         }
 
         nread = dr.read(&id, sizeof(int));
