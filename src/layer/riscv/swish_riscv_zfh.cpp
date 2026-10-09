@@ -41,7 +41,8 @@ int Swish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h * d;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     // 并行维度取"通道 × 元素"：LLM 的激活性张量通常 c=1（如 [3072, L, 1]），
     // 只按通道并行会退化成单线程（实测单线程标量 expf 高达 44.7 ns/元素）。

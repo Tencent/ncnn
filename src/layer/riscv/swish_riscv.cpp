@@ -13,6 +13,9 @@ namespace ncnn {
 
 Swish_riscv::Swish_riscv()
 {
+#if __riscv_vector
+    support_packing = true;
+#endif // __riscv_vector
 #if NCNN_ZFH
 #if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
@@ -81,7 +84,8 @@ int Swish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h * d;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     // 同 fp16 路径：按"通道 × 元素"并行，避免 c=1 时退化为单线程
     const int total = channels * size;
