@@ -2318,8 +2318,8 @@ static void initialize_global_cpu_info()
 #endif
     const int hw_zfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZFH);
     const int hw_zvfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZVFH);
-    g_cpu_support_riscv_zfh = (hwprobe_ok ? hw_zfh : ruapu_supports("zfh")) || ruapu_supports("xtheadvector");     // xtheadvector implies zfh
-    g_cpu_support_riscv_zvfh = (hwprobe_ok ? hw_zvfh : ruapu_supports("zvfh")) || ruapu_supports("xtheadvector");  // xtheadvector implies zvfh
+    g_cpu_support_riscv_zfh = (hwprobe_ok ? hw_zfh : ruapu_supports("zfh")) || ruapu_supports("xtheadvector");    // xtheadvector implies zfh
+    g_cpu_support_riscv_zvfh = (hwprobe_ok ? hw_zvfh : ruapu_supports("zvfh")) || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
     g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
