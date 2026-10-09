@@ -55,6 +55,7 @@ __attribute__((optimize("no-tree-vectorize")))
 static void
 linear_coeffs(int w, int outw, double scale, int* xofs, float* alpha, int align_corner)
 {
+    // preserve the existing linear/bilinear same-size axis convention
     if (w == outw)
         scale = 1.0;
 
@@ -697,6 +698,8 @@ bool Interp::is_identity_resize(int w, int h, int outw, int outh, int dims) cons
     if (outw != w || (dims != 2 && outh != h))
         return false;
 
+    // retain the existing nearest and linear/bilinear same-size behavior
+    // bicubic with an original non-unit scale still needs resampling
     if (resize_type != 3 || align_corner || dynamic_target_size || !size_expr.empty())
         return true;
 
@@ -705,6 +708,12 @@ bool Interp::is_identity_resize(int w, int h, int outw, int outh, int dims) cons
 
 int Interp::forward_small(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const
 {
+    if (is_identity_resize(bottom_blob.w, bottom_blob.h, outw, outh, bottom_blob.dims))
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = dims == 2 ? 1 : bottom_blob.h;

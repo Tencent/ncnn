@@ -11,8 +11,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.up = nn.Upsample(scale_factor=1.5, mode='bilinear', align_corners=False)
         self.up_recompute = None
+        self.up_recompute_nearest = None
         if version.parse(torch.__version__) >= version.parse('1.11'):
             self.up_recompute = nn.Upsample(scale_factor=1.5, mode='bilinear', align_corners=False, recompute_scale_factor=True)
+            self.up_recompute_nearest = nn.Upsample(scale_factor=(1.5, 0.8), mode='nearest', recompute_scale_factor=True)
 
     def forward(self, x, y, z):
         outputs = [
@@ -29,6 +31,8 @@ class Model(nn.Module):
                 F.interpolate(y, scale_factor=0.8, mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=1.5, mode=mode, align_corners=False, recompute_scale_factor=True),
                 F.interpolate(y, scale_factor=0.8, mode=mode, align_corners=False, recompute_scale_factor=True),
+                F.interpolate(y, scale_factor=(1.5, 0.8), mode=mode, align_corners=False, recompute_scale_factor=True),
+                F.interpolate(y, scale_factor=(0.8, 1.5), mode=mode, align_corners=False, recompute_scale_factor=True),
                 F.interpolate(y, scale_factor=(1.1, 1.5), mode=mode, align_corners=False),
                 F.interpolate(y, scale_factor=(1.5, 1.1), mode=mode, align_corners=False),
                 F.interpolate(y, size=(10, 10), mode=mode, align_corners=False),
@@ -44,6 +48,7 @@ class Model(nn.Module):
                 ]
         if self.up_recompute is not None:
             outputs.append(self.up_recompute(y))
+            outputs.append(self.up_recompute_nearest(y))
         return tuple(outputs)
 
 def test():
@@ -92,9 +97,10 @@ def test():
                             return False
                         b0 = torch.from_numpy(np.array(out)).unsqueeze(0)
                         if a0.shape != b0.shape:
+                            print('dynamic', dynamic, 'input shapes', [tuple(x.shape) for x in data], 'output', i, 'shape mismatch', tuple(a0.shape), tuple(b0.shape))
                             return False
                         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-                            print('output', i, 'shape', tuple(a0.shape), 'max diff', (a0 - b0).abs().max().item())
+                            print('dynamic', dynamic, 'input shapes', [tuple(x.shape) for x in data], 'output', i, 'shapes', tuple(a0.shape), tuple(b0.shape), 'max diff', (a0 - b0).abs().max().item())
                             return False
     return True
 

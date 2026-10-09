@@ -14,7 +14,7 @@ static float cubic_weight(float x)
     return 0.f;
 }
 
-static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int target = 0, int align_corner = 0)
+static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int target = 0, int align_corner = 0, int expect_identity = -1)
 {
     const int h = a.dims == 2 ? 1 : a.h;
     const int channels = a.dims == 2 ? a.h : a.c;
@@ -110,32 +110,43 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     std::vector<ncnn::Mat> as(2);
     as[0] = a;
     as[1] = ncnn::Mat(outw, outh, 1);
-    std::vector<ncnn::Mat> bs(1);
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_packing_layout = false;
     opt.use_fp16_storage = false;
     opt.use_bf16_storage = false;
-    ncnn::Layer* op = ncnn::create_layer_naive("Interp");
-    int ret = op->load_param(pd);
-    if (ret == 0)
-        ret = op->create_pipeline(opt);
-    if (ret == 0)
+    int ret = 0;
+    // check storage reuse explicitly on both naive and optimized cpu paths
+    const int backend_count = expect_identity == -1 ? 1 : 2;
+    for (int i = 0; i < backend_count; i++)
     {
-        if (target == 2)
-            ret = op->forward(as, bs, opt);
-        else
-            ret = op->forward(a, bs[0], opt);
-    }
-    op->destroy_pipeline(opt);
-    delete op;
+        std::vector<ncnn::Mat> bs(1);
+        ncnn::Layer* op = i == 0 ? ncnn::create_layer_naive("Interp") : ncnn::create_layer_cpu("Interp");
+        ret = op->load_param(pd);
+        if (ret == 0)
+            ret = op->create_pipeline(opt);
+        if (ret == 0)
+        {
+            if (target == 2)
+                ret = op->forward(as, bs, opt);
+            else
+                ret = op->forward(a, bs[0], opt);
+        }
+        op->destroy_pipeline(opt);
+        delete op;
 
-    if (ret == 0)
-        ret = CompareMat(expected, bs[0], 0.0001f);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_interp_scale reference failed a=(%d %d %d) dims=%d type=%d scale=(%f %f) target=%d align_corner=%d\n", a.w, a.h, a.c, a.dims, resize_type, height_scale, width_scale, target, align_corner);
-        return ret;
+        if (ret == 0)
+            ret = CompareMat(expected, bs[0], 0.0001f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_interp_scale reference failed a=(%d %d %d) dims=%d type=%d scale=(%f %f) target=%d align_corner=%d backend=%d\n", a.w, a.h, a.c, a.dims, resize_type, height_scale, width_scale, target, align_corner, i);
+            return ret;
+        }
+        if (expect_identity != -1 && (bs[0].data == a.data) != (expect_identity != 0))
+        {
+            fprintf(stderr, "test_interp_scale identity failed a=(%d %d %d) dims=%d type=%d scale=(%f %f) target=%d align_corner=%d backend=%d expect_identity=%d\n", a.w, a.h, a.c, a.dims, resize_type, height_scale, width_scale, target, align_corner, i, expect_identity);
+            return -1;
+        }
     }
 
     std::vector<ncnn::Mat> weights(0);
@@ -192,14 +203,46 @@ static int test_interp_scale_2()
     ncnn::Mat d = RandomMat(3, 8);
     for (int type = 2; type <= 3; type++)
     {
-        if (test_interp_scale(a, type, 1.5f, 2.f)
-                || test_interp_scale(b, type, 2.f, 1.5f)
-                || test_interp_scale(c, type, 1.1f, 1.1f)
-                || test_interp_scale(c, type, 1.5f, 1.5f)
+        for (int target = 0; target < 4; target++)
+        {
+            if (test_interp_scale(a, type, 1.5f, 2.f, target)
+                    || test_interp_scale(b, type, 2.f, 1.5f, target)
+                    || test_interp_scale(c, type, 1.5f, 1.5f, target)
+                    || test_interp_scale(d, type, 1.f, 1.5f, target)
+                    || test_interp_scale(a, type, 0.2f, 2.f, target, 1)
+                    || test_interp_scale(b, type, 2.f, 0.2f, target, 1)
+                    || test_interp_scale(c, type, 0.75f, 1.5f, target, 1)
+                    || test_interp_scale(d, type, 1.f, 0.5f, target, 1))
+                return -1;
+        }
+        if (test_interp_scale(c, type, 1.1f, 1.1f)
                 || test_interp_scale(d, type, 1.f, 1.1f))
             return -1;
     }
     return 0;
+}
+
+static int test_interp_scale_3()
+{
+    ncnn::Mat a = RandomMat(7, 1, 8);
+    ncnn::Mat b = RandomMat(3, 2, 8);
+    ncnn::Mat c = RandomMat(1, 8);
+    ncnn::Mat d = RandomMat(3, 8);
+    for (int target = 0; target < 4; target++)
+    {
+        if (test_interp_scale(a, 2, 1.f, 1.f, target, 0, 1)
+                || test_interp_scale(b, 3, 1.f, 1.f, target, 0, 1)
+                || test_interp_scale(c, 2, 1.f, 1.f, target, 0, 1)
+                || test_interp_scale(d, 3, 1.f, 1.f, target, 0, 1))
+            return -1;
+    }
+
+    // equal shapes still require resampling for bicubic with a non-unit scale
+    return 0
+           || test_interp_scale(a, 2, 1.1f, 1.1f, 0, 0, 1)
+           || test_interp_scale(b, 3, 1.1f, 1.1f, 0, 0, 0)
+           || test_interp_scale(c, 2, 1.f, 1.1f, 0, 0, 1)
+           || test_interp_scale(d, 3, 1.f, 1.1f, 0, 0, 0);
 }
 
 int main()
@@ -208,5 +251,6 @@ int main()
     return 0
            || test_interp_scale_0()
            || test_interp_scale_1()
-           || test_interp_scale_2();
+           || test_interp_scale_2()
+           || test_interp_scale_3();
 }
