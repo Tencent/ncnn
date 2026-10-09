@@ -905,6 +905,7 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
         const int end_c = reduce_c ? a.c : ic + 1;
 
         float max_value = -inf;
+        bool has_nan = false;
         for (int q = ic; q < end_c; q++)
         {
             const float* ptr = a.channel(q);
@@ -913,12 +914,25 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
                     for (int x = iw; x < end_w; x++)
                     {
                         const float v = ptr[(z * a.h + y) * a.w + x];
-                        if (v != v || v > max_value) max_value = v;
+                        unsigned int v_bits;
+                        memcpy(&v_bits, &v, sizeof(v_bits));
+                        if ((v_bits & 0x7fffffff) > 0x7f800000)
+                        {
+                            max_value = v;
+                            has_nan = true;
+                        }
+                        else if (!has_nan && v > max_value)
+                        {
+                            max_value = v;
+                        }
                     }
         }
 
         float value = max_value;
-        if (max_value != inf && max_value != -inf && max_value == max_value)
+        unsigned int max_bits;
+        memcpy(&max_bits, &max_value, sizeof(max_bits));
+        // Floating-point infinity/NaN comparisons can be removed by fast-math.
+        if ((max_bits & 0x7fffffff) < 0x7f800000)
         {
             float sum = 0.f;
             for (int q = ic; q < end_c; q++)

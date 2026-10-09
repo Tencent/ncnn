@@ -71,9 +71,9 @@ static int test_logsumexp_mixed_and_nonfinite()
 {
     const float inf = std::numeric_limits<float>::infinity();
     const float nan = std::numeric_limits<float>::quiet_NaN();
-    const float inputs[6][2] = {{1000.f, 999.f}, {-1000.f, -1001.f}, {1.f, 0.f}, {inf, 1.f}, {-inf, -inf}, {nan, 1.f}};
-    const float expected[6] = {1000.f + logf(1.f + expf(-1.f)), -1000.f + logf(1.f + expf(-1.f)), logf(expf(1.f) + 1.f), inf, -inf, nan};
-    for (int t = 0; t < 6; t++)
+    const float inputs[12][2] = {{1000.f, 999.f}, {-1000.f, -1001.f}, {1.f, 0.f}, {inf, 1.f}, {-inf, -inf}, {nan, 1.f}, {1.f, inf}, {inf, inf}, {-inf, 1.f}, {1.f, -inf}, {1.f, nan}, {nan, inf}};
+    const float expected[12] = {1000.f + logf(1.f + expf(-1.f)), -1000.f + logf(1.f + expf(-1.f)), logf(expf(1.f) + 1.f), inf, -inf, nan, inf, inf, 1.f, 1.f, nan, nan};
+    for (int t = 0; t < 12; t++)
     {
         ncnn::Mat a(2);
         a[0] = inputs[t][0];
@@ -92,7 +92,7 @@ static int test_logsumexp_mixed_and_nonfinite()
             if (ret == 0) ret = op->forward(a, out, opt);
             op->destroy_pipeline(opt);
             delete op;
-            if (ret != 0 || out.empty() || (t < 3 ? !NearlyEqual(out[0], expected[t], 0.00001f) : t == 5 ? out[0] == out[0] : out[0] != expected[t]))
+            if (ret != 0 || out.empty() || (expected[t] != expected[t] ? out[0] == out[0] : expected[t] == inf || expected[t] == -inf ? out[0] != expected[t] : !NearlyEqual(out[0], expected[t], 0.00001f)))
             {
                 fprintf(stderr, "logsumexp mixed/nonfinite mismatch case=%d naive=%d\n", t, naive);
                 return -1;
@@ -100,7 +100,7 @@ static int test_logsumexp_mixed_and_nonfinite()
         }
         std::vector<ncnn::Mat> weights;
         // The testutil comparison does not consider two NaNs equal.
-        if (t != 5 && test_layer("Reduction", pd, weights, a, 0.001f) != 0) return -1;
+        if (expected[t] == expected[t] && test_layer("Reduction", pd, weights, a, 0.001f) != 0) return -1;
     }
     return 0;
 }
@@ -131,6 +131,6 @@ int main()
     large.fill(-16.f);
     if (test_logsumexp(large, 1, 0, 1.f, -16.f) != 0) return -1;
     if (test_logsumexp_mixed_and_nonfinite() != 0) return -1;
-    fprintf(stderr, "logsumexp: 950 public CPU checks and 474 backend comparisons passed\n");
+    fprintf(stderr, "logsumexp: 962 public CPU checks and 478 backend comparisons passed\n");
     return 0;
 }
