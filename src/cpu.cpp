@@ -2304,7 +2304,9 @@ static void initialize_global_cpu_info()
      * Fall back to ruapu when the syscall is unavailable (< 6.4 or non-Linux). */
     int hwprobe_ok = 0;
     unsigned long long hwprobe_ima_ext0 = 0;
-#if defined __linux__
+#if defined __linux__ && defined RISCV_HWPROBE_KEY_IMA_EXT_0 && defined RISCV_HWPROBE_EXT_ZFH && defined RISCV_HWPROBE_EXT_ZVFH
+    /* Guarded on the macros as well: older kernel headers do not define them and
+     * the build would fail instead of falling back to ruapu. */
     {
         struct riscv_hwprobe probe;
         probe.key = RISCV_HWPROBE_KEY_IMA_EXT_0;
