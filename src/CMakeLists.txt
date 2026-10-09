@@ -39,6 +39,7 @@ set(ncnn_SRCS
     pipelinecache.cpp
     simpleocv.cpp
     simpleomp.cpp
+    spertomp.cpp
     simplestl.cpp
     simplemath.cpp
     simplevk.cpp
@@ -244,16 +245,22 @@ if(NCNN_OPENMP)
         endif()
     endif()
 
-    if(NCNN_SIMPLEOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
+    if(NCNN_SIMPLEOMP OR NCNN_SPERTOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
         if(NCNN_CMAKE_VERBOSE)
             message("Building with OpenMP")
         endif()
 
-        if(NCNN_SIMPLEOMP)
+        if(NCNN_SIMPLEOMP OR NCNN_SPERTOMP)
             if(IOS OR APPLE)
                 target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)
+            endif()
+            # spert supplies the OpenMP runtime symbols (GOMP_parallel, omp_*),
+            # so compile with -fopenmp but do NOT link libgomp.
+            if(NCNN_SPERTOMP)
+                target_include_directories(ncnn PRIVATE ${NCNN_SPERT_INCLUDE_DIR})
+                target_link_libraries(ncnn PUBLIC ${NCNN_SPERT_LIBRARY})
             endif()
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
