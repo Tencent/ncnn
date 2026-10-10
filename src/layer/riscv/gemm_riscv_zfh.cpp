@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_riscv.h"
+#include <cstdio>
+#include <cstdlib>
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -10,6 +12,7 @@
 #include "riscv_usability.h"
 
 #include "cpu.h"
+#include <stdlib.h>
 
 namespace ncnn {
 
@@ -1773,6 +1776,87 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     return ret;
+}
+#endif // NCNN_ZFH
+
+// ================== SpacemiT K3 A100 IME2 (smt.vfwmadot) ==================
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+#if __riscv_v
+#include "gemm_riscv_ime2.h"
+#endif
+
+int Gemm_riscv::create_pipeline_ime2(const Option& opt)
+{
+#if !__riscv_v
+    (void)opt;
+    return -99;
+#else
+    // 先探测：当前核能否执行 smt.vfwmadot（X100 上是 SIGILL）。
+    // 探测失败 -> 返回非 0，调用方回退到 fp16s 路径。
+    if (!ncnn_ime2::ime2_probe())
+        return -99;
+
+    // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
+    // 线程数无关的布局：forward 阶段可以任意 num_threads。
+    const int N = constantN;
+    const int K = constantK;
+
+    int ret = ncnn_ime2::ime2_pack_B(B_data, BT_data_ime2, N, K);
+    if (ret != 0)
+        return ret;
+
+    /* int8 权重模式（可选精度模式，NCNN_IME2_INT8=1）：列主序 int8 面板 + 每列一个 fp16 scale，
+     * 直接从原始权重量化。解码走整数域点积（vwadd 加宽 + vwmacc 累加），实测解码 +28~31%。
+     * 第一版"tile 布局 int8 + 逐 8 元素转浮点"的实现已删除（微基准慢 600 倍，见 REPORT 7.40/7.41）。 */
+    if (getenv("NCNN_IME2_INT8"))
+    {
+        ncnn_ime2::ime2_quantize_B_int8_col(B_data, BT_i8c_ime2, BT_wscale_ime2, N, K);
+    }
+
+    use_ime2_path = 1;
+    nT = opt.num_threads;
+
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)bottom_blobs;
+    (void)top_blobs;
+    (void)opt;
+    return -1;
+#else
+    const Mat& A = bottom_blobs[0];
+
+    const int M = (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+    const int K = constantK;
+
+    if (A.elembits() != 16)
+        return -1;
+
+    // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 2;
+        out_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(N, M / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    return ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt, BT_i8c_ime2, BT_wscale_ime2);
+#endif
 }
 #endif // NCNN_ZFH
 
