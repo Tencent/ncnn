@@ -409,6 +409,7 @@ public:
     int support_VK_EXT_external_memory_host;
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_memory_priority;
+    int support_VK_EXT_pageable_device_local_memory;
     int support_VK_EXT_queue_family_foreign;
     int support_VK_EXT_robustness2;
     int support_VK_EXT_shader_atomic_float;
@@ -790,6 +791,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_EXT_external_memory_host = 0;
     support_VK_EXT_memory_budget = 0;
     support_VK_EXT_memory_priority = 0;
+    support_VK_EXT_pageable_device_local_memory = 0;
     support_VK_EXT_queue_family_foreign = 0;
     support_VK_EXT_robustness2 = 0;
     support_VK_EXT_shader_atomic_float = 0;
@@ -885,6 +887,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_memory_budget = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_memory_priority") == 0)
             support_VK_EXT_memory_priority = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_pageable_device_local_memory") == 0)
+            support_VK_EXT_pageable_device_local_memory = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
             support_VK_EXT_queue_family_foreign = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_robustness2") == 0)
@@ -2397,6 +2401,11 @@ int GpuInfo::support_VK_EXT_memory_budget() const
 int GpuInfo::support_VK_EXT_memory_priority() const
 {
     return d->support_VK_EXT_memory_priority;
+}
+
+int GpuInfo::support_VK_EXT_pageable_device_local_memory() const
+{
+    return d->support_VK_EXT_pageable_device_local_memory;
 }
 
 int GpuInfo::support_VK_EXT_queue_family_foreign() const
@@ -4147,6 +4156,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_memory_budget");
     if (info.support_VK_EXT_memory_priority())
         enabledExtensions.push_back("VK_EXT_memory_priority");
+    if (info.support_VK_EXT_pageable_device_local_memory())
+        enabledExtensions.push_back("VK_EXT_pageable_device_local_memory");
     if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
     if (info.support_VK_EXT_robustness2())
