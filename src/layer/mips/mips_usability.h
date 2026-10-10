@@ -148,6 +148,13 @@ static NCNN_FORCEINLINE v2i64 __ncnn_msa_msubv_d(v2i64 a, v2i64 b, v2i64 c)
 #endif
 }
 
+/* float type data load instructions */
+static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
+{
+    ncnn::FloatInt fi_tmpval = {.f = val};
+    return (v4f32)__msa_fill_w(fi_tmpval.i);
+}
+
 static NCNN_FORCEINLINE v4f32 __ncnn_msa_comp_rsqrt1_w(const v4f32& _x)
 {
     v4f32 _y = __msa_frsqrt_w(_x);
@@ -251,14 +258,6 @@ static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
     _v = __msa_addv_w(_v, _s);
     return __msa_copy_s_w(_v, 0);
 }
-/* float type data load instructions */
-static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
-{
-    ncnn::FloatInt fi_tmpval = {.f = val};
-    return (v4f32)__msa_fill_w(fi_tmpval.i);
-}
-
-#endif // !__mips_mxu2
 
 #if !__mips_mxu2
 static NCNN_FORCEINLINE int __msa_cfcmsa_msacsr()
