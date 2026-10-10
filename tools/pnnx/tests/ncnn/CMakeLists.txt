@@ -254,6 +254,7 @@ pnnx_ncnn_add_test(ncnn_reshape_expr)
 pnnx_ncnn_add_test(ncnn_reshape_semantics)
 pnnx_ncnn_add_test(ncnn_slice_expr)
 pnnx_ncnn_add_test(ncnn_solve_batch_index)
+pnnx_ncnn_add_test(ncnn_unsupported_padding)
 
 if(TorchVision_FOUND)
     pnnx_ncnn_add_test(torchvision_DeformConv2d)
