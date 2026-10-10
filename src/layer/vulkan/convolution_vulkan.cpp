@@ -9,6 +9,14 @@
 
 namespace ncnn {
 
+static bool use_lowreg_winograd43_transforms(const VulkanDevice* vkdev)
+{
+    // on the gfx9 and xe-lp gpus measured (mesa 26.1.8) the row-wise transforms spill far less
+    // at simd32 and not at all at the simd8/simd16 widths mesa picks when the subgroup size is not forced
+    // intel's windows driver ran vgg16 fp16 21% slower with them, other drivers are not benchmarked
+    return vkdev->info.vendor_id() == 0x8086 && vkdev->info.driver_id() == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA;
+}
+
 Convolution_vulkan::Convolution_vulkan()
 {
     support_vulkan = true;
@@ -508,6 +516,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 int shader_type_index = -1;
                 if (elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_input;
                 if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input;
+                if (elempack == 4 && use_lowreg_winograd43_transforms(vkdev)) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_input_lowreg;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_input->set_local_size_xyz(4, 4, 1);
@@ -588,6 +597,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 int shader_type_index = -1;
                 if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_output;
                 if (out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_output;
+                if (out_elempack == 4 && use_lowreg_winograd43_transforms(vkdev)) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_output_lowreg;
 
                 pipeline_convolution_3x3s1d1_winograd43_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_transform_output->set_local_size_xyz(4, 4, 1);
