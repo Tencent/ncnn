@@ -30,6 +30,36 @@ pnnx.Output             output      1 0 out
         return "normalize";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Parameter& p = captured_params.at("p");
+        if (!((p.type == 2 && p.i == 2) || (p.type == 3 && p.f == 2.f) || (p.type == 4 && p.s == "fro")))
+            return false;
+
+        const Operator* op = matched_operators.at("op_0");
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
+
+        int axis = captured_params.at("dim").i;
+        if (axis < 0)
+            axis += input_rank;
+        if (axis < 0 || axis >= input_rank)
+            return false;
+
+        const int ncnn_batch_axis = op->inputs[0]->params.at("__ncnn_batch_axis").i;
+        if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
+        {
+            if (axis == ncnn_batch_axis)
+                return false;
+            if (axis > ncnn_batch_axis)
+                axis -= 1;
+            input_rank -= 1;
+        }
+
+        return axis == 0 && (input_rank == 1 || input_rank == 3 || input_rank == 4);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
@@ -61,6 +91,8 @@ pnnx.Output             output      1 0 out
             p = captured_params.at("p").i;
         if (captured_params.at("p").type == 3)
             p = captured_params.at("p").f;
+        if (captured_params.at("p").type == 4 && captured_params.at("p").s == "fro")
+            p = 2.f;
 
         if (p != 2.f)
         {
