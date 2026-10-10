@@ -5,6 +5,10 @@
 
 namespace ncnn {
 
+// inspect list dimensions and tensor references without evaluating runtime shapes
+// return 0 if success
+NCNN_EXPORT int analyze_list_expression(const std::string& expr, int& list_size, int& blob_count, bool& has_batch);
+
 // count how many blobs are referenced inside expression
 NCNN_EXPORT int count_expression_blobs(const std::string& expr);
 

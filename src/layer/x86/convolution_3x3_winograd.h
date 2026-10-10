@@ -1,6 +1,13 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void convolution_winograd_gemm_transB_packed_tile_fma(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void convolution_winograd_gemm_transB_packed_tile_fma4(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk);
+#endif
+
 static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
     const int N = max_kk * batch;
@@ -761,6 +768,21 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 
 static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        convolution_winograd_gemm_transB_packed_tile_fma(AT_tile, BT_tile, top_blob, batch, max_ii, max_jj, k, max_kk);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        convolution_winograd_gemm_transB_packed_tile_fma4(AT_tile, BT_tile, top_blob, batch, max_ii, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
     float* outptr = top_blob;
 
     int ii = 0;

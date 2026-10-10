@@ -3,6 +3,8 @@
 
 #include "pooling.h"
 
+#include <limits.h>
+
 #include "layer_type.h"
 
 #include <float.h>
@@ -32,6 +34,26 @@ int Pooling::load_param(const ParamDict& pd)
     adaptive_pooling = pd.get(7, 0);
     out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
+
+#if NCNN_VALIDATION
+    if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
+        return -1;
+
+    if (!global_pooling && adaptive_pooling)
+    {
+        if ((out_w <= 0 && out_w != -233) || (out_h <= 0 && out_h != -233))
+            return -1;
+    }
+
+    if (!global_pooling && !adaptive_pooling)
+    {
+        if (pad_mode < 0 || pad_mode > 3)
+            return -1;
+
+        if (kernel_w <= 0 || stride_w <= 0 || kernel_h <= 0 || stride_h <= 0 || kernel_w > INT_MAX / kernel_h)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

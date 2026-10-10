@@ -19,6 +19,9 @@ void dead_code_elimination(Graph& graph)
             if (op->type == "pnnx.Output")
                 continue;
 
+            if (op->type == "pnnx.Input")
+                continue;
+
             int consumers = 0;
             for (const Operand* operand : op->outputs)
             {

@@ -12,6 +12,8 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 namespace UnaryOp_x86_functor {
 
 #include "unaryop_functor.h"
@@ -20,7 +22,7 @@ namespace UnaryOp_x86_functor {
 
 #include "unaryop_bf16s.h"
 
-int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt)
+int unaryop_bf16s_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
     using namespace UnaryOp_x86_functor;
     if (op_type == UnaryOp::Operation_ABS)
@@ -120,5 +122,7 @@ int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option
 
     return 0;
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

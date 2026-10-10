@@ -2,15 +2,60 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void rmsnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+void rmsnorm_bf16s_avx512bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
 #endif
 
-static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void rmsnorm_bf16s_avxneconvert(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void rmsnorm_bf16s_avx2(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void rmsnorm_bf16s_fma(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void rmsnorm_bf16s_fma4(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack);
+#endif
+
+static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        rmsnorm_bf16s_sse_avx512bf16(ptr, gamma_ptr, eps, elemcount, elempack);
+        rmsnorm_bf16s_avx512bf16(ptr, gamma_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        rmsnorm_bf16s_avxneconvert(ptr, gamma_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        rmsnorm_bf16s_avx2(ptr, gamma_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        rmsnorm_bf16s_fma(ptr, gamma_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        rmsnorm_bf16s_fma4(ptr, gamma_ptr, eps, elemcount, elempack);
         return;
     }
 #endif
@@ -72,9 +117,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
         __m512 _eps = _mm512_set1_ps(eps);
         _rms_avx512 = _mm512_div_ps(_rms_avx512, _elemcount);
         _rms_avx512 = _mm512_add_ps(_rms_avx512, _eps);
-        __m256 _rms0 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_rms_avx512, 0));
-        __m256 _rms1 = _mm256_rsqrt_ps(_mm512_extractf32x8_ps(_rms_avx512, 1));
-        _rms_avx512 = combine8x2_ps(_rms0, _rms1);
+        _rms_avx512 = _mm512_comp_rsqrt_ps(_rms_avx512);
     }
 #endif // __AVX512F__
     if (elempack == 8)
@@ -91,7 +134,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
         __m256 _eps = _mm256_set1_ps(eps);
         _rms_avx = _mm256_div_ps(_rms_avx, _elemcount);
         _rms_avx = _mm256_add_ps(_rms_avx, _eps);
-        _rms_avx = _mm256_rsqrt_ps(_rms_avx);
+        _rms_avx = _mm256_comp_rsqrt_ps(_rms_avx);
 #if __AVX512F__
         _rms_avx512 = combine8x2_ps(_rms_avx, _rms_avx);
 #endif // __AVX512F__
@@ -119,7 +162,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
         __m128 _eps = _mm_set1_ps(eps);
         _rms = _mm_div_ps(_rms, _elemcount);
         _rms = _mm_add_ps(_rms, _eps);
-        _rms = _mm_rsqrt_ps(_rms);
+        _rms = _mm_comp_rsqrt_ps(_rms);
 #if __AVX__
         _rms_avx = combine4x2_ps(_rms, _rms);
 #if __AVX512F__
@@ -238,7 +281,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
                 __m128 _gamma = _mm_set1_ps(gamma_ptr[0]);
                 _p = _mm_mul_ps(_p, _rms);
                 _p = _mm_mul_ps(_p, _gamma);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 1;
             }
@@ -275,7 +318,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
                 __m128 _gamma = _mm_loadu_ps(gamma_ptr);
                 _p = _mm_mul_ps(_p, _rms);
                 _p = _mm_mul_ps(_p, _gamma);
-                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+                _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
                 ptr += 4;
                 gamma_ptr += 4;
             }
@@ -314,7 +357,7 @@ static void rmsnorm_bf16s_sse(unsigned short* ptr, const float* gamma_ptr, float
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_mul_ps(_p, _rms);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

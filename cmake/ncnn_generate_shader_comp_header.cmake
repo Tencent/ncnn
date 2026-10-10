@@ -3,23 +3,25 @@
 
 file(READ ${SHADER_SRC} comp_data)
 
-# skip leading comment
-string(FIND "${comp_data}" "#version" version_start)
-if(NOT ${version_start} EQUAL -1)
-    string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
+if(NOT NCNN_COVERAGE)
+    # skip leading comment
+    string(FIND "${comp_data}" "#version" version_start)
+    if(NOT ${version_start} EQUAL -1)
+        string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
+    endif()
+
+    # remove whitespace
+    string(REGEX REPLACE "\n +" "\n" comp_data "${comp_data}")
+
+    # remove comments
+    string(REGEX REPLACE "//[^\n]*" "" comp_data "${comp_data}")
+
+    # replace more spaces to one space
+    string(REGEX REPLACE "[ \t]+" " " comp_data "${comp_data}")
+
+    # remove empty line
+    string(REGEX REPLACE "\n[\n]+" "\n" comp_data "${comp_data}")
 endif()
-
-# remove whitespace
-string(REGEX REPLACE "\n +" "\n" comp_data "${comp_data}")
-
-# remove comments
-string(REGEX REPLACE "//[^\n]*" "" comp_data "${comp_data}")
-
-# replace more spaces to one space
-string(REGEX REPLACE "[ \t]+" " " comp_data "${comp_data}")
-
-# remove empty line
-string(REGEX REPLACE "\n[\n]+" "\n" comp_data "${comp_data}")
 
 get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
 

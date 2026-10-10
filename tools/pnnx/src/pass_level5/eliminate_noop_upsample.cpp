@@ -52,7 +52,10 @@ void eliminate_noop_upsample(Graph& graph)
                 }
             }
 
-            if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
+            // equal shapes do not imply identity when the original scale factor is used
+            const bool has_scale_factor = op->params.find("scale_factor") != op->params.end() && op->params.at("scale_factor").type != 0;
+            const bool recompute_scale_factor = op->params.find("recompute_scale_factor") != op->params.end() && op->params.at("recompute_scale_factor").type == 1 && op->params.at("recompute_scale_factor").b;
+            if ((!has_scale_factor || recompute_scale_factor) && !op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
             {
                 matched = true;
 

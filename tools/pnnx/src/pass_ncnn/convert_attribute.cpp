@@ -78,6 +78,9 @@ void convert_attribute(Graph& graph)
             op->params["2"] = new_shape[0];
         }
 
+        if (data.type == 9)
+            op->params["21"] = 3; // bool stored as int8
+
         if (key != "0")
         {
             op->attrs["0"] = data;

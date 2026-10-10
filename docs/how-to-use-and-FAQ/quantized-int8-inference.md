@@ -38,7 +38,21 @@ find images/ -type f > imagelist.txt
 
 * pixel is the pixel format of your model, image pixels will be converted to this type before ```Extractor::input()```
 * thread is the CPU thread count that could be used for parallel inference
-* method is the post training quantization algorithm, kl and aciq are currently supported
+* method is the post training quantization algorithm, kl, aciq, eq and percentile are currently supported
+
+To use percentile calibration, set `method=percentile`. The optional `percentile` argument accepts one value or a list of candidate values in `(0, 1]`; ncnn2table will select the candidate with the lowest quantization error.
+
+Percentile calibration uses the absolute input activation values, including zeros, of Convolution, ConvolutionDepthWise and InnerProduct layers. It does not calibrate the dynamic inputs of Gemm or MultiHeadAttention.
+
+```shell
+./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=percentile
+```
+
+or you can specify the value of percentile:
+
+```shell
+./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=percentile percentile=0.9999
+```
 
 If your model has multiple input nodes, you can use multiple list files and other parameters
 
@@ -89,7 +103,7 @@ filelist_in2.txt
 ```
 **Here shape is WHC, because the order of the arguments to `ncnn::Mat`.**
 
-ncnn2table can generate static weight scales without a calibration dataset for RNN,GRU,LSTM,MultiHeadAttention and Embed layers
+ncnn2table can generate static weight scales without a calibration dataset for RNN,GRU,LSTM,MultiHeadAttention,Gemm and Embed layers
 
 ```shell
 ./ncnn2table rnn.param rnn.bin rnn.table method=kl
@@ -101,9 +115,11 @@ ncnn2table can generate static weight scales without a calibration dataset for R
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
-## Weight-only block quantized Gemm and MultiHeadAttention
+For Gemm layers, ncnn2int8 uses `<layer_name>_param_0` scales for constant A and `<layer_name>_param_1` for constant B when present in the table. If none of the required Gemm scales are present, it computes them using absmax, preserving compatibility with older tables and conversion without a table. If some required scales are present but others are missing, or the number of values is incorrect, conversion fails without saving the output model.
 
-LLM-oriented `Gemm` and `MultiHeadAttention` weight-only block quantization is separate from the post training int8 flow above. It stores weight as signed int4/int6/int8 blocks and keeps activation/output in fp32.
+## Block quantized Gemm and MultiHeadAttention
+
+LLM-oriented `Gemm` and `MultiHeadAttention` block quantization is separate from the post training int8 flow above. The 4-bit and 6-bit modes are weight-only: they store weights as signed int4/int6 blocks and keep activation/output in fp32. The 8-bit CPU mode is dynamic W8A8 per-block: it stores constant weights as signed int8, dynamically quantizes each fp32 activation row and block to signed int8 for every forward, accumulates int8 dot products in int32, applies the activation and weight descales at each block boundary, and produces fp32 output. The 8-bit mode has no W8A32 compatibility path.
 
 The workflow is similar to `ncnn2table` and `ncnn2int8`:
 
@@ -112,7 +128,7 @@ The workflow is similar to `ncnn2table` and `ncnn2int8`:
 ./ncnnllm2int in.param in.bin out.param out.bin model.llm.table
 ```
 
-method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. block can be 32,64,128. thread is the CPU thread count.
+method can be minmax,mseclip,awq,gptq. bits can be 4,6,8. `bits=4` and `bits=6` select weight-only execution, while `bits=8` selects dynamic W8A8 per-block execution on CPU. block can be 32,64,128. thread is the CPU thread count.
 
 awq and gptq need calibration data, same as npy calibration in ncnn2table.
 
