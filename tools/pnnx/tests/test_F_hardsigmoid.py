@@ -22,6 +22,8 @@ class h_sigmoid(nn.Module):
     def forward(self, x):
         return self.relu(x + 3) / 6
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -53,17 +55,14 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_hardsigmoid.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z, w),
+        "test_F_hardsigmoid",
+        pnnx_args=("inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_hardsigmoid.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
-
-    # pnnx inference
-    import test_F_hardsigmoid_pnnx
-    b = test_F_hardsigmoid_pnnx.test_inference()
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

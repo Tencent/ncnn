@@ -11,6 +11,8 @@ from typing import Any, Optional, Tuple, Union
 from torch import Tensor
 import math
 
+from pnnx_test_utils import convert_and_import
+
 class sam_Attention(nn.Module):
     """
     An attention layer that allows for downscaling the size of the embedding
@@ -95,17 +97,13 @@ def test():
 
     a = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_pnnx_fuse_scaled_dot_product_attention.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_scaled_dot_product_attention.pt inputshape=[1,24,64],[1,24,64],[1,24,64]")
-
-    # pnnx inference
-    import test_pnnx_fuse_scaled_dot_product_attention_pnnx
-    b = test_pnnx_fuse_scaled_dot_product_attention_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x, y, z),
+        "test_pnnx_fuse_scaled_dot_product_attention",
+        pnnx_args=("inputshape=[1,24,64],[1,24,64],[1,24,64]",),
+    )
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

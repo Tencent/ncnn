@@ -3,11 +3,13 @@
 
 #include "pass_ncnn.h"
 
+#include <algorithm>
+
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_batch_layout.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_module_op.h"
-#include "pass_ncnn/convert_half_to_float.h"
+#include "pass_ncnn/convert_to_float.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/convert_reshape_interp_expression.h"
 #include "pass_ncnn/convert_slice_expression.h"
@@ -47,6 +49,7 @@
 #include "pass_ncnn/insert_reshape_pooling.h"
 #include "pass_ncnn/legalize_global_pooling_layout.h"
 
+#include "pass_level3/fuse_op1ton_unpack.h"
 #include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -74,8 +77,26 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
     delete pass;
 }
 
-void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
+int pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 {
+    // These attributes are valid in pnnx, but ncnn cannot represent them.
+    // Check before native rewrites discard their dtype and shape metadata.
+    for (const Operator* op : g.ops)
+    {
+        for (const auto& x : op->attrs)
+        {
+            const Attribute& attr = x.second;
+            const bool is_empty = std::find(attr.shape.begin(), attr.shape.end(), 0) != attr.shape.end();
+            if (is_empty || attr.type == 10 || attr.type == 11 || attr.type == 12)
+            {
+                fprintf(stderr, "lower ncnn failed: unsupported %s attribute %s.%s (pnnx artifacts are available)\n", is_empty ? "empty" : "complex", op->name.c_str(), x.first.c_str());
+                return -1;
+            }
+        }
+    }
+
+    fuse_op1ton_unpack(g, true);
+
     unroll_rnn_op(g);
 
     eliminate_maxpool_indices(g);
@@ -92,7 +113,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::solve_batch_index(g);
     ncnn::convert_batch_layout(g);
 
-    ncnn::convert_half_to_float(g);
+    ncnn::convert_to_float(g);
 
     ncnn::insert_reshape_numpy_binaryop_broadcast(g);
     ncnn::insert_reshape_pooling(g);
@@ -162,6 +183,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_input(g);
 
     ncnn::eliminate_output(g);
+
+    return 0;
 }
 
 } // namespace pnnx

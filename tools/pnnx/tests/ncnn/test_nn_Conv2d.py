@@ -5,6 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pnnx_test_utils import convert_and_import_ncnn
 
 class Model(nn.Module):
     def __init__(self):
@@ -58,17 +63,10 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_Conv2d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_nn_Conv2d.pt inputshape=[1,12,64,64]")
+    module = convert_and_import_ncnn(net, (x,), "test_nn_Conv2d", pnnx_args=("inputshape=[1,12,64,64]",))
 
     # ncnn inference
-    import test_nn_Conv2d_ncnn
-    b = test_nn_Conv2d_ncnn.test_inference()
+    b = module.test_inference()
 
     if not torch.allclose(a, b, 1e-3, 1e-3):
         return False
@@ -83,17 +81,10 @@ def test_batch():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_Conv2d_batch.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_nn_Conv2d_batch.pt inputshape=[2,3,11,13]")
+    module = convert_and_import_ncnn(net, (x,), "test_nn_Conv2d_batch", pnnx_args=("inputshape=[2,3,11,13]",))
 
     # ncnn inference
-    import test_nn_Conv2d_batch_ncnn
-    b = test_nn_Conv2d_batch_ncnn.test_inference()
+    b = module.test_inference()
 
     return torch.allclose(a, b, 1e-3, 1e-3)
 

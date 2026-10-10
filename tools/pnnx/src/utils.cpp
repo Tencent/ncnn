@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <math.h>
 #include <string>
@@ -169,7 +170,7 @@ float float16_to_float32(unsigned short value)
 std::string float_to_string(float f)
 {
     if (f == 0.f)
-        return "0.0";
+        return std::signbit(f) ? "-0.0" : "0.0";
 
     const float abs_f = std::abs(f);
     char buffer[64];
@@ -221,7 +222,7 @@ std::string float_to_string(float f)
 std::string double_to_string(double d)
 {
     if (d == 0.0)
-        return "0.0";
+        return std::signbit(d) ? "-0.0" : "0.0";
 
     const double abs_d = std::abs(d);
     char buffer[128];

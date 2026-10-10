@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -27,17 +29,14 @@ def test():
 
     a0, a1 = net(x, w0, y)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, w0, y))
-    mod.save("test_F_embedding.pt")
+    mod = convert_and_import(
+        net,
+        (x, w0, y),
+        "test_F_embedding",
+        pnnx_args=("inputshape=[1,13]i32,[10,128],[1,11]i32",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_embedding.pt inputshape=[1,13]i32,[10,128],[1,11]i32")
-
-    # pnnx inference
-    import test_F_embedding_pnnx
-    b0, b1 = test_F_embedding_pnnx.test_inference()
+    b0, b1 = mod.test_inference()
 
     return torch.equal(a0, b0) and torch.equal(a1, b1)
 

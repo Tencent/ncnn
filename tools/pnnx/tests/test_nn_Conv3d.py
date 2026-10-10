@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -55,17 +57,14 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_nn_Conv3d.pt")
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_nn_Conv3d",
+        pnnx_args=("inputshape=[1,12,48,48,64]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_Conv3d.pt inputshape=[1,12,48,48,64]")
-
-    # pnnx inference
-    import test_nn_Conv3d_pnnx
-    b = test_nn_Conv3d_pnnx.test_inference()
+    b = mod.test_inference()
 
     return torch.allclose(a, b, 1e-3, 1e-3)
 

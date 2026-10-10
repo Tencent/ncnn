@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class LayerNorm2d(nn.Module):
     def __init__(self, num_channels: int, eps: float = 1e-6) -> None:
         super().__init__()
@@ -38,17 +40,13 @@ def test():
 
     a0 = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_layernorm.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_fuse_layernorm.pt inputshape=[1,64,16,16]")
-
-    # pnnx inference
-    import test_pnnx_fuse_layernorm_pnnx
-    b0 = test_pnnx_fuse_layernorm_pnnx.test_inference()
+    mod = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_fuse_layernorm",
+        pnnx_args=("inputshape=[1,64,16,16]",),
+    )
+    b0 = mod.test_inference()
 
     return torch.allclose(a0, b0, 1e-4, 1e-4)
 

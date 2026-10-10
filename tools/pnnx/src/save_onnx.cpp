@@ -235,10 +235,10 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             {
                 // fp64 to fp16
                 const double* p = (const double*)attr.data.data();
-                int len = attr.data.size() / 4;
-                d->resize(len);
+                const size_t len = attr.data.size() / sizeof(double);
+                d->resize(len * sizeof(unsigned short));
                 unsigned short* p_fp16 = (unsigned short*)d->data();
-                for (int i = 0; i < len; i++)
+                for (size_t i = 0; i < len; i++)
                 {
                     p_fp16[i] = float32_to_float16((float)p[i]);
                 }

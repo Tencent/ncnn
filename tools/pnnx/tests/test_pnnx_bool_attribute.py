@@ -3,6 +3,9 @@
 
 import torch
 import torch.nn as nn
+from pathlib import Path
+
+from pnnx_test_utils import ExportTestFormat, _selected_format, convert_and_import
 
 class Model(nn.Module):
     def __init__(self, shape):
@@ -22,25 +25,33 @@ class Model(nn.Module):
         # fold the comparison into a bool constant
         return x + 1, self.values > 0
 
+class BoolStateModel(Model):
+    def __init__(self, shape):
+        super().__init__(shape)
+        # PT2 preserves the comparison node. Test serialization with bool state
+        # directly, while the TorchScript fixture also covers constant folding.
+        self.values = self.values > 0
+
+    def forward(self, x):
+        return x + 1, self.values
+
 def test_bool_attribute(shape, fp16):
-    net = Model(shape)
+    net = BoolStateModel(shape) if _selected_format() == ExportTestFormat.EXPORTED_PROGRAM else Model(shape)
     net.eval()
 
     x = torch.ones(2)
     mask = (net.values > 0).numpy().tobytes()
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_bool_attribute.pt")
-
-    # torchscript to pnnx
-    import os
-    ret = os.system("../src/pnnx test_pnnx_bool_attribute.pt inputshape=[2] fp16=%d" % fp16)
-    if ret != 0:
-        return False
+    module = convert_and_import(
+        net,
+        (x,),
+        "test_pnnx_bool_attribute",
+        pnnx_args=("inputshape=[2]", "fp16=%d" % fp16),
+    )
+    output_basename = str(Path(module.__file__))[:-len("_pnnx.py")]
 
     # check bool storage type and element count
-    with open("test_pnnx_bool_attribute.ncnn.param") as f:
+    with open(output_basename + ".ncnn.param") as f:
         constants = [line.split() for line in f if line.startswith("MemoryData ")]
     if len(constants) != 1:
         return False
@@ -49,7 +60,7 @@ def test_bool_attribute(shape, fp16):
         return False
 
     # check raw bool bytes and zero padding to 4bytes
-    with open("test_pnnx_bool_attribute.ncnn.bin", "rb") as f:
+    with open(output_basename + ".ncnn.bin", "rb") as f:
         data = f.read()
     return data == mask + bytes((-len(mask)) % 4)
 

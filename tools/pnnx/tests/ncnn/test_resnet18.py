@@ -3,6 +3,11 @@
 
 import torch
 import torchvision.models as models
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pnnx_test_utils import convert_and_import_ncnn
 
 def test():
     net = models.resnet18().half().float()
@@ -13,17 +18,10 @@ def test():
 
     a = net(x)
 
-    # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_resnet18.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_resnet18.pt inputshape=[1,3,224,224]")
+    module = convert_and_import_ncnn(net, (x,), "test_resnet18", pnnx_args=("inputshape=[1,3,224,224]",))
 
     # ncnn inference
-    import test_resnet18_ncnn
-    b = test_resnet18_ncnn.test_inference()
+    b = module.test_inference()
 
     return torch.allclose(a, b, 1e-2, 1e-2)
 
