@@ -34,7 +34,7 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     Mat& top_blob = top_blobs[0];
 
 #if NCNN_BATCH
-    if (input_batch_axis != 233 || output_batch_axis != 233)
+    if (support_batch)
         return forward_batch(bottom_blobs, top_blobs, opt);
 #endif
 
@@ -326,7 +326,7 @@ int Reshape_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 int Reshape_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if NCNN_BATCH
-    if (input_batch_axis != 233 || output_batch_axis != 233)
+    if (support_batch)
         return Reshape::forward(bottom_blobs, top_blobs, opt);
 #endif
 
@@ -777,7 +777,7 @@ int Reshape_arm::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector
     const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
     const size_t out_elemsize = scalar_elemsize * out_elempack;
 
-    bool reshape_zero_copy = input_axis == output_axis && output_shape.n == bottom_blob.n && out_elempack == bottom_blob.elempack;
+    bool reshape_zero_copy = same_batch_partition(input_shape, input_axis, output_shape, output_axis) && out_elempack == bottom_blob.elempack;
     if (reshape_zero_copy && bottom_blob.elempack != 1)
     {
         const int pack_axis_size = bottom_blob.dims == 1 ? bottom_blob.w * bottom_blob.elempack : bottom_blob.dims == 2 ? bottom_blob.h * bottom_blob.elempack : bottom_blob.c * bottom_blob.elempack;

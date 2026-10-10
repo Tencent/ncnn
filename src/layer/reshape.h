@@ -21,6 +21,7 @@ public:
 protected:
     int eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const;
 #if NCNN_BATCH
+    static bool same_batch_partition(const Mat& input_shape, int input_axis, const Mat& output_shape, int output_axis);
     int forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
                             Mat& input_shape, Mat& output_shape,

@@ -597,7 +597,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[3].i = num_heads;
         constants[4].i = cached_xk_blob.cstep;
         constants[5].i = attn_mask_blob_unpacked.dims;
-        constants[6].i = attn_mask_blob_unpacked.cstep;
+        constants[6].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_blob_unpacked.c == 1 ? 0 : attn_mask_blob_unpacked.cstep;
 
         VkMat dispatcher;
         dispatcher.w = dst_seqlen;
@@ -613,9 +613,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int B = num_heads;
 
         int K_elempack = K % 4 == 0 ? 4 : 1;
-        // A 3d attention mask is packed along heads, while qk output is packed
-        // along query positions. Keep both unpacked to preserve their layout.
-        int M_elempack = attn_mask_blob.dims == 3 ? 1 : (M % 4 == 0 ? 4 : 1);
+        int M_elempack = M % 4 == 0 ? 4 : 1;
         int MB_elempack = (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
 
@@ -632,7 +630,16 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             k_affine = tmp;
         }
         VkMat attn_mask_blob_unpacked = attn_mask_blob;
-        if (attn_mask && M_elempack != attn_mask_blob.elempack)
+        if (attn_mask_blob.dims == 3)
+        {
+            if (attn_mask_blob.elempack != 1)
+            {
+                vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, cmd, opt);
+                if (attn_mask_blob_unpacked.empty())
+                    return -100;
+            }
+        }
+        else if (M_elempack < attn_mask_blob.elempack)
         {
             vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, M_elempack, cmd, opt);
         }
@@ -647,13 +654,13 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         bindings[2] = qk_cross;
         bindings[3] = attn_mask_blob_unpacked;
 
-        std::vector<vk_constant_type> constants(5);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = M / M_elempack;
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
-        const int attn_mask_channels = attn_mask_blob_unpacked.c * attn_mask_blob_unpacked.elempack;
-        constants[4].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_channels == 1 ? 2 : attn_mask_blob_unpacked.dims;
+        constants[4].i = attn_mask_blob_unpacked.dims;
+        constants[5].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_blob_unpacked.c == 1 ? 0 : attn_mask_blob_unpacked.cstep;
 
         VkMat dispatcher;
         dispatcher.w = N;
