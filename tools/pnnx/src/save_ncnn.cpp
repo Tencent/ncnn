@@ -71,6 +71,48 @@ static int32_t safe_int64_to_int32(int64_t value)
     return static_cast<int32_t>(value);
 }
 
+// translate a traced torch shape into an ncnn shape hint record (dims, w, h, d, c)
+//
+// the hint describes a single sample, following ncnn::Mat(w,h,d,c). the batch axis is not part of
+// the hint because ncnn keeps the batch count in Mat::n, so the torch shape has to be reduced by
+// that axis. solve_batch_index records it in __batch_index, with 233 meaning "no batch axis".
+static bool operand_shape_to_hint(const Operand* oprand, int& dims, int& w, int& h, int& d, int& c)
+{
+    if (oprand->shape.empty())
+        return false;
+
+    for (size_t i = 0; i < oprand->shape.size(); i++)
+    {
+        // -1 marks an unknown size, and a zero extent cannot be described by a hint either
+        if (oprand->shape[i] <= 0)
+            return false;
+    }
+
+    int batch_index = 233;
+    if (oprand->params.find("__batch_index") != oprand->params.end())
+        batch_index = oprand->params.at("__batch_index").i;
+    else if (oprand->params.find("__ncnn_batch_axis") != oprand->params.end())
+        batch_index = oprand->params.at("__ncnn_batch_axis").i;
+
+    std::vector<int> s = oprand->shape;
+    if (batch_index >= 0 && batch_index < (int)s.size())
+        s.erase(s.begin() + batch_index);
+
+    // ncnn Mat supports at most 4 dimensions
+    if (s.empty() || s.size() > 4)
+        return false;
+
+    // Mat(w,h,d,c) lists the torch axes in reverse order
+    const int n = (int)s.size();
+    dims = n;
+    w = s[n - 1];
+    h = n >= 2 ? s[n - 2] : 1;
+    d = n >= 4 ? s[n - 3] : 1;
+    c = n >= 3 ? s[0] : 1;
+
+    return true;
+}
+
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
@@ -106,6 +148,40 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         for (const Operand* oprand : op->outputs)
         {
             fprintf(paramfp, " %s", oprand->name.c_str());
+        }
+
+        // blob shape hints, so that the runtime and the other tools can reuse the traced shapes
+        // instead of running shape inference again. every output of the layer must use the same
+        // step, so either all of them carry a hint or none of them does.
+        {
+            std::vector<int> shape_hints;
+            bool shape_hints_ready = !op->outputs.empty();
+            for (const Operand* oprand : op->outputs)
+            {
+                int dims;
+                int w;
+                int h;
+                int d;
+                int c;
+                if (!operand_shape_to_hint(oprand, dims, w, h, d, c))
+                {
+                    shape_hints_ready = false;
+                    break;
+                }
+
+                shape_hints.push_back(dims);
+                shape_hints.push_back(w);
+                shape_hints.push_back(h);
+                shape_hints.push_back(d);
+                shape_hints.push_back(c);
+            }
+
+            if (shape_hints_ready)
+            {
+                fprintf(paramfp, " -23330=%d", (int)shape_hints.size());
+                for (int i = 0; i < (int)shape_hints.size(); i++)
+                    fprintf(paramfp, ",%d", shape_hints[i]);
+            }
         }
 
         for (const auto& it : op->params)
