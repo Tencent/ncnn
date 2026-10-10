@@ -12,6 +12,7 @@ RotaryEmbed::RotaryEmbed()
 int RotaryEmbed::load_param(const ParamDict& pd)
 {
     interleaved = pd.get(0, 0);
+    input_hc_swapped = pd.get(1, 0);
 
     return 0;
 }
@@ -25,11 +26,22 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
-    const int seqlen = bottom_blob.h;
-    const int num_heads = bottom_blob.c;
+    /* input_hc_swapped=1：输入是 [w, c, h]（吸收掉前面的 Permute(order_type=2)），
+     * 序列在 c 轴、头在 h 轴；输出仍写标准 [w, h, c]。 */
+    const int seqlen = input_hc_swapped ? bottom_blob.c : bottom_blob.h;
+    const int num_heads = input_hc_swapped ? bottom_blob.h : bottom_blob.c;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (input_hc_swapped)
+    {
+        /* 融合模式下输入是 [w, c, h]，输出必须回到标准布局 [w, h, c]
+         * （原来的 Permute(order_type=2) 干的活由本层一并完成）。 */
+        top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
+    }
+    else
+    {
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
@@ -43,7 +55,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             if (interleaved)
             {
-                const float* ptr = head.row(i);
+                /* 交换布局下 (头 q, 序列 i) 的元素在 channel(i).row(q) */
+                const float* ptr = input_hc_swapped ? bottom_blob.channel(i).row(q) : head.row(i);
                 const float* cos_ptr = cos_cache.row(i);
                 const float* sin_ptr = sin_cache.row(i);
                 float* outptr = out_head.row(i);
@@ -68,7 +81,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 // the standard-rope form whose halves are identical, so the second half reuses the
                 // first. This keeps existing half-width callers bit-identical.
                 const int cw = cos_cache.w == embed_dim ? half : 0;
-                const float* ptr0 = head.row(i);
+                // 交换布局下 (头 q, 序列 i) 的元素在 channel(i).row(q)
+                const float* ptr0 = input_hc_swapped ? bottom_blob.channel(i).row(q) : head.row(i);
                 const float* ptr1 = ptr0 + half;
                 const float* cos_ptr0 = cos_cache.row(i);
                 const float* sin_ptr0 = sin_cache.row(i);
