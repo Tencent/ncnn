@@ -224,10 +224,10 @@ def test_re_registration_releases_superseded_callbacks(first, second, type_name,
     assert current.destroyed == 1
 
 
-def test_re_registration_keeps_high_named_registry_slots_distinct(tmp_path):
+def test_new_named_slot_with_custom_tag_is_rejected(tmp_path):
     net = ncnn.Net()
     refs = []
-    for i in range(257):
+    for i in range(256):
         factory = LayerFactory(i)
         refs.append(weakref.ref(factory))
         register(net, factory, 'name', i)
@@ -235,18 +235,99 @@ def test_re_registration_keeps_high_named_registry_slots_distinct(tmp_path):
     gc.collect()
     assert all(ref() is not None for ref in refs)
 
-    current = LayerFactory(300)
-    register(net, current, 'name', 256)
+    rejected = LayerFactory(300)
+    rejected_ref = weakref.ref(rejected)
+    assert net.register_custom_layer('CustomLayer256', rejected.create, rejected.destroy) == -1
+    del rejected
     gc.collect()
-    assert all(ref() is not None for ref in refs[:256])
-    assert refs[256]() is None
-    # Registration supports distinct high named slots; the native model type
-    # encoding is unchanged. Load only the existing low slot to verify routing.
+    assert rejected_ref() is None
+    assert all(ref() is not None for ref in refs)
+    # Rejecting the unencodable next slot must preserve the original routing.
     load(net, 'name', tmp_path)
     infer(net, 1)
     net.clear()
     assert refs[0]().destroyed == 1
-    assert current.destroyed == 0
+
+
+@pytest.mark.parametrize('index', [253, 254, 255])
+@pytest.mark.parametrize('replacement', ['name', 'index'])
+def test_named_boundary_slots_load_after_replacement(index, replacement, tmp_path):
+    net = ncnn.Net()
+    refs = []
+    for i in range(index + 1):
+        factory = LayerFactory(i)
+        refs.append(weakref.ref(factory))
+        register(net, factory, 'name', i)
+    del factory
+    current = LayerFactory(300)
+    register(net, current, replacement, index)
+    gc.collect()
+    assert refs[index]() is None
+    assert all(ref() is not None for ref in refs[:index])
+    load(net, 'name', tmp_path, index)
+    infer(net, 301)
+    net.clear()
+    assert current.destroyed == 1 and not current.layers
+    load(net, 'name', tmp_path, index)
+    infer(net, 301)
+    net.clear()
+    assert current.destroyed == 2
+
+
+@pytest.mark.parametrize('index', [0, 254, 255, 512])
+def test_index_registration_tracks_native_extent_for_new_names(index, tmp_path):
+    net = ncnn.Net()
+    indexed = LayerFactory(1)
+    register(net, indexed, 'index', index)
+    named = LayerFactory(2)
+    ref = weakref.ref(named)
+    next_index = index + 1
+    result = net.register_custom_layer('FollowingNumeric', named.create, named.destroy)
+    if next_index & 256:
+        assert result == -1
+        del named
+        gc.collect()
+        assert ref() is None
+    else:
+        assert result == 0
+        assert net.load_param_mem(
+            '7767517\n2 2\nInput data 0 1 data\n'
+            'FollowingNumeric custom 1 1 data output\n'
+        ) == 0
+        assert net.load_model(ncnn.DataReaderFromEmpty()) == 0
+        infer(net, 3)
+        net.clear()
+        assert named.destroyed == 1 and not named.layers
+    load(net, 'index', tmp_path, index)
+    infer(net, 2)
+    net.clear()
+    assert indexed.destroyed == 1 and not indexed.layers
+
+
+def test_replacement_failed_and_builtin_registration_preserve_named_extent(tmp_path):
+    net = ncnn.Net()
+    for i in range(260):
+        factory = LayerFactory(i)
+        register(net, factory, 'name')
+    del factory
+    builtin = LayerFactory(0)
+    assert net.register_custom_layer('Input', builtin.create, builtin.destroy) == 0
+    assert net.register_custom_layer(16, builtin.create, builtin.destroy) == 0
+    rejected = LayerFactory(1)
+    rejected_ref = weakref.ref(rejected)
+    for index in [-1, 1000000 + 256]:
+        assert net.register_custom_layer(index, rejected.create, rejected.destroy) == -1
+    del rejected
+    gc.collect()
+    assert rejected_ref() is None
+    for i in range(1, 256):
+        factory = LayerFactory(i)
+        register(net, factory, 'name', i)
+    del factory
+    load(net, 'name', tmp_path, 255)
+    infer(net, 256)
+    net.clear()
+    assert builtin.destroyed == 1 and not builtin.layers
 
 
 @pytest.mark.parametrize('kind', ['name', 'index'])

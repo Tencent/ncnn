@@ -94,6 +94,11 @@ static void LayerDestroyer(Layer* layer, void* userdata)
 class PyNet : public Net
 {
 public:
+    PyNet()
+        : custom_layer_registry_size(0)
+    {
+    }
+
     ~PyNet()
     {
         // The layer destroyers need the factories while clearing the network.
@@ -110,9 +115,17 @@ public:
         return nullptr;
     }
 
+    void record_custom_layer_index(int index)
+    {
+        if (custom_layer_registry_size <= index)
+            custom_layer_registry_size = index + 1;
+    }
+
     // Net::clear() preserves registrations for subsequent model loads.
     // Keep stable addresses for both userdata and registered type names.
     std::vector<std::unique_ptr<LayerFactory> > layer_factories;
+    // Numeric registration can extend the native registry with empty slots.
+    int custom_layer_registry_size;
 };
 
 PYBIND11_MODULE(ncnn, m)
@@ -1048,6 +1061,8 @@ PYBIND11_MODULE(ncnn, m)
         bool custom = index == -1;
         if (custom)
             index = net.custom_layer_to_index(type);
+        if (custom && index == -1 && (self.custom_layer_registry_size & LayerType::CustomBit))
+            return -1;
         LayerFactory* existing = self.find_layer_factory(index, custom);
         if (existing)
         {
@@ -1072,6 +1087,8 @@ PYBIND11_MODULE(ncnn, m)
         int ret = net.register_custom_layer(lf->name.c_str(), LayerCreator, LayerDestroyer, lf);
         if (ret == 0 && index == -1)
             lf->index = net.custom_layer_to_index(type);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(lf->index);
         if (ret != 0)
             self.layer_factories.pop_back();
         return ret;
@@ -1100,6 +1117,8 @@ PYBIND11_MODULE(ncnn, m)
         self.layer_factories.push_back(std::move(factory));
         LayerFactory* lf = self.layer_factories.back().get();
         int ret = net.register_custom_layer(index, LayerCreator, LayerDestroyer, lf);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(custom_index);
         if (ret != 0)
             self.layer_factories.pop_back();
         return ret;
