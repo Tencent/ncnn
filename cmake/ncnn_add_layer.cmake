@@ -101,7 +101,20 @@ macro(ncnn_add_layer class)
         set(LAYER_ARCH_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp)
         if(EXISTS ${LAYER_ARCH_SRC})
             set(WITH_LAYER_${name}_${NCNN_TARGET_ARCH} 1)
-            list(APPEND ncnn_SRCS ${LAYER_ARCH_SRC})
+            if(NCNN_TARGET_ARCH STREQUAL "mips" AND NCNN_MXU2 AND NOT NCNN_RUNTIME_CPU)
+                set(NCNN_MXU2_BASE_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/layer/mips/${name}_mips.cpp)
+                add_custom_command(
+                    OUTPUT ${NCNN_MXU2_BASE_SOURCE}
+                    COMMAND ${CMAKE_COMMAND} -DSRC=${LAYER_ARCH_SRC} -DDST=${NCNN_MXU2_BASE_SOURCE} -DNCNN_MXU2_BASE=ON -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_mxu2_source.cmake"
+                    DEPENDS ${LAYER_ARCH_SRC}
+                    COMMENT "Generating source ${name}_mips.cpp for mxu2"
+                    VERBATIM
+                )
+                set_source_files_properties(${NCNN_MXU2_BASE_SOURCE} PROPERTIES GENERATED TRUE COMPILE_FLAGS "-mmxu2 -D__mips_msa=1")
+                list(APPEND ncnn_SRCS ${NCNN_MXU2_BASE_SOURCE})
+            else()
+                list(APPEND ncnn_SRCS ${LAYER_ARCH_SRC})
+            endif()
         endif()
 
         set(LAYER_VULKAN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp)
@@ -425,6 +438,12 @@ macro(ncnn_add_layer class)
     if(NCNN_TARGET_ARCH STREQUAL "mips")
         if(NCNN_RUNTIME_CPU AND NCNN_MSA)
             ncnn_add_arch_opt_layer(${class} msa "-mmsa")
+        endif()
+        if(NCNN_RUNTIME_CPU AND NCNN_MXU2)
+            ncnn_add_arch_opt_layer(${class} mxu2 "-mmxu2 -D__mips_msa=1")
+        endif()
+        if(NCNN_RUNTIME_CPU AND NCNN_MXU3)
+            ncnn_add_arch_opt_layer(${class} mxu3 "-mmxu3")
         endif()
         if(NCNN_RUNTIME_CPU AND NCNN_MMI)
             ncnn_add_arch_opt_source(${class} mmi "-mloongson-mmi")

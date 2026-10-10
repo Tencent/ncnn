@@ -2868,6 +2868,16 @@ int cpu_support_mips_msa()
 #endif
 }
 
+int cpu_support_mips_mxu2()
+{
+#if NCNN_MXU2
+    // whereever compiler supports mxu2
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_loongarch_lsx()
 {
     try_initialize_global_cpu_info();
