@@ -89,6 +89,24 @@ static int test_gelu_4()
            || test_gelu(RandomMat(128, -2000.f, 2000.f), true);
 }
 
+static int test_gelu_5()
+{
+    // finite fp16 inputs must not overflow when multiplying by 1 + tanh(...)
+    const float values[] = {-65504.f, -40000.f, -32768.f, -32752.f, -1.f, -0.f, 0.f, 1.f, 32752.f, 32768.f, 40000.f, 65504.f};
+    ncnn::Mat a(128);
+    ncnn::Mat b(127);
+    for (int i = 0; i < a.w; i++)
+        a[i] = values[i % 12];
+    for (int i = 0; i < b.w; i++)
+        b[i] = values[i % 12];
+
+    return 0
+           || test_gelu(a, false)
+           || test_gelu(a, true)
+           || test_gelu(b, false)
+           || test_gelu(b, true);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -98,5 +116,6 @@ int main()
            || test_gelu_1()
            || test_gelu_2()
            || test_gelu_3()
-           || test_gelu_4();
+           || test_gelu_4()
+           || test_gelu_5();
 }
