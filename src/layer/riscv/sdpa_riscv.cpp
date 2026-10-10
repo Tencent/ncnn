@@ -106,7 +106,6 @@ static inline float rvv_max_f32(const float* a, int n)
 }
 #endif // __riscv_v
 
-
 int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if !__riscv_v
@@ -290,7 +289,6 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
     return 0;
 #endif // __riscv_v
 }
-
 
 int SDPA_riscv::create_pipeline(const Option& _opt)
 {
