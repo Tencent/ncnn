@@ -20,6 +20,10 @@ Concat_x86::Concat_x86()
 
 int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int ret_shape = check_shape(bottom_blobs);
+    if (ret_shape != 0)
+        return ret_shape;
+
     int elembits = bottom_blobs[0].elembits();
 
     if (elembits == 16)
