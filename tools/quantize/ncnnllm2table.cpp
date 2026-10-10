@@ -620,7 +620,8 @@ static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const n
         #pragma omp parallel for num_threads(num_threads)
         for (int q = 0; q < num_heads; q++)
         {
-            const ncnn::Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
+            const int mask_channel = attn_mask_blob.c == 1 ? 0 : q;
+            const ncnn::Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(mask_channel) : attn_mask_blob;
             ncnn::Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
