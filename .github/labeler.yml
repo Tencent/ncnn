@@ -1,0 +1,52 @@
+cmake:
+- changed-files:
+  - any-glob-to-any-file: ['cmake/**', 'toolchains/**']
+
+doc: 
+- changed-files:
+  - any-glob-to-any-file: docs/**
+
+python: 
+- changed-files:
+  - any-glob-to-any-file: python/**
+
+example: 
+- changed-files:
+  - any-glob-to-any-file: examples/**
+
+test: 
+- changed-files:
+  - any-glob-to-any-file: tests/**
+
+tool: 
+- changed-files:
+  - any-glob-to-any-file: tools/**
+pnnx: 
+- changed-files:
+  - any-glob-to-any-file: tools/pnnx/**
+
+core: 
+- changed-files:
+  - any-glob-to-any-file: src/*
+layer: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/*
+
+arm: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/arm/**
+loongarch: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/loongarch/**
+mips: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/mips/**
+riscv: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/riscv/**
+vulkan: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/vulkan/**
+x86: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/x86/**

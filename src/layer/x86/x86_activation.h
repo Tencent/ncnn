@@ -1,21 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef X86_ACTIVATION_H
 #define X86_ACTIVATION_H
 
-#include <math.h>
 #include "mat.h"
 #include "fused_activation.h"
 #include "x86_usability.h"
@@ -34,7 +22,7 @@ static NCNN_FORCEINLINE __m128 tanh_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     const __m128 two = _mm_set1_ps(2.0f);
-    return _mm_sub_ps(_mm_mul_ps(sigmoid_sse(_mm_mul_ps(inputs, two)), two), one);
+    return _mm_comp_fmsub_ps(sigmoid_sse(_mm_mul_ps(inputs, two)), two, one);
 }
 
 static NCNN_FORCEINLINE __m128 mish_sse(__m128 inputs)
@@ -50,33 +38,32 @@ static NCNN_FORCEINLINE __m128 swish_sse(__m128 inputs)
 static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
 {
     const __m128 one = _mm_set1_ps(1.0f);
-    b = _mm_add_ps(_mm_mul_ps(inputs, a), b);
+    b = _mm_comp_fmadd_ps(inputs, a, b);
     b = _mm_max_ps(b, _mm_setzero_ps());
     b = _mm_min_ps(b, one);
     return _mm_mul_ps(b, inputs);
-}
-
-static NCNN_FORCEINLINE __m128 abs_sse(__m128 inputs)
-{
-    // Use negative zero as the sign bit mask.
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
-
-    // return (!magic_negative_zero && x);
-    return _mm_andnot_ps(magic_negative_zero, inputs);
 }
 
 static NCNN_FORCEINLINE __m128 lrelu_sse(__m128 inputs, float slope)
 {
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
     __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
-    return _mm_add_ps(pos, _mm_mul_ps(_mm_set1_ps(slope), neg));
+    return _mm_comp_fmadd_ps(_mm_set1_ps(slope), neg, pos);
 }
 
 static NCNN_FORCEINLINE __m128 prelu_sse(__m128 inputs, __m128 alphas)
 {
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
     __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
-    return _mm_add_ps(pos, _mm_mul_ps(alphas, neg));
+    return _mm_comp_fmadd_ps(alphas, neg, pos);
+}
+
+static NCNN_FORCEINLINE __m128 elu_sse(__m128 inputs, __m128 alphas)
+{
+    __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
+    __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
+    neg = _mm_sub_ps(exp_ps(neg), _mm_set1_ps(1.f));
+    return _mm_comp_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
@@ -135,8 +122,8 @@ static NCNN_FORCEINLINE __m256 tanh_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
-#if __FMA__
-    return _mm256_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
+#if __FMA__ || __FMA4__
+    return _mm256_comp_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
 #else
     return _mm256_sub_ps(_mm256_mul_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two), one);
 #endif
@@ -161,23 +148,26 @@ static NCNN_FORCEINLINE __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
     return _mm256_mul_ps(b, inputs);
 }
 
-static NCNN_FORCEINLINE __m256 abs_avx(__m256 inputs)
-{
-    return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
-}
-
 static NCNN_FORCEINLINE __m256 lrelu_avx(__m256 inputs, float slope)
 {
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
-    return _mm256_add_ps(pos, _mm256_mul_ps(_mm256_set1_ps(slope), neg));
+    return _mm256_comp_fmadd_ps(_mm256_set1_ps(slope), neg, pos);
 }
 
 static NCNN_FORCEINLINE __m256 prelu_avx(__m256 inputs, __m256 alphas)
 {
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
-    return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
+    return _mm256_comp_fmadd_ps(alphas, neg, pos);
+}
+
+static NCNN_FORCEINLINE __m256 elu_avx(__m256 inputs, __m256 alphas)
+{
+    __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
+    __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
+    neg = _mm256_sub_ps(exp256_ps(neg), _mm256_set1_ps(1.f));
+    return _mm256_comp_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
@@ -257,15 +247,25 @@ static NCNN_FORCEINLINE __m512 hardswish_avx512(__m512 inputs, __m512 a, __m512 
     return _mm512_mul_ps(b, inputs);
 }
 
-static NCNN_FORCEINLINE __m512 abs_avx512(__m512 inputs)
-{
-    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(inputs), _mm512_set1_epi32(0x7fffffff)));
-}
-
 static NCNN_FORCEINLINE __m512 lrelu_avx512(__m512 inputs, float slope)
 {
     __mmask16 _is_negative = _mm512_cmp_ps_mask(inputs, _mm512_setzero_ps(), _CMP_LT_OQ);
     return _mm512_mask_mul_ps(inputs, _is_negative, inputs, _mm512_set1_ps(slope));
+}
+
+static NCNN_FORCEINLINE __m512 elu_avx512(__m512 inputs, __m512 alphas)
+{
+    __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
+    __m512 neg = _mm512_min_ps(_mm512_setzero_ps(), inputs);
+    neg = _mm512_sub_ps(exp512_ps(neg), _mm512_set1_ps(1.f));
+    return _mm512_fmadd_ps(alphas, neg, pos);
+}
+
+static NCNN_FORCEINLINE __m512 prelu_avx512(__m512 inputs, __m512 alphas)
+{
+    __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
+    __m512 neg = _mm512_min_ps(_mm512_setzero_ps(), inputs);
+    return _mm512_fmadd_ps(alphas, neg, pos);
 }
 
 static NCNN_FORCEINLINE __m512 activation_avx512(__m512 _v, int activation_type, const ncnn::Mat& activation_params)

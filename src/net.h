@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
@@ -58,12 +47,15 @@ public:
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
-    // register custom layer by layer type name
+    // register custom layer or overwrite built-in layer by layer type name
+    // a registered override returning null fails parameter loading without built-in fallback
     // return 0 if success
     int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
     virtual int custom_layer_to_index(const char* type);
 #endif // NCNN_STRING
-    // register custom layer by layer type
+    // register custom layer or overwrite built-in layer by layer type
+    // a registered override returning null fails parameter loading without built-in fallback
+    // custom indexes must carry LayerType::CustomBit; the untagged slot must be < 1000000
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 
@@ -81,30 +73,42 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+#if _WIN32
+    int load_param(const wchar_t* protopath);
+#endif
+
+    // load network structure from in-memory plain param string, must be NULL-terminated
+    // return 0 if success
     int load_param_mem(const char* mem);
 #endif // NCNN_STRING
     // load network structure from binary param file
     // return 0 if success
     int load_param_bin(FILE* fp);
     int load_param_bin(const char* protopath);
+#if _WIN32
+    int load_param_bin(const wchar_t* protopath);
+#endif
 
     // load network weight data from model file
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
+#if _WIN32
+    int load_model(const wchar_t* modelpath);
+#endif
 #endif // NCNN_STDIO
 
     // load network structure from external memory
     // memory pointer must be 32-bit aligned
     // return bytes consumed
-    int load_param(const unsigned char* mem);
+    size_t load_param(const unsigned char* mem);
 
     // reference network weight data from external memory
     // weight data is not copied but referenced
     // so external memory should be retained when used
     // memory pointer must be 32-bit aligned
     // return bytes consumed
-    int load_model(const unsigned char* mem);
+    size_t load_model(const unsigned char* mem);
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
@@ -149,8 +153,10 @@ protected:
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
     virtual Layer* create_custom_layer(const char* type);
+    virtual Layer* create_overwrite_builtin_layer(const char* type);
 #endif // NCNN_STRING
     virtual Layer* create_custom_layer(int index);
+    virtual Layer* create_overwrite_builtin_layer(int typeindex);
 
 private:
     Net(const Net&);
@@ -180,25 +186,26 @@ public:
     // enabled by default
     void set_light_mode(bool enable);
 
-    // set thread count for this extractor
-    // this will overwrite the global setting
-    // default count is system depended
-    void set_num_threads(int num_threads);
-
     // set blob memory allocator
     void set_blob_allocator(Allocator* allocator);
 
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
-#if NCNN_VULKAN
-    void set_vulkan_compute(bool enable);
+    // set kv cache memory allocator
+    void set_kvcache_allocator(Allocator* allocator);
 
+    // set maximum kv cache sequence length hint
+    void set_kvcache_max_seqlen_hint(int max_seqlen_hint);
+
+#if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
 
     void set_workspace_vkallocator(VkAllocator* allocator);
 
     void set_staging_vkallocator(VkAllocator* allocator);
+
+    void set_kvcache_vkallocator(VkAllocator* allocator);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -209,7 +216,7 @@ public:
     // get result by blob name
     // return 0 if success
     // type = 0, default
-    // type = 1, do not convert fp16/bf16 or / and packing
+    // type = 1, do not convert fp16/bf16 or / and packing, required for kv cache
     int extract(const char* blob_name, Mat& feat, int type = 0);
 #endif // NCNN_STRING
 
@@ -220,7 +227,7 @@ public:
     // get result by blob index
     // return 0 if success
     // type = 0, default
-    // type = 1, do not convert fp16/bf16 or / and packing
+    // type = 1, do not convert fp16/bf16 or / and packing, required for kv cache
     int extract(int blob_index, Mat& feat, int type = 0);
 
 #if NCNN_VULKAN
@@ -232,14 +239,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob name
-    // return 0 if success
-    int input(const char* blob_name, const VkImageMat& in);
-
-    // get result by blob name
-    // return 0 if success
-    int extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -249,14 +248,6 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob index
-    // return 0 if success
-    int input(int blob_index, const VkImageMat& in);
-
-    // get result by blob index
-    // return 0 if success
-    int extract(int blob_index, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_VULKAN
 
 protected:

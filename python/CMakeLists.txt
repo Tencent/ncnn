@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.4...3.10)
 
 project(pyncnn)
 
@@ -8,7 +8,29 @@ add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
-add_subdirectory(pybind11)
+option(NCNN_SYSTEM_PYBIND11 "use system pybind11" OFF)
+
+# pybind11 v3 defaults to CMake's FindPython module. Opt-in explicitly so the
+# Python_EXECUTABLE / Python3_EXECUTABLE hints passed by setup.py are honored
+# (the legacy PYTHON_EXECUTABLE / PYTHON_PREFIX / PYBIND11_PYTHONLIBS_OVERWRITE
+# variables are no longer effective in pybind11 v3).
+set(PYBIND11_FINDPYTHON NEW)
+
+if(NCNN_SYSTEM_PYBIND11)
+    find_package(pybind11)
+    if(NOT pybind11_FOUND)
+        message(WARNING "pybind11 package not found! NCNN_SYSTEM_PYBIND11 will be turned off.")
+        set(NCNN_SYSTEM_PYBIND11 OFF)
+    endif()
+endif()
+
+if(NOT NCNN_SYSTEM_PYBIND11)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11/CMakeLists.txt")
+        message(FATAL_ERROR "The submodules were not downloaded! Please update submodules with \"git submodule update --init\" and try again.")
+    else()
+        add_subdirectory(pybind11)
+    endif()
+endif()
 
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
     if(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
@@ -16,6 +38,15 @@ if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
         set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/ncnn/)
     endif(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
 endif("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+
+# enable global link time optimization
+cmake_policy(SET CMP0069 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_supported_output)
+if(ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 include_directories(${pybind11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
 pybind11_add_module(pyncnn src/main.cpp)

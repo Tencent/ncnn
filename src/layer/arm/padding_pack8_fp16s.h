@@ -1,18 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t _v)
+static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
 {
     const unsigned short* ptr = src;
     unsigned short* outptr = dst;
@@ -23,6 +12,7 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
     int top_size = top * dst.w;
     int bottom_size = bottom * dst.w;
 
+#if NCNN_GNU_INLINE_ASM
     asm volatile(
         "mov    v0.16b, %10.16b         \n"
         "mov    v1.16b, %10.16b         \n"
@@ -154,8 +144,66 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
         "r"(right),       // %7
         "r"(top_size),    // %8
         "r"(bottom_size), // %9
-        "w"(_v)           // %10
+        "w"(v)            // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19");
+#else  // NCNN_GNU_INLINE_ASM
+
+    // fill top
+    {
+        int x = 0;
+        for (; x + 3 < top_size; x += 4)
+        {
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            vst1q_u16(outptr + 16, v);
+            vst1q_u16(outptr + 24, v);
+            outptr += 32;
+        }
+        for (; x < top_size; x++)
+        {
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+    }
+    // fill center
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            uint16x8_t _p = vld1q_u16(ptr);
+            vst1q_u16(outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+    }
+    // fill bottom
+    {
+        int x = 0;
+        for (; x + 3 < bottom_size; x += 4)
+        {
+            vst1q_u16(outptr, v);
+            vst1q_u16(outptr + 8, v);
+            vst1q_u16(outptr + 16, v);
+            vst1q_u16(outptr + 24, v);
+            outptr += 32;
+        }
+        for (; x < bottom_size; x++)
+        {
+            vst1q_u16(outptr, v);
+            outptr += 8;
+        }
+    }
+#endif // NCNN_GNU_INLINE_ASM
 }
 
 static void padding_replicate_pack8_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)

@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import pytest
 
@@ -32,7 +21,6 @@ def test_extractor():
     in_mat = ncnn.Mat((227, 227, 3))
     with net.create_extractor() as ex:
         ex.set_light_mode(True)
-        ex.set_num_threads(2)
 
         ex.set_blob_allocator(alloctor)
         ex.set_workspace_allocator(alloctor)
@@ -46,9 +34,16 @@ def test_extractor():
             and out_mat.h == 225
             and out_mat.c == 3
         )
+        assert out_mat.allocator is None
+
+        ret, out_mat_raw = ex.extract("conv0_fwd", type=1)
+        assert ret == 0 and out_mat_raw.allocator is alloctor
 
         ret, out_mat = ex.extract("output")
         assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
+
+    out_mat_raw_copy = out_mat_raw.clone()
+    assert out_mat_raw_copy.dims == 3 and out_mat_raw_copy.w == 225
 
 
 def test_extractor_index():
@@ -64,7 +59,6 @@ def test_extractor_index():
     in_mat = ncnn.Mat((227, 227, 3))
     ex = net.create_extractor()
     ex.set_light_mode(True)
-    ex.set_num_threads(2)
 
     ex.set_blob_allocator(alloctor)
     ex.set_workspace_allocator(alloctor)
@@ -78,9 +72,16 @@ def test_extractor_index():
         and out_mat.h == 225
         and out_mat.c == 3
     )
+    assert out_mat.allocator is None
+
+    ret, out_mat_raw = ex.extract(1, type=1)
+    assert ret == 0 and out_mat_raw.allocator is alloctor
 
     ret, out_mat = ex.extract(2)
     assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
 
     # not use with sentence, call clear manually to ensure ex destruct before net
     ex.clear()
+
+    out_mat_raw_copy = out_mat_raw.clone()
+    assert out_mat_raw_copy.dims == 3 and out_mat_raw_copy.w == 225

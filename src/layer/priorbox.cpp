@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "priorbox.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -42,6 +29,73 @@ int PriorBox::load_param(const ParamDict& pd)
     offset = pd.get(13, 0.f);
     step_mmdetection = pd.get(14, 0);
     center_mmdetection = pd.get(15, 0);
+
+    const int min_sizes_type = pd.type(0);
+    const int max_sizes_type = pd.type(1);
+    const int aspect_ratios_type = pd.type(2);
+
+#if NCNN_VALIDATION
+    if (min_sizes_type != 0 && min_sizes_type != 4 && min_sizes_type != 5 && min_sizes_type != 6)
+        return -1;
+
+    if ((min_sizes.dims != 0 || min_sizes.w != 0 || min_sizes.data) && (min_sizes.dims != 1 || min_sizes.w < 0 || min_sizes.elempack != 1 || min_sizes.elemsize != 4u || (min_sizes.w > 0 && !min_sizes.data)))
+        return -1;
+
+    if (max_sizes_type != 0 && max_sizes_type != 4 && max_sizes_type != 5 && max_sizes_type != 6)
+        return -1;
+
+    if ((max_sizes.dims != 0 || max_sizes.w != 0 || max_sizes.data) && (max_sizes.dims != 1 || max_sizes.w < 0 || max_sizes.elempack != 1 || max_sizes.elemsize != 4u || (max_sizes.w > 0 && !max_sizes.data)))
+        return -1;
+
+    if (aspect_ratios_type != 0 && aspect_ratios_type != 4 && aspect_ratios_type != 5 && aspect_ratios_type != 6)
+        return -1;
+
+    if ((aspect_ratios.dims != 0 || aspect_ratios.w != 0 || aspect_ratios.data) && (aspect_ratios.dims != 1 || aspect_ratios.w < 0 || aspect_ratios.elempack != 1 || aspect_ratios.elemsize != 4u || (aspect_ratios.w > 0 && !aspect_ratios.data)))
+        return -1;
+
+    if (min_sizes.empty() || (!max_sizes.empty() && max_sizes.w != min_sizes.w))
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (min_sizes_type == 5)
+    {
+        Mat converted(min_sizes.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = min_sizes;
+        for (int i = 0; i < min_sizes.w; i++)
+            converted[i] = (float)p[i];
+
+        min_sizes = converted;
+    }
+
+    if (max_sizes_type == 5 && !max_sizes.empty())
+    {
+        Mat converted(max_sizes.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = max_sizes;
+        for (int i = 0; i < max_sizes.w; i++)
+            converted[i] = (float)p[i];
+
+        max_sizes = converted;
+    }
+
+    if (aspect_ratios_type == 5 && !aspect_ratios.empty())
+    {
+        Mat converted(aspect_ratios.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = aspect_ratios;
+        for (int i = 0; i < aspect_ratios.w; i++)
+            converted[i] = (float)p[i];
+
+        aspect_ratios = converted;
+    }
 
     return 0;
 }
@@ -99,7 +153,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float size = min_sizes[0];
                 for (int p = 1; p < num_ratios; p++)
                 {
-                    float ratio = static_cast<float>(sqrt(aspect_ratios[p]));
+                    float ratio = sqrtf(aspect_ratios[p]);
                     float cw = size * h / w * ratio / 2;
                     float ch = size / ratio / 2;
 
@@ -139,13 +193,13 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         step_w = (float)image_w / w;
         if (step_mmdetection)
-            step_w = static_cast<float>(ceil((float)image_w / w));
+            step_w = ceilf((float)image_w / w);
     }
     if (step_h == -233)
     {
         step_h = (float)image_h / h;
         if (step_mmdetection)
-            step_h = static_cast<float>(ceil((float)image_h / h));
+            step_h = ceilf((float)image_h / h);
     }
 
     int num_min_size = min_sizes.w;
@@ -198,7 +252,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float max_size = max_sizes[k];
 
                     // max size box
-                    box_w = box_h = static_cast<float>(sqrt(min_size * max_size));
+                    box_w = box_h = sqrtf(min_size * max_size);
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;
@@ -213,8 +267,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     float ar = aspect_ratios[p];
 
-                    box_w = static_cast<float>(min_size * sqrt(ar));
-                    box_h = static_cast<float>(min_size / sqrt(ar));
+                    box_w = min_size * sqrtf(ar);
+                    box_h = min_size / sqrtf(ar);
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;

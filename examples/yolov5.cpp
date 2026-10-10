@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "layer.h"
 #include "net.h"
@@ -26,9 +15,10 @@
 #include <stdio.h>
 #include <vector>
 
-#define YOLOV5_V60 1 //YOLOv5 v6.0
+//#define YOLOV5_V60 1 //YOLOv5 v6.0
+#define YOLOV5_V62 1 //YOLOv5 v6.2 export  onnx model method https://github.com/shaoshengsong/yolov5_62_export_ncnn
 
-#if YOLOV5_V60
+#if YOLOV5_V60 || YOLOV5_V62
 #define MAX_STRIDE 64
 #else
 #define MAX_STRIDE 32
@@ -79,7 +69,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
-#endif //YOLOV5_V60
+#endif //YOLOV5_V60    YOLOV5_V62
 
 struct Object
 {
@@ -139,7 +129,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -159,6 +149,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -275,14 +268,23 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-#if YOLOV5_V60
-    yolov5.load_param("yolov5s_6.0.param");
-    yolov5.load_model("yolov5s_6.0.bin");
+#if YOLOV5_V62
+    if (yolov5.load_param("yolov5s_6.2.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.2.bin"))
+        exit(-1);
+#elif YOLOV5_V60
+    if (yolov5.load_param("yolov5s_6.0.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.0.bin"))
+        exit(-1);
 #else
     yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
 
-    yolov5.load_param("yolov5s.param");
-    yolov5.load_model("yolov5s.bin");
+    if (yolov5.load_param("yolov5s.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s.bin"))
+        exit(-1);
 #endif
 
     const int target_size = 640;
@@ -351,7 +353,10 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 16
     {
         ncnn::Mat out;
-#if YOLOV5_V60
+
+#if YOLOV5_V62
+        ex.extract("353", out);
+#elif YOLOV5_V60
         ex.extract("376", out);
 #else
         ex.extract("781", out);
@@ -374,7 +379,9 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 32
     {
         ncnn::Mat out;
-#if YOLOV5_V60
+#if YOLOV5_V62
+        ex.extract("367", out);
+#elif YOLOV5_V60
         ex.extract("401", out);
 #else
         ex.extract("801", out);

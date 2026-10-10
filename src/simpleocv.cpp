@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "simpleocv.h"
 
@@ -19,6 +8,9 @@
 #include <stdio.h>
 
 #define STB_IMAGE_IMPLEMENTATION
+#if __ARM_NEON
+#define STBI_NEON
+#endif
 #define STBI_NO_THREAD_LOCALS
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
@@ -111,6 +103,90 @@ Mat imread(const std::string& path, int flags)
     //
     //         ifs.close();
     //     }
+
+    // rgb to bgr
+    if (c == 3)
+    {
+        uchar* p = img.data;
+        for (int i = 0; i < w * h; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 3;
+        }
+    }
+    if (c == 4)
+    {
+        uchar* p = img.data;
+        for (int i = 0; i < w * h; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 4;
+        }
+    }
+
+    return img;
+}
+
+Mat imdecode(const std::vector<uchar>& buf, int flags)
+{
+    int desired_channels = 0;
+    if (flags == IMREAD_UNCHANGED)
+    {
+        desired_channels = 0;
+    }
+    else if (flags == IMREAD_GRAYSCALE)
+    {
+        desired_channels = 1;
+    }
+    else if (flags == IMREAD_COLOR)
+    {
+        desired_channels = 3;
+    }
+    else
+    {
+        // unknown flags
+        return Mat();
+    }
+
+    int w;
+    int h;
+    int c;
+    unsigned char* pixeldata = stbi_load_from_memory(&buf.front(), buf.size(), &w, &h, &c, desired_channels);
+    if (!pixeldata)
+    {
+        // load failed
+        return Mat();
+    }
+
+    if (desired_channels)
+    {
+        c = desired_channels;
+    }
+
+    // copy pixeldata to Mat
+    Mat img;
+    if (c == 1)
+    {
+        img.create(h, w, CV_8UC1);
+    }
+    else if (c == 3)
+    {
+        img.create(h, w, CV_8UC3);
+    }
+    else if (c == 4)
+    {
+        img.create(h, w, CV_8UC4);
+    }
+    else
+    {
+        // unexpected channels
+        stbi_image_free(pixeldata);
+        return Mat();
+    }
+
+    memcpy(img.data, pixeldata, w * h * c);
+
+    stbi_image_free(pixeldata);
 
     // rgb to bgr
     if (c == 3)

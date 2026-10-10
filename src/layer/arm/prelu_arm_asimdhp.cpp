@@ -1,21 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "prelu_arm.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -93,12 +83,13 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -191,12 +182,13 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int channels = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -265,7 +257,12 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
+#if defined(_MSC_VER) && !defined(__clang__)
+                float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(slope_data[0]));
+                float16x8_t _slope = vcombine_f16(_slope0, _slope0);
+#else
                 float16x8_t _slope = vdupq_n_f16((__fp16)slope_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
@@ -305,12 +302,13 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -336,10 +334,10 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 
     if (elempack == 4)
     {
-        float16x4_t _zero = vdup_n_f16(0.f);
-
         if (dims == 1)
         {
+            float16x4_t _zero = vdup_n_f16(0.f);
+
             int w = bottom_top_blob.w;
 
             if (num_slope > 1)
@@ -386,6 +384,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             for (int i = 0; i < h; i++)
             {
                 __fp16* ptr = bottom_top_blob.row<__fp16>(i);
+                float16x4_t _zero = vdup_n_f16(0.f);
                 float16x4_t _slope = num_slope > 1 ? vcvt_f16_f32(vld1q_f32((const float*)slope_data + i * 4)) : vdup_n_f16((__fp16)slope_data[0]);
 
                 for (int j = 0; j < w; j++)
@@ -401,17 +400,19 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int channels = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
+                float16x4_t _zero = vdup_n_f16(0.f);
                 float16x4_t _slope = num_slope > 1 ? vcvt_f16_f32(vld1q_f32((const float*)slope_data + q * 4)) : vdup_n_f16((__fp16)slope_data[0]);
 
                 for (int i = 0; i < size; i++)
@@ -475,7 +476,11 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
+#if defined(_MSC_VER) && !defined(__clang__)
+            float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
+#else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);
+#endif
 
             int j = 0;
             for (; j + 3 < w; j += 4)
@@ -499,12 +504,13 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int channels = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -514,7 +520,11 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
+#if defined(_MSC_VER) && !defined(__clang__)
+            float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
+#else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);
+#endif
 
             int j = 0;
             for (; j + 3 < size; j += 4)

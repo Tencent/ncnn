@@ -21,8 +21,6 @@ int main()
     net.load_model("model.bin");
 
     ncnn::Extractor ex = net.create_extractor();
-    ex.set_light_mode(true);
-    ex.set_num_threads(4);
 
     ex.input("data", in);
 
@@ -56,6 +54,23 @@ void pretty_print(const ncnn::Mat& m)
         }
         printf("------------------------\n");
     }
+}
+```
+
+### print VkMat content
+```cpp
+void pretty_print(const ncnn::VkMat& m, ncnn::VkCompute& cmd, const ncnn::Option& opt)
+{
+    ncnn::Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
+
+    ncnn::Mat m_cpu;
+    cmd.record_download(m, m_cpu, opt_unpack);
+    cmd.submit_and_wait();
+    cmd.reset();
+
+    // print Mat content
+    pretty_print(m_cpu);
 }
 ```
 

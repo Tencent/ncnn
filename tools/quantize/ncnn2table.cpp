@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// author:BUG1989 (https://github.com/BUG1989/) Long-term support.
-// author:JansonZhu (https://github.com/JansonZhu) Implemented the function of entropy calibration.
-//
-// Copyright (C) 2019 BUG1989. All rights reserved.
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 BUG1989   (https://github.com/BUG1989/) Long-term support.
+// Copyright 2019 JansonZhu   (https://github.com/JansonZhu) Implemented the function of entropy calibration.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
@@ -39,6 +26,9 @@
 #include <string>
 #include <vector>
 
+// npy format header
+#include "npy.hpp"
+
 // ncnn public header
 #include "benchmark.h"
 #include "cpu.h"
@@ -48,6 +38,12 @@
 #include "layer/convolution.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/innerproduct.h"
+#include "layer/gemm.h"
+#include "layer/embed.h"
+#include "layer/multiheadattention.h"
+#include "layer/rnn.h"
+#include "layer/lstm.h"
+#include "layer/gru.h"
 
 class QuantBlobStat
 {
@@ -56,12 +52,16 @@ public:
     {
         threshold = 0.f;
         absmax = 0.f;
+        percentile = 0.f;
+        zero_count = 0;
         total = 0;
     }
 
 public:
     float threshold;
     float absmax;
+    float percentile;
+    uint64_t zero_count;
 
     // ACIQ
     int total;
@@ -69,6 +69,35 @@ public:
     // KL
     std::vector<uint64_t> histogram;
     std::vector<float> histogram_normed;
+};
+
+class QuantMHAStat
+{
+public:
+    ncnn::Mat q_weight_scales;
+    ncnn::Mat k_weight_scales;
+    ncnn::Mat v_weight_scales;
+    float out_weight_scale;
+};
+
+class QuantGemmStat
+{
+public:
+    QuantGemmStat()
+        : B_weight_scale(1.f)
+    {
+    }
+
+    ncnn::Mat A_weight_scales;
+    float B_weight_scale;
+};
+
+// rnn, gru, lstm
+class QuantRecurrentStat
+{
+public:
+    ncnn::Mat weight_xc_scales;
+    ncnn::Mat weight_hc_scales;
 };
 
 class QuantNet : public ncnn::Net
@@ -86,12 +115,17 @@ public:
     std::vector<std::vector<int> > shapes;
     std::vector<int> type_to_pixels;
     int quantize_num_threads;
+    int file_type;
+    bool use_calibration_dataset;
 
 public:
     int init();
     void print_quant_info() const;
     int save_table(const char* tablepath);
+    void initialize_static_weight_scales(bool initialize_conv_weight_scales = false);
+    int build_activation_histogram(int num_histogram_bins);
     int quantize_KL();
+    int quantize_percentile(const std::vector<float>& percentiles);
     int quantize_ACIQ();
     int quantize_EQ();
 
@@ -100,17 +134,30 @@ public:
     std::vector<int> conv_layers;
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
+    std::vector<int> embed_layers;
+    std::vector<int> gemm_layers;
+    std::vector<int> mha_layers;
+    std::vector<int> rnn_layers;
+    std::vector<int> lstm_layers;
+    std::vector<int> gru_layers;
 
     // result
     std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blob_scales;
+    std::vector<float> embed_weight_scales;
+    std::vector<QuantGemmStat> gemm_stats;
+    std::vector<QuantMHAStat> mha_stats;
+    std::vector<QuantRecurrentStat> rnn_stats;
+    std::vector<QuantRecurrentStat> lstm_stats;
+    std::vector<QuantRecurrentStat> gru_stats;
 };
 
 QuantNet::QuantNet()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     quantize_num_threads = ncnn::get_cpu_count();
+    use_calibration_dataset = false;
 }
 
 int QuantNet::init()
@@ -135,14 +182,54 @@ int QuantNet::init()
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
+
+        // find embed layers
+        else if (layer->type == "Embed")
+        {
+            embed_layers.push_back(i);
+        }
+        else if (layer->type == "Gemm")
+        {
+            gemm_layers.push_back(i);
+        }
+
+        // find all mha layers
+        else if (layer->type == "MultiHeadAttention")
+        {
+            mha_layers.push_back(i);
+        }
+        else if (layer->type == "RNN")
+        {
+            rnn_layers.push_back(i);
+        }
+        else if (layer->type == "LSTM")
+        {
+            lstm_layers.push_back(i);
+        }
+        else if (layer->type == "GRU")
+        {
+            gru_layers.push_back(i);
+        }
     }
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
 
     quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
     bottom_blob_scales.resize(conv_bottom_blob_count);
+    embed_weight_scales.resize(embed_layer_count);
+    gemm_stats.resize(gemm_layer_count);
+    mha_stats.resize(mha_layer_count);
+    rnn_stats.resize(rnn_layer_count);
+    lstm_stats.resize(lstm_layer_count);
+    gru_stats.resize(gru_layer_count);
 
     return 0;
 }
@@ -158,8 +245,16 @@ int QuantNet::save_table(const char* tablepath)
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
 
-    for (int i = 0; i < conv_layer_count; i++)
+    fprintf(stdout, "param:%d\n", use_calibration_dataset ? conv_layer_count : 0);
+
+    for (int i = 0; use_calibration_dataset && i < conv_layer_count; i++)
     {
         const ncnn::Mat& weight_scale = weight_scales[i];
 
@@ -171,7 +266,7 @@ int QuantNet::save_table(const char* tablepath)
         fprintf(fp, "\n");
     }
 
-    for (int i = 0; i < conv_bottom_blob_count; i++)
+    for (int i = 0; use_calibration_dataset && i < conv_bottom_blob_count; i++)
     {
         const ncnn::Mat& bottom_blob_scale = bottom_blob_scales[i];
 
@@ -179,6 +274,135 @@ int QuantNet::save_table(const char* tablepath)
         for (int j = 0; j < bottom_blob_scale.w; j++)
         {
             fprintf(fp, "%f ", bottom_blob_scale[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", embed_layer_count);
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", embed_weight_scales[i]);
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", gemm_layer_count);
+    for (int i = 0; i < gemm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gemm_layers[i]];
+        const ncnn::Gemm* gemm = (const ncnn::Gemm*)layer;
+        const QuantGemmStat& stat = gemm_stats[i];
+
+        if (gemm->constantA)
+        {
+            fprintf(fp, "%s_param_0 ", layer->name.c_str());
+            for (int j = 0; j < stat.A_weight_scales.w; j++)
+            {
+                fprintf(fp, "%f ", stat.A_weight_scales[j]);
+            }
+            fprintf(fp, "\n");
+        }
+
+        if (gemm->constantB)
+        {
+            fprintf(fp, "%s_param_1 ", layer->name.c_str());
+            fprintf(fp, "%f ", stat.B_weight_scale);
+            fprintf(fp, "\n");
+        }
+    }
+
+    fprintf(stdout, "param:%d\n", mha_layer_count);
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        // q_weight
+        const ncnn::Mat q_weight_scales = mha_stats[i].q_weight_scales;
+        fprintf(fp, "%s_param_0 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < q_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", q_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // k_weight
+        const ncnn::Mat k_weight_scales = mha_stats[i].k_weight_scales;
+        fprintf(fp, "%s_param_1 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < k_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", k_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // v_weight
+        const ncnn::Mat v_weight_scales = mha_stats[i].v_weight_scales;
+        fprintf(fp, "%s_param_2 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < v_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", v_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // out_weight
+        fprintf(fp, "%s_param_3 ", layers[mha_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", mha_stats[i].out_weight_scale);
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", rnn_layer_count);
+    for (int i = 0; i < rnn_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = rnn_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[rnn_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = rnn_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[rnn_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", lstm_layer_count);
+    for (int i = 0; i < lstm_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = lstm_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[lstm_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = lstm_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[lstm_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", gru_layer_count);
+    for (int i = 0; i < gru_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = gru_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[gru_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = gru_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[gru_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
         }
         fprintf(fp, "\n");
     }
@@ -192,13 +416,72 @@ int QuantNet::save_table(const char* tablepath)
 
 void QuantNet::print_quant_info() const
 {
+    if (!use_calibration_dataset)
+        return;
+
     for (int i = 0; i < (int)conv_bottom_blobs.size(); i++)
     {
         const QuantBlobStat& stat = quant_blob_stats[i];
 
         float scale = 127 / stat.threshold;
 
-        fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+        if (stat.percentile == 0.f)
+            fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+        else
+            fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f  percentile = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale, stat.percentile);
+    }
+}
+
+/**
+ * Read npy file
+ * shape is input as [w,h,...]
+ * @return ncnn::Mat
+ */
+
+inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
+{
+    npy::npy_data<float> d;
+    try
+    {
+        d = npy::read_npy<float>(npypath);
+    }
+    catch (const std::exception& e)
+    {
+        fprintf(stderr, "npy::read_npy exception: %s\n", e.what());
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::vector<unsigned long> npy_shape = d.shape;
+    size_t dims = shape.size();
+
+    if (dims != npy_shape.size())
+    {
+        fprintf(stderr, "expect %d dims, but got: %d\n", (int)dims, (int)npy_shape.size());
+        std::exit(EXIT_FAILURE);
+    }
+
+    for (size_t i = 0; i < dims; ++i)
+    {
+        if (static_cast<unsigned long>(shape[i]) != npy_shape[dims - 1 - i])
+        {
+            fprintf(stderr, "shape mismatch!\n");
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    switch (dims)
+    {
+    case 1:
+        return ncnn::Mat(shape[0], (void*)(d.data.data())).reshape(shape[0]).clone();
+    case 2:
+        return ncnn::Mat(shape[0] * shape[1], (void*)(d.data.data())).reshape(shape[0], shape[1]).clone();
+    case 3:
+        return ncnn::Mat(shape[0] * shape[1] * shape[2], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2]).clone();
+    case 4:
+        return ncnn::Mat(shape[0] * shape[1] * shape[2] * shape[3], (void*)(d.data.data())).reshape(shape[0], shape[1], shape[2], shape[3]).clone();
+    default:
+        fprintf(stderr, "dims:%d illegal!", (int)dims);
+        return ncnn::Mat();
     }
 }
 
@@ -238,6 +521,359 @@ inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std:
     return ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
 }
 
+void QuantNet::initialize_static_weight_scales(bool initialize_conv_weight_scales)
+{
+    const int conv_layer_count = (int)conv_layers.size();
+    const int embed_layer_count = (int)embed_layers.size();
+    const int gemm_layer_count = (int)gemm_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
+
+    if (initialize_conv_weight_scales && use_calibration_dataset)
+    {
+        // initialize conv weight scales
+        #pragma omp parallel for num_threads(quantize_num_threads)
+        for (int i = 0; i < conv_layer_count; i++)
+        {
+            const ncnn::Layer* layer = layers[conv_layers[i]];
+
+            if (layer->type == "Convolution")
+            {
+                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
+
+                const int num_output = convolution->num_output;
+                const int kernel_w = convolution->kernel_w;
+                const int kernel_h = convolution->kernel_h;
+                const int dilation_w = convolution->dilation_w;
+                const int dilation_h = convolution->dilation_h;
+                const int stride_w = convolution->stride_w;
+                const int stride_h = convolution->stride_h;
+
+                const int weight_data_size_output = convolution->weight_data_size / num_output;
+
+                // int8 winograd F43 needs weight data to use 6bit quantization
+                // TODO proper condition for winograd 3x3 int8
+                bool quant_6bit = false;
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                    quant_6bit = true;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    if (quant_6bit)
+                    {
+                        weight_scales[i][n] = 31 / absmax;
+                    }
+                    else
+                    {
+                        weight_scales[i][n] = 127 / absmax;
+                    }
+                }
+            }
+
+            if (layer->type == "ConvolutionDepthWise")
+            {
+                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
+
+                const int group = convolutiondepthwise->group;
+                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
+
+                std::vector<float> scales;
+
+                weight_scales[i].create(group);
+
+                for (int n = 0; n < group; n++)
+                {
+                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    weight_scales[i][n] = 127 / absmax;
+                }
+            }
+
+            if (layer->type == "InnerProduct")
+            {
+                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
+
+                const int num_output = innerproduct->num_output;
+                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    weight_scales[i][n] = 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize gemm weight scales
+    for (int i = 0; i < gemm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gemm_layers[i]];
+        const ncnn::Gemm* gemm = (const ncnn::Gemm*)layer;
+        QuantGemmStat& stat = gemm_stats[i];
+
+        if (gemm->constantA)
+        {
+            ncnn::Mat A_data = gemm->A_data;
+            int transA = gemm->transA;
+            if (transA == 1)
+            {
+                ncnn::Mat A_data_transposed(gemm->constantK * gemm->constantM);
+                for (int m = 0; m < gemm->constantM; m++)
+                {
+                    float* ptr = (float*)A_data_transposed + m * gemm->constantK;
+                    for (int k = 0; k < gemm->constantK; k++)
+                    {
+                        ptr[k] = gemm->A_data[k * gemm->constantM + m];
+                    }
+                }
+                A_data = A_data_transposed;
+            }
+
+            stat.A_weight_scales.create(gemm->constantM);
+            for (int m = 0; m < gemm->constantM; m++)
+            {
+                float absmax = 0.f;
+                const float* ptr = (const float*)A_data + m * gemm->constantK;
+                for (int k = 0; k < gemm->constantK; k++)
+                {
+                    absmax = std::max(absmax, (float)fabs(ptr[k]));
+                }
+                stat.A_weight_scales[m] = absmax == 0.f ? 1.f : 127 / absmax;
+            }
+        }
+
+        if (gemm->constantB)
+        {
+            const float* ptr = (const float*)gemm->B_data;
+            float absmax = 0.f;
+            const int b_data_size = gemm->B_data.w * gemm->B_data.h;
+            for (int j = 0; j < b_data_size; j++)
+            {
+                absmax = std::max(absmax, (float)fabs(ptr[j]));
+            }
+
+            stat.B_weight_scale = absmax == 0.f ? 1.f : 127 / absmax;
+        }
+    }
+
+    // initialize embed weight scales
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[embed_layers[i]];
+        const ncnn::Embed* embed = (const ncnn::Embed*)layer;
+        const float* ptr = embed->weight_data;
+
+        float absmax = 0.f;
+        for (int j = 0; j < embed->weight_data.w; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[j]));
+        }
+        embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+    }
+
+    // initialize mha weight scales
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[mha_layers[i]];
+        const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layer;
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+        mha_stats[i].q_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float q_absmax = 0.f;
+
+            const float* q_ptr = (const float*)mha->q_weight_data + j * qdim;
+            for (int k = 0; k < qdim; k++)
+            {
+                q_absmax = std::max(q_absmax, (float)fabs(q_ptr[k]));
+            }
+            mha_stats[i].q_weight_scales[j] = q_absmax == 0.f ? 1.f : 127 / q_absmax;
+        }
+
+        const int kdim = mha->kdim;
+        mha_stats[i].k_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float k_absmax = 0.f;
+
+            const float* k_ptr = (const float*)mha->k_weight_data + j * kdim;
+            for (int k = 0; k < kdim; k++)
+            {
+                k_absmax = std::max(k_absmax, (float)fabs(k_ptr[k]));
+            }
+            mha_stats[i].k_weight_scales[j] = k_absmax == 0.f ? 1.f : 127 / k_absmax;
+        }
+
+        const int vdim = mha->vdim;
+        mha_stats[i].v_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float v_absmax = 0.f;
+
+            const float* v_ptr = (const float*)mha->v_weight_data + j * vdim;
+            for (int k = 0; k < vdim; k++)
+            {
+                v_absmax = std::max(v_absmax, (float)fabs(v_ptr[k]));
+            }
+            mha_stats[i].v_weight_scales[j] = v_absmax == 0.f ? 1.f : 127 / v_absmax;
+        }
+
+        const float* o_ptr = (const float*)mha->out_weight_data;
+        float o_absmax = 0.f;
+        for (int k = 0; k < mha->out_weight_data.w; k++)
+        {
+            o_absmax = std::max(o_absmax, (float)fabs(o_ptr[k]));
+        }
+        mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
+    }
+
+    // initialize rnn weight scales
+    for (int i = 0; i < rnn_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[rnn_layers[i]];
+        const ncnn::RNN* rnn = (const ncnn::RNN*)layer;
+
+        const int num_directions = rnn->direction == 2 ? 2 : 1;
+        const int size = rnn->weight_data_size / num_directions / rnn->num_output;
+
+        rnn_stats[i].weight_xc_scales.create(rnn->num_output * num_directions);
+        rnn_stats[i].weight_hc_scales.create(rnn->num_output * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < rnn->num_output; q++)
+            {
+                {
+                    const float* weight_xc_ptr = rnn->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_xc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = rnn->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < rnn->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_hc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize lstm weight scales
+    for (int i = 0; i < lstm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[lstm_layers[i]];
+        const ncnn::LSTM* lstm = (const ncnn::LSTM*)layer;
+
+        const int num_directions = lstm->direction == 2 ? 2 : 1;
+        const int size = lstm->weight_data_size / num_directions / lstm->hidden_size / 4;
+
+        lstm_stats[i].weight_xc_scales.create(lstm->hidden_size * 4 * num_directions);
+        lstm_stats[i].weight_hc_scales.create(lstm->hidden_size * 4 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < lstm->hidden_size * 4; q++)
+            {
+                {
+                    const float* weight_xc_ptr = lstm->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_xc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = lstm->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < lstm->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_hc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize gru weight scales
+    for (int i = 0; i < gru_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gru_layers[i]];
+        const ncnn::GRU* gru = (const ncnn::GRU*)layer;
+
+        const int num_directions = gru->direction == 2 ? 2 : 1;
+        const int size = gru->weight_data_size / num_directions / gru->num_output / 3;
+
+        gru_stats[i].weight_xc_scales.create(gru->num_output * 3 * num_directions);
+        gru_stats[i].weight_hc_scales.create(gru->num_output * 3 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < gru->num_output * 3; q++)
+            {
+                {
+                    const float* weight_xc_ptr = gru->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    gru_stats[i].weight_xc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = gru->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < gru->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    gru_stats[i].weight_hc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+}
+
 static float compute_kl_divergence(const std::vector<float>& a, const std::vector<float>& b)
 {
     const size_t length = a.size();
@@ -251,123 +887,35 @@ static float compute_kl_divergence(const std::vector<float>& a, const std::vecto
     return result;
 }
 
-int QuantNet::quantize_KL()
+int QuantNet::build_activation_histogram(int num_histogram_bins)
 {
     const int input_blob_count = (int)input_blobs.size();
-    const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int image_count = (int)listspaths[0].size();
-
-    const int num_histogram_bins = 2048;
+    const int file_count = (int)listspaths[0].size();
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
-    // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
-    for (int i = 0; i < conv_layer_count; i++)
+    for (int i = 0; i < conv_bottom_blob_count; i++)
     {
-        const ncnn::Layer* layer = layers[conv_layers[i]];
+        QuantBlobStat& stat = quant_blob_stats[i];
 
-        if (layer->type == "Convolution")
-        {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
-
-            const int num_output = convolution->num_output;
-            const int kernel_w = convolution->kernel_w;
-            const int kernel_h = convolution->kernel_h;
-            const int dilation_w = convolution->dilation_w;
-            const int dilation_h = convolution->dilation_h;
-            const int stride_w = convolution->stride_w;
-            const int stride_h = convolution->stride_h;
-
-            const int weight_data_size_output = convolution->weight_data_size / num_output;
-
-            // int8 winograd F43 needs weight data to use 6bit quantization
-            // TODO proper condition for winograd 3x3 int8
-            bool quant_6bit = false;
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-                quant_6bit = true;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
-            {
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                if (quant_6bit)
-                {
-                    weight_scales[i][n] = 31 / absmax;
-                }
-                else
-                {
-                    weight_scales[i][n] = 127 / absmax;
-                }
-            }
-        }
-
-        if (layer->type == "ConvolutionDepthWise")
-        {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
-
-            const int group = convolutiondepthwise->group;
-            const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
-
-            std::vector<float> scales;
-
-            weight_scales[i].create(group);
-
-            for (int n = 0; n < group; n++)
-            {
-                const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                weight_scales[i][n] = 127 / absmax;
-            }
-        }
-
-        if (layer->type == "InnerProduct")
-        {
-            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
-
-            const int num_output = innerproduct->num_output;
-            const int weight_data_size_output = innerproduct->weight_data_size / num_output;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
-            {
-                const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                weight_scales[i][n] = 127 / absmax;
-            }
-        }
+        stat.threshold = 0.f;
+        stat.absmax = 0.f;
+        stat.percentile = 0.f;
+        stat.zero_count = 0;
+        stat.histogram.clear();
+        stat.histogram_normed.clear();
     }
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -379,19 +927,26 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -437,11 +992,11 @@ int QuantNet::quantize_KL()
 
     // build histogram
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -453,19 +1008,26 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -480,6 +1042,7 @@ int QuantNet::quantize_KL()
                 const float absmax = quant_blob_stats[j].absmax;
 
                 std::vector<uint64_t> histogram(num_histogram_bins, 0);
+                uint64_t zero_count = 0;
 
                 const int outc = out.c;
                 const int outsize = out.w * out.h;
@@ -489,7 +1052,10 @@ int QuantNet::quantize_KL()
                     for (int k = 0; k < outsize; k++)
                     {
                         if (ptr[k] == 0.f)
+                        {
+                            zero_count++;
                             continue;
+                        }
 
                         const int index = std::min((int)(fabs(ptr[k]) / absmax * num_histogram_bins), (num_histogram_bins - 1));
 
@@ -501,6 +1067,7 @@ int QuantNet::quantize_KL()
                 {
                     QuantBlobStat& stat = quant_blob_stats[j];
 
+                    stat.zero_count += zero_count;
                     for (int k = 0; k < num_histogram_bins; k++)
                     {
                         stat.histogram[k] += histogram[k];
@@ -509,6 +1076,23 @@ int QuantNet::quantize_KL()
             }
         }
     }
+
+    return 0;
+}
+
+int QuantNet::quantize_KL()
+{
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    initialize_static_weight_scales(true);
+
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
+    const int num_histogram_bins = 2048;
+
+    build_activation_histogram(num_histogram_bins);
 
     // using kld to find the best threshold value
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -704,6 +1288,101 @@ int QuantNet::quantize_KL()
     return 0;
 }
 
+int QuantNet::quantize_percentile(const std::vector<float>& percentiles)
+{
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    initialize_static_weight_scales(true);
+
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
+    const int num_histogram_bins = 2048;
+
+    build_activation_histogram(num_histogram_bins);
+
+    // using percentile to find the threshold value
+    #pragma omp parallel for num_threads(quantize_num_threads)
+    for (int i = 0; i < conv_bottom_blob_count; i++)
+    {
+        QuantBlobStat& stat = quant_blob_stats[i];
+
+        uint64_t sum = stat.zero_count;
+        for (int j = 0; j < num_histogram_bins; j++)
+        {
+            sum += stat.histogram[j];
+        }
+
+        if (sum == 0 || stat.absmax == 0.f)
+        {
+            stat.threshold = 127.f;
+            stat.percentile = 1.f;
+            bottom_blob_scales[i].create(1);
+            bottom_blob_scales[i][0] = 1.f;
+            continue;
+        }
+
+        double min_error = DBL_MAX;
+        int target_threshold = num_histogram_bins - 1;
+        float target_percentile = 1.f;
+
+        for (int p = 0; p < (int)percentiles.size(); p++)
+        {
+            uint64_t target_count = (uint64_t)ceil(sum * (double)percentiles[p]);
+            if (target_count == 0)
+                target_count = 1;
+
+            uint64_t cumsum = stat.zero_count;
+            int threshold = num_histogram_bins - 1;
+
+            for (int j = 0; j < num_histogram_bins; j++)
+            {
+                cumsum += stat.histogram[j];
+                if (cumsum >= target_count)
+                {
+                    threshold = j;
+                    break;
+                }
+            }
+
+            const double threshold_value = (threshold + 0.5) * stat.absmax / num_histogram_bins;
+            const double scale = 127 / threshold_value;
+            double error = 0.0;
+
+            for (int j = 0; j < num_histogram_bins; j++)
+            {
+                if (stat.histogram[j] == 0)
+                    continue;
+
+                const double v = (j + 0.5) * stat.absmax / num_histogram_bins;
+                const double v_clipped = std::min(v, threshold_value);
+                const int q = std::min((int)floor(v_clipped * scale + 0.5), 127);
+                const double v_dequant = q / scale;
+                const double diff = v - v_dequant;
+
+                error += stat.histogram[j] * diff * diff;
+            }
+
+            if (error < min_error)
+            {
+                min_error = error;
+                target_threshold = threshold;
+                target_percentile = percentiles[p];
+            }
+        }
+
+        stat.threshold = (target_threshold + 0.5f) * stat.absmax / num_histogram_bins;
+        stat.percentile = target_percentile;
+        float scale = 127 / stat.threshold;
+
+        bottom_blob_scales[i].create(1);
+        bottom_blob_scales[i][0] = scale;
+    }
+
+    return 0;
+}
+
 static float compute_aciq_gaussian_clip(float absmax, int N, int num_bits = 8)
 {
     const float alpha_gaussian[8] = {0, 1.71063519, 2.15159277, 2.55913646, 2.93620062, 3.28691474, 3.6151146, 3.92403714};
@@ -720,120 +1399,129 @@ int QuantNet::quantize_ACIQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int image_count = (int)listspaths[0].size();
 
-    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
-    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
-
-    // initialize conv weight scales
-    #pragma omp parallel for num_threads(quantize_num_threads)
-    for (int i = 0; i < conv_layer_count; i++)
+    if (use_calibration_dataset)
     {
-        const ncnn::Layer* layer = layers[conv_layers[i]];
-
-        if (layer->type == "Convolution")
+        // initialize conv weight scales
+        #pragma omp parallel for num_threads(quantize_num_threads)
+        for (int i = 0; i < conv_layer_count; i++)
         {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
+            const ncnn::Layer* layer = layers[conv_layers[i]];
 
-            const int num_output = convolution->num_output;
-            const int kernel_w = convolution->kernel_w;
-            const int kernel_h = convolution->kernel_h;
-            const int dilation_w = convolution->dilation_w;
-            const int dilation_h = convolution->dilation_h;
-            const int stride_w = convolution->stride_w;
-            const int stride_h = convolution->stride_h;
-
-            const int weight_data_size_output = convolution->weight_data_size / num_output;
-
-            // int8 winograd F43 needs weight data to use 6bit quantization
-            // TODO proper condition for winograd 3x3 int8
-            bool quant_6bit = false;
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-                quant_6bit = true;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
+            if (layer->type == "Convolution")
             {
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
 
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
+                const int num_output = convolution->num_output;
+                const int kernel_w = convolution->kernel_w;
+                const int kernel_h = convolution->kernel_h;
+                const int dilation_w = convolution->dilation_w;
+                const int dilation_h = convolution->dilation_h;
+                const int stride_w = convolution->stride_w;
+                const int stride_h = convolution->stride_h;
 
-                if (quant_6bit)
+                const int weight_data_size_output = convolution->weight_data_size / num_output;
+
+                // int8 winograd F43 needs weight data to use 6bit quantization
+                // TODO proper condition for winograd 3x3 int8
+                bool quant_6bit = false;
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                    quant_6bit = true;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
                 {
-                    const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output, 6);
-                    weight_scales[i][n] = 31 / threshold;
+                    const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    if (quant_6bit)
+                    {
+                        const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output, 6);
+                        weight_scales[i][n] = 31 / threshold;
+                    }
+                    else
+                    {
+                        const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
+                        weight_scales[i][n] = 127 / threshold;
+                    }
                 }
-                else
+            }
+
+            if (layer->type == "ConvolutionDepthWise")
+            {
+                const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
+
+                const int group = convolutiondepthwise->group;
+                const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
+
+                std::vector<float> scales;
+
+                weight_scales[i].create(group);
+
+                for (int n = 0; n < group; n++)
                 {
+                    const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
+                    const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
+                    weight_scales[i][n] = 127 / threshold;
+                }
+            }
+
+            if (layer->type == "InnerProduct")
+            {
+                const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
+
+                const int num_output = innerproduct->num_output;
+                const int weight_data_size_output = innerproduct->weight_data_size / num_output;
+
+                weight_scales[i].create(num_output);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+
+                    float absmax = 0.f;
+                    for (int k = 0; k < weight_data_size_output; k++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
+                    }
+
                     const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
                     weight_scales[i][n] = 127 / threshold;
                 }
             }
         }
-
-        if (layer->type == "ConvolutionDepthWise")
-        {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
-
-            const int group = convolutiondepthwise->group;
-            const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
-
-            std::vector<float> scales;
-
-            weight_scales[i].create(group);
-
-            for (int n = 0; n < group; n++)
-            {
-                const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
-                weight_scales[i][n] = 127 / threshold;
-            }
-        }
-
-        if (layer->type == "InnerProduct")
-        {
-            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
-
-            const int num_output = innerproduct->num_output;
-            const int weight_data_size_output = innerproduct->weight_data_size / num_output;
-
-            weight_scales[i].create(num_output);
-
-            for (int n = 0; n < num_output; n++)
-            {
-                const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-
-                float absmax = 0.f;
-                for (int k = 0; k < weight_data_size_output; k++)
-                {
-                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
-                }
-
-                const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
-                weight_scales[i][n] = 127 / threshold;
-            }
-        }
     }
+
+    initialize_static_weight_scales();
+
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
+    const int file_count = (int)listspaths[0].size();
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-    for (int i = 0; i < image_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
         {
-            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
 
         ncnn::Extractor ex = create_extractor();
@@ -845,19 +1533,26 @@ int QuantNet::quantize_ACIQ()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const int type_to_pixel = type_to_pixels[j];
-            const std::vector<float>& mean_vals = means[j];
-            const std::vector<float>& norm_vals = norms[j];
+            ncnn::Mat in;
 
-            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-            if (type_to_pixel != pixel_convert_type)
+            if (0 == file_type)
             {
-                pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                const int type_to_pixel = type_to_pixels[j];
+                const std::vector<float>& mean_vals = means[j];
+                const std::vector<float>& norm_vals = norms[j];
+
+                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                if (type_to_pixel != pixel_convert_type)
+                {
+                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                }
+                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
             }
-
-            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-
-            in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+            else
+            {
+                in = read_npy(shapes[j], listspaths[j][i]);
+            }
 
             ex.input(input_blobs[j], in);
         }
@@ -1045,11 +1740,14 @@ int QuantNet::quantize_EQ()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
+    if (conv_layer_count == 0 || !use_calibration_dataset)
+        return 0;
+
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // max 50 images for EQ
-    const int image_count = std::min((int)listspaths[0].size(), 50);
+    const int file_count = std::min((int)listspaths[0].size(), 50);
 
     const float scale_range_lower = 0.5f;
     const float scale_range_upper = 2.0f;
@@ -1073,11 +1771,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-            for (int ii = 0; ii < image_count; ii++)
+            for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
                 {
-                    fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, weight_scale.w, i, conv_layer_count);
+                    fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, weight_scale.w, i, conv_layer_count);
                 }
 
                 ncnn::Extractor ex = create_extractor();
@@ -1089,21 +1787,28 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const int type_to_pixel = type_to_pixels[jj];
-                    const std::vector<float>& mean_vals = means[jj];
-                    const std::vector<float>& norm_vals = norms[jj];
+                    ncnn::Mat in;
 
-                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                    if (type_to_pixel != pixel_convert_type)
+                    if (0 == file_type)
                     {
-                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        const int type_to_pixel = type_to_pixels[j];
+                        const std::vector<float>& mean_vals = means[j];
+                        const std::vector<float>& norm_vals = norms[j];
+
+                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                        if (type_to_pixel != pixel_convert_type)
+                        {
+                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        }
+                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+                    }
+                    else
+                    {
+                        in = read_npy(shapes[j], listspaths[j][i]);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
-
-                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-
-                    ex.input(input_blobs[jj], in);
+                    ex.input(input_blobs[j], in);
                 }
 
                 ncnn::Mat in;
@@ -1112,7 +1817,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
@@ -1183,11 +1888,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
-            for (int ii = 0; ii < image_count; ii++)
+            for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
                 {
-                    fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, bottom_blob_scale.w, i, conv_layer_count);
+                    fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, bottom_blob_scale.w, i, conv_layer_count);
                 }
 
                 ncnn::Extractor ex = create_extractor();
@@ -1199,21 +1904,28 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const int type_to_pixel = type_to_pixels[jj];
-                    const std::vector<float>& mean_vals = means[jj];
-                    const std::vector<float>& norm_vals = norms[jj];
+                    ncnn::Mat in;
 
-                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                    if (type_to_pixel != pixel_convert_type)
+                    if (0 == file_type)
                     {
-                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        const int type_to_pixel = type_to_pixels[j];
+                        const std::vector<float>& mean_vals = means[j];
+                        const std::vector<float>& norm_vals = norms[j];
+
+                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                        if (type_to_pixel != pixel_convert_type)
+                        {
+                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                        }
+                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+                    }
+                    else
+                    {
+                        in = read_npy(shapes[j], listspaths[j][i]);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
-
-                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-
-                    ex.input(input_blobs[jj], in);
+                    ex.input(input_blobs[j], in);
                 }
 
                 ncnn::Mat in;
@@ -1222,7 +1934,7 @@ int QuantNet::quantize_EQ()
                 ncnn::Mat out;
                 ex.extract(conv_top_blobs[i], out);
 
-                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+                ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
@@ -1580,18 +2292,24 @@ static void print_pixel_type_list(const std::vector<int>& list)
 static void show_usage()
 {
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
+    fprintf(stderr, "       ncnn2table [ncnnparam] [ncnnbin] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
     fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
-    fprintf(stderr, "  method=kl/aciq/eq\n");
-    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+    fprintf(stderr, "  method=kl/aciq/eq/percentile\n");
+    fprintf(stderr, "  percentile=[0.999,0.9995,0.9999,0.99995,0.99999,1]\n");
+    fprintf(stderr, "  type=0/1, 0:image,1:npy\n");
+    fprintf(stderr, "Sample usage:\n");
+    fprintf(stderr, "  ncnn2table squeezenet.param squeezenet.bin filelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+    fprintf(stderr, "  ncnn2table test.param test.bin filelist.txt squeezenet.table shape=[227,227,3] method=kl type=1\n");
+    fprintf(stderr, "  ncnn2table rnn.param rnn.bin rnn.table method=kl\n");
 }
 
 int main(int argc, char** argv)
 {
-    if (argc < 5)
+    if (argc < 4)
     {
         show_usage();
         return -1;
@@ -1608,8 +2326,6 @@ int main(int argc, char** argv)
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
-    char* lists = argv[3];
-    const char* outtable = argv[4];
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -1625,12 +2341,43 @@ int main(int argc, char** argv)
 
     net.init();
 
-    // load lists
-    net.listspaths = parse_comma_path_list(lists);
+    const char* outtable = 0;
+    int kv_start = 0;
+
+    if (argc >= 5 && strchr(argv[4], '='))
+    {
+        outtable = argv[3];
+        kv_start = 4;
+    }
+    else if (argc >= 5)
+    {
+        net.listspaths = parse_comma_path_list(argv[3]);
+        net.use_calibration_dataset = true;
+        outtable = argv[4];
+        kv_start = 5;
+    }
+    else
+    {
+        outtable = argv[3];
+        kv_start = 4;
+    }
+
+    if (!net.conv_layers.empty() && !net.use_calibration_dataset)
+    {
+        fprintf(stderr, "warning: calibration dataset not provided, skip activation calibration and generate weight-only table\n");
+    }
 
     std::string method = "kl";
+    std::vector<float> percentiles;
+    percentiles.push_back(0.999f);
+    percentiles.push_back(0.9995f);
+    percentiles.push_back(0.9999f);
+    percentiles.push_back(0.99995f);
+    percentiles.push_back(0.99999f);
+    percentiles.push_back(1.f);
+    net.file_type = 0;
 
-    for (int i = 5; i < argc; i++)
+    for (int i = kv_start; i < argc; i++)
     {
         // key=value
         char* kv = argv[i];
@@ -1660,31 +2407,47 @@ int main(int argc, char** argv)
             net.quantize_num_threads = atoi(value);
         if (memcmp(key, "method", 6) == 0)
             method = std::string(value);
+        if (memcmp(key, "percentile", 10) == 0)
+        {
+            percentiles.clear();
+            if (strchr(value, '['))
+            {
+                std::vector<std::vector<float> > percentile_list = parse_comma_float_array_list(value);
+                if (!percentile_list.empty())
+                    percentiles = percentile_list[0];
+            }
+            else
+            {
+                percentiles.push_back(vstr_to_float(value));
+            }
+        }
+        if (memcmp(key, "type", 4) == 0)
+            net.file_type = atoi(value);
     }
 
     // sanity check
     const size_t input_blob_count = net.input_blobs.size();
-    if (net.listspaths.size() != input_blob_count)
+    if (net.use_calibration_dataset && net.listspaths.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d lists, but got %d\n", (int)input_blob_count, (int)net.listspaths.size());
         return -1;
     }
-    if (net.means.size() != input_blob_count)
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.means.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d means, but got %d\n", (int)input_blob_count, (int)net.means.size());
         return -1;
     }
-    if (net.norms.size() != input_blob_count)
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.norms.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d norms, but got %d\n", (int)input_blob_count, (int)net.norms.size());
         return -1;
     }
-    if (net.shapes.size() != input_blob_count)
+    if (net.use_calibration_dataset && net.shapes.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d shapes, but got %d\n", (int)input_blob_count, (int)net.shapes.size());
         return -1;
     }
-    if (net.type_to_pixels.size() != input_blob_count)
+    if (net.use_calibration_dataset && (0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;
@@ -1693,6 +2456,19 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "malformed thread %d\n", net.quantize_num_threads);
         return -1;
+    }
+    if (percentiles.empty())
+    {
+        fprintf(stderr, "empty percentile candidates\n");
+        return -1;
+    }
+    for (int i = 0; i < (int)percentiles.size(); i++)
+    {
+        if (percentiles[i] <= 0.f || percentiles[i] > 1.f)
+        {
+            fprintf(stderr, "malformed percentile %f, expect (0, 1]\n", percentiles[i]);
+            return -1;
+        }
     }
 
     // print quantnet config
@@ -1711,6 +2487,17 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
         fprintf(stderr, "thread = %d\n", net.quantize_num_threads);
         fprintf(stderr, "method = %s\n", method.c_str());
+        if (method == "percentile")
+        {
+            fprintf(stderr, "percentile = [");
+            for (int i = 0; i < (int)percentiles.size(); i++)
+            {
+                fprintf(stderr, "%f", percentiles[i]);
+                if (i != (int)percentiles.size() - 1)
+                    fprintf(stderr, ",");
+            }
+            fprintf(stderr, "]\n");
+        }
         fprintf(stderr, "---------------------------------------\n");
     }
 
@@ -1722,6 +2509,10 @@ int main(int argc, char** argv)
     {
         net.quantize_ACIQ();
     }
+    else if (method == "percentile")
+    {
+        net.quantize_percentile(percentiles);
+    }
     else if (method == "eq")
     {
         net.quantize_EQ();
@@ -1729,7 +2520,7 @@ int main(int argc, char** argv)
     else
     {
         fprintf(stderr, "not implemented yet !\n");
-        fprintf(stderr, "unknown method %s, expect kl / aciq / eq\n", method.c_str());
+        fprintf(stderr, "unknown method %s, expect kl / aciq / eq / percentile\n", method.c_str());
         return -1;
     }
 

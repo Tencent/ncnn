@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void resize_bicubic_image_pack4_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -253,11 +242,11 @@ static void resize_bicubic_image_pack4_fp16s(const Mat& src, Mat& dst, float* al
             float32x4_t _rows1 = vld1q_f32(rows1p);
             float32x4_t _rows2 = vld1q_f32(rows2p);
             float32x4_t _rows3 = vld1q_f32(rows3p);
-            float32x4_t _D = vmulq_laneq_f32(_rows0, _b0123, 0);
-            _D = vfmaq_laneq_f32(_D, _rows1, _b0123, 1);
-            _D = vfmaq_laneq_f32(_D, _rows2, _b0123, 2);
-            _D = vfmaq_laneq_f32(_D, _rows3, _b0123, 3);
-            vst1_f16(Dp, vcvt_f16_f32(_D));
+            float32x4_t _Dp = vmulq_laneq_f32(_rows0, _b0123, 0);
+            _Dp = vfmaq_laneq_f32(_Dp, _rows1, _b0123, 1);
+            _Dp = vfmaq_laneq_f32(_Dp, _rows2, _b0123, 2);
+            _Dp = vfmaq_laneq_f32(_Dp, _rows3, _b0123, 3);
+            vst1_f16(Dp, vcvt_f16_f32(_Dp));
 
             Dp += 4;
             rows0p += 4;
@@ -511,11 +500,11 @@ static void resize_bicubic_image_pack4_fp16sa(const Mat& src, Mat& dst, __fp16* 
             float16x4_t _rows1 = vld1_f16(rows1p);
             float16x4_t _rows2 = vld1_f16(rows2p);
             float16x4_t _rows3 = vld1_f16(rows3p);
-            float16x4_t _D = vmul_lane_f16(_rows0, _b0123, 0);
-            _D = vfma_lane_f16(_D, _rows1, _b0123, 1);
-            _D = vfma_lane_f16(_D, _rows2, _b0123, 2);
-            _D = vfma_lane_f16(_D, _rows3, _b0123, 3);
-            vst1_f16(Dp, _D);
+            float16x4_t _Dp = vmul_lane_f16(_rows0, _b0123, 0);
+            _Dp = vfma_lane_f16(_Dp, _rows1, _b0123, 1);
+            _Dp = vfma_lane_f16(_Dp, _rows2, _b0123, 2);
+            _Dp = vfma_lane_f16(_Dp, _rows3, _b0123, 3);
+            vst1_f16(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;

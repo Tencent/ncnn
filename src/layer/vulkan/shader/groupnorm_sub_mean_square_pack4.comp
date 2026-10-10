@@ -1,0 +1,74 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) writeonly buffer square_blob { vec4 square_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    int channels_g;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+    int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
+
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+
+    // gz is packed channel index, each packed channel has 4 actual channels
+    // channels_g is actual channels per group
+    // compute group_id for each component
+    int actual_channel_base = gz * 4;
+    int group_id0 = actual_channel_base / p.channels_g;
+    int group_id1 = (actual_channel_base + 1) / p.channels_g;
+    int group_id2 = (actual_channel_base + 2) / p.channels_g;
+    int group_id3 = (actual_channel_base + 3) / p.channels_g;
+
+    vec4 mean;
+    mean.r = mean_data[group_id0];
+    mean.g = mean_data[group_id1];
+    mean.b = mean_data[group_id2];
+    mean.a = mean_data[group_id3];
+
+    v = v - mean;
+    v = v * v;
+
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    square_blob_data[gi] = v;
+}

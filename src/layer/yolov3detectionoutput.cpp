@@ -1,23 +1,13 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "yolov3detectionoutput.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 
@@ -26,7 +16,7 @@ Yolov3DetectionOutput::Yolov3DetectionOutput()
     one_blob_only = false;
     support_inplace = false;
 
-    //softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+    //softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
     // set param
     ncnn::ParamDict pd;
@@ -49,6 +39,126 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     biases = pd.get(4, Mat());
     mask = pd.get(5, Mat());
     anchors_scale = pd.get(6, Mat());
+
+#if NCNN_VALIDATION
+    // reject nan thresholds while preserving infinite cutoffs
+    unsigned int confidence_bits;
+    unsigned int nms_bits;
+    memcpy(&confidence_bits, &confidence_threshold, sizeof(confidence_bits));
+    memcpy(&nms_bits, &nms_threshold, sizeof(nms_bits));
+    if ((confidence_bits & 0x7fffffffu) > 0x7f800000u || (nms_bits & 0x7fffffffu) > 0x7f800000u)
+        return -1;
+
+    {
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
+            return -1;
+
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
+            return -1;
+    }
+
+    // integer text masks from ModelWriter contain float bit patterns
+    {
+        const int mask_type = pd.type(5);
+        if (mask_type != 0 && mask_type != 4 && mask_type != 5 && mask_type != 6)
+            return -1;
+
+        if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w < 0 || mask.elempack != 1 || mask.elemsize != 4u || (mask.w > 0 && !mask.data)))
+            return -1;
+    }
+
+    {
+        const int anchors_scale_type = pd.type(6);
+        if (anchors_scale_type != 0 && anchors_scale_type != 4 && anchors_scale_type != 5 && anchors_scale_type != 6)
+            return -1;
+
+        if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w < 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || (anchors_scale.w > 0 && !anchors_scale.data)))
+            return -1;
+    }
+
+    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w < mask.w / num_box)
+        return -1;
+
+    for (int i = 0; i < mask.w / num_box; i++)
+    {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(6) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)anchors_scale + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
+        // round to the stored fp32 value before checking the range on x87
+        const volatile float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
+        // use the exactly representable exclusive upper bound under fast-math
+        if (scale <= 0.f || scale >= 2147483648.f)
+            return -1;
+    }
+
+    for (int i = 0; i < mask.w; i++)
+    {
+        // reject non-finite indices before floating-point comparisons
+        unsigned int bits;
+        memcpy(&bits, (const float*)mask + i, sizeof(bits));
+        if ((bits & 0x7f800000u) == 0x7f800000u)
+            return -1;
+
+        // check the floating-point index before converting it to int
+        const float index = mask[i];
+        if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)
+            return -1;
+
+        for (int j = 0; j < 2; j++)
+        {
+            const int bias_index = (int)index * 2 + j;
+
+            // check raw bits before floating-point operations under fast-math
+            if (pd.type(4) != 5)
+            {
+                unsigned int bias_bits;
+                memcpy(&bias_bits, (const float*)biases + bias_index, sizeof(bias_bits));
+                if ((bias_bits & 0x7f800000u) == 0x7f800000u)
+                    return -1;
+            }
+
+            const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[bias_index] : biases[bias_index];
+            if (bias <= 0.f)
+                return -1;
+        }
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(6) == 5 && !anchors_scale.empty())
+    {
+        Mat converted(anchors_scale.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = anchors_scale;
+        for (int i = 0; i < anchors_scale.w; i++)
+            converted[i] = (float)p[i];
+
+        anchors_scale = converted;
+    }
+
     return 0;
 }
 
@@ -138,7 +248,7 @@ void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std
 
 static inline float sigmoid(float x)
 {
-    return static_cast<float>(1.f / (1.f + exp(-x)));
+    return 1.f / (1.f + expf(-x));
 }
 
 int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -205,14 +315,14 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     }
 
                     //sigmoid(box_score) * sigmoid(class_score)
-                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
+                    float confidence = 1.f / ((1.f + expf(-box_score_ptr[0]) * (1.f + expf(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                        float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / net_w);
-                        float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / net_h);
+                        float bbox_w = expf(wptr[0]) * bias_w / net_w;
+                        float bbox_h = expf(hptr[0]) * bias_h / net_h;
 
                         float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                         float bbox_ymin = bbox_cy - bbox_h * 0.5f;
@@ -275,7 +385,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         float score = r.score;
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
+        outptr[0] = r.label + 1.0f; // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

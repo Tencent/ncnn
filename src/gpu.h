@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_GPU_H
 #define NCNN_GPU_H
@@ -21,25 +10,140 @@
 
 #include "mat.h"
 
-#include <vulkan/vulkan.h>
-
-#include "vulkan_header_fix.h"
-
 namespace ncnn {
 
 // instance
-NCNN_EXPORT int create_gpu_instance();
+
+// Create VkInstance and initialize some objects that need to be calculated by GPU
+// Creates a VkInstance object, Checks the extended attributes supported by the Vulkan instance concerned,
+// Initializes, and creates Vulkan validation layers (if ENABLE_VALIDATION_LAYER is enabled),
+// Iterates over all supported physical devices, etc.
+NCNN_EXPORT int create_gpu_instance(const char* driver_path = 0);
+
+// Get global VkInstance variable
+// Must be called after create_gpu_instance() and before destroy_gpu_instance()
+NCNN_EXPORT VkInstance get_gpu_instance();
+
+// Destroy VkInstance object and free the memory of the associated object
+// Usually called in the destructor of the main program exit
+// The function will internally ensure that all vulkan devices are idle before proceeding with destruction.
 NCNN_EXPORT void destroy_gpu_instance();
+
+// vulkan core
+extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
+extern PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;
+extern PFN_vkAllocateMemory vkAllocateMemory;
+extern PFN_vkBeginCommandBuffer vkBeginCommandBuffer;
+extern PFN_vkBindBufferMemory vkBindBufferMemory;
+extern PFN_vkBindImageMemory vkBindImageMemory;
+extern PFN_vkCmdBeginQuery vkCmdBeginQuery;
+extern PFN_vkCmdBindDescriptorSets vkCmdBindDescriptorSets;
+extern PFN_vkCmdBindIndexBuffer vkCmdBindIndexBuffer;
+extern PFN_vkCmdBindPipeline vkCmdBindPipeline;
+extern PFN_vkCmdCopyBuffer vkCmdCopyBuffer;
+extern PFN_vkCmdCopyBufferToImage vkCmdCopyBufferToImage;
+extern PFN_vkCmdCopyImage vkCmdCopyImage;
+extern PFN_vkCmdCopyImageToBuffer vkCmdCopyImageToBuffer;
+extern PFN_vkCmdCopyQueryPoolResults vkCmdCopyQueryPoolResults;
+extern PFN_vkCmdDispatch vkCmdDispatch;
+extern PFN_vkCmdDispatchIndirect vkCmdDispatchIndirect;
+extern PFN_vkCmdEndQuery vkCmdEndQuery;
+extern PFN_vkCmdExecuteCommands vkCmdExecuteCommands;
+extern PFN_vkCmdFillBuffer vkCmdFillBuffer;
+extern PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier;
+extern PFN_vkCmdPushConstants vkCmdPushConstants;
+extern PFN_vkCmdResetQueryPool vkCmdResetQueryPool;
+extern PFN_vkCmdResolveImage vkCmdResolveImage;
+extern PFN_vkCmdUpdateBuffer vkCmdUpdateBuffer;
+extern PFN_vkCmdWriteTimestamp vkCmdWriteTimestamp;
+extern PFN_vkCreateBuffer vkCreateBuffer;
+extern PFN_vkCreateBufferView vkCreateBufferView;
+extern PFN_vkCreateCommandPool vkCreateCommandPool;
+extern PFN_vkCreateComputePipelines vkCreateComputePipelines;
+extern PFN_vkCreateDescriptorPool vkCreateDescriptorPool;
+extern PFN_vkCreateDescriptorSetLayout vkCreateDescriptorSetLayout;
+extern PFN_vkCreateDevice vkCreateDevice;
+extern PFN_vkCreateFence vkCreateFence;
+extern PFN_vkCreateImage vkCreateImage;
+extern PFN_vkCreateImageView vkCreateImageView;
+extern PFN_vkCreatePipelineCache vkCreatePipelineCache;
+extern PFN_vkCreatePipelineLayout vkCreatePipelineLayout;
+extern PFN_vkCreateQueryPool vkCreateQueryPool;
+extern PFN_vkCreateSampler vkCreateSampler;
+extern PFN_vkCreateSemaphore vkCreateSemaphore;
+extern PFN_vkCreateShaderModule vkCreateShaderModule;
+extern PFN_vkDestroyBuffer vkDestroyBuffer;
+extern PFN_vkDestroyBufferView vkDestroyBufferView;
+extern PFN_vkDestroyCommandPool vkDestroyCommandPool;
+extern PFN_vkDestroyDescriptorPool vkDestroyDescriptorPool;
+extern PFN_vkDestroyDescriptorSetLayout vkDestroyDescriptorSetLayout;
+extern PFN_vkDestroyDevice vkDestroyDevice;
+extern PFN_vkDestroyFence vkDestroyFence;
+extern PFN_vkDestroyImage vkDestroyImage;
+extern PFN_vkDestroyImageView vkDestroyImageView;
+extern PFN_vkDestroyInstance vkDestroyInstance;
+extern PFN_vkDestroyPipeline vkDestroyPipeline;
+extern PFN_vkDestroyPipelineCache vkDestroyPipelineCache;
+extern PFN_vkDestroyPipelineLayout vkDestroyPipelineLayout;
+extern PFN_vkDestroyQueryPool vkDestroyQueryPool;
+extern PFN_vkDestroySampler vkDestroySampler;
+extern PFN_vkDestroySemaphore vkDestroySemaphore;
+extern PFN_vkDestroyShaderModule vkDestroyShaderModule;
+extern PFN_vkDeviceWaitIdle vkDeviceWaitIdle;
+extern PFN_vkEndCommandBuffer vkEndCommandBuffer;
+extern PFN_vkEnumerateDeviceExtensionProperties vkEnumerateDeviceExtensionProperties;
+extern PFN_vkEnumerateDeviceLayerProperties vkEnumerateDeviceLayerProperties;
+extern PFN_vkEnumeratePhysicalDevices vkEnumeratePhysicalDevices;
+extern PFN_vkFlushMappedMemoryRanges vkFlushMappedMemoryRanges;
+extern PFN_vkFreeCommandBuffers vkFreeCommandBuffers;
+extern PFN_vkFreeDescriptorSets vkFreeDescriptorSets;
+extern PFN_vkFreeMemory vkFreeMemory;
+extern PFN_vkGetBufferMemoryRequirements vkGetBufferMemoryRequirements;
+extern PFN_vkGetDeviceMemoryCommitment vkGetDeviceMemoryCommitment;
+extern PFN_vkGetDeviceProcAddr vkGetDeviceProcAddr;
+extern PFN_vkGetDeviceQueue vkGetDeviceQueue;
+extern PFN_vkGetFenceStatus vkGetFenceStatus;
+extern PFN_vkGetImageMemoryRequirements vkGetImageMemoryRequirements;
+extern PFN_vkGetImageSubresourceLayout vkGetImageSubresourceLayout;
+extern PFN_vkGetPhysicalDeviceFeatures vkGetPhysicalDeviceFeatures;
+extern PFN_vkGetPhysicalDeviceFormatProperties vkGetPhysicalDeviceFormatProperties;
+extern PFN_vkGetPhysicalDeviceImageFormatProperties vkGetPhysicalDeviceImageFormatProperties;
+extern PFN_vkGetPhysicalDeviceMemoryProperties vkGetPhysicalDeviceMemoryProperties;
+extern PFN_vkGetPhysicalDeviceProperties vkGetPhysicalDeviceProperties;
+extern PFN_vkGetPhysicalDeviceQueueFamilyProperties vkGetPhysicalDeviceQueueFamilyProperties;
+extern PFN_vkGetPipelineCacheData vkGetPipelineCacheData;
+extern PFN_vkGetQueryPoolResults vkGetQueryPoolResults;
+extern PFN_vkInvalidateMappedMemoryRanges vkInvalidateMappedMemoryRanges;
+extern PFN_vkMapMemory vkMapMemory;
+extern PFN_vkMergePipelineCaches vkMergePipelineCaches;
+extern PFN_vkQueueSubmit vkQueueSubmit;
+extern PFN_vkQueueWaitIdle vkQueueWaitIdle;
+extern PFN_vkResetCommandBuffer vkResetCommandBuffer;
+extern PFN_vkResetCommandPool vkResetCommandPool;
+extern PFN_vkResetDescriptorPool vkResetDescriptorPool;
+extern PFN_vkResetFences vkResetFences;
+extern PFN_vkUnmapMemory vkUnmapMemory;
+extern PFN_vkUpdateDescriptorSets vkUpdateDescriptorSets;
+extern PFN_vkWaitForFences vkWaitForFences;
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
+extern int support_VK_KHR_device_group_creation;
 extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
 extern int support_VK_EXT_debug_utils;
+extern int support_VK_EXT_validation_features;
+extern int support_VK_EXT_validation_flags;
 #if __ANDROID_API__ >= 26
 extern int support_VK_KHR_android_surface;
 #endif // __ANDROID_API__ >= 26
+
+// VK_KHR_cooperative_matrix
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR;
+
+// VK_EXT_cooperative_matrix_maintenance1
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT;
 
 // VK_KHR_external_memory_capabilities
 extern PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
@@ -51,7 +155,6 @@ extern PFN_vkGetPhysicalDeviceFormatProperties2KHR vkGetPhysicalDeviceFormatProp
 extern PFN_vkGetPhysicalDeviceImageFormatProperties2KHR vkGetPhysicalDeviceImageFormatProperties2KHR;
 extern PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR vkGetPhysicalDeviceQueueFamilyProperties2KHR;
 extern PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2KHR;
-extern PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR;
 
 // VK_KHR_get_surface_capabilities2
 extern PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR vkGetPhysicalDeviceSurfaceCapabilities2KHR;
@@ -72,6 +175,12 @@ extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 // VK_NV_cooperative_matrix
 extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV;
 
+// VK_NV_cooperative_matrix2
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV;
+
+// VK_NV_cooperative_vector
+extern PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV vkGetPhysicalDeviceCooperativeVectorPropertiesNV;
+
 // get info
 NCNN_EXPORT int get_gpu_count();
 NCNN_EXPORT int get_default_gpu_index();
@@ -83,11 +192,24 @@ public:
     explicit GpuInfo();
     virtual ~GpuInfo();
 
+    int device_index() const;
+
     // vulkan physical device
-    VkPhysicalDevice physical_device() const;
+    VkPhysicalDevice physicalDevice() const;
+    VkPhysicalDevice physical_device() const; // api compatibility
+
+    // features
+    const VkPhysicalDeviceFeatures& physicalDevicefeatures() const;
+
+    // properties
+    const VkPhysicalDeviceProperties& physicalDeviceProperties() const;
 
     // memory properties
-    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const;
+    const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties() const;
+    const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties() const; // api compatibility
+
+    // extension properties
+    const std::vector<VkExtensionProperties>& deviceExtensionProperties() const;
 
     // info
     uint32_t api_version() const;
@@ -97,11 +219,21 @@ public:
     const char* device_name() const;
     uint8_t* pipeline_cache_uuid() const;
 
+    // driver properties
+    uint32_t driver_id() const;
+    const char* driver_name() const;
+
     // 0 = discrete gpu
     // 1 = integrated gpu
     // 2 = virtual gpu
     // 3 = cpu
     int type() const;
+
+    // performance score roughly evaluated based on parameters such as device type,
+    // supported extensions, video memory size etc.
+    // high-end device scores over 75
+    // low-end device scores below 10
+    uint32_t rough_score() const;
 
     // hardware limit
     uint32_t max_shared_memory_size() const;
@@ -123,22 +255,25 @@ public:
 
     // runtime
     uint32_t compute_queue_family_index() const;
-    uint32_t graphics_queue_family_index() const;
     uint32_t transfer_queue_family_index() const;
 
     uint32_t compute_queue_count() const;
-    uint32_t graphics_queue_count() const;
     uint32_t transfer_queue_count() const;
 
     // property
     bool unified_compute_transfer_queue() const;
+    bool resizable_bar_enabled() const;
+    bool support_image_storage() const;
+    bool prefer_shader_local_memory() const;
 
     // subgroup
     uint32_t subgroup_size() const;
-    bool support_subgroup_basic() const;
-    bool support_subgroup_vote() const;
-    bool support_subgroup_ballot() const;
-    bool support_subgroup_shuffle() const;
+    uint32_t min_subgroup_size() const;
+    uint32_t max_subgroup_size() const;
+    uint32_t max_compute_workgroup_subgroups() const;
+    bool support_subgroup_size_control() const;
+    bool support_compute_full_subgroups() const;
+    uint32_t support_subgroup_ops() const;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
@@ -148,54 +283,154 @@ public:
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;
 
-    // fp16 and int8 feature
+    // fp16/int8/int16 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
+    bool support_fp16_uniform() const;
     bool support_fp16_arithmetic() const;
     bool support_int8_packed() const;
     bool support_int8_storage() const;
+    bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
+    bool support_int16_packed() const;
+    // storage only; pair with support_int16_arithmetic() for shader int16 type
+    bool support_int16_storage() const;
+    bool support_int16_arithmetic() const;
+
+    // bf16 feature
+    bool support_bf16_packed() const;
+    bool support_bf16_storage() const; // bf16s implies bf16u
+
+    // r16f and r8s format in storage image
+    bool support_fp16_image() const;
+    bool support_int8_image() const;
+
+    // shader float controls2
+    bool support_fp_fast_math() const;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
 
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_8_8_16() const;
     bool support_cooperative_matrix_16_8_8() const;
+    bool support_cooperative_matrix_16_8_16() const;
+    bool support_cooperative_matrix_16_16_16() const;
+
+    // int8 cooperative matrix feature
+    bool support_int8_cooperative_matrix() const;
+
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix() const;
 
     // extension capability
     int support_VK_KHR_8bit_storage() const;
     int support_VK_KHR_16bit_storage() const;
     int support_VK_KHR_bind_memory2() const;
+    int support_VK_KHR_buffer_device_address() const;
     int support_VK_KHR_create_renderpass2() const;
+    int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
+    int support_VK_KHR_device_group() const;
+    int support_VK_KHR_driver_properties() const;
     int support_VK_KHR_external_memory() const;
     int support_VK_KHR_get_memory_requirements2() const;
     int support_VK_KHR_maintenance1() const;
     int support_VK_KHR_maintenance2() const;
     int support_VK_KHR_maintenance3() const;
     int support_VK_KHR_multiview() const;
+    int support_VK_KHR_portability_subset() const;
     int support_VK_KHR_push_descriptor() const;
+    int support_VK_KHR_robustness2() const;
     int support_VK_KHR_sampler_ycbcr_conversion() const;
+    int support_VK_KHR_shader_bfloat16() const;
     int support_VK_KHR_shader_float16_int8() const;
     int support_VK_KHR_shader_float_controls() const;
+    int support_VK_KHR_shader_float_controls2() const;
+    int support_VK_KHR_shader_integer_dot_product() const;
+    int support_VK_KHR_shader_non_semantic_info() const;
+    int support_VK_KHR_shader_subgroup_extended_types() const;
+    int support_VK_KHR_shader_subgroup_rotate() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_KHR_vulkan_memory_model() const;
+    int support_VK_KHR_zero_initialize_workgroup_memory() const;
+    int support_VK_EXT_buffer_device_address() const;
+    int support_VK_EXT_cooperative_matrix_maintenance1() const;
     int support_VK_EXT_descriptor_indexing() const;
+    int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
+    int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_robustness2() const;
+    int support_VK_EXT_shader_atomic_float() const;
+    int support_VK_EXT_shader_atomic_float2() const;
+    int support_VK_EXT_shader_float8() const;
+    int support_VK_EXT_shader_ocp_microscaling_types() const;
+    int support_VK_EXT_subgroup_size_control() const;
+    int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix() const;
+    int support_VK_NV_cooperative_matrix2() const;
+    int support_VK_NV_cooperative_vector() const;
+
+    // extension features
+    const void* queryExtensionFeatures() const;
+    const VkPhysicalDevice8BitStorageFeaturesKHR& query8BitStorageFeatures() const;
+    const VkPhysicalDevice16BitStorageFeaturesKHR& query16BitStorageFeatures() const;
+    const VkPhysicalDeviceFloat16Int8FeaturesKHR& queryFloat16Int8Features() const;
+    const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& querySamplerYcbcrConversionFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesKHR& queryCooperativeMatrixFeatures() const;
+    const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& queryCooperativeMatrixMaintenance1Features() const;
+    const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
+    const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
+    const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
+    const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
+    const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
+    const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
+    const VkPhysicalDeviceShaderOCPMicroscalingTypesFeaturesEXT& queryShaderOCPMicroscalingTypesFeatures() const;
+    const VkPhysicalDeviceShaderFloatControls2FeaturesKHR& queryShaderFloatControls2Features() const;
+    const VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR& queryShaderIntegerDotProductFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& queryShaderSubgroupExtendedTypesFeatures() const;
+    const VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR& queryShaderSubgroupRotateFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloatFeaturesEXT& queryShaderAtomicFloatFeatures() const;
+    const VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT& queryShaderAtomicFloat2Features() const;
+    const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& queryVulkanMemoryModelFeatures() const;
+
+    // extension properties
+    const void* queryExtensionProperties() const;
+    const VkPhysicalDeviceCooperativeMatrix2PropertiesNV& queryCooperativeMatrix2PropertiesNV() const;
+    const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorPropertiesNV() const;
+    const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
+    const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
+    const VkPhysicalDeviceRobustness2PropertiesKHR& queryRobustness2Properties() const;
+    const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
+    const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
+    const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+    const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& queryExternalMemoryHostProperties() const;
+
+    // extension sub properties
+    const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
+    const std::vector<VkCooperativeMatrixProperties2EXT>& queryCooperativeMatrixSubProperties2EXT() const;
+    const std::vector<VkCooperativeMatrixPropertiesNV>& queryCooperativeMatrixSubPropertiesNV() const;
+    const std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV>& queryCooperativeMatrixFlexibleDimensionsSubPropertiesNV() const;
+    const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
+
+    // some utility functions
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
 
 private:
     GpuInfo(const GpuInfo&);
     GpuInfo& operator=(const GpuInfo&);
 
 private:
-    friend int create_gpu_instance();
+    friend int create_gpu_instance(const char* driver_path);
     GpuInfoPrivate* const d;
 };
 
@@ -215,6 +450,12 @@ public:
     const GpuInfo& info;
 
     VkDevice vkdevice() const;
+    bool is_valid() const;
+
+#if NCNN_COVERAGE
+    void bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const;
+    void record_shader_coverage_barrier(VkCommandBuffer command_buffer) const;
+#endif
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
@@ -224,12 +465,15 @@ public:
     // helper for creating pipeline
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
-    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_cached(uint32_t memory_type_index) const;
+    bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
@@ -260,19 +504,17 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    void convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    void convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    void convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8  5=bf16
+    void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
     PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
 
-    // VK_KHR_create_renderpass2
-    PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
-    PFN_vkCmdEndRenderPass2KHR vkCmdEndRenderPass2KHR;
-    PFN_vkCmdNextSubpass2KHR vkCmdNextSubpass2KHR;
-    PFN_vkCreateRenderPass2KHR vkCreateRenderPass2KHR;
+    // VK_KHR_buffer_device_address
+    PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
+    PFN_vkGetBufferOpaqueCaptureAddressKHR vkGetBufferOpaqueCaptureAddressKHR;
+    PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR vkGetDeviceMemoryOpaqueCaptureAddressKHR;
 
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
@@ -282,7 +524,6 @@ public:
     // VK_KHR_get_memory_requirements2
     PFN_vkGetImageMemoryRequirements2KHR vkGetImageMemoryRequirements2KHR;
     PFN_vkGetBufferMemoryRequirements2KHR vkGetBufferMemoryRequirements2KHR;
-    PFN_vkGetImageSparseMemoryRequirements2KHR vkGetImageSparseMemoryRequirements2KHR;
 
     // VK_KHR_maintenance1
     PFN_vkTrimCommandPoolKHR vkTrimCommandPoolKHR;
@@ -305,11 +546,21 @@ public:
     PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
     PFN_vkQueuePresentKHR vkQueuePresentKHR;
 
+    // VK_EXT_buffer_device_address
+    PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
+
+    // VK_EXT_external_memory_host
+    PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
+
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer
     PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBufferPropertiesANDROID;
     PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
 #endif // __ANDROID_API__ >= 26
+
+    // VK_NV_cooperative_vector
+    PFN_vkCmdConvertCooperativeVectorMatrixNV vkCmdConvertCooperativeVectorMatrixNV;
+    PFN_vkConvertCooperativeVectorMatrixNV vkConvertCooperativeVectorMatrixNV;
 
 protected:
     // device extension

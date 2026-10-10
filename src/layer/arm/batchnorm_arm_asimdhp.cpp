@@ -1,22 +1,13 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "batchnorm_arm.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
+
+#include "arm_usability.h"
 
 namespace ncnn {
 
@@ -109,7 +100,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
-            ptr[i] = b_data[i] * ptr[i] + a_data[i];
+            ptr[i] = b_data[i] * (float)ptr[i] + a_data[i];
         }
     }
 
@@ -140,7 +131,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             for (; j < w; j++)
             {
-                *ptr = b * *ptr + a;
+                *ptr = b * (float)*ptr + a;
 
                 ptr++;
             }
@@ -177,7 +168,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             for (; j < size; j++)
             {
-                *ptr = b * *ptr + a;
+                *ptr = b * (float)*ptr + a;
 
                 ptr++;
             }
@@ -367,7 +358,11 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[i];
 
             float16x4_t _a = vdup_n_f16(a);
+#if defined(_MSC_VER) && !defined(__clang__)
+            float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[i]));
+#else
             float16x4_t _b = vdup_n_f16(b);
+#endif
 
             int j = 0;
             for (; j + 3 < w; j += 4)
@@ -404,7 +399,11 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[q];
 
             float16x4_t _a = vdup_n_f16(a);
+#if defined(_MSC_VER) && !defined(__clang__)
+            float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[q]));
+#else
             float16x4_t _b = vdup_n_f16(b);
+#endif
 
             int j = 0;
             for (; j + 3 < size; j += 4)

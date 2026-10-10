@@ -1,28 +1,17 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_PIPELINECACHE_H
 #define NCNN_PIPELINECACHE_H
 
 #include "platform.h"
 
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
-
 #include "mat.h"
 #include "gpu.h"
+
+#if NCNN_STDIO
+#include <stdio.h>
+#endif
 
 namespace ncnn {
 
@@ -38,9 +27,25 @@ public:
     virtual ~PipelineCache();
 
     void clear();
+    size_t size() const;
+
+    int save_cache(std::vector<unsigned char>& data) const;
+    int load_cache(const unsigned char* data, size_t size) const;
+    int load_cache(const std::vector<unsigned char>& data) const;
+
+#if NCNN_STDIO
+    int save_cache(FILE* fp) const;
+    int load_cache(FILE* fp) const;
+    int save_cache(const char* path) const;
+    int load_cache(const char* path) const;
+#if _WIN32
+    int save_cache(const wchar_t* path) const;
+    int load_cache(const wchar_t* path) const;
+#endif // _WIN32
+#endif // NCNN_STDIO
 
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
@@ -49,7 +54,7 @@ public:
                      ShaderInfo& shader_info) const;
 
     int get_pipeline(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                     uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
@@ -58,10 +63,11 @@ public:
                      ShaderInfo& shader_info) const;
 
 protected:
-    int create_shader_module(int shader_type_index, const Option& opt, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+    int create_shader_module(int shader_type_index, const Option& opt,
+                             uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                              VkShaderModule* _shader_module, ShaderInfo& si) const;
 
-    int new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info, const std::vector<vk_specialization_type>& specializations,
+    int new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size,
                      VkDescriptorSetLayout* descriptorset_layout,
                      VkPipelineLayout* pipeline_layout,
                      VkPipeline* pipeline,

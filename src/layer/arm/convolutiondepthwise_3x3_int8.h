@@ -1,16 +1,5 @@
-// BUG1989 is pleased to support the open source community by supporting ncnn available.
-//
-// Copyright (C) 2019 BUG1989. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 BUG1989
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
@@ -436,7 +425,7 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     "w"(_k0123), // %10
                     "w"(_k4567), // %11
                     "w"(_k8xxx)  // %12
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
             if (nn > 0)
@@ -673,7 +662,7 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     "w"(_k0123), // %10
                     "w"(_k4567), // %11
                     "w"(_k8xxx)  // %12
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
             if (nn > 0)

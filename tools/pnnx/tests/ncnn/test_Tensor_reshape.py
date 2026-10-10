@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,17 +9,25 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w, v):
         x = x.reshape(2, 24)
         x = x.reshape(48)
         y = y.reshape(11, 5, 9)
         y = y.reshape(99, 5)
         z = z.reshape(4, 3, 6, 10)
         z = z.reshape(15, 6, 8)
+        w = F.max_pool2d(w, 3, stride=1, padding=1)
+        w0 = w.reshape(2, 3, 35)
+        w1 = w.reshape(6, 5, 7)
+        v = v.reshape(4, 2, 5, 7)
+        v = v.permute(1, 0, 2, 3)
+        v = F.max_pool2d(v, 3, stride=1, padding=1)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        return x, y, z
+        w0 = F.relu(w0)
+        w1 = F.relu(w1)
+        return x, y, z, w0, w1, v
 
 def test():
     net = Model()
@@ -40,16 +37,18 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(5, 9, 11)
     z = torch.rand(8, 5, 9, 2)
+    w = torch.rand(2, 3, 5, 7)
+    v = torch.rand(280)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w, v)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w, v))
     mod.save("test_Tensor_reshape.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_reshape.pt inputshape=[3,16],[5,9,11],[8,5,9,2]")
+    os.system("../../src/pnnx test_Tensor_reshape.pt inputshape=[3,16],[5,9,11],[8,5,9,2],[2,3,5,7],[280]")
 
     # ncnn inference
     import test_Tensor_reshape_ncnn

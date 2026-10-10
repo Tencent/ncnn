@@ -1,19 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/priorbox.h"
 #include "testutil.h"
+
+#include "layer_type.h"
 
 static int test_priorbox_caffe()
 {
@@ -51,7 +41,7 @@ static int test_priorbox_caffe()
     as[0] = RandomMat(72, 72, 1);
     as[1] = RandomMat(512, 512, 1);
 
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
+    int ret = test_layer("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_caffe failed\n");
@@ -98,7 +88,7 @@ static int test_priorbox_mxnet()
     std::vector<ncnn::Mat> as(1);
     as[0] = RandomMat(72, 72, 1);
 
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
+    int ret = test_layer("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_mxnet failed\n");
@@ -107,11 +97,88 @@ static int test_priorbox_mxnet()
     return ret;
 }
 
+#if NCNN_VALIDATION
+static int test_priorbox_load_param()
+{
+    ncnn::ParamDict pd;
+    ncnn::Mat sizes(2);
+    sizes.fill(1.f);
+    pd.set(0, sizes);
+    if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
+        return -1;
+
+    const ncnn::ParamDict base = pd;
+
+    if (test_layer_param(ncnn::LayerType::PriorBox, base, 1, ncnn::Mat(0), 0)
+            || test_layer_param(ncnn::LayerType::PriorBox, base, 2, ncnn::Mat(0), 0))
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(2, ncnn::Mat(0));
+        pd.set(1, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
+            return -1;
+    }
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(2, ncnn::Mat(0));
+        pd.set(1, ncnn::Mat(0));
+        pd.set(0, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::PriorBox, pd, -1) != 0)
+            return -1;
+    }
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 0, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 1, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 2, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::PriorBox, base, 1, sizes.range(0, 1), -1);
+}
+
+static int test_priorbox_load_param_serialized()
+{
+    TestParamDict pd;
+#if NCNN_STRING
+    if (pd.load_param("-23300=1,1.0 -23301=0 -23302=0") != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::PriorBox, pd, 0) != 0)
+        return -1;
+#endif
+
+    // binary parameters use little-endian byte order
+    const unsigned char binary[] = {
+        0xfc, 0xa4, 0xff, 0xff,
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x80, 0x3f,
+        0xfb, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0xfa, 0xa4, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00,
+        0x17, 0xff, 0xff, 0xff
+    };
+    if (pd.load_param_bin(binary) != 0)
+        return -1;
+
+    return test_layer_param(ncnn::LayerType::PriorBox, pd, 0);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
     return 0
            || test_priorbox_caffe()
-           || test_priorbox_mxnet();
+           || test_priorbox_mxnet()
+#if NCNN_VALIDATION
+           || test_priorbox_load_param()
+           || test_priorbox_load_param_serialized()
+#endif // NCNN_VALIDATION
+           ;
 }

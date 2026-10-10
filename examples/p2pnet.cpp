@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "net.h"
 #if defined(USE_NCNN_SIMPLEOCV)
@@ -156,8 +145,10 @@ static int detect_crowd(const cv::Mat& bgr, std::vector<CrowdPoint>& crowd_point
     // model is converted from
     // https://github.com/TencentYoutuResearch/CrowdCounting-P2PNet
     // the ncnn model  https://pan.baidu.com/s/1O1CBgvY6yJkrK8Npxx3VMg pwd: ezhx
-    net.load_param("p2pnet.param");
-    net.load_model("p2pnet.bin");
+    if (net.load_param("p2pnet.param"))
+        exit(-1);
+    if (net.load_model("p2pnet.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

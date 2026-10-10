@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "roipooling.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -73,10 +60,10 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 // Compute pooling region for this output unit:
                 //  start (included) = floor(ph * roi_height / pooled_height)
                 //  end (excluded) = ceil((ph + 1) * roi_height / pooled_height)
-                int hstart = static_cast<int>(roi_y1 + floor((float)(ph)*bin_size_h));
-                int wstart = static_cast<int>(roi_x1 + floor((float)(pw)*bin_size_w));
-                int hend = static_cast<int>(roi_y1 + ceil((float)(ph + 1) * bin_size_h));
-                int wend = static_cast<int>(roi_x1 + ceil((float)(pw + 1) * bin_size_w));
+                int hstart = static_cast<int>(roi_y1 + floorf(ph * bin_size_h));
+                int wstart = static_cast<int>(roi_x1 + floorf(pw * bin_size_w));
+                int hend = static_cast<int>(roi_y1 + ceilf((ph + 1) * bin_size_h));
+                int wend = static_cast<int>(roi_x1 + ceilf((pw + 1) * bin_size_w));
 
                 hstart = std::min(std::max(hstart, 0), h);
                 wstart = std::min(std::max(wstart, 0), w);

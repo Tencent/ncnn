@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolutiondepthwise3d.h"
+
+#include <limits.h>
 
 #include "fused_activation.h"
 
@@ -48,6 +39,44 @@ int ConvolutionDepthWise3D::load_param(const ParamDict& pd)
     group = pd.get(7, 1);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
+
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (group <= 0 || num_output % group != 0)
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (kernel_w <= 0 || dilation_w <= 0 || stride_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || dilation_h <= 0 || stride_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_d <= 0 || dilation_d <= 0 || stride_d <= 0 || kernel_d - 1 > (INT_MAX - 1) / dilation_d || kernel_w > INT_MAX / kernel_h || kernel_w * kernel_h > INT_MAX / kernel_d)
+        return -1;
+
+    if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h * kernel_d) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
 
     return 0;
 }
@@ -180,6 +209,11 @@ int ConvolutionDepthWise3D::forward(const Mat& bottom_blob, Mat& top_blob, const
             {
                 float* outptr = top_blob.channel(g * num_output_g + p);
                 const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+
+                // shadowed variable for less openmp task args
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
+                const int outd = top_blob.d;
 
                 for (int z = 0; z < outd; z++)
                 {

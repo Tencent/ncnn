@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "proposal.h"
-
-#include <math.h>
 
 namespace ncnn {
 
@@ -50,7 +37,7 @@ static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
     {
         float ar = ratios[i];
 
-        int r_w = static_cast<int>(round(base_size / sqrt(ar)));
+        int r_w = static_cast<int>(round(base_size / sqrtf(ar)));
         int r_h = static_cast<int>(round(r_w * ar)); //round(base_size * sqrt(ar));
 
         for (int j = 0; j < num_scale; j++)
@@ -245,8 +232,8 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float pb_cx = cx + anchor_w * dx;
                 float pb_cy = cy + anchor_h * dy;
 
-                float pb_w = static_cast<float>(anchor_w * exp(dw));
-                float pb_h = static_cast<float>(anchor_h * exp(dh));
+                float pb_w = anchor_w * expf(dw);
+                float pb_h = anchor_h * expf(dh);
 
                 pb[0] = pb_cx - pb_w * 0.5f;
                 pb[1] = pb_cy - pb_h * 0.5f;

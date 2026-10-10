@@ -1,17 +1,6 @@
-// This file is wirtten base on the following file:
-// https://github.com/Tencent/ncnn/blob/master/examples/yolov5.cpp
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
-// ------------------------------------------------------------------------------
-// Copyright (C) 2020-2021, Megvii Inc. All rights reserved.
+// Copyright 2020 Tencent
+// Copyright 2020-2021 Megvii Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "layer.h"
 #include "net.h"
@@ -145,7 +134,7 @@ static void qsort_descent_inplace(std::vector<Object>& objects)
     qsort_descent_inplace(objects, 0, objects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -165,6 +154,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -261,8 +253,10 @@ static int detect_yolox(const cv::Mat& bgr, std::vector<Object>& objects)
     // ncnn model param: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s_ncnn.tar.gz
     // NOTE that newest version YOLOX remove normalization of model (minus mean and then div by std),
     // which might cause your model outputs becoming a total mess, plz check carefully.
-    yolox.load_param("yolox.param");
-    yolox.load_model("yolox.bin");
+    if (yolox.load_param("yolox.param"))
+        exit(-1);
+    if (yolox.load_model("yolox.bin"))
+        exit(-1);
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;

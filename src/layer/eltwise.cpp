@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "eltwise.h"
 
@@ -27,6 +16,33 @@ int Eltwise::load_param(const ParamDict& pd)
     op_type = pd.get(0, 0);
     coeffs = pd.get(1, Mat());
 
+    const int coeffs_type = pd.type(1);
+
+#if NCNN_VALIDATION
+    if (op_type < Operation_PROD || op_type > Operation_MAX)
+        return -1;
+
+    if (coeffs_type != 0 && coeffs_type != 4 && coeffs_type != 5 && coeffs_type != 6)
+        return -1;
+
+    if ((coeffs.dims != 0 || coeffs.w != 0 || coeffs.data) && (coeffs.dims != 1 || coeffs.w < 0 || coeffs.elempack != 1 || coeffs.elemsize != 4u || (coeffs.w > 0 && !coeffs.data)))
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (coeffs_type == 5 && !coeffs.empty())
+    {
+        Mat converted(coeffs.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = coeffs;
+        for (int i = 0; i < coeffs.w; i++)
+            converted[i] = (float)p[i];
+
+        coeffs = converted;
+    }
+
     return 0;
 }
 
@@ -35,8 +51,9 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);

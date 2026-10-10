@@ -115,42 +115,42 @@ typedef union imm_xmm_union
         imm_ = u.imm;                            \
     }
 
-#define AVX2_BITOP_USING_SSE2(fn)                                      \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                                  \
-        /* use SSE2 instruction to perform the bitop AVX2 */           \
-        __m128i x1, x2;                                                \
-        __m256i ret;                                                   \
-        COPY_IMM_TO_XMM(x, x1, x2);                                    \
-        x1 = _mm_##fn(x1, a);                                          \
-        x2 = _mm_##fn(x2, a);                                          \
-        COPY_XMM_TO_IMM(x1, x2, ret);                                  \
-        return (ret);                                                  \
+#define AVX2_BITOP_USING_SSE2(fn)                                             \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, int a) \
+    {                                                                         \
+        /* use SSE2 instruction to perform the bitop AVX2 */                  \
+        __m128i x1, x2;                                                       \
+        __m256i ret;                                                          \
+        COPY_IMM_TO_XMM(x, x1, x2);                                           \
+        x1 = _mm_##fn(x1, a);                                                 \
+        x2 = _mm_##fn(x2, a);                                                 \
+        COPY_XMM_TO_IMM(x1, x2, ret);                                         \
+        return (ret);                                                         \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                          \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, __m256i y) \
-    {                                                                      \
-        /* use SSE2 instructions to perform the AVX2 integer operation */  \
-        __m128i x1, x2;                                                    \
-        __m128i y1, y2;                                                    \
-        __m256i ret;                                                       \
-        COPY_IMM_TO_XMM(x, x1, x2);                                        \
-        COPY_IMM_TO_XMM(y, y1, y2);                                        \
-        x1 = _mm_##fn(x1, y1);                                             \
-        x2 = _mm_##fn(x2, y2);                                             \
-        COPY_XMM_TO_IMM(x1, x2, ret);                                      \
-        return (ret);                                                      \
+#define AVX2_INTOP_USING_SSE2(fn)                                                        \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, const __m256i& y) \
+    {                                                                                    \
+        /* use SSE2 instructions to perform the AVX2 integer operation */                \
+        __m128i x1, x2;                                                                  \
+        __m128i y1, y2;                                                                  \
+        __m256i ret;                                                                     \
+        COPY_IMM_TO_XMM(x, x1, x2);                                                      \
+        COPY_IMM_TO_XMM(y, y1, y2);                                                      \
+        x1 = _mm_##fn(x1, y1);                                                           \
+        x2 = _mm_##fn(x2, y2);                                                           \
+        COPY_XMM_TO_IMM(x1, x2, ret);                                                    \
+        return (ret);                                                                    \
     }
 #else
-#define AVX2_BITOP_USING_SSE2(fn)                                      \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                                  \
-        return _mm256_##fn(x, a);                                      \
+#define AVX2_BITOP_USING_SSE2(fn)                                             \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, int a) \
+    {                                                                         \
+        return _mm256_##fn(x, a);                                             \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                          \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, __m256i y) \
-    {                                                                      \
-        return _mm256_##fn(x, y);                                          \
+#define AVX2_INTOP_USING_SSE2(fn)                                                        \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, const __m256i& y) \
+    {                                                                                    \
+        return _mm256_##fn(x, y);                                                        \
     }
 #endif
 
@@ -169,8 +169,10 @@ AVX2_INTOP_USING_SSE2(andnot_si128)
 /* natural logarithm computed for 8 simultaneous float
    return NaN for x <= 0
 */
-static NCNN_FORCEINLINE __m256 log256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 log256_ps(const __m256& _x)
 {
+    __m256 x = _x;
+
     __m256i imm0;
     __m256 one = *(__m256*)_ps256_1;
 
@@ -245,8 +247,10 @@ _PS256_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS256_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS256_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 exp256_ps(const __m256& _x)
 {
+    __m256 x = _x;
+
     __m256 tmp = _mm256_setzero_ps(), fx;
     __m256i imm0;
     __m256 one = *(__m256*)_ps256_1;
@@ -295,6 +299,96 @@ static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
     return y;
 }
 
+_PS256_CONST(tanh_hi, 9.0f);
+_PS256_CONST(tanh_lo, -9.0f);
+
+_PS256_CONST(cephes_tanh_p0, -2.76076847742355E-16f);
+_PS256_CONST(cephes_tanh_p1, 2.00018790482477E-13f);
+_PS256_CONST(cephes_tanh_p2, -8.60467152213735E-11f);
+_PS256_CONST(cephes_tanh_p3, 5.12229709037114E-08f);
+_PS256_CONST(cephes_tanh_p4, 1.48572235717979E-05f);
+_PS256_CONST(cephes_tanh_p5, 6.37261928875436E-04f);
+_PS256_CONST(cephes_tanh_p6, 4.89352455891786E-03f);
+
+_PS256_CONST(cephes_tanh_p7, 1.19825839466702e-06f);
+_PS256_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
+_PS256_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
+
+// an approximation of tanh
+static NCNN_FORCEINLINE __m256 tanh256_ps(const __m256& x)
+{
+    __m256 value = x;
+    value = _mm256_max_ps(*(__m256*)_ps256_tanh_lo, value);
+    value = _mm256_min_ps(*(__m256*)_ps256_tanh_hi, value);
+
+    __m256 value_squared = _mm256_mul_ps(value, value);
+
+    __m256 p;
+    p = _mm256_comp_fmadd_ps(value_squared, *(__m256*)_ps256_cephes_tanh_p0, *(__m256*)_ps256_cephes_tanh_p1);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p2);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p3);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p4);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p5);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p6);
+    p = _mm256_mul_ps(p, value);
+
+    __m256 q;
+    q = _mm256_comp_fmadd_ps(value_squared, *(__m256*)_ps256_cephes_tanh_p7, *(__m256*)_ps256_cephes_tanh_p8);
+    q = _mm256_comp_fmadd_ps(q, value_squared, *(__m256*)_ps256_cephes_tanh_p9);
+    q = _mm256_comp_fmadd_ps(q, value_squared, *(__m256*)_ps256_cephes_tanh_p6);
+
+    __m256 dst = _mm256_div_ps(p, q);
+    return dst;
+}
+
+_PS256_CONST(erf_threshold, 0.927734375f);
+
+_PS256_CONST(erf_c0, -1.72853470e-5f);
+_PS256_CONST(erf_c1, 3.83197126e-4f);
+_PS256_CONST(erf_c2, -3.88396438e-3f);
+_PS256_CONST(erf_c3, 2.42546219e-2f);
+_PS256_CONST(erf_c4, -1.06777877e-1f);
+_PS256_CONST(erf_c5, -6.34846687e-1f);
+_PS256_CONST(erf_c6, -1.28717512e-1f);
+
+_PS256_CONST(erf_p0, -5.96761703e-4f);
+_PS256_CONST(erf_p1, 4.99119423e-3f);
+_PS256_CONST(erf_p2, -2.67681349e-2f);
+_PS256_CONST(erf_p3, 1.12819925e-1f);
+_PS256_CONST(erf_p4, -3.76125336e-1f);
+_PS256_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m256 erf256_ps(const __m256& a)
+{
+    __m256 t = _mm256_and_ps(a, *(__m256*)_ps256_inv_sign_mask);
+    __m256 s = _mm256_mul_ps(a, a);
+
+    __m256 mask = _mm256_cmp_ps(t, *(__m256*)_ps256_erf_threshold, _CMP_GT_OQ);
+
+    __m256 r_large = _mm256_comp_fmadd_ps(*(__m256*)_ps256_erf_c0, t, *(__m256*)_ps256_erf_c1);
+    __m256 u = _mm256_comp_fmadd_ps(*(__m256*)_ps256_erf_c2, t, *(__m256*)_ps256_erf_c3);
+    r_large = _mm256_comp_fmadd_ps(r_large, s, u);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c4);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c5);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c6);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, _mm256_sub_ps(_mm256_setzero_ps(), t));
+    r_large = _mm256_sub_ps(*(__m256*)_ps256_1, exp256_ps(r_large));
+
+    __m256 sign_mask = _mm256_and_ps(a, *(__m256*)_ps256_sign_mask);
+    r_large = _mm256_xor_ps(r_large, sign_mask);
+
+    __m256 r_small = *(__m256*)_ps256_erf_p0;
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p1);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p2);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p3);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p4);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p5);
+    r_small = _mm256_comp_fmadd_ps(r_small, a, a);
+
+    __m256 r = _mm256_or_ps(_mm256_and_ps(mask, r_large), _mm256_andnot_ps(mask, r_small));
+    return r;
+}
+
 _PS256_CONST(minus_cephes_DP1, -0.78515625f);
 _PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
@@ -318,8 +412,11 @@ _PS256_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    surprising but correct result.
 
 */
-static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
-{   // any x
+static NCNN_FORCEINLINE __m256 sin256_ps(const __m256& _x)
+{
+    __m256 x = _x;
+
+    // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, sign_bit, y;
     __m256i imm0, imm2;
 
@@ -438,8 +535,11 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
 }
 
 /* almost the same as sin_ps */
-static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
-{   // any x
+static NCNN_FORCEINLINE __m256 cos256_ps(const __m256& _x)
+{
+    __m256 x = _x;
+
+    // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, y;
     __m256i imm0, imm2;
 
@@ -551,8 +651,10 @@ static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
 
 /* since sin256_ps and cos256_ps are almost identical, sincos256_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
+static NCNN_FORCEINLINE void sincos256_ps(const __m256& _x, __m256& s, __m256& c)
 {
+    __m256 x = _x;
+
     __m256 xmm1, xmm2, xmm3 = _mm256_setzero_ps(), sign_bit_sin, y;
     __m256i imm0, imm2, imm4;
 
@@ -687,15 +789,15 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     xmm2 = _mm256_add_ps(y, y2);
 
     /* update the sign */
-    *s = _mm256_xor_ps(xmm1, sign_bit_sin);
-    *c = _mm256_xor_ps(xmm2, sign_bit_cos);
+    s = _mm256_xor_ps(xmm1, sign_bit_sin);
+    c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tan256_ps(const __m256& x)
 {
     __m256 ysin, ycos;
     __m256 eps = _mm256_set1_ps(1E-8f);
-    sincos256_ps(x, &ysin, &ycos);
+    sincos256_ps(x, ysin, ycos);
     __m256 mask = _mm256_cmp_ps(ycos, _mm256_setzero_ps(), _CMP_EQ_OS);
     __m256 _tmp = _mm256_and_ps(eps, mask);
     ycos = _mm256_add_ps(ycos, _tmp);
@@ -703,10 +805,446 @@ static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
     return ytan;
 }
 
-static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 pow256_ps(const __m256& a, const __m256& b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
+}
+
+static NCNN_FORCEINLINE __m256 asin256_ps(const __m256& x)
+{
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_half_one = _mm256_set1_ps(0.5f);
+    const __m256 magic_one = _mm256_set1_ps(1.0f);
+    const __m256 magic_a4 = _mm256_set1_ps(0.023994016f);
+    const __m256 magic_a5 = _mm256_set1_ps(0.042417344f);
+    const __m256 magic_a2 = _mm256_set1_ps(0.07494697f);
+    const __m256 magic_a3 = _mm256_set1_ps(0.045520633f);
+    const __m256 magic_a0 = _mm256_set1_ps(1.0f);
+    const __m256 magic_a1 = _mm256_set1_ps(0.166667819f);
+    const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
+    const __m256 magic_three = _mm256_set1_ps(3.0f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m256 negative_mask = _mm256_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m256 absolute = _mm256_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __m256 is_small_input = _mm256_cmp_ps(absolute, magic_half_one, _CMP_LE_OQ);
+
+    // is_big_input = (is_small_input ? 0.0f : 1.0f);
+    __m256 is_big_input = _mm256_andnot_ps(is_small_input, magic_one);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m256 big_input_approx = _mm256_sqrt_ps(_mm256_mul_ps(
+                                  magic_half_one,
+                                  _mm256_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m256 input_approx = _mm256_or_ps(
+                              _mm256_and_ps(is_small_input, absolute),
+                              _mm256_andnot_ps(is_small_input, big_input_approx));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m256 square_of_input_approx = _mm256_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m256 fourth_power_of_input_approx = _mm256_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m256 output_approx = _mm256_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = ((0.5 * PI) * is_big_input);
+    // x2 = (output_approx * input_approx);
+    // x3 = (-(3.0f * is_big_input) + 1.0f);
+    // final_approx = ((x2 * x3) + x1);
+    __m256 final_approx = _mm256_comp_fmadd_ps(
+                              _mm256_mul_ps(output_approx, input_approx),
+                              _mm256_comp_fnmadd_ps(magic_three, is_big_input, magic_one),
+                              _mm256_mul_ps(magic_half_pi, is_big_input));
+
+    // return (final_approx || negative_mask);
+    return _mm256_or_ps(final_approx, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m256 acos256_ps(const __m256& x)
+{
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_zero = _mm256_set1_ps(0.0f);
+    const __m256 magic_half_one = _mm256_set1_ps(0.5f);
+    const __m256 magic_one = _mm256_set1_ps(1.0f);
+    const __m256 magic_a4 = _mm256_set1_ps(0.023994016f);
+    const __m256 magic_a5 = _mm256_set1_ps(0.042417344f);
+    const __m256 magic_a2 = _mm256_set1_ps(0.07494697f);
+    const __m256 magic_a3 = _mm256_set1_ps(0.045520633f);
+    const __m256 magic_a0 = _mm256_set1_ps(1.0f);
+    const __m256 magic_a1 = _mm256_set1_ps(0.166667819f);
+    const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
+    const __m256 magic_pi = _mm256_set1_ps(3.1415927f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m256 negative_mask = _mm256_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m256 absolute = _mm256_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __m256 is_small_input = _mm256_cmp_ps(absolute, magic_half_one, _CMP_LE_OQ);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m256 big_input_approx = _mm256_sqrt_ps(_mm256_mul_ps(
+                                  magic_half_one,
+                                  _mm256_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m256 input_approx = _mm256_or_ps(
+                              _mm256_and_ps(is_small_input, absolute),
+                              _mm256_andnot_ps(is_small_input, big_input_approx));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m256 square_of_input_approx = _mm256_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m256 fourth_power_of_input_approx = _mm256_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m256 output_approx = _mm256_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    __m256 x1 = _mm256_mul_ps(output_approx, input_approx);
+
+    // TODO: Need more explanations.
+    // small_final_approx = ((0.5 * PI) - (x1 | negative_mask));
+    __m256 small_final_approx = _mm256_sub_ps(
+                                    magic_half_pi,
+                                    _mm256_or_ps(x1, negative_mask));
+
+    // TODO: Need more explanations.
+    // big_final_approx = (((x < 0.0f) & PI) + ((x1 * 2) | negative_mask));
+    __m256 big_final_approx = _mm256_add_ps(
+                                  _mm256_and_ps(_mm256_cmp_ps(x, magic_zero, _CMP_LT_OQ), magic_pi),
+                                  _mm256_or_ps(_mm256_add_ps(x1, x1), negative_mask));
+
+    // return (is_small_input ? small_final_approx : big_final_approx);
+    return _mm256_or_ps(
+               _mm256_and_ps(is_small_input, small_final_approx),
+               _mm256_andnot_ps(is_small_input, big_final_approx));
+}
+
+static NCNN_FORCEINLINE __m256 atan256_ps(const __m256& x)
+{
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_one = _mm256_set1_ps(1.0f);
+    const __m256 magic_negative_one = _mm256_set1_ps(-1.0f);
+    const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
+    const __m256 magic_a0 = _mm256_set1_ps(1.0f);
+    const __m256 magic_a1 = _mm256_set1_ps(-0.33333072f);
+    const __m256 magic_a2 = _mm256_set1_ps(0.1999262f);
+    const __m256 magic_a3 = _mm256_set1_ps(-0.14203644f);
+    const __m256 magic_a4 = _mm256_set1_ps(0.10640934f);
+    const __m256 magic_a5 = _mm256_set1_ps(-0.07504295f);
+    const __m256 magic_a6 = _mm256_set1_ps(0.04269152f);
+    const __m256 magic_a7 = _mm256_set1_ps(-0.01606863f);
+    const __m256 magic_a8 = _mm256_set1_ps(0.0028498897f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m256 negative_mask = _mm256_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m256 absolute = _mm256_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (1.0f < absolute);
+    __m256 is_small_input = _mm256_cmp_ps(magic_one, absolute, _CMP_LT_OQ);
+
+    // x1 = (is_small_input ? -1.0f : absolute);
+    // x2 = (is_small_input ? absolute : 1.0f)
+    // input_approx = x1 / x2;
+    __m256 input_approx = _mm256_div_ps(
+                              _mm256_or_ps(
+                                  _mm256_and_ps(is_small_input, magic_negative_one),
+                                  _mm256_andnot_ps(is_small_input, absolute)),
+                              _mm256_or_ps(
+                                  _mm256_and_ps(is_small_input, absolute),
+                                  _mm256_andnot_ps(is_small_input, magic_one)));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m256 square_of_input_approx = _mm256_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m256 fourth_power_of_input_approx = _mm256_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a7) + magic_a5);
+    // x2 = ((fourth_power_of_input_approx * magic_a8) + magic_a6);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a3);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a4);
+    // x5 = ((fourth_power_of_input_approx * x3) + magic_a1);
+    // x6 = ((fourth_power_of_input_approx * x4) + magic_a2);
+    // x7 = ((fourth_power_of_input_approx * x6) + magic_a0);
+    // output_approx = ((square_of_input_approx * x5) + x7);
+    __m256 output_approx = _mm256_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm256_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           magic_a7,
+                                           magic_a5),
+                                       magic_a3),
+                                   magic_a1),
+                               _mm256_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm256_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm256_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm256_comp_fmadd_ps(
+                                                   fourth_power_of_input_approx,
+                                                   magic_a8,
+                                                   magic_a6),
+                                           magic_a4),
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    // if (is_small_input) x1 += (0.5 * PI);
+    // return (negative_mask ? -x1 : x1);
+    return _mm256_or_ps(
+               _mm256_add_ps(
+                   _mm256_mul_ps(output_approx, input_approx),
+                   _mm256_and_ps(is_small_input, magic_half_pi)),
+               negative_mask);
+}
+
+static NCNN_FORCEINLINE __m256 atan2256_ps(const __m256& y, const __m256& x)
+{
+    // Reference: https://mazzo.li/posts/vectorized-atan2.html
+
+    const __m256 magic_zero = _mm256_set1_ps(0.0f);
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_pi = _mm256_set1_ps(3.1415927f);
+    const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
+
+    // not_equal_zero_x = (x != 0.0f);
+    __m256 not_equal_zero_x = _mm256_cmp_ps(x, magic_zero, _CMP_NEQ_OQ);
+
+    // not_equal_zero_y = (y != 0.0f);
+    __m256 not_equal_zero_y = _mm256_cmp_ps(y, magic_zero, _CMP_NEQ_OQ);
+
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
+    __m256 normal_mode = _mm256_and_ps(not_equal_zero_x, not_equal_zero_y);
+
+    // negative_mask_x = magic_negative_zero && x;
+    __m256 negative_mask_x = _mm256_and_ps(magic_negative_zero, x);
+
+    // negative_mask_y = magic_negative_zero && y;
+    __m256 negative_mask_y = _mm256_and_ps(magic_negative_zero, y);
+
+    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
+    __m256 pi_additions = _mm256_and_ps(
+                              _mm256_cmp_ps(x, magic_zero, _CMP_LT_OQ),
+                              _mm256_or_ps(
+                                  _mm256_and_ps(
+                                      _mm256_cmp_ps(y, magic_zero, _CMP_LT_OQ),
+                                      magic_negative_zero),
+                                  magic_pi));
+
+    // normal_result = (atan(y / x) + pi_additions);
+    __m256 normal_result = _mm256_add_ps(
+                               atan256_ps(_mm256_div_ps(y, x)),
+                               pi_additions);
+
+    // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
+    __m256 negative_mask_full_x = _mm256_cmp_ps(
+                                      _mm256_or_ps(negative_mask_x, magic_pi),
+                                      magic_zero,
+                                      _CMP_LT_OQ);
+
+    // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
+    // special_result = ((y != 0.0f) ? x1 : x2);
+    __m256 special_result = _mm256_or_ps(
+                                _mm256_and_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(negative_mask_y, magic_half_pi)),
+                                _mm256_andnot_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(
+                                        _mm256_and_ps(negative_mask_full_x, magic_pi),
+                                        _mm256_andnot_ps(negative_mask_full_x, magic_zero))));
+
+    // return (normal_mode ? normal_result : special_result);
+    return _mm256_or_ps(
+               _mm256_and_ps(normal_mode, normal_result),
+               _mm256_andnot_ps(normal_mode, special_result));
+}
+
+static NCNN_FORCEINLINE __m256 abs256_ps(const __m256& x)
+{
+    const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
+    return _mm256_and_ps(abs_mask, x);
+}
+
+static NCNN_FORCEINLINE __m256 trunc256_ps(const __m256& x)
+{
+    // truncate toward zero
+    return _mm256_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+}
+
+static NCNN_FORCEINLINE __m256 fmod256_ps(const __m256& x, const __m256& y)
+{
+    __m256 q = _mm256_div_ps(x, y);
+    __m256 tq = trunc256_ps(q);
+    return _mm256_sub_ps(x, _mm256_mul_ps(tq, y));
+}
+
+static NCNN_FORCEINLINE __m256 round256_ps(const __m256& x)
+{
+    return _mm256_round_ps(x, _MM_FROUND_NINT);
+}
+
+static NCNN_FORCEINLINE __m256 logaddexp256_ps(const __m256& x, const __m256& y)
+{
+    const __m256 magic_one = _mm256_set1_ps(1.0f);
+
+    __m256 max_xy = _mm256_max_ps(x, y);
+    __m256 min_xy = _mm256_min_ps(x, y);
+    __m256 diff = _mm256_sub_ps(min_xy, max_xy);
+    __m256 exp_diff = exp256_ps(diff);
+    __m256 one_plus_exp = _mm256_add_ps(magic_one, exp_diff);
+    __m256 log_result = log256_ps(one_plus_exp);
+    return _mm256_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m256 expm1256_ps(const __m256& x)
+{
+    __m256 x2 = _mm256_mul_ps(x, x);
+    __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 6.0f)))));
+    __m256 y = _mm256_sub_ps(exp256_ps(x), _mm256_set1_ps(1.f));
+    __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 log1p256_ps(const __m256& x)
+{
+    __m256 x2 = _mm256_mul_ps(x, x);
+    __m256 poly = _mm256_add_ps(x, _mm256_mul_ps(x2, _mm256_add_ps(_mm256_set1_ps(-0.5f), _mm256_mul_ps(x, _mm256_set1_ps(1.0f / 3.0f)))));
+    __m256 y = log256_ps(_mm256_add_ps(_mm256_set1_ps(1.f), x));
+    __m256 mask = _mm256_cmp_ps(abs256_ps(x), _mm256_set1_ps(1e-4f), _CMP_LT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, poly), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 sinh256_ps(const __m256& x)
+{
+    __m256 expm1_x = expm1256_ps(x);
+    __m256 expm1_neg_x = expm1256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_sub_ps(expm1_x, expm1_neg_x), _mm256_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 asinh256_ps(const __m256& x)
+{
+    __m256 ax = abs256_ps(x);
+    __m256 x2 = _mm256_mul_ps(ax, ax);
+    __m256 y = log256_ps(_mm256_add_ps(ax, _mm256_sqrt_ps(_mm256_add_ps(x2, _mm256_set1_ps(1.f)))));
+    __m256 y_large = _mm256_add_ps(log256_ps(ax), _mm256_set1_ps(0.6931471805599453f));
+    __m256 mask = _mm256_cmp_ps(ax, _mm256_set1_ps(1e19f), _CMP_GT_OQ);
+    y = _mm256_or_ps(_mm256_and_ps(mask, y_large), _mm256_andnot_ps(mask, y));
+    return _mm256_or_ps(y, _mm256_and_ps(x, _mm256_set1_ps(-0.f)));
+}
+
+static NCNN_FORCEINLINE __m256 cosh256_ps(const __m256& x)
+{
+    __m256 exp_x = exp256_ps(x);
+    __m256 exp_neg_x = exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_add_ps(exp_x, exp_neg_x), _mm256_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 acosh256_ps(const __m256& x)
+{
+    __m256 one = _mm256_set1_ps(1.f);
+    __m256 y = log256_ps(_mm256_add_ps(x, _mm256_mul_ps(_mm256_sqrt_ps(_mm256_sub_ps(x, one)), _mm256_sqrt_ps(_mm256_add_ps(x, one)))));
+    __m256 y_large = _mm256_add_ps(log256_ps(x), _mm256_set1_ps(0.6931471805599453f));
+    __m256 mask = _mm256_cmp_ps(x, _mm256_set1_ps(1e19f), _CMP_GT_OQ);
+    return _mm256_or_ps(_mm256_and_ps(mask, y_large), _mm256_andnot_ps(mask, y));
+}
+
+static NCNN_FORCEINLINE __m256 atanh256_ps(const __m256& x)
+{
+    __m256 log_pos = log1p256_ps(x);
+    __m256 log_neg = log1p256_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+    return _mm256_mul_ps(_mm256_sub_ps(log_pos, log_neg), _mm256_set1_ps(0.5f));
+}
+
+static NCNN_FORCEINLINE __m256 floor_divide256_ps(const __m256& x, const __m256& y)
+{
+    __m256 q = _mm256_div_ps(x, y);
+    return _mm256_floor_ps(q);
+}
+
+static NCNN_FORCEINLINE __m256 remainder256_ps(const __m256& x, const __m256& y)
+{
+    __m256 q = _mm256_div_ps(x, y);
+    __m256 rq = round256_ps(q);
+    return _mm256_sub_ps(x, _mm256_mul_ps(rq, y));
 }
 
 #endif // AVX_MATHFUN_H

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "absval_arm.h"
 
@@ -45,6 +34,7 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
@@ -70,6 +60,21 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 : "0"(ptr)
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vabsq_f32(_p0);
+            _p1 = vabsq_f32(_p1);
+            _p2 = vabsq_f32(_p2);
+            _p3 = vabsq_f32(_p3);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {

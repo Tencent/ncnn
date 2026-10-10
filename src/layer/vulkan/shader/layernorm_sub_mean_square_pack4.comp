@@ -1,0 +1,40 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int affine_size = 0;
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
+layout(binding = 2) writeonly buffer square_blob { sfpvec4 square_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+        return;
+
+    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int q = gy * p.w + gx;
+    const int group_id = gz * (p.w * p.h / affine_size) + q / affine_size;
+
+    vec4 mean = mean_data[group_id];
+
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, gi));
+
+    v = v - mean;
+
+    buffer_st4(square_blob_data, gi, afpvec4(v * v));
+}

@@ -1,19 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/pixelshuffle.h"
 #include "testutil.h"
+
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor, int mode)
 {
@@ -23,7 +15,7 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor, int mode)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::PixelShuffle>("PixelShuffle", pd, weights, a);
+    int ret = test_layer("PixelShuffle", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pixelshuffle failed a.dims=%d a=(%d %d %d) upscale_factor=%d mode=%d\n", a.dims, a.w, a.h, a.c, upscale_factor, mode);
@@ -59,9 +51,73 @@ static int test_pixelshuffle_1()
            || test_pixelshuffle(RandomMat(7, 7, 90), 3, 1);
 }
 
+static int test_pixelshuffle_2()
+{
+    return 0
+           || test_pixelshuffle(RandomMat(8, 3, 8), 2, 0)
+           || test_pixelshuffle(RandomMat(12, 3, 8), 2, 0)
+           || test_pixelshuffle(RandomMat(13, 3, 8), 2, 0)
+           || test_pixelshuffle(RandomMat(8, 3, 8), 2, 1)
+           || test_pixelshuffle(RandomMat(12, 3, 8), 2, 1)
+           || test_pixelshuffle(RandomMat(13, 3, 8), 2, 1)
+           || test_pixelshuffle(RandomMat(4, 3, 64), 4, 0)
+           || test_pixelshuffle(RandomMat(5, 3, 64), 4, 0)
+           || test_pixelshuffle(RandomMat(4, 3, 64), 4, 1)
+           || test_pixelshuffle(RandomMat(5, 3, 64), 4, 1);
+}
+
+#if NCNN_VALIDATION
+static int test_pixelshuffle_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    if (test_layer_param(ncnn::LayerType::PixelShuffle, base, 0) != 0)
+        return -1;
+
+    const int invalid[] = {0, -1, -8, INT_MIN};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::PixelShuffle, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+    // the squared value exceeds the int range
+    return test_layer_param(ncnn::LayerType::PixelShuffle, base, 0, 65536, -1);
+}
+
+static int test_pixelshuffle_load_param_type()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::PixelShuffle, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::PixelShuffle, base, 1, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::PixelShuffle, base, 1, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_pixelshuffle_0() || test_pixelshuffle_1();
+    return 0
+           || test_pixelshuffle_0()
+           || test_pixelshuffle_1()
+           || test_pixelshuffle_2()
+#if NCNN_VALIDATION
+           || test_pixelshuffle_load_param()
+           || test_pixelshuffle_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

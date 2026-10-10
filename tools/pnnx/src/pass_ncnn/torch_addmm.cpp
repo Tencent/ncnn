@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -26,8 +15,8 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 mat1
-pnnx.Attribute          op_bias     0 1 bias @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_bias     0 1 bias @data
+pnnx.Attribute          op_weight   0 1 weight @data
 torch.addmm             op_0        3 1 bias mat1 weight out alpha=%alpha beta=%beta
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -50,7 +39,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("alpha").type == 2)
         {
-            alpha = captured_params.at("alpha").i;
+            alpha = (float)captured_params.at("alpha").i;
         }
         if (captured_params.at("alpha").type == 3)
         {
@@ -59,7 +48,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("beta").type == 2)
         {
-            beta = captured_params.at("beta").i;
+            beta = (float)captured_params.at("beta").i;
         }
         if (captured_params.at("beta").type == 3)
         {
@@ -69,15 +58,8 @@ pnnx.Output             output      1 0 out
         if (alpha != 1.f || beta != 1.f)
             return false;
 
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
+        Attribute weight = captured_attrs.at("op_weight.data");
+        Attribute bias = captured_attrs.at("op_bias.data");
 
         if (weight.shape.size() != 2 || bias.shape.size() != 1)
             return false;
@@ -90,22 +72,15 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
+        Attribute weight = captured_attrs.at("op_weight.data");
+        Attribute bias = captured_attrs.at("op_bias.data");
 
         // transpose weight inch-outch to outch-inch
         const int inch = weight.shape[0];
         const int outch = weight.shape[1];
         std::vector<float> new_weight;
         {
-            const float* w = (const float*)weight.data.data();
+            auto w = weight.get_float32_data();
 
             new_weight.resize(outch * inch);
             float* w2 = (float*)new_weight.data();
@@ -122,7 +97,7 @@ pnnx.Output             output      1 0 out
 
         op->params["0"] = outch;
         op->params["1"] = 1;
-        op->params["2"] = (int)(weight.data.size() / sizeof(float));
+        op->params["2"] = weight.elemcount();
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
@@ -168,7 +143,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("alpha").type == 2)
         {
-            alpha = captured_params.at("alpha").i;
+            alpha = (float)captured_params.at("alpha").i;
         }
         if (captured_params.at("alpha").type == 3)
         {
@@ -177,7 +152,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("beta").type == 2)
         {
-            beta = captured_params.at("beta").i;
+            beta = (float)captured_params.at("beta").i;
         }
         if (captured_params.at("beta").type == 3)
         {

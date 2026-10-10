@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -42,15 +31,15 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         const unsigned short* r1 = img0.row<const unsigned short>(1);
         const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-        float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
-        float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
-        float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
-        float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
-        float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
-        float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
-        float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
-        float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
-        float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
+        float32x4_t _k00 = bfloat2float(vld1_u16(k0));
+        float32x4_t _k01 = bfloat2float(vld1_u16(k0 + 4));
+        float32x4_t _k02 = bfloat2float(vld1_u16(k0 + 8));
+        float32x4_t _k10 = bfloat2float(vld1_u16(k0 + 12));
+        float32x4_t _k11 = bfloat2float(vld1_u16(k0 + 16));
+        float32x4_t _k12 = bfloat2float(vld1_u16(k0 + 20));
+        float32x4_t _k20 = bfloat2float(vld1_u16(k0 + 24));
+        float32x4_t _k21 = bfloat2float(vld1_u16(k0 + 28));
+        float32x4_t _k22 = bfloat2float(vld1_u16(k0 + 32));
 
         int i = 0;
 
@@ -251,14 +240,14 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v22.4s, %20.4s, v26.4s      \n"
                     "fmla   v23.4s, %20.4s, v27.4s      \n"
 
-                    "shrn   v16.4h, v16.4s, #16         \n"
-                    "shrn   v17.4h, v17.4s, #16         \n"
-                    "shrn   v18.4h, v18.4s, #16         \n"
-                    "shrn   v19.4h, v19.4s, #16         \n"
-                    "shrn   v20.4h, v20.4s, #16         \n"
-                    "shrn   v21.4h, v21.4s, #16         \n"
-                    "shrn   v22.4h, v22.4s, #16         \n"
-                    "shrn   v23.4h, v23.4s, #16         \n"
+                    "rshrn  v16.4h, v16.4s, #16         \n"
+                    "rshrn  v17.4h, v17.4s, #16         \n"
+                    "rshrn  v18.4h, v18.4s, #16         \n"
+                    "rshrn  v19.4h, v19.4s, #16         \n"
+                    "rshrn  v20.4h, v20.4s, #16         \n"
+                    "rshrn  v21.4h, v21.4s, #16         \n"
+                    "rshrn  v22.4h, v22.4s, #16         \n"
+                    "rshrn  v23.4h, v23.4s, #16         \n"
 
                     "st1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%0], #32 \n"
                     "st1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%1], #32 \n"
@@ -396,13 +385,13 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "add    %4, %4, #16                 \n"
 
-                    "shrn   v16.4h, v16.4s, #16         \n"
-                    "shrn   v17.4h, v17.4s, #16         \n"
+                    "rshrn  v16.4h, v16.4s, #16         \n"
+                    "rshrn  v17.4h, v17.4s, #16         \n"
 
                     "add    %2, %2, #16                 \n"
 
-                    "shrn   v18.4h, v18.4s, #16         \n"
-                    "shrn   v19.4h, v19.4s, #16         \n"
+                    "rshrn  v18.4h, v18.4s, #16         \n"
+                    "rshrn  v19.4h, v19.4s, #16         \n"
 
                     "add    %5, %5, #16                 \n"
 
@@ -506,8 +495,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "add    %2, %2, #8                  \n"
 
-                    "shrn   v18.4h, v18.4s, #16         \n"
-                    "shrn   v19.4h, v19.4s, #16         \n"
+                    "rshrn  v18.4h, v18.4s, #16         \n"
+                    "rshrn  v19.4h, v19.4s, #16         \n"
 
                     "add    %5, %5, #8                  \n"
 
@@ -663,10 +652,10 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v18.4s, %16.4s, v14.4s      \n"
                     "fmla   v19.4s, %16.4s, v15.4s      \n"
 
-                    "shrn   v16.4h, v16.4s, #16         \n"
-                    "shrn   v17.4h, v17.4s, #16         \n"
-                    "shrn   v18.4h, v18.4s, #16         \n"
-                    "shrn   v19.4h, v19.4s, #16         \n"
+                    "rshrn  v16.4h, v16.4s, #16         \n"
+                    "rshrn  v17.4h, v17.4s, #16         \n"
+                    "rshrn  v18.4h, v18.4s, #16         \n"
+                    "rshrn  v19.4h, v19.4s, #16         \n"
 
                     "st1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%0], #32 \n"
 
@@ -796,10 +785,10 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "vmla.f32   q12, %q16, q14  \n"
                     "vmla.f32   q13, %q16, q15  \n"
 
-                    "vshrn.u32  d20, q10, #16   \n"
-                    "vshrn.u32  d21, q11, #16   \n"
-                    "vshrn.u32  d22, q12, #16   \n"
-                    "vshrn.u32  d23, q13, #16   \n"
+                    "vrshrn.u32 d20, q10, #16   \n"
+                    "vrshrn.u32 d21, q11, #16   \n"
+                    "vrshrn.u32 d22, q12, #16   \n"
+                    "vrshrn.u32 d23, q13, #16   \n"
 
                     "vst1.u16   {d20-d23}, [%0 :64]! \n"
 
@@ -894,8 +883,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "add    %3, %3, #16                 \n"
 
-                    "shrn   v18.4h, v18.4s, #16         \n"
-                    "shrn   v19.4h, v19.4s, #16         \n"
+                    "rshrn  v18.4h, v18.4s, #16         \n"
+                    "rshrn  v19.4h, v19.4s, #16         \n"
 
                     "st1    {v18.4h, v19.4h}, [%0], #16 \n"
 
@@ -983,8 +972,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "add        %1, %1, #16     \n"
                     "add        %2, %2, #16     \n"
 
-                    "vshrn.u32  d20, q10, #16   \n"
-                    "vshrn.u32  d21, q11, #16   \n"
+                    "vrshrn.u32 d20, q10, #16   \n"
+                    "vrshrn.u32 d21, q11, #16   \n"
 
                     "add        %3, %3, #16     \n"
 
@@ -1015,15 +1004,15 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             {
                 float32x4_t _sum0 = _bias0;
 
-                float32x4_t _r00 = vcvt_f32_bf16(vld1_u16(r0));
-                float32x4_t _r01 = vcvt_f32_bf16(vld1_u16(r0 + 4));
-                float32x4_t _r02 = vcvt_f32_bf16(vld1_u16(r0 + 8));
-                float32x4_t _r10 = vcvt_f32_bf16(vld1_u16(r1));
-                float32x4_t _r11 = vcvt_f32_bf16(vld1_u16(r1 + 4));
-                float32x4_t _r12 = vcvt_f32_bf16(vld1_u16(r1 + 8));
-                float32x4_t _r20 = vcvt_f32_bf16(vld1_u16(r2));
-                float32x4_t _r21 = vcvt_f32_bf16(vld1_u16(r2 + 4));
-                float32x4_t _r22 = vcvt_f32_bf16(vld1_u16(r2 + 8));
+                float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                float32x4_t _r10 = bfloat2float(vld1_u16(r1));
+                float32x4_t _r11 = bfloat2float(vld1_u16(r1 + 4));
+                float32x4_t _r12 = bfloat2float(vld1_u16(r1 + 8));
+                float32x4_t _r20 = bfloat2float(vld1_u16(r2));
+                float32x4_t _r21 = bfloat2float(vld1_u16(r2 + 4));
+                float32x4_t _r22 = bfloat2float(vld1_u16(r2 + 8));
 
                 _sum0 = vmlaq_f32(_sum0, _k00, _r00);
                 _sum0 = vmlaq_f32(_sum0, _k01, _r01);
@@ -1035,7 +1024,7 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 _sum0 = vmlaq_f32(_sum0, _k21, _r21);
                 _sum0 = vmlaq_f32(_sum0, _k22, _r22);
 
-                vst1_u16(outptr0, vcvt_bf16_f32(_sum0));
+                vst1_u16(outptr0, float2bfloat(_sum0));
 
                 r0 += 4;
                 r1 += 4;
@@ -1080,15 +1069,15 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         const unsigned short* r1 = img0.row<const unsigned short>(1);
         const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-        float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
-        float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
-        float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
-        float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
-        float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
-        float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
-        float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
-        float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
-        float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
+        float32x4_t _k00 = bfloat2float(vld1_u16(k0));
+        float32x4_t _k01 = bfloat2float(vld1_u16(k0 + 4));
+        float32x4_t _k02 = bfloat2float(vld1_u16(k0 + 8));
+        float32x4_t _k10 = bfloat2float(vld1_u16(k0 + 12));
+        float32x4_t _k11 = bfloat2float(vld1_u16(k0 + 16));
+        float32x4_t _k12 = bfloat2float(vld1_u16(k0 + 20));
+        float32x4_t _k20 = bfloat2float(vld1_u16(k0 + 24));
+        float32x4_t _k21 = bfloat2float(vld1_u16(k0 + 28));
+        float32x4_t _k22 = bfloat2float(vld1_u16(k0 + 32));
 
         int i = 0;
 
@@ -1225,10 +1214,10 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v30.4s, %16.4s, v16.4s      \n"
                     "fmla   v31.4s, %16.4s, v18.4s      \n"
 
-                    "shrn   v28.4h, v28.4s, #16         \n"
-                    "shrn   v29.4h, v29.4s, #16         \n"
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v28.4h, v28.4s, #16         \n"
+                    "rshrn  v29.4h, v29.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%0], #32 \n"
 
@@ -1335,8 +1324,8 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v22.4s, v20.4s, v22.4s      \n"
                     "fadd   v23.4s, v21.4s, v23.4s      \n"
 
-                    "shrn   v22.4h, v22.4s, #16         \n"
-                    "shrn   v23.4h, v23.4s, #16         \n"
+                    "rshrn  v22.4h, v22.4s, #16         \n"
+                    "rshrn  v23.4h, v23.4s, #16         \n"
 
                     "st1    {v22.4h, v23.4h}, [%0], #16 \n"
 
@@ -1435,8 +1424,8 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "vmla.f32   q10, %q16, q14  \n"
                     "vmla.f32   q11, %q16, q12  \n"
 
-                    "vshrn.u32  d20, q10, #16   \n"
-                    "vshrn.u32  d21, q11, #16   \n"
+                    "vrshrn.u32 d20, q10, #16   \n"
+                    "vrshrn.u32 d21, q11, #16   \n"
 
                     "vst1.u16   {d20-d21}, [%0 :64]! \n"
 
@@ -1465,15 +1454,15 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             {
                 float32x4_t _sum0 = _bias0;
 
-                float32x4_t _r00 = vcvt_f32_bf16(vld1_u16(r0));
-                float32x4_t _r01 = vcvt_f32_bf16(vld1_u16(r0 + 4));
-                float32x4_t _r02 = vcvt_f32_bf16(vld1_u16(r0 + 8));
-                float32x4_t _r10 = vcvt_f32_bf16(vld1_u16(r1));
-                float32x4_t _r11 = vcvt_f32_bf16(vld1_u16(r1 + 4));
-                float32x4_t _r12 = vcvt_f32_bf16(vld1_u16(r1 + 8));
-                float32x4_t _r20 = vcvt_f32_bf16(vld1_u16(r2));
-                float32x4_t _r21 = vcvt_f32_bf16(vld1_u16(r2 + 4));
-                float32x4_t _r22 = vcvt_f32_bf16(vld1_u16(r2 + 8));
+                float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                float32x4_t _r10 = bfloat2float(vld1_u16(r1));
+                float32x4_t _r11 = bfloat2float(vld1_u16(r1 + 4));
+                float32x4_t _r12 = bfloat2float(vld1_u16(r1 + 8));
+                float32x4_t _r20 = bfloat2float(vld1_u16(r2));
+                float32x4_t _r21 = bfloat2float(vld1_u16(r2 + 4));
+                float32x4_t _r22 = bfloat2float(vld1_u16(r2 + 8));
 
                 _sum0 = vmlaq_f32(_sum0, _k00, _r00);
                 _sum0 = vmlaq_f32(_sum0, _k01, _r01);
@@ -1485,7 +1474,7 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 _sum0 = vmlaq_f32(_sum0, _k21, _r21);
                 _sum0 = vmlaq_f32(_sum0, _k22, _r22);
 
-                vst1_u16(outptr0, vcvt_bf16_f32(_sum0));
+                vst1_u16(outptr0, float2bfloat(_sum0));
 
                 r0 += 2 * 4;
                 r1 += 2 * 4;

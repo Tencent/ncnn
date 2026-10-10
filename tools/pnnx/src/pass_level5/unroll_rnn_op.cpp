@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unroll_rnn_op.h"
 
@@ -42,6 +31,7 @@ void unroll_rnn_op(Graph& graph)
             bool has_output_hidden = op->outputs.size() >= 2;
             bool has_output_cell = op->outputs.size() == 3;
             const int hidden_size = op->params["hidden_size"].i;
+            const int proj_size = (op->type == "nn.LSTM") ? op->params["proj_size"].i : 0;
             bool has_bias = op->params["bias"].b;
             bool is_bidirectional = op->params["bidirectional"].b;
 
@@ -116,7 +106,14 @@ void unroll_rnn_op(Graph& graph)
                 }
                 else
                 {
-                    op1->params["input_size"] = is_bidirectional ? hidden_size * 2 : hidden_size;
+                    if (proj_size)
+                    {
+                        op1->params["input_size"] = is_bidirectional ? proj_size * 2 : proj_size;
+                    }
+                    else
+                    {
+                        op1->params["input_size"] = is_bidirectional ? hidden_size * 2 : hidden_size;
+                    }
 
                     op1->inputs.push_back(unrolled_ops[j - 1]->outputs[0]);
                     op1->inputs[0]->consumers.push_back(op1);
@@ -171,6 +168,11 @@ void unroll_rnn_op(Graph& graph)
                     op1->attrs["bias_ih_l0"] = op->attrs["bias_ih_l" + std::to_string(j)];
                 }
 
+                if (proj_size)
+                {
+                    op1->attrs["weight_hr_l0"] = op->attrs["weight_hr_l" + std::to_string(j)];
+                }
+
                 if (is_bidirectional)
                 {
                     op1->attrs["weight_hh_l0_reverse"] = op->attrs["weight_hh_l" + std::to_string(j) + "_reverse"];
@@ -180,6 +182,11 @@ void unroll_rnn_op(Graph& graph)
                     {
                         op1->attrs["bias_hh_l0_reverse"] = op->attrs["bias_hh_l" + std::to_string(j) + "_reverse"];
                         op1->attrs["bias_ih_l0_reverse"] = op->attrs["bias_ih_l" + std::to_string(j) + "_reverse"];
+                    }
+
+                    if (proj_size)
+                    {
+                        op1->attrs["weight_hr_l0_reverse"] = op->attrs["weight_hr_l" + std::to_string(j) + "_reverse"];
                     }
                 }
 

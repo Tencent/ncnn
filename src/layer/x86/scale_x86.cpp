@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "scale_x86.h"
 
@@ -21,460 +10,135 @@
 #endif // __AVX__
 #endif // __SSE2__
 #include "x86_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
+
+#include "scale_fp32.h"
+
+#if NCNN_BF16
+#include "scale_bf16s.h"
+#endif
 
 Scale_x86::Scale_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+{
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blobs[0].elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blobs, opt);
+#endif
+
+    scale_fp32(bottom_top_blobs, bias_term, bias_data, opt);
+
+    return 0;
+}
+
+#if NCNN_BF16
+int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int dims = bottom_top_blob.dims;
-
     const int elempack = bottom_top_blob.elempack;
 
-    const float* scale = scale_blob;
+    // scale_blob may be bf16 (from second input) or fp32 (from scale_data weight)
+    const float* scale = 0;
+    Mat scale_fp32;
+    if (scale_blob.elembits() == 16)
+    {
+        const int scale_data_size = scale_blob.w * scale_blob.elempack;
+        scale_fp32.create(scale_data_size, 4u, 1, opt.workspace_allocator);
+        if (scale_fp32.empty())
+            return -100;
+        const unsigned short* src = scale_blob;
+        float* dst = scale_fp32;
+        for (int i = 0; i < scale_data_size; i++)
+        {
+            dst[i] = bfloat16_to_float32(src[i]);
+        }
+        scale = scale_fp32;
+    }
+    else
+    {
+        scale = scale_blob;
+    }
     const float* bias = bias_data;
 
     if (dims == 1)
     {
-        float* ptr = (float*)bottom_top_blob;
-        int size = w * elempack;
+        unsigned short* ptr = (unsigned short*)bottom_top_blob;
+        const int size = w * elempack;
 
-        int remain = size;
-#if __SSE2__
-#if __AVX__
-        int nn = size >> 3;
-        remain = size & 7;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < nn; i++)
+        if (bias_term)
         {
-            __m256 _p = _mm256_loadu_ps(ptr + i * 8);
-            __m256 _s = _mm256_loadu_ps(scale + i * 8);
-            if (bias_term)
-            {
-                __m256 _bias = _mm256_loadu_ps(bias + i * 8);
-                _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-            }
-            else
-            {
-                _p = _mm256_mul_ps(_p, _s);
-            }
-            _mm256_storeu_ps(ptr + i * 8, _p);
+            scale_bf16s_per_element(ptr, scale, bias, size, opt.num_threads);
         }
-#else
-        int nn = size >> 2;
-        remain = size & 3;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < nn; i++)
+        else
         {
-            __m128 _p = _mm_loadu_ps(ptr + i * 4);
-            __m128 _s = _mm_loadu_ps(scale + i * 4);
-            if (bias_term)
-            {
-                __m128 _bias = _mm_loadu_ps(bias + i * 4);
-                _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-            }
-            else
-            {
-                _p = _mm_mul_ps(_p, _s);
-            }
-            _mm_storeu_ps(ptr + i * 4, _p);
+            scale_bf16s_no_bias_per_element(ptr, scale, size, opt.num_threads);
         }
-#endif // __AVX__
-#endif // __SSE2__
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = size - remain; i < size; i++)
-        {
-            if (bias_term)
-            {
-                ptr[i] = ptr[i] * scale[i] + bias[i];
-            }
-            else
-            {
-                ptr[i] = ptr[i] * scale[i];
-            }
-        }
-
-        return 0;
     }
 
-#if __SSE2__
-#if __AVX__
-    if (elempack == 8)
+    if (dims == 2)
     {
-        if (dims == 2)
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
         {
-            if (bias_term)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-                    __m256 _s = _mm256_loadu_ps((const float*)scale_blob + i * 8);
-                    __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-                    __m256 _s = _mm256_loadu_ps((const float*)scale_blob + i * 8);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_mul_ps(_p, _s);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            int size = w * h;
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            const float* sptr = scale + i * elempack;
 
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    __m256 _s = _mm256_loadu_ps((const float*)scale_blob + q * 8);
-                    __m256 _bias = _mm256_loadu_ps((const float*)bias_data + q * 8);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-                }
+                const float* bptr = bias + i * elempack;
+                scale_bf16s(ptr, sptr, bptr, size, elempack);
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    __m256 _s = _mm256_loadu_ps((const float*)scale_blob + q * 8);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_mul_ps(_p, _s);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-                }
-            }
-        }
-        return 0;
-    }
-#endif // __AVX__
-
-    if (elempack == 4)
-    {
-        if (dims == 2)
-        {
-            if (bias_term)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-                    __m128 _s = _mm_loadu_ps((const float*)scale_blob + i * 4);
-                    __m128 _bias = _mm_loadu_ps((const float*)bias_data + i * 4);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_add_ps(_mm_mul_ps(_p, _s), _bias);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-                    __m128 _s = _mm_loadu_ps((const float*)scale_blob + i * 4);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_mul_ps(_p, _s);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            int size = w * h;
-
-            if (bias_term)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    __m128 _s = _mm_loadu_ps((const float*)scale_blob + q * 4);
-                    __m128 _bias = _mm_loadu_ps((const float*)bias_data + q * 4);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_add_ps(_mm_mul_ps(_p, _s), _bias);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    float* ptr = bottom_top_blob.channel(q);
-                    __m128 _s = _mm_loadu_ps((const float*)scale_blob + q * 4);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_mul_ps(_p, _s);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-                }
+                scale_bf16s_no_bias(ptr, sptr, size, elempack);
             }
         }
     }
-#endif // __SSE2__
 
-    if (elempack == 1)
+    if (dims == 3 || dims == 4)
     {
-        if (dims == 2)
+        const int size = w * h * d * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            int size = w;
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            const float* sptr = scale + q * elempack;
+
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-
-                    float s = scale_blob[i];
-                    float bias = bias_data[i];
-
-                    int j = 0;
-#if __SSE2__
-#if __AVX__
-                    __m256 _s = _mm256_set1_ps(s);
-                    __m256 _bias = _mm256_set1_ps(bias);
-
-                    for (; j + 7 < size; j += 8)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-#else
-                    __m128 _s = _mm_set1_ps(s);
-                    __m128 _bias = _mm_set1_ps(bias);
-
-                    for (; j + 3 < size; j += 4)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-#endif // __AVX__
-#endif // __SSE2__
-
-                    for (; j < size; j++)
-                    {
-                        *ptr = *ptr * s + bias;
-
-                        ptr++;
-                    }
-                }
+                const float* bptr = bias + q * elempack;
+                scale_bf16s(ptr, sptr, bptr, size, elempack);
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-
-                    float s = scale_blob[i];
-
-                    int j = 0;
-#if __SSE2__
-#if __AVX__
-                    __m256 _s = _mm256_set1_ps(s);
-
-                    for (; j + 7 < size; j += 8)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_mul_ps(_p, _s);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-#else
-                    __m128 _s = _mm_set1_ps(s);
-
-                    for (; j + 3 < size; j += 4)
-                    {
-                        __m128 _p = _mm_loadu_ps(ptr);
-                        _p = _mm_mul_ps(_p, _s);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-#endif // __AVX__
-#endif // __SSE2__
-
-                    for (; j < size; j++)
-                    {
-                        *ptr *= s;
-
-                        ptr++;
-                    }
-                }
-            }
-        }
-
-        if (dims == 3)
-        {
-            int size = w * h;
-            if (bias_term)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < channels; i++)
-                {
-                    float* ptr = bottom_top_blob.channel(i);
-
-                    float s = scale_blob[i];
-
-                    int j = 0;
-#if __SSE2__
-#if __AVX__
-                    __m256 _s256 = _mm256_set1_ps(s);
-                    __m256 _bias256 = _mm256_set1_ps(bias_data[i]);
-                    for (; j + 7 < size; j += 8)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_comp_fmadd_ps(_p, _s256, _bias256);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-#endif // __AVX__
-                    __m128 _s128 = _mm_set1_ps(s);
-                    __m128 _bias128 = _mm_set1_ps(bias_data[i]);
-                    for (; j < size; j += 4)
-                    {
-                        __m128 _p = _mm_load_ps(ptr);
-                        _p = _mm_comp_fmadd_ps(_p, _s128, _bias128);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-#endif // __SSE2__
-
-                    for (; j < size; j++)
-                    {
-                        *ptr = *ptr * s + bias_data[i];
-                        ptr++;
-                    }
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < channels; i++)
-                {
-                    float* ptr = bottom_top_blob.channel(i);
-
-                    float s = scale_blob[i];
-
-                    int j = 0;
-#if __SSE2__
-#if __AVX__
-                    __m256 _s256 = _mm256_set1_ps(s);
-                    for (; j + 7 < size; j += 8)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_mul_ps(_p, _s256);
-                        _mm256_storeu_ps(ptr, _p);
-
-                        ptr += 8;
-                    }
-#endif // __AVX__
-
-                    __m128 _s128 = _mm_set1_ps(s);
-                    for (; j < size; j += 4)
-                    {
-                        __m128 _p = _mm_load_ps(ptr);
-                        _p = _mm_mul_ps(_p, _s128);
-                        _mm_storeu_ps(ptr, _p);
-
-                        ptr += 4;
-                    }
-#endif // __SSE2__
-
-                    for (; j < size; j++)
-                    {
-                        *ptr *= s;
-                        ptr++;
-                    }
-                }
+                scale_bf16s_no_bias(ptr, sptr, size, elempack);
             }
         }
     }
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -18,6 +7,12 @@ import torch.nn.functional as F
 
 def hardsigmoid_forward_0(x):
     return F.relu6(x + 3., True) / 6.
+
+def hardsigmoid_forward_1(x):
+    return x.add_(3.).clamp_(0., 6.).div_(6.)
+
+def hardsigmoid_forward_2(x):
+    return x.add_(3.).clamp_(0., 6.).mul_(1. / 6.)
 
 class h_sigmoid(nn.Module):
     def __init__(self, inplace=True):
@@ -34,11 +29,17 @@ class Model(nn.Module):
         self.h_sigmoid = h_sigmoid();
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.hardsigmoid(x)
         y = F.hardsigmoid(y)
         z = self.h_sigmoid(z)
         w = hardsigmoid_forward_0(w)
-        return x, y, z, w
+        w = hardsigmoid_forward_1(w)
+        x2 = hardsigmoid_forward_2(x + 8)
+        return x, y, z, w, x2
 
 def test():
     net = Model()

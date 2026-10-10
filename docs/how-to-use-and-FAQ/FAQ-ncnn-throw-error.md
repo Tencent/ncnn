@@ -8,6 +8,30 @@ Make sure that your param file starts with the magic number 7767517.
 
 you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet)
 
+If the original model is missing, you can try to manually fix the layer specific parameters in param file
+
+1. **Softmax** append `1=1`
+
+before
+```
+Softmax xxx 1 1 in out ...
+```
+after
+```
+Softmax xxx 1 1 in out ... 1=1
+```
+
+2. **Reduction** minus all axes value by 1 (except the leading array count) and append `5=1`
+
+before
+```
+Reduction xxx 1 1 in out ... -23303=2,2,3 ...
+```
+after
+```
+Reduction xxx 1 1 in out ... -23303=2,1,2 ... 5=1
+```
+
 ### find_blob_index_by_name XYZ failed
 
 That means ncnn couldn't find the XYZ blob in the network. 

@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pooling.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
@@ -43,6 +34,26 @@ int Pooling::load_param(const ParamDict& pd)
     adaptive_pooling = pd.get(7, 0);
     out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
+
+#if NCNN_VALIDATION
+    if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
+        return -1;
+
+    if (!global_pooling && adaptive_pooling)
+    {
+        if ((out_w <= 0 && out_w != -233) || (out_h <= 0 && out_h != -233))
+            return -1;
+    }
+
+    if (!global_pooling && !adaptive_pooling)
+    {
+        if (pad_mode < 0 || pad_mode > 3)
+            return -1;
+
+        if (kernel_w <= 0 || stride_w <= 0 || kernel_h <= 0 || stride_h <= 0 || kernel_w > INT_MAX / kernel_h)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
 
     return 0;
 }
@@ -104,7 +115,16 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     if (adaptive_pooling)
     {
-        top_blob.create(out_w, out_h, channels, elemsize, opt.blob_allocator);
+        int _out_w = out_w == -233 ? w : out_w;
+        int _out_h = out_h == -233 ? h : out_h;
+
+        if (_out_w == w && _out_h == h)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(_out_w, _out_h, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -116,18 +136,18 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < out_h; i++)
+                for (int i = 0; i < _out_h; i++)
                 {
                     // floor div
-                    const int ih0 = h * i / out_h;
+                    const int ih0 = h * i / _out_h;
                     // ceil div
-                    const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
-                    for (int j = 0; j < out_w; j++)
+                    const int ih1 = (h * (i + 1) + _out_h - 1) / _out_h;
+                    for (int j = 0; j < _out_w; j++)
                     {
                         // floor div
-                        const int iw0 = w * j / out_w;
+                        const int iw0 = w * j / _out_w;
                         // ceil div
-                        const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
+                        const int iw1 = (w * (j + 1) + _out_w - 1) / _out_w;
 
                         float max = inptr[ih0 * w + iw0];
                         for (int ih = ih0; ih < ih1; ih++)
@@ -140,7 +160,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                         outptr[j] = max;
                     }
-                    outptr += out_w;
+                    outptr += _out_w;
                 }
             }
         }
@@ -152,19 +172,19 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < out_h; i++)
+                for (int i = 0; i < _out_h; i++)
                 {
                     // floor div
-                    const int ih0 = h * i / out_h;
+                    const int ih0 = h * i / _out_h;
                     // ceil div
-                    const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
+                    const int ih1 = (h * (i + 1) + _out_h - 1) / _out_h;
                     const int hk = ih1 - ih0;
-                    for (int j = 0; j < out_w; j++)
+                    for (int j = 0; j < _out_w; j++)
                     {
                         // floor div
-                        const int iw0 = w * j / out_w;
+                        const int iw0 = w * j / _out_w;
                         // ceil div
-                        const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
+                        const int iw1 = (w * (j + 1) + _out_w - 1) / _out_w;
                         const int wk = iw1 - iw0;
 
                         float sum = 0;
@@ -179,7 +199,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                         outptr[j] = sum / hk / wk;
                     }
 
-                    outptr += out_w;
+                    outptr += _out_w;
                 }
             }
         }

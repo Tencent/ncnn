@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
 #if __ARM_NEON
@@ -41,7 +30,7 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -106,7 +95,7 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -168,7 +157,7 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -233,7 +222,7 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -295,7 +284,7 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -360,7 +349,7 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -422,7 +411,7 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -487,7 +476,7 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -548,7 +537,7 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src = vld1_u8(src0);
@@ -621,7 +610,7 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src = vld2_u8(src0);
@@ -703,7 +692,7 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src = vld3_u8(src0);
@@ -790,7 +779,7 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src = vld4_u8(src0);
@@ -885,7 +874,7 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src = vld1_u8(src0);
@@ -961,7 +950,7 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src = vld2_u8(src0);
@@ -1046,7 +1035,7 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src = vld3_u8(src0);
@@ -1136,7 +1125,7 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 4;
         int remain = srcw - (nn << 4);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src = vld4_u8(src0);
@@ -1230,7 +1219,7 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -1295,7 +1284,7 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -1360,7 +1349,7 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -1425,7 +1414,7 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -1490,7 +1479,7 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -1555,7 +1544,7 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -1620,7 +1609,7 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src0 = vld1q_u8(src0);
@@ -1685,7 +1674,7 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _src = vld1q_u8(src0);
@@ -1750,7 +1739,7 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src0 = vld1_u8(src0);
@@ -1942,7 +1931,7 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src0 = vld2_u8(src0);
@@ -2184,7 +2173,7 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src0 = vld3_u8(src0);
@@ -2471,7 +2460,7 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src0 = vld4_u8(src0);
@@ -2794,7 +2783,7 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src0 = vld1_u8(src0);
@@ -2989,7 +2978,7 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src0 = vld2_u8(src0);
@@ -3234,7 +3223,7 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src0 = vld3_u8(src0);
@@ -3524,7 +3513,7 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src0 = vld4_u8(src0);
@@ -3847,7 +3836,7 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src0 = vld1_u8(src0);
@@ -4042,7 +4031,7 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src0 = vld2_u8(src0);
@@ -4287,7 +4276,7 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src0 = vld3_u8(src0);
@@ -4577,7 +4566,7 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src0 = vld4_u8(src0);
@@ -4900,7 +4889,7 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8_t _src0 = vld1_u8(src0);
@@ -5095,7 +5084,7 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x2_t _src0 = vld2_u8(src0);
@@ -5340,7 +5329,7 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _src0 = vld3_u8(src0);
@@ -5630,7 +5619,7 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
         int nn = srcw >> 3;
         int remain = srcw - (nn << 3);
 
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _src0 = vld4_u8(src0);

@@ -1,193 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
-
-static void conv3x3s1_winograd63_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int inch = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    int outw = top_blob.w;
-    int outh = top_blob.h;
-    int outch = top_blob.c;
-
-    // pad to 6n+2
-    Mat bottom_blob_bordered = bottom_blob;
-
-    outw = (outw + 5) / 6 * 6;
-    outh = (outh + 5) / 6 * 6;
-
-    w = outw + 2;
-    h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
-
-    // BEGIN transform input
-    Mat bottom_blob_tm;
-    {
-        int w_tiles = outw / 6;
-        int h_tiles = outh / 6;
-        const int tiles = w_tiles * h_tiles;
-
-        bottom_blob_tm.create(tiles, 64, inch, 16u, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd63_transform_input_pack4_bf16s_neon(bottom_blob_bordered, bottom_blob_tm, opt);
-    }
-    bottom_blob_bordered = Mat();
-    // END transform input
-
-    // BEGIN dot
-    Mat top_blob_tm;
-    convolution_winograd_dot_pack4_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
-    // END dot
-
-    // BEGIN transform output
-    Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h)
-    {
-        top_blob_bordered = top_blob;
-    }
-    else
-    {
-        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
-    }
-    {
-        conv3x3s1_winograd63_transform_output_pack4_bf16s_neon(top_blob_tm, top_blob_bordered, bias, opt);
-    }
-    // END transform output
-
-    // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
-}
-
-static void conv3x3s1_winograd43_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int inch = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    int outw = top_blob.w;
-    int outh = top_blob.h;
-    int outch = top_blob.c;
-
-    // pad to 4n+2
-    Mat bottom_blob_bordered = bottom_blob;
-
-    outw = (outw + 3) / 4 * 4;
-    outh = (outh + 3) / 4 * 4;
-
-    w = outw + 2;
-    h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
-
-    // BEGIN transform input
-    Mat bottom_blob_tm;
-    {
-        int w_tiles = outw / 4;
-        int h_tiles = outh / 4;
-        const int tiles = w_tiles * h_tiles;
-
-        bottom_blob_tm.create(tiles, 36, inch, 16u, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd43_transform_input_pack4_bf16s_neon(bottom_blob_bordered, bottom_blob_tm, opt);
-    }
-    bottom_blob_bordered = Mat();
-    // END transform input
-
-    // BEGIN dot
-    Mat top_blob_tm;
-    convolution_winograd_dot_pack4_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
-    // END dot
-
-    // BEGIN transform output
-    Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h)
-    {
-        top_blob_bordered = top_blob;
-    }
-    else
-    {
-        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
-    }
-    {
-        conv3x3s1_winograd43_transform_output_pack4_bf16s_neon(top_blob_tm, top_blob_bordered, bias, opt);
-    }
-    // END transform output
-
-    // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
-}
-
-static void conv3x3s1_winograd23_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int inch = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    int outw = top_blob.w;
-    int outh = top_blob.h;
-    int outch = top_blob.c;
-
-    // pad to 2n+2
-    Mat bottom_blob_bordered = bottom_blob;
-
-    outw = (outw + 1) / 2 * 2;
-    outh = (outh + 1) / 2 * 2;
-
-    w = outw + 2;
-    h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
-
-    // BEGIN transform input
-    Mat bottom_blob_tm;
-    {
-        int w_tiles = outw / 2;
-        int h_tiles = outh / 2;
-        const int tiles = w_tiles * h_tiles;
-
-        bottom_blob_tm.create(tiles, 16, inch, 16u, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd23_transform_input_pack4_bf16s_neon(bottom_blob_bordered, bottom_blob_tm, opt);
-    }
-    bottom_blob_bordered = Mat();
-    // END transform input
-
-    // BEGIN dot
-    Mat top_blob_tm;
-    convolution_winograd_dot_pack4_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
-    // END dot
-
-    // BEGIN transform output
-    Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h)
-    {
-        top_blob_bordered = top_blob;
-    }
-    else
-    {
-        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
-    }
-    {
-        conv3x3s1_winograd23_transform_output_pack4_bf16s_neon(top_blob_tm, top_blob_bordered, bias, opt);
-    }
-    // END transform output
-
-    // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
-}
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -1990,10 +1802,10 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fmla   v12.4s, v9.4s, v6.s[3]      \n"
                         "fmla   v13.4s, v9.4s, v0.s[3]      \n"
 
-                        "shrn   v10.4h, v10.4s, #16         \n"
-                        "shrn   v11.4h, v11.4s, #16         \n"
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v10.4h, v10.4s, #16         \n"
+                        "rshrn  v11.4h, v11.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%0], #32 \n"
 
@@ -2321,10 +2133,10 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
-                        "vshrn.u32  d26, q14, #16       \n"
-                        "vshrn.u32  d27, q15, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
+                        "vrshrn.u32 d26, q14, #16       \n"
+                        "vrshrn.u32 d27, q15, #16       \n"
 
                         "vst1.f32   {d24-d27}, [%0 :64]! \n"
 
@@ -2536,8 +2348,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fadd   v12.4s, v10.4s, v12.4s      \n"
                         "fadd   v13.4s, v11.4s, v13.4s      \n"
 
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v12.4h, v13.4h}, [%0], #16 \n"
 
@@ -2781,8 +2593,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16;
 
-                        "vshrn.u32  d28, q14, #16       \n"
-                        "vshrn.u32  d29, q15, #16       \n"
+                        "vrshrn.u32 d28, q14, #16       \n"
+                        "vrshrn.u32 d29, q15, #16       \n"
 
                         "vst1.f32   {d28-d29}, [%0 :64]! \n"
 
@@ -2946,7 +2758,7 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "fadd   v13.4s, v11.4s, v13.4s      \n"
 
                         "add    %4, %4, #16                 \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v13.4h}, [%0], #8          \n"
 
@@ -3151,7 +2963,7 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %5, %5, #256        \n" // kptr -= 8 * 16 * 2;
 
-                        "vshrn.u32  d31, q15, #16       \n"
+                        "vrshrn.u32 d31, q15, #16       \n"
 
                         "vst1.u16   {d31}, [%0 :64]!    \n"
 

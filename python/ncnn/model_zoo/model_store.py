@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2020 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 """Model store which provides pretrained models."""
 from __future__ import print_function
@@ -37,6 +26,10 @@ _model_sha1 = {
         ("69d128b42b70fb790e9d3ccabcf1b6e8cc2859fe", "yolov4-opt.bin"),
         ("6fa8ccc8cabc0f5633ab3c6ffa268e6042b8888f", "yolov5s.param"),
         ("0cbab3664deb090480ea748c1305f6fe850b9ac4", "yolov5s.bin"),
+        ("35ab0c1ce2864e0759d5794aa818df2de3013ab3", "yolov7-tiny.param"),
+        ("c0454f072b41997aa230c3fe1c1d504566574b6c", "yolov7-tiny.bin"),
+        ("e9de3c929d1c93f7dc94ed0f125795ac16ecc120", "yolov8s.param"),
+        ("90f4eb9e90086e2ec3af4c7837f00757e710b9c6", "yolov8s.bin"),
         ("e65bae7052d9e9b9d45e1214a8d1b5fe6f64e8af", "yolact.param"),
         ("9bda99f50b1c14c98c5c6bbc08d4f782eed66548", "yolact.bin"),
         ("3723ce3e312db6a102cff1a5c39dae80e1de658e", "mobilenet_ssd_voc_ncnn.param"),

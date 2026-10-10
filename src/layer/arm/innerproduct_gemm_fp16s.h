@@ -1,28 +1,25 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void innerproduct_gemm_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+void innerproduct_gemm_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-void innerproduct_gemm_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
+void innerproduct_gemm_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+    if (ncnn::cpu_support_arm_asimdfhm())
+    {
+        innerproduct_gemm_fp16s_neon_asimdfhm(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC && !__ARM_FEATURE_FP16_FML
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_gemm_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
@@ -30,15 +27,6 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_gemm_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
-#endif
-
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
     const int num_output = top_blob.w;
@@ -89,12 +77,22 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+#if __ARM_FEATURE_FP16_FML
+                    float16x4_t _val = vld1_f16(m);
+                    float16x4_t _w = vld1_f16(kptr);
+                    float16x8_t _valval = vcombine_f16(_val, _val);
+
+                    _sum0 = vfmlalq_lane_low_f16(_sum0, _valval, _w, 0);
+                    _sum1 = vfmlalq_lane_low_f16(_sum1, _valval, _w, 1);
+                    _sum2 = vfmlalq_lane_low_f16(_sum2, _valval, _w, 2);
+                    _sum3 = vfmlalq_lane_low_f16(_sum3, _valval, _w, 3);
+#else // __ARM_FEATURE_FP16_FML
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                     float32x4_t _val = vcvt_f32_f16(vld1_f16(m));
                     float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
 #else
                     float32x4_t _val = vld1q_f32(m);
-                    float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+                    float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
 
 #if __aarch64__
@@ -108,6 +106,7 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     _sum2 = vmlaq_lane_f32(_sum2, _val, vget_high_f32(_w), 0);
                     _sum3 = vmlaq_lane_f32(_sum3, _val, vget_high_f32(_w), 1);
 #endif
+#endif // __ARM_FEATURE_FP16_FML
 
                     m += 4;
                     kptr += 4;
@@ -165,6 +164,16 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 int i = 0;
                 for (; i + 3 < num_input; i += 4)
                 {
+#if __ARM_FEATURE_FP16_FML
+                    float16x4_t _val = vld1_f16(m);
+                    float16x8_t _w01 = vld1q_f16(kptr);
+                    float16x8_t _w23 = vld1q_f16(kptr + 8);
+
+                    _sum0 = vfmlalq_lane_low_f16(_sum0, _w01, _val, 0);
+                    _sum1 = vfmlalq_lane_high_f16(_sum1, _w01, _val, 1);
+                    _sum2 = vfmlalq_lane_low_f16(_sum2, _w23, _val, 2);
+                    _sum3 = vfmlalq_lane_high_f16(_sum3, _w23, _val, 3);
+#else // __ARM_FEATURE_FP16_FML
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                     float32x4_t _val = vcvt_f32_f16(vld1_f16(m));
                     float16x8_t _w01 = vld1q_f16(kptr);
@@ -177,10 +186,10 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     float32x4_t _val = vld1q_f32(m);
                     uint16x8_t _w01 = vld1q_u16(kptr);
                     uint16x8_t _w23 = vld1q_u16(kptr + 8);
-                    float32x4_t _w0 = vcvt_f32_f16(vreinterpret_f16_u16(vget_low_u16(_w01)));
-                    float32x4_t _w1 = vcvt_f32_f16(vreinterpret_f16_u16(vget_high_u16(_w01)));
-                    float32x4_t _w2 = vcvt_f32_f16(vreinterpret_f16_u16(vget_low_u16(_w23)));
-                    float32x4_t _w3 = vcvt_f32_f16(vreinterpret_f16_u16(vget_high_u16(_w23)));
+                    float32x4_t _w0 = vcvt_f32_f16((float16x4_t)(vget_low_u16(_w01)));
+                    float32x4_t _w1 = vcvt_f32_f16((float16x4_t)(vget_high_u16(_w01)));
+                    float32x4_t _w2 = vcvt_f32_f16((float16x4_t)(vget_low_u16(_w23)));
+                    float32x4_t _w3 = vcvt_f32_f16((float16x4_t)(vget_high_u16(_w23)));
 #endif
 
 #if __aarch64__
@@ -194,6 +203,7 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_val), 0);
                     _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_val), 1);
 #endif
+#endif // __ARM_FEATURE_FP16_FML
 
                     m += 4;
                     kptr += 16;
@@ -204,7 +214,7 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                     float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
 #else
-                    float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+                    float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
                     _sum0 = vfmaq_f32(_sum0, _val, _w);
 
@@ -258,6 +268,16 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 int i = 0;
                 for (; i + 3 < num_input; i += 4)
                 {
+#if __ARM_FEATURE_FP16_FML
+                    float16x8_t _val01 = vld1q_f16(m);
+                    float16x8_t _val23 = vld1q_f16(m + 8);
+                    float16x4_t _w = vld1_f16(kptr);
+
+                    _sum0 = vfmlalq_lane_low_f16(_sum0, _val01, _w, 0);
+                    _sum1 = vfmlalq_lane_high_f16(_sum1, _val01, _w, 1);
+                    _sum2 = vfmlalq_lane_low_f16(_sum2, _val23, _w, 2);
+                    _sum3 = vfmlalq_lane_high_f16(_sum3, _val23, _w, 3);
+#else // __ARM_FEATURE_FP16_FML
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                     float32x4_t _val0 = vcvt_f32_f16(vld1_f16(m));
                     float32x4_t _val1 = vcvt_f32_f16(vld1_f16(m + 4));
@@ -269,7 +289,7 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     float32x4_t _val1 = vld1q_f32(m + 4);
                     float32x4_t _val2 = vld1q_f32(m + 8);
                     float32x4_t _val3 = vld1q_f32(m + 12);
-                    float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+                    float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
 
 #if __aarch64__
@@ -283,6 +303,7 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     _sum2 = vmlaq_lane_f32(_sum2, _val2, vget_high_f32(_w), 0);
                     _sum3 = vmlaq_lane_f32(_sum3, _val3, vget_high_f32(_w), 1);
 #endif
+#endif // __ARM_FEATURE_FP16_FML
 
                     m += 16;
                     kptr += 4;
@@ -343,7 +364,40 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                 }
 
                 int i = 0;
-                float32x4_t _sum = vdupq_n_f32(0.f);
+                float32x4_t _sum0 = vdupq_n_f32(0.f);
+                float32x4_t _sum1 = vdupq_n_f32(0.f);
+                for (; i + 7 < num_input; i += 8)
+                {
+#if __ARM_FEATURE_FP16_FML
+                    float16x8_t _val01 = vld1q_f16(m);
+                    float16x8_t _w01 = vld1q_f16(kptr);
+
+                    _sum0 = vfmlalq_low_f16(_sum0, _val01, _w01);
+                    _sum1 = vfmlalq_high_f16(_sum1, _val01, _w01);
+#else // __ARM_FEATURE_FP16_FML
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+                    float16x8_t _val01 = vld1q_f16(m);
+                    float16x8_t _w01 = vld1q_f16(kptr);
+                    float32x4_t _val0 = vcvt_f32_f16(vget_low_f16(_val01));
+                    float32x4_t _val1 = vcvt_f32_f16(vget_high_f16(_val01));
+                    float32x4_t _w0 = vcvt_f32_f16(vget_low_f16(_w01));
+                    float32x4_t _w1 = vcvt_f32_f16(vget_high_f16(_w01));
+#else
+                    float32x4_t _val0 = vld1q_f32(m);
+                    float32x4_t _val1 = vld1q_f32(m + 4);
+                    uint16x8_t _w01 = vld1q_u16(kptr);
+                    float32x4_t _w0 = vcvt_f32_f16((float16x4_t)(vget_low_u16(_w01)));
+                    float32x4_t _w1 = vcvt_f32_f16((float16x4_t)(vget_high_u16(_w01)));
+#endif
+
+                    _sum0 = vfmaq_f32(_sum0, _val0, _w0);
+                    _sum1 = vfmaq_f32(_sum1, _val1, _w1);
+#endif // __ARM_FEATURE_FP16_FML
+
+                    m += 8;
+                    kptr += 8;
+                }
+                _sum0 = vaddq_f32(_sum0, _sum1);
                 for (; i + 3 < num_input; i += 4)
                 {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -351,18 +405,18 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
 #else
                     float32x4_t _val = vld1q_f32(m);
-                    float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+                    float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
 
-                    _sum = vfmaq_f32(_sum, _val, _w);
+                    _sum0 = vfmaq_f32(_sum0, _val, _w);
 
                     m += 4;
                     kptr += 4;
                 }
 #if __aarch64__
-                sum += vaddvq_f32(_sum);
+                sum += vaddvq_f32(_sum0);
 #else
-                float32x2_t _ss = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+                float32x2_t _ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
                 _ss = vpadd_f32(_ss, _ss);
                 sum += vget_lane_f32(_ss, 0);
 #endif
@@ -386,13 +440,4 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             }
         }
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }

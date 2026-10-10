@@ -1,23 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "sigmoid_arm.h"
 
-#include <math.h>
-
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
@@ -81,7 +69,7 @@ int Sigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         for (; i < size; i++)
         {
             float v = (float)*ptr;
-            v = 1.f / (1.f + exp(-v));
+            v = 1.f / (1.f + expf(-v));
             *ptr = (__fp16)v;
 
             ptr++;
@@ -112,10 +100,10 @@ int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
             float16x8_t _p1 = vld1q_f16(ptr + 8);
             float16x8_t _p2 = vld1q_f16(ptr + 16);
             float16x8_t _p3 = vld1q_f16(ptr + 24);
-            _p0 = sigmoid_ps(_p0);
-            _p1 = sigmoid_ps(_p1);
-            _p2 = sigmoid_ps(_p2);
-            _p3 = sigmoid_ps(_p3);
+            _p0 = sigmoid_ps_f16(_p0);
+            _p1 = sigmoid_ps_f16(_p1);
+            _p2 = sigmoid_ps_f16(_p2);
+            _p3 = sigmoid_ps_f16(_p3);
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
             vst1q_f16(ptr + 16, _p2);
@@ -126,8 +114,8 @@ int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         {
             float16x8_t _p0 = vld1q_f16(ptr);
             float16x8_t _p1 = vld1q_f16(ptr + 8);
-            _p0 = sigmoid_ps(_p0);
-            _p1 = sigmoid_ps(_p1);
+            _p0 = sigmoid_ps_f16(_p0);
+            _p1 = sigmoid_ps_f16(_p1);
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
             ptr += 16;
@@ -135,21 +123,21 @@ int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            _p = sigmoid_ps(_p);
+            _p = sigmoid_ps_f16(_p);
             vst1q_f16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            _p = sigmoid_ps(_p);
+            _p = sigmoid_ps_f16(_p);
             vst1_f16(ptr, _p);
             ptr += 4;
         }
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = 1.f / (1.f + exp(-v));
+            v = 1.f / (1.f + expf(-v));
             *ptr = v;
 
             ptr++;
