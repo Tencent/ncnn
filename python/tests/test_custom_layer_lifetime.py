@@ -176,17 +176,142 @@ def test_replace_registration_after_clear(kind, tmp_path):
     assert all(not factory.layers for factory in factories)
 
 
-def test_rejected_registration_releases_callbacks():
+@pytest.mark.parametrize('index', [-1, 1000000 + 256])
+def test_rejected_registration_releases_callbacks(index):
     net = ncnn.Net()
+    active = LayerFactory(2)
+    active_ref = weakref.ref(active)
+    register(net, active, 'name')
+    del active
     factory = LayerFactory(1)
     ref = weakref.ref(factory)
-    assert net.register_custom_layer(-1, factory.create, factory.destroy) == -1
+    assert net.register_custom_layer(index, factory.create, factory.destroy) == -1
     del factory
+    gc.collect()
+    assert ref() is None
+    assert active_ref() is not None
+    del net
+    gc.collect()
+    assert active_ref() is None
+
+
+@pytest.mark.parametrize('first,second,type_name', [
+    ('CustomLayer0', 'CustomLayer0', 'CustomLayer0'),
+    (256, 256, None),
+    ('CustomLayer0', 256, 'CustomLayer0'),
+    ('Input', 16, 'Input'),
+    (16, 'Input', 'Input'),
+])
+def test_re_registration_releases_superseded_callbacks(first, second, type_name, tmp_path):
+    net = ncnn.Net()
+    previous = LayerFactory(1)
+    ref = weakref.ref(previous)
+    assert net.register_custom_layer(first, previous.create, previous.destroy) == 0
+    del previous
+    current = LayerFactory(2)
+    assert net.register_custom_layer(second, current.create, current.destroy) == 0
+    gc.collect()
+    assert ref() is None
+
+    if type_name == 'Input':
+        assert net.load_param_mem('7767517\n1 1\nInput data 0 1 data\n') == 0
+        assert net.load_model(ncnn.DataReaderFromEmpty()) == 0
+    else:
+        # Name->index replacement must retain the original native name storage.
+        load(net, 'name' if type_name else 'index', tmp_path)
+        infer(net, 3)
+    net.clear()
+    assert current.destroyed == 1
+
+
+def test_re_registration_keeps_high_named_registry_slots_distinct(tmp_path):
+    net = ncnn.Net()
+    refs = []
+    for i in range(257):
+        factory = LayerFactory(i)
+        refs.append(weakref.ref(factory))
+        register(net, factory, 'name', i)
+    del factory
+    gc.collect()
+    assert all(ref() is not None for ref in refs)
+
+    current = LayerFactory(300)
+    register(net, current, 'name', 256)
+    gc.collect()
+    assert all(ref() is not None for ref in refs[:256])
+    assert refs[256]() is None
+    # Registration supports distinct high named slots; the native model type
+    # encoding is unchanged. Load only the existing low slot to verify routing.
+    load(net, 'name', tmp_path)
+    infer(net, 1)
+    net.clear()
+    assert refs[0]().destroyed == 1
+    assert current.destroyed == 0
+
+
+@pytest.mark.parametrize('kind', ['name', 'index'])
+def test_re_registration_retains_only_loaded_callback_owners(kind, tmp_path):
+    class CompatibleFactory(LayerFactory):
+        def destroy(self, layer):
+            # Native registration uses the current destroyer, including for a
+            # layer created before the replacement.
+            if layer in self.layers:
+                self.layers.remove(layer)
+            self.destroyed += 1
+
+    net = ncnn.Net()
+    previous = CompatibleFactory(1)
+    previous_ref = weakref.ref(previous)
+    register(net, previous, kind)
+    load(net, kind, tmp_path)
+    del previous
+    for increment in range(2, 9):
+        current = CompatibleFactory(increment)
+        current_ref = weakref.ref(current)
+        register(net, current, kind)
+        del current
+        gc.collect()
+        assert previous_ref() is not None
+        if increment > 2:
+            assert intermediate_ref() is None
+        intermediate_ref = current_ref
+
+    infer(net, 2)
+    net.clear()
+    gc.collect()
+    assert previous_ref() is None
+    assert current_ref().destroyed == 1
+    load(net, kind, tmp_path)
+    infer(net, 9)
+    net.clear()
+    assert not current_ref().layers
+    assert current_ref().destroyed == 2
+    del net
+    gc.collect()
+    assert current_ref() is None
+
+
+def test_null_creator_does_not_retain_replaced_callbacks():
+    class NullFactory:
+        def create(self):
+            return None
+
+        def destroy(self, layer):
+            raise AssertionError('no layer was created')
+
+    net = ncnn.Net()
+    previous = NullFactory()
+    ref = weakref.ref(previous)
+    assert net.register_custom_layer('CustomLayer0', previous.create, previous.destroy) == 0
+    assert net.load_param_mem('7767517\n1 1\nCustomLayer0 custom 0 1 output\n') != 0
+    del previous
+    current = LayerFactory(1)
+    register(net, current, 'name')
     gc.collect()
     assert ref() is None
 
 
-def test_global_net_interpreter_shutdown():
+def test_global_net_interpreter_shutdown(tmp_path):
     import os
     import subprocess
     import sys
@@ -233,6 +358,7 @@ def test_global_net_interpreter_shutdown():
         universal_newlines=True,
         timeout=30,
         env=env,
+        cwd=tmp_path,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == 'loaded'
