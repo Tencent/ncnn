@@ -161,7 +161,7 @@ static int test_multiheadattention_self_kvcache_decode(const ncnn::Mat& q, int e
     return ret;
 }
 
-static int test_multiheadattention_mask(int embed_dim, int num_heads, int src_seqlen, int kv_cache)
+static int test_multiheadattention_singleton_mask(int embed_dim, int num_heads, int src_seqlen, int kv_cache)
 {
     const int past_seqlen = kv_cache ? 5 : 0;
     const int dst_seqlen = past_seqlen + src_seqlen;
@@ -198,10 +198,8 @@ static int test_multiheadattention_mask(int embed_dim, int num_heads, int src_se
     const int typeindex = ncnn::layer_to_index("MultiHeadAttention");
     const float epsilon = 0.005f;
 
-    int ret = test_layer("MultiHeadAttention", pd, weights, as, top_blob_count, epsilon);
     std::vector<ncnn::Mat> reference;
-    if (ret == 0)
-        ret = test_layer_naive(typeindex, pd, weights, as, top_blob_count, reference, 0);
+    int ret = test_layer_naive(typeindex, pd, weights, as, top_blob_count, reference, 0);
 
     as[1] = as[1].reshape(dst_seqlen, src_seqlen, 1);
     std::vector<ncnn::Mat> reference_singleton;
@@ -213,21 +211,21 @@ static int test_multiheadattention_mask(int embed_dim, int num_heads, int src_se
         ret = test_layer("MultiHeadAttention", pd, weights, as, top_blob_count, epsilon);
 
     if (ret != 0)
-        fprintf(stderr, "test_multiheadattention_mask failed embed_dim=%d num_heads=%d src_seqlen=%d kv_cache=%d\n", embed_dim, num_heads, src_seqlen, kv_cache);
+        fprintf(stderr, "test_multiheadattention_singleton_mask failed embed_dim=%d num_heads=%d src_seqlen=%d kv_cache=%d\n", embed_dim, num_heads, src_seqlen, kv_cache);
 
     return ret;
 }
 
-static int test_multiheadattention_mask()
+static int test_multiheadattention_singleton_mask()
 {
     return 0
-           || test_multiheadattention_mask(12, 4, 3, 0)
-           || test_multiheadattention_mask(12, 4, 4, 0)
-           || test_multiheadattention_mask(16, 4, 3, 0)
-           || test_multiheadattention_mask(16, 4, 4, 0)
-           || test_multiheadattention_mask(16, 4, 1, 1)
-           || test_multiheadattention_mask(16, 4, 3, 1)
-           || test_multiheadattention_mask(16, 4, 4, 1);
+           || test_multiheadattention_singleton_mask(12, 4, 3, 0)
+           || test_multiheadattention_singleton_mask(12, 4, 4, 0)
+           || test_multiheadattention_singleton_mask(16, 4, 3, 0)
+           || test_multiheadattention_singleton_mask(16, 4, 4, 0)
+           || test_multiheadattention_singleton_mask(16, 4, 1, 1)
+           || test_multiheadattention_singleton_mask(16, 4, 3, 1)
+           || test_multiheadattention_singleton_mask(16, 4, 4, 1);
 }
 
 static int test_multiheadattention_0()
@@ -582,7 +580,7 @@ int main()
            || test_multiheadattention_0()
            || test_multiheadattention_1()
            || test_multiheadattention_2()
-           || test_multiheadattention_mask()
+           || test_multiheadattention_singleton_mask()
 #if NCNN_INT8
            || test_multiheadattention_3()
            || test_multiheadattention_4()

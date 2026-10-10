@@ -597,6 +597,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[3].i = num_heads;
         constants[4].i = cached_xk_blob.cstep;
         constants[5].i = attn_mask_blob_unpacked.dims;
+        // zero channel stride broadcasts the mask across heads
         constants[6].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_blob_unpacked.c == 1 ? 0 : attn_mask_blob_unpacked.cstep;
 
         VkMat dispatcher;
@@ -660,6 +661,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[2].i = K / K_elempack;
         constants[3].i = B;
         constants[4].i = attn_mask_blob_unpacked.dims;
+        // zero channel stride broadcasts the mask across heads
         constants[5].i = attn_mask_blob_unpacked.dims == 3 && attn_mask_blob_unpacked.c == 1 ? 0 : attn_mask_blob_unpacked.cstep;
 
         VkMat dispatcher;
