@@ -13,6 +13,10 @@
 
 namespace ncnn {
 
+#if NCNN_GNU_INLINE_ASM && __riscv_vector && !defined(__riscv_xtheadvector)
+#include "gemm_torq_tile.h"
+#endif
+
 Gemm_riscv::Gemm_riscv()
 {
 #if __riscv_vector
@@ -2470,6 +2474,19 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+
+#if NCNN_GNU_INLINE_ASM && __riscv_vector && !defined(__riscv_xtheadvector)
+    // TORQ-Tile consumes row-major inputs directly, avoiding packing for this
+    // dynamic FP32 case. Respect explicit tile overrides and all other layouts.
+    if (!transA && !transB && !output_transpose
+        && A.elempack == 1 && B.elempack == 1 && top_blob.elempack == 1
+        && (C.empty() || (C.elempack == 1 && C.dims <= 2))
+        && constant_TILE_M == 0 && constant_TILE_N == 0 && constant_TILE_K == 0
+        && M >= 8 && N >= 3 * (int)__riscv_vsetvlmax_e32m1() && K > 0)
+    {
+        return gemm_torq_tile(A, B, C, top_blob, broadcast_type_C, nT);
+    }
+#endif
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
