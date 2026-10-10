@@ -33,7 +33,7 @@ int Softplus_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
     if (opt.use_fp16_storage && elembits == 16)
     {
-        if (opt.use_fp16_arithmetic)
+        if (opt.use_fp16_arithmetic && !has_threshold)
             return forward_inplace_fp16sa(bottom_top_blob, opt);
         else
             return forward_inplace_fp16s(bottom_top_blob, opt);
@@ -59,9 +59,18 @@ int Softplus_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             size_t vl = __riscv_vsetvl_e32m8(n);
 
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            const vfloat32m8_t _x = _p;
             _p = exp_ps(_p, vl);
             _p = __riscv_vfadd_vf_f32m8(_p, 1.f, vl);
             _p = log_ps(_p, vl);
+            if (has_threshold)
+            {
+                // exp_ps clamps large inputs; retain scalar overflow and NaN semantics.
+                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, 88.f, vl), vl);
+                _p = __riscv_vfmerge_vfm_f32m8(_p, INFINITY, __riscv_vmfgt_vf_f32m8_b4(_x, 88.7228317f, vl), vl);
+                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, threshold, vl), vl);
+                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfne_vv_f32m8_b4(_x, _x, vl), vl);
+            }
             __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
@@ -70,7 +79,7 @@ int Softplus_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = logf(expf(*ptr) + 1.0f);
+            *ptr = *ptr > threshold ? *ptr : logf(expf(*ptr) + 1.0f);
             ptr++;
         }
 #endif // __riscv_vector
