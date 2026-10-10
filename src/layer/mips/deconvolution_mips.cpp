@@ -8,10 +8,7 @@
 
 #if __mips_msa
 #include <msa.h>
-#endif // __mips_msa || __mips_mxu2
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
+#endif // __mips_msa
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -25,9 +22,9 @@ namespace ncnn {
 
 Deconvolution_mips::Deconvolution_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -55,7 +52,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         elempack = num_input % 4 == 0 ? 4 : 1;
@@ -169,7 +166,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -254,7 +251,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     }
                 }
             }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
             if (out_elempack == 1)
             {

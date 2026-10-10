@@ -6,9 +6,6 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "cpu.h"
 #include "mips_activation.h"
@@ -23,9 +20,9 @@ namespace ncnn {
 
 Convolution1D_mips::Convolution1D_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -82,7 +79,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     w = bottom_blob_bordered.w;
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -216,7 +213,7 @@ int Convolution1D_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     w = bottom_blob_bordered.w;
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;

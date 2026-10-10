@@ -8,10 +8,6 @@
 #include "msa_mathfun.h"
 #include "mips_usability.h"
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#include "msa_mathfun.h"
-#endif // __mips_mxu2
 
 #include "cpu.h"
 
@@ -19,9 +15,9 @@ namespace ncnn {
 
 BinaryOp_mips::BinaryOp_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -92,7 +88,7 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
     const Op op;
 
     const float a = *ptr;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     v4f32 _a_128 = (elempack == 4) ? (v4f32)__msa_ld_w(ptr, 0) : __msa_fill_w_f32(a);
 #endif // __mips_msa
 
@@ -167,7 +163,7 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
 {
     const Op op;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (elempack == 4)
     {
         int i = 0;
@@ -181,7 +177,7 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
             outptr += 4;
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 }
 
 template<typename Op>
@@ -250,7 +246,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
         float* ptr = a.channel(q);
 
         int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         v4f32 _b = __msa_fill_w_f32(b);
         for (; i + 3 < size; i += 4)
         {
@@ -260,7 +256,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; i < size; i++)
         {
             *ptr = op(*ptr, b);
@@ -273,7 +269,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_mips_functor {
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
 #define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
     struct NAME                                                \
     {                                                          \

@@ -6,29 +6,26 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
 namespace ncnn {
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
 #include "padding_pack4.h"
 #include "padding_pack8_int8.h"
 #if NCNN_BF16
 #include "padding_pack4_bf16s.h"
 #include "padding_pack8_bf16s.h"
 #endif // NCNN_BF16
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
 Padding_mips::Padding_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
     support_any_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -83,7 +80,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (elempack == 4)
     {
         if (dims == 1)
@@ -208,7 +205,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -230,7 +227,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     }
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
@@ -616,7 +613,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (elempack == 8)
     {
         if (dims == 1)
@@ -750,7 +747,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -772,7 +769,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : 1;

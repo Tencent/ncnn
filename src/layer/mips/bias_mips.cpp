@@ -7,9 +7,6 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -52,7 +49,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float bias = bias_ptr[q];
 
         int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -61,7 +58,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; i < size; i++)
         {
             *ptr += bias;
@@ -88,7 +85,7 @@ int Bias_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         v4f32 _bias0 = (elempack == 4) ? (v4f32)__msa_ld_w(bias_ptr + q * 4, 0) : (v4f32)__msa_fill_w_f32(bias_ptr[q]);
         v4f32 _bias1 = _bias0;
         if (elempack == 8)
@@ -119,7 +116,7 @@ int Bias_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             ptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);

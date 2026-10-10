@@ -9,10 +9,6 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#include "msa_mathfun.h"
-#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -25,9 +21,9 @@ namespace ncnn {
 
 InnerProduct_mips::InnerProduct_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -73,12 +69,12 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
 
     int out_elempack = 1;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
-#endif
+#endif // __mips_msa
 
     if (out_elempack == 4)
     {
@@ -174,7 +170,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             return -100;
 
         int num_output_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (opt.use_packing_layout)
         {
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -184,7 +180,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             if (elempack == 4 && num_output_elempack == 4)
             {
                 float* outptr = top_blob.row(j);
@@ -328,7 +324,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr += 4;
                 }
             }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
             if (elempack == 1 && num_output_elempack == 1)
             {
@@ -347,7 +343,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     }
 
                     int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
                     v4f32 _sum = (v4f32)__msa_fill_w(0);
                     for (; i + 3 < num_input; i += 4)
                     {
@@ -361,7 +357,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         kptr += 4;
                     }
                     sum += __msa_reduce_fadd_w(_sum);
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
                     for (; i < num_input; i++)
                     {
                         sum += *m * *kptr;
@@ -397,19 +393,19 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     int elempack = bottom_blob_flattened.elempack;
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
-#endif
+#endif // __mips_msa
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (out_elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -467,7 +463,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             __msa_st_w((v4i32)_sum0, outptr + p * 4, 0);
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     if (out_elempack == 1)
     {
@@ -500,7 +496,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             const float* m = bottom_blob_flattened;
 
             int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             v4f32 _sum0 = (v4f32)__msa_fill_w(0);
             v4f32 _sum1 = (v4f32)__msa_fill_w(0);
             v4f32 _sum2 = (v4f32)__msa_fill_w(0);
@@ -528,7 +524,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 w2 += 4;
                 w3 += 4;
             }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
             for (; i < num_input; i++)
             {
                 sum0 += *m * *w0;
@@ -543,12 +539,12 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 w3++;
             }
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             sum0 += __msa_reduce_fadd_w(_sum0);
             sum1 += __msa_reduce_fadd_w(_sum1);
             sum2 += __msa_reduce_fadd_w(_sum2);
             sum3 += __msa_reduce_fadd_w(_sum3);
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
             sum0 = activation_ss(sum0, activation_type, activation_params);
             sum1 = activation_ss(sum1, activation_type, activation_params);
@@ -575,7 +571,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             const float* m = bottom_blob_flattened;
 
             int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             v4f32 _sum0 = (v4f32)__msa_fill_w(0);
             for (; i + 3 < num_input; i += 4)
             {
@@ -589,7 +585,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 w += 4;
             }
             sum += __msa_reduce_fadd_w(_sum0);
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
             for (; i < num_input; i++)
             {
                 sum += *m * *w;
@@ -1132,12 +1128,12 @@ int InnerProduct_mips::create_pipeline_int8_mips(const Option& opt)
     const int num_input = weight_data_size / num_output;
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
-#endif
+#endif // __mips_msa
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -1208,7 +1204,7 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         int h = bottom_blob_int8_unpacked.h;
 
         int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (opt.use_packing_layout)
         {
             out_elempack = h % 4 == 0 ? 4 : 1;
@@ -1222,14 +1218,14 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
             return -100;
 
         int num_output_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (opt.use_packing_layout)
         {
             num_output_elempack = num_output % 8 == 0 ? 8 : 1;
         }
 #endif
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (num_output_elempack == 8 && out_elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1500,7 +1496,7 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                 }
             }
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
         if (num_output_elempack == 1 && out_elempack == 1)
         {
@@ -1550,19 +1546,19 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
     //     int elempack = bottom_blob_int8_flattened.elempack;
 
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
-#endif
+#endif // __mips_msa
     //     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (out_elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1624,7 +1620,7 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
             __msa_st_w((v4i32)_sumfp32_1, outptr + 4, 0);
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     if (out_elempack == 1)
     {

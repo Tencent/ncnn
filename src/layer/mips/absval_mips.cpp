@@ -7,15 +7,12 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 namespace ncnn {
 
 AbsVal_mips::AbsVal_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
     support_any_packing = true;
 #endif
@@ -44,7 +41,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         v4u32 _sign_mask = (v4u32)__msa_fill_w(0x7fffffff);
         for (; i + 3 < size; i += 4)
         {
@@ -54,7 +51,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; i < size; i++)
         {
             *ptr = *ptr > 0.f ? *ptr : -*ptr;

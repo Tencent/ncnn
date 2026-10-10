@@ -15,9 +15,9 @@ namespace ncnn {
 
 Concat_mips::Concat_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif

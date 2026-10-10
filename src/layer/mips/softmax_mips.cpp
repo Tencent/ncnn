@@ -13,10 +13,6 @@
 #include "msa_mathfun.h"
 #include "mips_usability.h"
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#include "msa_mathfun.h"
-#endif // __mips_mxu2
 
 namespace ncnn {
 
@@ -114,9 +110,9 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 
         sum = 1.f / sum;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         _sum = (v4f32)__msa_fill_w_f32(sum);
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
     }
 
     // div sum
@@ -124,7 +120,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         float* ptr = _ptr;
 
         int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -295,7 +291,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
             ptr += 4;
             maxptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; j < size1; j++)
         {
             *maxptr = std::max(*maxptr, *ptr);
@@ -312,7 +308,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
         float* sumptr = _sumptr;
 
         int j = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         for (; j + 3 < size1; j += 4)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -327,7 +323,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
             maxptr += 4;
             sumptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; j < size1; j++)
         {
             float v = expf(*ptr - *maxptr);
@@ -342,7 +338,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
     {
         float* sumptr = _sumptr;
         int j = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         for (; j + 3 < size1; j += 4)
         {
             v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
@@ -351,7 +347,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
             __msa_st_w((v4i32)_sum, sumptr, 0);
             sumptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; j < size1; j++)
         {
             *sumptr = 1.f / *sumptr;
@@ -366,7 +362,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
         const float* sumptr = _sumptr;
 
         int j = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         for (; j + 3 < size1; j += 4)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -376,7 +372,7 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
             ptr += 4;
             sumptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; j < size1; j++)
         {
             *ptr *= *sumptr;

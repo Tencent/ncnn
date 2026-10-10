@@ -7,10 +7,6 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#include "msa_mathfun.h"
-#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -18,7 +14,7 @@ namespace ncnn {
 
 Sigmoid_mips::Sigmoid_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
     support_any_packing = true;
 #endif
@@ -47,7 +43,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; i + 3 < size; i += 4)
         {
@@ -61,7 +57,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
         for (; i < size; i++)
         {
             *ptr = 1.f / (1.f + expf(-*ptr));

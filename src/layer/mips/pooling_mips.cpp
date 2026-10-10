@@ -8,9 +8,6 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -29,9 +26,9 @@ namespace ncnn {
 
 Pooling_mips::Pooling_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -74,7 +71,7 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
 
     if (elempack == 1 && pooling_type == PoolMethod_MAX && !global_pooling && stride_w == 2 && stride_h == 2 && ((kernel_w == 2 && kernel_h == 2) || (kernel_w == 3 && kernel_h == 3)))
@@ -334,7 +331,7 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
         return 0;
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     return Pooling::forward(bottom_blob, top_blob, opt);
 }

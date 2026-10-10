@@ -6,9 +6,6 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -17,16 +14,16 @@ namespace ncnn {
 #include "interp_bicubic.h"
 #include "interp_bilinear.h"
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
 #include "interp_bicubic_pack4.h"
 #include "interp_bilinear_pack4.h"
 #endif
 
 Interp_mips::Interp_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -74,7 +71,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         if (top_blob.empty())
             return -100;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -87,7 +84,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             return 0;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < w; q++)
@@ -112,7 +109,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         if (top_blob.empty())
             return -100;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
         if (elempack == 4)
         {
             if (resize_type == 1) // nearest
@@ -222,7 +219,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             return 0;
         }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
         if (resize_type == 1) // nearest
         {
@@ -318,7 +315,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     if (top_blob.empty())
         return -100;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (elempack == 4)
     {
         if (resize_type == 1) // nearest
@@ -407,7 +404,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         return 0;
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     if (resize_type == 1) // nearest
     {

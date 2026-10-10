@@ -15,9 +15,6 @@
 #if __mips_loongson_mmi
 #include "loongson_mmi.h"
 #endif // __mips_loongson_mmi
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -42,16 +39,16 @@ namespace ncnn {
 #include "convolution_3x3_winograd_int8.h"
 #endif // NCNN_INT8
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
 #include "convolution_3x3_pack1to4.h"
 #include "convolution_7x7_pack1to4.h"
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
 Convolution_mips::Convolution_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -357,7 +354,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
         convolution_transform_kernel_packed_msa(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
     else
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
     {
         convolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
@@ -478,7 +475,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;

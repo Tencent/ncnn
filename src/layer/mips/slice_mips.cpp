@@ -11,9 +11,9 @@ namespace ncnn {
 
 Slice_mips::Slice_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -67,7 +67,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -119,7 +119,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -286,7 +286,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif

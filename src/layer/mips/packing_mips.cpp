@@ -10,9 +10,6 @@
 #include <msa.h>
 #include "mips_usability.h"
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 namespace ncnn {
 
@@ -124,7 +121,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = top_blob.batch(b).row(i);
 
                 int j = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -158,7 +155,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     r3 += 4;
                     outptr += 16;
                 }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -186,7 +183,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = top_blob.batch(b).row(i * 4 + 3);
 
                 int j = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
                     __builtin_prefetch(r0 + 32);
@@ -217,7 +214,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -261,7 +258,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(r0 + 16);
@@ -295,7 +292,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     r3 += 4;
                     outptr += 16;
                 }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -323,7 +320,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = top_blob.batch(b).channel(q * 4 + 3);
 
                 int i = 0;
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(r0 + 32);
@@ -354,7 +351,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];

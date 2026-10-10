@@ -8,16 +8,9 @@
 #include "mat.h"
 
 #if __mips_msa
-#include <msa.h>
 #include "mips_usability.h"
 #include "msa_mathfun.h"
-#endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#include "msa_mathfun.h"
-#endif // __mips_mxu2
 
-#if __mips_msa || __mips_mxu2
 static NCNN_FORCEINLINE v4f32 sigmoid_msa(v4f32 inputs)
 {
     const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
@@ -115,6 +108,6 @@ static NCNN_FORCEINLINE v4f32 activation_msa(v4f32 _v, int activation_type, cons
     return _v;
 }
 
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
 #endif // MIPS_ACTIVATION_H

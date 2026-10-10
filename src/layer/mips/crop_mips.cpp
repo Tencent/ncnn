@@ -8,23 +8,20 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-#if __mips_mxu2
-#include <mips_mxu2_fix.h>
-#endif // __mips_mxu2
 
 namespace ncnn {
 
 Crop_mips::Crop_mips()
 {
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
 }
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
 static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -101,7 +98,7 @@ static void crop_pack8_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
     }
 }
 #endif // NCNN_BF16
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
 int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -113,7 +110,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     int _woffset, _hoffset, _doffset, _coffset;
     int _outw, _outh, _outd, _outc;
     if (!starts_expr.empty() && !ends_expr.empty())
@@ -418,7 +415,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -451,7 +448,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
     Mat& top_blob = top_blobs[0];
 
-#if __mips_msa || __mips_mxu2
+#if __mips_msa
     int _woffset, _hoffset, _doffset, _coffset;
     int _outw, _outh, _outd, _outc;
     if (!starts_expr.empty() && !ends_expr.empty())
@@ -763,7 +760,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
         }
     }
-#endif // __mips_msa || __mips_mxu2
+#endif // __mips_msa
 
     std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
     for (size_t i = 0; i < bottom_blobs.size(); i++)
