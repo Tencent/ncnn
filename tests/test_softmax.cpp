@@ -1,18 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/softmax.h"
 #include "testutil.h"
 
 static int test_softmax(const ncnn::Mat& a, int axis)
@@ -23,82 +11,80 @@ static int test_softmax(const ncnn::Mat& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, a);
+    int ret = test_layer("Softmax", pd, weights, a, 0.001);
     if (ret != 0)
     {
-        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
+        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
     }
 
     return ret;
 }
 
+static int test_softmax_axes(const ncnn::Mat& a)
+{
+    for (int axis = 0; axis < a.dims; axis++)
+    {
+        if (test_softmax(a, axis) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_softmax_negative_axes(const ncnn::Mat& a)
+{
+    for (int axis = -a.dims; axis < 0; axis++)
+    {
+        if (test_softmax(a, axis) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 static int test_softmax_0()
 {
-    ncnn::Mat a = RandomMat(25, 27, 32);
-    ncnn::Mat b = RandomMat(27, 29, 28);
-    ncnn::Mat c = RandomMat(23, 25, 27);
-
+    // channel counts exercise pack16, pack8, pack4 and scalar tails
     return 0
-           || test_softmax(a, 0)
-           || test_softmax(a, 1)
-           || test_softmax(a, 2)
-           || test_softmax(a, -1)
-           || test_softmax(a, -2)
-           || test_softmax(a, -3)
-
-           || test_softmax(b, 0)
-           || test_softmax(b, 1)
-           || test_softmax(b, 2)
-           || test_softmax(b, -1)
-           || test_softmax(b, -2)
-           || test_softmax(b, -3)
-
-           || test_softmax(c, 0)
-           || test_softmax(c, 1)
-           || test_softmax(c, 2)
-           || test_softmax(c, -1)
-           || test_softmax(c, -2)
-           || test_softmax(c, -3);
+           || test_softmax_negative_axes(RandomMat(9, 5, 7, 32))
+           || test_softmax_axes(RandomMat(10, 7, 6, 40))
+           || test_softmax_axes(RandomMat(8, 7, 5, 28))
+           || test_softmax_axes(RandomMat(9, 7, 5, 31));
 }
 
 static int test_softmax_1()
 {
-    ncnn::Mat a = RandomMat(25, 32);
-    ncnn::Mat b = RandomMat(27, 28);
-    ncnn::Mat c = RandomMat(29, 27);
-
     return 0
-           || test_softmax(a, 0)
-           || test_softmax(a, 1)
-           || test_softmax(a, -1)
-           || test_softmax(a, -2)
-
-           || test_softmax(b, 0)
-           || test_softmax(b, 1)
-           || test_softmax(b, -1)
-           || test_softmax(b, -2)
-
-           || test_softmax(c, 0)
-           || test_softmax(c, 1)
-           || test_softmax(c, -1)
-           || test_softmax(c, -2);
+           || test_softmax_negative_axes(RandomMat(25, 27, 32))
+           || test_softmax_axes(RandomMat(22, 19, 40))
+           || test_softmax_axes(RandomMat(27, 29, 28))
+           || test_softmax_axes(RandomMat(23, 25, 31));
 }
 
 static int test_softmax_2()
 {
-    ncnn::Mat a = RandomMat(128);
-    ncnn::Mat b = RandomMat(124);
-    ncnn::Mat c = RandomMat(127);
-
     return 0
-           || test_softmax(a, 0)
-           || test_softmax(a, -1)
+           || test_softmax_negative_axes(RandomMat(125, 32))
+           || test_softmax_axes(RandomMat(147, 40))
+           || test_softmax_axes(RandomMat(127, 28))
+           || test_softmax_axes(RandomMat(129, 31));
+}
 
-           || test_softmax(b, 0)
-           || test_softmax(b, -1)
+static int test_softmax_3()
+{
+    return 0
+           || test_softmax_negative_axes(RandomMat(128))
+           || test_softmax_axes(RandomMat(120))
+           || test_softmax_axes(RandomMat(124))
+           || test_softmax_axes(RandomMat(127));
+}
 
-           || test_softmax(c, 0)
-           || test_softmax(c, -1);
+static int test_softmax_large()
+{
+    // large allocations exercise staging reuse and multi-workgroup reductions
+    return 0
+           || test_softmax(RandomMat(23, 25, 27, 32), -4)
+           || test_softmax(RandomMat(24, 27, 29, 28), 0);
 }
 
 int main()
@@ -108,5 +94,9 @@ int main()
     return 0
            || test_softmax_0()
            || test_softmax_1()
-           || test_softmax_2();
+           || test_softmax_2()
+           || test_softmax_3()
+           || test_softmax_large()
+           // pack8 rows include a full avx512 block, an eight-element tail and a scalar tail
+           || test_softmax(RandomMat(25, 24), 0);
 }

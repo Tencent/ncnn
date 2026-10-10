@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop_arm.h"
 
@@ -508,6 +497,142 @@ struct unary_op_trunc_fp16s
     }
 };
 
+struct unary_op_sign_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return x > (__fp16)0.f ? (__fp16)1.f : x < (__fp16)0.f ? (__fp16)-1.f : (__fp16)0.f;
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        float16x4_t zero = vdup_n_f16((__fp16)0.f);
+        float16x4_t one = vdup_n_f16((__fp16)1.f);
+        uint16x4_t pos = vcgt_f16(x, zero);
+        uint16x4_t neg = vclt_f16(x, zero);
+        return vsub_f16(vreinterpret_f16_u16(vand_u16(pos, vreinterpret_u16_f16(one))), vreinterpret_f16_u16(vand_u16(neg, vreinterpret_u16_f16(one))));
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        float16x8_t zero = vdupq_n_f16((__fp16)0.f);
+        float16x8_t one = vdupq_n_f16((__fp16)1.f);
+        uint16x8_t pos = vcgtq_f16(x, zero);
+        uint16x8_t neg = vcltq_f16(x, zero);
+        return vsubq_f16(vreinterpretq_f16_u16(vandq_u16(pos, vreinterpretq_u16_f16(one))), vreinterpretq_f16_u16(vandq_u16(neg, vreinterpretq_u16_f16(one))));
+    }
+};
+
+struct unary_op_expm1_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)expm1f(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return expm1_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return expm1_ps_f16(x);
+    }
+};
+
+struct unary_op_sinh_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)sinhf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return sinh_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return sinh_ps_f16(x);
+    }
+};
+
+struct unary_op_asinh_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)asinhf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return asinh_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return asinh_ps_f16(x);
+    }
+};
+
+struct unary_op_cosh_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)coshf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return cosh_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return cosh_ps_f16(x);
+    }
+};
+
+struct unary_op_acosh_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)acoshf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return acosh_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return acosh_ps_f16(x);
+    }
+};
+
+struct unary_op_atanh_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)atanhf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return atanh_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return atanh_ps_f16(x);
+    }
+};
+
+struct unary_op_log1p_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)log1pf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return log1p_ps_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return log1p_ps_f16(x);
+    }
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -573,6 +698,30 @@ int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_fp16s<unary_op_sign_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_fp16s<unary_op_expm1_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_fp16s<unary_op_sinh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_fp16s<unary_op_asinh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_fp16s<unary_op_cosh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_fp16s<unary_op_acosh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_fp16s<unary_op_atanh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_fp16s<unary_op_log1p_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }

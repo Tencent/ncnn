@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2022 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,12 +9,15 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, q, r):
         x, x_indices = torch.max(x, dim=1, keepdim=False)
         y = torch.max(y)
         w = torch.max(z, w)
         z, z_indices = torch.max(z, dim=0, keepdim=True)
-        return x, y, z, w
+        q = F.max_pool2d(q, 1)
+        q0, q_indices = torch.max(q, dim=1, keepdim=False)
+        q1 = torch.max(q, r)
+        return x, y, z, w, q0, q1
 
 def test():
     net = Model()
@@ -36,16 +28,18 @@ def test():
     y = torch.rand(5, 9, 11)
     z = torch.rand(8, 5, 9, 10)
     w = torch.rand(5, 9, 10)
+    q = torch.rand(2, 3, 5, 7)
+    r = torch.rand(3, 5, 7)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, q, r)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, q, r))
     mod.save("test_torch_max.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_max.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[5,9,10]")
+    os.system("../../src/pnnx test_torch_max.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[5,9,10],[2,3,5,7],[3,5,7]")
 
     # ncnn inference
     import test_torch_max_ncnn

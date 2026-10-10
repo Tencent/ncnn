@@ -1,19 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/pooling3d.h"
 #include "testutil.h"
+
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_pooling3d(int w, int h, int d, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_w)
 {
@@ -32,7 +24,7 @@ static int test_pooling3d(int w, int h, int d, int c, int pooling_type, int kern
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Pooling3D>("Pooling3D", pd, weights, a);
+    int ret = test_layer("Pooling3D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pooling3d failed w=%d h=%d d=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, d, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);
@@ -250,6 +242,118 @@ static int test_pooling3d_4()
            || test_pooling3d(13, 12, 11, 16, 0, 1, 1, 0, 0, 0, 1, 0, 12);
 }
 
+#if NCNN_VALIDATION
+static int test_pooling3d_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
+        return -1;
+
+    // global pooling does not use the local stride
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+
+    return 0
+           || test_layer_param(ncnn::LayerType::Pooling3D, base, 2, 0, -1)
+           || test_layer_param(ncnn::LayerType::Pooling3D, global, 2, 0, 0);
+}
+
+static int test_pooling3d_load_param_type()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    for (int i = 0; i <= 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, 5, i, 0) != 0)
+            return -1;
+    }
+
+    // global and adaptive pooling do not use pad_mode
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict adaptive = base;
+    adaptive.set(4, 0);
+    adaptive.set(8, 1);
+    adaptive.set(7, 1);
+
+    const int invalid_pad[] = {-1, 4, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        int ret = 0
+                  || test_layer_param(ncnn::LayerType::Pooling3D, base, 5, invalid_pad[i], -1)
+                  || test_layer_param(ncnn::LayerType::Pooling3D, global, 5, invalid_pad[i], 0)
+                  || test_layer_param(ncnn::LayerType::Pooling3D, adaptive, 5, invalid_pad[i], 0);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+static int test_pooling3d_load_param_adaptive()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    base.set(7, 1);
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, -1) != 0)
+        return -1;
+
+    base.set(8, 2);
+    if (test_layer_param(ncnn::LayerType::Pooling3D, base, 0) != 0)
+        return -1;
+
+    base.set(18, 2);
+    base.set(28, 2);
+
+    // global and ordinary pooling ignore adaptive output sizes
+    ncnn::ParamDict global = base;
+    global.set(4, 1);
+    ncnn::ParamDict ordinary = base;
+    ordinary.set(4, 0);
+    ordinary.set(7, 0);
+
+    const int ids[] = {8, 18, 28};
+    const int invalid[] = {0, -1, -234, INT_MIN};
+    for (int i = 0; i < 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], 1, 0) != 0)
+            return -1;
+
+        if (test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], -233, 0) != 0)
+            return -1;
+
+        for (int j = 0; j < 4; j++)
+        {
+            int ret = 0
+                      || test_layer_param(ncnn::LayerType::Pooling3D, base, ids[i], invalid[j], -1)
+                      || test_layer_param(ncnn::LayerType::Pooling3D, global, ids[i], invalid[j], 0)
+                      || test_layer_param(ncnn::LayerType::Pooling3D, ordinary, ids[i], invalid[j], 0);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -259,5 +363,11 @@ int main()
            || test_pooling3d_1()
            || test_pooling3d_2()
            || test_pooling3d_3()
-           || test_pooling3d_4();
+           || test_pooling3d_4()
+#if NCNN_VALIDATION
+           || test_pooling3d_load_param()
+           || test_pooling3d_load_param_type()
+           || test_pooling3d_load_param_adaptive()
+#endif // NCNN_VALIDATION
+           ;
 }

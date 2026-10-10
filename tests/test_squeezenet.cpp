@@ -1,26 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 #include "net.h"
 #include "testutil.h"
 
 #include <stdio.h>
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
 
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
@@ -252,11 +237,13 @@ public:
         support_inplace = impl->support_inplace;
 
         support_packing = impl->support_packing;
+        support_any_packing = impl->support_any_packing;
         support_vulkan = impl->support_vulkan;
+        support_vulkan_packing = impl->support_vulkan_packing;
+        support_vulkan_any_packing = impl->support_vulkan_any_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
-        support_image_storage = impl->support_image_storage;
     }
 
     ~MyConvolution()
@@ -286,11 +273,13 @@ public:
         support_inplace = impl->support_inplace;
 
         support_packing = impl->support_packing;
+        support_any_packing = impl->support_any_packing;
         support_vulkan = impl->support_vulkan;
+        support_vulkan_packing = impl->support_vulkan_packing;
+        support_vulkan_any_packing = impl->support_vulkan_any_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
-        support_image_storage = impl->support_image_storage;
 
         return ret;
     }
@@ -312,11 +301,6 @@ public:
     }
 
     virtual int forward(const ncnn::VkMat& bottom_blob, ncnn::VkMat& top_blob, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
-    {
-        return impl->forward(bottom_blob, top_blob, cmd, opt);
-    }
-
-    virtual int forward(const ncnn::VkImageMat& bottom_blob, ncnn::VkImageMat& top_blob, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
     {
         return impl->forward(bottom_blob, top_blob, cmd, opt);
     }
@@ -416,15 +400,122 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     return check_top2(cls_scores, epsilon);
 }
 
+#if NCNN_BATCH
+static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
+{
+    ncnn::Net squeezenet;
+
+    squeezenet.opt = opt;
+
+    squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+    squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
+
+    const int B = 3;
+
+    ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
+    const float mean_vals[3] = {104.f, 117.f, 123.f};
+    in.substract_mean_normalize(mean_vals, 0);
+
+    std::vector<ncnn::Mat> inputs(B);
+    for (int b = 0; b < B; b++)
+    {
+        inputs[b] = in.clone();
+        if (inputs[b].empty())
+        {
+            fprintf(stderr, "test_squeezenet_batch input clone failed\n");
+            return -1;
+        }
+
+        const float bias = b * 0.25f;
+        for (int q = 0; q < inputs[b].c; q++)
+        {
+            float* ptr = inputs[b].channel(q);
+            for (int i = 0; i < inputs[b].w * inputs[b].h; i++)
+            {
+                ptr[i] += bias;
+            }
+        }
+    }
+
+    // single inference for reference
+    std::vector<ncnn::Mat> ref_outs(B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Extractor ex = squeezenet.create_extractor();
+        ex.input("data", inputs[b]);
+        ex.extract("prob", ref_outs[b]);
+
+        if (ref_outs[b].empty() || ref_outs[b].w != 1000)
+        {
+            fprintf(stderr, "test_squeezenet_batch reference output invalid batch=%d w=%d\n", b, ref_outs[b].w);
+            return -1;
+        }
+    }
+
+    // create batch input
+    ncnn::Mat in_batch;
+    in_batch.create(in.w, in.h, in.c, in.elemsize, in.elempack, B);
+    if (in_batch.empty())
+    {
+        fprintf(stderr, "test_squeezenet_batch create failed\n");
+        return -1;
+    }
+
+    size_t single_size = in.cstep * in.c * in.elemsize;
+    for (int b = 0; b < B; b++)
+    {
+        memcpy(in_batch.batch(b).data, inputs[b].data, single_size);
+    }
+
+    // batch inference
+    ncnn::Mat out_batch;
+    {
+        ncnn::Extractor ex = squeezenet.create_extractor();
+        ex.input("data", in_batch);
+        int ret = ex.extract("prob", out_batch);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch extract failed ret=%d\n", ret);
+            return -1;
+        }
+    }
+
+    if (out_batch.n != B)
+    {
+        fprintf(stderr, "test_squeezenet_batch output n expect %d got %d\n", B, out_batch.n);
+        return -1;
+    }
+    if (out_batch.dims != 1 || out_batch.w != 1000)
+    {
+        fprintf(stderr, "test_squeezenet_batch output shape mismatch dims=%d w=%d\n", out_batch.dims, out_batch.w);
+        return -1;
+    }
+
+    // compare each batch output against reference
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat out_b = out_batch.batch(b);
+        const float* ref_ptr = (const float*)ref_outs[b].data;
+        const float* out_ptr = (const float*)out_b.data;
+
+        for (int j = 0; j < 1000; j++)
+        {
+            if (!NearlyEqual(out_ptr[j], ref_ptr[j], epsilon))
+            {
+                fprintf(stderr, "test_squeezenet_batch mismatch at batch %d index %d: got %f expect %f\n",
+                        b, j, out_ptr[j], ref_ptr[j]);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BATCH
+
 int main()
 {
     SRAND(7767517);
-
-#ifdef __EMSCRIPTEN__
-    EM_ASM(
-        FS.mkdir('/working');
-        FS.mount(NODEFS, {root: '../../examples'}, '/working'););
-#endif // __EMSCRIPTEN__
 
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -435,33 +526,28 @@ int main()
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
-    opts[0].use_shader_pack8 = false;
-    opts[0].use_image_storage = false;
 
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_fp16_arithmetic = false;
-    opts[1].use_shader_pack8 = true;
-    opts[1].use_image_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = true;
     opts[2].use_fp16_arithmetic = false;
     opts[2].use_bf16_storage = false; // FIXME enable me
-    opts[2].use_shader_pack8 = true;
-    opts[2].use_image_storage = true;
     opts[2].blob_allocator = &g_blob_pool_allocator;
     opts[2].workspace_allocator = &g_workspace_pool_allocator;
+    opts[2].use_weights_in_host_memory = true;
+    opts[2].use_mapped_model_loading = true;
+    opts[2].use_local_pool_allocator = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
     opts[3].use_fp16_arithmetic = false; // FIXME enable me
     opts[3].use_bf16_storage = false;
-    opts[3].use_shader_pack8 = true;
-    opts[3].use_image_storage = true;
     opts[3].blob_allocator = &g_blob_pool_allocator;
     opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
@@ -493,7 +579,7 @@ int main()
         ret = test_squeezenet(opt_cpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 
@@ -503,7 +589,7 @@ int main()
         ret = test_squeezenet(opt_gpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 #endif // NCNN_VULKAN
@@ -511,7 +597,7 @@ int main()
         ret = test_squeezenet_overwrite_softmax(opt_cpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet_overwrite_softmax cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_squeezenet_overwrite_softmax cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 
@@ -519,11 +605,51 @@ int main()
         ret = test_squeezenet_overwrite_softmax(opt_gpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 #endif // NCNN_VULKAN
     }
+
+#if NCNN_BATCH
+    // batch inference tests
+    for (int i = 0; i < 4; i++)
+    {
+        const ncnn::Option& opt = opts[i];
+
+        float epsilon;
+        if (opt.use_bf16_storage || opt.use_fp16_packed || opt.use_fp16_storage)
+        {
+            epsilon = 0.1;
+        }
+        else
+        {
+            epsilon = 0.01;
+        }
+
+        int ret;
+
+        ncnn::Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        ret = test_squeezenet_batch(opt_cpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
+            return ret;
+        }
+
+#if NCNN_VULKAN
+        ncnn::Option opt_gpu = opt;
+        opt_gpu.use_vulkan_compute = true;
+        ret = test_squeezenet_batch(opt_gpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
+            return ret;
+        }
+#endif // NCNN_VULKAN
+    }
+#endif // NCNN_BATCH
 
     return 0;
 }

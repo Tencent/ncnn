@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_dynamic_adaptive_pool.h"
 
@@ -24,15 +13,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
+6 5
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outw value=%outw
-prim::ListConstruct     op_5        2 1 outh outw output_size
-F.adaptive_avg_pool2d   op_6        2 1 input output_size out
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outw value=%outw
+prim::ListConstruct     op_2        2 1 outh outw output_size
+F.adaptive_avg_pool2d   op_3        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -45,7 +31,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_3")->inputs[0]->shape.size();
         return (input_rank == 3 && h_axis == 1) || (input_rank == 4 && h_axis == 2);
     }
 
@@ -62,15 +48,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 8
+6 5
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outh value=%outh
-prim::ListConstruct     op_5        2 1 outh outw output_size
-F.adaptive_avg_pool2d   op_6        2 1 input output_size out
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::ListConstruct     op_2        2 1 outh outw output_size
+F.adaptive_avg_pool2d   op_3        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -83,7 +66,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_3")->inputs[0]->shape.size();
         return (input_rank == 3 && w_axis == 2) || (input_rank == 4 && w_axis == 3);
     }
 
@@ -100,15 +83,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 9
+6 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outw value=%outw
-prim::ListConstruct     op_5        2 1 outh outw output_size
-F.adaptive_max_pool2d   op_6        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outw value=%outw
+prim::ListConstruct     op_2        2 1 outh outw output_size
+F.adaptive_max_pool2d   op_3        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -121,7 +101,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_3")->inputs[0]->shape.size();
         return (input_rank == 3 && h_axis == 1) || (input_rank == 4 && h_axis == 2);
     }
 
@@ -139,15 +119,12 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-9 9
+6 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outh value=%outh
-prim::ListConstruct     op_5        2 1 outh outw output_size
-F.adaptive_max_pool2d   op_6        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::ListConstruct     op_2        2 1 outh outw output_size
+F.adaptive_max_pool2d   op_3        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -160,7 +137,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_3")->inputs[0]->shape.size();
         return (input_rank == 3 && w_axis == 2) || (input_rank == 4 && w_axis == 3);
     }
 
@@ -178,16 +155,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 outh value=%outh
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -200,7 +174,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int d_axis = captured_params.at("d_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1) || (input_rank == 5 && d_axis == 2);
     }
 
@@ -218,16 +192,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -240,7 +211,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2) || (input_rank == 5 && h_axis == 3);
     }
 
@@ -258,16 +229,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 9
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outh value=%outh
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_7        2 1 input output_size out
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -280,7 +248,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && w_axis == 3) || (input_rank == 5 && w_axis == 4);
     }
 
@@ -298,19 +266,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 h_axis value=%h_axis
-aten::size              op_5        2 1 input h_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outh
-prim::Constant          op_8        0 1 outw value=%outw
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outh dim=%h_axis
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -324,7 +286,7 @@ pnnx.Output             output      1 0 out
     {
         int d_axis = captured_params.at("d_axis").i;
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && h_axis == 2) || (input_rank == 5 && d_axis == 2 && h_axis == 3);
     }
 
@@ -341,19 +303,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outh value=%outh
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -367,7 +323,7 @@ pnnx.Output             output      1 0 out
     {
         int d_axis = captured_params.at("d_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && w_axis == 3) || (input_rank == 5 && d_axis == 2 && w_axis == 4);
     }
 
@@ -384,19 +340,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 12
+7 6
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outd value=%outd
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_avg_pool3d   op_10       2 1 input output_size out
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outd value=%outd
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_avg_pool3d   op_4        2 1 input output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -410,7 +360,7 @@ pnnx.Output             output      1 0 out
     {
         int h_axis = captured_params.at("h_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2 && w_axis == 3) || (input_rank == 5 && h_axis == 3 && w_axis == 4);
     }
 
@@ -427,16 +377,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 outh value=%outh
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+prim::Constant          op_1        0 1 outh value=%outh
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -449,7 +396,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int d_axis = captured_params.at("d_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1) || (input_rank == 5 && d_axis == 2);
     }
 
@@ -468,16 +415,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outw value=%outw
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -490,7 +434,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2) || (input_rank == 5 && h_axis == 3);
     }
 
@@ -509,16 +453,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-10 10
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 w_axis value=%w_axis
-aten::size              op_1        2 1 input w_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outw
-prim::Constant          op_4        0 1 outd value=%outd
-prim::Constant          op_5        0 1 outh value=%outh
-prim::ListConstruct     op_6        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_7        2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outw dim=%w_axis
+prim::Constant          op_1        0 1 outd value=%outd
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -531,7 +472,7 @@ pnnx.Output             output      2 0 out indices
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_7")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && w_axis == 3) || (input_rank == 5 && w_axis == 4);
     }
 
@@ -550,19 +491,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 h_axis value=%h_axis
-aten::size              op_5        2 1 input h_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outh
-prim::Constant          op_8        0 1 outw value=%outw
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outh dim=%h_axis
+prim::Constant          op_2        0 1 outw value=%outw
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -576,7 +511,7 @@ pnnx.Output             output      2 0 out indices
     {
         int d_axis = captured_params.at("d_axis").i;
         int h_axis = captured_params.at("h_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && h_axis == 2) || (input_rank == 5 && d_axis == 2 && h_axis == 3);
     }
 
@@ -594,19 +529,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 d_axis value=%d_axis
-aten::size              op_1        2 1 input d_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outd
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outh value=%outh
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outd dim=%d_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outh value=%outh
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -620,7 +549,7 @@ pnnx.Output             output      2 0 out indices
     {
         int d_axis = captured_params.at("d_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && d_axis == 1 && w_axis == 3) || (input_rank == 5 && d_axis == 2 && w_axis == 4);
     }
 
@@ -638,19 +567,13 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-13 13
+7 7
 pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 h_axis value=%h_axis
-aten::size              op_1        2 1 input h_axis 4
-prim::NumToTensor       op_2        1 1 4 5
-aten::Int               op_3        1 1 5 outh
-prim::Constant          op_4        0 1 w_axis value=%w_axis
-aten::size              op_5        2 1 input w_axis 6
-prim::NumToTensor       op_6        1 1 6 7
-aten::Int               op_7        1 1 7 outw
-prim::Constant          op_8        0 1 outd value=%outd
-prim::ListConstruct     op_9        3 1 outd outh outw output_size
-F.adaptive_max_pool3d   op_10       2 2 input output_size out indices return_indices=True
+Tensor.size             op_0        1 1 input outh dim=%h_axis
+Tensor.size             op_1        1 1 input outw dim=%w_axis
+prim::Constant          op_2        0 1 outd value=%outd
+prim::ListConstruct     op_3        3 1 outd outh outw output_size
+F.adaptive_max_pool3d   op_4        2 2 input output_size out indices return_indices=True
 pnnx.Output             output      2 0 out indices
 )PNNXIR";
     }
@@ -664,7 +587,7 @@ pnnx.Output             output      2 0 out indices
     {
         int h_axis = captured_params.at("h_axis").i;
         int w_axis = captured_params.at("w_axis").i;
-        size_t input_rank = matched_operators.at("op_10")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_4")->inputs[0]->shape.size();
         return (input_rank == 4 && h_axis == 2 && w_axis == 3) || (input_rank == 5 && h_axis == 3 && w_axis == 4);
     }
 

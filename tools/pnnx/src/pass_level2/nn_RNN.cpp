@@ -1,0 +1,468 @@
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "pass_level2.h"
+
+namespace pnnx {
+
+class nn_RNN_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         3 1 input W R out %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      1 0 out1
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.RNN";
+    }
+
+    const char* name_str() const
+    {
+        return "rnn";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (captured_params.find("rnn.hidden_size") == captured_params.end())
+            return false;
+
+        const int hidden_size = captured_params.at("rnn.hidden_size").i;
+
+        std::string direction = "forward";
+        if (captured_params.find("rnn.direction") != captured_params.end())
+        {
+            direction = captured_params.at("rnn.direction").s;
+        }
+
+        if (direction != "forward" && direction != "bidirectional")
+            return false;
+
+        const int num_directions = direction == "bidirectional" ? 2 : 1;
+
+        if (captured_params.find("rnn.activations") != captured_params.end())
+        {
+            const std::vector<std::string>& acts = captured_params.at("rnn.activations").as;
+
+            if (num_directions == 1)
+            {
+                if (acts != std::vector<std::string>{"Tanh"} && acts != std::vector<std::string>{"Relu"})
+                    return false;
+            }
+            else // if (num_directions == 2)
+            {
+                if (acts != std::vector<std::string>{"Tanh", "Tanh"} && acts != std::vector<std::string>{"Relu", "Relu"})
+                    return false;
+            }
+        }
+
+        if (captured_params.find("dim") != captured_params.end())
+        {
+            if (captured_params.at("dim").type == 2 && captured_params.at("dim").i != 1)
+                return false;
+
+            if (captured_params.at("dim").type == 5 && captured_params.at("dim").ai != std::vector<int>{1})
+                return false;
+        }
+
+        const auto& W = captured_attrs.at("W.data");
+        const auto& R = captured_attrs.at("R.data");
+
+        if (W.shape.size() != 3 || W.shape[0] != num_directions || W.shape[1] != hidden_size)
+            return false;
+
+        if (R.shape.size() != 3 || R.shape[0] != num_directions || R.shape[1] != hidden_size || R.shape[2] != hidden_size)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        std::string direction = "forward";
+        if (captured_params.find("rnn.direction") != captured_params.end())
+        {
+            direction = captured_params.at("rnn.direction").s;
+        }
+
+        std::string act = "Tanh";
+        if (captured_params.find("rnn.activations") != captured_params.end())
+        {
+            act = captured_params.at("rnn.activations").as[0];
+        }
+
+        const auto& W = captured_attrs.at("W.data");
+        const auto& R = captured_attrs.at("R.data");
+
+        bool batch_first = false;
+        if (captured_params.find("rnn.layout") != captured_params.end())
+        {
+            const int layout = captured_params.at("rnn.layout").i;
+            batch_first = layout == 1;
+        }
+
+        const int hidden_size = captured_params.at("rnn.hidden_size").i;
+
+        const int input_size = W.shape[2];
+
+        op->params["input_size"] = input_size;
+        op->params["hidden_size"] = hidden_size;
+        op->params["num_layers"] = 1;
+        op->params["nonlinearity"] = act == "Relu" ? "relu" : "tanh";
+        op->params["bias"] = false;
+        op->params["batch_first"] = batch_first;
+        op->params["bidirectional"] = direction == "bidirectional" ? true : false;
+
+        // split W R
+        auto W_data = W.get_float32_data();
+        auto R_data = R.get_float32_data();
+
+        if (direction == "bidirectional")
+        {
+            op->attrs["weight_ih_l0"] = Attribute({hidden_size, input_size}, std::vector<float>(W_data.begin(), W_data.begin() + hidden_size * input_size));
+            op->attrs["weight_hh_l0"] = Attribute({hidden_size, hidden_size}, std::vector<float>(R_data.begin(), R_data.begin() + hidden_size * hidden_size));
+
+            op->attrs["weight_ih_l0_reverse"] = Attribute({hidden_size, input_size}, std::vector<float>(W_data.begin() + hidden_size * input_size, W_data.end()));
+            op->attrs["weight_hh_l0_reverse"] = Attribute({hidden_size, hidden_size}, std::vector<float>(R_data.begin() + hidden_size * hidden_size, R_data.end()));
+        }
+        else
+        {
+            op->attrs["weight_ih_l0"] = Attribute({hidden_size, input_size}, W_data);
+            op->attrs["weight_hh_l0"] = Attribute({hidden_size, hidden_size}, R_data);
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx, 140)
+
+class nn_RNN_onnx_B : public nn_RNN_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         4 1 input W R B out %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      1 0 out1
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!nn_RNN_onnx::match(captured_params, captured_attrs))
+            return false;
+
+        const int hidden_size = captured_params.at("rnn.hidden_size").i;
+
+        std::string direction = "forward";
+        if (captured_params.find("rnn.direction") != captured_params.end())
+        {
+            direction = captured_params.at("rnn.direction").s;
+        }
+
+        const int num_directions = direction == "bidirectional" ? 2 : 1;
+
+        const auto& B = captured_attrs.at("B.data");
+
+        if (B.shape.size() != 2 || B.shape[0] != num_directions || B.shape[1] != 2 * hidden_size)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        nn_RNN_onnx::write(op, captured_params, captured_attrs);
+
+        const auto& B = captured_attrs.at("B.data");
+
+        bool has_bias = false;
+        for (auto b : B.get_float32_data())
+        {
+            if (b != 0.f)
+            {
+                has_bias = true;
+                break;
+            }
+        }
+
+        op->params["bias"] = has_bias;
+
+        if (has_bias)
+        {
+            // split B
+            auto B_data = B.get_float32_data();
+
+            const int hidden_size = captured_params.at("rnn.hidden_size").i;
+
+            std::string direction = "forward";
+            if (captured_params.find("rnn.direction") != captured_params.end())
+            {
+                direction = captured_params.at("rnn.direction").s;
+            }
+
+            if (direction == "bidirectional")
+            {
+                op->attrs["bias_ih_l0"] = Attribute({hidden_size}, std::vector<float>(B_data.begin(), B_data.begin() + hidden_size));
+                op->attrs["bias_hh_l0"] = Attribute({hidden_size}, std::vector<float>(B_data.begin() + hidden_size, B_data.begin() + hidden_size * 2));
+
+                op->attrs["bias_ih_l0_reverse"] = Attribute({hidden_size}, std::vector<float>(B_data.begin() + hidden_size * 2, B_data.begin() + hidden_size * 3));
+                op->attrs["bias_hh_l0_reverse"] = Attribute({hidden_size}, std::vector<float>(B_data.begin() + hidden_size * 3, B_data.end()));
+            }
+            else
+            {
+                op->attrs["bias_ih_l0"] = Attribute({hidden_size}, std::vector<float>(B_data.begin(), B_data.begin() + hidden_size));
+                op->attrs["bias_hh_l0"] = Attribute({hidden_size}, std::vector<float>(B_data.begin() + hidden_size, B_data.end()));
+            }
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B, 140)
+
+class nn_RNN_onnx_1 : public nn_RNN_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         4 2 input W R initial_h out outh %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      2 0 out1 outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_1, 140)
+
+class nn_RNN_onnx_B1 : public nn_RNN_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      2 0 out1 outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B1, 140)
+
+class nn_RNN_onnx_2 : public nn_RNN_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         4 1 input W R initial_h out %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      1 0 out1
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_2, 140)
+
+class nn_RNN_onnx_B2 : public nn_RNN_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         5 1 input W R B initial_h out %*=%*
+torch.squeeze           sqz         1 1 out out1 dim=%dim
+pnnx.Output             output      1 0 out1
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B2, 140)
+
+class nn_RNN_onnx_3 : public nn_RNN_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         3 1 input W R out %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      1 0 out2
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!nn_RNN_onnx::match(captured_params, captured_attrs))
+            return false;
+
+        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
+            return false;
+
+        return true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_3, 140)
+
+class nn_RNN_onnx_B3 : public nn_RNN_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         4 1 input W R B out %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      1 0 out2
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        if (!nn_RNN_onnx_B::match(captured_params, captured_attrs))
+            return false;
+
+        if (captured_params.at("reshape.shape").ai != std::vector<int>{0, 0, -1})
+            return false;
+
+        return true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B3, 140)
+
+class nn_RNN_onnx_4 : public nn_RNN_onnx_3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         4 2 input W R initial_h out outh %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      2 0 out2 outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_4, 140)
+
+class nn_RNN_onnx_B4 : public nn_RNN_onnx_B3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 9
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         5 2 input W R B initial_h out outh %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      2 0 out2 outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B4, 140)
+
+class nn_RNN_onnx_5 : public nn_RNN_onnx_3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+RNN                     rnn         4 1 input W R initial_h out %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      1 0 out2
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_5, 140)
+
+class nn_RNN_onnx_B5 : public nn_RNN_onnx_B3
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+RNN                     rnn         5 1 input W R B initial_h out %*=%*
+Tensor.permute          transpose   1 1 out out1 dims=(0,2,1,3)
+Tensor.reshape          reshape     1 1 out1 out2 %*=%*
+pnnx.Output             output      1 0 out2
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_onnx_B5, 140)
+
+} // namespace pnnx

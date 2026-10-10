@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2020 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import os
@@ -21,7 +10,7 @@ from .. import EXEC_PATH
 def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_types = None,
             input_shapes2 = None, input_types2 = None, device = None, customop = None,
             moduleop = None, optlevel = None, pnnxparam = None, pnnxbin = None,
-            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None):
+            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None, fp16 = True):
 
     check_type(ptpath, "modelname", [str], "str")
     check_type(inputs, "inputs", [torch.Tensor, tuple, list], "torch.Tensor or tuple/list of torch.Tensor")
@@ -106,6 +95,8 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             command_list.append("ncnnbin=" + ncnnbin)
         if not (ncnnpy is None):
             command_list.append("ncnnpy=" + ncnnpy)
+        if not (fp16 is True):
+            command_list.append("fp16=0")
         current_dir = os.getcwd()
         subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
 
@@ -155,6 +146,9 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
     # return pnnx model
     if pnnxpy is None:
         pnnxpy = os.path.splitext(ptpath)[0] + '_pnnx.py'
+
+    # sanitize aaa/bbb-ccc/xxx-yyy.py to aaa/bbb-ccc/xxx_yyy.py
+    pnnxpy = os.path.join(os.path.dirname(pnnxpy), os.path.basename(pnnxpy).replace('-', '_'))
 
     pnnx_module_name = os.path.splitext(pnnxpy)[0]
 

@@ -1,19 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/copyto.h"
 #include "testutil.h"
+
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset, int hoffset, int doffset, int coffset)
 {
@@ -29,7 +21,7 @@ static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset,
     as[0] = self;
     as[1] = src;
 
-    int ret = test_layer<ncnn::CopyTo>("CopyTo", pd, weights, as, 1);
+    int ret = test_layer("CopyTo", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_copyto failed self.dims=%d self=(%d %d %d %d) src.dims=%d src=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d\n", self.dims, self.w, self.h, self.d, self.c, src.dims, src.w, src.h, src.d, src.c, woffset, hoffset, doffset, coffset);
@@ -201,6 +193,51 @@ static int test_copyto_4()
            || test_copyto(RandomMat(3, 4, 5, 16), RandomMat(3, 4, 5, 16), 0, 0, 0, 0);
 }
 
+static ncnn::Mat param_int_array(int size, int value)
+{
+    ncnn::Mat m(size);
+    int* p = m;
+    for (int i = 0; i < size; i++)
+        p[i] = value;
+
+    return m;
+}
+
+#if NCNN_VALIDATION
+static int test_copyto_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(9, param_int_array(1, 0));
+    base.set(11, param_int_array(1, 0));
+    if (test_layer_param(ncnn::LayerType::CopyTo, base, 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 9, ncnn::Mat(0), 0)
+            || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(0), 0))
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(11, ncnn::Mat(0));
+        pd.set(9, ncnn::Mat(0));
+        if (test_layer_param(ncnn::LayerType::CopyTo, pd, 0) != 0)
+            return -1;
+    }
+
+    ncnn::Mat missing_data(0);
+    missing_data.w = 1;
+
+    return 0
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, missing_data, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, (size_t)1u), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, ncnn::Mat(1, 2), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, 1.f, -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(5, 1), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 11, param_int_array(1, INT_MIN), -1)
+           || test_layer_param(ncnn::LayerType::CopyTo, base, 9, param_int_array(2, 0), -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(776757);
@@ -210,5 +247,9 @@ int main()
            || test_copyto_1()
            || test_copyto_2()
            || test_copyto_3()
-           || test_copyto_4();
+           || test_copyto_4()
+#if NCNN_VALIDATION
+           || test_copyto_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

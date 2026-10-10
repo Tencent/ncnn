@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -3919,10 +3908,10 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
-                        "shrn   v21.4h, v21.4s, #16         \n"
-                        "shrn   v22.4h, v22.4s, #16         \n"
-                        "shrn   v23.4h, v23.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
+                        "rshrn  v21.4h, v21.4s, #16         \n"
+                        "rshrn  v22.4h, v22.4s, #16         \n"
+                        "rshrn  v23.4h, v23.4s, #16         \n"
 
                         "st1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%0], #32 \n"
 
@@ -4655,10 +4644,10 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %7, %7, #768        \n" // kptr -= 24 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
-                        "vshrn.u32  d26, q14, #16       \n"
-                        "vshrn.u32  d27, q15, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
+                        "vrshrn.u32 d26, q14, #16       \n"
+                        "vrshrn.u32 d27, q15, #16       \n"
 
                         "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
@@ -5107,8 +5096,8 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
-                        "shrn   v21.4h, v21.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
+                        "rshrn  v21.4h, v21.4s, #16         \n"
 
                         "st1    {v20.4h, v21.4h}, [%0], #16 \n"
 
@@ -5594,8 +5583,8 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %7, %7, #768        \n" // kptr -= 24 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
 
                         "vst1.u16   {d24-d25}, [%0 :64]! \n"
 
@@ -5937,7 +5926,7 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
 
                         "st1    {v20.4h}, [%0], #8          \n"
 
@@ -6293,7 +6282,7 @@ static void conv5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %7, %7, #768        \n" // kptr -= 24 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
 
                         "vst1.u16   {d24}, [%0 :64]!    \n"
 
@@ -10436,10 +10425,10 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
-                        "shrn   v21.4h, v21.4s, #16         \n"
-                        "shrn   v22.4h, v22.4s, #16         \n"
-                        "shrn   v23.4h, v23.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
+                        "rshrn  v21.4h, v21.4s, #16         \n"
+                        "rshrn  v22.4h, v22.4s, #16         \n"
+                        "rshrn  v23.4h, v23.4s, #16         \n"
 
                         "st1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%0], #32 \n"
 
@@ -11237,10 +11226,10 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "sub        %5, %5, #16         \n"
                         "sub        %6, %6, #16         \n"
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
-                        "vshrn.u32  d26, q14, #16       \n"
-                        "vshrn.u32  d27, q15, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
+                        "vrshrn.u32 d26, q14, #16       \n"
+                        "vrshrn.u32 d27, q15, #16       \n"
 
                         "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
@@ -11733,8 +11722,8 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
-                        "shrn   v21.4h, v21.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
+                        "rshrn  v21.4h, v21.4s, #16         \n"
 
                         "st1    {v20.4h, v21.4h}, [%0], #16 \n"
 
@@ -12223,8 +12212,8 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %7, %7, #768        \n" // kptr -= 24 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
-                        "vshrn.u32  d25, q13, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
+                        "vrshrn.u32 d25, q13, #16       \n"
 
                         "vst1.u16   {d24-d25}, [%0 :64]! \n"
 
@@ -12583,7 +12572,7 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub    %7, %7, #768                \n" // kptr -= 24 * 16;
 
-                        "shrn   v20.4h, v20.4s, #16         \n"
+                        "rshrn  v20.4h, v20.4s, #16         \n"
 
                         "st1    {v20.4h}, [%0], #8          \n"
 
@@ -12939,7 +12928,7 @@ static void conv5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         "sub        %7, %7, #768        \n" // kptr -= 24 * 16;
 
-                        "vshrn.u32  d24, q12, #16       \n"
+                        "vrshrn.u32 d24, q12, #16       \n"
 
                         "vst1.u16   {d24}, [%0 :64]!    \n"
 

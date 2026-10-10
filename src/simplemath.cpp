@@ -1,25 +1,13 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
-#define __HI(X)       *(1 + (short*)&x)
-#define __LO(X)       *(short*)&x
-#define INFINITY      (1.0 / 0)
+#define __HI(X)       *(1 + (short*)&(X))
+#define __LO(X)       *(short*)&(X)
 #define FE_TONEAREST  0
 #define FE_DOWNWARD   1024
 #define FE_UPWARD     2048
@@ -34,16 +22,18 @@ static const float PI = 3.14159265358979323846;
 static const float PI_2 = 1.57079632679489661923; /* PI/2 */
 static const float E = 2.71828182845904523536;
 
-/* re-interpret the bit pattern of a uint32 as an IEEE-754 float */
-static float uint32_as_float(uint32_t a)
+typedef char simplemath_unsigned_int_must_be_32bit[sizeof(unsigned int) == 4 ? 1 : -1];
+
+/* re-interpret the bit pattern of an unsigned int as an IEEE-754 float */
+static float uint32_as_float(unsigned int a)
 {
-    float r;
-    float* rp = &r;
-    uint32_t* ap = &a;
-
-    *rp = *(float*)ap;
-
-    return r;
+    union
+    {
+        unsigned int i;
+        float f;
+    } u;
+    u.i = a;
+    return u.f;
 }
 
 #ifdef __cplusplus
@@ -134,6 +124,39 @@ float truncf(float x)
 float frac(float x)
 {
     return x - floor(x);
+}
+
+float fmodf(float x, float y)
+{
+    float m = frac(fabsf(x / y)) * fabsf(y);
+    return (x < 0) ? -m : m;
+}
+
+float remainderf(float x, float y)
+{
+    if (y == 0.0f)
+    {
+        return x;
+    }
+    float q = x / y;
+    float rq;
+    float absq = fabsf(q);
+    float intpart = floorf(absq);
+    float fracpart = absq - intpart;
+    if (fracpart > 0.5f)
+    {
+        intpart += 1.0f;
+    }
+    else if (fracpart == 0.5f)
+    {
+        int n = (int)intpart;
+        if (n % 2 != 0)
+        {
+            intpart += 1.0f;
+        }
+    }
+    rq = (q >= 0) ? intpart : -intpart;
+    return x - rq * y;
 }
 
 /*
@@ -314,14 +337,39 @@ float atan2f(float y, float x)
     }
 }
 
-float tanhf(float v)
+float sinhf(float x)
 {
-    if (v >= 8 || v <= -8)
+    return 0.5 * (expf(x) - expf(-x));
+}
+
+float coshf(float x)
+{
+    return 0.5 * (expf(x) + expf(-x));
+}
+
+float tanhf(float x)
+{
+    if (x >= 8 || x <= -8)
     {
-        return copysignf(1, v);
+        return copysignf(1, x);
     }
-    float exp2v = expf(2 * v);
+    float exp2v = expf(2 * x);
     return (exp2v - 1) / (exp2v + 1);
+}
+
+float asinhf(float x)
+{
+    return logf(x + sqrtf(x * x + 1));
+}
+
+float acoshf(float x)
+{
+    return logf(x + sqrtf(x * x - 1));
+}
+
+float atanhf(float x)
+{
+    return 0.5f * logf((1 + x) / (1 - x));
 }
 
 /*
@@ -439,11 +487,11 @@ float expf(float a)
     r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
 
     float s, t;
-    uint32_t ia;
+    unsigned int ia;
     // exp(a) = 2**i * r
     ia = (i > 0) ? 0 : 0x83000000u;
     s = uint32_as_float(0x7f000000u + ia);
-    t = uint32_as_float(((uint32_t)i << 23) - ia);
+    t = uint32_as_float(((unsigned int)i << 23) - ia);
     r = r * s;
     r = r * t;
 
@@ -451,6 +499,20 @@ float expf(float a)
     if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
 
     return r;
+}
+
+float expm1f(float x)
+{
+    if (x == 0.0f)
+    {
+        return x;
+    }
+    if (fabsf(x) < 1e-4f)
+    {
+        float x2 = x * x;
+        return fmaf(x2, fmaf(x, 1.0f / 6.0f, 0.5f), x);
+    }
+    return expf(x) - 1.0f;
 }
 
 float frexp(float x, int* y)
@@ -475,6 +537,28 @@ float log10f(float x)
 {
     static const float ln10 = 2.3025850929940456840179914546844;
     return logf(x) / ln10;
+}
+
+float log1pf(float x)
+{
+    if (x == 0.0f)
+    {
+        return x;
+    }
+    if (x < -1.0f)
+    {
+        return (x - x) / (x - x); // NaN
+    }
+    if (x == -1.0f)
+    {
+        return -INFINITY;
+    }
+    float u = 1.0f + x;
+    if (u == 1.0f)
+    {
+        return x;
+    }
+    return logf(u) * (x / (u - 1.0f));
 }
 
 /*
@@ -618,6 +702,8 @@ float nearbyintf(float x)
             return round(x);
         }
     }
+
+    return x;
 }
 
 #ifdef __cplusplus

@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import shutil
 import subprocess
 
 from setuptools import setup, find_packages, Extension
@@ -37,6 +38,7 @@ OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
 ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
 ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+EXTRA_CMAKE_ARGS = os.getenv("EXTRA_CMAKE_ARGS", "").split()
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -85,13 +87,17 @@ class CMakeBuild(build_ext):
         # Can be set with Conda-Build, for example.
         cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
 
-        # Set Python_EXECUTABLE instead if you use PYBIND11_FINDPYTHON
+        # pybind11 v3 defaults to CMake's FindPython, which honors Python_EXECUTABLE
+        # (not the legacy PYTHON_EXECUTABLE). Pass both so the right interpreter
+        # is picked up regardless of which finder pybind11 ends up using.
         # EXAMPLE_VERSION_INFO shows you how to pass a value into the C++ code
         # from Python.
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
+            "-DPython_EXECUTABLE={}".format(sys.executable),
+            "-DPython3_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
             "-DNCNN_VULKAN=ON",
@@ -128,6 +134,8 @@ class CMakeBuild(build_ext):
         if ENABLE_VISIBILITY != "":
             cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
 
+        cmake_args += EXTRA_CMAKE_ARGS
+
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
@@ -159,7 +167,9 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j4"]
+                # Automatically set parallel jobs based on CPU core count
+                cpu_count = os.cpu_count() or 1
+                build_args += ["-j{}".format(cpu_count)]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -176,6 +186,11 @@ if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
 requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+setup_requires = []
+if shutil.which("cmake") is None:
+    setup_requires += ["cmake>=3.12"]
+if shutil.which("ninja") is None:
+    setup_requires += ["ninja; sys_platform != 'win32'"]
 
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
@@ -199,13 +214,19 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     license="BSD-3",
     python_requires=">=3.5",
     packages=find_packages("python"),
     package_dir={"": "python"},
+    setup_requires=setup_requires,
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
     cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},

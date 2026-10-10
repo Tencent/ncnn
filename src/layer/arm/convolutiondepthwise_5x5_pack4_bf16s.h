@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -516,14 +505,14 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v30.4s, v15.4s, v22.4s      \n"
                     "fmla   v31.4s, v15.4s, v23.4s      \n"
 
-                    "shrn   v24.4h, v24.4s, #16         \n"
-                    "shrn   v25.4h, v25.4s, #16         \n"
-                    "shrn   v26.4h, v26.4s, #16         \n"
-                    "shrn   v27.4h, v27.4s, #16         \n"
-                    "shrn   v28.4h, v28.4s, #16         \n"
-                    "shrn   v29.4h, v29.4s, #16         \n"
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v24.4h, v24.4s, #16         \n"
+                    "rshrn  v25.4h, v25.4s, #16         \n"
+                    "rshrn  v26.4h, v26.4s, #16         \n"
+                    "rshrn  v27.4h, v27.4s, #16         \n"
+                    "rshrn  v28.4h, v28.4s, #16         \n"
+                    "rshrn  v29.4h, v29.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
                     "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
@@ -798,10 +787,10 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v30.4s, v15.4s, v26.4s      \n"
                     "fmla   v31.4s, v15.4s, v27.4s      \n"
 
-                    "shrn   v28.4h, v28.4s, #16         \n"
-                    "shrn   v29.4h, v29.4s, #16         \n"
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v28.4h, v28.4s, #16         \n"
+                    "rshrn  v29.4h, v29.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v28.4h, v29.4h}, [%0], #16 \n"
                     "st1    {v30.4h, v31.4h}, [%1], #16 \n"
@@ -1029,8 +1018,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v30.4h}, [%0], #8          \n"
                     "st1    {v31.4h}, [%1], #8          \n"
@@ -1330,10 +1319,10 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v30.4s, v14.4s, v22.4s      \n"
                     "fmla   v31.4s, v14.4s, v23.4s      \n"
 
-                    "shrn   v28.4h, v28.4s, #16         \n"
-                    "shrn   v29.4h, v29.4s, #16         \n"
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v28.4h, v28.4s, #16         \n"
+                    "rshrn  v29.4h, v29.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%0], #32 \n"
 
@@ -1626,10 +1615,10 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "sub        %7, %7, #192        \n" // kptr -= 24 * 4;
 
-                    "vshrn.u32  d24, q12, #16       \n"
-                    "vshrn.u32  d25, q13, #16       \n"
-                    "vshrn.u32  d26, q14, #16       \n"
-                    "vshrn.u32  d27, q15, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
+                    "vrshrn.u32 d25, q13, #16       \n"
+                    "vrshrn.u32 d26, q14, #16       \n"
+                    "vrshrn.u32 d27, q15, #16       \n"
 
                     "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
@@ -1804,8 +1793,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v30.4h, v31.4h}, [%0], #16 \n"
 
@@ -2005,8 +1994,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "sub        %7, %7, #192        \n" // kptr -= 24 * 4;
 
-                    "vshrn.u32  d24, q12, #16       \n"
-                    "vshrn.u32  d25, q13, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
+                    "vrshrn.u32 d25, q13, #16       \n"
 
                     "vst1.u16   {d24-d25}, [%0 :64]! \n"
 
@@ -2159,7 +2148,7 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v31.4s, v31.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v31.4h}, [%0], #8          \n"
 
@@ -2328,7 +2317,7 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "sub        %7, %7, #192        \n" // kptr -= 24 * 4;
 
-                    "vshrn.u32  d24, q12, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
 
                     "vst1.u16   {d24}, [%0 :64]!    \n"
 
@@ -2676,10 +2665,10 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v30.4s, v14.4s, v24.4s      \n"
                     "fmla   v31.4s, v14.4s, v26.4s      \n"
 
-                    "shrn   v28.4h, v28.4s, #16         \n"
-                    "shrn   v29.4h, v29.4s, #16         \n"
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v28.4h, v28.4s, #16         \n"
+                    "rshrn  v29.4h, v29.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%0], #32 \n"
 
@@ -3037,10 +3026,10 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "sub        %5, %5, #16         \n"
                     "sub        %6, %6, #16         \n"
 
-                    "vshrn.u32  d24, q12, #16       \n"
-                    "vshrn.u32  d25, q13, #16       \n"
-                    "vshrn.u32  d26, q14, #16       \n"
-                    "vshrn.u32  d27, q15, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
+                    "vrshrn.u32 d25, q13, #16       \n"
+                    "vrshrn.u32 d26, q14, #16       \n"
+                    "vrshrn.u32 d27, q15, #16       \n"
 
                     "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
@@ -3225,8 +3214,8 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                    "shrn   v30.4h, v30.4s, #16         \n"
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v30.4h, v30.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v30.4h, v31.4h}, [%0], #16 \n"
 
@@ -3439,8 +3428,8 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "sub        %7, %7, #192        \n" // kptr -= 24 * 4;
 
-                    "vshrn.u32  d24, q12, #16       \n"
-                    "vshrn.u32  d25, q13, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
+                    "vrshrn.u32 d25, q13, #16       \n"
 
                     "vst1.u16   {d24-d25}, [%0 :64]! \n"
 
@@ -3598,7 +3587,7 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fadd   v31.4s, v31.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
-                    "shrn   v31.4h, v31.4s, #16         \n"
+                    "rshrn  v31.4h, v31.4s, #16         \n"
 
                     "st1    {v31.4h}, [%0], #8          \n"
 
@@ -3784,7 +3773,7 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "vadd.f32   q12, q12, q14       \n"
 
-                    "vshrn.u32  d24, q12, #16       \n"
+                    "vrshrn.u32 d24, q12, #16       \n"
 
                     "vst1.u16   {d24}, [%0 :64]!    \n"
 

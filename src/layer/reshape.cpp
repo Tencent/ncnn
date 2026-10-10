@@ -1,18 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "reshape.h"
+
+#include "expression.h"
+
+#include <string.h>
 
 namespace ncnn {
 
@@ -20,15 +13,29 @@ Reshape::Reshape()
 {
     one_blob_only = true;
     support_inplace = false;
+#if NCNN_BATCH
+    input_batch_axis = 233;
+    output_batch_axis = 233;
+#endif
 }
 
 int Reshape::load_param(const ParamDict& pd)
 {
+    one_blob_only = true;
+    support_batch = false;
+
     w = pd.get(0, -233);
     h = pd.get(1, -233);
     d = pd.get(11, -233);
     c = pd.get(2, -233);
-    permute = pd.get(3, 0);
+    shape_expr = pd.get(6, "");
+#if NCNN_BATCH
+    input_batch_axis = pd.get(12, 233);
+    output_batch_axis = pd.get(13, 233);
+#else
+    const int input_batch_axis = pd.get(12, 233);
+    const int output_batch_axis = pd.get(13, 233);
+#endif
 
     ndim = 4;
     if (d == -233)
@@ -40,22 +47,93 @@ int Reshape::load_param(const ParamDict& pd)
     if (w == -233)
         ndim = 0;
 
+#if NCNN_BATCH
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+    {
+        support_batch = true;
+    }
+#else
+    if (input_batch_axis != 233 || output_batch_axis != 233)
+    {
+        NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch inference");
+        return -1;
+    }
+#endif
+
+    int max_ndim = 4;
+#if NCNN_BATCH
+    if (output_batch_axis != 233)
+        max_ndim = 5;
+#endif
+
+    // count reference blobs
+    if (!shape_expr.empty())
+    {
+        int blob_count;
+        bool has_batch;
+        if (analyze_list_expression(shape_expr, ndim, blob_count, has_batch) != 0)
+            return -1;
+#if NCNN_BATCH
+        // only input0 is data, the other inputs provide shape information
+        if (blob_count > 1 || has_batch)
+            support_batch = true;
+#else
+        if (has_batch)
+        {
+            NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch dimension expressions");
+            return -1;
+        }
+#endif
+        if (blob_count > 1)
+            one_blob_only = false;
+
+        if (ndim < 1 || ndim > max_ndim)
+            return -1;
+    }
+
+#if NCNN_VALIDATION
+    if (ndim < 1 || ndim > max_ndim)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    size_t elemsize = bottom_blob.elemsize;
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+    std::vector<Mat> bottom_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    std::vector<Mat> top_blobs(1);
+    int ret = forward(bottom_blobs, top_blobs, opt);
+    top_blob = top_blobs[0];
+    return ret;
+}
 
-    int dims = bottom_blob.dims;
+int Reshape::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+#if NCNN_BATCH
+    if (support_batch)
+        return forward_batch(bottom_blobs, top_blobs, opt);
+#endif
 
     // resolve out shape
-
     int outw = w;
     int outh = h;
     int outd = d;
     int outc = c;
+
+    if (!shape_expr.empty())
+    {
+        if (eval_shape_expr(bottom_blobs, outw, outh, outd, outc) != 0)
+            return -1;
+    }
+
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+
+    int dims = bottom_blob.dims;
 
     if (ndim == 1)
     {
@@ -143,192 +221,6 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         }
     }
 
-    bool need_permute = permute == 1;
-    if (dims == 2 && ndim == 2 && bottom_blob.h == outh)
-        need_permute = false;
-    if (dims == 3 && ndim == 3 && bottom_blob.c == outc)
-        need_permute = false;
-    if (dims == 4 && ndim == 4 && bottom_blob.c == outc)
-        need_permute = false;
-
-    if (need_permute)
-    {
-        Mat bottom_blob_permuted = bottom_blob;
-
-        if (dims == 2)
-        {
-            // hw -> wh
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-
-            bottom_blob_permuted.create(_h, _w, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            const float* ptr = bottom_blob;
-            float* outptr = bottom_blob_permuted;
-
-            for (int i = 0; i < _w; i++)
-            {
-                for (int j = 0; j < _h; j++)
-                {
-                    *outptr++ = ptr[j * _w + i];
-                }
-            }
-        }
-        if (dims == 3)
-        {
-            // chw -> hwc
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-            int channels = bottom_blob.c;
-
-            bottom_blob_permuted.create(channels, _w, _h, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < _h; q++)
-            {
-                float* outptr = bottom_blob_permuted.channel(q);
-
-                for (int i = 0; i < _w; i++)
-                {
-                    for (int j = 0; j < channels; j++)
-                    {
-                        *outptr++ = bottom_blob.channel(j).row(q)[i];
-                    }
-                }
-            }
-        }
-
-        if (dims == 4)
-        {
-            // cdhw -> dhwc
-            int _w = bottom_blob.w;
-            int _h = bottom_blob.h;
-            int _d = bottom_blob.d;
-            int channels = bottom_blob.c;
-
-            bottom_blob_permuted.create(channels, _w, _h, _d, elemsize, opt.workspace_allocator);
-            if (bottom_blob_permuted.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int z = 0; z < _d; z++)
-            {
-                float* outptr = bottom_blob_permuted.channel(z);
-
-                for (int q = 0; q < _h; q++)
-                {
-                    for (int i = 0; i < _w; i++)
-                    {
-                        for (int j = 0; j < channels; j++)
-                        {
-                            *outptr++ = bottom_blob.channel(j).depth(z).row(q)[i];
-                        }
-                    }
-                }
-            }
-        }
-
-        if (ndim == 1)
-        {
-            top_blob = bottom_blob_permuted.reshape(outw, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            return 0;
-        }
-
-        // permute on ndhwc/nhwc/nhc
-        Mat top_blob_permuted;
-        if (ndim == 2)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outh, outw, opt.workspace_allocator);
-        }
-        if (ndim == 3)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outc, outw, outh, opt.workspace_allocator);
-        }
-        if (ndim == 4)
-        {
-            top_blob_permuted = bottom_blob_permuted.reshape(outc, outw, outh, outd, opt.workspace_allocator);
-        }
-        if (top_blob_permuted.empty())
-            return -100;
-
-        if (ndim == 2)
-        {
-            // wh -> hw
-            top_blob.create(outw, outh, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            const float* ptr = top_blob_permuted;
-            float* outptr = top_blob;
-
-            for (int i = 0; i < outh; i++)
-            {
-                for (int j = 0; j < outw; j++)
-                {
-                    *outptr++ = ptr[j * outh + i];
-                }
-            }
-        }
-        if (ndim == 3)
-        {
-            // hwc -> chw
-            top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
-            {
-                float* outptr = top_blob.channel(q);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    const float* ptr = top_blob_permuted.channel(i);
-
-                    for (int j = 0; j < outw; j++)
-                    {
-                        *outptr++ = ptr[j * outc + q];
-                    }
-                }
-            }
-        }
-        if (ndim == 4)
-        {
-            // dhwc -> cdhw
-            top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
-            {
-                float* outptr = top_blob.channel(q);
-
-                for (int k = 0; k < outd; k++)
-                {
-                    const float* ptr = top_blob_permuted.channel(k);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            *outptr++ = ptr[i * outw * outc + j * outc + q];
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
-    }
-
     if (ndim == 1)
     {
         top_blob = bottom_blob.reshape(outw, opt.blob_allocator);
@@ -350,5 +242,490 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+int Reshape::eval_shape_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh, int& outd, int& outc) const
+{
+    // [size(@0,0),size(@0,1),12,64]
+    std::vector<int> shape;
+    int er = eval_list_expression(shape_expr, bottom_blobs, shape);
+    if (er != 0)
+        return -1;
+
+    outw = 1;
+    outh = 1;
+    outd = 1;
+    outc = 1;
+    if (shape.size() == 1)
+    {
+        outw = shape[0];
+    }
+    if (shape.size() == 2)
+    {
+        outw = shape[0];
+        outh = shape[1];
+    }
+    if (shape.size() == 3)
+    {
+        outw = shape[0];
+        outh = shape[1];
+        outc = shape[2];
+    }
+    if (shape.size() == 4)
+    {
+        outw = shape[0];
+        outh = shape[1];
+        outd = shape[2];
+        outc = shape[3];
+    }
+
+    return 0;
+}
+
+#if NCNN_BATCH
+static size_t get_batch_reshape_offset(const Mat& m, const Mat& shape, int batch_axis, size_t i, size_t scalar_elemsize)
+{
+    // build logical shape
+    int shape_array[5] = {0, 0, 0, 0, 0};
+    int dims = shape.dims;
+    {
+        if (dims == 1)
+            shape_array[0] = shape.w;
+        if (dims == 2)
+        {
+            shape_array[0] = shape.h;
+            shape_array[1] = shape.w;
+        }
+        if (dims == 3)
+        {
+            shape_array[0] = shape.c;
+            shape_array[1] = shape.h;
+            shape_array[2] = shape.w;
+        }
+        if (dims == 4)
+        {
+            shape_array[0] = shape.c;
+            shape_array[1] = shape.d;
+            shape_array[2] = shape.h;
+            shape_array[3] = shape.w;
+        }
+
+        if (batch_axis != 233)
+        {
+            for (int j = dims; j > batch_axis; j--)
+                shape_array[j] = shape_array[j - 1];
+
+            shape_array[batch_axis] = shape.n;
+            dims++;
+        }
+    }
+
+    // linear index to logical coordinate
+    int coord[5] = {0, 0, 0, 0, 0};
+    {
+        for (int j = dims - 1; j >= 0; j--)
+        {
+            coord[j] = (int)(i % shape_array[j]);
+            i /= shape_array[j];
+        }
+    }
+
+    // split batch coordinate from physical coordinate
+    int b = 0;
+    int p[4] = {0, 0, 0, 0};
+    int pdims = 0;
+    {
+        for (int j = 0; j < dims; j++)
+        {
+            if (j == batch_axis)
+            {
+                b = coord[j];
+                continue;
+            }
+
+            p[pdims++] = coord[j];
+        }
+    }
+
+    // map physical coordinate to storage offset
+    {
+        int lane = 0;
+        size_t offset = (size_t)b * m.nstep;
+        if (pdims == 1)
+        {
+            lane = p[0] % m.elempack;
+            offset += p[0] / m.elempack;
+        }
+        if (pdims == 2)
+        {
+            lane = p[0] % m.elempack;
+            offset += (size_t)(p[0] / m.elempack) * m.w + p[1];
+        }
+        if (pdims == 3)
+        {
+            lane = p[0] % m.elempack;
+            offset += (size_t)(p[0] / m.elempack) * m.cstep + (size_t)p[1] * m.w + p[2];
+        }
+        if (pdims == 4)
+        {
+            lane = p[0] % m.elempack;
+            offset += (size_t)(p[0] / m.elempack) * m.cstep + (size_t)p[1] * m.w * m.h + (size_t)p[2] * m.w + p[3];
+        }
+
+        return offset * m.elemsize + lane * scalar_elemsize;
+    }
+}
+
+static size_t batch_suffix_size(const Mat& shape, int axis)
+{
+    int dims[4] = {shape.w, 1, 1, 1};
+    if (shape.dims == 2)
+    {
+        dims[0] = shape.h;
+        dims[1] = shape.w;
+    }
+    if (shape.dims == 3)
+    {
+        dims[0] = shape.c;
+        dims[1] = shape.h;
+        dims[2] = shape.w;
+    }
+    if (shape.dims == 4)
+    {
+        dims[0] = shape.c;
+        dims[1] = shape.d;
+        dims[2] = shape.h;
+        dims[3] = shape.w;
+    }
+
+    size_t size = 1;
+    for (int i = axis; i < shape.dims; i++)
+        size *= dims[i];
+    return size;
+}
+
+bool Reshape::same_batch_partition(const Mat& input_shape, int input_axis, const Mat& output_shape, int output_axis)
+{
+    if (input_shape.n != output_shape.n)
+        return false;
+    if (input_shape.n == 1)
+        return true;
+
+    return batch_suffix_size(input_shape, input_axis) == batch_suffix_size(output_shape, output_axis);
+}
+
+int Reshape::forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& top_blob = top_blobs[0];
+
+    if (bottom_blob.elempack != 1)
+        return -1;
+
+    Mat input_shape;
+    Mat output_shape;
+    int input_axis = 233;
+    int output_axis = 233;
+    size_t input_total = 0;
+    if (resolve_batch_shape(bottom_blobs, input_shape, output_shape, input_axis, output_axis, input_total) != 0)
+        return -1;
+
+    if (same_batch_partition(input_shape, input_axis, output_shape, output_axis))
+    {
+        if (output_shape.dims == 1)
+            top_blob = bottom_blob.reshape(output_shape.w, opt.blob_allocator);
+        if (output_shape.dims == 2)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, opt.blob_allocator);
+        if (output_shape.dims == 3)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.c, opt.blob_allocator);
+        if (output_shape.dims == 4)
+            top_blob = bottom_blob.reshape(output_shape.w, output_shape.h, output_shape.d, output_shape.c, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
+
+    if (output_shape.dims == 1)
+        top_blob.create(output_shape.w, bottom_blob.elemsize, 1, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 2)
+        top_blob.create(output_shape.w, output_shape.h, bottom_blob.elemsize, 1, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 3)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.c, bottom_blob.elemsize, 1, output_shape.n, opt.blob_allocator);
+    if (output_shape.dims == 4)
+        top_blob.create(output_shape.w, output_shape.h, output_shape.d, output_shape.c, bottom_blob.elemsize, 1, output_shape.n, opt.blob_allocator);
+
+    if (top_blob.empty())
+        return -100;
+
+    copy_batch_reshape(bottom_blob, top_blob, input_shape, input_axis, output_shape, output_axis, input_total, bottom_blob.elemsize, opt);
+
+    return 0;
+}
+
+void Reshape::copy_batch_reshape(const Mat& bottom_blob, Mat& top_blob,
+                                 const Mat& input_shape, int input_axis,
+                                 const Mat& output_shape, int output_axis,
+                                 size_t total, size_t scalar_elemsize,
+                                 const Option& opt) const
+{
+    const unsigned char* ptr = (const unsigned char*)bottom_blob;
+    unsigned char* outptr = (unsigned char*)top_blob;
+    const size_t block = (size_t)1 << 30;
+    for (size_t i0 = 0; i0 < total; i0 += block)
+    {
+        const int nn = (int)(total - i0 > block ? block : total - i0);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int t = 0; t < nn; t++)
+        {
+            const size_t i = i0 + t;
+            const size_t srcoff = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i, scalar_elemsize);
+            const size_t dstoff = get_batch_reshape_offset(top_blob, output_shape, output_axis, i, scalar_elemsize);
+
+            if (i != 0)
+            {
+                const size_t srcoff0 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i - 1, scalar_elemsize);
+                const size_t dstoff0 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i - 1, scalar_elemsize);
+                if (srcoff == srcoff0 + scalar_elemsize && dstoff == dstoff0 + scalar_elemsize)
+                    continue;
+            }
+
+            size_t size = 1;
+            while (i + size < total)
+            {
+                const size_t srcoff1 = get_batch_reshape_offset(bottom_blob, input_shape, input_axis, i + size, scalar_elemsize);
+                const size_t dstoff1 = get_batch_reshape_offset(top_blob, output_shape, output_axis, i + size, scalar_elemsize);
+                if (srcoff1 != srcoff + size * scalar_elemsize || dstoff1 != dstoff + size * scalar_elemsize)
+                    break;
+
+                size++;
+            }
+
+            memcpy(outptr + dstoff, ptr + srcoff, size * scalar_elemsize);
+        }
+    }
+}
+
+int Reshape::resolve_batch_shape(const std::vector<Mat>& bottom_blobs,
+                                 Mat& input_shape, Mat& output_shape,
+                                 int& input_axis, int& output_axis,
+                                 size_t& total) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    input_shape = bottom_blob.shape();
+
+    // an ordinary reshape preserves input0's outer batch and reshapes each sample
+    const bool implicit_batch = input_batch_axis == 233 && output_batch_axis == 233;
+
+    // build logical input shape
+    int input_dims = input_shape.dims;
+    int input_shape_array[5] = {0, 0, 0, 0, 0};
+    {
+        int physical_input_shape[4] = {0, 0, 0, 0};
+        if (input_shape.dims == 1)
+            physical_input_shape[0] = input_shape.w;
+        if (input_shape.dims == 2)
+        {
+            physical_input_shape[0] = input_shape.h;
+            physical_input_shape[1] = input_shape.w;
+        }
+        if (input_shape.dims == 3)
+        {
+            physical_input_shape[0] = input_shape.c;
+            physical_input_shape[1] = input_shape.h;
+            physical_input_shape[2] = input_shape.w;
+        }
+        if (input_shape.dims == 4)
+        {
+            physical_input_shape[0] = input_shape.c;
+            physical_input_shape[1] = input_shape.d;
+            physical_input_shape[2] = input_shape.h;
+            physical_input_shape[3] = input_shape.w;
+        }
+
+        input_axis = implicit_batch ? 0 : input_batch_axis;
+        if (input_axis < 0)
+            input_axis += input_shape.dims + 1;
+
+        if (input_axis != 233)
+        {
+            if (input_axis < 0 || input_axis > input_shape.dims)
+                return -1;
+
+            input_dims = input_shape.dims + 1;
+            for (int i = 0; i < input_dims; i++)
+            {
+                if (i < input_axis)
+                    input_shape_array[i] = physical_input_shape[i];
+                else if (i == input_axis)
+                    input_shape_array[i] = input_shape.n;
+                else
+                    input_shape_array[i] = physical_input_shape[i - 1];
+            }
+        }
+        else
+        {
+            if (input_shape.n != 1)
+                return -1;
+
+            for (int i = 0; i < input_dims; i++)
+                input_shape_array[i] = physical_input_shape[i];
+        }
+    }
+
+    // resolve output shape
+    std::vector<int> outshape;
+    {
+        if (!shape_expr.empty())
+        {
+            int er = eval_list_expression(shape_expr, bottom_blobs, outshape);
+            if (er != 0)
+                return -1;
+
+            for (size_t i = 0; i < outshape.size() / 2; i++)
+            {
+                int tmp = outshape[i];
+                outshape[i] = outshape[outshape.size() - 1 - i];
+                outshape[outshape.size() - 1 - i] = tmp;
+            }
+        }
+        else
+        {
+            if (ndim == 1)
+                outshape.push_back(w);
+            if (ndim == 2)
+            {
+                outshape.push_back(h);
+                outshape.push_back(w);
+            }
+            if (ndim == 3)
+            {
+                outshape.push_back(c);
+                outshape.push_back(h);
+                outshape.push_back(w);
+            }
+            if (ndim == 4)
+            {
+                outshape.push_back(c);
+                outshape.push_back(d);
+                outshape.push_back(h);
+                outshape.push_back(w);
+            }
+        }
+    }
+
+    if (implicit_batch)
+    {
+        if (outshape.empty() || outshape.size() > 4)
+            return -1;
+
+        // ordinary zero dimensions copy physical w/h/d/c, not logical positions
+        for (size_t i = 0; i < outshape.size(); i++)
+        {
+            if (outshape[i] != 0)
+                continue;
+            const int trailing_dims = (int)outshape.size() - 1 - i;
+            outshape[i] = trailing_dims == 0 ? input_shape.w : trailing_dims == 1 ? input_shape.h : trailing_dims == 2 && outshape.size() == 4 ? input_shape.d : input_shape.c;
+        }
+        int batch_size = input_shape.n;
+        outshape.insert(outshape.begin(), &batch_size, &batch_size + 1);
+    }
+
+    int output_dims = (int)outshape.size();
+    if (output_dims == 0 || output_dims > 5)
+        return -1;
+
+    output_axis = implicit_batch ? 0 : output_batch_axis;
+    if (output_axis < 0)
+        output_axis += output_dims;
+
+    if (output_axis != 233 && (output_axis < 0 || output_axis >= output_dims))
+        return -1;
+
+    // materialize output shape
+    int output_shape_array[5] = {0, 0, 0, 0, 0};
+    {
+        total = 1;
+        for (int i = 0; i < input_dims; i++)
+            total *= input_shape_array[i];
+
+        size_t output_total = 1;
+        int remaining_axis = -1;
+        for (int i = 0; i < output_dims; i++)
+        {
+            output_shape_array[i] = outshape[i];
+
+            if (output_shape_array[i] == 0)
+            {
+                if (i >= input_dims)
+                    return -1;
+
+                output_shape_array[i] = input_shape_array[i];
+            }
+
+            if (output_shape_array[i] == -1)
+            {
+                if (remaining_axis != -1)
+                    return -1;
+
+                remaining_axis = i;
+                continue;
+            }
+
+            if (output_shape_array[i] <= 0)
+                return -1;
+
+            output_total *= output_shape_array[i];
+        }
+
+        if (remaining_axis != -1)
+        {
+            if (output_total == 0 || total % output_total != 0)
+                return -1;
+
+            output_shape_array[remaining_axis] = (int)(total / output_total);
+            output_total *= output_shape_array[remaining_axis];
+        }
+
+        if (total != output_total)
+            return -1;
+    }
+
+    // build physical output shape
+    {
+        int n = 1;
+        int physical_output_dims = 0;
+        int physical_output_shape[4] = {0, 0, 0, 0};
+        for (int i = 0; i < output_dims; i++)
+        {
+            if (i == output_axis)
+            {
+                n = output_shape_array[i];
+                continue;
+            }
+
+            if (physical_output_dims == 4)
+                return -1;
+
+            physical_output_shape[physical_output_dims++] = output_shape_array[i];
+        }
+
+        if (physical_output_dims == 0)
+            return -1;
+
+        if (physical_output_dims == 1)
+            output_shape = Mat(physical_output_shape[0], (void*)0, 4u, 1, n);
+        if (physical_output_dims == 2)
+            output_shape = Mat(physical_output_shape[1], physical_output_shape[0], (void*)0, 4u, 1, n);
+        if (physical_output_dims == 3)
+            output_shape = Mat(physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], (void*)0, 4u, 1, n);
+        if (physical_output_dims == 4)
+            output_shape = Mat(physical_output_shape[3], physical_output_shape[2], physical_output_shape[1], physical_output_shape[0], (void*)0, 4u, 1, n);
+    }
+
+    return 0;
+}
+
+#endif // NCNN_BATCH
 
 } // namespace ncnn

@@ -68,7 +68,9 @@ vulkan-1.dll
 libvulkan.so
 
 #### macOS iOS and other APPLE platforms
-Requires static meltvk driver linking and should always succeed
+libvulkan.dylib
+
+If static moltenvk driver linked, should always succeed
 
 If failed, it will try to find graphics driver object and load it
 
@@ -77,6 +79,7 @@ for 64bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepos
 - nvoglv64.dll
 - amdvlk64.dll
 - igvk64.dll
+- qcvkarm64xum.dll
 
 for 32bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepository```
 - nvoglv32.dll
@@ -99,6 +102,11 @@ for 64bit applications
 for 32bit applications
 - /vendor/lib/hw/vulkan.adreno.so
 - /vendor/lib/egl/libGLES_mali.so
+
+#### macOS iOS and other APPLE platforms
+`dlopen()` search for
+- libMoltenVK.dylib
+- libvulkan_kosmickrisp.dylib
 
 ## Load from driver_path
 

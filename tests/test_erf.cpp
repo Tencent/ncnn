@@ -1,38 +1,31 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/erf.h"
 #include "testutil.h"
 
-static int test_erf(const ncnn::Mat& a)
+static int test_erf(const ncnn::Mat& a, int flag = 0)
 {
     ncnn::ParamDict pd;
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Erf>("Erf", pd, weights, a);
+    int ret = test_layer("Erf", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_erf failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_erf failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
 }
 
+// cpu pack8/pack16 cases reuse the Vulkan pack4 path covered by the pack4 cases
+// keep the 1d sizes for dispatch boundary coverage
 static int test_erf_0()
 {
     return 0
+           || test_erf(RandomMat(5, 6, 7, 24), TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_erf(RandomMat(7, 8, 9, 12))
+           || test_erf(RandomMat(3, 4, 5, 13))
            || test_erf(RandomMat(10, 12, 5))
            || test_erf(RandomMat(3, 6, 18))
            || test_erf(RandomMat(12, 4, 7));

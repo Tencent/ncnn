@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "copyto.h"
 
@@ -31,6 +20,39 @@ int CopyTo::load_param(const ParamDict& pd)
 
     starts = pd.get(9, Mat());
     axes = pd.get(11, Mat());
+
+#if NCNN_VALIDATION
+    {
+        const int starts_type = pd.type(9);
+        if (starts_type != 0 && starts_type != 4 && starts_type != 5)
+            return -1;
+
+        if ((starts.dims != 0 || starts.w != 0 || starts.data) && (starts.dims != 1 || starts.w < 0 || starts.elempack != 1 || starts.elemsize != 4u || (starts.w > 0 && !starts.data)))
+            return -1;
+    }
+
+    {
+        const int axes_type = pd.type(11);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
+            return -1;
+    }
+
+    if (axes.w > 4)
+        return -1;
+
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+
+    if (starts.w > 4 || (!starts.empty() && !axes.empty() && axes.w != starts.w))
+        return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

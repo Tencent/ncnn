@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -29,7 +18,7 @@ class Model(nn.Module):
         self.pool_5 = nn.MaxPool1d(kernel_size=2, stride=1, padding=0, dilation=1, return_indices=True, ceil_mode=True)
         self.pool_6 = nn.MaxPool1d(kernel_size=5, stride=1, padding=2, dilation=1, return_indices=False, ceil_mode=False)
 
-    def forward(self, x):
+    def forward(self, x, q):
         y = x.reshape(12, 64)
 
         x = self.pool_0(x)
@@ -49,7 +38,10 @@ class Model(nn.Module):
             y = y.unsqueeze(0)
         y, ty = self.pool_5(y)
         y = self.pool_6(y)
-        return x, y
+
+        q = self.pool_0(q)
+        q = self.pool_4(q)
+        return x, y, q
 
 def test():
     net = Model()
@@ -57,16 +49,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 64)
+    q = torch.rand(2, 3, 32)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_MaxPool1d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_MaxPool1d.pt inputshape=[1,12,64]")
+    os.system("../../src/pnnx test_nn_MaxPool1d.pt inputshape=[1,12,64],[2,3,32]")
 
     # ncnn inference
     import test_nn_MaxPool1d_ncnn

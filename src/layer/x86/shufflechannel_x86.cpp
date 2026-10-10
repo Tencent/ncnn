@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "shufflechannel_x86.h"
 
@@ -20,6 +9,8 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
+
+#include "x86_usability.h"
 
 namespace ncnn {
 
@@ -41,10 +32,10 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int _group = reverse ? channels * elempack / group : group;
     int channels_per_group = channels / _group;
@@ -73,7 +64,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -157,7 +148,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             return 0;
         }
 
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -326,7 +317,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -344,8 +335,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     __m256 _p0 = _mm256_loadu_ps(ptr0);
 
-                    __m256 _p1 = _mm256_castps128_ps256(_mm_loadu_ps(ptr1));
-                    _p1 = _mm256_insertf128_ps(_p1, _mm_loadu_ps(ptr2), 1);
+                    __m256 _p1 = combine4x2_ps(_mm_loadu_ps(ptr1), _mm_loadu_ps(ptr2));
 
                     __m256 _lo = _mm256_unpacklo_ps(_p0, _p1);
                     __m256 _hi = _mm256_unpackhi_ps(_p0, _p1);
@@ -399,6 +389,8 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            if (bottom_blob_unpacked.empty())
+                return -100;
 
             Mat top_blob_unpacked;
             int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
@@ -406,11 +398,13 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 return ret;
 
             convert_packing(top_blob_unpacked, top_blob, elempack, opt);
+            if (top_blob.empty())
+                return -100;
 
             return 0;
         }
 
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -561,7 +555,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         if (_group == 2 && channels % _group != 0)
         {
-            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create_like(bottom_blob, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -603,7 +597,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 ptr1 += 2;
 
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < size - 1; i++)
                 {
                     __m128 _p0 = _mm_loadu_ps(ptr0);
                     __m128 _p1 = _mm_loadu_ps(ptr1);
@@ -614,6 +608,16 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     ptr0 += 4;
                     ptr1 += 4;
+                    outptr += 4;
+                }
+
+                {
+                    outptr[0] = ptr0[0];
+                    outptr[1] = ptr1[0];
+                    outptr[2] = ptr0[1];
+                    outptr[3] = ptr1[1];
+                    ptr0 += 2;
+                    ptr1 += 2;
                     outptr += 4;
                 }
             }
@@ -639,7 +643,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             return 0;
         }
 
-        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

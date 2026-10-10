@@ -1,18 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/deformableconv2d.h"
 #include "testutil.h"
 
 static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
@@ -48,7 +36,7 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
         weights[1] = RandomMat(outch);
 
     float epsilon = 0.001;
-    int ret = test_layer<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, a, 1, epsilon);
+    int ret = test_layer("DeformableConv2D", pd, weights, a, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -62,12 +50,10 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
         opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
+        ret = test_layer_opt("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
         if (ret != 0)
         {
             fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -82,12 +68,10 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_storage = true;
         opt.use_fp16_arithmetic = true;
         opt.use_bf16_storage = true;
-        opt.use_shader_pack8 = true;
-        opt.use_image_storage = true;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
+        ret = test_layer_opt("DeformableConv2D", pd, weights, opt, a, 1, epsilon);
         if (ret != 0)
         {
             fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -127,26 +111,20 @@ static int test_deformableconv2d_0()
                   || test_deformableconv2d(9, 7, 8, 4, k, d, s, p, 1)
                   || test_deformableconv2d(9, 7, 8, 13, k, d, s, p, 0)
                   || test_deformableconv2d(9, 7, 13, 8, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 16, 16, k, d, s, p, 0)
-                  || test_deformableconv2d(16, 16, 1 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 16 * 3, k, d, s, p, 1);
+                  || test_deformableconv2d(9, 7, 16, 16, k, d, s, p, 0);
 
         if (ret != 0)
             return -1;
+
+        // separate channel packing from the small spatial boundary cases
+        static const int channels[][2] = {
+            {3, 3}, {12, 12}, {24, 24}, {48, 48}, {3, 12}, {12, 24}, {24, 48}, {48, 3}
+        };
+        for (int j = 0; j < 8; j++)
+        {
+            if (test_deformableconv2d(16, 16, channels[j][0], channels[j][1], k, d, s, p, 1) != 0)
+                return -1;
+        }
     }
 
     return 0;

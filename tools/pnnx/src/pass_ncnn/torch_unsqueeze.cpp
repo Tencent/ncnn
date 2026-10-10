@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -43,28 +32,67 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-
-        int dim = captured_params.at("dim").i;
-        if (dim == batch_index)
-        {
-            fprintf(stderr, "unsqueeze batch dim %d is not supported yet!\n", batch_index);
-            return;
-        }
-
+        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
         int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0 && op->outputs[0]->shape.size() != 0)
+            input_rank = (int)op->outputs[0]->shape.size() - 1;
 
-        if (input_rank > 4)
+        int inner_rank = input_rank;
+        if (input_ncnn_batch_axis >= 0 && input_ncnn_batch_axis < input_rank)
+            inner_rank -= 1;
+
+        if (inner_rank > 4)
         {
-            fprintf(stderr, "unsqueeze %d-rank tensor is not supported yet!\n", input_rank);
-            return;
+            fprintf(stderr, "unsqueeze %d-rank tensor is not supported yet!\n", inner_rank);
         }
 
-        if (dim > batch_index)
-            dim -= 1;
+        if (captured_params.at("dim").type == 2)
+        {
+            int dim = captured_params.at("dim").i;
+            if (dim < 0 && input_rank > 0)
+                dim += input_rank + 1;
 
-        std::vector<int> axes = {dim};
-        op->params["3"] = axes;
+            const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            if (output_ncnn_batch_axis != 233 && dim > output_ncnn_batch_axis)
+                dim -= 1;
+
+            std::vector<int> axes = {dim};
+            op->params["3"] = axes;
+        }
+        else // if (captured_params.at("dim").type == 5)
+        {
+            std::vector<int> axes = captured_params.at("dim").ai;
+            int output_rank = op->outputs[0]->shape.size();
+            if (output_rank == 0)
+                output_rank = input_rank + axes.size();
+
+            const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
+            std::vector<int> new_axes;
+            for (size_t i = 0; i < axes.size(); i++)
+            {
+                int axis = axes[i];
+                if (axis < 0 && output_rank > 0)
+                    axis += output_rank;
+
+                if (output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < output_rank)
+                {
+                    if (axis == output_ncnn_batch_axis)
+                        continue;
+                    if (axis > output_ncnn_batch_axis)
+                        axis -= 1;
+                }
+                else if (input_ncnn_batch_axis != 233 && axis > input_ncnn_batch_axis)
+                    axis -= 1;
+
+                new_axes.push_back(axis);
+            }
+            if (new_axes.empty())
+            {
+                op->type = "Noop";
+                return;
+            }
+            op->params["3"] = new_axes;
+        }
     }
 };
 

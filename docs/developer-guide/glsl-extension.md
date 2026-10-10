@@ -53,6 +53,8 @@ void main()
 
 The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load, store, conversion functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 as the intermediate data type, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
 
+The extension is implemented in `src/ncnn_glsl_ext.comp` and is injected automatically by `compile_spirv_module()` after the option and device capability macros.
+
 # entrypoint for compiling GLSL
 
 The gpu.h header in the ncnn library exposes 3 APIs for compiling glsl code into spir-v binary, they support ncnn glsl extension, these 3 functions accept opt switch to control the expansion form of ncnn glsl extension. The first two accept raw glsl code strings, and the last one is used to create ncnn's built-in shader.
@@ -76,13 +78,6 @@ You can write shader code with ncnn glsl extension, compiled to spir-v using ncn
 static const char my_glsl_data[] = R"(
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
 
@@ -99,7 +94,7 @@ void main()
 )";
 
 Option opt;
- // you can control the extention behavior
+ // you can control the extension behavior
  // even if the gpu supports 16bit storage
 opt.use_fp16_storage = false;
 
@@ -137,12 +132,11 @@ declare buffer data layout in descriptor binding
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
-|storage type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|sfp|float|float|float16_t|
-|sfpvec2|vec2|uint|f16vec2|
-|sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
+|storage type|fp32|fp16p|fp16s|bf16p|bf16s|
+|---|---|---|---|---|---|
+|sfp|float|uint|float16_t|uint|bfloat16_t|
+|sfpvec2|vec2|uint|f16vec2|uint|bf16vec2|
+|sfpvec4|vec4|uvec2|f16vec4|uvec2|bf16vec4|
 
 ## arithmetic type
 
@@ -160,7 +154,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## local type
 
@@ -170,28 +163,45 @@ declare variable in shared local memory
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s|fp16s + fp16a|
-|---|---|---|---|
-|lfp|float|float|float16_t|
-|lfpvec4|vec4|uvec2|f16vec4|
+|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|bf16p|bf16s|
+|---|---|---|---|---|---|---|
+|lfp|float|float|float|float16_t|float|bfloat16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
-## image format and precision hint type
+## integer type
 
-declare image format in descriptor binding
+declare int8/int16 buffer data layout and local variables in glsl code
 
 ```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
+layout (binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_data[]; };
+layout (binding = 1) readonly buffer weight_blob { sint16 weight_blob_data[]; };
 ```
 
-|format type|fp32|fp16p|fp16s|
+|int8 storage type|int8p|int8s|int8s+int8a|
 |---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
+|sint8|int|int8_t|int8_t|
+|sint8vec4|int|int|int|
 
-|precision hint type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
+|int8 arithmetic type|int8|
+|---|---|
+|aint8|int|
+|aint8vec4|ivec4|
+
+|int16 arithmetic type|int16|
+|---|---|
+|aint16|int16_t when shaderInt16 is available, otherwise int|
+|aint16vec4|i16vec4 when shaderInt16 is available, otherwise ivec4|
+
+|int16 storage/local type|int16p|int16s|
+|---|---|---|
+|sint16|int|int16_t|
+|sint16vec4|ivec2|i16vec4|
+|lint16|int|int16_t|
+|lint16vec4|ivec2|i16vec4|
+
+`sint8vec4` uses one `int` to hold four signed int8 lanes in all int8 storage modes. This keeps pack4 data in packed form for integer dot-product and shared-memory paths. Use `i8buffer_ld4` to unpack it to `ivec4`, and use `i8buffer_sm4` to load the raw packed `int`.
+
+`sint16` uses one `int` to hold two signed int16 lanes when `opt.use_int16_packed` is enabled, and uses native `int16_t` when `opt.use_int16_storage` is enabled. `sint16vec4` stores four logical int16 lanes as two packed `int` values in int16p mode and as native `i16vec4` in int16s mode. `lint16` and `lint16vec4` are the shared/local-memory counterparts.
 
 # buffer functions
 
@@ -201,7 +211,6 @@ layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - store typed value to dst[offset]
@@ -210,7 +219,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - copy typed value from src[src_offset] to dst[dst_offset]
@@ -219,78 +227,97 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - copy and pack value from src[src_offsets[0],src_offsets[1],...] to dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - copy and unpack value from src[src_offset] to dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
 
-# image functions
+# integer buffer functions
 
-- load typed value from src at pos
+- load integer typed value from src[offset]
 
 ```c
-afp image1d_ld1(sampler1D src, float pos);
-afp image2d_ld1(sampler2D src, vec2 pos);
-afp image3d_ld1(sampler3D src, vec3 pos);
-afpvec4 image1d_ld4(sampler1D src, float pos);
-afpvec4 image2d_ld4(sampler2D src, vec2 pos);
-afpvec4 image3d_ld4(sampler3D src, vec3 pos);
-afpvec8 image1d_ld8(sampler1D src, float pos);
-afpvec8 image2d_ld8(sampler2D src, vec2 pos);
-afpvec8 image3d_ld8(sampler3D src, vec3 pos);
+aint8 i8buffer_ld1(sint8 src, int offset);
+aint8vec4 i8buffer_ld4(sint8vec4 src, int offset);
+int i8buffer_sm4(sint8vec4 src, int offset);
+int i16buffer_ld1(sint16 src, int offset);
+ivec2 i16buffer_ld2(sint16 src, int offset);
+sint16vec4 i16buffer_sm4(sint16vec4 src, int offset);
+aint16vec4 i16buffer_ld4(sint16vec4 src, int offset);
+aint16 lint162aint16(lint16 v);
+aint16vec4 lint162aint16vec4(lint16vec4 v);
 ```
 
-- store typed value to dst at pos
+`i8buffer_sm4` loads the raw packed `int` representation of four int8 lanes. It is useful for shared-memory staging and `dotPacked4x8EXT` paths where unpacking to `ivec4` would be wasteful.
+
+`i16buffer_ld1` and `i16buffer_ld2` load signed int16 lanes as `int` and `ivec2`. Without native int16 storage, `offset` is still the logical int16 lane offset, and packed storage groups two adjacent lanes in one `int`.
+
+`i16buffer_sm4` loads the raw `sint16vec4` representation of four logical int16 lanes from buffer storage. `i16buffer_ld4` loads four logical int16 lanes from buffer storage as `aint16vec4`. `lint162aint16` and `lint162aint16vec4` convert shared/local int16 values to arithmetic int16 values.
+
+- store integer typed value to dst[offset]
 
 ```c
-void image1d_st1(image1D dst, int pos, afp v);
-void image2d_st1(image2D dst, ivec2 pos, afp v);
-void image3d_st1(image3D dst, ivec3 pos, afp v);
-void image1d_st4(image1D dst, int pos, afpvec4 v);
-void image2d_st4(image2D dst, ivec2 pos, afpvec4 v);
-void image3d_st4(image3D dst, ivec3 pos, afpvec4 v);
-void image1d_st8(image1D dst, int pos, afpvec8 v);
-void image2d_st8(image2D dst, ivec2 pos, afpvec8 v);
-void image3d_st8(image3D dst, ivec3 pos, afpvec8 v);
+void i8buffer_st1(sint8 dst, int offset, aint8 v);
+void i8buffer_st4(sint8vec4 dst, int offset, aint8vec4 v);
+void i16buffer_st1(sint16 dst, int offset, int v);
+void i16buffer_st2(sint16 dst, int offset, ivec2 v);
+void i16buffer_st4(sint16vec4 dst, int offset, ivec4 v);
+void i16buffer_st4(lint16vec4 dst, int offset, ivec4 v);
 ```
 
-- copy typed value from src at src_pos to dst at dst_pos
+Without native int8 storage, `i8buffer_st1` updates one byte lane inside a packed `int` and may use an atomic compare-and-swap loop.
+
+Without native int16 storage, `i16buffer_st1` updates one int16 lane inside a packed `int` and may use an atomic compare-and-swap loop. `i16buffer_st2` stores complete packed words directly when `offset` is aligned. `i16buffer_st4` writes four logical int16 lanes to `sint16vec4` storage or `lint16vec4` shared/local memory.
+
+- copy int8 typed value from src[src_offset] to dst[dst_offset]
 
 ```c
-void image1d_cp1(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp1(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp1(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp4(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp4(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp4(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp8(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
+void i8buffer_cp1(sint8 dst, int dst_offset, sint8 src, int src_offset);
+void i8buffer_cp4(sint8vec4 dst, int dst_offset, sint8vec4 src, int src_offset);
 ```
 
-Note: Since image is an opaque data structure, no copy and pack/unpack functions are provided. To achieve this operation, you need to load first and then store.
+- copy and pack int8 typed values from src[src_offsets[0],src_offsets[1],...] to dst[dst_offset]
+
+```c
+void i8buffer_cp1to4(sint8vec4 dst, int dst_offset, sint8 src, ivec4 src_offsets);
+```
+
+- copy and unpack int8 typed values from src[src_offset] to dst[dst_offsets[0],dst_offsets[1],...]
+
+```c
+void i8buffer_cp4to1(sint8 dst, ivec4 dst_offsets, sint8vec4 src, int src_offset);
+```
+
+- pack and unpack signed integer lanes
+
+```c
+ivec4 unpackInt4x8(int v);
+int packInt4x8(ivec4 v);
+ivec2 unpackInt2x16(int v);
+int packInt2x16(ivec2 v);
+int float2int8(float v);
+ivec4 float2int8vec4(vec4 v);
+```
+
+`packInt4x8` stores `.r/.g/.b/.a` in the low-to-high bytes of one `int`. `packInt2x16` stores `.r/.g` in the low-to-high 16-bit lanes of one `int`.
+`float2int8` and `float2int8vec4` round half away from zero and saturate to [-127, 127] for deterministic int8 quantization.
 
 # local data conversion functions
 
 - storage buffer to local memory
 
 ```c
-lfp sfp2lfp(sfp v);
-lfpvec4 sfp2lfpvec4(sfpvec4 v);
+lfp buffer_sm1(sfp src, int offset);
+lfpvec4 buffer_sm4(sfpvec4 src, int offset);
 ```
 
 - local memory to local variable
@@ -298,6 +325,13 @@ lfpvec4 sfp2lfpvec4(sfpvec4 v);
 ```c
 afp lfp2afp(lfp v);
 afpvec4 lfp2afpvec4(lfpvec4 v);
+```
+
+- local variable to local memory
+
+```c
+lfp afp2lfp(afp v);
+lfpvec4 afp2lfpvec4(afpvec4 v);
 ```
 
 Note: The common usage of local memory is to read from global memory first, store it in local memory, and then read local variables from local memory for subsequent use. Therefore, only storage type to local type and local type to arithmetic type conversion functions are provided here.
@@ -336,27 +370,138 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 #endif
 ```
 
-# option macros
-
-enable glsl extension only if user enable some options
+ncnn adds additional macro definitions in the new version, which may conflict or confuse the existing glsl code. In order to obtain cross-version compatibility of ncnn, you can switch between the old and new codes according to the `ncnn_glsl_version` macro version.
 
 ```c
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#if ncnn_glsl_version >= 1
+// use device macros introduced since version 1
 #endif
 ```
 
-declare descriptor binding for image or buffer
+ncnn additionally defines most of the vulkan device-related features as macros, which we can use to distinguish different platforms, device extensions, features, and properties
+
+### extension macros
+
+When the device supports an extension, `ncnn_<extension_name>` is defined as the extension version
 
 ```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+void main()
+{
+#if ncnn_VK_KHR_16bit_storage
+    // here is the code for any device that supports VK_KHR_16bit_storage
 #endif
+
+#if ncnn_VK_KHR_sampler_ycbcr_conversion >= 10
+    // here is the code for any device that supports VK_KHR_sampler_ycbcr_conversion and version >= 10
+#endif
+}
+```
+
+### device feature and property macros
+
+ncnn will query device features and properties and then define them as macros.
+
+The macro name is `ncnn_<feature_name>` or `ncnn_<property_name>`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int64` extension will be automatically enabled without explicit code indication when the device supports `shaderInt64`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int16` extension will be automatically enabled without explicit code indication when the device supports `shaderInt16`
+
+```c
+void main()
+{
+#if ncnn_robustBufferAccess
+    // here is the code for any device that supports robustBufferAccess feature
+#endif
+
+#if ncnn_vendorID == 4318
+    // here is the vendor specific code, 4318 is nvidia graphics
+#endif
+
+#if ncnn_subgroupSize == 32
+    // here is the code path optimized for subgroup_size == 32
+#endif
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    // here is the packed int8 dot-product path
+#endif
+
+#if ncnn_VK_KHR_cooperative_matrix
+    // here is the KHR cooperative matrix path
+#elif ncnn_VK_NV_cooperative_matrix
+    // here is the NV cooperative matrix path
+#endif
+
+    // use macro definitions
+    uint size; // dynamic value from some previous routines
+    if (size < ncnn_subgroupSize)
+    {
+#if ncnn_supportedOperations & 4
+        // subgroup support arithmetic
+#endif
+
+#if ncnn_subgroup_arithmetic
+        // shorthand style for checking subgroup arithmetic :P
+#endif
+    }
+}
+```
+
+Cooperative matrix shape and component-type combinations are selected on the host side. Use `GpuInfo::support_cooperative_matrix()`, `GpuInfo::support_int8_cooperative_matrix()`, `GpuInfo::support_bf16_cooperative_matrix()`, and `GpuInfo::get_optimal_cooperative_matrix_mnk()` before creating a cooperative matrix pipeline.
+
+For signed int8 cooperative matrix kernels, ncnn requires signed int8 A/B and signed int32 accumulator/result cooperative matrix support at subgroup scope. The shader still uses the normal `ncnn_VK_KHR_cooperative_matrix` / `ncnn_VK_NV_cooperative_matrix` extension macros to select GLSL syntax, while the host selects this path with `support_int8_cooperative_matrix()`.
+
+In int8 cooperative matrix and integer dot-product shaders, prefer keeping pack4 data in the packed `sint8vec4` representation and use `i8buffer_sm4` for shared-memory staging when the layout is already packed. Use `i8buffer_ld4` only when arithmetic needs unpacked `ivec4` lanes.
+
+### validation layer macros
+
+ncnn will define some additional convenient macros when the vulkan validation layer enabled
+
+* `ncnn_enable_validation_layer`
+* `NCNN_LOGE`
+
+currently, you have to modify the `ENABLE_VALIDATION_LAYER` definition at the beginning of `src/gpu.cpp` to `1` to enable these macros.
+
+The `GL_EXT_debug_printf` extension will be enabled automatically without explicitly specifying it in your code.
+
+```c
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+#if ncnn_enable_validation_layer
+    NCNN_LOGE("gx = %d\n", gx);
+#endif
+}
+```
+
+At runtime, `NCNN_LOGE` will print out the value of `gx`
+
+### option macros
+
+enable glsl extension only if user enable some options
+
+The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage`, `opt.use_bf16_storage`, or `opt.use_int16_storage`
+
+The `GL_EXT_shader_explicit_arithmetic_types_float16` extension will be automatically enabled without explicit code indication when the device supports 16-bit arithmetic and the user turns on `opt.use_fp16_arithmetic`
+
+The `GL_EXT_shader_8bit_storage` extension will be automatically enabled without explicit code indication when the device supports 8-bit storage and the user turns on `opt.use_int8_storage`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int8` extension will be automatically enabled without explicit code indication when the device supports 8-bit arithmetic and the user turns on `opt.use_int8_arithmetic`
+
+The `GL_EXT_bfloat16` extension will be automatically enabled without explicit code indication when the device supports bfloat16 storage and the user turns on `opt.use_bf16_storage`
+
+```c
+void main()
+{
+#if NCNN_fp16_storage
+    // the user enable fp16 storage option and the device has fp16 storage support
+#endif
+
+#if NCNN_fp16_arithmetic
+    // the user enable fp16 arithmetic option and the device has fp16 arithmetic support
+#endif
+}
 ```
 
 |macro|defined by option|
@@ -367,5 +512,10 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; }
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
-|NCNN_image_shader|opt.use_image_storage|
+|NCNN_int16_packed|opt.use_int16_packed|
+|NCNN_int16_storage|opt.use_int16_storage|
+|NCNN_bf16_packed|opt.use_bf16_packed|
+|NCNN_bf16_storage|opt.use_bf16_storage|
+|NCNN_fp16_uniform|opt.use_fp16_uniform|
+|NCNN_int8_uniform|opt.use_int8_uniform|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

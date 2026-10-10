@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1) # for CMAKE_CXX_STANDARD
+cmake_minimum_required(VERSION 3.1...3.10) # for CMAKE_CXX_STANDARD
 set(CMAKE_CXX_STANDARD 11)
 
 include(GNUInstallDirs)
@@ -15,13 +15,14 @@ endif()
 
 add_subdirectory(caffe)
 add_subdirectory(mxnet)
-add_subdirectory(onnx)
 add_subdirectory(darknet)
-if(NCNN_INT8)
-    add_subdirectory(quantize)
-else()
-    message(WARNING "NCNN_INT8 disabled, quantize tools won't be built")
+if(NOT NCNN_INT8)
+    message(WARNING "NCNN_INT8 disabled, post-training int8 quantize tools won't be built")
 endif()
+if(NOT NCNN_WEIGHT_QUANT)
+    message(WARNING "NCNN_WEIGHT_QUANT disabled, weight quantized inference won't be available")
+endif()
+add_subdirectory(quantize)
 
 add_executable(ncnn2mem ncnn2mem.cpp)
 target_link_libraries(ncnn2mem PRIVATE ncnn)

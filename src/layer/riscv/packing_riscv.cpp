@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "packing_riscv.h"
 
@@ -20,13 +9,19 @@
 
 #include "riscv_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Packing_riscv::Packing_riscv()
 {
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 #endif
     support_bf16_storage = true;
 }
@@ -38,7 +33,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __riscv_zfh
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
@@ -83,6 +78,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -108,9 +104,12 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -119,33 +118,36 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i * 4);
-                const float* r1 = bottom_blob.row(i * 4 + 1);
-                const float* r2 = bottom_blob.row(i * 4 + 2);
-                const float* r3 = bottom_blob.row(i * 4 + 3);
+                int b = bi / outh;
+                int i = bi % outh;
+                const float* r0 = bottom_blob.batch(b).row(i * 4);
+                const float* r1 = bottom_blob.batch(b).row(i * 4 + 1);
+                const float* r2 = bottom_blob.batch(b).row(i * 4 + 2);
+                const float* r3 = bottom_blob.batch(b).row(i * 4 + 3);
 
-                float* outptr = top_blob.row(i);
+                float* outptr = top_blob.batch(b).row(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m2(n);
+                    size_t vl = __riscv_vsetvl_e32m2(n);
 
-                    vfloat32m2_t _p0 = vle32_v_f32m2(r0, vl);
-                    vfloat32m2_t _p1 = vle32_v_f32m2(r1, vl);
-                    vfloat32m2_t _p2 = vle32_v_f32m2(r2, vl);
-                    vfloat32m2_t _p3 = vle32_v_f32m2(r3, vl);
-                    vsseg4e32_v_f32m2(outptr, _p0, _p1, _p2, _p3, vl);
+                    vfloat32m2_t _p0 = __riscv_vle32_v_f32m2(r0, vl);
+                    vfloat32m2_t _p1 = __riscv_vle32_v_f32m2(r1, vl);
+                    vfloat32m2_t _p2 = __riscv_vle32_v_f32m2(r2, vl);
+                    vfloat32m2_t _p3 = __riscv_vle32_v_f32m2(r3, vl);
+                    __riscv_vsseg4e32_v_f32m2x4(outptr, __riscv_vcreate_v_f32m2x4(_p0, _p1, _p2, _p3), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -169,32 +171,31 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack4to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i);
+                int b = bi / h;
+                int i = bi % h;
+                const float* r0 = bottom_blob.batch(b).row(i);
 
-                float* outptr0 = top_blob.row(i * 4);
-                float* outptr1 = top_blob.row(i * 4 + 1);
-                float* outptr2 = top_blob.row(i * 4 + 2);
-                float* outptr3 = top_blob.row(i * 4 + 3);
+                float* outptr0 = top_blob.batch(b).row(i * 4);
+                float* outptr1 = top_blob.batch(b).row(i * 4 + 1);
+                float* outptr2 = top_blob.batch(b).row(i * 4 + 2);
+                float* outptr3 = top_blob.batch(b).row(i * 4 + 3);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m2(n);
+                    size_t vl = __riscv_vsetvl_e32m2(n);
 
-                    vfloat32m2_t _p0;
-                    vfloat32m2_t _p1;
-                    vfloat32m2_t _p2;
-                    vfloat32m2_t _p3;
-                    vlseg4e32_v_f32m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
+                    vfloat32m2x4_t _p = __riscv_vlseg4e32_v_f32m2x4(r0, vl);
 
-                    vse32_v_f32m2(outptr0, _p0, vl);
-                    vse32_v_f32m2(outptr1, _p1, vl);
-                    vse32_v_f32m2(outptr2, _p2, vl);
-                    vse32_v_f32m2(outptr3, _p3, vl);
+                    __riscv_vse32_v_f32m2(outptr0, __riscv_vget_v_f32m2x4_f32m2(_p, 0), vl);
+                    __riscv_vse32_v_f32m2(outptr1, __riscv_vget_v_f32m2x4_f32m2(_p, 1), vl);
+                    __riscv_vse32_v_f32m2(outptr2, __riscv_vget_v_f32m2x4_f32m2(_p, 2), vl);
+                    __riscv_vse32_v_f32m2(outptr3, __riscv_vget_v_f32m2x4_f32m2(_p, 3), vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -218,35 +219,38 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack1to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i * 8);
-                const float* r1 = bottom_blob.row(i * 8 + 1);
-                const float* r2 = bottom_blob.row(i * 8 + 2);
-                const float* r3 = bottom_blob.row(i * 8 + 3);
-                const float* r4 = bottom_blob.row(i * 8 + 4);
-                const float* r5 = bottom_blob.row(i * 8 + 5);
-                const float* r6 = bottom_blob.row(i * 8 + 6);
-                const float* r7 = bottom_blob.row(i * 8 + 7);
+                int b = bi / outh;
+                int i = bi % outh;
+                const float* r0 = bottom_blob.batch(b).row(i * 8);
+                const float* r1 = bottom_blob.batch(b).row(i * 8 + 1);
+                const float* r2 = bottom_blob.batch(b).row(i * 8 + 2);
+                const float* r3 = bottom_blob.batch(b).row(i * 8 + 3);
+                const float* r4 = bottom_blob.batch(b).row(i * 8 + 4);
+                const float* r5 = bottom_blob.batch(b).row(i * 8 + 5);
+                const float* r6 = bottom_blob.batch(b).row(i * 8 + 6);
+                const float* r7 = bottom_blob.batch(b).row(i * 8 + 7);
 
-                float* outptr = top_blob.row(i);
+                float* outptr = top_blob.batch(b).row(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0 = vle32_v_f32m1(r0, vl);
-                    vfloat32m1_t _p1 = vle32_v_f32m1(r1, vl);
-                    vfloat32m1_t _p2 = vle32_v_f32m1(r2, vl);
-                    vfloat32m1_t _p3 = vle32_v_f32m1(r3, vl);
-                    vfloat32m1_t _p4 = vle32_v_f32m1(r4, vl);
-                    vfloat32m1_t _p5 = vle32_v_f32m1(r5, vl);
-                    vfloat32m1_t _p6 = vle32_v_f32m1(r6, vl);
-                    vfloat32m1_t _p7 = vle32_v_f32m1(r7, vl);
-                    vsseg8e32_v_f32m1(outptr, _p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7, vl);
+                    vfloat32m1_t _p0 = __riscv_vle32_v_f32m1(r0, vl);
+                    vfloat32m1_t _p1 = __riscv_vle32_v_f32m1(r1, vl);
+                    vfloat32m1_t _p2 = __riscv_vle32_v_f32m1(r2, vl);
+                    vfloat32m1_t _p3 = __riscv_vle32_v_f32m1(r3, vl);
+                    vfloat32m1_t _p4 = __riscv_vle32_v_f32m1(r4, vl);
+                    vfloat32m1_t _p5 = __riscv_vle32_v_f32m1(r5, vl);
+                    vfloat32m1_t _p6 = __riscv_vle32_v_f32m1(r6, vl);
+                    vfloat32m1_t _p7 = __riscv_vle32_v_f32m1(r7, vl);
+                    __riscv_vsseg8e32_v_f32m1x8(outptr, __riscv_vcreate_v_f32m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -278,43 +282,38 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack8to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i);
+                int b = bi / h;
+                int i = bi % h;
+                const float* r0 = bottom_blob.batch(b).row(i);
 
-                float* outptr0 = top_blob.row(i * 8);
-                float* outptr1 = top_blob.row(i * 8 + 1);
-                float* outptr2 = top_blob.row(i * 8 + 2);
-                float* outptr3 = top_blob.row(i * 8 + 3);
-                float* outptr4 = top_blob.row(i * 8 + 4);
-                float* outptr5 = top_blob.row(i * 8 + 5);
-                float* outptr6 = top_blob.row(i * 8 + 6);
-                float* outptr7 = top_blob.row(i * 8 + 7);
+                float* outptr0 = top_blob.batch(b).row(i * 8);
+                float* outptr1 = top_blob.batch(b).row(i * 8 + 1);
+                float* outptr2 = top_blob.batch(b).row(i * 8 + 2);
+                float* outptr3 = top_blob.batch(b).row(i * 8 + 3);
+                float* outptr4 = top_blob.batch(b).row(i * 8 + 4);
+                float* outptr5 = top_blob.batch(b).row(i * 8 + 5);
+                float* outptr6 = top_blob.batch(b).row(i * 8 + 6);
+                float* outptr7 = top_blob.batch(b).row(i * 8 + 7);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0;
-                    vfloat32m1_t _p1;
-                    vfloat32m1_t _p2;
-                    vfloat32m1_t _p3;
-                    vfloat32m1_t _p4;
-                    vfloat32m1_t _p5;
-                    vfloat32m1_t _p6;
-                    vfloat32m1_t _p7;
-                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-                    vse32_v_f32m1(outptr0, _p0, vl);
-                    vse32_v_f32m1(outptr1, _p1, vl);
-                    vse32_v_f32m1(outptr2, _p2, vl);
-                    vse32_v_f32m1(outptr3, _p3, vl);
-                    vse32_v_f32m1(outptr4, _p4, vl);
-                    vse32_v_f32m1(outptr5, _p5, vl);
-                    vse32_v_f32m1(outptr6, _p6, vl);
-                    vse32_v_f32m1(outptr7, _p7, vl);
+                    vfloat32m1x8_t _p = __riscv_vlseg8e32_v_f32m1x8(r0, vl);
+                    __riscv_vse32_v_f32m1(outptr0, __riscv_vget_v_f32m1x8_f32m1(_p, 0), vl);
+                    __riscv_vse32_v_f32m1(outptr1, __riscv_vget_v_f32m1x8_f32m1(_p, 1), vl);
+                    __riscv_vse32_v_f32m1(outptr2, __riscv_vget_v_f32m1x8_f32m1(_p, 2), vl);
+                    __riscv_vse32_v_f32m1(outptr3, __riscv_vget_v_f32m1x8_f32m1(_p, 3), vl);
+                    __riscv_vse32_v_f32m1(outptr4, __riscv_vget_v_f32m1x8_f32m1(_p, 4), vl);
+                    __riscv_vse32_v_f32m1(outptr5, __riscv_vget_v_f32m1x8_f32m1(_p, 5), vl);
+                    __riscv_vse32_v_f32m1(outptr6, __riscv_vget_v_f32m1x8_f32m1(_p, 6), vl);
+                    __riscv_vse32_v_f32m1(outptr7, __riscv_vget_v_f32m1x8_f32m1(_p, 7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -346,33 +345,36 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack4to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i * 2);
-                const float* r1 = bottom_blob.row(i * 2 + 1);
+                int b = bi / outh;
+                int i = bi % outh;
+                const float* r0 = bottom_blob.batch(b).row(i * 2);
+                const float* r1 = bottom_blob.batch(b).row(i * 2 + 1);
 
-                float* outptr = top_blob.row(i);
+                float* outptr = top_blob.batch(b).row(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p00;
-                    vfloat32m1_t _p01;
-                    vfloat32m1_t _p02;
-                    vfloat32m1_t _p03;
-                    vlseg4e32_v_f32m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+                    vfloat32m1x4_t _p0 = __riscv_vlseg4e32_v_f32m1x4(r0, vl);
+                    vfloat32m1x4_t _p1 = __riscv_vlseg4e32_v_f32m1x4(r1, vl);
 
-                    vfloat32m1_t _p10;
-                    vfloat32m1_t _p11;
-                    vfloat32m1_t _p12;
-                    vfloat32m1_t _p13;
-                    vlseg4e32_v_f32m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+                    vfloat32m1_t _p00 = __riscv_vget_v_f32m1x4_f32m1(_p0, 0);
+                    vfloat32m1_t _p01 = __riscv_vget_v_f32m1x4_f32m1(_p0, 1);
+                    vfloat32m1_t _p02 = __riscv_vget_v_f32m1x4_f32m1(_p0, 2);
+                    vfloat32m1_t _p03 = __riscv_vget_v_f32m1x4_f32m1(_p0, 3);
+                    vfloat32m1_t _p10 = __riscv_vget_v_f32m1x4_f32m1(_p1, 0);
+                    vfloat32m1_t _p11 = __riscv_vget_v_f32m1x4_f32m1(_p1, 1);
+                    vfloat32m1_t _p12 = __riscv_vget_v_f32m1x4_f32m1(_p1, 2);
+                    vfloat32m1_t _p13 = __riscv_vget_v_f32m1x4_f32m1(_p1, 3);
 
-                    vsseg8e32_v_f32m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
+                    __riscv_vsseg8e32_v_f32m1x8(outptr, __riscv_vcreate_v_f32m1x8(_p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13), vl);
 
                     r0 += vl * 4;
                     r1 += vl * 4;
@@ -400,31 +402,36 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack8to4)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i);
+                int b = bi / h;
+                int i = bi % h;
+                const float* r0 = bottom_blob.batch(b).row(i);
 
-                float* outptr0 = top_blob.row(i * 2);
-                float* outptr1 = top_blob.row(i * 2 + 1);
+                float* outptr0 = top_blob.batch(b).row(i * 2);
+                float* outptr1 = top_blob.batch(b).row(i * 2 + 1);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0;
-                    vfloat32m1_t _p1;
-                    vfloat32m1_t _p2;
-                    vfloat32m1_t _p3;
-                    vfloat32m1_t _p4;
-                    vfloat32m1_t _p5;
-                    vfloat32m1_t _p6;
-                    vfloat32m1_t _p7;
-                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-                    vsseg4e32_v_f32m1(outptr0, _p0, _p1, _p2, _p3, vl);
-                    vsseg4e32_v_f32m1(outptr1, _p4, _p5, _p6, _p7, vl);
+                    vfloat32m1x8_t _p = __riscv_vlseg8e32_v_f32m1x8(r0, vl);
+
+                    vfloat32m1_t _p0 = __riscv_vget_v_f32m1x8_f32m1(_p, 0);
+                    vfloat32m1_t _p1 = __riscv_vget_v_f32m1x8_f32m1(_p, 1);
+                    vfloat32m1_t _p2 = __riscv_vget_v_f32m1x8_f32m1(_p, 2);
+                    vfloat32m1_t _p3 = __riscv_vget_v_f32m1x8_f32m1(_p, 3);
+                    vfloat32m1_t _p4 = __riscv_vget_v_f32m1x8_f32m1(_p, 4);
+                    vfloat32m1_t _p5 = __riscv_vget_v_f32m1x8_f32m1(_p, 5);
+                    vfloat32m1_t _p6 = __riscv_vget_v_f32m1x8_f32m1(_p, 6);
+                    vfloat32m1_t _p7 = __riscv_vget_v_f32m1x8_f32m1(_p, 7);
+
+                    __riscv_vsseg4e32_v_f32m1x4(outptr0, __riscv_vcreate_v_f32m1x4(_p0, _p1, _p2, _p3), vl);
+                    __riscv_vsseg4e32_v_f32m1x4(outptr1, __riscv_vcreate_v_f32m1x4(_p4, _p5, _p6, _p7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl * 4;
@@ -461,35 +468,39 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q * 4);
-                const float* r1 = bottom_blob.channel(q * 4 + 1);
-                const float* r2 = bottom_blob.channel(q * 4 + 2);
-                const float* r3 = bottom_blob.channel(q * 4 + 3);
+                int b = bq / outc;
+                int q = bq % outc;
+                const float* r0 = bottom_blob.batch(b).channel(q * 4);
+                const float* r1 = bottom_blob.batch(b).channel(q * 4 + 1);
+                const float* r2 = bottom_blob.batch(b).channel(q * 4 + 2);
+                const float* r3 = bottom_blob.batch(b).channel(q * 4 + 3);
 
-                float* outptr = top_blob.channel(q);
+                float* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m2(n);
+                    size_t vl = __riscv_vsetvl_e32m2(n);
 
-                    vfloat32m2_t _p0 = vle32_v_f32m2(r0, vl);
-                    vfloat32m2_t _p1 = vle32_v_f32m2(r1, vl);
-                    vfloat32m2_t _p2 = vle32_v_f32m2(r2, vl);
-                    vfloat32m2_t _p3 = vle32_v_f32m2(r3, vl);
-                    vsseg4e32_v_f32m2(outptr, _p0, _p1, _p2, _p3, vl);
+                    vfloat32m2_t _p0 = __riscv_vle32_v_f32m2(r0, vl);
+                    vfloat32m2_t _p1 = __riscv_vle32_v_f32m2(r1, vl);
+                    vfloat32m2_t _p2 = __riscv_vle32_v_f32m2(r2, vl);
+                    vfloat32m2_t _p3 = __riscv_vle32_v_f32m2(r3, vl);
+
+                    __riscv_vsseg4e32_v_f32m2x4(outptr, __riscv_vcreate_v_f32m2x4(_p0, _p1, _p2, _p3), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -513,30 +524,30 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack4to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const float* r0 = bottom_blob.batch(b).channel(q);
 
-                float* outptr0 = top_blob.channel(q * 4);
-                float* outptr1 = top_blob.channel(q * 4 + 1);
-                float* outptr2 = top_blob.channel(q * 4 + 2);
-                float* outptr3 = top_blob.channel(q * 4 + 3);
+                float* outptr0 = top_blob.batch(b).channel(q * 4);
+                float* outptr1 = top_blob.batch(b).channel(q * 4 + 1);
+                float* outptr2 = top_blob.batch(b).channel(q * 4 + 2);
+                float* outptr3 = top_blob.batch(b).channel(q * 4 + 3);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m2(n);
-                    vfloat32m2_t _p0;
-                    vfloat32m2_t _p1;
-                    vfloat32m2_t _p2;
-                    vfloat32m2_t _p3;
-                    vlseg4e32_v_f32m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
-                    vse32_v_f32m2(outptr0, _p0, vl);
-                    vse32_v_f32m2(outptr1, _p1, vl);
-                    vse32_v_f32m2(outptr2, _p2, vl);
-                    vse32_v_f32m2(outptr3, _p3, vl);
+                    size_t vl = __riscv_vsetvl_e32m2(n);
+
+                    vfloat32m2x4_t _p = __riscv_vlseg4e32_v_f32m2x4(r0, vl);
+                    __riscv_vse32_v_f32m2(outptr0, __riscv_vget_v_f32m2x4_f32m2(_p, 0), vl);
+                    __riscv_vse32_v_f32m2(outptr1, __riscv_vget_v_f32m2x4_f32m2(_p, 1), vl);
+                    __riscv_vse32_v_f32m2(outptr2, __riscv_vget_v_f32m2x4_f32m2(_p, 2), vl);
+                    __riscv_vse32_v_f32m2(outptr3, __riscv_vget_v_f32m2x4_f32m2(_p, 3), vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -560,35 +571,38 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack1to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q * 8);
-                const float* r1 = bottom_blob.channel(q * 8 + 1);
-                const float* r2 = bottom_blob.channel(q * 8 + 2);
-                const float* r3 = bottom_blob.channel(q * 8 + 3);
-                const float* r4 = bottom_blob.channel(q * 8 + 4);
-                const float* r5 = bottom_blob.channel(q * 8 + 5);
-                const float* r6 = bottom_blob.channel(q * 8 + 6);
-                const float* r7 = bottom_blob.channel(q * 8 + 7);
+                int b = bq / outc;
+                int q = bq % outc;
+                const float* r0 = bottom_blob.batch(b).channel(q * 8);
+                const float* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
+                const float* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
+                const float* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
+                const float* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
+                const float* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
+                const float* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
+                const float* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
 
-                float* outptr = top_blob.channel(q);
+                float* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0 = vle32_v_f32m1(r0, vl);
-                    vfloat32m1_t _p1 = vle32_v_f32m1(r1, vl);
-                    vfloat32m1_t _p2 = vle32_v_f32m1(r2, vl);
-                    vfloat32m1_t _p3 = vle32_v_f32m1(r3, vl);
-                    vfloat32m1_t _p4 = vle32_v_f32m1(r4, vl);
-                    vfloat32m1_t _p5 = vle32_v_f32m1(r5, vl);
-                    vfloat32m1_t _p6 = vle32_v_f32m1(r6, vl);
-                    vfloat32m1_t _p7 = vle32_v_f32m1(r7, vl);
-                    vsseg8e32_v_f32m1(outptr, _p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7, vl);
+                    vfloat32m1_t _p0 = __riscv_vle32_v_f32m1(r0, vl);
+                    vfloat32m1_t _p1 = __riscv_vle32_v_f32m1(r1, vl);
+                    vfloat32m1_t _p2 = __riscv_vle32_v_f32m1(r2, vl);
+                    vfloat32m1_t _p3 = __riscv_vle32_v_f32m1(r3, vl);
+                    vfloat32m1_t _p4 = __riscv_vle32_v_f32m1(r4, vl);
+                    vfloat32m1_t _p5 = __riscv_vle32_v_f32m1(r5, vl);
+                    vfloat32m1_t _p6 = __riscv_vle32_v_f32m1(r6, vl);
+                    vfloat32m1_t _p7 = __riscv_vle32_v_f32m1(r7, vl);
+                    __riscv_vsseg8e32_v_f32m1x8(outptr, __riscv_vcreate_v_f32m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -620,44 +634,38 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack8to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const float* r0 = bottom_blob.batch(b).channel(q);
 
-                float* outptr0 = top_blob.channel(q * 8);
-                float* outptr1 = top_blob.channel(q * 8 + 1);
-                float* outptr2 = top_blob.channel(q * 8 + 2);
-                float* outptr3 = top_blob.channel(q * 8 + 3);
-                float* outptr4 = top_blob.channel(q * 8 + 4);
-                float* outptr5 = top_blob.channel(q * 8 + 5);
-                float* outptr6 = top_blob.channel(q * 8 + 6);
-                float* outptr7 = top_blob.channel(q * 8 + 7);
+                float* outptr0 = top_blob.batch(b).channel(q * 8);
+                float* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
+                float* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
+                float* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
+                float* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
+                float* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
+                float* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
+                float* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0;
-                    vfloat32m1_t _p1;
-                    vfloat32m1_t _p2;
-                    vfloat32m1_t _p3;
-                    vfloat32m1_t _p4;
-                    vfloat32m1_t _p5;
-                    vfloat32m1_t _p6;
-                    vfloat32m1_t _p7;
-                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-
-                    vse32_v_f32m1(outptr0, _p0, vl);
-                    vse32_v_f32m1(outptr1, _p1, vl);
-                    vse32_v_f32m1(outptr2, _p2, vl);
-                    vse32_v_f32m1(outptr3, _p3, vl);
-                    vse32_v_f32m1(outptr4, _p4, vl);
-                    vse32_v_f32m1(outptr5, _p5, vl);
-                    vse32_v_f32m1(outptr6, _p6, vl);
-                    vse32_v_f32m1(outptr7, _p7, vl);
+                    vfloat32m1x8_t _p = __riscv_vlseg8e32_v_f32m1x8(r0, vl);
+                    __riscv_vse32_v_f32m1(outptr0, __riscv_vget_v_f32m1x8_f32m1(_p, 0), vl);
+                    __riscv_vse32_v_f32m1(outptr1, __riscv_vget_v_f32m1x8_f32m1(_p, 1), vl);
+                    __riscv_vse32_v_f32m1(outptr2, __riscv_vget_v_f32m1x8_f32m1(_p, 2), vl);
+                    __riscv_vse32_v_f32m1(outptr3, __riscv_vget_v_f32m1x8_f32m1(_p, 3), vl);
+                    __riscv_vse32_v_f32m1(outptr4, __riscv_vget_v_f32m1x8_f32m1(_p, 4), vl);
+                    __riscv_vse32_v_f32m1(outptr5, __riscv_vget_v_f32m1x8_f32m1(_p, 5), vl);
+                    __riscv_vse32_v_f32m1(outptr6, __riscv_vget_v_f32m1x8_f32m1(_p, 6), vl);
+                    __riscv_vse32_v_f32m1(outptr7, __riscv_vget_v_f32m1x8_f32m1(_p, 7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -689,33 +697,36 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack4to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q * 2);
-                const float* r1 = bottom_blob.channel(q * 2 + 1);
+                int b = bq / outc;
+                int q = bq % outc;
+                const float* r0 = bottom_blob.batch(b).channel(q * 2);
+                const float* r1 = bottom_blob.batch(b).channel(q * 2 + 1);
 
-                float* outptr = top_blob.channel(q);
+                float* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p00;
-                    vfloat32m1_t _p01;
-                    vfloat32m1_t _p02;
-                    vfloat32m1_t _p03;
-                    vlseg4e32_v_f32m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+                    vfloat32m1x4_t _p0 = __riscv_vlseg4e32_v_f32m1x4(r0, vl);
+                    vfloat32m1x4_t _p1 = __riscv_vlseg4e32_v_f32m1x4(r1, vl);
 
-                    vfloat32m1_t _p10;
-                    vfloat32m1_t _p11;
-                    vfloat32m1_t _p12;
-                    vfloat32m1_t _p13;
-                    vlseg4e32_v_f32m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+                    vfloat32m1_t _p00 = __riscv_vget_v_f32m1x4_f32m1(_p0, 0);
+                    vfloat32m1_t _p01 = __riscv_vget_v_f32m1x4_f32m1(_p0, 1);
+                    vfloat32m1_t _p02 = __riscv_vget_v_f32m1x4_f32m1(_p0, 2);
+                    vfloat32m1_t _p03 = __riscv_vget_v_f32m1x4_f32m1(_p0, 3);
+                    vfloat32m1_t _p10 = __riscv_vget_v_f32m1x4_f32m1(_p1, 0);
+                    vfloat32m1_t _p11 = __riscv_vget_v_f32m1x4_f32m1(_p1, 1);
+                    vfloat32m1_t _p12 = __riscv_vget_v_f32m1x4_f32m1(_p1, 2);
+                    vfloat32m1_t _p13 = __riscv_vget_v_f32m1x4_f32m1(_p1, 3);
 
-                    vsseg8e32_v_f32m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
+                    __riscv_vsseg8e32_v_f32m1x8(outptr, __riscv_vcreate_v_f32m1x8(_p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13), vl);
 
                     r0 += vl * 4;
                     r1 += vl * 4;
@@ -743,31 +754,36 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
         if (pack8to4)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const float* r0 = bottom_blob.batch(b).channel(q);
 
-                float* outptr0 = top_blob.channel(q * 2);
-                float* outptr1 = top_blob.channel(q * 2 + 1);
+                float* outptr0 = top_blob.batch(b).channel(q * 2);
+                float* outptr1 = top_blob.batch(b).channel(q * 2 + 1);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = __riscv_vsetvl_e32m1(n);
 
-                    vfloat32m1_t _p0;
-                    vfloat32m1_t _p1;
-                    vfloat32m1_t _p2;
-                    vfloat32m1_t _p3;
-                    vfloat32m1_t _p4;
-                    vfloat32m1_t _p5;
-                    vfloat32m1_t _p6;
-                    vfloat32m1_t _p7;
-                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-                    vsseg4e32_v_f32m1(outptr0, _p0, _p1, _p2, _p3, vl);
-                    vsseg4e32_v_f32m1(outptr1, _p4, _p5, _p6, _p7, vl);
+                    vfloat32m1x8_t _p = __riscv_vlseg8e32_v_f32m1x8(r0, vl);
+
+                    vfloat32m1_t _p0 = __riscv_vget_v_f32m1x8_f32m1(_p, 0);
+                    vfloat32m1_t _p1 = __riscv_vget_v_f32m1x8_f32m1(_p, 1);
+                    vfloat32m1_t _p2 = __riscv_vget_v_f32m1x8_f32m1(_p, 2);
+                    vfloat32m1_t _p3 = __riscv_vget_v_f32m1x8_f32m1(_p, 3);
+                    vfloat32m1_t _p4 = __riscv_vget_v_f32m1x8_f32m1(_p, 4);
+                    vfloat32m1_t _p5 = __riscv_vget_v_f32m1x8_f32m1(_p, 5);
+                    vfloat32m1_t _p6 = __riscv_vget_v_f32m1x8_f32m1(_p, 6);
+                    vfloat32m1_t _p7 = __riscv_vget_v_f32m1x8_f32m1(_p, 7);
+
+                    __riscv_vsseg4e32_v_f32m1x4(outptr0, __riscv_vcreate_v_f32m1x4(_p0, _p1, _p2, _p3), vl);
+                    __riscv_vsseg4e32_v_f32m1x4(outptr1, __riscv_vcreate_v_f32m1x4(_p4, _p5, _p6, _p7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl * 4;
@@ -833,6 +849,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -858,9 +875,12 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -869,33 +889,36 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 4);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 4 + 1);
-                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 4 + 2);
-                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 4 + 3);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 4);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 3);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m2(n);
+                    size_t vl = __riscv_vsetvl_e16m2(n);
 
-                    vuint16m2_t _p0 = vle16_v_u16m2(r0, vl);
-                    vuint16m2_t _p1 = vle16_v_u16m2(r1, vl);
-                    vuint16m2_t _p2 = vle16_v_u16m2(r2, vl);
-                    vuint16m2_t _p3 = vle16_v_u16m2(r3, vl);
-                    vsseg4e16_v_u16m2(outptr, _p0, _p1, _p2, _p3, vl);
+                    vuint16m2_t _p0 = __riscv_vle16_v_u16m2(r0, vl);
+                    vuint16m2_t _p1 = __riscv_vle16_v_u16m2(r1, vl);
+                    vuint16m2_t _p2 = __riscv_vle16_v_u16m2(r2, vl);
+                    vuint16m2_t _p3 = __riscv_vle16_v_u16m2(r3, vl);
+                    __riscv_vsseg4e16_v_u16m2x4(outptr, __riscv_vcreate_v_u16m2x4(_p0, _p1, _p2, _p3), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -919,31 +942,30 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack4to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 4);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 4 + 1);
-                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 4 + 2);
-                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 4 + 3);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 4);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 4 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).row<unsigned short>(i * 4 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).row<unsigned short>(i * 4 + 3);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m2(n);
+                    size_t vl = __riscv_vsetvl_e16m2(n);
 
-                    vuint16m2_t _p0;
-                    vuint16m2_t _p1;
-                    vuint16m2_t _p2;
-                    vuint16m2_t _p3;
-                    vlseg4e16_v_u16m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
-                    vse16_v_u16m2(outptr0, _p0, vl);
-                    vse16_v_u16m2(outptr1, _p1, vl);
-                    vse16_v_u16m2(outptr2, _p2, vl);
-                    vse16_v_u16m2(outptr3, _p3, vl);
+                    vuint16m2x4_t _p = __riscv_vlseg4e16_v_u16m2x4(r0, vl);
+                    __riscv_vse16_v_u16m2(outptr0, __riscv_vget_v_u16m2x4_u16m2(_p, 0), vl);
+                    __riscv_vse16_v_u16m2(outptr1, __riscv_vget_v_u16m2x4_u16m2(_p, 1), vl);
+                    __riscv_vse16_v_u16m2(outptr2, __riscv_vget_v_u16m2x4_u16m2(_p, 2), vl);
+                    __riscv_vse16_v_u16m2(outptr3, __riscv_vget_v_u16m2x4_u16m2(_p, 3), vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -967,35 +989,38 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack1to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 8);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 8 + 1);
-                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 8 + 2);
-                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 8 + 3);
-                const unsigned short* r4 = bottom_blob.row<const unsigned short>(i * 8 + 4);
-                const unsigned short* r5 = bottom_blob.row<const unsigned short>(i * 8 + 5);
-                const unsigned short* r6 = bottom_blob.row<const unsigned short>(i * 8 + 6);
-                const unsigned short* r7 = bottom_blob.row<const unsigned short>(i * 8 + 7);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 8);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 3);
+                const unsigned short* r4 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 4);
+                const unsigned short* r5 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 5);
+                const unsigned short* r6 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 6);
+                const unsigned short* r7 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 7);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0 = vle16_v_u16m1(r0, vl);
-                    vuint16m1_t _p1 = vle16_v_u16m1(r1, vl);
-                    vuint16m1_t _p2 = vle16_v_u16m1(r2, vl);
-                    vuint16m1_t _p3 = vle16_v_u16m1(r3, vl);
-                    vuint16m1_t _p4 = vle16_v_u16m1(r4, vl);
-                    vuint16m1_t _p5 = vle16_v_u16m1(r5, vl);
-                    vuint16m1_t _p6 = vle16_v_u16m1(r6, vl);
-                    vuint16m1_t _p7 = vle16_v_u16m1(r7, vl);
-                    vsseg8e16_v_u16m1(outptr, _p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7, vl);
+                    vuint16m1_t _p0 = __riscv_vle16_v_u16m1(r0, vl);
+                    vuint16m1_t _p1 = __riscv_vle16_v_u16m1(r1, vl);
+                    vuint16m1_t _p2 = __riscv_vle16_v_u16m1(r2, vl);
+                    vuint16m1_t _p3 = __riscv_vle16_v_u16m1(r3, vl);
+                    vuint16m1_t _p4 = __riscv_vle16_v_u16m1(r4, vl);
+                    vuint16m1_t _p5 = __riscv_vle16_v_u16m1(r5, vl);
+                    vuint16m1_t _p6 = __riscv_vle16_v_u16m1(r6, vl);
+                    vuint16m1_t _p7 = __riscv_vle16_v_u16m1(r7, vl);
+                    __riscv_vsseg8e16_v_u16m1x8(outptr, __riscv_vcreate_v_u16m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -1027,44 +1052,38 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack8to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 8);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 8 + 1);
-                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 8 + 2);
-                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 8 + 3);
-                unsigned short* outptr4 = top_blob.row<unsigned short>(i * 8 + 4);
-                unsigned short* outptr5 = top_blob.row<unsigned short>(i * 8 + 5);
-                unsigned short* outptr6 = top_blob.row<unsigned short>(i * 8 + 6);
-                unsigned short* outptr7 = top_blob.row<unsigned short>(i * 8 + 7);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 8);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 8 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).row<unsigned short>(i * 8 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).row<unsigned short>(i * 8 + 3);
+                unsigned short* outptr4 = top_blob.batch(b).row<unsigned short>(i * 8 + 4);
+                unsigned short* outptr5 = top_blob.batch(b).row<unsigned short>(i * 8 + 5);
+                unsigned short* outptr6 = top_blob.batch(b).row<unsigned short>(i * 8 + 6);
+                unsigned short* outptr7 = top_blob.batch(b).row<unsigned short>(i * 8 + 7);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0;
-                    vuint16m1_t _p1;
-                    vuint16m1_t _p2;
-                    vuint16m1_t _p3;
-                    vuint16m1_t _p4;
-                    vuint16m1_t _p5;
-                    vuint16m1_t _p6;
-                    vuint16m1_t _p7;
-                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-
-                    vse16_v_u16m1(outptr0, _p0, vl);
-                    vse16_v_u16m1(outptr1, _p1, vl);
-                    vse16_v_u16m1(outptr2, _p2, vl);
-                    vse16_v_u16m1(outptr3, _p3, vl);
-                    vse16_v_u16m1(outptr4, _p4, vl);
-                    vse16_v_u16m1(outptr5, _p5, vl);
-                    vse16_v_u16m1(outptr6, _p6, vl);
-                    vse16_v_u16m1(outptr7, _p7, vl);
+                    vuint16m1x8_t _p = __riscv_vlseg8e16_v_u16m1x8(r0, vl);
+                    __riscv_vse16_v_u16m1(outptr0, __riscv_vget_v_u16m1x8_u16m1(_p, 0), vl);
+                    __riscv_vse16_v_u16m1(outptr1, __riscv_vget_v_u16m1x8_u16m1(_p, 1), vl);
+                    __riscv_vse16_v_u16m1(outptr2, __riscv_vget_v_u16m1x8_u16m1(_p, 2), vl);
+                    __riscv_vse16_v_u16m1(outptr3, __riscv_vget_v_u16m1x8_u16m1(_p, 3), vl);
+                    __riscv_vse16_v_u16m1(outptr4, __riscv_vget_v_u16m1x8_u16m1(_p, 4), vl);
+                    __riscv_vse16_v_u16m1(outptr5, __riscv_vget_v_u16m1x8_u16m1(_p, 5), vl);
+                    __riscv_vse16_v_u16m1(outptr6, __riscv_vget_v_u16m1x8_u16m1(_p, 6), vl);
+                    __riscv_vse16_v_u16m1(outptr7, __riscv_vget_v_u16m1x8_u16m1(_p, 7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -1096,33 +1115,36 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack4to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 2);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 2 + 1);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 2);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 2 + 1);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p00;
-                    vuint16m1_t _p01;
-                    vuint16m1_t _p02;
-                    vuint16m1_t _p03;
-                    vlseg4e16_v_u16m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+                    vuint16m1x4_t _p0 = __riscv_vlseg4e16_v_u16m1x4(r0, vl);
+                    vuint16m1x4_t _p1 = __riscv_vlseg4e16_v_u16m1x4(r1, vl);
 
-                    vuint16m1_t _p10;
-                    vuint16m1_t _p11;
-                    vuint16m1_t _p12;
-                    vuint16m1_t _p13;
-                    vlseg4e16_v_u16m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+                    vuint16m1_t _p00 = __riscv_vget_v_u16m1x4_u16m1(_p0, 0);
+                    vuint16m1_t _p01 = __riscv_vget_v_u16m1x4_u16m1(_p0, 1);
+                    vuint16m1_t _p02 = __riscv_vget_v_u16m1x4_u16m1(_p0, 2);
+                    vuint16m1_t _p03 = __riscv_vget_v_u16m1x4_u16m1(_p0, 3);
+                    vuint16m1_t _p10 = __riscv_vget_v_u16m1x4_u16m1(_p1, 0);
+                    vuint16m1_t _p11 = __riscv_vget_v_u16m1x4_u16m1(_p1, 1);
+                    vuint16m1_t _p12 = __riscv_vget_v_u16m1x4_u16m1(_p1, 2);
+                    vuint16m1_t _p13 = __riscv_vget_v_u16m1x4_u16m1(_p1, 3);
 
-                    vsseg8e16_v_u16m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
+                    __riscv_vsseg8e16_v_u16m1x8(outptr, __riscv_vcreate_v_u16m1x8(_p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13), vl);
 
                     r0 += vl * 4;
                     r1 += vl * 4;
@@ -1150,32 +1172,36 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack8to4)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 2);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 2 + 1);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 2);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 2 + 1);
 
 #if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0;
-                    vuint16m1_t _p1;
-                    vuint16m1_t _p2;
-                    vuint16m1_t _p3;
-                    vuint16m1_t _p4;
-                    vuint16m1_t _p5;
-                    vuint16m1_t _p6;
-                    vuint16m1_t _p7;
-                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+                    vuint16m1x8_t _p = __riscv_vlseg8e16_v_u16m1x8(r0, vl);
 
-                    vsseg4e16_v_u16m1(outptr0, _p0, _p1, _p2, _p3, vl);
-                    vsseg4e16_v_u16m1(outptr1, _p4, _p5, _p6, _p7, vl);
+                    vuint16m1_t _p0 = __riscv_vget_v_u16m1x8_u16m1(_p, 0);
+                    vuint16m1_t _p1 = __riscv_vget_v_u16m1x8_u16m1(_p, 1);
+                    vuint16m1_t _p2 = __riscv_vget_v_u16m1x8_u16m1(_p, 2);
+                    vuint16m1_t _p3 = __riscv_vget_v_u16m1x8_u16m1(_p, 3);
+                    vuint16m1_t _p4 = __riscv_vget_v_u16m1x8_u16m1(_p, 4);
+                    vuint16m1_t _p5 = __riscv_vget_v_u16m1x8_u16m1(_p, 5);
+                    vuint16m1_t _p6 = __riscv_vget_v_u16m1x8_u16m1(_p, 6);
+                    vuint16m1_t _p7 = __riscv_vget_v_u16m1x8_u16m1(_p, 7);
+
+                    __riscv_vsseg4e16_v_u16m1x4(outptr0, __riscv_vcreate_v_u16m1x4(_p0, _p1, _p2, _p3), vl);
+                    __riscv_vsseg4e16_v_u16m1x4(outptr1, __riscv_vcreate_v_u16m1x4(_p4, _p5, _p6, _p7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl * 4;
@@ -1212,35 +1238,38 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 4);
-                const unsigned short* r1 = bottom_blob.channel(q * 4 + 1);
-                const unsigned short* r2 = bottom_blob.channel(q * 4 + 2);
-                const unsigned short* r3 = bottom_blob.channel(q * 4 + 3);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 4);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 4 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).channel(q * 4 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).channel(q * 4 + 3);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m2(n);
+                    size_t vl = __riscv_vsetvl_e16m2(n);
 
-                    vuint16m2_t _p0 = vle16_v_u16m2(r0, vl);
-                    vuint16m2_t _p1 = vle16_v_u16m2(r1, vl);
-                    vuint16m2_t _p2 = vle16_v_u16m2(r2, vl);
-                    vuint16m2_t _p3 = vle16_v_u16m2(r3, vl);
-                    vsseg4e16_v_u16m2(outptr, _p0, _p1, _p2, _p3, vl);
+                    vuint16m2_t _p0 = __riscv_vle16_v_u16m2(r0, vl);
+                    vuint16m2_t _p1 = __riscv_vle16_v_u16m2(r1, vl);
+                    vuint16m2_t _p2 = __riscv_vle16_v_u16m2(r2, vl);
+                    vuint16m2_t _p3 = __riscv_vle16_v_u16m2(r3, vl);
+                    __riscv_vsseg4e16_v_u16m2x4(outptr, __riscv_vcreate_v_u16m2x4(_p0, _p1, _p2, _p3), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -1264,31 +1293,30 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack4to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 4);
-                unsigned short* outptr1 = top_blob.channel(q * 4 + 1);
-                unsigned short* outptr2 = top_blob.channel(q * 4 + 2);
-                unsigned short* outptr3 = top_blob.channel(q * 4 + 3);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 4);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 4 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).channel(q * 4 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).channel(q * 4 + 3);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m2(n);
+                    size_t vl = __riscv_vsetvl_e16m2(n);
 
-                    vuint16m2_t _p0;
-                    vuint16m2_t _p1;
-                    vuint16m2_t _p2;
-                    vuint16m2_t _p3;
-                    vlseg4e16_v_u16m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
-                    vse16_v_u16m2(outptr0, _p0, vl);
-                    vse16_v_u16m2(outptr1, _p1, vl);
-                    vse16_v_u16m2(outptr2, _p2, vl);
-                    vse16_v_u16m2(outptr3, _p3, vl);
+                    vuint16m2x4_t _p = __riscv_vlseg4e16_v_u16m2x4(r0, vl);
+                    __riscv_vse16_v_u16m2(outptr0, __riscv_vget_v_u16m2x4_u16m2(_p, 0), vl);
+                    __riscv_vse16_v_u16m2(outptr1, __riscv_vget_v_u16m2x4_u16m2(_p, 1), vl);
+                    __riscv_vse16_v_u16m2(outptr2, __riscv_vget_v_u16m2x4_u16m2(_p, 2), vl);
+                    __riscv_vse16_v_u16m2(outptr3, __riscv_vget_v_u16m2x4_u16m2(_p, 3), vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -1312,35 +1340,38 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack1to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 8);
-                const unsigned short* r1 = bottom_blob.channel(q * 8 + 1);
-                const unsigned short* r2 = bottom_blob.channel(q * 8 + 2);
-                const unsigned short* r3 = bottom_blob.channel(q * 8 + 3);
-                const unsigned short* r4 = bottom_blob.channel(q * 8 + 4);
-                const unsigned short* r5 = bottom_blob.channel(q * 8 + 5);
-                const unsigned short* r6 = bottom_blob.channel(q * 8 + 6);
-                const unsigned short* r7 = bottom_blob.channel(q * 8 + 7);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 8);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
+                const unsigned short* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
+                const unsigned short* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
+                const unsigned short* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
+                const unsigned short* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0 = vle16_v_u16m1(r0, vl);
-                    vuint16m1_t _p1 = vle16_v_u16m1(r1, vl);
-                    vuint16m1_t _p2 = vle16_v_u16m1(r2, vl);
-                    vuint16m1_t _p3 = vle16_v_u16m1(r3, vl);
-                    vuint16m1_t _p4 = vle16_v_u16m1(r4, vl);
-                    vuint16m1_t _p5 = vle16_v_u16m1(r5, vl);
-                    vuint16m1_t _p6 = vle16_v_u16m1(r6, vl);
-                    vuint16m1_t _p7 = vle16_v_u16m1(r7, vl);
-                    vsseg8e16_v_u16m1(outptr, _p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7, vl);
+                    vuint16m1_t _p0 = __riscv_vle16_v_u16m1(r0, vl);
+                    vuint16m1_t _p1 = __riscv_vle16_v_u16m1(r1, vl);
+                    vuint16m1_t _p2 = __riscv_vle16_v_u16m1(r2, vl);
+                    vuint16m1_t _p3 = __riscv_vle16_v_u16m1(r3, vl);
+                    vuint16m1_t _p4 = __riscv_vle16_v_u16m1(r4, vl);
+                    vuint16m1_t _p5 = __riscv_vle16_v_u16m1(r5, vl);
+                    vuint16m1_t _p6 = __riscv_vle16_v_u16m1(r6, vl);
+                    vuint16m1_t _p7 = __riscv_vle16_v_u16m1(r7, vl);
+                    __riscv_vsseg8e16_v_u16m1x8(outptr, __riscv_vcreate_v_u16m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
 
                     r0 += vl;
                     r1 += vl;
@@ -1372,43 +1403,38 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack8to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 8);
-                unsigned short* outptr1 = top_blob.channel(q * 8 + 1);
-                unsigned short* outptr2 = top_blob.channel(q * 8 + 2);
-                unsigned short* outptr3 = top_blob.channel(q * 8 + 3);
-                unsigned short* outptr4 = top_blob.channel(q * 8 + 4);
-                unsigned short* outptr5 = top_blob.channel(q * 8 + 5);
-                unsigned short* outptr6 = top_blob.channel(q * 8 + 6);
-                unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 8);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
+                unsigned short* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
+                unsigned short* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
+                unsigned short* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
+                unsigned short* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0;
-                    vuint16m1_t _p1;
-                    vuint16m1_t _p2;
-                    vuint16m1_t _p3;
-                    vuint16m1_t _p4;
-                    vuint16m1_t _p5;
-                    vuint16m1_t _p6;
-                    vuint16m1_t _p7;
-                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
-                    vse16_v_u16m1(outptr0, _p0, vl);
-                    vse16_v_u16m1(outptr1, _p1, vl);
-                    vse16_v_u16m1(outptr2, _p2, vl);
-                    vse16_v_u16m1(outptr3, _p3, vl);
-                    vse16_v_u16m1(outptr4, _p4, vl);
-                    vse16_v_u16m1(outptr5, _p5, vl);
-                    vse16_v_u16m1(outptr6, _p6, vl);
-                    vse16_v_u16m1(outptr7, _p7, vl);
+                    vuint16m1x8_t _p = __riscv_vlseg8e16_v_u16m1x8(r0, vl);
+                    __riscv_vse16_v_u16m1(outptr0, __riscv_vget_v_u16m1x8_u16m1(_p, 0), vl);
+                    __riscv_vse16_v_u16m1(outptr1, __riscv_vget_v_u16m1x8_u16m1(_p, 1), vl);
+                    __riscv_vse16_v_u16m1(outptr2, __riscv_vget_v_u16m1x8_u16m1(_p, 2), vl);
+                    __riscv_vse16_v_u16m1(outptr3, __riscv_vget_v_u16m1x8_u16m1(_p, 3), vl);
+                    __riscv_vse16_v_u16m1(outptr4, __riscv_vget_v_u16m1x8_u16m1(_p, 4), vl);
+                    __riscv_vse16_v_u16m1(outptr5, __riscv_vget_v_u16m1x8_u16m1(_p, 5), vl);
+                    __riscv_vse16_v_u16m1(outptr6, __riscv_vget_v_u16m1x8_u16m1(_p, 6), vl);
+                    __riscv_vse16_v_u16m1(outptr7, __riscv_vget_v_u16m1x8_u16m1(_p, 7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -1440,33 +1466,35 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack4to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 2);
-                const unsigned short* r1 = bottom_blob.channel(q * 2 + 1);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 2);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 2 + 1);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p00;
-                    vuint16m1_t _p01;
-                    vuint16m1_t _p02;
-                    vuint16m1_t _p03;
-                    vlseg4e16_v_u16m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+                    vuint16m1x4_t _p0 = __riscv_vlseg4e16_v_u16m1x4(r0, vl);
+                    vuint16m1x4_t _p1 = __riscv_vlseg4e16_v_u16m1x4(r1, vl);
 
-                    vuint16m1_t _p10;
-                    vuint16m1_t _p11;
-                    vuint16m1_t _p12;
-                    vuint16m1_t _p13;
-                    vlseg4e16_v_u16m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
-
-                    vsseg8e16_v_u16m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
+                    vuint16m1_t _p00 = __riscv_vget_v_u16m1x4_u16m1(_p0, 0);
+                    vuint16m1_t _p01 = __riscv_vget_v_u16m1x4_u16m1(_p0, 1);
+                    vuint16m1_t _p02 = __riscv_vget_v_u16m1x4_u16m1(_p0, 2);
+                    vuint16m1_t _p03 = __riscv_vget_v_u16m1x4_u16m1(_p0, 3);
+                    vuint16m1_t _p10 = __riscv_vget_v_u16m1x4_u16m1(_p1, 0);
+                    vuint16m1_t _p11 = __riscv_vget_v_u16m1x4_u16m1(_p1, 1);
+                    vuint16m1_t _p12 = __riscv_vget_v_u16m1x4_u16m1(_p1, 2);
+                    vuint16m1_t _p13 = __riscv_vget_v_u16m1x4_u16m1(_p1, 3);
+                    __riscv_vsseg8e16_v_u16m1x8(outptr, __riscv_vcreate_v_u16m1x8(_p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13), vl);
 
                     r0 += vl * 4;
                     r1 += vl * 4;
@@ -1494,32 +1522,36 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
         }
         if (pack8to4)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 2);
-                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 2);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 2 + 1);
 
 #if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = __riscv_vsetvl_e16m1(n);
 
-                    vuint16m1_t _p0;
-                    vuint16m1_t _p1;
-                    vuint16m1_t _p2;
-                    vuint16m1_t _p3;
-                    vuint16m1_t _p4;
-                    vuint16m1_t _p5;
-                    vuint16m1_t _p6;
-                    vuint16m1_t _p7;
-                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+                    vuint16m1x8_t _p = __riscv_vlseg8e16_v_u16m1x8(r0, vl);
 
-                    vsseg4e16_v_u16m1(outptr0, _p0, _p1, _p2, _p3, vl);
-                    vsseg4e16_v_u16m1(outptr1, _p4, _p5, _p6, _p7, vl);
+                    vuint16m1_t _p0 = __riscv_vget_v_u16m1x8_u16m1(_p, 0);
+                    vuint16m1_t _p1 = __riscv_vget_v_u16m1x8_u16m1(_p, 1);
+                    vuint16m1_t _p2 = __riscv_vget_v_u16m1x8_u16m1(_p, 2);
+                    vuint16m1_t _p3 = __riscv_vget_v_u16m1x8_u16m1(_p, 3);
+                    vuint16m1_t _p4 = __riscv_vget_v_u16m1x8_u16m1(_p, 4);
+                    vuint16m1_t _p5 = __riscv_vget_v_u16m1x8_u16m1(_p, 5);
+                    vuint16m1_t _p6 = __riscv_vget_v_u16m1x8_u16m1(_p, 6);
+                    vuint16m1_t _p7 = __riscv_vget_v_u16m1x8_u16m1(_p, 7);
+
+                    __riscv_vsseg4e16_v_u16m1x4(outptr0, __riscv_vcreate_v_u16m1x4(_p0, _p1, _p2, _p3), vl);
+                    __riscv_vsseg4e16_v_u16m1x4(outptr1, __riscv_vcreate_v_u16m1x4(_p4, _p5, _p6, _p7), vl);
 
                     r0 += vl * 8;
                     outptr0 += vl * 4;
@@ -1581,6 +1613,7 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -1606,9 +1639,12 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         top_blob = bottom_blob;
         top_blob.w = w * elempack / out_elempack;
-        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+#if NCNN_BATCH
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
+#endif
         return 0;
     }
 
@@ -1617,25 +1653,28 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const signed char* r0 = bottom_blob.row<const signed char>(i * 8);
-                const signed char* r1 = bottom_blob.row<const signed char>(i * 8 + 1);
-                const signed char* r2 = bottom_blob.row<const signed char>(i * 8 + 2);
-                const signed char* r3 = bottom_blob.row<const signed char>(i * 8 + 3);
-                const signed char* r4 = bottom_blob.row<const signed char>(i * 8 + 4);
-                const signed char* r5 = bottom_blob.row<const signed char>(i * 8 + 5);
-                const signed char* r6 = bottom_blob.row<const signed char>(i * 8 + 6);
-                const signed char* r7 = bottom_blob.row<const signed char>(i * 8 + 7);
+                int b = bi / outh;
+                int i = bi % outh;
+                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i * 8);
+                const signed char* r1 = bottom_blob.batch(b).row<const signed char>(i * 8 + 1);
+                const signed char* r2 = bottom_blob.batch(b).row<const signed char>(i * 8 + 2);
+                const signed char* r3 = bottom_blob.batch(b).row<const signed char>(i * 8 + 3);
+                const signed char* r4 = bottom_blob.batch(b).row<const signed char>(i * 8 + 4);
+                const signed char* r5 = bottom_blob.batch(b).row<const signed char>(i * 8 + 5);
+                const signed char* r6 = bottom_blob.batch(b).row<const signed char>(i * 8 + 6);
+                const signed char* r7 = bottom_blob.batch(b).row<const signed char>(i * 8 + 7);
 
-                signed char* outptr = top_blob.row<signed char>(i);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i);
 
                 int j = 0;
                 for (; j < w; j++)
@@ -1655,19 +1694,22 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (pack8to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const signed char* r0 = bottom_blob.row<const signed char>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i);
 
-                signed char* outptr0 = top_blob.row<signed char>(i * 8);
-                signed char* outptr1 = top_blob.row<signed char>(i * 8 + 1);
-                signed char* outptr2 = top_blob.row<signed char>(i * 8 + 2);
-                signed char* outptr3 = top_blob.row<signed char>(i * 8 + 3);
-                signed char* outptr4 = top_blob.row<signed char>(i * 8 + 4);
-                signed char* outptr5 = top_blob.row<signed char>(i * 8 + 5);
-                signed char* outptr6 = top_blob.row<signed char>(i * 8 + 6);
-                signed char* outptr7 = top_blob.row<signed char>(i * 8 + 7);
+                signed char* outptr0 = top_blob.batch(b).row<signed char>(i * 8);
+                signed char* outptr1 = top_blob.batch(b).row<signed char>(i * 8 + 1);
+                signed char* outptr2 = top_blob.batch(b).row<signed char>(i * 8 + 2);
+                signed char* outptr3 = top_blob.batch(b).row<signed char>(i * 8 + 3);
+                signed char* outptr4 = top_blob.batch(b).row<signed char>(i * 8 + 4);
+                signed char* outptr5 = top_blob.batch(b).row<signed char>(i * 8 + 5);
+                signed char* outptr6 = top_blob.batch(b).row<signed char>(i * 8 + 6);
+                signed char* outptr7 = top_blob.batch(b).row<signed char>(i * 8 + 7);
 
                 int j = 0;
                 for (; j < w; j++)
@@ -1696,27 +1738,30 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const signed char* r0 = bottom_blob.channel(q * 8);
-                const signed char* r1 = bottom_blob.channel(q * 8 + 1);
-                const signed char* r2 = bottom_blob.channel(q * 8 + 2);
-                const signed char* r3 = bottom_blob.channel(q * 8 + 3);
-                const signed char* r4 = bottom_blob.channel(q * 8 + 4);
-                const signed char* r5 = bottom_blob.channel(q * 8 + 5);
-                const signed char* r6 = bottom_blob.channel(q * 8 + 6);
-                const signed char* r7 = bottom_blob.channel(q * 8 + 7);
+                int b = bq / outc;
+                int q = bq % outc;
+                const signed char* r0 = bottom_blob.batch(b).channel(q * 8);
+                const signed char* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
+                const signed char* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
+                const signed char* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
+                const signed char* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
+                const signed char* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
+                const signed char* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
+                const signed char* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
 
-                signed char* outptr = top_blob.channel(q);
+                signed char* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
                 for (; i < size; i++)
@@ -1736,19 +1781,22 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (pack8to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const signed char* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const signed char* r0 = bottom_blob.batch(b).channel(q);
 
-                signed char* outptr0 = top_blob.channel(q * 8);
-                signed char* outptr1 = top_blob.channel(q * 8 + 1);
-                signed char* outptr2 = top_blob.channel(q * 8 + 2);
-                signed char* outptr3 = top_blob.channel(q * 8 + 3);
-                signed char* outptr4 = top_blob.channel(q * 8 + 4);
-                signed char* outptr5 = top_blob.channel(q * 8 + 5);
-                signed char* outptr6 = top_blob.channel(q * 8 + 6);
-                signed char* outptr7 = top_blob.channel(q * 8 + 7);
+                signed char* outptr0 = top_blob.batch(b).channel(q * 8);
+                signed char* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
+                signed char* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
+                signed char* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
+                signed char* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
+                signed char* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
+                signed char* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
+                signed char* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
 
                 int i = 0;
                 for (; i < size; i++)

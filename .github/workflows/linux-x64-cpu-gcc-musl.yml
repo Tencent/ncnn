@@ -14,6 +14,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
   pull_request:
     branches: [master]
     paths:
@@ -28,6 +30,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'benchmark/**'
+    - '!benchmark/README.md'
 concurrency:
   group: linux-x64-cpu-gcc-musl-${{ github.ref }}
   cancel-in-progress: true
@@ -50,18 +54,18 @@ jobs:
           libc-dev
           linux-headers
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: build
       shell: alpine.sh {0}
       run: |
         mkdir build && cd build
         cmake -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test
       shell: alpine.sh {0}
-      run: cd build && ctest --output-on-failure -j 2
+      run: cd build && ctest --output-on-failure -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution_arm.h"
 
@@ -31,7 +20,6 @@ namespace ncnn {
 
 #include "convolution_3x3_winograd_fp16s.h"
 
-#include "convolution_im2col_gemm_bf16s_fp16s.h"
 #include "convolution_im2col_gemm_fp16s.h"
 
 #if NCNN_GNU_INLINE_ASM
@@ -109,9 +97,7 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
             conv3x3s1_winograd23_transform_kernel_fp16sa(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
         if (opt.lightmode)
-        {
             weight_data.release();
-        }
 
         if (opt.use_fp16_arithmetic)
         {
@@ -193,9 +179,7 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
         if (opt.lightmode)
-        {
             weight_data.release();
-        }
 
         return 0;
     }
@@ -226,9 +210,7 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -378,22 +360,25 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
         }
 
+        int ret = 0;
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23_fp16sa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd23_fp16sa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data_fp16, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43_fp16sa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd43_fp16sa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data_fp16, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63_fp16sa(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, _nT, opt);
+            ret = conv3x3s1_winograd63_fp16sa(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data_fp16, _nT, opt);
         }
         else
         {
             // should never reach here
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -477,7 +462,9 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
 
-        convolution_im2col_gemm_fp16sa(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        int ret = convolution_im2col_gemm_fp16sa(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {

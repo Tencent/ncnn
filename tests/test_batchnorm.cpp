@@ -1,21 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/batchnorm.h"
 #include "testutil.h"
 
-static int test_batchnorm(const ncnn::Mat& a, float eps)
+static int test_batchnorm(const ncnn::Mat& a, float eps, int flag = 0)
 {
     int channels;
     if (a.dims == 1) channels = a.w;
@@ -35,7 +23,7 @@ static int test_batchnorm(const ncnn::Mat& a, float eps)
     // var must be positive
     Randomize(weights[2], 0.001f, 2.f);
 
-    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, a);
+    int ret = test_layer("BatchNorm", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d %d) eps=%f\n", a.dims, a.w, a.h, a.d, a.c, eps);
@@ -52,9 +40,9 @@ static int test_batchnorm_0()
            || test_batchnorm(RandomMat(7, 8, 9, 12), 0.f)
            || test_batchnorm(RandomMat(7, 8, 9, 12), 0.001f)
            || test_batchnorm(RandomMat(3, 4, 5, 13), 0.f)
-           || test_batchnorm(RandomMat(3, 4, 5, 13), 0.f)
-           || test_batchnorm(RandomMat(3, 4, 6, 32), 0.f)
-           || test_batchnorm(RandomMat(3, 4, 5, 32), 0.001f);
+           || test_batchnorm(RandomMat(3, 4, 5, 13), 0.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_batchnorm(RandomMat(3, 4, 6, 32), 0.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_batchnorm(RandomMat(3, 4, 5, 32), 0.001f, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 static int test_batchnorm_1()
@@ -66,8 +54,8 @@ static int test_batchnorm_1()
            || test_batchnorm(RandomMat(7, 9, 12), 0.001f)
            || test_batchnorm(RandomMat(3, 5, 13), 0.f)
            || test_batchnorm(RandomMat(3, 5, 13), 0.001f)
-           || test_batchnorm(RandomMat(3, 5, 16), 0.001f)
-           || test_batchnorm(RandomMat(3, 5, 32), 0.001f);
+           || test_batchnorm(RandomMat(3, 5, 16), 0.001f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_batchnorm(RandomMat(3, 5, 32), 0.001f, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
 static int test_batchnorm_2()

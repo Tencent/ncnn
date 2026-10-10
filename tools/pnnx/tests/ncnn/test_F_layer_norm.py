@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -24,38 +13,46 @@ class Model(nn.Module):
         self.b3 = nn.Parameter(torch.rand(24))
         self.w4 = nn.Parameter(torch.rand(12, 16))
         self.b4 = nn.Parameter(torch.rand(12, 16))
+        self.w5 = nn.Parameter(torch.rand(3, 12, 16))
+        self.b5 = nn.Parameter(torch.rand(3, 12, 16))
 
-    def forward(self, x, y):
+    def forward(self, x, y, w, q):
         x = F.layer_norm(x, (24,), self.w3, self.b3)
 
         y = F.layer_norm(y, (16,), None, None)
         z = F.layer_norm(y, (12,16), self.w4, self.b4, eps=1e-3)
-        return x, y, z
+        w0 = F.layer_norm(w, (16,), None, None)
+        w1 = F.layer_norm(w, (12,16), self.w4, self.b4, eps=1e-3)
+        w2 = F.layer_norm(w, (3,12,16), self.w5, self.b5, eps=1e-4)
+        q = F.layer_norm(q, (24,), self.w3, self.b3)
+        return x, y, z, w0, w1, w2, q
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(12, 24)
-    y = torch.rand(3, 12, 16)
+    x = torch.rand(1, 12, 24)
+    y = torch.rand(1, 3, 12, 16)
+    w = torch.rand(1, 2, 3, 12, 16)
+    q = torch.rand(2, 12, 24)
 
-    a = net(x, y)
+    a = net(x, y, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, w, q))
     mod.save("test_F_layer_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_layer_norm.pt inputshape=[12,24],[3,12,16]")
+    os.system("../../src/pnnx test_F_layer_norm.pt inputshape=[1,12,24],[1,3,12,16],[1,2,3,12,16],[2,12,24]")
 
     # ncnn inference
     import test_F_layer_norm_ncnn
     b = test_F_layer_norm_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

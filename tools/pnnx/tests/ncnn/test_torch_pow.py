@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2022 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,11 +9,16 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w, q0, q1):
         out0 = torch.pow(x, y)
         out1 = torch.pow(y, y)
         out2 = torch.pow(z, torch.ones_like(z) + 0.5)
-        return out0, out1, out2
+        out3 = torch.pow(w, torch.ones_like(w) + 0.5)
+        out4 = torch.pow(w, w)
+        q0 = F.max_pool2d(q0, 1)
+        q1 = F.max_pool2d(q1, 1)
+        out5 = torch.pow(q0, q1)
+        return out0, out1, out2, out3, out4, out5
 
 def test():
     net = Model()
@@ -34,16 +28,19 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
     z = torch.rand(5, 9, 3)
+    w = torch.rand(2, 3, 4, 5)
+    q0 = torch.rand(2, 3, 4, 5)
+    q1 = torch.rand(2, 3, 4, 5)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w, q0, q1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w, q0, q1))
     mod.save("test_torch_pow.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_pow.pt inputshape=[3,16],[3,16],[5,9,3]")
+    os.system("../../src/pnnx test_torch_pow.pt inputshape=[3,16],[3,16],[5,9,3],[2,3,4,5],[2,3,4,5],[2,3,4,5]")
 
     # ncnn inference
     import test_torch_pow_ncnn

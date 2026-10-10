@@ -24,14 +24,22 @@
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
 * [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
+* [DeepCopy](#deepcopy)
 * [DeformableConv2D](#deformableconv2d)
+* [DetectionOutput](#detectionoutput)
 * [Dequantize](#dequantize)
 * [Diag](#diag)
 * [Dropout](#dropout)
+* [Einsum](#einsum)
 * [Eltwise](#eltwise)
 * [ELU](#elu)
+* [Embed](#embed)
+* [Erf](#erf)
 * [Exp](#exp)
+* [ExpandDims](#expanddims)
 * [Flatten](#flatten)
+* [Flip](#flip)
+* [Fold](#fold)
 * [GELU](#gelu)
 * [GLU](#glu)
 * [Gemm](#gemm)
@@ -44,10 +52,12 @@
 * [Input](#input)
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
+* [InverseSpectrogram](#inversespectrogram)
 * [LayerNorm](#layernorm)
 * [Log](#log)
 * [LRN](#lrn)
 * [LSTM](#lstm)
+* [MatMul](#matmul)
 * [MemoryData](#memorydata)
 * [Mish](#mish)
 * [MultiHeadAttention](#multiheadattention)
@@ -62,15 +72,23 @@
 * [Pooling1D](#pooling1d)
 * [Pooling3D](#pooling3d)
 * [Power](#power)
+* [PriorBox](#priorbox)
 * [PReLU](#prelu)
+* [Proposal](#proposal)
+* [PSROIPooling](#psroipooling)
 * [Quantize](#quantize)
 * [Reduction](#reduction)
 * [ReLU](#relu)
 * [Reorg](#reorg)
 * [Requantize](#requantize)
 * [Reshape](#reshape)
+* [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
+* [ROIAlign](#roialign)
+* [ROIPooling](#roipooling)
+* [RotaryEmbed](#rotaryembed)
 * [Scale](#scale)
+* [SDPA](#sdpa)
 * [SELU](#selu)
 * [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
@@ -78,17 +96,27 @@
 * [Slice](#slice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
+* [Spectrogram](#spectrogram)
+* [SPP](#spp)
 * [Split](#split)
+* [StatisticsPooling](#statisticspooling)
+* [Squeeze](#squeeze)
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
 * [Tile](#tile)
 * [UnaryOp](#unaryop)
+* [Unfold](#unfold)
+* [YoloDetectionOutput](#yolodetectionoutput)
+* [Yolov3DetectionOutput](#yolov3detectionoutput)
 
 # AbsVal
 ```
 y = abs(x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -97,6 +125,9 @@ y = abs(x)
 ```
 y = argmax(x, out_max_val, topk)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, or 2d when out_max_val=1
 
 * one_blob_only
 
@@ -109,6 +140,9 @@ y = argmax(x, out_max_val, topk)
 ```
 y = (x - mean) / sqrt(var + eps) * slope + bias
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -130,6 +164,9 @@ y = (x - mean) / sqrt(var + eps) * slope + bias
 y = x + bias
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -146,6 +183,9 @@ y = x + bias
 ```
 C = binaryop(A, B)
 ```
+
+* input mat dims: bottom0 1d, 2d, 3d, 4d; bottom1 1d, 2d, 3d, 4d or scalar
+* output mat dims: broadcast result, 1d, 2d, 3d, 4d
 if with_scalar = 1:
 - one_blob_only
 - support_inplace
@@ -176,6 +216,9 @@ y = log(1 + e^(-x)) , x > 0
 y = log(1 + e^x),     x < 0
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -183,6 +226,9 @@ y = log(1 + e^x),     x < 0
 ```
 y = cast(x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same shape as input
 
 * one_blob_only
 * support_packing
@@ -205,6 +251,9 @@ if x < 0    y = (exp(x / alpha) - 1.f) * alpha
 else        y = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -216,6 +265,9 @@ else        y = x
 ```
 y = clamp(x, min, max)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -230,6 +282,9 @@ y = clamp(x, min, max)
 y = concat(x0, x1, x2, ...) by axis
 ```
 
+* input mat dims: multiple inputs with same rank, 1d, 2d, 3d, 4d
+* output mat dims: same rank as inputs
+
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | axis          | int   | 0         |                   |
@@ -240,6 +295,9 @@ x2 = pad(x, pads, pad_value)
 x3 = conv(x2, weight, kernel, stride, dilation) + bias
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 * one_blob_only
 
@@ -279,6 +337,9 @@ x3 = conv1d(x2, weight, kernel, stride, dilation) + bias
 y = activation(x3, act_type, act_params)
 ```
 
+* input mat dims: 2d
+* output mat dims: 2d
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -307,6 +368,9 @@ x2 = pad(x, pads, pad_value)
 x3 = conv3d(x2, weight, kernel, stride, dilation) + bias
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 4d
+* output mat dims: 4d
 
 * one_blob_only
 
@@ -345,6 +409,9 @@ x2 = pad(x, pads, pad_value)
 x3 = conv(x2, weight, kernel, stride, dilation, group) + bias
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 * one_blob_only
 
@@ -385,6 +452,9 @@ x3 = conv1d(x2, weight, kernel, stride, dilation, group) + bias
 y = activation(x3, act_type, act_params)
 ```
 
+* input mat dims: 2d
+* output mat dims: 2d
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -414,6 +484,9 @@ x2 = pad(x, pads, pad_value)
 x3 = conv3d(x2, weight, kernel, stride, dilation, group) + bias
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 4d
+* output mat dims: 4d
 
 * one_blob_only
 
@@ -452,6 +525,9 @@ y = activation(x3, act_type, act_params)
 self[offset] = src
 ```
 
+* input mat dims: self 1d, 2d, 3d, 4d; src same rank as self
+* output mat dims: same shape as self
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -468,22 +544,31 @@ self[offset] = src
 y = crop(x)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on crop parameters
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | woffset       | int   | 0         |                   |
 | 1         | hoffset       | int   | 0         |                   |
-| 2         | coffset       | int   | 1         |                   |
-| 3         | outw          | int   | 1         |                   |
+| 13        | doffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 0         |                   |
+| 3         | outw          | int   | 0         |                   |
 | 4         | outh          | int   | 0         |                   |
+| 14        | outd          | int   | 0         |                   |
 | 5         | outc          | int   | 0         |                   |
 | 6         | woffset2      | int   | 0         |                   |
-| 7         | hoffset2      | int   | 1         |                   |
+| 7         | hoffset2      | int   | 0         |                   |
+| 15        | doffset2      | int   | 0         |                   |
 | 8         | coffset2      | int   | 0         |                   |
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+| 19        | starts_expr   | str   | ""        |                   |
+| 20        | ends_expr     | str   | ""        |                   |
+| 21        | axes_expr     | str   | ""        |                   |
 
 # CumulativeSum
 
@@ -491,6 +576,9 @@ If axis < 0, we use axis = x.dims + axis
 
 It implements https://pytorch.org/docs/stable/generated/torch.cumsum.html
 
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 * one_blob_only
 * support_inplace
 
@@ -505,6 +593,9 @@ x2 = deconv(x, weight, kernel, stride, dilation) + bias
 x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 * one_blob_only
 
@@ -543,6 +634,9 @@ x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
 
+* input mat dims: 2d
+* output mat dims: 2d
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -572,6 +666,9 @@ x2 = deconv3d(x, weight, kernel, stride, dilation) + bias
 x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 4d
+* output mat dims: 4d
 
 * one_blob_only
 
@@ -616,6 +713,9 @@ x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
 
+* input mat dims: 3d
+* output mat dims: 3d
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -654,6 +754,9 @@ x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
 
+* input mat dims: 2d
+* output mat dims: 2d
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -684,6 +787,9 @@ x2 = deconv3d(x, weight, kernel, stride, dilation, group) + bias
 x3 = depad(x2, pads, pad_value)
 y = activation(x3, act_type, act_params)
 ```
+
+* input mat dims: 4d
+* output mat dims: 4d
 
 * one_blob_only
 
@@ -722,11 +828,24 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# DeepCopy
+```
+y = copy(x)
+```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
+* one_blob_only
+
 # DeformableConv2D
 ```
 x2 = deformableconv2d(x, offset, mask, weight, kernel, stride, dilation) + bias
 y = activation(x2, act_type, act_params)
 ```
+
+* input mat dims: bottom 3d; offset 3d; mask 3d when used
+* output mat dims: 3d
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -751,10 +870,29 @@ y = activation(x2, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
 | bias_data     | float | [num_output]          |
 
+# DetectionOutput
+```
+y = decode_ssd(location, confidence, priorbox)
+```
+
+* input mat dims: location 1d or 2d; confidence 1d or 2d; priorbox 1d or 2d
+* output mat dims: 2d when detections are produced
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_class     | int   | 0         |                   |
+| 1         | nms_threshold | float | 0.05f     |                   |
+| 2         | nms_top_k     | int   | 300       |                   |
+| 3         | keep_top_k    | int   | 100       |                   |
+| 4         | confidence_threshold | float | 0.5f |                   |
+
 # Dequantize
 ```
 y = x * scale + bias
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same shape as input
 
 * one_blob_only
 * support_inplace
@@ -774,6 +912,9 @@ y = x * scale + bias
 y = diag(x, diagonal)
 ```
 
+* input mat dims: 1d, 2d
+* output mat dims: 2d for 1d input, 1d for 2d input
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -785,16 +926,34 @@ y = diag(x, diagonal)
 y = x * scale
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | scale         | float | 1.f       |                   |
 
+# Einsum
+```
+y = einsum(equation, x0, x1, ...)
+```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on equation
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | equation      | array | [ ]       | equation string encoded as int array |
+
 # Eltwise
 ```
 y = elementwise_op(x0, x1, ...)
 ```
+
+* input mat dims: multiple inputs with same shape, 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -812,6 +971,9 @@ if x < 0    y = (exp(x) - 1) * alpha
 else        y = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -819,11 +981,47 @@ else        y = x
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | alpha         | float | 0.1f      |                   |
 
+# Embed
+```
+y = embedding(x)
+```
+
+* input mat dims: 1d token index vector
+* output mat dims: 2d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | input_dim     | int   | 0         |                   |
+| 2         | bias_term     | int   | 0         |                   |
+| 3         | weight_data_size | int | 0        |                   |
+| 18        | int8_scale_term| int  | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float | [weight_data_size]    |
+| bias_term     | float | [num_output]          |
+| weight_data_int8_scales| float | [1]          |
+
+# Erf
+```
+y = erf(x)
+```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
+* one_blob_only
+* support_inplace
+
 # Exp
 ```
 if base == -1   y = exp(shift + x * scale)
 else            y = pow(base, (shift + x * scale))
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -834,16 +1032,70 @@ else            y = pow(base, (shift + x * scale))
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
+# ExpandDims
+
+
+* input mat dims: 1d, 2d, 3d
+* output mat dims: 2d, 3d, 4d depending on axes
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 3         | axes          | array | [ ]       |                   |
+
 # Flatten
 Reshape blob to 1 dimension
 
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d
 * one_blob_only
+
+# Flip
+
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axes          | array | [ ]       |                   |
+
+# Fold
+```
+y = fold(x)
+```
+
+* input mat dims: 2d
+* output mat dims: 3d
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 20        | output_w      | int   | 0         |                   |
+| 21        | output_h      | int   | output_w  |                   |
 
 # GELU
 ```
 if fast_gelu == 1   y = 0.5 * x * (1 + tanh(0.79788452 * (x + 0.044715 * x * x * x)));
 else                y = 0.5 * x * erfc(-0.70710678 * x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -862,6 +1114,9 @@ where a is the first half of the input matrix and b is the second half.
 
 axis specifies the dimension to split the input
 
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same rank as input, with selected axis halved
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -875,6 +1130,9 @@ b = transb ? transpose(x1) : x1
 c = x2
 y = (gemm(a, b) + c * beta) * alpha
 ```
+
+* input mat dims: A 2d or 3d; B 2d or 3d; C optional scalar, 1d, 2d, 3d
+* output mat dims: 2d or 3d
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -893,15 +1151,30 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| A_data        | float | [M, K] or [K, M]      |
-| B_data        | float | [N, K] or [K, N]      |
+| A_data        | float/fp16/int8 | [M, K] or [K, M] |
+| B_data        | float/fp16/int8 | [N, K] or [K, N] |
 | C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
+| A_data_int8_scales| float | [M]               |
+| B_data_int8_scales| float | [1]               |
+| B_data_quantize_scales| float | [ceil(K / block_size), N] for block quantized constant B |
+| B_data_input_scales| float | [K] for block quantized constant B with input scale |
+
+For block quantized Gemm:
+
+* `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
+* output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
+* `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
+* `quantize_term = bits * 100 + input_scale * 10 + block_code`
+* `block_code`: 0=32, 1=64, 2=128
+* 4xx and 6xx keep A in fp32 and dequantize int4/int6 weights while accumulating
+* 8xx dynamically quantizes A independently for every row and block, computes signed int8 dot products with the constant W8 weights, accumulates in int32, applies the per-block activation and weight descales, and writes fp32 output; there is no W8A32 compatibility path
 
 # GridSample
 ```
@@ -912,6 +1185,9 @@ which are used to interpolate the output value output[:, h2, w2]
 
 This function is often used in conjunction with affine_grid() to build Spatial Transformer Networks .
 ```
+
+* input mat dims: bottom 3d or 4d; grid 3d or 4d
+* output mat dims: 3d or 4d
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -939,6 +1215,9 @@ l2 normalize for each group x0, x1 ...
 y = x * gamma + beta
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -961,6 +1240,9 @@ Apply a single-layer GRU to a feature sequence of `T` timesteps. The input blob 
 y = gru(x)
 y0, hidden y1 = gru(x0, hidden x1)
 ```
+
+* input mat dims: 2d sequence
+* output mat dims: 2d sequence
 
 * one_blob_only if bidirectional
 
@@ -986,6 +1268,9 @@ Direction flag:
 y = clamp(x * alpha + beta, 0, 1)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -998,6 +1283,9 @@ y = clamp(x * alpha + beta, 0, 1)
 ```
 y = x * clamp(x * alpha + beta, 0, 1)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1012,6 +1300,9 @@ y = x * clamp(x * alpha + beta, 0, 1)
 x2 = innerproduct(x, weight) + bias
 y = activation(x2, act_type, act_params)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, or 2d for batched 2d input
 
 * one_blob_only
 
@@ -1036,6 +1327,9 @@ y = activation(x2, act_type, act_params)
 y = input
 ```
 
+* input mat dims: none
+* output mat dims: 1d, 2d, 3d, 4d depending on shape parameters
+
 * support_inplace
 
 | param id  | name          | type  | default   | description       |
@@ -1051,6 +1345,9 @@ split x along channel axis into instance x0, x1 ...
 l2 normalize for each channel instance x0, x1 ...
 y = x * gamma + beta
 ```
+
+* input mat dims: 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1072,6 +1369,9 @@ if dynamic_target_size == 0     y = resize(x) by fixed size or scale
 else                            y = resize(x0, size(x1))
 ```
 
+* input mat dims: 3d
+* output mat dims: 3d
+
 * one_blob_only if dynamic_target_size == 0
 
 | param id  | name          | type  | default   | description       |
@@ -1083,11 +1383,39 @@ else                            y = resize(x0, size(x1))
 | 4         | output_width  | int   | 0         |                   |
 | 5         | dynamic_target_size| int | 0      |                   |
 | 6         | align_corner  | int   | 0         |                   |
+| 9         | size_expr     | str   | ""        |                   |
 
 Resize type:
 - 1 = Nearest
 - 2 = Bilinear
 - 3 = Bicubic
+
+# InverseSpectrogram
+```
+x1 = x as complex
+x1 = x1 * sqrt(norm) if normalized
+y = istft(x1)
+y1 = unpad(y) if center
+
+if returns == 0 return y1 as complex
+if returns == 1 return y1 real
+if returns == 2 return y1 imag
+```
+
+* input mat dims: 2d, 3d
+* output mat dims: 1d
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | returns       | int   | 1         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
 
 # LayerNorm
 ```
@@ -1095,6 +1423,9 @@ split x along outmost axis into part x0, x1 ...
 l2 normalize for each part x0, x1 ...
 y = x * gamma + beta by elementwise
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1116,6 +1447,9 @@ if base == -1   y = log(shift + x * scale)
 else            y = log(shift + x * scale) / log(base)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1131,6 +1465,9 @@ if region_type == ACROSS_CHANNELS   square_sum = sum of channel window of local_
 if region_type == WITHIN_CHANNEL    square_sum = sum of spatial window of local_size
 y = x * pow(bias + alpha * square_sum / (local_size * local_size), -beta)
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 * one_blob_only
 * support_inplace
@@ -1155,6 +1492,9 @@ y = lstm(x)
 y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 ```
 
+* input mat dims: 2d sequence
+* output mat dims: 2d sequence
+
 * one_blob_only if bidirectional
 
 | param id  | name          | type  | default   | description       |
@@ -1176,10 +1516,25 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
+# MatMul
+```
+y = matmul(A, B)
+```
+
+* input mat dims: A 1d, 2d, 3d, 4d; B 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on input ranks and batch broadcast
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | transB        | int   | 0         |                   |
+
 # MemoryData
 ```
 y = data
 ```
+
+* input mat dims: none
+* output mat dims: 1d, 2d, 3d, 4d depending on shape parameters
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -1187,53 +1542,79 @@ y = data
 | 1         | h             | int   | 0         |                   |
 | 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
+| 21        | load_type     | int   | 1         | 1=fp32, 3=int8    |
 
-| weight        | type  | shape                 |
-| ------------- | ----- | --------------------- |
-| data          | float | [w, h, d, c]          |
+| weight        | type       | shape                 |
+| ------------- | ---------- | --------------------- |
+| data          | float/int8 | [w, h, d, c]          |
+
+For `load_type=3`, data consists of raw int8 bytes without a type tag, padded with zeros to a multiple of 4 bytes.
 
 # Mish
 ```
 y = x * tanh(log(exp(x) + 1))
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
 # MultiHeadAttention
 ```
+q_affine = affine(q) / (embed_dim / num_head)
+k_affine = affine(k) or reuse kv_cache part
+v_affine = affine(v) or reuse kv_cache part
 split q k v into num_head part q0, k0, v0, q1, k1, v1 ...
 for each num_head part
-    xq = affine(q) / (embed_dim / num_head)
-    xk = affine(k)
-    xv = affine(v)
-    xqk = xq * xk
-    xqk = xqk + attn_mask if attn_mask exists
-    softmax_inplace(xqk)
-    xqkv = xqk * xv
-    merge xqkv to out
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+    merge qkv to out
 y = affine(out)
 ```
+
+* input mat dims: q 2d or 3d; k 2d or 3d; v 2d or 3d
+* output mat dims: 2d or 3d
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | embed_dim     | int   | 0         |                   |
 | 1         | num_heads     | int   | 1         |                   |
-| 2         | weight_data_size| int | 0         |                   |
+| 2         | weight_data_size| int | 0         | qdim = weight_data_size / embed_dim |
 | 3         | kdim          | int   | embed_dim |                   |
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
+| 7         | kv_cache      | int   | 0         |                   |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| q_weight_data | float/fp16/int8 | [weight_data_size] |
+| q_weight_data | float/fp16/int8 | [embed_dim * qdim] |
 | q_bias_data   | float | [embed_dim]           |
 | k_weight_data | float/fp16/int8 | [embed_dim * kdim] |
 | k_bias_data   | float | [embed_dim]           |
 | v_weight_data | float/fp16/int8 | [embed_dim * vdim] |
 | v_bias_data   | float | [embed_dim]           |
-| out_weight_data| float/fp16/int8 | [weight_data_size] |
-| out_bias_data | float | [embed_dim]           |
+| out_weight_data| float/fp16/int8 | [qdim * embed_dim] |
+| out_bias_data | float | [qdim]                |
+| q_weight_data_int8_scales| float | [embed_dim] |
+| k_weight_data_int8_scales| float | [embed_dim] |
+| v_weight_data_int8_scales| float | [embed_dim] |
+| out_weight_data_int8_scales| float | [1]      |
+| q_weight_data_quantize_scales| float | [ceil(qdim / block_size), embed_dim] for block quantized weight |
+| k_weight_data_quantize_scales| float | [ceil(kdim / block_size), embed_dim] for block quantized weight |
+| v_weight_data_quantize_scales| float | [ceil(vdim / block_size), embed_dim] for block quantized weight |
+| out_weight_data_quantize_scales| float | [ceil(embed_dim / block_size), qdim] for block quantized weight |
+| q_weight_data_input_scales| float | [qdim] for block quantized weight with input scale |
+| k_weight_data_input_scales| float | [kdim] for block quantized weight with input scale |
+| v_weight_data_input_scales| float | [vdim] for block quantized weight with input scale |
+| out_weight_data_input_scales| float | [embed_dim] for block quantized weight with input scale |
+
+Block quantized MultiHeadAttention stores q/k/v/out weights as tagged int8 bytes. The `quantize_term` rule is the same as Gemm: 4xx and 6xx are weight-only, while 8xx dynamically quantizes the projection activations per row and block and runs W8A8 projection Gemm. The portable base layer computes the complete MHA directly without creating other layers; architecture-derived CPU layers route only the q/k/v/out projections through their persistent optimized Gemm pipelines. QK, softmax, PV, KV-cache storage, and the fp32 output contract are unchanged.
 
 # MVN
 ```
@@ -1242,6 +1623,9 @@ if normalize_variance == 1 && across_channels == 0      y = (x - mean) / (sqrt(v
 if normalize_variance == 0 && across_channels == 1      y = x - mean of whole blob
 if normalize_variance == 0 && across_channels == 0      y = x - mean of each channel
 ```
+
+* input mat dims: 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 
@@ -1256,6 +1640,9 @@ if normalize_variance == 0 && across_channels == 0      y = x - mean of each cha
 y = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 # Normalize
 ```
 if across_spatial == 1 && across_channel == 1      x2 = normalize(x) of whole blob
@@ -1263,6 +1650,9 @@ if across_spatial == 1 && across_channel == 0      x2 = normalize(x) of each cha
 if across_spatial == 0 && across_channel == 1      x2 = normalize(x) of each position
 y = x2 * scale
 ```
+
+* input mat dims: 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1290,6 +1680,9 @@ Eps Mode:
 y = wrap_packing(x)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same shape as input
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -1305,6 +1698,9 @@ y = wrap_packing(x)
 ```
 y = pad(x, pads)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same rank as input
 
 | param id  | name          | type | default   | description       |
 | --------- | ------------- | ---- | --------- | ----------------- |
@@ -1331,6 +1727,9 @@ Padding type:
 ```
 y = reorder(x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on order
 
 | param id  | name          | type | default   | description       |
 | --------- | ------------- | ---- | --------- | ----------------- |
@@ -1368,6 +1767,9 @@ if mode == 0    y = depth_to_space(x) where x channel order is sw-sh-outc
 if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
 ```
 
+* input mat dims: 3d
+* output mat dims: 3d
+
 * one_blob_only
 
 | param id  | name          | type | default   | description       |
@@ -1380,6 +1782,9 @@ if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
 x2 = pad(x, pads)
 x3 = pooling(x2, kernel, stride)
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 | param id  | name          | type | default   | description       |
 | --------- | --------------| ---- | --------- | ----------------- |
@@ -1415,6 +1820,9 @@ x2 = pad(x, pads)
 x3 = pooling1d(x2, kernel, stride)
 ```
 
+* input mat dims: 2d
+* output mat dims: 2d
+
 | param id  | name          | type | default   | description       |
 | --------- | --------------| ---- | --------- | ----------------- |
 | 0         | pooling_type  | int  | 0         |                   |
@@ -1443,6 +1851,9 @@ Pad mode:
 x2 = pad(x, pads)
 x3 = pooling3d(x2, kernel, stride)
 ```
+
+* input mat dims: 4d
+* output mat dims: 4d
 
 | param id  | name          | type | default   | description       |
 | --------- | --------------| ---- | --------- | ----------------- |
@@ -1482,6 +1893,9 @@ Pad mode:
 y = pow((shift + x * scale), power)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1491,11 +1905,22 @@ y = pow((shift + x * scale), power)
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
+# PriorBox
+```
+y = generate_priorbox(feature, image)
+```
+
+* input mat dims: feature 3d; image 3d when used
+* output mat dims: 1d for mxnet multibox prior, otherwise 2d
+
 # PReLU
 ```
 if x < 0    y = x * slope
 else        y = x
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1508,10 +1933,36 @@ else        y = x
 | ------------- | ----- | --------------------- |
 | slope_data    | float | [num_slope]           |
 
+# Proposal
+```
+y = generate_proposals(score, bbox, im_info)
+```
+
+* input mat dims: score 3d; bbox 3d; im_info 1d
+* output mat dims: roi 3d; roi_score 3d when used
+
+# PSROIPooling
+```
+y = psroipooling(x, roi)
+```
+
+* input mat dims: bottom 3d; roi 1d
+* output mat dims: 3d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | pooled_width  | int   | 7         |                   |
+| 1         | pooled_height | int   | 7         |                   |
+| 2         | spatial_scale | float | 0.0625f   |                   |
+| 3         | output_dim    | int   | 0         |                   |
+
 # Quantize
 ```
 y = float2int8(x * scale)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same shape as input
 
 * one_blob_only
 
@@ -1528,6 +1979,9 @@ y = float2int8(x * scale)
 y = reduce_op(x * coeff)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on axes and keepdims
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -1537,6 +1991,7 @@ y = reduce_op(x * coeff)
 | 2         | coeff         | float | 1.f       |                   |
 | 3         | axes          | array | [ ]       |                   |
 | 4         | keepdims      | int   | 0         |                   |
+| 5         | fixbug0       | int   | 0         | hack for bug fix, should be 1 |
 
 Operation type:
 - 0 = SUM
@@ -1557,6 +2012,9 @@ if x < 0    y = x * slope
 else        y = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1569,6 +2027,9 @@ else        y = x
 if mode == 0    y = space_to_depth(x) where x channel order is sw-sh-outc
 if mode == 1    y = space_to_depth(x) where x channel order is outc-sw-sh
 ```
+
+* input mat dims: 3d
+* output mat dims: 3d
 
 * one_blob_only
 
@@ -1583,6 +2044,9 @@ x2 = x * scale_in + bias
 x3 = activation(x2)
 y = float2int8(x3 * scale_out)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same shape as input
 
 * one_blob_only
 
@@ -1602,9 +2066,11 @@ y = float2int8(x3 * scale_out)
 
 # Reshape
 ```
-if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
-else                y = reshape(x)
+y = reshape(x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on output shape parameters
 
 * one_blob_only
 
@@ -1614,12 +2080,35 @@ else                y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
-| 3         | permute       | int   | 0         |                   |
+| 6         | shape_expr    | str   | ""        |                   |
 
 Reshape flag:
 - 0 = copy from bottom
 - -1 = remaining
 - -233 = drop this dim(default)
+
+# RMSNorm
+```
+split x along outmost axis into part x0, x1 ...
+root mean square normalize for each part x0, x1 ...
+y = x * gamma by elementwise
+```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | affine_size   | int   | 0         |                   |
+| 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
+| 2         | affine        | int   | 1         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| gamma_data    | float | [affine_size]         |
 
 # RNN
 Apply a single-layer RNN to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
@@ -1628,6 +2117,9 @@ Apply a single-layer RNN to a feature sequence of `T` timesteps. The input blob 
 y = rnn(x)
 y0, hidden y1 = rnn(x0, hidden x1)
 ```
+
+* input mat dims: 2d sequence
+* output mat dims: 2d sequence
 
 * one_blob_only if bidirectional
 
@@ -1648,11 +2140,60 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
+# ROIAlign
+```
+y = roialign(x, roi)
+```
+
+* input mat dims: bottom 3d; roi 1d
+* output mat dims: 3d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | pooled_width  | int   | 0         |                   |
+| 1         | pooled_height | int   | 0         |                   |
+| 2         | spatial_scale | float | 1.f       |                   |
+| 3         | sampling_ratio| int   | 0         |                   |
+| 4         | aligned       | int   | 0         |                   |
+| 5         | version       | int   | 0         |                   |
+
+# ROIPooling
+```
+y = roipooling(x, roi)
+```
+
+* input mat dims: bottom 3d; roi 1d
+* output mat dims: 3d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | pooled_width  | int   | 0         |                   |
+| 1         | pooled_height | int   | 0         |                   |
+| 2         | spatial_scale | float | 1.f       |                   |
+
+# RotaryEmbed
+Apply rotary positional embeddings with cos and sin cache
+
+```
+y1 = x1 * cos - x2 * sin
+y2 = x1 * sin + x2 * cos
+```
+
+* input mat dims: bottom 3d; cos cache 2d; sin cache 2d
+* output mat dims: 3d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | interleaved   | int   | 0         |                   |
+
 # Scale
 ```
 if scale_data_size == -233  y = x0 * x1
 else                        y = x * scale + bias
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only if scale_data_size != -233
 * support_inplace
@@ -1667,11 +2208,35 @@ else                        y = x * scale + bias
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [scale_data_size]     |
 
+# SDPA
+```
+scaled dot product attention
+for each num_head part
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+```
+
+* input mat dims: q 3d; k 3d; v 3d; attn_mask optional 2d
+* attn_mask values must be finite; use a large negative value for masked positions and keep at least one key unmasked for each query
+* output mat dims: 3d
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 0.f       | auto = 1.f / sqrt(embed_dim) |
+| 7         | kv_cache      | int   | 0         |                   |
+| 18        | int8_scale_term | int | 0         |                   |
+
 # SELU
 ```
 if x < 0    y = (exp(x) - 1.f) * alpha * lambda
 else        y = x * lambda
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1688,6 +2253,9 @@ if x >  lambd y = x - bias
 else          y = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1702,6 +2270,9 @@ if reverse == 0     y = shufflechannel(x) by group
 if reverse == 1     y = shufflechannel(x) by channel / group
 ```
 
+* input mat dims: 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 
 | param id  | name          | type | default   | description       |
@@ -1714,6 +2285,9 @@ if reverse == 1     y = shufflechannel(x) by channel / group
 y = 1 / (1 + exp(-x))
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1721,6 +2295,9 @@ y = 1 / (1 + exp(-x))
 ```
 split x along axis into slices, each part slice size is based on slices array
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: multiple outputs with same rank as input
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -1732,6 +2309,9 @@ split x along axis into slices, each part slice size is based on slices array
 ```
 softmax(x, axis)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1746,18 +2326,99 @@ softmax(x, axis)
 y = log(exp(x) + 1)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
+
+# Spectrogram
+```
+x1 = pad(x) if center
+y = stft(x1)
+y = y / sqrt(norm) if normalized
+
+if power == 0 return y as real
+if power == 1 return magnitude
+if power == 2 return square of magnitude
+```
+
+* input mat dims: 1d
+* output mat dims: 2d, or 3d when power=0 returns real and imaginary components
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | n_fft         | int   | 0         |                   |
+| 1         | power         | int   | 0         |                   |
+| 2         | hoplen        | int   | n_fft / 4 |                   |
+| 3         | winlen        | int   | n_fft     |                   |
+| 4         | window_type   | int   | 0         | 0=ones 1=hann 2=hamming |
+| 5         | center        | int   | 1         |                   |
+| 6         | pad_type      | int   | 2         | 0=CONSTANT 1=REPLICATE 2=REFLECT |
+| 7         | normalized    | int   | 0         | 0=no 1=n_fft 2=window-l2-energy |
+| 8         | onesided      | int   | 1         |                   |
+
+# SPP
+```
+y = spatial_pyramid_pooling(x)
+```
+
+* input mat dims: 3d
+* output mat dims: 3d
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | pooling_type  | int   | 0         |                   |
+| 1         | pyramid_height| int   | 1         |                   |
 
 # Split
 ```
 y0, y1 ... = x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: multiple outputs same as input
+
+# StatisticsPooling
+```
+y = mean(x) or concat(mean(x), stddev(x))
+```
+
+* input mat dims: 3d, 4d
+* output mat dims: 1d
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | include_stddev| int   | 0         |                   |
+
+# Squeeze
+
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on axes
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | squeeze_w     | int   | 0         |                   |
+| 1         | squeeze_h     | int   | 0         |                   |
+| 11        | squeeze_d     | int   | 0         |                   |
+| 2         | squeeze_c     | int   | 0         |                   |
+| 3         | axes          | array | [ ]       |                   |
+
 # Swish
 ```
 y = x / (1 + exp(-x))
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1767,6 +2428,9 @@ y = x / (1 + exp(-x))
 y = tanh(x)
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+
 * one_blob_only
 * support_inplace
 
@@ -1775,6 +2439,9 @@ y = tanh(x)
 if x > threshold    y = 1
 else                y = 0
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 * one_blob_only
 * support_inplace
@@ -1788,6 +2455,9 @@ else                y = 0
 y = repeat tiles along axis for x
 ```
 
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: 1d, 2d, 3d, 4d depending on repeat parameters
+
 * one_blob_only
 
 | param id  | name          | type  | default   | description       |
@@ -1800,6 +2470,9 @@ y = repeat tiles along axis for x
 ```
 y = unaryop(x)
 ```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
 
 - one_blob_only
 - support_inplace
@@ -1829,3 +2502,61 @@ Operation type:
 - 17 = LOG10
 - 18 = ROUND
 - 19 = TRUNC
+
+# Unfold
+```
+y = unfold(x)
+```
+
+* input mat dims: 3d
+* output mat dims: 2d
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+
+# YoloDetectionOutput
+```
+y = yolo_detection_output(x0, x1, ...)
+```
+
+* input mat dims: multiple 3d feature maps
+* output mat dims: 2d when detections are produced
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_class     | int   | 20        |                   |
+| 1         | num_box       | int   | 5         |                   |
+| 2         | confidence_threshold | float | 0.01f |                   |
+| 3         | nms_threshold | float | 0.45f     |                   |
+| 4         | biases        | array | [ ]       |                   |
+
+# Yolov3DetectionOutput
+```
+y = yolov3_detection_output(x0, x1, ...)
+```
+
+* input mat dims: multiple 3d feature maps
+* output mat dims: 2d when detections are produced
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_class     | int   | 20        |                   |
+| 1         | num_box       | int   | 5         |                   |
+| 2         | confidence_threshold | float | 0.01f |                   |
+| 3         | nms_threshold | float | 0.45f     |                   |
+| 4         | biases        | array | [ ]       |                   |
+| 5         | mask          | array | [ ]       |                   |
+| 6         | anchors_scale | array | [ ]       |                   |

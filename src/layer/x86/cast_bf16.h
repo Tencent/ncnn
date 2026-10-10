@@ -1,41 +1,42 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void cast_fp32_to_bf16_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
-void cast_bf16_to_fp32_sse_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp32_to_bf16_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_bf16_to_fp32_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-void cast_fp32_to_bf16_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
-void cast_bf16_to_fp32_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void cast_fp32_to_bf16_avxneconvert(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
-static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void cast_fp32_to_bf16_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_bf16_to_fp32_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+#endif
+
+static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        cast_fp32_to_bf16_sse_avx512bf16(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16_avx512bf16(bottom_blob, top_blob, opt);
         return;
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        cast_fp32_to_bf16_avxneconvert(bottom_blob, top_blob, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        cast_fp32_to_bf16_sse_avx2(bottom_blob, top_blob, opt);
+        cast_fp32_to_bf16_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -46,13 +47,17 @@ static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const O
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
+    const int batch = bottom_blob.n;
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const float* ptr = bottom_blob.channel(q);
-        unsigned short* outptr = top_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const float* ptr = bottom_blob.batch(b).channel(q);
+        unsigned short* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __SSE2__
@@ -94,20 +99,20 @@ static void cast_fp32_to_bf16_sse(const Mat& bottom_blob, Mat& top_blob, const O
     }
 }
 
-static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        cast_bf16_to_fp32_sse_avx512bf16(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32_avx512bf16(bottom_blob, top_blob, opt);
         return;
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        cast_bf16_to_fp32_sse_avx2(bottom_blob, top_blob, opt);
+        cast_bf16_to_fp32_avx2(bottom_blob, top_blob, opt);
         return;
     }
 #endif
@@ -118,13 +123,17 @@ static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
+    const int batch = bottom_blob.n;
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const unsigned short* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const unsigned short* ptr = bottom_blob.batch(b).channel(q);
+        float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __SSE2__

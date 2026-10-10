@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolutiondepthwise1d.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
@@ -43,15 +34,53 @@ int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
 
     dynamic_weight = pd.get(19, 0);
 
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (group <= 0)
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (dilation_w <= 0 || stride_w <= 0)
+        return -1;
+
+    if (!dynamic_weight)
+    {
+        if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w)
+            return -1;
+
+        if (num_output <= 0 || num_output % group != 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % kernel_w != 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
+
     if (dynamic_weight)
     {
         one_blob_only = false;
-    }
-
-    if (num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
     }
 
     return 0;
@@ -59,6 +88,9 @@ int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
 
 int ConvolutionDepthWise1D::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -70,11 +102,6 @@ int ConvolutionDepthWise1D::load_model(const ModelBin& mb)
             return -100;
     }
 
-    return 0;
-}
-
-int ConvolutionDepthWise1D::create_pipeline(const Option&)
-{
     return 0;
 }
 

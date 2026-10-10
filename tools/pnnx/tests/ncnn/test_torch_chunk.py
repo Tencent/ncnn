@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,11 +9,14 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x0, x1 = torch.chunk(x, chunks=2, dim=0)
         y0, y1, y2 = torch.chunk(y, chunks=3, dim=1)
         z0, z1, z2, z3, z4 = torch.chunk(z, chunks=5, dim=1)
-        return x0, x1, y0, y1, y2, z0, z1, z2, z3, z4
+        w = F.max_pool2d(w, 1)
+        w0, w1 = torch.chunk(w, chunks=2, dim=1)
+        w2, w3 = torch.chunk(w, chunks=2, dim=-1)
+        return x0, x1, y0, y1, y2, z0, z1, z2, z3, z4, w0, w1, w2, w3
 
 def test():
     net = Model()
@@ -34,16 +26,17 @@ def test():
     x = torch.rand(4, 16)
     y = torch.rand(5, 9, 11)
     z = torch.rand(14, 5, 9, 10)
+    w = torch.rand(2, 6, 5, 8)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_torch_chunk.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_chunk.pt inputshape=[4,16],[5,9,11],[14,5,9,10]")
+    os.system("../../src/pnnx test_torch_chunk.pt inputshape=[4,16],[5,9,11],[14,5,9,10],[2,6,5,8]")
 
     # ncnn inference
     import test_torch_chunk_ncnn

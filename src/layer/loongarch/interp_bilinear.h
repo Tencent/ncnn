@@ -1,23 +1,14 @@
-// yala is pleased to support the open source community by making ncnn available.
-//
-//
-// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
+static void linear_coeffs(int w, int outw, double scale, int* xofs, float* alpha, int align_corner)
 {
-    double scale = (double)w / outw;
+    if (w == outw)
+        scale = 1.0;
+
     if (align_corner)
     {
-        scale = (double)(w - 1) / (outw - 1);
+        scale = outw > 1 ? (double)(w - 1) / (outw - 1) : 0.0;
     }
 
     for (int dx = 0; dx < outw; dx++)
@@ -128,17 +119,11 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         float* rows1p = rows1;
         float* Dp = dst.row(dy);
 
-#if __loongarch_sx
-        int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = w - (nn << 3);
-
+        int i = 0;
 #if __loongarch_sx
         __m128 _b0 = __lsx_vreplfr2vr_s(b0);
         __m128 _b1 = __lsx_vreplfr2vr_s(b1);
-        for (; nn > 0; nn--)
+        for (; i + 7 < w; i += 8)
         {
             __m128 _rows0 = (__m128)__lsx_vld(rows0p, 0);
             __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
@@ -161,7 +146,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             rows1p += 8;
         }
 #endif // __loongarch_sx
-        for (; remain; --remain)
+        for (; i < w; i++)
         {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;

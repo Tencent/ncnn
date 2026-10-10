@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -75,7 +64,7 @@ public:
 5 4
 pnnx.Input              input_a     0 1 a
 pnnx.Input              input_b     0 1 b
-torch.permute           op_0        1 1 b b1 dims=%dims
+Tensor.permute          op_0        1 1 b b1 dims=%dims
 F.grid_sample           op_1        2 1 a b1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -121,20 +110,23 @@ pnnx.Output             output      1 0 out
             op->params["1"] = 3;
 
         op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;
+        op->params["3"] = 0;
 
-        const int batch_index = op->inputs[1]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[1]->params["__ncnn_batch_axis"].i;
 
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
         int input_rank = (int)op->inputs[0]->shape.size();
+        int full_input_rank = input_rank;
 
         if (input_rank == 0)
         {
             // assume input is fine
             input_rank = (int)dims.size();
+            full_input_rank = input_rank;
         }
 
-        if (batch_index >= 0 && batch_index < input_rank)
+        if (ncnn_batch_axis >= 0 && ncnn_batch_axis < input_rank)
             input_rank -= 1;
 
         if (input_rank > 4)
@@ -147,10 +139,14 @@ pnnx.Output             output      1 0 out
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (dims[i] == batch_index)
+            int dim = dims[i];
+            if (dim < 0 && full_input_rank > 0)
+                dim += full_input_rank;
+
+            if (dim == ncnn_batch_axis)
                 continue;
 
-            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
             new_dims.push_back(new_dim);
         }
 

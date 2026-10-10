@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "priorbox_vulkan.h"
 
@@ -22,6 +11,7 @@ namespace ncnn {
 PriorBox_vulkan::PriorBox_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_priorbox = 0;
     pipeline_priorbox_mxnet = 0;
@@ -32,18 +22,14 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
     else
     {
@@ -129,6 +115,13 @@ int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
+    if (opt.lightmode)
+    {
+        min_sizes.release();
+        max_sizes.release();
+        aspect_ratios.release();
+    }
+
     return 0;
 }
 
@@ -137,7 +130,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
 
-    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
+    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes_gpu.empty())
     {
         // mxnet style _contrib_MultiBoxPrior
         float step_w = step_width;
@@ -147,15 +140,15 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         if (step_h == -233)
             step_h = 1.f / (float)h;
 
-        int num_sizes = min_sizes.w;
-        int num_ratios = aspect_ratios.w;
+        int num_sizes = min_sizes_gpu.w;
+        int num_ratios = aspect_ratios_gpu.w;
 
         int num_prior = num_sizes - 1 + num_ratios;
 
         int elempack = 4;
 
         size_t elemsize = elempack * 4u;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             elemsize = elempack * 2u;
         }
@@ -200,16 +193,16 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     if (step_h == -233)
         step_h = (float)image_h / h;
 
-    int num_min_size = min_sizes.w;
-    int num_max_size = max_sizes.w;
-    int num_aspect_ratio = aspect_ratios.w;
+    int num_min_size = min_sizes_gpu.w;
+    int num_max_size = max_sizes_gpu.w;
+    int num_aspect_ratio = aspect_ratios_gpu.w;
 
     int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
     if (flip)
         num_prior += num_min_size * num_aspect_ratio;
 
     size_t elemsize = 4u;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         elemsize = 2u;
     }

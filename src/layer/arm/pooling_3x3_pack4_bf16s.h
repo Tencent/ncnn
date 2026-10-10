@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
@@ -142,10 +131,10 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "fmax   v22.4s, v22.4s, v30.4s  \n"
                     "fmax   v23.4s, v23.4s, v31.4s  \n"
 
-                    "shrn   v20.4h, v20.4s, #16     \n"
-                    "shrn   v21.4h, v21.4s, #16     \n"
-                    "shrn   v22.4h, v22.4s, #16     \n"
-                    "shrn   v23.4h, v23.4s, #16     \n"
+                    "rshrn  v20.4h, v20.4s, #16     \n"
+                    "rshrn  v21.4h, v21.4s, #16     \n"
+                    "rshrn  v22.4h, v22.4s, #16     \n"
+                    "rshrn  v23.4h, v23.4s, #16     \n"
 
                     "st1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%0], #32 \n"
 
@@ -253,10 +242,10 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q14, q14, q6    \n"
                     "vmax.f32   q15, q15, q8    \n"
 
-                    "vshrn.u32  d24, q12, #16   \n"
-                    "vshrn.u32  d25, q13, #16   \n"
-                    "vshrn.u32  d26, q14, #16   \n"
-                    "vshrn.u32  d27, q15, #16   \n"
+                    "vrshrn.u32 d24, q12, #16   \n"
+                    "vrshrn.u32 d25, q13, #16   \n"
+                    "vrshrn.u32 d26, q14, #16   \n"
+                    "vrshrn.u32 d27, q15, #16   \n"
 
                     "vst1.u16   {d24-d27}, [%0]! \n"
 
@@ -327,8 +316,8 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "fmax   v20.4s, v20.4s, v18.4s  \n"
                     "fmax   v21.4s, v21.4s, v3.4s   \n"
 
-                    "shrn   v20.4h, v20.4s, #16     \n"
-                    "shrn   v21.4h, v21.4s, #16     \n"
+                    "rshrn  v20.4h, v20.4s, #16     \n"
+                    "rshrn  v21.4h, v21.4s, #16     \n"
 
                     "st1    {v20.4h, v21.4h}, [%0], #16 \n"
 
@@ -398,8 +387,8 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q4, q4, q14     \n"
                     "vmax.f32   q5, q5, q3      \n"
 
-                    "vshrn.u32  d8, q4, #16     \n"
-                    "vshrn.u32  d9, q5, #16     \n"
+                    "vrshrn.u32 d8, q4, #16     \n"
+                    "vrshrn.u32 d9, q5, #16     \n"
 
                     "vst1.u16   {d8-d9}, [%0]!  \n"
 

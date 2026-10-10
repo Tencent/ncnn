@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "deconvolutiondepthwise_arm.h"
 
@@ -105,9 +94,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
             }
 
             if (opt.lightmode)
-            {
                 weight_data.release();
-            }
 
             return 0;
         }
@@ -148,7 +135,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
             if (bias_term)
                 bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
             // set param
             ncnn::ParamDict pd;
@@ -194,9 +181,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     }
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -422,6 +407,8 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -443,13 +430,17 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack == 1 && out_elempack == 4)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -562,7 +553,7 @@ int DeconvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, st
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::DeconvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeconvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -795,6 +786,8 @@ int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_b
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -816,13 +809,17 @@ int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_b
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack == 1 && out_elempack == 4)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {

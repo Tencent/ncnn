@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -49,6 +38,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -115,6 +109,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -172,6 +171,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -238,6 +242,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -263,6 +272,54 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_3, 20)
+
+class nn_Upsample_4 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.Upsample             op_0        1 1 input out mode=%mode scale_factor=%scale_factor size=None align_corners=%align_corners recompute_scale_factor=True
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    const char* name_str() const
+    {
+        return "upsample";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params = captured_params;
+        op->params["recompute_scale_factor"] = true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_4, 19)
+
+class nn_Upsample_5 : public nn_Upsample_4
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.Upsample             op_0        1 1 input out mode=%mode scale_factor=%scale_factor size=None recompute_scale_factor=True
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_5, 19)
 
 } // namespace ncnn
 

@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2022 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -25,12 +14,13 @@ class Model(nn.Module):
         self.fold_1 = nn.Fold(output_size=(17,18), kernel_size=(2,4), stride=(2,1), padding=2, dilation=1)
         self.fold_2 = nn.Fold(output_size=(5,11), kernel_size=(2,3), stride=1, padding=(2,4), dilation=(1,2))
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, q):
         x = self.fold_0(x)
         y = self.fold_1(y)
         z = self.fold_2(z)
+        q = self.fold_0(q)
 
-        return x, y, z
+        return x, y, z, q
 
 def test():
     net = Model()
@@ -40,16 +30,17 @@ def test():
     x = torch.rand(1, 108, 400)
     y = torch.rand(1, 96, 190)
     z = torch.rand(1, 36, 120)
+    q = torch.rand(2, 108, 400)
 
-    a = net(x, y, z)
+    a = net(x, y, z, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, q))
     mod.save("test_nn_Fold.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Fold.pt inputshape=[1,108,400],[1,96,190],[1,36,120]")
+    os.system("../../src/pnnx test_nn_Fold.pt inputshape=[1,108,400],[1,96,190],[1,36,120],[2,108,400]")
 
     # ncnn inference
     import test_nn_Fold_ncnn

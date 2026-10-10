@@ -1,19 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/reshape.h"
 #include "testutil.h"
+
+#include "layer_type.h"
 
 static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int outc)
 {
@@ -25,7 +15,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int ou
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, a);
+    int ret = test_layer("Reshape", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d %d) outw=%d outh=%d outd=%d outc=%d\n", a.dims, a.w, a.h, a.d, a.c, outw, outh, outd, outc);
@@ -184,10 +174,73 @@ static int test_reshape_7()
 
 static int test_reshape_8()
 {
+    ncnn::Mat a = RandomMat(72);
+    ncnn::Mat b = RandomMat(40, 72);
+    ncnn::Mat c = RandomMat(34, 40, 72);
+    ncnn::Mat d = RandomMat(11, 34, 10, 72);
+
+    return 0
+           || test_reshape(a, 0, -233, -233, -233)
+           || test_reshape(b, 0, -1, -233, -233)
+           || test_reshape(b, -1, 0, -233, -233)
+           || test_reshape(c, 4, 0, -233, -1)
+           || test_reshape(c, 0, -1, -233, 4)
+           || test_reshape(c, -1, 4, -233, 0)
+           || test_reshape(c, 0, 0, -233, -1)
+           || test_reshape(c, 0, -1, -233, 0)
+           || test_reshape(c, -1, 0, -233, 0)
+           || test_reshape(d, 0, 9, 16, -1)
+           || test_reshape(d, 9, 0, -1, 16)
+           || test_reshape(d, 16, -1, 0, 9)
+           || test_reshape(d, 22, 10, -1, 0)
+           || test_reshape(d, 0, 0, -1, 18)
+           || test_reshape(d, -1, 17, 0, 0)
+           || test_reshape(d, 22, 0, -1, 0)
+           || test_reshape(d, 0, 0, 0, -1)
+           || test_reshape(d, 0, 0, -1, 0)
+           || test_reshape(d, 0, -1, 0, 0)
+           || test_reshape(d, -1, 0, 0, 0);
+}
+
+static int test_reshape_9()
+{
     ncnn::Mat a = RandomMat(1, 19, 15, 18);
 
     return test_reshape(a, 19, 15, -233, 18);
 }
+
+#if NCNN_VALIDATION
+static int test_reshape_load_param()
+{
+    ncnn::ParamDict empty;
+    if (test_layer_param(ncnn::LayerType::Reshape, empty, -1) != 0
+            || test_layer_param(ncnn::LayerType::Reshape, empty, 0, -233, -1) != 0)
+        return -1;
+
+    ncnn::ParamDict expr;
+    expr.set(6, "1,1");
+    if (test_layer_param(ncnn::LayerType::Reshape, expr, 0) != 0)
+        return -1;
+
+    ncnn::ParamDict base;
+    base.set(0, -1);
+    if (test_layer_param(ncnn::LayerType::Reshape, base, 0) != 0)
+        return -1;
+
+    ncnn::ParamDict pd = base;
+
+    pd.set(6, "1,1,1,1,1");
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, -1) != 0)
+        return -1;
+#if NCNN_BATCH
+    pd.set(13, 0);
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, 0) != 0)
+        return -1;
+#endif
+    pd.set(6, "1,1,1,1,1,1");
+    return test_layer_param(ncnn::LayerType::Reshape, pd, -1);
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -202,5 +255,10 @@ int main()
            || test_reshape_5()
            || test_reshape_6()
            || test_reshape_7()
-           || test_reshape_8();
+           || test_reshape_8()
+           || test_reshape_9()
+#if NCNN_VALIDATION
+           || test_reshape_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

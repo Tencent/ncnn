@@ -103,7 +103,6 @@ Execute the network inference and retrieve the result
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input("data", in);
 ex.extract("prob", out);
 ```
@@ -114,7 +113,6 @@ If you load model with binary param.bin file, you should use the enum value in a
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
 ncnn::Extractor ex = net.create_extractor();
-ex.set_light_mode(true);
 ex.input(alexnet_param_id::BLOB_data, in);
 ex.extract(alexnet_param_id::BLOB_prob, out);
 ```
@@ -131,10 +129,6 @@ for (int j=0; j<out_flatterned.w; j++)
 
 ### some tricks
 
-Set multithreading thread number with Extractor
-```cpp
-ex.set_num_threads(4);
-```
 Convert image colorspace and resize image with Mat convenient function, these functions are well optimized
 
 Support RGB2GRAY GRAY2RGB RGB2BGR etc, support scale up and scale down

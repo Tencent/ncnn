@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolutiondepthwise.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
@@ -49,15 +40,56 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 
     dynamic_weight = pd.get(19, 0);
 
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (int8_scale_term != 0 && int8_scale_term != 1 && int8_scale_term != 2 && int8_scale_term != 101 && int8_scale_term != 102)
+        return -1;
+
+    if (group <= 0)
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (dilation_w <= 0 || stride_w <= 0 || dilation_h <= 0 || stride_h <= 0)
+        return -1;
+
+    if (!dynamic_weight)
+    {
+        if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_w > INT_MAX / kernel_h)
+            return -1;
+
+        if (num_output <= 0 || num_output % group != 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h) != 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
+
     if (dynamic_weight)
     {
         one_blob_only = false;
-    }
-
-    if (num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
     }
 
     if (int8_scale_term)
@@ -124,14 +156,9 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     }
 #endif // NCNN_INT8
 
-    return 0;
-}
-
-int ConvolutionDepthWise::create_pipeline(const Option& opt)
-{
 #if NCNN_INT8
     // runtime quantize the weight data
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
+    if (weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
         Mat int8_weight_data(weight_data_size, (size_t)1u);
         if (int8_weight_data.empty())
@@ -141,7 +168,8 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
         for (int g = 0; g < group; g++)
         {
-            Option opt_q = opt;
+            Option opt_q;
+            opt_q.num_threads = 1;
             opt_q.blob_allocator = int8_weight_data.allocator;
             opt_q.use_packing_layout = false;
 
@@ -153,8 +181,6 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
         weight_data = int8_weight_data;
     }
-#else
-    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;
@@ -474,6 +500,8 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;

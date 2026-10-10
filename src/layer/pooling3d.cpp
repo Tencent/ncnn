@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pooling3d.h"
+
+#include <limits.h>
 
 #include <float.h>
 
@@ -46,6 +37,26 @@ int Pooling3D::load_param(const ParamDict& pd)
     out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
     out_d = pd.get(28, out_w);
+
+#if NCNN_VALIDATION
+    if (pooling_type < PoolMethod_MAX || pooling_type > PoolMethod_AVE)
+        return -1;
+
+    if (!global_pooling && adaptive_pooling)
+    {
+        if ((out_w <= 0 && out_w != -233) || (out_h <= 0 && out_h != -233) || (out_d <= 0 && out_d != -233))
+            return -1;
+    }
+
+    if (!global_pooling && !adaptive_pooling)
+    {
+        if (pad_mode < 0 || pad_mode > 3)
+            return -1;
+
+        if (kernel_w <= 0 || stride_w <= 0 || kernel_h <= 0 || stride_h <= 0 || kernel_d <= 0 || stride_d <= 0 || kernel_w > INT_MAX / kernel_h || kernel_w * kernel_h > INT_MAX / kernel_d)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
 
     return 0;
 }

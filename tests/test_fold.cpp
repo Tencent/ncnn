@@ -1,19 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/fold.h"
 #include "testutil.h"
+
+#include "layer_type.h"
 
 static int test_fold(int w, int h, int outw, int outh, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_w, int pad_h)
 {
@@ -33,7 +23,7 @@ static int test_fold(int w, int h, int outw, int outh, int kernel_w, int kernel_
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Fold>("Fold", pd, weights, a);
+    int ret = test_layer("Fold", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_fold failed w=%d h=%d outw=%d outh=%d kernel=%d,%d dilation=%d,%d stride=%d,%d pad=%d,%d\n", w, h, outw, outh, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_w, pad_h);
@@ -50,9 +40,37 @@ static int test_fold_0()
            || test_fold(120, 36, 11, 5, 3, 2, 2, 1, 1, 1, 4, 2);
 }
 
+#if NCNN_VALIDATION
+static int test_fold_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Fold, base, 0) != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::Fold, base, 3, 0, -1) != 0)
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(3, 1);
+        pd.set(1, 65536);
+        if (test_layer_param(ncnn::LayerType::Fold, pd, -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_fold_0();
+    return 0
+           || test_fold_0()
+#if NCNN_VALIDATION
+           || test_fold_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

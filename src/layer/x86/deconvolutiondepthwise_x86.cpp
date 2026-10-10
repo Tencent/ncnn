@@ -1,20 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "deconvolutiondepthwise_x86.h"
 
 #include "layer_type.h"
+#include "cpu.h"
 
 #if __SSE2__
 #include <emmintrin.h>
@@ -27,6 +17,8 @@
 #include "x86_usability.h"
 
 namespace ncnn {
+
+#include "deconvolutiondepthwise_fp32.h"
 
 DeconvolutionDepthWise_x86::DeconvolutionDepthWise_x86()
 {
@@ -109,6 +101,9 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
             weight_data_tm = weight_data_transposed;
         }
 
+        if (opt.lightmode)
+            weight_data.release();
+
         return 0;
     }
 
@@ -116,9 +111,7 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
     create_group_ops(opt);
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
@@ -146,7 +139,7 @@ int DeconvolutionDepthWise_x86::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -249,260 +242,10 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
     if (top_blob_bordered.empty())
         return -100;
 
-    const int maxk = kernel_w * kernel_h;
-
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        if (elempack == 16)
-        {
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++)
-                {
-                    float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_tm + maxk * g * 16;
-                    const Mat m = bottom_blob.channel(g);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            __m512 _sum = _mm512_setzero_ps();
-
-                            if (bias_term)
-                            {
-                                _sum = _mm512_loadu_ps((const float*)bias_data + g * 16);
-                            }
-
-                            for (int y = 0; y < kernel_h; y++)
-                            {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    const float* sptr = m.row(sy) + sx * 16;
-
-                                    int k = y * kernel_w + x;
-
-                                    __m512 _val = _mm512_loadu_ps(sptr);
-                                    __m512 _w = _mm512_loadu_ps(kptr + k * 16);
-                                    _sum = _mm512_fmadd_ps(_val, _w, _sum);
-                                }
-                            }
-
-                            _sum = activation_avx512(_sum, activation_type, activation_params);
-
-                            _mm512_storeu_ps(outptr, _sum);
-                            outptr += 16;
-                        }
-                    }
-                }
-            }
-        }
-#endif // __AVX512F__
-
-        if (elempack == 8)
-        {
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++)
-                {
-                    float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_tm + maxk * g * 8;
-                    const Mat m = bottom_blob.channel(g);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            __m256 _sum = _mm256_setzero_ps();
-
-                            if (bias_term)
-                            {
-                                _sum = _mm256_loadu_ps((const float*)bias_data + g * 8);
-                            }
-
-                            for (int y = 0; y < kernel_h; y++)
-                            {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    const float* sptr = m.row(sy) + sx * 8;
-
-                                    int k = y * kernel_w + x;
-
-                                    __m256 _val = _mm256_loadu_ps(sptr);
-                                    __m256 _w = _mm256_loadu_ps(kptr + k * 8);
-                                    _sum = _mm256_comp_fmadd_ps(_val, _w, _sum);
-                                }
-                            }
-
-                            _sum = activation_avx(_sum, activation_type, activation_params);
-
-                            _mm256_storeu_ps(outptr, _sum);
-                            outptr += 8;
-                        }
-                    }
-                }
-            }
-        }
-#endif // __AVX__
-
-        if (elempack == 4)
-        {
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++)
-                {
-                    float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_tm + maxk * g * 4;
-                    const Mat m = bottom_blob.channel(g);
-
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            __m128 _sum = _mm_setzero_ps();
-
-                            if (bias_term)
-                            {
-                                _sum = _mm_loadu_ps((const float*)bias_data + g * 4);
-                            }
-
-                            for (int y = 0; y < kernel_h; y++)
-                            {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    const float* sptr = m.row(sy) + sx * 4;
-
-                                    int k = y * kernel_w + x;
-
-                                    __m128 _val = _mm_loadu_ps(sptr);
-                                    __m128 _w = _mm_loadu_ps(kptr + k * 4);
-                                    _sum = _mm_comp_fmadd_ps(_val, _w, _sum);
-                                }
-                            }
-
-                            _sum = activation_sse(_sum, activation_type, activation_params);
-
-                            _mm_storeu_ps(outptr, _sum);
-                            outptr += 4;
-                        }
-                    }
-                }
-            }
-        }
-#endif // __SSE2__
-
-        if (elempack == 1)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g = 0; g < channels; g++)
-            {
-                float* outptr = top_blob_bordered.channel(g);
-                const float* kptr = (const float*)weight_data_tm + maxk * g;
-                const Mat m = bottom_blob.channel(g);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[g];
-                        }
-
-                        for (int y = 0; y < kernel_h; y++)
-                        {
-                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                            if (sys < 0 || sys % stride_h != 0)
-                                continue;
-
-                            int sy = sys / stride_h;
-                            if (sy >= h)
-                                continue;
-
-                            const float* sptr = m.row(sy);
-
-                            for (int x = 0; x < kernel_w; x++)
-                            {
-                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                if (sxs < 0 || sxs % stride_w != 0)
-                                    continue;
-
-                                int sx = sxs / stride_w;
-                                if (sx >= w)
-                                    continue;
-
-                                float val = sptr[sx];
-
-                                int k = y * kernel_w + x;
-
-                                float w = kptr[k];
-
-                                sum += val * w;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[0] = sum;
-                        outptr++;
-                    }
-                }
-            }
-        }
+        deconvolutiondepthwise_fp32(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, bias_term, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
     else
     {
@@ -535,6 +278,8 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
@@ -556,13 +301,17 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
             convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {
@@ -641,7 +390,7 @@ int DeconvolutionDepthWise_x86::forward(const std::vector<Mat>& bottom_blobs, st
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::DeconvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeconvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

@@ -1,22 +1,22 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
 namespace pnnx {
 
 namespace ncnn {
+
+static int input_ncnn_batch_axis(const Operator* op)
+{
+    if (op->inputs.empty())
+        return 233;
+
+    if (op->inputs[0]->params.find("__ncnn_batch_axis") == op->inputs[0]->params.end())
+        return 233;
+
+    return op->inputs[0]->params.at("__ncnn_batch_axis").i;
+}
 
 class nn_Linear_0 : public GraphRewriterPass
 {
@@ -41,14 +41,24 @@ pnnx.Output             output      1 0 out
         return "gemm";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int ncnn_batch_axis = input_ncnn_batch_axis(matched_operators.at("op_0"));
+        return ncnn_batch_axis == 233 || ncnn_batch_axis == 0;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        int m = captured_params.at("m").i;
+        if (m == -1)
+            m = 0;
+
         op->params["2"] = 0;
         op->params["3"] = 1;
         op->params["4"] = 0;
         op->params["5"] = 1;
         op->params["6"] = 1;
-        op->params["7"] = captured_params.at("m");
+        op->params["7"] = m;
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
         op->params["10"] = captured_params.at("bias").b ? 4 : -1;
@@ -89,6 +99,14 @@ pnnx.Output             output      1 0 out
 
         return true;
     }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        if (input_ncnn_batch_axis(matched_operators.at("op_0")) != 233)
+            return false;
+
+        return match(captured_params);
+    }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Linear_01, 19)
@@ -117,14 +135,24 @@ pnnx.Output             output      1 0 out
         return "gemm";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int ncnn_batch_axis = input_ncnn_batch_axis(matched_operators.at("op_0"));
+        return ncnn_batch_axis == 233 || ncnn_batch_axis == 0;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        int m = captured_params.at("m").i;
+        if (m == -1)
+            m = 0;
+
         op->params["2"] = 0;
         op->params["3"] = 1;
         op->params["4"] = 0;
         op->params["5"] = 1;
         op->params["6"] = 0;
-        op->params["7"] = captured_params.at("m");
+        op->params["7"] = m;
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
         op->params["10"] = 4;
@@ -159,6 +187,14 @@ pnnx.Output             output      1 0 out
             return false;
 
         return true;
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        if (input_ncnn_batch_axis(matched_operators.at("op_0")) != 233)
+            return false;
+
+        return match(captured_params);
     }
 };
 
@@ -234,6 +270,7 @@ pnnx.Output             output      1 0 out
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
         const int batch_index = ops.at("linear")->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = ops.at("linear")->inputs[0]->params["__ncnn_batch_axis"].i;
 
         ops.at("linear")->params["0"] = captured_params.at("out_features");
         ops.at("linear")->params["1"] = 0;
@@ -244,6 +281,7 @@ pnnx.Output             output      1 0 out
         ops.at("linear")->attrs["1"] = captured_attrs.at("op_0.weight");
 
         ops.at("linear")->outputs[0]->params["__batch_index"] = batch_index;
+        ops.at("linear")->outputs[0]->params["__ncnn_batch_axis"] = ncnn_batch_axis;
     }
 };
 

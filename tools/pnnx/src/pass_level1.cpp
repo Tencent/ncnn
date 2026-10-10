@@ -1,54 +1,16 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/script.h>
+#include <torch/csrc/jit/api/module.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 
 #include "pass_level1.h"
 
+#include "pass_level1/fuse_module_pass.h"
+
 namespace pnnx {
-
-FuseModulePass::~FuseModulePass()
-{
-}
-
-void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
-{
-}
-
-void FuseModulePass::write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
-{
-    write(op, graph);
-}
-
-static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
-
-const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
-{
-    return g_global_pnnx_fuse_module_passes;
-}
-
-FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_module_passes.push_back(pass);
-}
-
-FuseModulePassRegister::~FuseModulePassRegister()
-{
-    delete pass;
-}
 
 static void fuse_moduleop_unpack(Graph& graph, const std::vector<std::string>& module_operators)
 {
@@ -107,7 +69,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         const auto& in = g->inputs()[i];
 
         char name[32];
-        sprintf(name, "pnnx_input_%d", i - 1);
+        snprintf(name, 32, "pnnx_input_%d", i - 1);
 
         Operator* op = pg.new_operator("pnnx.Input", name);
         Operand* r = pg.new_operand(in);
@@ -189,7 +151,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         else if (n->kind() == c10::prim::Constant) // || n->kind() == c10::prim::ListConstruct)
         {
             char name[32];
-            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
+            snprintf(name, 32, "pnnx_%d", pnnx_unknown_index++);
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
@@ -359,7 +321,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     for (auto attr : constant_attr_nodes)
                     {
                         char name[32];
-                        sprintf(name, "pnnx_%02d", pnnx_moduleop_unknown_index);
+                        snprintf(name, 32, "pnnx_%02d", pnnx_moduleop_unknown_index);
                         op->attrs[name] = attr.second->t(torch::jit::attr::value);
                         pnnx_moduleop_unknown_index++;
                     }
@@ -399,10 +361,12 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     op->name = wrapped_name;
 
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
-                    ow->write(op, toGraphFunction(function).graph(), sub_mod);
+                    TorchGraphProxy graph_proxy(toGraphFunction(function).graph());
 #else
-                    ow->write(op, function.graph(), sub_mod);
+                    TorchGraphProxy graph_proxy(function.graph());
 #endif
+                    TorchModuleProxy sub_mod_proxy(sub_mod);
+                    ow->write(op, graph_proxy, sub_mod_proxy);
 
                     break;
                 }
@@ -431,7 +395,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         else
         {
             char name[32];
-            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
+            snprintf(name, 32, "pnnx_%d", pnnx_unknown_index++);
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
@@ -458,7 +422,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         const auto& in = g->outputs()[i];
 
         char name[32];
-        sprintf(name, "pnnx_output_%d", i);
+        snprintf(name, 32, "pnnx_output_%d", i);
         Operator* op = pg.new_operator("pnnx.Output", name);
         Operand* r = pg.get_operand(in->debugName());
         r->consumers.push_back(op);

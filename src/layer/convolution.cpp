@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
@@ -47,6 +38,47 @@ int Convolution::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
 
     dynamic_weight = pd.get(19, 0);
+
+    const int activation_params_type = pd.type(10);
+#if NCNN_VALIDATION
+    if (activation_params_type != 0 && activation_params_type != 4 && activation_params_type != 5 && activation_params_type != 6)
+        return -1;
+
+    if ((activation_params.dims != 0 || activation_params.w != 0 || activation_params.data) && (activation_params.dims != 1 || activation_params.w < 0 || activation_params.elempack != 1 || activation_params.elemsize != 4u || (activation_params.w > 0 && !activation_params.data)))
+        return -1;
+
+    if (activation_type < 0 || activation_type > 6)
+        return -1;
+
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+        return -1;
+
+    if (dilation_w <= 0 || stride_w <= 0 || dilation_h <= 0 || stride_h <= 0)
+        return -1;
+
+    if (!dynamic_weight)
+    {
+        if (kernel_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_w > INT_MAX / kernel_h)
+            return -1;
+
+        if (num_output <= 0 || weight_data_size <= 0 || weight_data_size % num_output != 0 || (weight_data_size / num_output) % (kernel_w * kernel_h) != 0)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (activation_params_type == 5 && !activation_params.empty())
+    {
+        Mat converted(activation_params.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = activation_params;
+        for (int i = 0; i < activation_params.w; i++)
+            converted[i] = (float)p[i];
+
+        activation_params = converted;
+    }
 
     if (dynamic_weight)
     {
@@ -95,17 +127,9 @@ int Convolution::load_model(const ModelBin& mb)
     }
 #endif // NCNN_INT8
 
-    return 0;
-}
-
-int Convolution::create_pipeline(const Option& opt)
-{
-    if (dynamic_weight)
-        return 0;
-
 #if NCNN_INT8
     // runtime quantize the weight data
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
+    if (weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
         const int maxk = kernel_w * kernel_h;
         const int num_input = weight_data_size / num_output / maxk;
@@ -114,7 +138,8 @@ int Convolution::create_pipeline(const Option& opt)
 
         Mat weight_data_int8;
 
-        Option opt_q = opt;
+        Option opt_q;
+        opt_q.num_threads = 1;
         opt_q.blob_allocator = weight_data.allocator;
         opt_q.use_packing_layout = false;
         quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
@@ -123,8 +148,6 @@ int Convolution::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
-#else
-    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;
@@ -208,6 +231,12 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
+        if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+        {
+            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+            NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+        }
+
         return forward_int8(bottom_blob, top_blob, opt);
     }
 #endif
@@ -215,11 +244,14 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         int num_input = weight_data_size / num_output;
         if (bottom_blob.w * bottom_blob.elempack == num_input)
         {
             // call InnerProduct
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::InnerProduct);
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::InnerProduct);
 
             // set param
             ncnn::ParamDict pd;
@@ -250,13 +282,13 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             op->create_pipeline(opt);
 
             // forward
-            op->forward(bottom_blob, top_blob, opt);
+            int ret = op->forward(bottom_blob, top_blob, opt);
 
             op->destroy_pipeline(opt);
 
             delete op;
 
-            return 0;
+            return ret;
         }
     }
 
@@ -410,6 +442,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         opt_g.blob_allocator = opt.workspace_allocator;
 
         quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
+        if (bottom_blob_unbordered.empty())
+            return -100;
     }
 
     Mat bottom_blob_bordered;

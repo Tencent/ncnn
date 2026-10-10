@@ -1,16 +1,6 @@
-// yala is pleased to support the open source community by making ncnn available.
-//
-//
-// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_CONVOLUTION1D_LOONGARCH_H
 #define LAYER_CONVOLUTION1D_LOONGARCH_H
@@ -19,7 +9,7 @@
 
 namespace ncnn {
 
-class Convolution1D_loongarch : virtual public Convolution1D
+class Convolution1D_loongarch : public Convolution1D
 {
 public:
     Convolution1D_loongarch();
@@ -31,9 +21,14 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+protected:
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
 public:
-    // packn
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

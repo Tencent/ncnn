@@ -1,19 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/unfold.h"
 #include "testutil.h"
+
+#include "layer_type.h"
 
 static int test_unfold(int w, int h, int c, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_w, int pad_h, float pad_value)
 {
@@ -32,7 +22,7 @@ static int test_unfold(int w, int h, int c, int kernel_w, int kernel_h, int dila
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Unfold>("Unfold", pd, weights, a);
+    int ret = test_layer("Unfold", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_unfold failed w=%d h=%d c=%d kernel=%d,%d dilation=%d,%d stride=%d,%d pad=%d,%d pad_value=%f\n", w, h, c, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_w, pad_h, pad_value);
@@ -57,9 +47,38 @@ static int test_unfold_1()
            || test_unfold(32, 32, 16, 3, 2, 2, 1, 1, 1, -233, -233, 1.f);
 }
 
+#if NCNN_VALIDATION
+static int test_unfold_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(1, 3);
+    if (test_layer_param(ncnn::LayerType::Unfold, base, 0) != 0)
+        return -1;
+
+    if (test_layer_param(ncnn::LayerType::Unfold, base, 3, 0, -1) != 0)
+        return -1;
+
+    {
+        ncnn::ParamDict pd = base;
+        pd.set(3, 1);
+        pd.set(1, 65536);
+        if (test_layer_param(ncnn::LayerType::Unfold, pd, -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_unfold_0() || test_unfold_1();
+    return 0
+           || test_unfold_0()
+           || test_unfold_1()
+#if NCNN_VALIDATION
+           || test_unfold_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

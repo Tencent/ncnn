@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "save_ncnn.h"
+#include <cstdint>
+#include "utils.h"
 
 namespace pnnx {
 
@@ -39,7 +30,11 @@ static const char* type_to_dtype_string(int type)
     if (type == 2) return "torch.double";
     if (type == 3) return "torch.half";
     if (type == 4) return "torch.int";
-    if (type == 5) return "torch.long";
+    if (type == 5)
+    {
+        fprintf(stderr, "replace ncnn input torch.long type with torch.int\n");
+        return "torch.int";
+    }
     if (type == 6) return "torch.short";
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";
@@ -61,66 +56,22 @@ static bool string_is_positive_integer(const std::string& t)
     return true;
 }
 
-static unsigned short float32_to_float16(float value)
-{
-    // 1 : 8 : 23
-    union
-    {
-        unsigned int u;
-        float f;
-    } tmp;
-
-    tmp.f = value;
-
-    // 1 : 8 : 23
-    unsigned short sign = (tmp.u & 0x80000000) >> 31;
-    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
-    unsigned int significand = tmp.u & 0x7FFFFF;
-
-    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
-
-    // 1 : 5 : 10
-    unsigned short fp16;
-    if (exponent == 0)
-    {
-        // zero or denormal, always underflow
-        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-    }
-    else if (exponent == 0xFF)
-    {
-        // infinity or NaN
-        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
-    }
-    else
-    {
-        // normalized
-        short newexp = exponent + (-127 + 15);
-        if (newexp >= 31)
-        {
-            // overflow, return infinity
-            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
-        }
-        else if (newexp <= 0)
-        {
-            // Some normal fp32 cannot be expressed as normal fp16
-            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-        }
-        else
-        {
-            // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
-        }
-    }
-
-    return fp16;
-}
-
 static size_t alignSize(size_t sz, int n)
 {
     return (sz + n - 1) & -n;
 }
 
-int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, int fp16)
+static int32_t safe_int64_to_int32(int64_t value)
+{
+    if (value > INT32_MAX || value < INT32_MIN)
+    {
+        fprintf(stderr, "Warning: int64 value %lld exceeds int32 range\n", (long long)value);
+        return (value > INT32_MAX) ? INT32_MAX : INT32_MIN;
+    }
+    return static_cast<int32_t>(value);
+}
+
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -163,6 +114,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             if (!string_is_positive_integer(it.first))
             {
+                // skip internal pass metadata
+                if (it.first.size() >= 2 && it.first[0] == '_' && it.first[1] == '_')
+                    continue;
+
                 fprintf(stderr, "ignore %s %s param %s=", op->type.c_str(), op->name.c_str(), it.first.c_str());
 
                 if (param.type == 0)
@@ -182,7 +137,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 }
                 if (param.type == 3)
                 {
-                    fprintf(stderr, "%e", param.f);
+                    std::string tmp = float_to_string(param.f);
+                    fprintf(stderr, "%s", tmp.c_str());
                 }
                 if (param.type == 4)
                 {
@@ -204,7 +160,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                     fprintf(stderr, "(");
                     for (size_t i = 0; i < param.af.size(); i++)
                     {
-                        fprintf(stderr, "%e", param.af[i]);
+                        std::string tmp = float_to_string(param.af[i]);
+                        fprintf(stderr, "%s", tmp.c_str());
                         if (i + 1 != param.af.size())
                             fprintf(stderr, ",");
                     }
@@ -233,7 +190,24 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             }
             if (param.type == 3)
             {
-                fprintf(paramfp, " %d=%e", idkey, param.f);
+                std::string tmp = float_to_string(param.f);
+                fprintf(paramfp, " %d=%s", idkey, tmp.c_str());
+            }
+            if (param.type == 4)
+            {
+                bool is_identifier = isalpha(param.s[0]);
+                for (auto x : param.s)
+                {
+                    if (isalpha(x) || isdigit(x) || x == '_')
+                        continue;
+
+                    is_identifier = false;
+                    break;
+                }
+                if (is_identifier)
+                    fprintf(paramfp, " %d=%s", idkey, param.s.c_str());
+                else
+                    fprintf(paramfp, " %d=\"%s\"", idkey, param.s.c_str());
             }
             if (param.type == 5)
             {
@@ -250,7 +224,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fprintf(paramfp, " %d=%d", -23300 - idkey, array_size);
                 for (size_t i = 0; i < param.af.size(); i++)
                 {
-                    fprintf(paramfp, ",%e", param.af[i]);
+                    std::string tmp = float_to_string(param.af[i]);
+                    fprintf(paramfp, ",%s", tmp.c_str());
                 }
             }
         }
@@ -294,6 +269,32 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fwrite((const char*)&fp16_flag, sizeof(fp16_flag), 1, binfp);
 
                 is_type_flag_fp32 = true;
+                continue;
+            }
+
+            if (attr.type == 5) // i64 --> i32
+            {
+                const int64_t* p = (const int64_t*)attr.data.data();
+                int len = attr.data.size() / sizeof(int64_t);
+
+                std::vector<int32_t> data_int32(len);
+
+                for (int i = 0; i < len; i++)
+                {
+                    data_int32[i] = safe_int64_to_int32(p[i]);
+                }
+
+                fwrite(data_int32.data(), data_int32.size() * sizeof(int32_t), 1, binfp);
+                continue;
+            }
+
+            if (attr.type == 9) // bool
+            {
+                // pad size to 4bytes
+                std::vector<char> data_int8 = attr.data;
+                data_int8.resize(alignSize(data_int8.size(), 4), 0);
+
+                fwrite(data_int8.data(), data_int8.size(), 1, binfp);
                 continue;
             }
 
@@ -369,13 +370,30 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
+            std::vector<int> input_shape;
+            if (input_shapes.empty())
+            {
+                input_shape = r->shape;
+            }
+            else
+            {
+                const std::vector<int64_t>& s = input_shapes[input_index];
+                for (int64_t d : s)
+                {
+                    input_shape.push_back((int)d);
+                }
+            }
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d", r->shape[i]);
-                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                    int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
+                    fprintf(pyfp, "%d", dimsize);
+                    if (i + 1 != input_shape.size() || input_shape.size() == 1)
                         fprintf(pyfp, ", ");
                 }
                 fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
@@ -383,9 +401,12 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                for (size_t i = 0; i < r->shape.size(); i++)
+                for (size_t i = 0; i < input_shape.size(); i++)
                 {
-                    fprintf(pyfp, "%d, ", r->shape[i]);
+                    int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
+                    fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
@@ -407,15 +428,15 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             if (!r)
                 break;
 
-            const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(%d).numpy()).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
-            }
+            int batch_index = 233;
+            if (r->params.find("__batch_index") != r->params.end())
+                batch_index = r->params.at("__batch_index").i;
+            else if (r->params.find("__ncnn_batch_axis") != r->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
+            if (r->shape.size() < 2)
+                batch_index = 233;
+
+            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy(), batch_index=%d).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");
@@ -429,15 +450,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
 
             fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
 
-            const int batch_index = r->params.at("__batch_index").i;
-            if (batch_index != 233)
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)).unsqueeze(%d))\n", output_name.c_str(), batch_index);
-            }
-            else
-            {
-                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)))\n", output_name.c_str());
-            }
+            int batch_index = 233;
+            if (r->params.find("__ncnn_batch_axis") != r->params.end())
+                batch_index = r->params.at("__ncnn_batch_axis").i;
+            fprintf(pyfp, "            out.append(torch.from_numpy(%s.numpy(batch_index=%d)))\n", output_name.c_str(), batch_index);
         }
 
         fprintf(pyfp, "\n");

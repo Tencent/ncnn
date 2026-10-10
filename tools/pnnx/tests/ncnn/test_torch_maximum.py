@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2023 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,11 +9,18 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, u, v, r, s, t):
         out0 = torch.maximum(x, y)
         out1 = torch.maximum(y, y)
         out2 = torch.maximum(z, torch.ones_like(z) + 0.1)
-        return out0, out1, out2
+        u = F.max_pool2d(u, 1)
+        v = F.max_pool2d(v, 1)
+        out3 = torch.maximum(u, v)
+        out4 = torch.maximum(u, u + 0.1)
+        out5 = torch.maximum(u, r)
+        out6 = torch.maximum(u, s)
+        out7 = torch.maximum(u, t)
+        return out0, out1, out2, out3, out4, out5, out6, out7
 
 def test():
     net = Model()
@@ -34,16 +30,21 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
     z = torch.rand(5, 9, 3)
+    u = torch.rand(2, 3, 5, 7)
+    v = torch.rand(2, 3, 5, 7)
+    r = torch.rand(3, 5, 7)
+    s = torch.rand(3, 1, 1)
+    t = torch.rand(5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, u, v, r, s, t)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, u, v, r, s, t))
     mod.save("test_torch_maximum.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_maximum.pt inputshape=[3,16],[3,16],[5,9,3]")
+    os.system("../../src/pnnx test_torch_maximum.pt inputshape=[3,16],[3,16],[5,9,3],[2,3,5,7],[2,3,5,7],[3,5,7],[3,1,1],[5,7]")
 
     # ncnn inference
     import test_torch_maximum_ncnn

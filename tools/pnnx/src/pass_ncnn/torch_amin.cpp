@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -45,16 +34,30 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& dims = captured_params.at("dim").ai;
 
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+        int input_rank = op->inputs[0]->shape.size();
+        if (input_rank == 0)
+        {
+            input_rank = op->outputs[0]->shape.size();
+            if (!captured_params.at("keepdim").b && input_rank > 0)
+                input_rank += dims.size();
+        }
 
         // drop batch index
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
-            if (dims[i] == batch_index)
-                continue;
+            int dim = dims[i];
+            if (dim < 0 && input_rank > 0)
+                dim += input_rank;
 
-            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
+            {
+                fprintf(stderr, "amin along batch axis is not supported yet\n");
+                continue;
+            }
+
+            int new_dim = ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim;
             new_dims.push_back(new_dim);
         }
 

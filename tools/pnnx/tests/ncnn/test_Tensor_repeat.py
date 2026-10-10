@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,14 +9,17 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = x.repeat(2, 3)
         x = x.repeat(3, 4)
         y = y.repeat(2, 1, 4)
         y = y.repeat(4, 5, 1)
         z = z.repeat(2, 3, 1, 5)
         z = z.repeat(3, 3, 1, 1)
-        return x, y, z
+        w = F.max_pool2d(w, 1)
+        w0 = w.repeat(1, 2, 1, 1)
+        w1 = w.repeat(1, 1, 1, 4)
+        return x, y, z, w0, w1
 
 def test():
     net = Model()
@@ -37,16 +29,17 @@ def test():
     x = torch.rand(3, 16)
     y = torch.rand(5, 9, 11)
     z = torch.rand(8, 5, 9, 10)
+    w = torch.rand(2, 3, 5, 1)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_Tensor_repeat.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_repeat.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
+    os.system("../../src/pnnx test_Tensor_repeat.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[2,3,5,1]")
 
     # ncnn inference
     import test_Tensor_repeat_ncnn

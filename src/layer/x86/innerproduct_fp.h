@@ -1,32 +1,53 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+void innerproduct_fp16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
-void innerproduct_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
+void innerproduct_fp16s_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_transform_kernel_fp16s_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
 #if NCNN_IMPL_FP16S
-static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct_fp16s(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #else
-static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #endif
 {
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        innerproduct_fma4(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_fp16s_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        innerproduct_fp16s_sse_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_fp16s_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #else // NCNN_RUNTIME_CPU
@@ -354,10 +375,10 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _val6 = _mm_broadcast_ss(sptr + 6);
                 __m128 _val7 = _mm_broadcast_ss(sptr + 7);
 
-                __m256 _val01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val0), _val1, 1);
-                __m256 _val23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val2), _val3, 1);
-                __m256 _val45 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val4), _val5, 1);
-                __m256 _val67 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val6), _val7, 1);
+                __m256 _val01 = combine4x2_ps(_val0, _val1);
+                __m256 _val23 = combine4x2_ps(_val2, _val3);
+                __m256 _val45 = combine4x2_ps(_val4, _val5);
+                __m256 _val67 = combine4x2_ps(_val6, _val7);
 
 #if NCNN_IMPL_FP16S
                 __m256i _w0123 = _mm256_lddqu_si256((const __m256i*)kptr);
@@ -390,8 +411,8 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _val2 = _mm_broadcast_ss(sptr + 2);
                 __m128 _val3 = _mm_broadcast_ss(sptr + 3);
 
-                __m256 _val01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val0), _val1, 1);
-                __m256 _val23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_val2), _val3, 1);
+                __m256 _val01 = combine4x2_ps(_val0, _val1);
+                __m256 _val23 = combine4x2_ps(_val2, _val3);
 
 #if NCNN_IMPL_FP16S
                 __m256i _w0123 = _mm256_lddqu_si256((const __m256i*)kptr);
@@ -471,7 +492,13 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = pp * 8;
 
-            float sums[8] = {0.0f};
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float sums[8]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];
@@ -597,7 +624,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
             }
 
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-            __m256 _sums_f = _mm256_loadu_ps(sums);
+            __m256 _sums_f = _mm256_load_ps(sums);
             _sums = _mm256_add_ps(_sums_f, _sums);
             _sums = activation_avx(_sums, activation_type, activation_params);
 
@@ -617,7 +644,13 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = remain_outw_start + (pp * 4);
 
-            float sums[4] = {0.0f};
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
+            float sums[4]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];
@@ -726,7 +759,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 w3++;
             }
 
-            __m128 _sums = _mm_loadu_ps(sums);
+            __m128 _sums = _mm_load_ps(sums);
 #if __AVX__
             _sums = _mm_add_ps(HorizontalSums(_sum0, _sum1, _sum2, _sum3), _sums);
 #endif
@@ -823,15 +856,15 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
 }
 
 #if NCNN_IMPL_FP16S
-static void innerproduct_transform_kernel_fp16s_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+static void innerproduct_transform_kernel_fp16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 #else
-static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+static void innerproduct_transform_kernel(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 #endif
 {
 #if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        innerproduct_transform_kernel_fp16s_sse_f16c(weight_data, weight_data_tm, num_input, num_output, opt);
+        innerproduct_transform_kernel_fp16s_f16c(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
 #else // NCNN_RUNTIME_CPU
@@ -1007,14 +1040,14 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128i _re = _mm256_cvtps_ph(_mm256_loadu_ps(ke), _MM_FROUND_TRUNC);
                 __m128i _rf = _mm256_cvtps_ph(_mm256_loadu_ps(kf), _MM_FROUND_TRUNC);
 
-                __m256i _r08 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r8, 1);
-                __m256i _r19 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r9, 1);
-                __m256i _r2a = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _ra, 1);
-                __m256i _r3b = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _rb, 1);
-                __m256i _r4c = _mm256_inserti128_si256(_mm256_castsi128_si256(_r4), _rc, 1);
-                __m256i _r5d = _mm256_inserti128_si256(_mm256_castsi128_si256(_r5), _rd, 1);
-                __m256i _r6e = _mm256_inserti128_si256(_mm256_castsi128_si256(_r6), _re, 1);
-                __m256i _r7f = _mm256_inserti128_si256(_mm256_castsi128_si256(_r7), _rf, 1);
+                __m256i _r08 = combine4x2_epi32(_r0, _r8);
+                __m256i _r19 = combine4x2_epi32(_r1, _r9);
+                __m256i _r2a = combine4x2_epi32(_r2, _ra);
+                __m256i _r3b = combine4x2_epi32(_r3, _rb);
+                __m256i _r4c = combine4x2_epi32(_r4, _rc);
+                __m256i _r5d = combine4x2_epi32(_r5, _rd);
+                __m256i _r6e = combine4x2_epi32(_r6, _re);
+                __m256i _r7f = combine4x2_epi32(_r7, _rf);
 
                 __m256i _tmp0 = _mm256_unpacklo_epi16(_r08, _r19);
                 __m256i _tmp1 = _mm256_unpackhi_epi16(_r08, _r19);
@@ -1350,8 +1383,8 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128 _r3 = _mm_loadu_ps(k3);
                 _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 #if NCNN_IMPL_FP16S
-                __m256 _r01 = _mm256_insertf128_ps(_mm256_castps128_ps256(_r0), _r1, 1);
-                __m256 _r23 = _mm256_insertf128_ps(_mm256_castps128_ps256(_r2), _r3, 1);
+                __m256 _r01 = combine4x2_ps(_r0, _r1);
+                __m256 _r23 = combine4x2_ps(_r2, _r3);
                 __m128i _r01_fp16 = _mm256_cvtps_ph(_r01, _MM_FROUND_TRUNC);
                 __m128i _r23_fp16 = _mm256_cvtps_ph(_r23, _MM_FROUND_TRUNC);
                 _mm_storeu_si128((__m128i*)g0, _r01_fp16);

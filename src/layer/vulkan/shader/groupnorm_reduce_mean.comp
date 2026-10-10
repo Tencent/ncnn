@@ -1,0 +1,51 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(binding = 0) readonly buffer bottom_top_blob { float bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer mean_blob { float mean_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+    float area;
+    int group;
+    int channels_g;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.group || gy >= 1 || gz >= 1)
+        return;
+
+    float sum = 0.f;
+
+    for (int q = 0; q < p.channels_g; q++)
+    {
+        int v_offset = (gx * p.channels_g + q) * psc(cstep);
+
+        for (int i = 0; i < p.w; i++)
+        {
+            sum += bottom_top_blob_data[v_offset];
+            v_offset += 1;
+        }
+    }
+
+    float mean = sum / p.area;
+
+    mean_data[gx] = mean;
+}

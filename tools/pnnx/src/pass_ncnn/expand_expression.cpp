@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -119,20 +108,28 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
         }
         else if (t == "abs"
                  || t == "acos"
+                 || t == "acosh"
                  || t == "asin"
+                 || t == "asinh"
                  || t == "atan"
+                 || t == "atanh"
                  || t == "ceil"
                  || t == "cos"
+                 || t == "cosh"
+                 || t == "erf"
                  || t == "exp"
+                 || t == "expm1"
                  || t == "floor"
                  || t == "log"
                  || t == "log10"
+                 || t == "log1p"
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "round"
                  || t == "rsqrt"
                  || t == "sign"
                  || t == "sin"
+                 || t == "sinh"
                  || t == "sqrt"
                  || t == "square"
                  || t == "tan"
@@ -147,22 +144,30 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
             Operator* op_unary = graph.new_operator_before("UnaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
+            if (t == "erf") op_unary->type = "Erf";
             if (t == "abs") op_unary->params["0"] = 0;
             if (t == "acos") op_unary->params["0"] = 13;
+            if (t == "acosh") op_unary->params["0"] = 25;
             if (t == "asin") op_unary->params["0"] = 12;
+            if (t == "asinh") op_unary->params["0"] = 23;
             if (t == "atan") op_unary->params["0"] = 14;
+            if (t == "atanh") op_unary->params["0"] = 26;
             if (t == "ceil") op_unary->params["0"] = 3;
             if (t == "cos") op_unary->params["0"] = 10;
+            if (t == "cosh") op_unary->params["0"] = 24;
             if (t == "exp") op_unary->params["0"] = 7;
+            if (t == "expm1") op_unary->params["0"] = 21;
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
             if (t == "log10") op_unary->params["0"] = 17;
+            if (t == "log1p") op_unary->params["0"] = 27;
             if (t == "neg") op_unary->params["0"] = 1;
             if (t == "reciprocal") op_unary->params["0"] = 15;
             if (t == "round") op_unary->params["0"] = 18;
             if (t == "rsqrt") op_unary->params["0"] = 6;
-            if (t == "sign") fprintf(stderr, "UnaryOp sign not supported yet\n"); // TODO
+            if (t == "sign") op_unary->params["0"] = 20;
             if (t == "sin") op_unary->params["0"] = 9;
+            if (t == "sinh") op_unary->params["0"] = 22;
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "square") op_unary->params["0"] = 4;
             if (t == "tan") op_unary->params["0"] = 11;
@@ -185,6 +190,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "div"
                  || t == "floor_divide"
                  || t == "fmod"
+                 || t == "logaddexp"
                  || t == "max"
                  || t == "maximum"
                  || t == "min"
@@ -211,11 +217,12 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "sub") op_binary->params["0"] = 1;
             if (t == "mul") op_binary->params["0"] = 2;
             if (t == "div") op_binary->params["0"] = 3;
+            if (t == "logaddexp") op_binary->params["0"] = 14;
             if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
-            if (t == "floor_divide") fprintf(stderr, "BinaryOp floor_divide not supported yet\n"); // TODO
-            if (t == "fmod") fprintf(stderr, "BinaryOp fmod not supported yet\n");                 // TODO
-            if (t == "remainder") fprintf(stderr, "BinaryOp remainder not supported yet\n");       // TODO
+            if (t == "floor_divide") op_binary->params["0"] = 15;
+            if (t == "fmod") op_binary->params["0"] = 12;
+            if (t == "remainder") op_binary->params["0"] = 17;
             if (t == "pow") op_binary->params["0"] = 6;
             if (t == "atan2") op_binary->params["0"] = 10;
 
@@ -225,6 +232,10 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 if (t == "div") op_binary->params["0"] = 8;
                 if (t == "pow") op_binary->params["0"] = 9;
                 if (t == "atan2") op_binary->params["0"] = 11;
+                if (t == "fmod") op_binary->params["0"] = 13;
+                if (t == "logaddexp") op_binary->params["0"] = 14;
+                if (t == "floor_divide") op_binary->params["0"] = 16;
+                if (t == "remainder") op_binary->params["0"] = 18;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
                 op_binary_inb->consumers.push_back(op_binary);
@@ -292,7 +303,16 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                     out_shape.resize(outrank);
                     for (int k = 0; k < outrank; k++)
                     {
-                        out_shape[k] = std::max(a_shape[k], b_shape[k]);
+                        if (a_shape[k] == 1)
+                            out_shape[k] = b_shape[k];
+                        else if (b_shape[k] == 1)
+                            out_shape[k] = a_shape[k];
+                        else if (a_shape[k] == -1 || b_shape[k] == -1)
+                            out_shape[k] = -1;
+                        else if (a_shape[k] == b_shape[k])
+                            out_shape[k] = a_shape[k];
+                        else
+                            out_shape[k] = std::max(a_shape[k], b_shape[k]);
                     }
                 }
                 op_binary_out->shape = out_shape;

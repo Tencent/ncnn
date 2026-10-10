@@ -42,7 +42,7 @@ conda install pytorch
 ```
 3. install
 ```bash
-cd /pathto/ncnntools/pnnx
+cd /pathto/ncnntools/pnnx/python
 python setup.py install
 ```
 
@@ -61,8 +61,8 @@ python setup.py install
 
 ## Tests
 ```bash
-cd /pathto/ncnn/tools/pnnx
-pytest python/tests/
+cd /pathto/ncnn/tools/pnnx/python
+pytest tests
 ```
 
 ## Usage

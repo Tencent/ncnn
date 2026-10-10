@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -64,9 +53,9 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 v4f32 _S32 = (v4f32)__msa_ld_w(S3p + 4, 0);
                 v4f32 _S33 = (v4f32)__msa_ld_w(S3p + 8, 0);
                 v4f32 _rows3 = __msa_fmul_w(_S30, _a0);
-                _rows3 = __msa_fmadd_w(_rows3, _S31, _a1);
-                _rows3 = __msa_fmadd_w(_rows3, _S32, _a2);
-                _rows3 = __msa_fmadd_w(_rows3, _S33, _a3);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S31, _a1);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S32, _a2);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S33, _a3);
                 __msa_st_w((v4i32)_rows3, rows3p + dx * 4, 0);
 
                 alphap += 4;
@@ -108,12 +97,12 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 v4f32 _S33 = (v4f32)__msa_ld_w(S3p + 8, 0);
                 v4f32 _rows2 = __msa_fmul_w(_S20, _a0);
                 v4f32 _rows3 = __msa_fmul_w(_S30, _a0);
-                _rows2 = __msa_fmadd_w(_rows2, _S21, _a1);
-                _rows3 = __msa_fmadd_w(_rows3, _S31, _a1);
-                _rows2 = __msa_fmadd_w(_rows2, _S22, _a2);
-                _rows3 = __msa_fmadd_w(_rows3, _S32, _a2);
-                _rows2 = __msa_fmadd_w(_rows2, _S23, _a3);
-                _rows3 = __msa_fmadd_w(_rows3, _S33, _a3);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S21, _a1);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S31, _a1);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S22, _a2);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S32, _a2);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S23, _a3);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S33, _a3);
                 __msa_st_w((v4i32)_rows2, rows2p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows3, rows3p + dx * 4, 0);
 
@@ -165,15 +154,15 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 v4f32 _rows1 = __msa_fmul_w(_S10, _a0);
                 v4f32 _rows2 = __msa_fmul_w(_S20, _a0);
                 v4f32 _rows3 = __msa_fmul_w(_S30, _a0);
-                _rows1 = __msa_fmadd_w(_rows1, _S11, _a1);
-                _rows2 = __msa_fmadd_w(_rows2, _S21, _a1);
-                _rows3 = __msa_fmadd_w(_rows3, _S31, _a1);
-                _rows1 = __msa_fmadd_w(_rows1, _S12, _a2);
-                _rows2 = __msa_fmadd_w(_rows2, _S22, _a2);
-                _rows3 = __msa_fmadd_w(_rows3, _S32, _a2);
-                _rows1 = __msa_fmadd_w(_rows1, _S13, _a3);
-                _rows2 = __msa_fmadd_w(_rows2, _S23, _a3);
-                _rows3 = __msa_fmadd_w(_rows3, _S33, _a3);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S11, _a1);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S21, _a1);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S31, _a1);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S12, _a2);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S22, _a2);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S32, _a2);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S13, _a3);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S23, _a3);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S33, _a3);
                 __msa_st_w((v4i32)_rows1, rows1p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows2, rows2p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows3, rows3p + dx * 4, 0);
@@ -227,18 +216,18 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 v4f32 _rows1 = __msa_fmul_w(_S10, _a0);
                 v4f32 _rows2 = __msa_fmul_w(_S20, _a0);
                 v4f32 _rows3 = __msa_fmul_w(_S30, _a0);
-                _rows0 = __msa_fmadd_w(_rows0, _S01, _a1);
-                _rows1 = __msa_fmadd_w(_rows1, _S11, _a1);
-                _rows2 = __msa_fmadd_w(_rows2, _S21, _a1);
-                _rows3 = __msa_fmadd_w(_rows3, _S31, _a1);
-                _rows0 = __msa_fmadd_w(_rows0, _S02, _a2);
-                _rows1 = __msa_fmadd_w(_rows1, _S12, _a2);
-                _rows2 = __msa_fmadd_w(_rows2, _S22, _a2);
-                _rows3 = __msa_fmadd_w(_rows3, _S32, _a2);
-                _rows0 = __msa_fmadd_w(_rows0, _S03, _a3);
-                _rows1 = __msa_fmadd_w(_rows1, _S13, _a3);
-                _rows2 = __msa_fmadd_w(_rows2, _S23, _a3);
-                _rows3 = __msa_fmadd_w(_rows3, _S33, _a3);
+                _rows0 = __ncnn_msa_fmadd_w(_rows0, _S01, _a1);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S11, _a1);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S21, _a1);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S31, _a1);
+                _rows0 = __ncnn_msa_fmadd_w(_rows0, _S02, _a2);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S12, _a2);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S22, _a2);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S32, _a2);
+                _rows0 = __ncnn_msa_fmadd_w(_rows0, _S03, _a3);
+                _rows1 = __ncnn_msa_fmadd_w(_rows1, _S13, _a3);
+                _rows2 = __ncnn_msa_fmadd_w(_rows2, _S23, _a3);
+                _rows3 = __ncnn_msa_fmadd_w(_rows3, _S33, _a3);
                 __msa_st_w((v4i32)_rows0, rows0p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows1, rows1p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows2, rows2p + dx * 4, 0);
@@ -269,9 +258,9 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             v4f32 _rows2 = (v4f32)__msa_ld_w(rows2p, 0);
             v4f32 _rows3 = (v4f32)__msa_ld_w(rows3p, 0);
             v4f32 _Dp = __msa_fmul_w(_rows0, _b0);
-            _Dp = __msa_fmadd_w(_Dp, _rows1, _b1);
-            _Dp = __msa_fmadd_w(_Dp, _rows2, _b2);
-            _Dp = __msa_fmadd_w(_Dp, _rows3, _b3);
+            _Dp = __ncnn_msa_fmadd_w(_Dp, _rows1, _b1);
+            _Dp = __ncnn_msa_fmadd_w(_Dp, _rows2, _b2);
+            _Dp = __ncnn_msa_fmadd_w(_Dp, _rows3, _b3);
             __msa_st_w((v4i32)_Dp, Dp, 0);
 
             Dp += 4;

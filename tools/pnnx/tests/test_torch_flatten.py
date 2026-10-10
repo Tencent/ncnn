@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -19,12 +8,17 @@ import torch.nn.functional as F
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+        self.conv = nn.Conv2d(3, 4, 1)
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = torch.flatten(x)
         y = torch.flatten(y, start_dim=1, end_dim=-1)
         z = torch.flatten(z, start_dim=3, end_dim=4)
-        return x, y, z
+        w = self.conv(w)
+        w0 = torch.flatten(w, start_dim=0)
+        w1 = torch.flatten(w, start_dim=2)
+        w2 = torch.flatten(w, start_dim=0, end_dim=1)
+        return x, y, z, w0, w1, w2
 
 def test():
     net = Model()
@@ -34,16 +28,17 @@ def test():
     x = torch.rand(1, 3, 16)
     y = torch.rand(1, 5, 9, 11)
     z = torch.rand(14, 8, 5, 9, 10)
+    w = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_torch_flatten.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_flatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_torch_flatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,3,5,7]")
 
     # pnnx inference
     import test_torch_flatten_pnnx

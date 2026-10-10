@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
@@ -287,6 +276,9 @@ int NetOptimize::fuse_convolution_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = convolution->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -375,6 +367,9 @@ int NetOptimize::fuse_convolution_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = convolution->num_output;
 
@@ -552,6 +547,9 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = convolutiondepthwise->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -640,6 +638,9 @@ int NetOptimize::fuse_convolutiondepthwise_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = convolutiondepthwise->num_output;
 
@@ -817,6 +818,9 @@ int NetOptimize::fuse_deconvolution_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = deconvolution->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -905,6 +909,9 @@ int NetOptimize::fuse_deconvolution_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = deconvolution->num_output;
 
@@ -1164,6 +1171,9 @@ int NetOptimize::fuse_innerproduct_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = innerproduct->num_output;
 
@@ -1768,6 +1778,10 @@ int NetOptimize::fuse_memorydata_binaryop()
 
         // fuse MemoryData - BinaryOp to BinaryOp
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[i];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
 
         if (memorydata->w != 1 || memorydata->h != 0 || memorydata->c != 0)
@@ -1870,6 +1884,10 @@ int NetOptimize::fuse_memorydata_binaryop()
 
         // fuse MemoryData - Split - BinaryOp to BinaryOp
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[i];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         ncnn::Split* split = (ncnn::Split*)layers[j0];
         ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j1];
 
@@ -1993,7 +2011,7 @@ int NetOptimize::fuse_binaryop_eltwise()
 
         fprintf(stderr, "fuse_binaryop_eltwise %s %s %s\n", binaryop0->name.c_str(), binaryop1->name.c_str(), binaryop->name.c_str());
 
-        ncnn::Eltwise* eltwise = (ncnn::Eltwise*)ncnn::create_layer("Eltwise");
+        ncnn::Eltwise* eltwise = (ncnn::Eltwise*)ncnn::create_layer_cpu("Eltwise");
 
         eltwise->type = "Eltwise";
         eltwise->name = binaryop->name;
@@ -2357,7 +2375,10 @@ int NetOptimize::eliminate_reshape_after_global_pooling()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[j];
-        if (reshape->h != -233 || reshape->c != -233 || reshape->permute != 0)
+        if (reshape->h != -233 || reshape->c != -233)
+            continue;
+
+        if (!reshape->shape_expr.empty())
             continue;
 
         fprintf(stderr, "eliminate_reshape_after_global_pooling %s %s\n", pooling->name.c_str(), reshape->name.c_str());
@@ -2465,7 +2486,10 @@ int NetOptimize::eliminate_reshape_before_binaryop()
             continue;
 
         ncnn::Reshape* reshape = (ncnn::Reshape*)layers[i];
-        if (reshape->w != 1 || reshape->h != 1 || reshape->permute != 0)
+        if (reshape->w != 1 || reshape->h != 1)
+            continue;
+
+        if (!reshape->shape_expr.empty())
             continue;
 
         // Reshape - BinaryOp
@@ -2554,7 +2578,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
 
         fprintf(stderr, "replace_reduction_with_global_pooling %s %s\n", reduction1->name.c_str(), reduction2->name.c_str());
 
-        ncnn::Pooling* pooling = (ncnn::Pooling*)ncnn::create_layer("Pooling");
+        ncnn::Pooling* pooling = (ncnn::Pooling*)ncnn::create_layer_cpu("Pooling");
 
         pooling->type = "Pooling";
         pooling->name = reduction2->name;
@@ -2593,7 +2617,7 @@ int NetOptimize::replace_prelu_with_leaky_relu()
 
         fprintf(stderr, "replace_prelu_with_leaky_relu %s\n", prelu->name.c_str());
 
-        ncnn::ReLU* relu = (ncnn::ReLU*)ncnn::create_layer("ReLU");
+        ncnn::ReLU* relu = (ncnn::ReLU*)ncnn::create_layer_cpu("ReLU");
 
         relu->type = "ReLU";
         relu->name = prelu->name;
@@ -2647,7 +2671,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 
         fprintf(stderr, "replace_convolution_with_innerproduct_after_global_pooling %s %s\n", pooling->name.c_str(), convolution->name.c_str());
 
-        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)ncnn::create_layer_cpu("InnerProduct");
 
         innerproduct->type = "InnerProduct";
         innerproduct->name = convolution->name;
@@ -2715,7 +2739,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 
             fprintf(stderr, "replace_convolution_with_innerproduct_after_innerproduct %s %s\n", innerproduct->name.c_str(), convolution->name.c_str());
 
-            ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+            ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer_cpu("InnerProduct");
 
             innerproduct2->type = "InnerProduct";
             innerproduct2->name = convolution->name;
@@ -2784,6 +2808,10 @@ int main(int argc, char** argv)
     if (flag == 65536 || flag == 1)
     {
         optimizer.storage_type = 1;
+    }
+    else if (flag == 2)
+    {
+        optimizer.storage_type = 2;
     }
     else
     {

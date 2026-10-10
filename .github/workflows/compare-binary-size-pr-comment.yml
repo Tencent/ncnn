@@ -1,0 +1,129 @@
+name: compare-binary-size-pr-comment
+on:
+  workflow_run:
+    workflows: ["compare-binary-size"]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  pr-comment:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+    # No checkout or execution of PR code in this privileged workflow.
+    - name: Resolve and validate the PR
+      id: pr
+      uses: actions/github-script@v9
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const run = context.payload.workflow_run;
+          const repository = context.payload.repository;
+          if (run.repository.id !== repository.id ||
+              run.path !== '.github/workflows/compare-binary-size.yml' ||
+              !run.head_repository?.owner?.login || !run.head_branch) {
+            throw new Error('Unexpected triggering workflow or repository');
+          }
+          // workflow_run.pull_requests may be empty for fork PRs.
+          // Query by source branch, then verify the source repo and exact SHA.
+          const candidates = await github.paginate(github.rest.pulls.list, {
+            ...context.repo,
+            state: 'open',
+            base: 'master',
+            head: `${run.head_repository.owner.login}:${run.head_branch}`,
+            per_page: 100
+          });
+          const matches = candidates.filter(pr =>
+            pr.base.repo.id === repository.id &&
+            pr.base.ref === 'master' &&
+            pr.head.repo?.id === run.head_repository.id &&
+            pr.head.ref === run.head_branch &&
+            pr.head.sha === run.head_sha
+          );
+          if (matches.length === 0) {
+            core.notice('No matching open PR at this SHA; closed or stale runs are skipped.');
+            return;
+          }
+          if (matches.length !== 1) throw new Error('Ambiguous PR association');
+          core.setOutput('number', String(matches[0].number));
+
+    - name: Download this run's report
+      if: steps.pr.outputs.number != ''
+      uses: actions/download-artifact@v8
+      with:
+        name: compare-binary-size.md
+        run-id: ${{ github.event.workflow_run.id }}
+        repository: ${{ github.repository }}
+        github-token: ${{ github.token }}
+        path: ${{ runner.temp }}/binary-size-report
+
+    - name: Post or update the PR comment
+      if: steps.pr.outputs.number != ''
+      uses: actions/github-script@v9
+      env:
+        PR_NUMBER: ${{ steps.pr.outputs.number }}
+        REPORT_DIR: ${{ runner.temp }}/binary-size-report
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          const run = context.payload.workflow_run;
+          const issue_number = Number(process.env.PR_NUMBER);
+          if (!Number.isSafeInteger(issue_number) || issue_number < 1) {
+            throw new Error('Invalid PR number');
+          }
+          // Artifacts are untrusted input: read one bounded data file only.
+          const file = path.join(process.env.REPORT_DIR, 'compare-binary-size.md');
+          const stat = fs.lstatSync(file);
+          if (!stat.isFile() || stat.size > 8192) throw new Error('Invalid report file');
+          const lines = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/);
+          const archs = ['x86_64', 'armhf', 'aarch64'];
+          if (lines.length !== 6 ||
+              lines[0] !== 'The binary size change of libncnn.so (bytes)' ||
+              lines[1] !== '| architecture | base size | pr size | difference |' ||
+              lines[2] !== '|--------------|-----------|---------|------------|') {
+            throw new Error('Unexpected report format');
+          }
+          const rows = archs.map((arch, index) => {
+            const m = lines[index + 3].match(/^\| (x86_64|armhf|aarch64) \| (\d{1,16}) \| (\d{1,16}) \| ([+-]?\d{1,16}) :(warning|kissing_heart): \|$/);
+            if (!m || m[1] !== arch) throw new Error('Invalid report row');
+            const base = BigInt(m[2]);
+            const current = BigInt(m[3]);
+            const delta = current - base;
+            if (delta !== BigInt(m[4])) throw new Error('Inconsistent size delta');
+            const diff = delta > 0n ? `+${delta} :warning:` : `${delta} :kissing_heart:`;
+            return `| ${arch} | ${base} | ${current} | ${diff} |`;
+          });
+          // Recheck immediately before writing; a newer PR commit makes this stale.
+          const { data: pr } = await github.rest.pulls.get({
+            ...context.repo, pull_number: issue_number
+          });
+          if (pr.state !== 'open' || pr.base.repo.id !== context.payload.repository.id ||
+              pr.base.ref !== 'master' || pr.head.repo?.id !== run.head_repository.id ||
+              pr.head.ref !== run.head_branch || pr.head.sha !== run.head_sha) {
+            core.notice('PR changed or closed; skipping this report.');
+            return;
+          }
+          const marker = '<!-- compare-binary-size-bot -->';
+          const report = [lines[0], '', ...lines.slice(1, 3), ...rows].join('\n');
+          const body = `${marker}\n**Binary size comparison**\n\n${report}\n\nCommit: \`${run.head_sha}\` · [Workflow run](${run.html_url})`;
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            ...context.repo, issue_number, per_page: 100
+          });
+          const existing = comments.find(comment =>
+            comment.user?.login === 'github-actions[bot]' &&
+            comment.user?.type === 'Bot' && comment.body?.startsWith(marker)
+          );
+          if (existing) {
+            await github.rest.issues.updateComment({
+              ...context.repo, comment_id: existing.id, body
+            });
+          } else {
+            await github.rest.issues.createComment({ ...context.repo, issue_number, body });
+          }

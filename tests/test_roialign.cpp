@@ -1,20 +1,12 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "layer.h"
-#include "layer/roialign.h"
 #include "testutil.h"
+
+#include "layer_type.h"
+
+#include <limits.h>
 
 static int test_roialign(int w, int h, int c, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, bool aligned, int version)
 {
@@ -37,7 +29,7 @@ static int test_roialign(int w, int h, int c, int pooled_width, int pooled_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ROIAlign>("ROIAlign", pd, weights, a);
+    int ret = test_layer("ROIAlign", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_roialign failed base_w=%d base_h=%d base_c=%d pooled_width=%d pooled_height=%d spatial_scale=%4f.3\n", w, h, c, pooled_width, pooled_height, spatial_scale);
@@ -57,10 +49,96 @@ static int test_roialign_0()
            || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1);
 }
 
+static int test_roialign_adaptive(int version, bool aligned)
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(8, 8, 3);
+    a[1].create(4);
+    a[1][0] = 1.25f;
+    a[1][1] = 1.5f;
+    a[1][2] = 6.75f;
+    a[1][3] = 5.5f;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 3);
+    pd.set(1, 2);
+    pd.set(4, aligned);
+    pd.set(5, version);
+
+    std::vector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> reference;
+    int ret = test_layer_naive(ncnn::LayerType::ROIAlign, pd, weights, a, 1, reference, 0);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_roialign_adaptive reference failed version=%d aligned=%d ret=%d\n", version, aligned, ret);
+        return ret;
+    }
+
+    const int sampling_ratios[] = {-1, -2, INT_MIN};
+    for (int i = 0; i < 3; i++)
+    {
+        pd.set(3, sampling_ratios[i]);
+        ret = test_layer("ROIAlign", pd, weights, a);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_roialign_adaptive failed version=%d aligned=%d sampling_ratio=%d ret=%d\n", version, aligned, sampling_ratios[i], ret);
+            return ret;
+        }
+
+        std::vector<ncnn::Mat> output;
+        ret = test_layer_naive(ncnn::LayerType::ROIAlign, pd, weights, a, 1, output, 0);
+        if (ret == 0)
+            ret = CompareMat(reference, output, 0.f);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_roialign_adaptive output mismatch version=%d aligned=%d sampling_ratio=%d ret=%d\n", version, aligned, sampling_ratios[i], ret);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+#if NCNN_VALIDATION
+static int test_roialign_load_param(int version, int sampling_ratio, int expected_ret)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 2);
+    pd.set(1, 2);
+    pd.set(5, version);
+    pd.set(3, sampling_ratio);
+
+    return test_layer_param(ncnn::LayerType::ROIAlign, pd, expected_ret);
+}
+
+static int test_roialign_load_param()
+{
+    const int sampling_ratios[] = {0, -1, -2, INT_MIN};
+    for (int version = 0; version < 2; version++)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (test_roialign_load_param(version, sampling_ratios[i], 0) != 0)
+                return -1;
+        }
+    }
+
+    return test_roialign_load_param(2, INT_MIN, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
     return 0
-           || test_roialign_0();
+           || test_roialign_0()
+           || test_roialign_adaptive(0, false)
+           || test_roialign_adaptive(0, true)
+           || test_roialign_adaptive(1, false)
+           || test_roialign_adaptive(1, true)
+#if NCNN_VALIDATION
+           || test_roialign_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

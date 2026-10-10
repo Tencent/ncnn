@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -43,16 +32,22 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int input_rank = op->inputs[0]->shape.size();
+        const std::vector<int>& input_shape = op->inputs[0]->shape;
+        const std::vector<int>& output_shape = op->outputs[0]->shape;
+        int input_rank = input_shape.size();
 
-        if (input_rank <= 2)
+        int channels = -1;
+        if (input_rank > 2)
+            channels = input_shape[1];
+        else if (output_shape.size() > 2)
+            channels = output_shape[1];
+        else
         {
-            fprintf(stderr, "group_norm not possible for %d-rank tensor\n", input_rank);
-            return;
+            fprintf(stderr, "group_norm unknown channel size is not supported yet\n");
         }
 
         op->params["0"] = captured_params.at("num_groups");
-        op->params["1"] = op->inputs[0]->shape[1];
+        op->params["1"] = channels;
         op->params["2"] = captured_params.at("eps");
         op->params["3"] = 0;
     }

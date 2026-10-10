@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "crop_mips.h"
+
+#include <stdint.h>
 
 #if __mips_msa
 #include <msa.h>
@@ -25,6 +16,9 @@ Crop_mips::Crop_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 #if __mips_msa
@@ -41,6 +35,8 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
     {
         for (int x = 0; x < w; x++)
         {
+            __builtin_prefetch(ptr + 32);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             __msa_st_w((v4i32)_p, outptr, 0);
 
@@ -51,6 +47,57 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+
+#if NCNN_BF16
+static void crop_pack4_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 4;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __builtin_prefetch(ptr + 32);
+
+            *(int64_t*)outptr = *(const int64_t*)ptr;
+            ptr += 4;
+            outptr += 4;
+        }
+
+        ptr += (left + right) * 4;
+    }
+}
+
+static void crop_pack8_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 8;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __builtin_prefetch(ptr + 64);
+
+            v8i16 _p = (v8i16)__msa_ld_h(ptr, 0);
+            __msa_st_h(_p, outptr, 0);
+            ptr += 8;
+            outptr += 8;
+        }
+
+        ptr += (left + right) * 8;
+    }
+}
+#endif // NCNN_BF16
 #endif // __mips_msa
 
 int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -64,12 +111,171 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     int elempack = bottom_blob.elempack;
 
 #if __mips_msa
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(1);
+        bottom_blob_shapes[0] = bottom_blob.shape();
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
+#if NCNN_BF16 && __mips_msa
+    if (elempack == 8 && elemsize == 16u)
+    {
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    crop_pack8_bf16s_msa(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack8_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        bool crop_pack4 = false;
+        if (dims == 1) crop_pack4 = _outw % 4 == 0 && _woffset % 4 == 0;
+        if (dims == 2) crop_pack4 = _outh % 4 == 0 && _hoffset % 4 == 0;
+        if (dims == 3 || dims == 4) crop_pack4 = _outc % 4 == 0 && _coffset % 4 == 0;
+
+        if (crop_pack4)
+        {
+            Option opt_pack4 = opt;
+            opt_pack4.blob_allocator = opt.workspace_allocator;
+
+            Mat bottom_blob_pack4;
+            convert_packing(bottom_blob, bottom_blob_pack4, 4, opt_pack4);
+            if (bottom_blob_pack4.empty())
+                return -100;
+
+            return forward(bottom_blob_pack4, top_blob, opt);
+        }
+    }
+#endif // NCNN_BF16 && __mips_msa
+
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -87,7 +293,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -110,7 +319,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -133,7 +345,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -148,7 +360,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -172,7 +387,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -189,7 +404,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_msa(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -206,6 +424,8 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         opt_pack1.blob_allocator = opt.workspace_allocator;
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
     }
 
     return Crop::forward(bottom_blob_unpacked, top_blob, opt);
@@ -229,19 +449,178 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     Mat& top_blob = top_blobs[0];
 
 #if __mips_msa
-    if (elempack == 4)
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
         {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
         }
-        else
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else if (woffset == -233)
+    {
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
+#if NCNN_BF16 && __mips_msa
+    if (elempack == 8 && elemsize == 16u)
+    {
+        if (dims == 1)
         {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
         }
 
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    crop_pack8_bf16s_msa(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack8_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        bool crop_pack4 = false;
+        if (dims == 1) crop_pack4 = _outw % 4 == 0 && _woffset % 4 == 0;
+        if (dims == 2) crop_pack4 = _outh % 4 == 0 && _hoffset % 4 == 0;
+        if (dims == 3 || dims == 4) crop_pack4 = _outc % 4 == 0 && _coffset % 4 == 0;
+
+        if (crop_pack4)
+        {
+            Option opt_pack4 = opt;
+            opt_pack4.blob_allocator = opt.workspace_allocator;
+
+            std::vector<Mat> bottom_blobs_pack4(bottom_blobs);
+            convert_packing(bottom_blob, bottom_blobs_pack4[0], 4, opt_pack4);
+            if (bottom_blobs_pack4[0].empty())
+                return -100;
+
+            return forward(bottom_blobs_pack4, top_blobs, opt);
+        }
+    }
+#endif // NCNN_BF16 && __mips_msa
+
+    if (elempack == 4)
+    {
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -259,7 +638,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -282,7 +664,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -305,7 +690,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -320,7 +705,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -344,7 +732,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -361,7 +749,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_msa(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -371,27 +762,22 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     }
 #endif // __mips_msa
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
+    std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
+        Mat bottom_blob_unpacked = bottom_blobs[i];
+        if (elempack != 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_allocator = opt.workspace_allocator;
 
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            convert_packing(bottom_blobs[i], bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        bottom_blobs_unpacked[i] = bottom_blob_unpacked;
     }
-
-    Mat reference_blob_unpacked = reference_blob;
-    if (ref_elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(reference_blob, reference_blob_unpacked, 1, opt_pack1);
-    }
-
-    std::vector<Mat> bottom_blobs_unpacked(2);
-    bottom_blobs_unpacked[0] = bottom_blob_unpacked;
-    bottom_blobs_unpacked[1] = reference_blob_unpacked;
 
     return Crop::forward(bottom_blobs_unpacked, top_blobs, opt);
 }

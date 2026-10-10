@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_PADDING_VULKAN_H
 #define LAYER_PADDING_VULKAN_H
@@ -19,7 +8,7 @@
 
 namespace ncnn {
 
-class Padding_vulkan : virtual public Padding
+class Padding_vulkan : public Padding
 {
 public:
     Padding_vulkan();
@@ -34,26 +23,36 @@ public:
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+protected:
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int forward_int8(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_INT8
 
 public:
     VkMat per_channel_pad_data_gpu;
-    VkImageMat per_channel_pad_data_gpu_image;
+
     Pipeline* pipeline_padding;
     Pipeline* pipeline_padding_pack4;
     Pipeline* pipeline_padding_pack1to4;
     Pipeline* pipeline_padding_pack4to1;
-    Pipeline* pipeline_padding_pack8;
-    Pipeline* pipeline_padding_pack1to8;
-    Pipeline* pipeline_padding_pack4to8;
-    Pipeline* pipeline_padding_pack8to4;
-    Pipeline* pipeline_padding_pack8to1;
 
     Pipeline* pipeline_padding_3d;
     Pipeline* pipeline_padding_3d_pack4;
-    Pipeline* pipeline_padding_3d_pack8;
+
+#if NCNN_INT8
+    Mat per_channel_pad_data_int8;
+    VkMat per_channel_pad_data_int8_gpu;
+
+    Pipeline* pipeline_padding_int8;
+    Pipeline* pipeline_padding_pack4_int8;
+    Pipeline* pipeline_padding_pack1to4_int8;
+    Pipeline* pipeline_padding_pack4to1_int8;
+
+    Pipeline* pipeline_padding_3d_int8;
+    Pipeline* pipeline_padding_3d_pack4_int8;
+#endif // NCNN_INT8
 };
 
 } // namespace ncnn

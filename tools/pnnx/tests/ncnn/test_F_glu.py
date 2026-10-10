@@ -1,14 +1,5 @@
-# Copyright (c) 2022 Xiaomi Corp.        (author: Fangjun Kuang)
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2022 Xiaomi Corp.   (author: Fangjun Kuang)
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -18,7 +9,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w, q):
         x0 = F.glu(x, dim=0)
 
         y0 = F.glu(y, dim=0)
@@ -28,7 +19,16 @@ class Model(nn.Module):
         z1 = F.glu(z, dim=1)
         z2 = F.glu(z, dim=2)
         z3 = F.glu(z, dim=-1)
-        return x0, y0, y1, z0, z1, z2, z3
+
+        w0 = F.glu(w, dim=0)
+        w1 = F.glu(w, dim=1)
+        w2 = F.glu(w, dim=2)
+        w3 = F.glu(w, dim=3)
+        w4 = F.glu(w, dim=-1)
+        q = F.max_pool2d(q, 1)
+        q0 = F.glu(q, dim=1)
+        q1 = F.glu(q, dim=-1)
+        return x0, y0, y1, z0, z1, z2, z3, w0, w1, w2, w3, w4, q0, q1
 
 def test():
     net = Model()
@@ -38,16 +38,18 @@ def test():
     x = torch.rand(18)
     y = torch.rand(12, 16)
     z = torch.rand(24, 28, 34)
+    w = torch.rand(8, 10, 12, 14)
+    q = torch.rand(2, 4, 6, 8)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_glu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34]")
+    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34],[8,10,12,14],[2,4,6,8]")
 
     # ncnn inference
     import test_F_glu_ncnn

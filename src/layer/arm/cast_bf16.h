@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
 void cast_fp32_to_bf16_neon_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
@@ -32,17 +21,21 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
+    const int batch = bottom_blob.n;
 
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const float* ptr = bottom_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const float* ptr = bottom_blob.batch(b).channel(q);
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-        __bf16* outptr = top_blob.channel(q);
+        __bf16* outptr = top_blob.batch(b).channel(q);
 #else
-        unsigned short* outptr = top_blob.channel(q);
+        unsigned short* outptr = top_blob.batch(b).channel(q);
 #endif
 
         int i = 0;
@@ -69,10 +62,10 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "shrn   v0.4h, v0.4s, #16       \n"
-                "shrn   v1.4h, v1.4s, #16       \n"
-                "shrn   v2.4h, v2.4s, #16       \n"
-                "shrn   v3.4h, v3.4s, #16       \n"
+                "rshrn  v0.4h, v0.4s, #16       \n"
+                "rshrn  v1.4h, v1.4s, #16       \n"
+                "rshrn  v2.4h, v2.4s, #16       \n"
+                "rshrn  v3.4h, v3.4s, #16       \n"
                 "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
@@ -84,11 +77,11 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             asm volatile(
                 "pld        [%0, #512]      \n"
                 "vldm       %0!, {d0-d7}    \n"
-                "vshrn.u32  d0, q0, #16     \n"
-                "vshrn.u32  d1, q1, #16     \n"
-                "vshrn.u32  d2, q2, #16     \n"
-                "vshrn.u32  d3, q3, #16     \n"
-                "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                "vrshrn.u32 d0, q0, #16     \n"
+                "vrshrn.u32 d1, q1, #16     \n"
+                "vrshrn.u32 d2, q2, #16     \n"
+                "vrshrn.u32 d3, q3, #16     \n"
+                "vst1.u16   {d0-d3}, [%1]!  \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
@@ -196,18 +189,22 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
+    const int batch = bottom_blob.n;
 
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
+        int b = bc / channels;
+        int q = bc % channels;
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-        const __bf16* ptr = bottom_blob.channel(q);
+        const __bf16* ptr = bottom_blob.batch(b).channel(q);
 #else
-        const unsigned short* ptr = bottom_blob.channel(q);
+        const unsigned short* ptr = bottom_blob.batch(b).channel(q);
 #endif
-        float* outptr = top_blob.channel(q);
+        float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __ARM_NEON
@@ -231,7 +228,7 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #else  // __aarch64__
             asm volatile(
                 "pld        [%0, #256]      \n"
-                "vld1.u16   {d4-d7}, [%0 :128]! \n"
+                "vld1.u16   {d4-d7}, [%0]!  \n"
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"

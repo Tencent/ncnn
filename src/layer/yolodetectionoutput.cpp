@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "yolodetectionoutput.h"
+
+#include <limits.h>
 
 #include "layer_type.h"
 
@@ -22,6 +13,7 @@ YoloDetectionOutput::YoloDetectionOutput()
 {
     one_blob_only = false;
     support_inplace = true;
+    softmax = 0;
 }
 
 int YoloDetectionOutput::load_param(const ParamDict& pd)
@@ -32,13 +24,65 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
     nms_threshold = pd.get(3, 0.45f);
     biases = pd.get(4, Mat());
 
+#if NCNN_VALIDATION
+    // reject nan thresholds while preserving infinite cutoffs
+    unsigned int confidence_bits;
+    unsigned int nms_bits;
+    memcpy(&confidence_bits, &confidence_threshold, sizeof(confidence_bits));
+    memcpy(&nms_bits, &nms_threshold, sizeof(nms_bits));
+    if ((confidence_bits & 0x7fffffffu) > 0x7f800000u || (nms_bits & 0x7fffffffu) > 0x7f800000u)
+        return -1;
+
+    {
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
+            return -1;
+
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
+            return -1;
+    }
+
+    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || num_box > biases.w / 2)
+        return -1;
+
+    for (int i = 0; i < num_box * 2; i++)
+    {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(4) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)biases + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
+        const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[i] : biases[i];
+        if (bias <= 0.f)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
+
     return 0;
 }
 
 int YoloDetectionOutput::create_pipeline(const Option& opt)
 {
     {
-        softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
 
         ncnn::ParamDict pd;
         pd.set(0, 0); // axis
@@ -197,6 +241,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
 
+        std::vector<int> softmax_rets;
+        softmax_rets.resize(num_box);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
@@ -214,7 +261,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
             // softmax class scores
             Mat scores = bottom_top_blob.channel_range(p + 5, num_class);
-            softmax->forward_inplace(scores, opt);
+            softmax_rets[pp] = softmax->forward_inplace(scores, opt);
 
             for (int i = 0; i < h; i++)
             {
@@ -269,6 +316,9 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
         for (int i = 0; i < num_box; i++)
         {
+            if (softmax_rets[i] != 0)
+                return softmax_rets[i];
+
             const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
             const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
 

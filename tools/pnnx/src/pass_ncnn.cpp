@@ -1,24 +1,16 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
 #include "pass_ncnn/convert_attribute.h"
+#include "pass_ncnn/convert_batch_layout.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
+#include "pass_ncnn/convert_reshape_interp_expression.h"
+#include "pass_ncnn/convert_slice_expression.h"
 #include "pass_ncnn/convert_torch_cat.h"
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
@@ -27,15 +19,17 @@
 #include "pass_ncnn/convert_torch_tensor_split.h"
 #include "pass_ncnn/convert_torch_unbind.h"
 #include "pass_ncnn/convert_Tensor_select.h"
+#include "pass_ncnn/convert_Tensor_slice.h"
+#include "pass_ncnn/convert_Tensor_slice_copy.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
+#include "pass_ncnn/fuse_convert_rotaryembed.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
 
 #include "pass_ncnn/eliminate_noop.h"
-#include "pass_ncnn/eliminate_tail_reshape_permute.h"
 #include "pass_ncnn/fuse_convolution_activation.h"
 #include "pass_ncnn/fuse_convolution1d_activation.h"
 #include "pass_ncnn/fuse_convolutiondepthwise_activation.h"
@@ -43,15 +37,20 @@
 #include "pass_ncnn/fuse_deconvolution_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
+#include "pass_ncnn/fuse_padding_convolution.h"
+#include "pass_ncnn/fuse_padding_convolutiondepthwise.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
 #include "pass_ncnn/fuse_binaryop_eltwise.h"
+#include "pass_ncnn/eliminate_reshape_binaryop_broadcast.h"
 #include "pass_ncnn/insert_reshape_numpy_binaryop_broadcast.h"
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
-#include "pass_ncnn/insert_reshape_global_pooling.h"
+#include "pass_ncnn/legalize_global_pooling_layout.h"
 
+#include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/eliminate_maxpool_indices.h"
 #include "pass_level5/unroll_rnn_op.h"
 
@@ -81,18 +80,24 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     eliminate_maxpool_indices(g);
 
+    attribute_unpooling(g);
+
+    ncnn::fuse_convert_rotaryembed(g);
+
     ncnn::expand_expression(g);
 
     ncnn::chain_multi_output(g);
 
+    // solve torch batch axis first, then legalize how ncnn carries it
     ncnn::solve_batch_index(g);
+    ncnn::convert_batch_layout(g);
 
     ncnn::convert_half_to_float(g);
 
     ncnn::insert_reshape_numpy_binaryop_broadcast(g);
     ncnn::insert_reshape_pooling(g);
+    ncnn::legalize_global_pooling_layout(g);
     ncnn::insert_reshape_linear(g);
-    ncnn::insert_reshape_global_pooling(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
 
@@ -104,7 +109,15 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
 
+    ncnn::convert_reshape_interp_expression(g);
+    ncnn::convert_slice_expression(g);
+
     ncnn::convert_Tensor_select(g);
+    ncnn::convert_Tensor_slice(g);
+    ncnn::convert_Tensor_slice_copy(g);
+
+    // slice        -> crop + reshape
+    // slice_copy   -> reshape + copyto
 
     int opindex = 0;
     for (auto x : g_global_pnnx_ncnn_graph_rewriter_passes)
@@ -115,11 +128,16 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
         }
     }
 
+    ncnn::eliminate_noop(g);
+
+    ncnn::eliminate_reshape_binaryop_broadcast(g);
+
     ncnn::insert_split(g);
 
-    ncnn::eliminate_noop(g);
     ncnn::fuse_transpose_matmul(g);
     ncnn::fuse_binaryop_eltwise(g);
+    ncnn::fuse_padding_convolution(g);
+    ncnn::fuse_padding_convolutiondepthwise(g);
     ncnn::fuse_convolution_activation(g);
     ncnn::fuse_convolution1d_activation(g);
     ncnn::fuse_convolutiondepthwise_activation(g);
@@ -127,7 +145,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
-    ncnn::eliminate_tail_reshape_permute(g);
+
+    attribute_pooling(g);
+
+    ncnn::insert_split(g);
 
     dead_code_elimination(g);
 

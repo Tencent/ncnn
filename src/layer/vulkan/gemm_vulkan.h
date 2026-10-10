@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_GEMM_VULKAN_H
 #define LAYER_GEMM_VULKAN_H
@@ -19,7 +8,7 @@
 
 namespace ncnn {
 
-class Gemm_vulkan : virtual public Gemm
+class Gemm_vulkan : public Gemm
 {
 public:
     Gemm_vulkan();
@@ -32,8 +21,13 @@ public:
     using Gemm::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
+
+protected:
+#if NCNN_INT8
+    int create_pipeline_int8(const Option& opt);
+    int upload_model_int8(VkTransfer& cmd, const Option& opt);
+    int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif
 
 public:
     Mat A_data_packed;
@@ -44,11 +38,38 @@ public:
     VkMat B_data_gpu;
     VkMat C_data_gpu;
 
-    VkImageMat A_data_gpu_image;
-    VkImageMat B_data_gpu_image;
-    VkImageMat C_data_gpu_image;
-
     Pipeline* pipeline_gemm;
+    Pipeline* pipeline_gemm_pack4;
+
+    // subgroup
+    bool use_subgroup_ops;
+
+    // cooperative matrix
+    bool use_cooperative_matrix;
+    int coopmat_M;
+    int coopmat_N;
+    int coopmat_K;
+    int coopmat_subgroup_size;
+    int UNROLL_SG_M;
+    int UNROLL_SG_N;
+    int UNROLL_SG_K;
+    int UNROLL_WG_M;
+    int UNROLL_WG_N;
+
+#if NCNN_INT8
+    Mat A_data_int8_packed;
+    Mat B_data_int8_packed;
+    Mat A_data_int8_descales;
+    Mat B_data_int8_descale;
+
+    VkMat A_data_int8_descales_gpu;
+    VkMat B_data_int8_descale_gpu;
+
+    Pipeline* pipeline_gemm_quantize_A_int8;
+    Pipeline* pipeline_gemm_quantize_B_absmax_int8;
+    Pipeline* pipeline_gemm_quantize_B_descale_int8;
+    Pipeline* pipeline_gemm_quantize_B_int8;
+#endif
 };
 
 } // namespace ncnn

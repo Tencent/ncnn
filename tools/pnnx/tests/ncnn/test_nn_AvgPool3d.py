@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -27,7 +16,7 @@ class Model(nn.Module):
         self.pool_4 = nn.AvgPool3d(kernel_size=(5,4,3), stride=(2,1,1), padding=1, ceil_mode=False, count_include_pad=True)
         self.pool_5 = nn.AvgPool3d(kernel_size=2, stride=1, padding=0, ceil_mode=True, count_include_pad=True)
 
-    def forward(self, x):
+    def forward(self, x, q):
         y = x.reshape(12, 96, 128, 128)
 
         x = self.pool_0(x)
@@ -43,7 +32,10 @@ class Model(nn.Module):
         y = self.pool_3(y)
         y = self.pool_4(y)
         y = self.pool_5(y)
-        return x, y
+
+        q = self.pool_2(q)
+        q = self.pool_4(q)
+        return x, y, q
 
 def test():
     net = Model()
@@ -51,16 +43,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 96, 128, 128)
+    q = torch.rand(2, 3, 8, 10, 12)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_AvgPool3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_AvgPool3d.pt inputshape=[1,12,96,128,128]")
+    os.system("../../src/pnnx test_nn_AvgPool3d.pt inputshape=[1,12,96,128,128],[2,3,8,10,12]")
 
     # ncnn inference
     import test_nn_AvgPool3d_ncnn
