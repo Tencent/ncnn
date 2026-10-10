@@ -308,7 +308,7 @@ static int test_multiheadattention_block_quant(int qdim, int kdim, int vdim, int
     return ret;
 }
 
-static int test_multiheadattention_block_quant_kvcache(int bits, int block_size, int attn_mask, int has_input_scale)
+static int test_multiheadattention_block_quant_kvcache(int bits, int block_size, int attn_mask, int has_input_scale, int mask_channels = 0)
 {
     const int qdim = 10;
     const int embed_dim = 8;
@@ -330,7 +330,7 @@ static int test_multiheadattention_block_quant_kvcache(int bits, int block_size,
     }
     if (attn_mask)
     {
-        as[1] = RandomMat(5 + src_seqlen, src_seqlen, -1.f, 0.f);
+        as[1] = mask_channels > 0 ? RandomMat(5 + src_seqlen, src_seqlen, mask_channels, -1.f, 0.f) : RandomMat(5 + src_seqlen, src_seqlen, -1.f, 0.f);
         as[2] = RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
         as[3] = bits == 8 && has_input_scale ? RandomWQInt8Cache(5, embed_dim).reshape(embed_dim / 2, 5, 2) : RandomMat(embed_dim / 2, 5, 2, -1.f, 1.f);
     }
@@ -515,7 +515,8 @@ static int test_multiheadattention_block_quant_1()
     return 0
            || test_multiheadattention_block_quant_kvcache(4, 64, 0, 0)
            || test_multiheadattention_block_quant_kvcache(8, 32, 0, 0)
-           || test_multiheadattention_block_quant_kvcache(8, 64, 1, 1);
+           || test_multiheadattention_block_quant_kvcache(8, 64, 1, 1)
+           || test_multiheadattention_block_quant_kvcache(8, 64, 1, 1, 1);
 }
 
 static int test_multiheadattention_block_quant_2()
