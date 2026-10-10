@@ -817,11 +817,11 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     const int nib = (mt / 2 + IB - 1) / IB;
     const int njb = (nt / 2 + JB - 1) / JB;
     /* 异构双簇分工（A100 IME2 + X100 RVV）已实验并否决 —— 平台限制，不是代码问题：
-                             *  (1) 两簇并发确实互不干扰（两个进程分别绑核：A100 374 + X100 120 = 490 t/s，潜力 +31%）；
-                             *  (2) 但 /proc/set_ai_thread 注册（A100 上拿到 VLEN=1024 的前提）会把进程**限制在 A100 簇内**：
-                             *      实测混合运行时的所有线程都落在 cpu8-15；不用注册直接 taskset 到 8-15 则直接失败。
-                             * 所以"单进程内双簇分工"在本平台上不可行，要兑现 +31% 只能走**多进程**方案。
-                             * 详见 REPORT 7.34；X100 的 RVV tile 内核（ime2_rvv_tile_8x8，已对拍通过）保留备用。 */
+                                     *  (1) 两簇并发确实互不干扰（两个进程分别绑核：A100 374 + X100 120 = 490 t/s，潜力 +31%）；
+                                     *  (2) 但 /proc/set_ai_thread 注册（A100 上拿到 VLEN=1024 的前提）会把进程**限制在 A100 簇内**：
+                                     *      实测混合运行时的所有线程都落在 cpu8-15；不用注册直接 taskset 到 8-15 则直接失败。
+                                     * 所以"单进程内双簇分工"在本平台上不可行，要兑现 +31% 只能走**多进程**方案。
+                                     * 详见 REPORT 7.34；X100 的 RVV tile 内核（ime2_rvv_tile_8x8，已对拍通过）保留备用。 */
     #pragma omp parallel for num_threads(nT) collapse(2)
     for (int jbb = 0; jbb < njb; jbb++)
     {
