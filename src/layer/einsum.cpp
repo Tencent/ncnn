@@ -396,15 +396,44 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     if (M * N * K < 256)
         return 1;
 
-    // allocate the packing buffers before touching the output, so that a failed
-    // allocation falls back instead of failing a graph the generic path still
-    // computes
+    // the reduction is delegated to the library's own Gemm, the way
+    // src/layer/x86/matmul_x86.cpp drives its own Gemm, which reaches the arch
+    // optimized kernels that a generic layer translation unit cannot. a
+    // selective build can compile Gemm out, so resolve it before reserving
+    // anything: otherwise a build without Gemm would hand |A| + |B| floats to
+    // the workspace pool, which caches them for the lifetime of the net
+    Layer* gemm = ncnn::create_layer_cpu(LayerType::Gemm);
+    if (!gemm)
+        return 1;
+
+    {
+        ParamDict pd;
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB, both operands are packed as (rows, K)
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 1);   // constantC
+        pd.set(10, -1); // constant_broadcast_type_C = null
+        pd.set(12, 1);  // output_elempack
+
+        gemm->load_param(pd);
+    }
+
+    gemm->load_model(ModelBinFromMatArray(0));
+    gemm->create_pipeline(opt);
+
     // dims 2 with w = K, h = rows, which is the layout Gemm reads and the layout
-    // the packing loops below write with a linear index
+    // the packing loops below write with a linear index. allocate before
+    // touching the output, so that a failed allocation falls back instead of
+    // failing a graph the generic path still computes
     Mat W((int)K, (int)M, 4u, opt.workspace_allocator);
     Mat X((int)K, (int)N, 4u, opt.workspace_allocator);
     if (W.empty() || X.empty())
+    {
+        gemm->destroy_pipeline(opt);
+        delete gemm;
         return 1;
+    }
 
     Mat& top_blob = top_blobs[0];
     {
@@ -419,7 +448,11 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
             top_blob.create(dim_sizes[rhs_token[3] - 'i'], dim_sizes[rhs_token[2] - 'i'], dim_sizes[rhs_token[1] - 'i'], dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
     }
     if (top_blob.empty())
+    {
+        gemm->destroy_pipeline(opt);
+        delete gemm;
         return -100;
+    }
 
     // free dimensions first, then the contracted ones, so that the destination
     // index is m * K + k
@@ -466,30 +499,6 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     int char_index[16];
     for (int c = 0; c < 16; c++)
         char_index[c] = 0;
-
-    // the packed pair is exactly the input Gemm expects for transB=1, so let the
-    // library's own matrix multiply do the reduction instead of a hand written
-    // kernel. that reaches the arch optimized gemm (avx on x86, dot on arm,
-    // rvv on riscv) which a generic layer translation unit cannot.
-    Layer* gemm = ncnn::create_layer_cpu(LayerType::Gemm);
-    if (!gemm)
-        return 1;
-
-    {
-        ParamDict pd;
-        pd.set(2, 0);   // transA
-        pd.set(3, 1);   // transB, both operands are packed as (rows, K)
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(10, -1); // constant_broadcast_type_C = null
-        pd.set(12, 1);  // output_elempack
-
-        gemm->load_param(pd);
-    }
-
-    gemm->load_model(ModelBinFromMatArray(0));
-    gemm->create_pipeline(opt);
 
     const float* aptr = A;
     const float* bptr = B;
