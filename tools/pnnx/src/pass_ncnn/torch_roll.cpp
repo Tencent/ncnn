@@ -106,15 +106,15 @@ pnnx.Output             output      1 0 out
 
     const char* replace_pattern_graph() const
     {
+        // Roll each full tensor in sequence. Splitting both axes first is only
+        // equivalent when the two dimensions are different.
         return R"PNNXIR(7767517
-8 7
+6 5
 pnnx.Input              input       0 1 input
 Slice                   slice       1 2 input a b
-Slice                   slice_a     1 2 a a0 a1
-Slice                   slice_b     1 2 b b0 b1
-Concat                  concat_a    2 1 a1 a0 a10
-Concat                  concat_b    2 1 b1 b0 b10
-Concat                  concat      2 1 b10 a10 out
+Concat                  concat0     2 1 b a rolled
+Slice                   slice1      1 2 rolled c d
+Concat                  concat      2 1 d c out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -132,6 +132,37 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("shifts").ai.size() != 2)
             return false;
+
+        return true;
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>&) const
+    {
+        if (!match(captured_params))
+            return false;
+
+        const Operator* op = matched_operators.at("op_0");
+        const Operand* in = op->inputs[0];
+        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
+        if (ncnn_batch_axis == 233)
+            return true;
+
+        int input_rank = in->shape.size();
+        if (input_rank == 0)
+            input_rank = op->outputs[0]->shape.size();
+
+        for (int i = 0; i < 2; i++)
+        {
+            int axis = captured_params.at("dims").ai[i];
+            if (axis < 0)
+            {
+                if (input_rank == 0)
+                    return false;
+                axis += input_rank;
+            }
+            if (axis == ncnn_batch_axis)
+                return false;
+        }
 
         return true;
     }
@@ -186,24 +217,17 @@ pnnx.Output             output      1 0 out
         if (!axis0_is_batch)
             ops.at("slice")->params["1"] = axis0;
         if (!axis1_is_batch)
-        {
-            ops.at("slice_a")->params["1"] = axis1;
-            ops.at("slice_b")->params["1"] = axis1;
-        }
+            ops.at("slice1")->params["1"] = axis1;
 
         if (!axis1_is_batch)
-        {
-            ops.at("concat_a")->params["0"] = axis1;
-            ops.at("concat_b")->params["0"] = axis1;
-        }
+            ops.at("concat")->params["0"] = axis1;
         if (!axis0_is_batch)
-            ops.at("concat")->params["0"] = axis0;
+            ops.at("concat0")->params["0"] = axis0;
 
         const int shift0 = captured_params.at("shifts").ai[0];
         const int shift1 = captured_params.at("shifts").ai[1];
         ops.at("slice")->params["2"] = std::vector<int>{-shift0};
-        ops.at("slice_a")->params["2"] = std::vector<int>{-shift1};
-        ops.at("slice_b")->params["2"] = std::vector<int>{-shift1};
+        ops.at("slice1")->params["2"] = std::vector<int>{-shift1};
     }
 };
 
