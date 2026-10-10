@@ -44,8 +44,8 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         unsigned char* dst = (unsigned char*)top_blob.data;
 
         /* 每行 w 个元素连续（prefill 常见 128~256B），但行数很多（h*channels 达上千），
-                                                         * 逐行 memcpy 的调用开销就成了瓶颈（实测 115 token 时仅 1.75 GB/s，而流式墙是 15 GB/s）。
-                                                         * 改用显式 RVV 拷贝（vl 按实际 VLMAX 走，与 VLEN 无关），去掉每次调用的 memcpy 开销。 */
+                                                                         * 逐行 memcpy 的调用开销就成了瓶颈（实测 115 token 时仅 1.75 GB/s，而流式墙是 15 GB/s）。
+                                                                         * 改用显式 RVV 拷贝（vl 按实际 VLMAX 走，与 VLEN 无关），去掉每次调用的 memcpy 开销。 */
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < h; q++)
         {
