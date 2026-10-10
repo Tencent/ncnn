@@ -17,8 +17,8 @@
 #include "msa_mathfun.h"
 #endif // __mips_mxu2
 
-static NCNN_FORCEINLINE v4f32 sigmoid_msa(v4f32 inputs)
 #if __mips_msa || __mips_mxu2
+static NCNN_FORCEINLINE v4f32 sigmoid_msa(v4f32 inputs)
 {
     const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
     return __msa_fdiv_w(one, __msa_fadd_w(one, exp_ps(__msa_fsub_w((v4f32)__msa_fill_w(0), inputs))));

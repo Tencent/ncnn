@@ -882,16 +882,7 @@ static int get_cpu_support_x86_avx512_bf16()
 #endif
 }
 
-static int get_cpu_support_x86_avx512_fp16() int cpu_support_mips_mxu2()
-{
-#if NCNN_MXU2
-    // whereever compiler supports mxu2
-    return 1;
-#else
-    return 0;
-#endif
-}
-
+static int get_cpu_support_x86_avx512_fp16()
 {
 #if __APPLE__
     return get_hw_capability("hw.optional.avx512fp16");
@@ -2872,6 +2863,16 @@ int cpu_support_mips_msa()
 #else
     return 0;
 #endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_mips_mxu2()
+{
+#if NCNN_MXU2
+    // whereever compiler supports mxu2
+    return 1;
 #else
     return 0;
 #endif
