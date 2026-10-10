@@ -595,7 +595,10 @@ public:
     // 3 = combined image sampler
     int binding_types[16]; // 16 is large enough I think ...
 
-    int reserved_0;
+    // 1 = the shader uses subgroup operations or cooperative matrix
+    // and depends on the subgroup size it was compiled for
+    int subgroup_ops;
+
     int reserved_1;
     int reserved_2;
     int reserved_3;

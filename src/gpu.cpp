@@ -1536,6 +1536,17 @@ void GpuInfoPrivate::query_extension_properties()
         querySubgroupSizeControlProperties.maxComputeWorkgroupSubgroups = std::max(physicalDeviceProperties.limits.maxComputeWorkGroupInvocations / querySubgroupProperties.subgroupSize, 1u);
     }
 
+    if (physicalDeviceProperties.vendorID == 0x8086 && physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+            && queryDriverProperties.driverID == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+            && querySubgroupSizeControlFeatures.subgroupSizeControl
+            && (querySubgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT)
+            && !queryCooperativeMatrixFeatures.cooperativeMatrix && !queryCooperativeMatrixFeaturesNV.cooperativeMatrix
+            && querySubgroupSizeControlProperties.minSubgroupSize <= 16 && querySubgroupSizeControlProperties.maxSubgroupSize >= 16)
+    {
+        // intel integrated gpu reports simd32, shaders that use subgroup operations run faster at simd16
+        querySubgroupProperties.subgroupSize = 16;
+    }
+
     // query supported cooperative matrix types and operations
     queryCooperativeMatrixSubProperties.clear();
     queryCooperativeMatrixSubPropertiesNV.clear();
@@ -4745,7 +4756,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = 0;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.requiredSubgroupSize = subgroup_size;
-    if (info.support_subgroup_size_control())
+    if (info.support_subgroup_size_control() && subgroup_size != 0)
     {
         // pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT;
         pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = enabledExtensionFeatures;
@@ -6460,12 +6471,14 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.specialization_count = 0;
     shader_info.binding_count = 0;
     shader_info.push_constant_count = 0;
+    shader_info.subgroup_ops = 0;
 
     uint32_t parameter_id = -233;
 
     int specialization_count = 0;
     int binding_count = 0;
     int push_constant_count = 0;
+    int subgroup_ops = 0;
 
     // id -> binding_type
     std::vector<int> id_types;
@@ -6505,7 +6518,25 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         uint16_t wordcount = opcode >> 16;
         uint16_t op = opcode & 0xffff;
 
-        if (op == 5) // OpName
+        if (op == 17) // OpCapability
+        {
+            uint32_t capability = p[1];
+            if ((capability >= 61 && capability <= 68) // GroupNonUniform*
+                    || capability == 4423              // SubgroupBallotKHR
+                    || capability == 4431              // SubgroupVoteKHR
+                    || capability == 5297              // GroupNonUniformPartitionedNV
+                    || capability == 5568              // SubgroupShuffleINTEL
+                    || capability == 5569              // SubgroupBufferBlockIOINTEL
+                    || capability == 5570              // SubgroupImageBlockIOINTEL
+                    || capability == 5579              // SubgroupImageMediaBlockIOINTEL
+                    || capability == 5357              // CooperativeMatrixNV
+                    || capability == 6022              // CooperativeMatrixKHR
+                    || capability == 6026)             // GroupNonUniformRotateKHR
+            {
+                subgroup_ops = 1;
+            }
+        }
+        else if (op == 5) // OpName
         {
             uint32_t id = p[1];
             const char* name = (const char*)&p[2];
@@ -6610,6 +6641,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.specialization_count = specialization_count;
     shader_info.binding_count = binding_count;
     shader_info.push_constant_count = push_constant_count;
+    shader_info.subgroup_ops = subgroup_ops;
 
     // resolve binding_types
     for (int i = 0; i < binding_count; i++)
