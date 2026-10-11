@@ -24,6 +24,10 @@
 
 namespace ncnn_ime2_sdpa {
 
+/* Tail room for the packed buffers, matching the over-read of the K-direction
+ * prefetch in ime2_tile_16x16p (128 bytes = one prefetch). Twice that is kept. */
+#define IME2_TILE_SLACK 128
+
 typedef __fp16 ime2_fp16;
 
 /* ---------------- 运行时探测（A100?） ---------------- */
@@ -80,7 +84,11 @@ static int ime2_probe(void)
 static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int K, ncnn::Allocator* alloc)
 {
     const int rt = (R + 7) / 8, kt = (K + 7) / 8;
-    T.create((size_t)rt * kt * 64, (size_t)2u, 1, alloc);
+    /* IME2_TILE_SLACK fp16 of tail room: the K-direction pipeline in
+     * ime2_tile_16x16p prefetches the next tile pair, and with an even kt the
+     * final prefetch reads 128 bytes past the last tile row. The data is never
+     * consumed, but the read has to stay inside the allocation. */
+    T.create((size_t)rt * kt * 64 + IME2_TILE_SLACK, (size_t)2u, 1, alloc);
     if (T.empty())
         return -100;
     ime2_fp16* dst = (ime2_fp16*)T;
@@ -126,7 +134,11 @@ static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int 
 static int ime2_pack_fp32_T(const float* src, size_t ld, ncnn::Mat& T, int R, int K, ncnn::Allocator* alloc)
 {
     const int rt = (R + 7) / 8, kt = (K + 7) / 8;
-    T.create((size_t)rt * kt * 64, (size_t)2u, 1, alloc);
+    /* IME2_TILE_SLACK fp16 of tail room: the K-direction pipeline in
+     * ime2_tile_16x16p prefetches the next tile pair, and with an even kt the
+     * final prefetch reads 128 bytes past the last tile row. The data is never
+     * consumed, but the read has to stay inside the allocation. */
+    T.create((size_t)rt * kt * 64 + IME2_TILE_SLACK, (size_t)2u, 1, alloc);
     if (T.empty())
         return -100;
     ime2_fp16* dst = (ime2_fp16*)T;
@@ -486,7 +498,11 @@ static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
 static int ime2_pack_fp32_scale(const float* src, size_t ld, ncnn::Mat& T, int R, int K, float scale, ncnn::Allocator* alloc)
 {
     const int rt = (R + 7) / 8, kt = (K + 7) / 8;
-    T.create((size_t)rt * kt * 64, (size_t)2u, 1, alloc);
+    /* IME2_TILE_SLACK fp16 of tail room: the K-direction pipeline in
+     * ime2_tile_16x16p prefetches the next tile pair, and with an even kt the
+     * final prefetch reads 128 bytes past the last tile row. The data is never
+     * consumed, but the read has to stay inside the allocation. */
+    T.create((size_t)rt * kt * 64 + IME2_TILE_SLACK, (size_t)2u, 1, alloc);
     if (T.empty())
         return -100;
     ime2_fp16* dst = (ime2_fp16*)T;

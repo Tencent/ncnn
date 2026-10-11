@@ -116,25 +116,33 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     }
 
     // ---- causal 掩码检测（每层一次；非因果则 flash 不跳块、全量加 mask，语义不变） ----
+    // 3-D masks are per head while this flag is applied to every head. Inspecting
+    // only channel 0 means that if head 0 is triangular but some other head may
+    // attend to a future position, the flash path truncates that head's KV scan
+    // and the permitted values are never read. Every channel has to qualify.
     int causal = 1;
     {
-        const Mat& mchk = attn_mask_blob.c > 1 ? attn_mask_blob.channel(0) : attn_mask_blob;
-        for (int i = 0; i < src_seqlen && causal; i++)
+        const int nmask = attn_mask_blob.c > 1 ? attn_mask_blob.c : 1;
+        for (int g = 0; g < nmask && causal; g++)
         {
-            const float* r = mchk.row(i);
-            const int vis = past_seqlen + i + 1;
-            for (int j = 0; j < vis && j < dst_seqlen; j++)
-                if (r[j] != 0.f)
-                {
-                    causal = 0;
-                    break;
-                }
-            for (int j = vis; j < dst_seqlen && causal; j++)
-                if (r[j] > -1e30f)
-                {
-                    causal = 0;
-                    break;
-                }
+            const Mat& mchk = attn_mask_blob.c > 1 ? attn_mask_blob.channel(g) : attn_mask_blob;
+            for (int i = 0; i < src_seqlen && causal; i++)
+            {
+                const float* r = mchk.row(i);
+                const int vis = past_seqlen + i + 1;
+                for (int j = 0; j < vis && j < dst_seqlen; j++)
+                    if (r[j] != 0.f)
+                    {
+                        causal = 0;
+                        break;
+                    }
+                for (int j = vis; j < dst_seqlen && causal; j++)
+                    if (r[j] > -1e30f)
+                    {
+                        causal = 0;
+                        break;
+                    }
+            }
         }
     }
 

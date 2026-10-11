@@ -74,22 +74,22 @@ static inline double sdpa_dec_now()
 
 static inline float rvv_dot_f32(const float* a, const float* b, int n)
 {
+    /* n can be far larger than VLMAX: on a VLEN=256 part e32m8 has 64 lanes, so
+     * head_dim=128 needs two chunks. Reducing only the final chunk's vl would
+     * discard the lanes last_vl..VLMAX-1 that earlier chunks accumulated into,
+     * so each chunk is reduced to a scalar and the scalars are added. */
+    float total = 0.f;
     int k = 0;
-    size_t vl = __riscv_vsetvl_e32m8(n);
-    size_t last_vl = vl;
-    vfloat32m8_t acc = __riscv_vfmul_vv_f32m8(__riscv_vle32_v_f32m8(a, vl), __riscv_vle32_v_f32m8(b, vl), vl);
-    k += (int)vl;
     while (k < n)
     {
-        vl = __riscv_vsetvl_e32m8(n - k);
-        acc = __riscv_vfmacc_vv_f32m8(acc, __riscv_vle32_v_f32m8(a + k, vl), __riscv_vle32_v_f32m8(b + k, vl), vl);
+        const size_t vl = __riscv_vsetvl_e32m8(n - k);
+        vfloat32m8_t p = __riscv_vfmul_vv_f32m8(__riscv_vle32_v_f32m8(a + k, vl), __riscv_vle32_v_f32m8(b + k, vl), vl);
+        /* vfredusum only reduces the first vl lanes, so the tail is not read */
+        vfloat32m1_t s = __riscv_vfredusum_vs_f32m8_f32m1(p, __riscv_vfmv_v_f_f32m1(0.f, 1), vl);
+        total += __riscv_vfmv_f_s_f32m1_f32(s);
         k += (int)vl;
-        last_vl = vl;
     }
-    // 归约的 vl 必须等于**最后一次迭代**的 vl：若用 vsetvl(n) 而尾块不满，
-    // 尾块之前的元素会被重复累加（VLMAX 随 VLEN 变化，小 VLEN 簇上必然触发）。
-    vfloat32m1_t s = __riscv_vfredusum_vs_f32m8_f32m1(acc, __riscv_vfmv_v_f_f32m1(0.f, 1), last_vl);
-    return __riscv_vfmv_f_s_f32m1_f32(s);
+    return total;
 }
 
 static inline float rvv_max_f32(const float* a, int n)
@@ -219,7 +219,10 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
                 vfloat32m1_t v = __riscv_vle32_v_f32m1(scores + j, vl);
                 v = sdpa_vexp_f32m1(__riscv_vfsub_vf_f32m1(v, mx, vl), vl);
                 __riscv_vse32_v_f32m1(scores + j, v, vl);
-                vsum = __riscv_vfadd_vv_f32m1(vsum, v, vl);
+                /* _tu keeps vsum's tail: dst_seqlen is usually not a multiple of
+                 * VLMAX, the unsuffixed add leaves the tail agnostic (possibly
+                 * NaN), and the reduction below reads the whole register. */
+                vsum = __riscv_vfadd_vv_f32m1_tu(vsum, vsum, v, vl);
                 j += (int)vl;
             }
             sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vsum, __riscv_vfmv_v_f_f32m1(0.f, 1), __riscv_vsetvlmax_e32m1()));
