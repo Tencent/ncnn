@@ -163,13 +163,16 @@ int RMSNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         }
         else if (affine_size == w * h)
         {
+            /* affine_size == w*h means one RMS over the whole contiguous plane,
+             * with all w*h gammas -- same as the dims==3 else-branch and the
+             * generic implementation. Normalising per row instead would compute
+             * a different RMS for each row and apply only gamma[0:w]. */
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
                 for (int z = 0; z < d; z++)
                 {
-                    __fp16* p = (__fp16*)bottom_top_blob.channel(q).depth(z);
-                    for (int y = 0; y < h; y++)
-                        rmsnorm_fp16s_rvv(p + (size_t)y * w, gamma_data, eps, w);
+                    __fp16* ptr = (__fp16*)bottom_top_blob.channel(q).depth(z);
+                    rmsnorm_fp16s_rvv(ptr, gamma_data, eps, w * h);
                 }
         }
         else // if (affine_size == w * h * d)
