@@ -34,7 +34,7 @@ static void rmsnorm_fp16s_rvv(__fp16* ptr, const float* gamma_ptr, float eps, in
             ptr[i] = (__fp16)((float)ptr[i] * a);
     }
 #else
-    /* same correction as the fp32 path: e32m2 guarantees eight lanes at
+    /* same correction as the fp32 path (ordered reduction too): e32m2 guarantees eight lanes at
      * VLEN=128 (e32m1 has four and the hardware would clamp the requested vl
      * while a constant advance of 8 skipped elements), the advance uses the
      * returned vl, and _tu keeps the accumulator tail defined. */
@@ -56,7 +56,7 @@ static void rmsnorm_fp16s_rvv(__fp16* ptr, const float* gamma_ptr, float eps, in
     /* 归约的目的 LMUL 是 m1：vfredusum_vs_f32m2_f32m1 的种子参数必须是
      * vfloat32m1_t，写成 m2 会找不到匹配的重载。 */
     vfloat32m1_t vzero = __riscv_vfmv_v_f_f32m1(0.f, 1);
-    float sqsum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(vsum, vzero, REDCHUNK));
+    float sqsum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredosum_vs_f32m2_f32m1(vsum, vzero, REDCHUNK));
 
     float rms = sqsum / size;
     float a = 1.f / sqrtf(rms + eps);
