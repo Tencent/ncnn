@@ -42,6 +42,12 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     const vfloat32m1_t vlog2e = __riscv_vfmv_v_f_f32m1(1.4426950408889634f, vl);
     const vfloat32m1_t vhalf = __riscv_vfmv_v_f_f32m1(0.5f, vl);
     vfloat32m1_t t = __riscv_vfmul_vv_f32m1(x, vlog2e, vl);
+    /* 先钳位 t 再算 f = t - n：硬掩码行（-INFINITY / -1e9）下 nf 被钳住而 t 仍是
+     * 天文数字，f 会远离多项式的合法域，Horner 链溢出成 +inf 而不是 0，后面的
+     * 归一化把整行污染成 NaN。钳位 t 到 [-126, 127] 后 f 落在 [-0.5, 0.5]。对
+     * 正常值（|x| <= 87，fp32 exp 的合法范围）没有影响。 */
+    t = __riscv_vfmin_vf_f32m1(t, 127.f, vl);
+    t = __riscv_vfmax_vf_f32m1(t, -126.f, vl);
     vfloat32m1_t nf = __riscv_vfadd_vv_f32m1(t, vhalf, vl);
     nf = __riscv_vfmin_vf_f32m1(nf, 127.f, vl);
     nf = __riscv_vfmax_vf_f32m1(nf, -126.f, vl);
@@ -139,15 +145,19 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
     // 每线程一份 scores scratch。必须在**改动 KV cache 之前**分配好：
     // 一旦追加过 cache 就不能再回退朴素路径（会重复追加）。
     const int nthreads = opt.num_threads > 0 ? opt.num_threads : 1;
-    float* score_slab = (float*)opt.workspace_allocator->fastMalloc((size_t)nthreads * dst_seqlen * sizeof(float));
-    if (!score_slab)
-        return -1;
+    /* Mat with a null workspace_allocator falls back to the default allocator,
+     * so a bare layer call (e.g. tests/test_sdpa_kvcache.cpp, which uses a
+     * default ncnn::Option) works instead of dereferencing null. The Mat also
+     * frees itself, which removes the four manual fastFree early-return paths. */
+    Mat score_slab_mat(dst_seqlen, nthreads, 4u, opt.workspace_allocator);
+    if (score_slab_mat.empty())
+    return -100;
+    float* score_slab = score_slab_mat;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
     {
-        opt.workspace_allocator->fastFree(score_slab);
         return -100;
     }
 
@@ -158,13 +168,11 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
     int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
     if (retk != 0)
     {
-        opt.workspace_allocator->fastFree(score_slab);
         return retk;
     }
     int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
     if (retv != 0)
     {
-        opt.workspace_allocator->fastFree(score_slab);
         return retv;
     }
 
@@ -288,7 +296,6 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    opt.workspace_allocator->fastFree(score_slab);
     return 0;
 #endif // __riscv_v
 }
