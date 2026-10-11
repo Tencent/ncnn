@@ -80,9 +80,17 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
             }
             else
             {
-                /* 半分解（本条模型走这条）：前一半与后一半各连续，纯连续访存，最好向量化 */
+                /* 半分解（本条模型走这条）：前一半与后一半各连续，纯连续访存，最好向量化。
+                 * 全宽缓存（cos_cache.w == embed_dim）为两半携带各自独立的系数，常见于
+                 * 2D/vision RoPE；半宽缓存（embed_dim/2）两半共用同一系数。必须与通用实现
+                 * 的 cw 取法一致，否则全宽缓存下 o1 会用错系数。 */
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const float* ptr0 = ptr;
                 const float* ptr1 = ptr + half;
+                const float* cos_ptr0 = cos_ptr;
+                const float* sin_ptr0 = sin_ptr;
+                const float* cos_ptr1 = cos_ptr + cw;
+                const float* sin_ptr1 = sin_ptr + cw;
                 float* outptr0 = outptr;
                 float* outptr1 = outptr + half;
                 while (j < half)
@@ -90,10 +98,12 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
                     const size_t vl = __riscv_vsetvl_e32m4(half - j);
                     vfloat32m4_t x0 = __riscv_vle32_v_f32m4(ptr0 + j, vl);
                     vfloat32m4_t x1 = __riscv_vle32_v_f32m4(ptr1 + j, vl);
-                    vfloat32m4_t c = __riscv_vle32_v_f32m4(cos_ptr + j, vl);
-                    vfloat32m4_t s = __riscv_vle32_v_f32m4(sin_ptr + j, vl);
-                    vfloat32m4_t o0 = __riscv_vfsub_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, c, vl), __riscv_vfmul_vv_f32m4(x1, s, vl), vl);
-                    vfloat32m4_t o1 = __riscv_vfadd_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, s, vl), __riscv_vfmul_vv_f32m4(x1, c, vl), vl);
+                    vfloat32m4_t c0 = __riscv_vle32_v_f32m4(cos_ptr0 + j, vl);
+                    vfloat32m4_t s0 = __riscv_vle32_v_f32m4(sin_ptr0 + j, vl);
+                    vfloat32m4_t c1 = __riscv_vle32_v_f32m4(cos_ptr1 + j, vl);
+                    vfloat32m4_t s1 = __riscv_vle32_v_f32m4(sin_ptr1 + j, vl);
+                    vfloat32m4_t o0 = __riscv_vfsub_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, c0, vl), __riscv_vfmul_vv_f32m4(x1, s0, vl), vl);
+                    vfloat32m4_t o1 = __riscv_vfadd_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, s1, vl), __riscv_vfmul_vv_f32m4(x1, c1, vl), vl);
                     __riscv_vse32_v_f32m4(outptr0 + j, o0, vl);
                     __riscv_vse32_v_f32m4(outptr1 + j, o1, vl);
                     j += (int)vl;
