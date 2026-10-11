@@ -51,7 +51,7 @@ static int sdpa_ime2_probe_affinity()
 {
     cpu_set_t cs;
     if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
-        return 0;   /* 无法确认亲和性：保守关闭 */
+        return 0; /* 无法确认亲和性：保守关闭 */
     const cpu_set_t orig = cs;
     int all_ok = 1;
     for (int c = 0; c < CPU_SETSIZE && all_ok; c++)
@@ -63,15 +63,16 @@ static int sdpa_ime2_probe_affinity()
         CPU_SET(c, &one);
         if (sched_setaffinity(0, sizeof(one), &one) != 0)
         {
-            all_ok = 0;   /* 移不过去就无法确认那个核对 */
+            all_ok = 0; /* 移不过去就无法确认那个核对 */
             break;
         }
         unsigned long vlenb = 0;
-        __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+        __asm__ volatile("csrr %0, vlenb"
+                         : "=r"(vlenb));
         if (vlenb != 128)
             all_ok = 0;
     }
-    sched_setaffinity(0, sizeof(orig), &orig);   /* 恢复 */
+    sched_setaffinity(0, sizeof(orig), &orig); /* 恢复 */
     return all_ok;
 }
 #else
@@ -117,13 +118,13 @@ static int sdpa_ime2_probe_locked()
  * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。 */
 static int ime2_probe(void)
 {
-    static int result = -1;   /* -1 = 未探测 */
+    static int result = -1; /* -1 = 未探测 */
     if (result >= 0)
         return result;
 
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
-    if (result >= 0)          /* 锁内复查 */
+    if (result >= 0) /* 锁内复查 */
         return result;
     result = sdpa_ime2_probe_locked();
     return result;
