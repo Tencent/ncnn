@@ -90,6 +90,9 @@ public:
     const unsigned char*& mem;
     size_t remaining;
     bool bounded;
+#if NCNN_STRING
+    std::vector<char> text;
+#endif
 };
 
 DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
@@ -125,15 +128,17 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
     if (d->bounded && d->remaining == 0)
         return 0;
 
-    // bounded input may not be null-terminated
-    std::vector<char> text;
     const char* mem = (const char*)d->mem;
     if (d->bounded)
     {
-        text.resize(d->remaining + 1);
-        memcpy(&text[0], mem, d->remaining);
-        text[d->remaining] = 0;
-        mem = &text[0];
+        // prepare bounded text once because the input may not be null-terminated
+        if (d->text.empty())
+        {
+            d->text.resize(d->remaining + 1);
+            memcpy(&d->text[0], mem, d->remaining);
+            d->text[d->remaining] = 0;
+        }
+        mem = &d->text[d->text.size() - d->remaining - 1];
     }
 
     size_t fmtlen = strlen(format);

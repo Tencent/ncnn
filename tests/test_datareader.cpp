@@ -125,6 +125,55 @@ static int test_datareader_scan_bounds()
     return 0;
 }
 
+static int test_datareader_scan_mixed()
+{
+    const unsigned char data[] = {'A', 'B', 'C', '1', '2', '\n', '3', '4', '\n', '5', '6', '!', '\n', 'X', 'Y', 'Z', '\n', '7', ' ', '8'};
+    const unsigned char* mem = data;
+    ncnn::DataReaderFromMemory dr(mem, sizeof(data));
+    unsigned char buf[5] = {0};
+    const void* ref = 0;
+    if (dr.read(buf, 1) != 1 || buf[0] != 'A' || dr.reference(2, &ref) != 2 || ref != data + 1 || mem != data + 3)
+    {
+        fprintf(stderr, "test_datareader_scan_mixed initial binary read failed\n");
+        return -1;
+    }
+
+    int value = 0;
+    if (dr.scan("%d", &value) != 1 || value != 12 || mem != data + 5
+            || dr.read(buf, 1) != 1 || buf[0] != '\n' || dr.scan("%d", &value) != 1 || value != 34 || mem != data + 8
+            || dr.reference(1, &ref) != 1 || ref != data + 8 || dr.scan("%d", &value) != 1 || value != 56 || mem != data + 11)
+    {
+        fprintf(stderr, "test_datareader_scan_mixed mixed read failed\n");
+        return -1;
+    }
+
+    if (dr.reference((size_t)-1, &ref) != 0 || ref != data + 8 || dr.scan("%d", &value) != 0 || value != 56 || mem != data + 11)
+    {
+        fprintf(stderr, "test_datareader_scan_mixed failed scan or reference consumed input\n");
+        return -1;
+    }
+
+    if (dr.scan("!%5c", buf) != 1 || memcmp(buf, "\nXYZ\n", sizeof(buf)) || mem != data + 17)
+    {
+        fprintf(stderr, "test_datareader_scan_mixed cross-line scan failed\n");
+        return -1;
+    }
+
+    if (dr.scan("%d", &value) != 1 || value != 7 || mem != data + 18 || dr.scan("%d", &value) != 1 || value != 8 || mem != data + sizeof(data))
+    {
+        fprintf(stderr, "test_datareader_scan_mixed consecutive scans failed\n");
+        return -1;
+    }
+
+    if (dr.scan("%d", &value) != 0 || dr.read(buf, 1) != 0 || dr.reference(1, &ref) != 0 || mem != data + sizeof(data))
+    {
+        fprintf(stderr, "test_datareader_scan_mixed eof failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_datareader_scan()
 {
     const char* formats[] = {"%d", "%i", "%x", "x=%d!", "%d \n", "%d!", "%d"};
@@ -183,6 +232,7 @@ int main()
            || test_datareader_empty()
 #if NCNN_STRING
            || test_datareader_scan_bounds()
+           || test_datareader_scan_mixed()
            || test_datareader_scan()
 #endif
            ;
