@@ -30,30 +30,46 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
      * fp32/pack1, run the same code, and convert the result back. */
     if (input_hc_swapped && (bottom_blob.elembits() != 32 || bottom_blob.elempack != 1))
     {
-        Mat q32, cos32, sin32, top32;
+        /* The fused path below is fp32/pack1 only. Backends that do not implement
+         * it delegate here, so a 16-bit or packed fused input must not fall into
+         * the fp32 loops: that would read the storage as float and write twice
+         * the row width into a 16-bit output blob. Convert to fp32/pack1, run
+         * the same code, and convert the result back. */
+        Mat q32, cos32, sin32;
 
         const Mat& cos_cache = bottom_blobs[1];
         const Mat& sin_cache = bottom_blobs[2];
 
-        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-            cast_bfloat16_to_float32(bottom_blob, q32, opt);
+        /* fp16 takes precedence over bf16, matching the backend dispatch order:
+         * Option enables use_fp16_storage by default on ARMv8.2, so a build that
+         * also sets use_bf16_storage has both flags on and fp16 must win. */
+        if (bottom_blob.elembits() == 16)
+        {
+            if (opt.use_fp16_storage)
+                cast_float16_to_float32(bottom_blob, q32, opt);
+            else
+                cast_bfloat16_to_float32(bottom_blob, q32, opt);
+        }
         else
-            cast_float16_to_float32(bottom_blob, q32, opt);
+        {
+            /* fp32 but packed: no cast, only the unpacking below */
+            q32 = bottom_blob;
+        }
         if (cos_cache.elembits() != 32)
         {
-            if (opt.use_bf16_storage && cos_cache.elembits() == 16)
-                cast_bfloat16_to_float32(cos_cache, cos32, opt);
-            else
+            if (cos_cache.elembits() == 16 && opt.use_fp16_storage)
                 cast_float16_to_float32(cos_cache, cos32, opt);
+            else
+                cast_bfloat16_to_float32(cos_cache, cos32, opt);
         }
         else
             cos32 = cos_cache;
         if (sin_cache.elembits() != 32)
         {
-            if (opt.use_bf16_storage && sin_cache.elembits() == 16)
-                cast_bfloat16_to_float32(sin_cache, sin32, opt);
-            else
+            if (sin_cache.elembits() == 16 && opt.use_fp16_storage)
                 cast_float16_to_float32(sin_cache, sin32, opt);
+            else
+                cast_bfloat16_to_float32(sin_cache, sin32, opt);
         }
         else
             sin32 = sin_cache;
@@ -66,6 +82,13 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             q32 = q32_p1;
         }
 
+        /* the cast helpers return void and leave the destination empty on
+         * allocation failure; recursing with an empty q32 would re-enter this
+         * branch forever (an empty Mat is neither fp32 nor packed), and an empty
+         * cache would be dereferenced below. Bail out instead. */
+        if (q32.empty() || cos32.empty() || sin32.empty())
+            return -100;
+
         std::vector<Mat> in32(3);
         in32[0] = q32;
         in32[1] = cos32;
@@ -77,12 +100,14 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         Mat& top_blob = top_blobs[0];
         const Mat& t32 = out32[0];
+        if (t32.empty())
+            return -100;
         if (bottom_blob.elembits() == 16)
         {
-            if (opt.use_bf16_storage)
-                cast_float32_to_bfloat16(t32, top_blob, opt);
-            else
+            if (opt.use_fp16_storage)
                 cast_float32_to_float16(t32, top_blob, opt);
+            else
+                cast_float32_to_bfloat16(t32, top_blob, opt);
         }
         else
             top_blob = t32;
@@ -94,6 +119,7 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         }
         return 0;
     }
+
 
     const Mat& cos_cache = bottom_blobs[1];
     const Mat& sin_cache = bottom_blobs[2];
