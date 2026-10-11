@@ -120,7 +120,6 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         return 0;
     }
 
-
     const Mat& cos_cache = bottom_blobs[1];
     const Mat& sin_cache = bottom_blobs[2];
 
