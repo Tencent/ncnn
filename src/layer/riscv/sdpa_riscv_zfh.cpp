@@ -157,8 +157,12 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         for (int g = 0; g < num_group; g++)
         {
             if (ime2_pack_fp32(key.channel(g), embed_dim, KTg[g], dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
+                /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+                #pragma omp atomic write
                 pack_fail = 1;
             if (ime2_pack_fp32_T(value.channel(g), out_embed_dim, VTg[g], out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
+                /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+                #pragma omp atomic write
                 pack_fail = 1;
         }
         const double t_pack1 = sdpa_prof ? ncnn_ime2_sdpa::ime2_prof_now() : 0.0;
@@ -191,6 +195,8 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                                              PT, opt.workspace_allocator)
                     != 0)
             {
+                /* 工人并发写同一标志：omp 屏障不能让并发写变成无竞争，用原子写。 */
+                #pragma omp atomic write
                 flash_fail = 1; // 调用方整体回退旧路径（omp 内不宜部分混跑两条路径的 workspace 分配）
             }
         }
@@ -224,11 +230,15 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         Mat AT, BT;
         if (ime2_pack_fp32(query_head, embed_dim, AT, src_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
+            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            #pragma omp atomic write
             head_fail = 1;
             continue;
         }
         if (ime2_pack_fp32(key_head, embed_dim, BT, dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
+            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            #pragma omp atomic write
             head_fail = 1;
             continue;
         }
@@ -271,11 +281,15 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         Mat A2T, B2T;
         if (ime2_pack_fp32((const float*)qk_cross_head, dst_seqlen, A2T, src_seqlen, dst_seqlen, opt.workspace_allocator) != 0)
         {
+            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            #pragma omp atomic write
             head_fail = 1;
             continue;
         }
         if (ime2_pack_fp32_T((const float*)value_head, out_embed_dim, B2T, out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
         {
+            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            #pragma omp atomic write
             head_fail = 1;
             continue;
         }
