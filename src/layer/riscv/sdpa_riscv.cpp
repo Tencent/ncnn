@@ -151,7 +151,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
      * frees itself, which removes the four manual fastFree early-return paths. */
     Mat score_slab_mat(dst_seqlen, nthreads, 4u, opt.workspace_allocator);
     if (score_slab_mat.empty())
-    return -100;
+        return -100;
     float* score_slab = score_slab_mat;
 
     Mat& top_blob = top_blobs[0];
