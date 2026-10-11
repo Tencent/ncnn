@@ -28,6 +28,17 @@ RMSNorm_riscv::RMSNorm_riscv()
 }
 
 #if __riscv_vector
+#if __riscv_xtheadvector
+/* XTheadVector（C906/C910）没有 tail-undisturbed 策略：把尾部先清零、再按整段
+ * 宽度运算，使尾部对累加的贡献为 0。与 layernorm_riscv.cpp 的 reset_tails 同型。 */
+__attribute__((noinline)) static vfloat32m2_t reset_tails_f32m2(vfloat32m2_t x, size_t vl, float v)
+{
+    const size_t vlm2 = __riscv_vsetvlmax_e32m2();
+    vbool16_t _vl_mask = __riscv_vmsgeu_vx_u32m2_b16(__riscv_vid_v_u32m2(vlm2), vl, vlm2);
+    x = __riscv_vfmerge_vfm_f32m2(x, v, _vl_mask, vlm2);
+    return x;
+}
+#endif // __riscv_xtheadvector
 // 单行 RMSNorm（pack1、fp32）：平方和用 RVV 归约，缩放用向量乘。
 // 与通用实现的数学等价；浮点求和顺序不同（向量成对归约），同一二进制内结果确定。
 static void rmsnorm_rvv(float* ptr, const float* gamma_ptr, float eps, int size)
@@ -50,8 +61,16 @@ static void rmsnorm_rvv(float* ptr, const float* gamma_ptr, float eps, int size)
         const size_t vl = __riscv_vsetvl_e32m2(want);
         vfloat32m2_t v = __riscv_vle32_v_f32m2(ptr + i, vl);
         /* _tu keeps vsum's tail: the unsuffixed form leaves it agnostic (possibly
-         * NaN) and the reduction below reads the whole REDCHUNK. */
+         * NaN) and the reduction below reads the whole REDCHUNK. On
+         * XTheadVector there is no tail-undisturbed policy at all, so the source
+         * tail is zeroed instead and the accumulate runs at the full chunk
+         * width. */
+#if __riscv_xtheadvector
+        v = reset_tails_f32m2(v, vl, 0.f);
+        vsum = __riscv_vfmacc_vv_f32m2(vsum, v, v, REDCHUNK);
+#else
         vsum = __riscv_vfmacc_vv_f32m2_tu(vsum, v, v, vl);
+#endif
         i += (int)vl;
     }
 

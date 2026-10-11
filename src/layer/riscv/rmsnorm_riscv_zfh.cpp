@@ -4,6 +4,16 @@
 #include "rmsnorm_riscv.h"
 
 #if __riscv_vector
+#if __riscv_xtheadvector
+/* same as the fp32 copy: XTheadVector has no tail-undisturbed policy */
+__attribute__((noinline)) static vfloat32m2_t reset_tails_f32m2(vfloat32m2_t x, size_t vl, float v)
+{
+    const size_t vlm2 = __riscv_vsetvlmax_e32m2();
+    vbool16_t _vl_mask = __riscv_vmsgeu_vx_u32m2_b16(__riscv_vid_v_u32m2(vlm2), vl, vlm2);
+    x = __riscv_vfmerge_vfm_f32m2(x, v, _vl_mask, vlm2);
+    return x;
+}
+#endif // __riscv_xtheadvector
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
@@ -49,7 +59,13 @@ static void rmsnorm_fp16s_rvv(__fp16* ptr, const float* gamma_ptr, float eps, in
         const size_t vl = __riscv_vsetvl_e16m1(want);
         vfloat16m1_t hv = __riscv_vle16_v_f16m1((const __fp16*)(ptr + i), vl);
         vfloat32m2_t v = __riscv_vfwcvt_f_f_v_f32m2(hv, vl);
+#if __riscv_xtheadvector
+        /* no tail-undisturbed on XTheadVector: zero the source tail, full width */
+        v = reset_tails_f32m2(v, vl, 0.f);
+        vsum = __riscv_vfmacc_vv_f32m2(vsum, v, v, REDCHUNK);
+#else
         vsum = __riscv_vfmacc_vv_f32m2_tu(vsum, v, v, vl);
+#endif
         i += (int)vl;
     }
 
