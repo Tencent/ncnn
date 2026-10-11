@@ -7,9 +7,16 @@
 
 #include "datareader.h"
 #include "layer_type.h"
+#include "modelbin.h"
 #include "net.h"
 #include "paramdict.h"
 #include "testutil.h"
+
+#include <errno.h>
+
+#if defined _WIN32
+#include <process.h>
+#endif
 
 struct LayerState
 {
@@ -841,6 +848,149 @@ static int test_pipeline_lifecycle()
     return 0;
 }
 
+static int test_bounded_text()
+{
+    const unsigned char text[] = "7767517\n1 1\nInput input 0 1 out\n";
+    const unsigned char* mem = text;
+    ncnn::DataReaderFromMemory dr(mem, sizeof(text) - 1);
+    ncnn::Net net;
+    if (net.load_param(dr) != 0)
+    {
+        fprintf(stderr, "test_net bounded text failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+class TestModelLayer : public ncnn::Layer
+{
+public:
+    virtual int load_model(const ncnn::ModelBin& mb)
+    {
+        weights = mb.load(3, 1);
+        return weights.empty() ? -100 : 0;
+    }
+
+    virtual int forward(const std::vector<ncnn::Mat>&, std::vector<ncnn::Mat>& top_blobs, const ncnn::Option& opt) const
+    {
+        top_blobs[0] = weights.clone(opt.blob_allocator);
+        return top_blobs[0].empty() ? -100 : 0;
+    }
+
+private:
+    ncnn::Mat weights;
+};
+
+static ncnn::Layer* create_model_layer(void*)
+{
+    return new TestModelLayer;
+}
+
+static int check_model_file(const char* path, size_t size, bool mapped)
+{
+    const unsigned char model_data[] = {
+        0x00, 0x00, 0x80, 0x3f,
+        0x00, 0x00, 0x20, 0xc0,
+        0x00, 0x00, 0x00, 0x3f
+    };
+    const float weights[] = {1.f, -2.5f, 0.5f};
+    FILE* fp = fopen(path, "wb");
+    if (!fp)
+    {
+        fprintf(stderr, "test_net model fopen failed\n");
+        return -1;
+    }
+    const size_t nwrite = fwrite(model_data, 1, size, fp);
+    const int close_ret = fclose(fp);
+    if (nwrite != size || close_ret != 0)
+    {
+        fprintf(stderr, "test_net model fwrite failed\n");
+        return -1;
+    }
+
+    // mapped loading falls back to stdio when file mapping is unavailable
+    if (mapped && size != 0)
+    {
+        ncnn::MappedFile file;
+        if (file.open(path) != 0)
+        {
+            fprintf(stderr, "test_net model mapping unavailable size=%zu errno=%d, testing stdio fallback\n", size, errno);
+        }
+    }
+
+    ncnn::Net net;
+    net.opt.use_mapped_model_loading = mapped;
+    net.register_custom_layer("TestModel", create_model_layer);
+    if (net.load_param_mem("7767517\n1 1\nTestModel weights 0 1 out\n") != 0)
+    {
+        fprintf(stderr, "test_net model load_param failed\n");
+        return -1;
+    }
+
+    // a bounded short read consumes the entire file, so the load status must be checked
+    const int ret = net.load_model(path);
+    if ((ret != 0) != (size < sizeof(weights)))
+    {
+        fprintf(stderr, "test_net model load failed mapped=%d size=%zu ret=%d\n", mapped, size, ret);
+        return -1;
+    }
+
+#if _WIN32
+    wchar_t wide_path[128];
+    size_t i = 0;
+    for (; path[i]; i++)
+        wide_path[i] = (unsigned char)path[i];
+    wide_path[i] = 0;
+    ncnn::Net net2;
+    net2.opt.use_mapped_model_loading = mapped;
+    net2.register_custom_layer("TestModel", create_model_layer);
+    if (net2.load_param_mem("7767517\n1 1\nTestModel weights 0 1 out\n") != 0
+            || (net2.load_model(wide_path) != 0) != (size < sizeof(weights)))
+    {
+        fprintf(stderr, "test_net wide model load failed mapped=%d size=%zu\n", mapped, size);
+        return -1;
+    }
+#endif
+
+    if (ret == 0)
+    {
+        ncnn::Mat output;
+        ncnn::Extractor ex = net.create_extractor();
+        if (ex.extract("out", output) != 0 || output.w != 3 || memcmp(output.data, weights, sizeof(weights)))
+        {
+            fprintf(stderr, "test_net model output failed mapped=%d\n", mapped);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_model_file()
+{
+    char path[128];
+#if _WIN32
+    snprintf(path, sizeof(path), "test_net_model.%u.bin", (unsigned int)_getpid());
+#else
+    snprintf(path, sizeof(path), "test_net_model.%u.bin", (unsigned int)getpid());
+#endif
+    for (int mapped = 0; mapped < 2; mapped++)
+    {
+        for (size_t size = 0; size <= 3 * sizeof(float); size++)
+        {
+            const int ret = check_model_file(path, size, mapped != 0);
+            remove(path);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
 #if NCNN_VULKAN
 class OptionalInputLayer : public ncnn::Layer
 {
@@ -1227,6 +1377,10 @@ int main()
            || test_magic_mismatch()
            || test_feature_mask()
            || test_pipeline_lifecycle()
+           || test_bounded_text()
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+           || test_model_file()
+#endif
 #if NCNN_VULKAN
            || test_vulkan_optional_input()
 #endif // NCNN_VULKAN
