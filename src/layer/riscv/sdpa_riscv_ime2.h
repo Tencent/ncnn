@@ -51,7 +51,7 @@ static int sdpa_ime2_probe_affinity()
 {
     cpu_set_t cs;
     if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
-        return 0;   /* 无法确认亲和性：保守关闭 */
+        return 0; /* 无法确认亲和性：保守关闭 */
     const cpu_set_t orig = cs;
     int all_ok = 1;
     for (int c = 0; c < CPU_SETSIZE && all_ok; c++)
@@ -63,15 +63,16 @@ static int sdpa_ime2_probe_affinity()
         CPU_SET(c, &one);
         if (sched_setaffinity(0, sizeof(one), &one) != 0)
         {
-            all_ok = 0;   /* 移不过去就无法确认那个核对 */
+            all_ok = 0; /* 移不过去就无法确认那个核对 */
             break;
         }
         unsigned long vlenb = 0;
-        __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+        __asm__ volatile("csrr %0, vlenb"
+                         : "=r"(vlenb));
         if (vlenb != 128)
             all_ok = 0;
     }
-    sched_setaffinity(0, sizeof(orig), &orig);   /* 恢复 */
+    sched_setaffinity(0, sizeof(orig), &orig); /* 恢复 */
 
     /* (a2) OpenMP 工人可能有**逐线程**绑定（OMP_PROC_BIND / GOMP_CPU_AFFINITY /
      * 宿主运行时），上面的掩码遍历只看调用线程，看不到它们。在 omp 区域内让
@@ -82,7 +83,8 @@ static int sdpa_ime2_probe_affinity()
         #pragma omp parallel
         {
             unsigned long vlenb = 0;
-            __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+            __asm__ volatile("csrr %0, vlenb"
+                             : "=r"(vlenb));
             if (vlenb != 128)
             {
                 #pragma omp atomic write
@@ -140,7 +142,7 @@ static int ime2_probe(void)
      * 在 C++ 模型下仍是数据竞争。探测只在建管线时调用一次，锁的开销可忽略。 */
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
-    static int result = -1;   /* -1 = 未探测 */
+    static int result = -1; /* -1 = 未探测 */
     if (result >= 0)
         return result;
     result = sdpa_ime2_probe_locked();
