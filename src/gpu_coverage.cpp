@@ -123,6 +123,107 @@ static uint32_t get_spirv_constant(std::vector<uint32_t>& definitions, std::map<
     return id;
 }
 
+// combine only straight-line probes without crossing calls or synchronization
+static void coalesce_shader_coverage_probes(std::vector<uint32_t>& spirv)
+{
+    struct Probe
+    {
+        uint32_t mask;
+        size_t access;
+        size_t atomic;
+    };
+    struct Group
+    {
+        std::map<uint32_t, Probe> words;
+    };
+    std::map<uint32_t, uint32_t> values;
+    std::set<uint32_t> coverage_vars;
+    std::map<uint32_t, size_t> pointers;
+    std::map<size_t, Group> groups;
+    std::set<size_t> removed;
+    size_t functions_begin = 0;
+    size_t segment = 0;
+    uint32_t uint_type = 0;
+    for (size_t i = 5; i < spirv.size(); i += (spirv[i] >> 16))
+    {
+        const uint32_t* p = &spirv[i];
+        const uint32_t count = p[0] >> 16;
+        const spv::Op op = (spv::Op)(p[0] & 0xffff);
+        if (op == spv::Op::OpConstant && count == 4)
+            values[p[2]] = p[3];
+        if (op == spv::Op::OpDecorate && count == 4 && p[2] == (uint32_t)spv::Decoration::DescriptorSet && p[3] == 1)
+            coverage_vars.insert(p[1]);
+        if (!functions_begin && op == spv::Op::OpFunction)
+            functions_begin = i;
+        if (op == spv::Op::OpLabel)
+            segment++;
+        if (op == spv::Op::OpAccessChain && count == 6 && coverage_vars.count(p[3]))
+            pointers[p[2]] = i;
+        if (op == spv::Op::OpAtomicOr && count == 7 && pointers.count(p[3]))
+        {
+            const size_t access = pointers[p[3]];
+            const uint32_t word = values[spirv[access + 5]];
+            const uint32_t mask = values[p[6]];
+            Group& group = groups[segment];
+            Probe& probe = group.words[word];
+            probe.mask |= mask;
+            // retain each word at its last original probe in the segment
+            probe.access = access;
+            probe.atomic = i;
+            removed.insert(access);
+            removed.insert(i);
+            uint_type = p[1];
+        }
+        // a call may terminate the invocation, so later lines need their own probes
+        if (op == spv::Op::OpFunctionCall || op == spv::Op::OpControlBarrier || op == spv::Op::OpMemoryBarrier
+                || op == spv::Op::OpControlBarrierArriveEXT || op == spv::Op::OpControlBarrierWaitEXT
+                || op == spv::Op::OpKill || op == spv::Op::OpUnreachable || op == spv::Op::OpTerminateInvocation
+                || op == spv::Op::OpDemoteToHelperInvocation || op == spv::Op::OpEmitMeshTasksEXT
+                || op == spv::Op::OpReturn || op == spv::Op::OpReturnValue || op == spv::Op::OpBranch
+                || op == spv::Op::OpBranchConditional || op == spv::Op::OpSwitch)
+            segment++;
+    }
+    if (groups.empty())
+        return;
+
+    std::map<uint32_t, uint32_t> constants;
+    for (size_t i = 5; i < functions_begin; i += (spirv[i] >> 16))
+    {
+        const uint32_t* p = &spirv[i];
+        if ((spv::Op)(p[0] & 0xffff) == spv::Op::OpConstant && (p[0] >> 16) == 4 && p[1] == uint_type)
+            constants[p[3]] = p[2];
+    }
+    std::vector<uint32_t> definitions;
+    std::map<size_t, std::vector<uint32_t> > emissions;
+    uint32_t next_id = spirv[3];
+    for (std::map<size_t, Group>::const_iterator g = groups.begin(); g != groups.end(); g++)
+    {
+        for (std::map<uint32_t, Probe>::const_iterator w = g->second.words.begin(); w != g->second.words.end(); w++)
+        {
+            const Probe& probe = w->second;
+            std::vector<uint32_t>& probes = emissions[probe.access];
+            const uint32_t mask = get_spirv_constant(definitions, constants, uint_type, probe.mask, next_id);
+            probes.insert(probes.end(), spirv.begin() + probe.access, spirv.begin() + probe.access + 6);
+            probes.insert(probes.end(), spirv.begin() + probe.atomic, spirv.begin() + probe.atomic + 7);
+            probes.back() = mask;
+        }
+    }
+
+    std::vector<uint32_t> result(spirv.begin(), spirv.begin() + 5);
+    for (size_t i = 5; i < spirv.size(); i += (spirv[i] >> 16))
+    {
+        if (i == functions_begin)
+            result.insert(result.end(), definitions.begin(), definitions.end());
+        std::map<size_t, std::vector<uint32_t> >::const_iterator emission = emissions.find(i);
+        if (emission != emissions.end())
+            result.insert(result.end(), emission->second.begin(), emission->second.end());
+        if (!removed.count(i))
+            result.insert(result.end(), spirv.begin() + i, spirv.begin() + i + (spirv[i] >> 16));
+    }
+    result[3] = next_id;
+    spirv.swap(result);
+}
+
 int instrument_shader_coverage(std::vector<uint32_t>& spirv)
 {
     if (spirv.size() < 5 || spirv[0] != spv::MagicNumber)
@@ -305,6 +406,7 @@ int instrument_shader_coverage(std::vector<uint32_t>& spirv)
     result.insert(result.end(), functions.begin(), functions.end());
     result[3] = next_id;
     spirv.swap(result);
+    coalesce_shader_coverage_probes(spirv);
 
     ShaderCoverageState& state = coverage_state();
     MutexLockGuard lock(state.mutex);

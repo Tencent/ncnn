@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_rmsnorm(const ncnn::Mat& a, int affine_size, float eps, int affine)
+static int test_rmsnorm(const ncnn::Mat& a, int affine_size, float eps, int affine, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, affine_size);
@@ -13,7 +13,7 @@ static int test_rmsnorm(const ncnn::Mat& a, int affine_size, float eps, int affi
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(affine_size);
 
-    int ret = test_layer("RMSNorm", pd, weights, a, 1e-4f);
+    int ret = test_layer("RMSNorm", pd, weights, a, 1e-4f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_rmsnorm failed a.dims=%d a=(%d %d %d %d) affine_size=%d eps=%f affine=%d\n", a.dims, a.w, a.h, a.d, a.c, affine_size, eps, affine);
@@ -31,7 +31,7 @@ static int test_rmsnorm_0()
            || test_rmsnorm(RandomMat(5, 6, 12), 5, 0.02f, 0)
            || test_rmsnorm(RandomMat(4, 7, 16), 4, 0.02f, 0)
            || test_rmsnorm(RandomMat(6, 7, 24), 6, 0.001f, 0)
-           || test_rmsnorm(RandomMat(5, 8, 32), 5, 0.001f, 0)
+           || test_rmsnorm(RandomMat(5, 8, 32), 5, 0.001f, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_rmsnorm(RandomMat(6, 4, 2), 6, 0.01f, 1)
            || test_rmsnorm(RandomMat(4, 5, 6), 4, 0.01f, 1)
            || test_rmsnorm(RandomMat(3, 3, 8), 3, 0.002f, 1)

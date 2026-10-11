@@ -129,7 +129,6 @@ int in_index(int iw, int ih, int id, int ic)
     if (p.in_dims == 3) return ic * p.in_cstep + ih * p.in_w + iw;
 
     int in_dstep = p.in_w * p.in_h;
-    if (p.in_d > 1) in_dstep = p.in_cstep / p.in_d;
     return ic * p.in_cstep + id * in_dstep + ih * p.in_w + iw;
 }
 
@@ -140,7 +139,6 @@ int out_offset(int ow, int oh, int od, int oc)
     if (p.out_dims == 3) return oc * p.out_cstep + oh * p.out_w + ow;
 
     int out_dstep = p.out_w * p.out_h;
-    if (p.out_d > 1) out_dstep = p.out_cstep / p.out_d;
     return oc * p.out_cstep + od * out_dstep + oh * p.out_w + ow;
 }
 

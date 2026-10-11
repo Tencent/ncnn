@@ -436,6 +436,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_convert_rotaryembed.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
+    pass_ncnn/reshape_shape.cpp
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp

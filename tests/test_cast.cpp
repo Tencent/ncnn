@@ -15,6 +15,20 @@ static int test_float32_to_float16(float value, unsigned short expected)
     return 0;
 }
 
+static int test_float16_to_float32(unsigned short value, unsigned int expected)
+{
+    float actual = ncnn::float16_to_float32(value);
+    unsigned int actual_bits;
+    memcpy(&actual_bits, &actual, sizeof(float));
+    if (actual_bits != expected)
+    {
+        fprintf(stderr, "test_float16_to_float32 failed value=%04x expected=%08x actual=%08x\n", value, expected, actual_bits);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_float16_to_float8(unsigned short value, unsigned char expected)
 {
     unsigned char actual = ncnn::float16_to_float8(value);
@@ -51,8 +65,27 @@ static int test_float16_to_bfloat8(unsigned short value, unsigned char expected)
     return 0;
 }
 
+static int test_float8_to_float16(unsigned char value, unsigned short expected)
+{
+    unsigned short actual = ncnn::float8_to_float16(value);
+    if (actual != expected)
+    {
+        fprintf(stderr, "test_float8_to_float16 failed value=%02x expected=%04x actual=%04x\n", value, expected, actual);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_cast_rounding()
 {
+    const unsigned int inf_bits = 0x7f800000u;
+    const unsigned int nan_bits = 0x7fc00000u;
+    float inf;
+    float nan;
+    memcpy(&inf, &inf_bits, sizeof(float));
+    memcpy(&nan, &nan_bits, sizeof(float));
+
     return 0
            || test_float32_to_float16(0.7f, 0x399a)
            || test_float32_to_float16(-0.7f, 0xb99a)
@@ -60,8 +93,18 @@ static int test_cast_rounding()
            || test_float32_to_float16(1.99951171875f, 0x4000)
            || test_float32_to_float16(65504.f, 0x7bff)
            || test_float32_to_float16(65520.f, 0x7c00)
+           || test_float32_to_float16(65536.f, 0x7c00)
+           || test_float32_to_float16(-65536.f, 0xfc00)
+           || test_float32_to_float16(inf, 0x7c00)
+           || test_float32_to_float16(-inf, 0xfc00)
+           || test_float32_to_float16(nan, 0x7e00)
            || test_float32_to_float16(0.00006103515625f, 0x0400)
            || test_float32_to_float16(0.000030517578125f, 0x0000)
+           || test_float16_to_float32(0x0000, 0x00000000u)
+           || test_float16_to_float32(0x8000, 0x80000000u)
+           || test_float16_to_float32(0x7c00, 0x7f800000u)
+           || test_float16_to_float32(0xfc00, 0xff800000u)
+           || test_float16_to_float32(0x7e00, 0x7fc00000u)
            || test_float16_to_float8(0x3c40, 0x39)
            || test_float16_to_float8(0x3fc0, 0x40)
            || test_float16_to_float8(0x5b80, 0x77)
@@ -75,7 +118,24 @@ static int test_cast_rounding()
            || test_float16_to_bfloat8(0x399a, 0x3a)
            || test_float16_to_bfloat8(0xb99a, 0xba)
            || test_float16_to_bfloat8(0x3c80, 0x3d)
-           || test_float16_to_bfloat8(0x3f80, 0x40);
+           || test_float16_to_bfloat8(0x3f80, 0x40)
+           // subnormal decoding and E4M3 zero, overflow and NaN boundaries
+           || test_float16_to_float32(0x0001, 0x33800000u)
+           || test_float16_to_float32(0x8001, 0xb3800000u)
+           || test_float16_to_float32(0x0200, 0x38000000u)
+           || test_float16_to_float8(0x0000, 0x00)
+           || test_float16_to_float8(0x8001, 0x80)
+           || test_float16_to_float8(0x7c00, 0x7f)
+           || test_float16_to_float8(0xfe00, 0xff)
+           || test_float16_to_float8(0x7bff, 0x7f)
+           || test_float8_to_float16(0x00, 0x0000)
+           || test_float8_to_float16(0x80, 0x8000)
+           || test_float8_to_float16(0x01, 0x0000)
+           || test_float8_to_float16(0x81, 0x8000)
+           || test_float8_to_float16(0x7f, 0x7e00)
+           || test_float8_to_float16(0xff, 0xfe00)
+           || test_float8_to_float16(0x38, 0x3c00)
+           || test_float8_to_float16(0xb8, 0xbc00);
 }
 
 static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int type_to)

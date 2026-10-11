@@ -8,49 +8,57 @@
 
 namespace ncnn {
 
-int count_expression_blobs(const std::string& expr)
+int analyze_list_expression(const std::string& expr, int& list_size, int& blob_count, bool& has_batch)
 {
-    int count = 0;
+    list_size = expr.empty() ? 0 : 1;
+    blob_count = 0;
+    has_batch = false;
 
-    std::string t;
-    for (size_t i = 0; i < expr.size(); i++)
+    int depth = 0;
+    size_t start = 0;
+    for (size_t i = 0; i <= expr.size(); i++)
     {
-        char ch = expr[i];
+        if (i != expr.size() && expr[i] != '(' && expr[i] != ')' && expr[i] != ',')
+            continue;
 
-        if (ch == '(' || ch == ')' || ch == ',')
+        if (i - start == 2 && expr[start] >= '0' && expr[start] <= '9')
         {
-            if (!t.empty())
+            const char dim = expr[start + 1];
+            if (dim == 'w' || dim == 'h' || dim == 'd' || dim == 'c' || dim == 'n')
             {
-                if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c' || t[1] == 'n'))
-                {
-                    int blob_index = t[0] - '0';
-                    count = std::max(count, blob_index + 1);
-                }
-
-                t.clear();
+                const int index = expr[start] - '0';
+                blob_count = std::max(blob_count, index + 1);
+                if (dim == 'n')
+                    has_batch = true;
             }
         }
-        else
+        if (i < expr.size())
         {
-#if NCNN_SIMPLESTL
-            t.resize(t.size() + 1);
-            t[t.size() - 1] = ch;
-#else
-            t += ch;
-#endif
+            if (expr[i] == '(')
+                depth++;
+            else if (expr[i] == ')')
+                depth--;
+            else if (expr[i] == ',' && depth == 0)
+                list_size++;
+            if (depth < 0)
+                return -1;
         }
+        start = i + 1;
     }
 
-    if (!t.empty())
-    {
-        if (t.size() == 2 && (t[0] >= '0' && t[0] <= '9') && (t[1] == 'w' || t[1] == 'h' || t[1] == 'd' || t[1] == 'c' || t[1] == 'n'))
-        {
-            int blob_index = t[0] - '0';
-            count = std::max(count, blob_index + 1);
-        }
-    }
+    if (depth != 0)
+        return -1;
+    return 0;
+}
 
-    return count;
+int count_expression_blobs(const std::string& expr)
+{
+    int list_size;
+    int blob_count;
+    bool has_batch;
+    if (analyze_list_expression(expr, list_size, blob_count, has_batch) != 0)
+        return 0;
+    return blob_count;
 }
 
 struct typed_value

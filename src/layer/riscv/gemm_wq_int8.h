@@ -9,7 +9,9 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #if __riscv_vector
     const ptrdiff_t B_stride = (ptrdiff_t)B_hstep;
     const ptrdiff_t B_scales_stride = (ptrdiff_t)B_scales_hstep * sizeof(float);
-    const bool use_nr8 = csrr_vlenb() >= 32;
+    // use 8-column panels for VLEN >= 256, otherwise 4-column panels
+    const int packn = csrr_vlenb() / 4;
+    const int packn_n = packn >= 8 ? 8 : 4;
     const size_t vl8 = __riscv_vsetvl_e8m1(8);
     const size_t vl4 = __riscv_vsetvl_e8m1(4);
     const size_t vl2 = __riscv_vsetvl_e8m1(2);
@@ -20,7 +22,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
     int jj = 0;
 #if __riscv_vector
-    for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+    for (; packn_n == 8 && jj + 7 < max_jj; jj += 8)
     {
         const signed char* p0 = B.row<const signed char>(j + jj);
         const float* ps = B_scales.row(j + jj);
@@ -186,7 +188,9 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 // K-major, row-interleaved MR-packn/MR2/MR1
 static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales)
 {
+#if __riscv_vector
     const int elempack = A.elempack;
+#endif // __riscv_vector
     signed char* pp = AT_tile;
     float* pd = AT_descales_tile;
     const int local_block_count = (max_kk + block_size - 1) / block_size;
@@ -238,13 +242,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     for (int kk = 0; kk < max_kk0; kk++)
                     {
                         vfloat32m1_t _v = __riscv_vle32_v_f32m1(p0, vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                        __riscv_vse8_v_i8m1(pp, _q, vl);
                         pp += packn;
                         p0 += packn;
                     }
@@ -254,13 +253,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                     for (int kk = 0; kk < max_kk0; kk++)
                     {
                         vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, A_stride, vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                        __riscv_vse8_v_i8m1(pp, _q, vl);
                         pp += packn;
                         p0++;
                     }
@@ -448,13 +442,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     vfloat32m1_t _v = __riscv_vle32_v_f32m1(p0, vl);
                     _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                    __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                    __riscv_vse8_v_i8m1(pp, _q, vl);
                     pp += packn;
                     p0 += packn;
                 }
@@ -465,13 +454,8 @@ static void quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& AT_descales
                 {
                     vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, A_stride, vl);
                     _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                    __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                    __riscv_vse8_v_i8m1(pp, _q, vl);
                     pp += packn;
                     p0++;
                 }
@@ -699,13 +683,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     for (; kk < head_kk; kk++)
                     {
                         vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, packn * sizeof(float), vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                        __riscv_vse8_v_i8m1(pp, _q, vl);
                         pp += packn;
                         p0++;
                     }
@@ -716,13 +695,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         for (int l = 0; l < packn; l++)
                         {
                             vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0 + l, packn * sizeof(float), vl);
-                            vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                            _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                            _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                            vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                            _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                            vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                            __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                            vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                            __riscv_vse8_v_i8m1(pp, _q, vl);
                             pp += packn;
                         }
                         p0 += A_hstep * packn;
@@ -735,13 +709,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     for (int kk = 0; kk < max_kk0; kk++)
                     {
                         vfloat32m1_t _v = __riscv_vle32_v_f32m1(p0, vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                        __riscv_vse8_v_i8m1(pp, _q, vl);
                         pp += packn;
                         p0 += A_hstep;
                     }
@@ -804,21 +773,9 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         vbool32_t _mask32 = __riscv_vmsltu_vx_u32m1_b32(_idx, n, vl);
                         vfloat32m1_t _v0 = __riscv_vle32_v_f32m1_m(_mask32, p0, vl);
                         vfloat32m1_t _v1 = __riscv_vle32_v_f32m1_m(_mask32, p0 + packn, vl);
-                        vint32m1_t _v32_0 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), __RISCV_FRM_RMM, vl);
-                        vint32m1_t _v32_1 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), __RISCV_FRM_RMM, vl);
-                        _v32_0 = __riscv_vmax_vx_i32m1(_v32_0, -127, vl);
-                        _v32_1 = __riscv_vmax_vx_i32m1(_v32_1, -127, vl);
-                        _v32_0 = __riscv_vmin_vx_i32m1(_v32_0, 127, vl);
-                        _v32_1 = __riscv_vmin_vx_i32m1(_v32_1, 127, vl);
-                        vint32m4_t _v32x4_0 = __riscv_vundefined_i32m4();
-                        vint32m4_t _v32x4_1 = __riscv_vundefined_i32m4();
-                        _v32x4_0 = __riscv_vset_v_i32m1_i32m4(_v32x4_0, 0, _v32_0);
-                        _v32x4_1 = __riscv_vset_v_i32m1_i32m4(_v32x4_1, 0, _v32_1);
-                        vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
-                        vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
-                        vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                             __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                             __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                        vint8m1_t _q0 = float2int8(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), vl);
+                        vint8m1_t _q1 = float2int8(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), vl);
+                        vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(_q0, _q1);
                         vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                         __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                         pp += n * 2;
@@ -952,13 +909,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const int n = std::min(max_kk0 - kk, packn - kk_lane);
                         vbool32_t _mask32 = __riscv_vmsltu_vx_u32m1_b32(_idx, n, vl);
                         vfloat32m1_t _v = __riscv_vle32_v_f32m1_m(_mask32, p0, vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v, scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vlq);
-                        vint8m1_t _q = __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vlq);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vf_f32m1(_v, scale, vl), vl);
                         vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                         __riscv_vse8_v_i8m1_m(_mask8, pp, _q, vlq);
                         pp += n;
@@ -1017,13 +968,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                         const int n = std::min(max_kk0 - kk, packn);
                         vbool32_t _mask32 = __riscv_vmsltu_vx_u32m1_b32(_idx, n, vl);
                         vfloat32m1_t _v = __riscv_vlse32_v_f32m1_m(_mask32, p0, (ptrdiff_t)A_hstep * sizeof(float), vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v, scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vlq);
-                        vint8m1_t _q = __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vlq);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vf_f32m1(_v, scale, vl), vl);
                         vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                         __riscv_vse8_v_i8m1_m(_mask8, pp, _q, vlq);
                         pp += n;
@@ -1120,13 +1065,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0, packn * sizeof(float), vl);
                     _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                    __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                    __riscv_vse8_v_i8m1(pp, _q, vl);
                     pp += packn;
                     p0++;
                 }
@@ -1138,13 +1078,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     {
                         vfloat32m1_t _v = __riscv_vlse32_v_f32m1(p0 + l, packn * sizeof(float), vl);
                         _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                        vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                        _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                        _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                        vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                        _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                        vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                        __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                        vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                        __riscv_vse8_v_i8m1(pp, _q, vl);
                         pp += packn;
                     }
                     p0 += A_hstep * packn;
@@ -1159,13 +1094,8 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                 {
                     vfloat32m1_t _v = __riscv_vle32_v_f32m1(p0, vl);
                     _v = __riscv_vfmul_vf_f32m1(_v, *ps++, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vv_f32m1(_v, _scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vl);
-                    __riscv_vse8_v_i8m1(pp, __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vl), vl);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vv_f32m1(_v, _scale, vl), vl);
+                    __riscv_vse8_v_i8m1(pp, _q, vl);
                     pp += packn;
                     p0 += A_hstep;
                 }
@@ -1237,21 +1167,9 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vfloat32m1_t _s = __riscv_vle32_v_f32m1_m(_mask32, ps, vl);
                     _v0 = __riscv_vfmul_vv_f32m1(_v0, _s, vl);
                     _v1 = __riscv_vfmul_vv_f32m1(_v1, _s, vl);
-                    vint32m1_t _v32_0 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), __RISCV_FRM_RMM, vl);
-                    vint32m1_t _v32_1 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), __RISCV_FRM_RMM, vl);
-                    _v32_0 = __riscv_vmax_vx_i32m1(_v32_0, -127, vl);
-                    _v32_1 = __riscv_vmax_vx_i32m1(_v32_1, -127, vl);
-                    _v32_0 = __riscv_vmin_vx_i32m1(_v32_0, 127, vl);
-                    _v32_1 = __riscv_vmin_vx_i32m1(_v32_1, 127, vl);
-                    vint32m4_t _v32x4_0 = __riscv_vundefined_i32m4();
-                    vint32m4_t _v32x4_1 = __riscv_vundefined_i32m4();
-                    _v32x4_0 = __riscv_vset_v_i32m1_i32m4(_v32x4_0, 0, _v32_0);
-                    _v32x4_1 = __riscv_vset_v_i32m1_i32m4(_v32x4_1, 0, _v32_1);
-                    vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
-                    vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
-                    vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                         __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                         __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                    vint8m1_t _q0 = float2int8(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), vl);
+                    vint8m1_t _q1 = float2int8(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), vl);
+                    vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(_q0, _q1);
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                     pp += n * 2;
@@ -1332,21 +1250,9 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vfloat32m1_t _s = __riscv_vle32_v_f32m1_m(_mask32, ps, vl);
                     _v0 = __riscv_vfmul_vv_f32m1(_v0, _s, vl);
                     _v1 = __riscv_vfmul_vv_f32m1(_v1, _s, vl);
-                    vint32m1_t _v32_0 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), __RISCV_FRM_RMM, vl);
-                    vint32m1_t _v32_1 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), __RISCV_FRM_RMM, vl);
-                    _v32_0 = __riscv_vmax_vx_i32m1(_v32_0, -127, vl);
-                    _v32_1 = __riscv_vmax_vx_i32m1(_v32_1, -127, vl);
-                    _v32_0 = __riscv_vmin_vx_i32m1(_v32_0, 127, vl);
-                    _v32_1 = __riscv_vmin_vx_i32m1(_v32_1, 127, vl);
-                    vint32m4_t _v32x4_0 = __riscv_vundefined_i32m4();
-                    vint32m4_t _v32x4_1 = __riscv_vundefined_i32m4();
-                    _v32x4_0 = __riscv_vset_v_i32m1_i32m4(_v32x4_0, 0, _v32_0);
-                    _v32x4_1 = __riscv_vset_v_i32m1_i32m4(_v32x4_1, 0, _v32_1);
-                    vint16m2_t _v16_0 = __riscv_vnclip_wx_i16m2(_v32x4_0, 0, __RISCV_VXRM_RNU, vlq);
-                    vint16m2_t _v16_1 = __riscv_vnclip_wx_i16m2(_v32x4_1, 0, __RISCV_VXRM_RNU, vlq);
-                    vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(
-                                         __riscv_vnclip_wx_i8m1(_v16_0, 0, __RISCV_VXRM_RNU, vlq),
-                                         __riscv_vnclip_wx_i8m1(_v16_1, 0, __RISCV_VXRM_RNU, vlq));
+                    vint8m1_t _q0 = float2int8(__riscv_vfmul_vf_f32m1(_v0, scale0, vl), vl);
+                    vint8m1_t _q1 = float2int8(__riscv_vfmul_vf_f32m1(_v1, scale1, vl), vl);
+                    vint8m1x2_t _q = __riscv_vcreate_v_i8m1x2(_q0, _q1);
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vsseg2e8_v_i8m1x2_m(_mask8, pp, _q, vlq);
                     pp += n * 2;
@@ -1425,13 +1331,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vfloat32m1_t _v = __riscv_vle32_v_f32m1_m(_mask32, p0, vl);
                     vfloat32m1_t _s = __riscv_vle32_v_f32m1_m(_mask32, ps, vl);
                     _v = __riscv_vfmul_vv_f32m1(_v, _s, vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v, scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vlq);
-                    vint8m1_t _q = __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vlq);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vf_f32m1(_v, scale, vl), vl);
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vse8_v_i8m1_m(_mask8, pp, _q, vlq);
                     pp += n;
@@ -1495,13 +1395,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
                     vbool32_t _mask32 = __riscv_vmsltu_vx_u32m1_b32(_idx, n, vl);
                     vfloat32m1_t _v = __riscv_vlse32_v_f32m1_m(_mask32, p0, (ptrdiff_t)A_hstep * sizeof(float), vl);
                     _v = __riscv_vfmul_vv_f32m1(_v, __riscv_vle32_v_f32m1_m(_mask32, ps, vl), vl);
-                    vint32m1_t _v32 = __riscv_vfcvt_x_f_v_i32m1_rm(__riscv_vfmul_vf_f32m1(_v, scale, vl), __RISCV_FRM_RMM, vl);
-                    _v32 = __riscv_vmax_vx_i32m1(_v32, -127, vl);
-                    _v32 = __riscv_vmin_vx_i32m1(_v32, 127, vl);
-                    vint32m4_t _v32x4 = __riscv_vundefined_i32m4();
-                    _v32x4 = __riscv_vset_v_i32m1_i32m4(_v32x4, 0, _v32);
-                    vint16m2_t _v16 = __riscv_vnclip_wx_i16m2(_v32x4, 0, __RISCV_VXRM_RNU, vlq);
-                    vint8m1_t _q = __riscv_vnclip_wx_i8m1(_v16, 0, __RISCV_VXRM_RNU, vlq);
+                    vint8m1_t _q = float2int8(__riscv_vfmul_vf_f32m1(_v, scale, vl), vl);
                     vbool8_t _mask8 = __riscv_vmsltu_vx_u8m1_b8(__riscv_vid_v_u8m1(vlq), n, vlq);
                     __riscv_vse8_v_i8m1_m(_mask8, pp, _q, vlq);
                     pp += n;
@@ -1538,18 +1432,19 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const bool use_nr8 = csrr_vlenb() >= 32;
+    // keep the panel width consistent with pack_B_tile_wq_int8
+    const int packn_n = packn >= 8 ? 8 : 4;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
         const signed char* pB_panel = pBT;
         const float* pB_descales_panel = pBT_descales;
-        const size_t vl = __riscv_vsetvl_e32m1(packn);
 
         int jj = 0;
-        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        for (; packn_n == 8 && jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
             vfloat32m1_t _fsum0;
             vfloat32m1_t _fsum1;
             vfloat32m1_t _fsum2;
@@ -1572,7 +1467,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             else
             {
                 _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
-                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn, vl);
+                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn * 1, vl);
                 _fsum2 = __riscv_vle32_v_f32m1(outptr + packn * 2, vl);
                 _fsum3 = __riscv_vle32_v_f32m1(outptr + packn * 3, vl);
                 _fsum4 = __riscv_vle32_v_f32m1(outptr + packn * 4, vl);
@@ -1596,151 +1491,52 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 vint32m1_t _sum7 = __riscv_vmv_v_x_i32m1(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint64_t b = *(const uint64_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
-                    pA += packn;
-                    pB += 8;
-
-                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint64_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
-                    pA += packn;
-                    pB += 8;
-
-                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint64_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
-                    pA += packn;
-                    pB += 8;
-
-                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint64_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _a, vl);
-                    pA += packn;
-                    pB += 8;
-                }
-                for (; kk + 1 < max_kk0; kk += 2)
-                {
-                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint32_t b0 = *(const uint32_t*)pB;
-                    uint32_t b1 = *(const uint32_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
-                    pA += packn;
-                    pB += 8;
-
-                    _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b0 = *(const uint32_t*)pB;
-                    b1 = *(const uint32_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
-                    pA += packn;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint8m1_t _a8 = __riscv_vle8_v_i8m1(pA, vl);
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a8, 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    const uint32_t b0 = *(const uint32_t*)pB;
-                    const uint32_t b1 = *(const uint32_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b0, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b0 >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b0 >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b0 >> 24), _a, vl);
-                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)b1, _a, vl);
-                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b1 >> 8), _a, vl);
-                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b1 >> 16), _a, vl);
-                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b1 >> 24), _a, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint32m4_t _v32 = __riscv_vwadd_vx_i32m4(_v16, 0, vl);
+#else
+                    vint32m4_t _v32 = __riscv_vsext_vf4_i32m4(_v8, vl);
+#endif // __riscv_xtheadvector
+                    vint32m1_t _v = __riscv_vget_v_i32m4_i32m1(_v32, 0);
+                    uint64_t b = *(const uint64_t*)pB;
+                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _v, vl);
+                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _v, vl);
+                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _v, vl);
+                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _v, vl);
+                    _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (signed char)(b >> 32), _v, vl);
+                    _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (signed char)(b >> 40), _v, vl);
+                    _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (signed char)(b >> 48), _v, vl);
+                    _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (signed char)(b >> 56), _v, vl);
                     pA += packn;
                     pB += 8;
                 }
 
                 vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
-                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
-                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _descaleA, vl);
-                _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _descaleA, vl);
-                _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum4, vl), _descaleA, vl);
-                _fsum4 = __riscv_vfmacc_vf_f32m1(_fsum4, pB_descales[4], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum5, vl), _descaleA, vl);
-                _fsum5 = __riscv_vfmacc_vf_f32m1(_fsum5, pB_descales[5], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum6, vl), _descaleA, vl);
-                _fsum6 = __riscv_vfmacc_vf_f32m1(_fsum6, pB_descales[6], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum7, vl), _descaleA, vl);
-                _fsum7 = __riscv_vfmacc_vf_f32m1(_fsum7, pB_descales[7], _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
+                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
+                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _f1, vl);
+                vfloat32m1_t _f2 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _descaleA, vl);
+                _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _f2, vl);
+                vfloat32m1_t _f3 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _descaleA, vl);
+                _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _f3, vl);
+                vfloat32m1_t _f4 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum4, vl), _descaleA, vl);
+                _fsum4 = __riscv_vfmacc_vf_f32m1(_fsum4, pB_descales[4], _f4, vl);
+                vfloat32m1_t _f5 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum5, vl), _descaleA, vl);
+                _fsum5 = __riscv_vfmacc_vf_f32m1(_fsum5, pB_descales[5], _f5, vl);
+                vfloat32m1_t _f6 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum6, vl), _descaleA, vl);
+                _fsum6 = __riscv_vfmacc_vf_f32m1(_fsum6, pB_descales[6], _f6, vl);
+                vfloat32m1_t _f7 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum7, vl), _descaleA, vl);
+                _fsum7 = __riscv_vfmacc_vf_f32m1(_fsum7, pB_descales[7], _f7, vl);
                 pA_descales += packn;
                 pB_descales += 8;
             }
 
             __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
-            __riscv_vse32_v_f32m1(outptr + packn, _fsum1, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 1, _fsum1, vl);
             __riscv_vse32_v_f32m1(outptr + packn * 2, _fsum2, vl);
             __riscv_vse32_v_f32m1(outptr + packn * 3, _fsum3, vl);
             __riscv_vse32_v_f32m1(outptr + packn * 4, _fsum4, vl);
@@ -1755,6 +1551,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
             vfloat32m1_t _fsum0;
             vfloat32m1_t _fsum1;
             vfloat32m1_t _fsum2;
@@ -1769,7 +1566,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             else
             {
                 _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
-                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn, vl);
+                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn * 1, vl);
                 _fsum2 = __riscv_vle32_v_f32m1(outptr + packn * 2, vl);
                 _fsum3 = __riscv_vle32_v_f32m1(outptr + packn * 3, vl);
             }
@@ -1779,78 +1576,40 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum2 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum3 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum1 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum2 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum3 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint32_t b = *(const uint32_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint32_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint32_t*)(pB + 8);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint32_t*)(pB + 12);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
-                    pA += packn * 4;
-                    pB += 16;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    const uint32_t b = *(const uint32_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (signed char)(b >> 16), _a, vl);
-                    _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (signed char)(b >> 24), _a, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    _sum1 = __riscv_vwmacc_vx_i32m2(_sum1, pB[1], _v, vl);
+                    _sum2 = __riscv_vwmacc_vx_i32m2(_sum2, pB[2], _v, vl);
+                    _sum3 = __riscv_vwmacc_vx_i32m2(_sum3, pB[3], _v, vl);
                     pA += packn;
                     pB += 4;
                 }
 
                 vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
-                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
-                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum2, vl), _descaleA, vl);
-                _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum3, vl), _descaleA, vl);
-                _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), _descaleA, vl);
+                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum1, 0), vl), _descaleA, vl);
+                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _f1, vl);
+                vfloat32m1_t _f2 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum2, 0), vl), _descaleA, vl);
+                _fsum2 = __riscv_vfmacc_vf_f32m1(_fsum2, pB_descales[2], _f2, vl);
+                vfloat32m1_t _f3 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum3, 0), vl), _descaleA, vl);
+                _fsum3 = __riscv_vfmacc_vf_f32m1(_fsum3, pB_descales[3], _f3, vl);
                 pA_descales += packn;
                 pB_descales += 4;
             }
 
             __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
-            __riscv_vse32_v_f32m1(outptr + packn, _fsum1, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 1, _fsum1, vl);
             __riscv_vse32_v_f32m1(outptr + packn * 2, _fsum2, vl);
             __riscv_vse32_v_f32m1(outptr + packn * 3, _fsum3, vl);
             outptr += packn * 4;
@@ -1861,6 +1620,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
         {
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
             vfloat32m1_t _fsum0;
             vfloat32m1_t _fsum1;
             if (k == 0)
@@ -1871,7 +1631,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             else
             {
                 _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
-                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn, vl);
+                _fsum1 = __riscv_vle32_v_f32m1(outptr + packn * 1, vl);
             }
 
             const signed char* pA = pAT;
@@ -1879,127 +1639,110 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum1 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    uint16_t b = *(const uint16_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint16_t*)(pB + 2);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint16_t*)(pB + 4);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    b = *(const uint16_t*)(pB + 6);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
-                    pA += packn * 4;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    const uint16_t b = *(const uint16_t*)pB;
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (signed char)b, _a, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (signed char)(b >> 8), _a, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    _sum1 = __riscv_vwmacc_vx_i32m2(_sum1, pB[1], _v, vl);
                     pA += packn;
                     pB += 2;
                 }
 
                 vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), _descaleA, vl);
-                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _v, vl);
-                _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), _descaleA, vl);
-                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), _descaleA, vl);
+                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum1, 0), vl), _descaleA, vl);
+                _fsum1 = __riscv_vfmacc_vf_f32m1(_fsum1, pB_descales[1], _f1, vl);
                 pA_descales += packn;
                 pB_descales += 2;
             }
 
             __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
-            __riscv_vse32_v_f32m1(outptr + packn, _fsum1, vl);
+            __riscv_vse32_v_f32m1(outptr + packn * 1, _fsum1, vl);
             outptr += packn * 2;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
         }
         for (; jj < max_jj; jj++)
         {
-            const signed char* pB = pB_panel + k;
-            const float* pB_descales = pB_descales_panel + block_start;
-            vfloat32m1_t _fsum;
+            const signed char* pB = pB_panel + (size_t)1 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)1 * block_start;
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
+            vfloat32m1_t _fsum0;
             if (k == 0)
-                _fsum = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            {
+                _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            }
             else
-                _fsum = __riscv_vle32_v_f32m1(outptr, vl);
+            {
+                _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
+            }
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    const uint32_t b = (unsigned char)pB[0] | ((unsigned char)pB[1] << 8) | ((unsigned char)pB[2] << 16) | ((uint32_t)(unsigned char)pB[3] << 24);
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)b, _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 8), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 2, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 16), _a, vl);
-                    _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA + packn * 3, vl), 0, vl);
-                    _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, (signed char)(b >> 24), _a, vl);
-                    pA += packn * 4;
-                    pB += 4;
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    pA += packn;
+                    pB += 1;
+
+                    _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    pA += packn;
+                    pB += 1;
+
+                    _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    pA += packn;
+                    pB += 1;
+
+                    _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
+                    pA += packn;
+                    pB += 1;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pA, vl), 0, vl);
-                    vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                    vint32m1_t _a = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pB[0], _a, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pA, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pB[0], _v, vl);
                     pA += packn;
-                    pB++;
+                    pB += 1;
                 }
 
                 vfloat32m1_t _descaleA = __riscv_vle32_v_f32m1(pA_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), _descaleA, vl);
-                _fsum = __riscv_vfmacc_vf_f32m1(_fsum, pB_descales[0], _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), _descaleA, vl);
+                _fsum0 = __riscv_vfmacc_vf_f32m1(_fsum0, pB_descales[0], _f0, vl);
                 pA_descales += packn;
-                pB_descales++;
+                pB_descales += 1;
             }
 
-            __riscv_vse32_v_f32m1(outptr, _fsum, vl);
-            outptr += packn;
-            pB_panel += K;
-            pB_descales_panel += block_count;
+            __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
+            outptr += packn * 1;
+            pB_panel += (size_t)1 * K;
+            pB_descales_panel += (size_t)1 * block_count;
         }
 
         pAT += A_hstep * packn;
@@ -2013,7 +1756,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
         int jj = 0;
 #if __riscv_vector
-        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        for (; packn_n == 8 && jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
@@ -2037,51 +1780,26 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum1 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 16, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[4], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[5], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 24, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[6], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[7], _b, vl);
-                    pA += 8;
-                    pB += 32;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    _sum1 = __riscv_vwmacc_vx_i32m2(_sum1, pA[1], _v, vl);
                     pA += 2;
                     pB += 8;
                 }
 
                 vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
-                _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum1, 0), vl), pA_descales[1], vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _f1, vl);
                 pA_descales += 2;
                 pB_descales += 8;
             }
@@ -2094,9 +1812,9 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif // __riscv_vector
         for (; jj + 3 < max_jj; jj += 4)
         {
+#if __riscv_vector
             const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
-#if __riscv_vector
             const size_t vl = __riscv_vsetvl_e32m1(4);
             vfloat32m1_t _fsum0;
             vfloat32m1_t _fsum1;
@@ -2117,57 +1835,38 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum1 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 4, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[4], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[5], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 12, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[6], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[7], _b0, vl);
-                    pA += 8;
-                    pB += 16;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    _sum1 = __riscv_vwmacc_vx_i32m2(_sum1, pA[1], _v, vl);
                     pA += 2;
                     pB += 4;
                 }
 
                 vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
-                _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum1, 0), vl), pA_descales[1], vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _f1, vl);
                 pA_descales += 2;
                 pB_descales += 4;
             }
 
             __riscv_vsseg2e32_v_f32m1x2(outptr, __riscv_vcreate_v_f32m1x2(_fsum0, _fsum1), vl);
+            outptr += 8;
+            pB_panel += (size_t)4 * K;
+            pB_descales_panel += (size_t)4 * block_count;
+
 #else
+            const signed char* pB = pB_panel + (size_t)4 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             float sum00;
             float sum01;
             float sum02;
@@ -2262,16 +1961,17 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[5] = sum12;
             outptr[6] = sum03;
             outptr[7] = sum13;
-#endif // __riscv_vector
             outptr += 8;
             pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
+
+#endif // __riscv_vector
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
+#if __riscv_vector
             const signed char* pB = pB_panel + (size_t)2 * k;
             const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
-#if __riscv_vector
             const size_t vl = __riscv_vsetvl_e32m1(2);
             vfloat32m1_t _fsum0;
             vfloat32m1_t _fsum1;
@@ -2292,57 +1992,38 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                vint32m1_t _sum1 = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
+                vint32m2_t _sum1 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
-                for (; kk + 3 < max_kk0; kk += 4)
-                {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 2, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[2], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[3], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 4, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[4], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[5], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 6, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[6], _b0, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[7], _b0, vl);
-                    pA += 8;
-                    pB += 8;
-                }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum0 = __riscv_vmacc_vx_i32m1(_sum0, pA[0], _b, vl);
-                    _sum1 = __riscv_vmacc_vx_i32m1(_sum1, pA[1], _b, vl);
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    _sum1 = __riscv_vwmacc_vx_i32m2(_sum1, pA[1], _v, vl);
                     pA += 2;
                     pB += 2;
                 }
 
                 vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum0, vl), pA_descales[0], vl);
-                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _v, vl);
-                _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum1, vl), pA_descales[1], vl);
-                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _v, vl);
+                vfloat32m1_t _f0 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _f0, vl);
+                vfloat32m1_t _f1 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum1, 0), vl), pA_descales[1], vl);
+                _fsum1 = __riscv_vfmacc_vv_f32m1(_fsum1, _descaleB, _f1, vl);
                 pA_descales += 2;
                 pB_descales += 2;
             }
 
             __riscv_vsseg2e32_v_f32m1x2(outptr, __riscv_vcreate_v_f32m1x2(_fsum0, _fsum1), vl);
+            outptr += 4;
+            pB_panel += (size_t)2 * K;
+            pB_descales_panel += (size_t)2 * block_count;
+
 #else
+            const signed char* pB = pB_panel + (size_t)2 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)2 * block_start;
             float sum00;
             float sum01;
             float sum10;
@@ -2406,10 +2087,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[1] = sum10;
             outptr[2] = sum01;
             outptr[3] = sum11;
-#endif // __riscv_vector
             outptr += 4;
             pB_panel += (size_t)2 * K;
             pB_descales_panel += (size_t)2 * block_count;
+
+#endif // __riscv_vector
         }
         for (; jj < max_jj; jj++)
         {
@@ -2505,64 +2187,77 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 
         int jj = 0;
 #if __riscv_vector
-        for (; use_nr8 && jj + 7 < max_jj; jj += 8)
+        for (; packn_n == 8 && jj + 7 < max_jj; jj += 8)
         {
             const signed char* pB = pB_panel + (size_t)8 * k;
             const float* pB_descales = pB_descales_panel + (size_t)8 * block_start;
             const size_t vl = __riscv_vsetvl_e32m1(8);
-            vfloat32m1_t _fsum;
+            vfloat32m1_t _fsum0;
             if (k == 0)
-                _fsum = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            {
+                _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            }
             else
-                _fsum = __riscv_vle32_v_f32m1(outptr, vl);
+            {
+                _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
+            }
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 16, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[2], _b, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 24, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[3], _b, vl);
-                    pA += 4;
-                    pB += 32;
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 8;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 8;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 8;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 8;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b, vl);
-                    pA++;
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
                     pB += 8;
                 }
 
                 vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), pA_descales[0], vl);
-                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _descaleB, _v, vl);
-                pA_descales++;
+                vfloat32m1_t _f0 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _f0, vl);
+                pA_descales += 1;
                 pB_descales += 8;
             }
 
-            __riscv_vse32_v_f32m1(outptr, _fsum, vl);
+            __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
             outptr += 8;
             pB_panel += (size_t)8 * K;
             pB_descales_panel += (size_t)8 * block_count;
@@ -2570,64 +2265,83 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #endif // __riscv_vector
         for (; jj + 3 < max_jj; jj += 4)
         {
+#if __riscv_vector
             const signed char* pB = pB_panel + (size_t)4 * k;
             const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
-#if __riscv_vector
             const size_t vl = __riscv_vsetvl_e32m1(4);
-            vfloat32m1_t _fsum;
+            vfloat32m1_t _fsum0;
             if (k == 0)
-                _fsum = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            {
+                _fsum0 = __riscv_vfmv_v_f_f32m1(0.f, vl);
+            }
             else
-                _fsum = __riscv_vle32_v_f32m1(outptr, vl);
+            {
+                _fsum0 = __riscv_vle32_v_f32m1(outptr, vl);
+            }
 
             const signed char* pA = pAT;
             const float* pA_descales = pAT_descales;
             for (int kk0 = 0; kk0 < max_kk; kk0 += block_size)
             {
                 const int max_kk0 = std::min(max_kk - kk0, block_size);
-                vint32m1_t _sum = __riscv_vmv_v_x_i32m1(0, vl);
+                vint32m2_t _sum0 = __riscv_vmv_v_x_i32m2(0, vl);
 
                 int kk = 0;
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 4, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[1], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 8, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[2], _b0, vl);
-                    _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB + 12, vl), 0, vl);
-                    _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    _b0 = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[3], _b0, vl);
-                    pA += 4;
-                    pB += 16;
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 4;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 4;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 4;
+
+                    _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
+                    pB += 4;
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    vint16m2_t _b16 = __riscv_vwadd_vx_i16m2(__riscv_vle8_v_i8m1(pB, vl), 0, vl);
-                    vint32m4_t _b32 = __riscv_vwadd_vx_i32m4(_b16, 0, vl);
-                    vint32m1_t _b = __riscv_vget_v_i32m4_i32m1(_b32, 0);
-                    _sum = __riscv_vmacc_vx_i32m1(_sum, pA[0], _b, vl);
-                    pA++;
+                    vint8m1_t _v8 = __riscv_vle8_v_i8m1(pB, vl);
+                    vint16m2_t _v16 = __riscv_vwadd_vx_i16m2(_v8, 0, vl);
+                    vint16m1_t _v = __riscv_vget_v_i16m2_i16m1(_v16, 0);
+                    _sum0 = __riscv_vwmacc_vx_i32m2(_sum0, pA[0], _v, vl);
+                    pA += 1;
                     pB += 4;
                 }
 
                 vfloat32m1_t _descaleB = __riscv_vle32_v_f32m1(pB_descales, vl);
-                vfloat32m1_t _v = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(_sum, vl), pA_descales[0], vl);
-                _fsum = __riscv_vfmacc_vv_f32m1(_fsum, _descaleB, _v, vl);
-                pA_descales++;
+                vfloat32m1_t _f0 = __riscv_vfmul_vf_f32m1(__riscv_vfcvt_f_x_v_f32m1(__riscv_vget_v_i32m2_i32m1(_sum0, 0), vl), pA_descales[0], vl);
+                _fsum0 = __riscv_vfmacc_vv_f32m1(_fsum0, _descaleB, _f0, vl);
+                pA_descales += 1;
                 pB_descales += 4;
             }
 
-            __riscv_vse32_v_f32m1(outptr, _fsum, vl);
+            __riscv_vse32_v_f32m1(outptr, _fsum0, vl);
+            outptr += 4;
+            pB_panel += (size_t)4 * K;
+            pB_descales_panel += (size_t)4 * block_count;
+
 #else
+            const signed char* pB = pB_panel + (size_t)4 * k;
+            const float* pB_descales = pB_descales_panel + (size_t)4 * block_start;
             float sum0;
             float sum1;
             float sum2;
@@ -2692,10 +2406,11 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
             outptr[1] = sum1;
             outptr[2] = sum2;
             outptr[3] = sum3;
-#endif // __riscv_vector
             outptr += 4;
             pB_panel += (size_t)4 * K;
             pB_descales_panel += (size_t)4 * block_count;
+
+#endif // __riscv_vector
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -2855,7 +2570,8 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
     int ii = 0;
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const int nr = csrr_vlenb() >= 32 ? 8 : 4;
+    // keep the panel width consistent with pack_B_tile_wq_int8
+    const int packn_n = packn >= 8 ? 8 : 4;
     const int c_elempack = C.elempack;
     const size_t vl_packn = __riscv_vsetvl_e32m2(packn);
     const ptrdiff_t c_stride = (ptrdiff_t)c_hstep * sizeof(float);
@@ -3076,7 +2792,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         {
             for (; jj < max_jj;)
             {
-                const size_t vl = __riscv_vsetvl_e32m2(std::min(nr, max_jj - jj));
+                const size_t vl = __riscv_vsetvl_e32m2(std::min(packn_n, max_jj - jj));
                 vfloat32m2x2_t _s = __riscv_vlseg2e32_v_f32m2x2(pp, vl);
                 vfloat32m2_t _sum0 = __riscv_vget_v_f32m2x2_f32m2(_s, 0);
                 vfloat32m2_t _sum1 = __riscv_vget_v_f32m2x2_f32m2(_s, 1);
@@ -3158,7 +2874,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         {
             while (jj + 3 < max_jj)
             {
-                const size_t vl = __riscv_vsetvl_e32m4(std::min(nr, max_jj - jj));
+                const size_t vl = __riscv_vsetvl_e32m4(std::min(packn_n, max_jj - jj));
                 vfloat32m4x2_t _s = __riscv_vlseg2e32_v_f32m4x2(pp, vl);
                 vfloat32m4_t _sum0 = __riscv_vget_v_f32m4x2_f32m4(_s, 0);
                 vfloat32m4_t _sum1 = __riscv_vget_v_f32m4x2_f32m4(_s, 1);
@@ -3590,7 +3306,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         {
             for (; jj < max_jj;)
             {
-                const size_t vl = __riscv_vsetvl_e32m2(std::min(nr, max_jj - jj));
+                const size_t vl = __riscv_vsetvl_e32m2(std::min(packn_n, max_jj - jj));
                 vfloat32m2_t _sum = __riscv_vle32_v_f32m2(pp, vl);
 
                 if (pC)
@@ -3639,7 +3355,7 @@ static void unpack_output_tile_wq_int8(const Mat& topT, const Mat& C, Mat& top_b
         {
             while (jj + 3 < max_jj)
             {
-                const size_t vl = __riscv_vsetvl_e32m4(std::min(nr, max_jj - jj));
+                const size_t vl = __riscv_vsetvl_e32m4(std::min(packn_n, max_jj - jj));
                 vfloat32m4_t _sum = __riscv_vle32_v_f32m4(pp, vl);
 
                 if (pC)
@@ -3911,14 +3627,15 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(float)));
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const int nr = csrr_vlenb() >= 32 ? 8 : 4;
+    // keep the panel width consistent with pack_B_tile_wq_int8
+    const int packn_n = packn >= 8 ? 8 : 4;
 #else
     const int packn = 2;
-    const int nr = 4;
+    const int packn_n = 4;
 #endif // __riscv_vector
 
     TILE_M = std::max(packn, tile_size / packn * packn);
-    TILE_N = std::max(nr, tile_size / nr * nr);
+    TILE_N = std::max(packn_n, tile_size / packn_n * packn_n);
     TILE_K = std::max(block_size, tile_size / block_size * block_size);
 
     if (K > 0)
@@ -3931,7 +3648,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
         {
             tile_size = std::max(1, (int)((float)l2_cache_size / 2 / sizeof(signed char) / TILE_K));
             TILE_M = std::max(packn, tile_size / packn * packn);
-            TILE_N = std::max(nr, tile_size / nr * nr);
+            TILE_N = std::max(packn_n, tile_size / packn_n * packn_n);
         }
     }
 
@@ -3946,7 +3663,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + nr - 1) / nr * nr);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + packn_n - 1) / packn_n * packn_n);
     }
 
     if (nT > 1)
@@ -3962,7 +3679,7 @@ static void get_optimal_tile_mnk_wq_int8(int M, int N, int K, int block_size, in
 
     if (constant_TILE_N > 0)
     {
-        TILE_N = (constant_TILE_N + nr - 1) / nr * nr;
+        TILE_N = (constant_TILE_N + packn_n - 1) / packn_n * packn_n;
     }
 
     if (constant_TILE_K > 0)

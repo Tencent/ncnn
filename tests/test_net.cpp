@@ -10,6 +10,7 @@
 #include "modelbin.h"
 #include "net.h"
 #include "paramdict.h"
+#include "testutil.h"
 
 #if defined _WIN32
 #include <process.h>
@@ -989,6 +990,109 @@ static int test_model_file()
 }
 #endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 
+#if NCNN_VULKAN
+class OptionalInputLayer : public ncnn::Layer
+{
+public:
+    OptionalInputLayer(bool _support_vulkan)
+    {
+        one_blob_only = false;
+        support_vulkan = _support_vulkan;
+    }
+
+    virtual int forward(const std::vector<ncnn::Mat>& bottom_blobs, std::vector<ncnn::Mat>& top_blobs, const ncnn::Option&) const
+    {
+        top_blobs[0] = bottom_blobs.size() == 2 && !bottom_blobs[1].empty() ? bottom_blobs[1] : bottom_blobs[0];
+        return 0;
+    }
+
+    virtual int forward(const std::vector<ncnn::VkMat>& bottom_blobs, std::vector<ncnn::VkMat>& top_blobs, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
+    {
+        const ncnn::VkMat& a = bottom_blobs.size() == 2 && !bottom_blobs[1].empty() ? bottom_blobs[1] : bottom_blobs[0];
+        cmd.record_clone(a, top_blobs[0], opt);
+        return top_blobs[0].empty() ? -100 : 0;
+    }
+};
+
+static ncnn::Layer* create_optional_input_layer(void*)
+{
+    return new OptionalInputLayer(false);
+}
+
+static ncnn::Layer* create_optional_input_layer_vulkan(void*)
+{
+    return new OptionalInputLayer(true);
+}
+
+static int test_vulkan_optional_input(int vulkan, int lightmode, int empty_input)
+{
+    ncnn::Net net;
+    net.opt.use_vulkan_compute = true;
+    net.opt.lightmode = lightmode;
+    net.opt.num_threads = 1;
+    net.register_custom_layer("OptionalInput", create_optional_input_layer);
+    net.register_custom_layer("OptionalInputVulkan", create_optional_input_layer_vulkan);
+
+    const char* param_cpu = "7767517\n"
+                            "4 4\n"
+                            "Input in 0 1 in\n"
+                            "Input optional 0 1 optional\n"
+                            "OptionalInputVulkan pre 1 1 in data\n"
+                            "OptionalInput target 2 1 data optional out\n";
+    const char* param_vulkan = "7767517\n"
+                               "4 4\n"
+                               "Input in 0 1 in\n"
+                               "Input optional 0 1 optional\n"
+                               "OptionalInput pre 1 1 in data\n"
+                               "OptionalInputVulkan target 2 1 data optional out\n";
+    BoundedNetReader dr(0, 0);
+    if (net.load_param_mem(vulkan ? param_vulkan : param_cpu) != 0 || net.load_model(dr) != 0)
+    {
+        fprintf(stderr, "test_net vulkan optional input load failed vulkan=%d lightmode=%d\n", vulkan, lightmode);
+        return -1;
+    }
+
+    ncnn::Mat in(4);
+    ncnn::Mat optional(4);
+    for (int i = 0; i < 4; i++)
+    {
+        in[i] = i + 1.f;
+        optional[i] = i + 11.f;
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("in", in);
+    if (!empty_input)
+        ex.input("optional", optional);
+
+    ncnn::Mat out;
+    int ret = ex.extract("out", out);
+    const ncnn::Mat& expected = empty_input ? in : optional;
+    if (ret != 0 || CompareMat(expected, out, 0.f) != 0)
+    {
+        fprintf(stderr, "test_net vulkan optional input failed vulkan=%d lightmode=%d empty_input=%d ret=%d\n", vulkan, lightmode, empty_input, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_vulkan_optional_input()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    return test_vulkan_optional_input(0, 0, 1)
+           || test_vulkan_optional_input(0, 0, 0)
+           || test_vulkan_optional_input(0, 1, 1)
+           || test_vulkan_optional_input(0, 1, 0)
+           || test_vulkan_optional_input(1, 0, 1)
+           || test_vulkan_optional_input(1, 0, 0)
+           || test_vulkan_optional_input(1, 1, 1)
+           || test_vulkan_optional_input(1, 1, 0);
+}
+#endif // NCNN_VULKAN
+
 #if NCNN_VALIDATION
 static int test_text_errors()
 {
@@ -1276,6 +1380,9 @@ int main()
 #if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
            || test_model_file()
 #endif
+#if NCNN_VULKAN
+           || test_vulkan_optional_input()
+#endif // NCNN_VULKAN
 #if NCNN_VALIDATION
            || test_text_errors()
            || test_binary_errors()
