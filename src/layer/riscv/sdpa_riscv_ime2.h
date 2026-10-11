@@ -11,6 +11,7 @@
 #ifndef SDPA_RISCV_IME2_H
 #define SDPA_RISCV_IME2_H
 
+#include "platform.h"
 #include <float.h>
 #include <math.h>
 #include <chrono>
@@ -19,6 +20,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined __linux__
+#include <sched.h>
+#endif
 
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2 && __riscv_v
 
@@ -38,43 +42,90 @@ static void sdpa_ime2_sigill(int)
     siglongjmp(g_sdpa_ime2_jb, 1);
 }
 
-static int ime2_probe(void)
+#if defined __linux__
+/* 异构双簇（K3：A100 的 VLEN=1024，X100 的 VLEN=512）下，"探测时所在的核对"与
+ * "前向时 OpenMP 工人实际落到的核对"可能不同：前者恰好是 A100 就把 true 缓存
+ * 下来，后者落到 X100 就吃 SIGILL。所以探测要覆盖 affinity mask 里的**每一个**
+ * 核对：逐个把调用线程移过去读 vlenb，128B（1024bit）才算数。 */
+static int sdpa_ime2_probe_affinity()
 {
-    static int done = 0, result = 0;
-    if (done)
-        return result;
-    done = 1;
+    cpu_set_t cs;
+    if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
+        return 0;   /* 无法确认亲和性：保守关闭 */
+    const cpu_set_t orig = cs;
+    int all_ok = 1;
+    for (int c = 0; c < CPU_SETSIZE && all_ok; c++)
+    {
+        if (!CPU_ISSET(c, &cs))
+            continue;
+        cpu_set_t one;
+        CPU_ZERO(&one);
+        CPU_SET(c, &one);
+        if (sched_setaffinity(0, sizeof(one), &one) != 0)
+        {
+            all_ok = 0;   /* 移不过去就无法确认那个核对 */
+            break;
+        }
+        unsigned long vlenb = 0;
+        __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+        if (vlenb != 128)
+            all_ok = 0;
+    }
+    sched_setaffinity(0, sizeof(orig), &orig);   /* 恢复 */
+    return all_ok;
+}
+#else
+static int sdpa_ime2_probe_affinity()
+{
+    return 0;
+}
+#endif // __linux__
 
-    unsigned long vlenb = 0;
-    __asm__ volatile("csrr %0, vlenb"
-                     : "=r"(vlenb));
-    if (vlenb != 128) /* IME2 fp16 矩阵单元只在 VLEN=1024 的 A100 上 */
+static int sdpa_ime2_probe_locked()
+{
+    /* (a) 亲和性：本进程所有允许核对的 vlenb 都必须是 1024bit */
+    if (!sdpa_ime2_probe_affinity())
         return 0;
 
+    /* (b) 指令本身：SIGILL 保护下执行一条零向量 vfwmadot */
     struct sigaction sa, old;
     memset(&sa, 0, sizeof sa);
     sa.sa_handler = sdpa_ime2_sigill;
     sigaction(SIGILL, &sa, &old);
 
+    int ok = 0;
     if (sigsetjmp(g_sdpa_ime2_jb, 1) == 0)
     {
-        /* 真正探测：执行一条 vfwmadot（零向量，无副作用） */
         __asm__ volatile(
-            "vsetvli t0, zero, e16, m1, tu, mu\n\t"
-            "vmv.v.i v2, 0\n\t"
-            "vmv.v.i v8, 0\n\t"
-            "smt.vfwmadot v16, v2, v8\n\t"
+            "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* e32m2 下清零累加器 v16:v17 */
+            "vmv.v.i v16, 0\n\t"
+            "vsetvli t0, zero, e16, m1, tu, mu\n\t" /* 回到 LMUL=1 再执行 vfwmadot */
+            "vmv.v.i v0, 0\n\t"
+            "vmv.v.i v1, 0\n\t"
+            "smt.vfwmadot v16, v0, v1\n\t"
             :
             :
-            : "t0", "v2", "v8", "v16", "v17");
-        result = 1;
+            : "t0", "v0", "v1", "v16", "v17", "memory");
+        ok = 1;
     }
-    else
-    {
-        result = 0;
-    }
+    sigaction(SIGILL, &old, NULL);
+    return ok;
+}
 
-    sigaction(SIGILL, &old, 0);
+/* 返回 1 = 本进程的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
+ * 探测会临时替换进程级 SIGILL 处理器并使用共享 sigjmp_buf，两个线程并发进入
+ * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。 */
+static int ime2_probe(void)
+{
+    static int result = -1;   /* -1 = 未探测 */
+    if (result >= 0)
+        return result;
+
+    static ncnn::Mutex lock;
+    ncnn::MutexLockGuard g(lock);
+    if (result >= 0)          /* 锁内复查 */
+        return result;
+    result = sdpa_ime2_probe_locked();
     return result;
 }
 
