@@ -13,7 +13,7 @@ static int test_datareader_memory()
     ncnn::DataReaderFromMemory dr(mem, sizeof(data));
 
     const void* ref = 0;
-    if (dr.reference((size_t) -1, &ref) != 0 || ref != 0 || mem != data)
+    if (dr.reference((size_t)-1, &ref) != 0 || ref != 0 || mem != data)
     {
         fprintf(stderr, "test_datareader_memory reference bounds failed\n");
         return -1;
@@ -26,7 +26,7 @@ static int test_datareader_memory()
     }
 
     unsigned char buf[4] = {0};
-    if (dr.read(buf, (size_t) -1) != 2 || mem != data + sizeof(data) || memcmp(buf, data + 2, 2) || buf[2] != 0)
+    if (dr.read(buf, (size_t)-1) != 2 || mem != data + sizeof(data) || memcmp(buf, data + 2, 2) || buf[2] != 0)
     {
         fprintf(stderr, "test_datareader_memory short read failed\n");
         return -1;
@@ -116,7 +116,7 @@ static int test_datareader_scan_bounds()
     mem = mixed;
     ncnn::DataReaderFromMemory dr2(mem, sizeof(mixed));
     if (dr2.scan("%d", &value) != 1 || value != 7 || mem != mixed + 1 || dr2.read(&buf, 1) != 1 || buf != ' '
-        || dr2.reference(2, &ref) != 2 || ref != mixed + 2 || mem != mixed + sizeof(mixed) || dr2.scan("%d", &value) != 0)
+            || dr2.reference(2, &ref) != 2 || ref != mixed + 2 || mem != mixed + sizeof(mixed) || dr2.scan("%d", &value) != 0)
     {
         fprintf(stderr, "test_datareader_scan_bounds mixed read failed\n");
         return -1;
