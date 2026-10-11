@@ -42,6 +42,13 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         const size_t row_bytes = (size_t)w * elemsize;
         const unsigned char* src = (const unsigned char*)bottom_blob.data;
         unsigned char* dst = (unsigned char*)top_blob.data;
+        /* Mat pads every channel plane up to 16 bytes, so a plane stride is
+         * cstep, not w * h. With w=1, h=2, c=7 in fp32 the input plane is only
+         * 8 bytes; assuming tight packing then starts reading the second input
+         * channel 8 bytes early and writing the second output channel 4 bytes
+         * early, which corrupts the result for every misaligned shape. */
+        const size_t src_cstep = bottom_blob.cstep;
+        const size_t dst_cstep = top_blob.cstep;
 
         /* 每行 w 个元素连续（prefill 常见 128~256B），但行数很多（h*channels 达上千），
                                                                          * 逐行 memcpy 的调用开销就成了瓶颈（实测 115 token 时仅 1.75 GB/s，而流式墙是 15 GB/s）。
@@ -49,10 +56,11 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < h; q++)
         {
-            unsigned char* drow = dst + (size_t)q * channels * row_bytes;
+            unsigned char* drow = dst + (size_t)q * dst_cstep * elemsize;
             for (int i = 0; i < channels; i++)
             {
-                const unsigned char* srow = src + ((size_t)i * h + q) * row_bytes;
+                const unsigned char* srow = src + (size_t)i * src_cstep * elemsize
+                                            + (size_t)q * row_bytes;
 #if __riscv_vector
                 size_t off = 0;
                 while (off < row_bytes)
