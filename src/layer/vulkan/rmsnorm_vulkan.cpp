@@ -36,6 +36,15 @@ RMSNorm_vulkan::RMSNorm_vulkan()
 
 int RMSNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
     // Reuse the LN reduce_sum4 / reduce_mean size and local workgroup configuration [from LN code].
     // square: only compute x^2; coeffs: a = 1 / sqrt(rms + eps); norm: v = v * a; (if affine: v *= gamma)
     {
@@ -107,14 +116,16 @@ int RMSNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_rmsnorm_norm_pack4->create(LayerShaderType::rmsnorm_norm_pack4, opt, spec);
     }
 
-    if (vkdev->info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)
+    if (use_subgroup_ops)
     {
         pipeline_rmsnorm_reduce_subgroup = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_subgroup->set_local_size_xyz(256, 1, 1);
+        pipeline_rmsnorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_rmsnorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
         pipeline_rmsnorm_reduce_subgroup->create(LayerShaderType::rmsnorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
 
         pipeline_rmsnorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_subgroup_pack4->set_local_size_xyz(256, 1, 1);
+        pipeline_rmsnorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_rmsnorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
         pipeline_rmsnorm_reduce_subgroup_pack4->create(LayerShaderType::rmsnorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
 
@@ -233,8 +244,8 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         VkMat dispatcher;
         dispatcher.w = 1;
-        dispatcher.h = num_groups_total;
-        dispatcher.c = 1;
+        dispatcher.h = num_groups_per_channel;
+        dispatcher.c = channels;
 
         cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);
     }
@@ -344,7 +355,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     }
 
     // 3) coeffs (a) from rms
-    VkMat coeffs_workspace(num_groups_total, elemsize, elempack, opt.workspace_vkallocator); // only a, no b
+    VkMat coeffs_workspace(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator); // only a, no b
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = coeffs_workspace;
