@@ -36,16 +36,25 @@ LayerNorm_vulkan::LayerNorm_vulkan()
 
 int LayerNorm_vulkan::create_pipeline(const Option& opt)
 {
-    const bool use_subgroup = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT);
-
-    if (use_subgroup)
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
+    if (use_subgroup_ops)
     {
         pipeline_layernorm_reduce_subgroup = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_subgroup->set_local_size_xyz(256, 1, 1);
+        pipeline_layernorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_layernorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
         pipeline_layernorm_reduce_subgroup->create(LayerShaderType::layernorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
 
         pipeline_layernorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-        pipeline_layernorm_reduce_subgroup_pack4->set_local_size_xyz(256, 1, 1);
+        pipeline_layernorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_layernorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
         pipeline_layernorm_reduce_subgroup_pack4->create(LayerShaderType::layernorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
     else
@@ -245,8 +254,8 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         VkMat dispatcher;
         dispatcher.w = 1;
-        dispatcher.h = num_groups_total;
-        dispatcher.c = 1;
+        dispatcher.h = num_groups_per_channel;
+        dispatcher.c = channels;
 
         cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);
     }
@@ -420,7 +429,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     // coeffs a and b ---
     // coeffs_workspace stores {a, b} for each group, so size is num_groups_total * 2
-    VkMat coeffs_workspace(num_groups_total * 2, elemsize, elempack, opt.workspace_vkallocator);
+    VkMat coeffs_workspace(num_groups_total * 2, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> coeff_bindings(3);
         coeff_bindings[0] = coeffs_workspace;
