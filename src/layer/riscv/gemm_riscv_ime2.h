@@ -150,17 +150,27 @@ static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K, int nT =
         {
             ime2_fp16* t = d + (size_t)i * ldat + (size_t)j * 64;
             const int gk0 = j * 8;
-            // 快路径：整块在界内 —— 每行 16 字节直接拷贝。
-            // 任意 elempack 都适用：tile 行 r 对应的 8 个 fp16 在 ncnn 打包布局中同样连续，
-            // 源地址按 (gm/p, gm%p) 逐行计算即可。
+            // 快路径：整块在界内。
+            // p == 1 时一行的 8 个 k 连续，直接拷贝 16 字节。
+            // p > 1 时 ncnn 的布局是 [m/p][k][p]：同一 m 行相邻 k 之间隔着 p 个 fp16，
+            // 紧邻的 8 个 fp16 是同一 k 列上相邻的 pack lane，也就是**其他 m 行**，
+            // 因此必须按 stride p 逐个 gather，不能整块 memcpy。
             if (gm0 + 8 <= M && gk0 + 8 <= K)
             {
-                for (int r = 0; r < 8; r++)
+                if (p == 1)
                 {
-                    const int gm = gm0 + r;
-                    const ime2_fp16* src = (p == 1) ? (a + (size_t)gm * K + gk0)
-                                           : (a + ((size_t)(gm / p) * K + gk0) * p + gm % p);
-                    memcpy(t + r * 8, src, 16);
+                    for (int r = 0; r < 8; r++)
+                        memcpy(t + r * 8, a + (size_t)(gm0 + r) * K + gk0, 16);
+                }
+                else
+                {
+                    for (int r = 0; r < 8; r++)
+                    {
+                        const int gm = gm0 + r;
+                        const ime2_fp16* src = a + ((size_t)(gm / p) * K + gk0) * p + gm % p;
+                        for (int c = 0; c < 8; c++)
+                            t[r * 8 + c] = src[(size_t)c * p];
+                    }
                 }
             }
             else
@@ -790,7 +800,11 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
                 }
             }
             /* 64 个 fp32 -> fp16 连续写 128B（vl=64：VLEN=1024 下 e32m2 上限正好 64） */
-            const int n = jn * 8;
+            /* jn counts tiles, so jn*8 rounds the width up to a multiple of 8.
+             * The real output has only N columns; without this cap the store
+             * below writes up to seven elements past top_blob and, since the
+             * buffers are adjacent, can overwrite allocator bookkeeping. */
+            const int n = ((j + jn) * 8 < N) ? jn * 8 : (N - j * 8);
             int c = 0;
             while (c < n)
             {
@@ -814,8 +828,14 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
      * 实测 GEMM 只有 58 GFLOP/s/核 ≈ 硬件 IME2 能力的 6%（8 核并发实测 925 GFLOP/s/核）。
      * 并行按块划分（collapse(2) 外层为 jb），每个线程只碰自己那一列块。 */
     const int IB = 8, JB = 8; // 单位是 16x16 tile 对（i/j 步长 2）
-    const int nib = (mt / 2 + IB - 1) / IB;
-    const int njb = (nt / 2 + JB - 1) / JB;
+    /* mt/nt count 8-wide tiles, so the number of 16-wide tile PAIRS is a ceiling:
+     * with an odd mt the last tile still has to be computed, and M <= 8 must still
+     * produce one pair (mt == 1 gives mt/2 == 0 and the block loop would never
+     * run). Floor division here silently dropped those output rows/columns. */
+    const int mti = (mt + 1) / 2;
+    const int nti = (nt + 1) / 2;
+    const int nib = (mti + IB - 1) / IB;
+    const int njb = (nti + JB - 1) / JB;
     /* 异构双簇分工（A100 IME2 + X100 RVV）已实验并否决 —— 平台限制，不是代码问题：
                                      *  (1) 两簇并发确实互不干扰（两个进程分别绑核：A100 374 + X100 120 = 490 t/s，潜力 +31%）；
                                      *  (2) 但 /proc/set_ai_thread 注册（A100 上拿到 VLEN=1024 的前提）会把进程**限制在 A100 簇内**：
