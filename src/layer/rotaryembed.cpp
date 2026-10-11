@@ -22,6 +22,77 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     // assert bottom_blobs.size() == 3
 
     const Mat& bottom_blob = bottom_blobs[0];
+
+    /* The fused (input_hc_swapped) path below is fp32/pack1 only. Backends that
+     * do not implement it delegate here, so a 16-bit or packed fused input must
+     * not fall into the fp32 loops: that would read the storage as float and
+     * write twice the row width into a 16-bit output blob. Convert to
+     * fp32/pack1, run the same code, and convert the result back. */
+    if (input_hc_swapped && (bottom_blob.elembits() != 32 || bottom_blob.elempack != 1))
+    {
+        Mat q32, cos32, sin32, top32;
+
+        const Mat& cos_cache = bottom_blobs[1];
+        const Mat& sin_cache = bottom_blobs[2];
+
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+            cast_bfloat16_to_float32(bottom_blob, q32, opt);
+        else
+            cast_float16_to_float32(bottom_blob, q32, opt);
+        if (cos_cache.elembits() != 32)
+        {
+            if (opt.use_bf16_storage && cos_cache.elembits() == 16)
+                cast_bfloat16_to_float32(cos_cache, cos32, opt);
+            else
+                cast_float16_to_float32(cos_cache, cos32, opt);
+        }
+        else cos32 = cos_cache;
+        if (sin_cache.elembits() != 32)
+        {
+            if (opt.use_bf16_storage && sin_cache.elembits() == 16)
+                cast_bfloat16_to_float32(sin_cache, sin32, opt);
+            else
+                cast_float16_to_float32(sin_cache, sin32, opt);
+        }
+        else sin32 = sin_cache;
+
+        /* cast keeps the packing; the fused indexing needs pack1 */
+        if (q32.elempack != 1)
+        {
+            Mat q32_p1;
+            convert_packing(q32, q32_p1, 1, opt);
+            q32 = q32_p1;
+        }
+
+        std::vector<Mat> in32(3);
+        in32[0] = q32;
+        in32[1] = cos32;
+        in32[2] = sin32;
+        std::vector<Mat> out32(1);
+        int ret = forward(in32, out32, opt);   // fp32/pack1 now: normal path below
+        if (ret != 0)
+            return ret;
+
+        Mat& top_blob = top_blobs[0];
+        const Mat& t32 = out32[0];
+        if (bottom_blob.elembits() == 16)
+        {
+            if (opt.use_bf16_storage)
+                cast_float32_to_bfloat16(t32, top_blob, opt);
+            else
+                cast_float32_to_float16(t32, top_blob, opt);
+        }
+        else
+            top_blob = t32;
+        if (top_blob.elempack != bottom_blob.elempack)
+        {
+            Mat packed;
+            convert_packing(top_blob, packed, bottom_blob.elempack, opt);
+            top_blob = packed;
+        }
+        return 0;
+    }
+
     const Mat& cos_cache = bottom_blobs[1];
     const Mat& sin_cache = bottom_blobs[2];
 
