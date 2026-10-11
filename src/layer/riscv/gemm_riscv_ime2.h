@@ -119,17 +119,21 @@ static int ime2_pack_B(const ncnn::Mat& B, ncnn::Mat& BT, int N, int K)
 
 /* A: [M,K] fp16（elempack 任意）-> 8x8 tile 连续布局 [mt][kt][64] fp16
  * ncnn 打包布局：元素 (m,k) 在 ((m/p)*K + k)*p + m%p */
-static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K, int nT = 1)
+static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K, int nT = 1, ncnn::Allocator* alloc = 0)
 {
     const int mt = (M + 7) / 8, kt = (K + 7) / 8;
     const size_t ldat = IME2_TILE_LD(kt);
-    AT.create((size_t)mt * ldat, (size_t)2u, 1, (ncnn::Allocator*)0);
+    AT.create((size_t)mt * ldat, (size_t)2u, 1, alloc);
     if (AT.empty())
         return -100;
     ime2_fp16* d = (ime2_fp16*)AT;
 
     const ime2_fp16* a = (const ime2_fp16*)A;
     const int p = A.elempack;
+    /* 3-D A 的通道间行距（按元素计）是 cstep*p：Mat 把每面 padding 到 16B，
+     * cstep 记录的是 pack-group 数。例如 elempack==1 且 K==9 时 cstep=16，
+     * 按 K*p 推进就会从第二行起读进 padding。与上游 RVV packer 同一惯例。 */
+    const size_t as = A.dims == 3 ? (size_t)A.cstep * p : (size_t)K * p;
 
     // 按 tile 行并行：prefill 下 pack_A 是纯数据搬运（每次调用 ~1MB），
     // 单线程时约占 GEMM 墙钟的 6%（196 次调用累计 ~78ms）。
@@ -160,14 +164,14 @@ static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K, int nT =
                 if (p == 1)
                 {
                     for (int r = 0; r < 8; r++)
-                        memcpy(t + r * 8, a + (size_t)(gm0 + r) * K + gk0, 16);
+                        memcpy(t + r * 8, a + (size_t)(gm0 + r) * as + gk0, 16);
                 }
                 else
                 {
                     for (int r = 0; r < 8; r++)
                     {
                         const int gm = gm0 + r;
-                        const ime2_fp16* src = a + ((size_t)(gm / p) * K + gk0) * p + gm % p;
+                        const ime2_fp16* src = a + (size_t)(gm / p) * as + gk0 * p + gm % p;
                         for (int c = 0; c < 8; c++)
                             t[r * 8 + c] = src[(size_t)c * p];
                     }
@@ -183,9 +187,9 @@ static int ime2_pack_A(const ncnn::Mat& A, ncnn::Mat& AT, int M, int K, int nT =
                         if (gm < M && gk < K)
                         {
                             if (p == 1)
-                                v = a[(size_t)gm * K + gk];
+                                v = a[(size_t)gm * as + gk];
                             else
-                                v = a[((size_t)(gm / p) * K + gk) * p + gm % p];
+                                v = a[(size_t)(gm / p) * as + gk * p + gm % p];
                         }
                         t[r * 8 + c] = v;
                     }
@@ -501,7 +505,9 @@ static void ime2_gemv_m1_i8c(const signed char* a8, float a_scale,
             vint8m2_t wv = __riscv_vle8_v_i8m2(w + k, vl);
             vint16m4_t a16 = __riscv_vwadd_vx_i16m4(av, 0, vl);
             vint16m4_t w16 = __riscv_vwadd_vx_i16m4(wv, 0, vl);
-            acc = __riscv_vwmacc_vv_i32m8(acc, a16, w16, vl);
+            /* _tu：K 不是 256 的整数倍（VLEN=1024 上 e32m8 的 vlmax）时最后一个
+             * 短 vl 的 vwmacc 尾部是 agnostic，而下面的归约读整个 vlmax 个 lane。 */
+            acc = __riscv_vwmacc_vv_i32m8_tu(acc, a16, w16, vl);
             k += (int)vl;
         }
         const int isum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m8_i32m1(acc, __riscv_vmv_v_x_i32m1(0, 1), vlmax));
@@ -770,7 +776,7 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     }
 
     ncnn::Mat AT;
-    if (ime2_pack_A(A, AT, M, K, nT) != 0)
+    if (ime2_pack_A(A, AT, M, K, nT, opt.workspace_allocator) != 0)
         return -100;
 
     const ime2_fp16* bt = (const ime2_fp16*)BT;
