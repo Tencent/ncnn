@@ -111,10 +111,16 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         }
         else
             top_blob = t32;
+        /* cast/convert_packing 返回 void，分配失败时 top_blob 为空；
+         * 不把空输出当成功交出去。 */
+        if (top_blob.empty())
+            return -100;
         if (top_blob.elempack != bottom_blob.elempack)
         {
             Mat packed;
             convert_packing(top_blob, packed, bottom_blob.elempack, opt);
+            if (packed.empty())
+                return -100;
             top_blob = packed;
         }
         return 0;
