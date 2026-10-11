@@ -20,6 +20,13 @@ RotaryEmbed_mips::RotaryEmbed_mips()
 
 int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    /* The fused layout (input_hc_swapped) is produced by the exporter together
+     * with dropping a Permute in front of this layer. The overrides below still
+     * assume h is the sequence and c the heads, so hand the fused case to the
+     * generic implementation instead of mis-indexing the one-row caches. */
+    if (input_hc_swapped)
+        return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
+
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
