@@ -46,7 +46,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             else
                 cast_float16_to_float32(cos_cache, cos32, opt);
         }
-        else cos32 = cos_cache;
+        else
+            cos32 = cos_cache;
         if (sin_cache.elembits() != 32)
         {
             if (opt.use_bf16_storage && sin_cache.elembits() == 16)
@@ -54,7 +55,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             else
                 cast_float16_to_float32(sin_cache, sin32, opt);
         }
-        else sin32 = sin_cache;
+        else
+            sin32 = sin_cache;
 
         /* cast keeps the packing; the fused indexing needs pack1 */
         if (q32.elempack != 1)
@@ -69,7 +71,7 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         in32[1] = cos32;
         in32[2] = sin32;
         std::vector<Mat> out32(1);
-        int ret = forward(in32, out32, opt);   // fp32/pack1 now: normal path below
+        int ret = forward(in32, out32, opt); // fp32/pack1 now: normal path below
         if (ret != 0)
             return ret;
 
