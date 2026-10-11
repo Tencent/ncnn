@@ -34,6 +34,15 @@ GroupNorm_vulkan::GroupNorm_vulkan()
 
 int GroupNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     // resolve total actual channels
@@ -279,19 +288,21 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
         }
     }
 
-    if (vkdev->info.support_subgroup_ops() & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)
+    if (use_subgroup_ops)
     {
         if (elempack == 1 || _channels == 0)
         {
             pipeline_groupnorm_reduce_subgroup = new Pipeline(vkdev);
-            pipeline_groupnorm_reduce_subgroup->set_local_size_xyz(256, 1, 1);
+            pipeline_groupnorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+            pipeline_groupnorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
             pipeline_groupnorm_reduce_subgroup->create(LayerShaderType::groupnorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
         }
 
         if (elempack == 4 || _channels == 0)
         {
             pipeline_groupnorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-            pipeline_groupnorm_reduce_subgroup_pack4->set_local_size_xyz(256, 1, 1);
+            pipeline_groupnorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+            pipeline_groupnorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
             pipeline_groupnorm_reduce_subgroup_pack4->create(LayerShaderType::groupnorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
         }
     }
@@ -414,8 +425,8 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         VkMat dispatcher;
         dispatcher.w = 1;
-        dispatcher.h = group;
-        dispatcher.c = 1;
+        dispatcher.h = 1;
+        dispatcher.c = group;
 
         cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);
     }
