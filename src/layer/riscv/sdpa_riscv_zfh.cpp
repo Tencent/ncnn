@@ -42,6 +42,11 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 #else
     using namespace ncnn_ime2_sdpa;
 
+    /* 建管线探测只覆盖当时上下文（绑定可改、团队可变大）。每次 forward 前校验
+     * 当前团队此刻都在 A100 上；不满足返回 -99，调度方回落上游 GEMM 路径。 */
+    if (!ncnn_ime2_sdpa::ime2_team_ok(opt.num_threads))
+        return -99;
+
     const Mat& query = bottom_blobs[0];
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];

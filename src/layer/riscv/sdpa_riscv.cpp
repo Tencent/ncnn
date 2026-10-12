@@ -553,7 +553,12 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
             const bool mask_full = m0.dims >= 2 && m0.w >= dst_sl && m0.h >= q0.h;
             if (mask_full)
-                return forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
+            {
+                const int ret = forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
+                /* -99 = forward 团队此刻不满足 IME2 条件，回落上游 GEMM 路径 */
+                if (ret != -99)
+                    return ret;
+            }
         }
     }
 #endif

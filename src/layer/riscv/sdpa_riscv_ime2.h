@@ -207,6 +207,35 @@ static int ime2_probe(int nthreads)
     return sdpa_ime2_probe_locked(nthreads);
 }
 
+/* forward 入口的轻量校验：此刻将执行内核的每个工人都落在 VLEN=1024 的核上。
+ * 建管线探测（ime2_probe）只覆盖建管线那一刻的上下文：调用方之后可能用
+ * set_cpu_thread_affinity() 改了绑定，或用更大的 num_threads 调 forward
+ * （运行时增派未探测的工人）。内核真正需要的不变量是"本次 forward 的团队
+ * 当前都在 A100 上"，所以每次 forward 前让团队每个工人读一次自己的 vlenb。
+ * 只读 CSR，不改绑定、不装信号处理器；omp 区域进出为 µs 级，相对每层
+ * SDPA 的执行时间可忽略。返回 0 时调用方回落非 IME2 路径，结果语义不变。 */
+static int ime2_team_ok(int nthreads)
+{
+#if defined __linux__
+    int ok = 1;
+    #pragma omp parallel num_threads(nthreads)
+    {
+        unsigned long vlenb = 0;
+        __asm__ volatile("csrr %0, vlenb"
+                         : "=r"(vlenb));
+        if (vlenb != 128)
+        {
+            #pragma omp atomic write
+            ok = 0;
+        }
+    }
+    return ok;
+#else
+    (void)nthreads;
+    return 0;
+#endif
+}
+
 /* ---------------- 打包：fp32 -> 8x8 fp16 tile 连续布局 ---------------- */
 
 /* src: [R, K] fp32 行主序（行距 ld 元素）-> tiles [rt][kt][64] fp16 */
