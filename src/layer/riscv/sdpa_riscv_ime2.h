@@ -207,26 +207,82 @@ static int ime2_probe(int nthreads)
     return sdpa_ime2_probe_locked(nthreads);
 }
 
-/* forward 入口的轻量校验：此刻将执行内核的每个工人都落在 VLEN=1024 的核上。
- * 建管线探测（ime2_probe）只覆盖建管线那一刻的上下文：调用方之后可能用
- * set_cpu_thread_affinity() 改了绑定，或用更大的 num_threads 调 forward
- * （运行时增派未探测的工人）。内核真正需要的不变量是"本次 forward 的团队
- * 当前都在 A100 上"，所以每次 forward 前让团队每个工人读一次自己的 vlenb。
- * 只读 CSR，不改绑定、不装信号处理器；omp 区域进出为 µs 级，相对每层
- * SDPA 的执行时间可忽略。返回 0 时调用方回落非 IME2 路径，结果语义不变。 */
-static int ime2_team_ok(int nthreads)
-{
+/* 一次性测定本进程当前允许的核对里哪些是 A100（vlenb==128）。硬件属性，
+ * 进程级缓存；若测定时 mask 只覆盖部分核对，得到的集合是真实 A100 集合的
+ * 子集——偏差方向保守（只会误关 IME2，不会误放）。 */
 #if defined __linux__
-    int ok = 1;
-    #pragma omp parallel num_threads(nthreads)
+static int sdpa_ime2_a100_set(cpu_set_t* out)
+{
+    static ncnn::Mutex lock;
+    ncnn::MutexLockGuard g(lock);
+    static int probed = 0;
+    static cpu_set_t cached;
+    if (probed)
     {
+        *out = cached;
+        return 1;
+    }
+    cpu_set_t cs;
+    if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
+        return 0;
+    const cpu_set_t orig = cs;
+    CPU_ZERO(&cached);
+    for (int c = 0; c < CPU_SETSIZE; c++)
+    {
+        if (!CPU_ISSET(c, &cs))
+            continue;
+        cpu_set_t one;
+        CPU_ZERO(&one);
+        CPU_SET(c, &one);
+        if (sched_setaffinity(0, sizeof(one), &one) != 0)
+            continue;
         unsigned long vlenb = 0;
         __asm__ volatile("csrr %0, vlenb"
                          : "=r"(vlenb));
-        if (vlenb != 128)
+        if (vlenb == 128)
+            CPU_SET(c, &cached);
+    }
+    sched_setaffinity(0, sizeof(orig), &orig);
+    probed = 1;
+    *out = cached;
+    return 1;
+}
+#endif
+
+/* forward 入口的轻量校验：本次 forward 的团队**不可能**落到非 A100 核上。
+ * 建管线探测（ime2_probe）只覆盖建管线那一刻的上下文：调用方之后可能用
+ * set_cpu_thread_affinity() 改了绑定，或用更大的 num_threads 调 forward
+ * （运行时增派未探测的工人）。而且只看工人"此刻"的 vlenb 也不够：掩码跨簇
+ * 的工人可能采样时在 A100、内核运行中被迁到 X100。所以这里逐工人检查其
+ * affinity mask 是否为 A100 集合的子集（子集则调度器无处可迁）。每个工人
+ * 一次 sched_getaffinity + 位测试，µs 级，相对每层 SDPA 可忽略。
+ * 返回 0 时调用方回落非 IME2 路径，结果语义不变。 */
+static int ime2_team_ok(int nthreads)
+{
+#if defined __linux__
+    cpu_set_t a100;
+    if (!sdpa_ime2_a100_set(&a100))
+        return 0;
+    int ok = 1;
+    #pragma omp parallel num_threads(nthreads)
+    {
+        cpu_set_t wcs;
+        if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
         {
             #pragma omp atomic write
             ok = 0;
+        }
+        else
+        {
+            for (int c = 0; c < CPU_SETSIZE; c++)
+            {
+                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &a100))
+                {
+                    #pragma omp atomic write
+                    ok = 0;
+                    break;
+                }
+            }
         }
     }
     return ok;
@@ -652,54 +708,6 @@ static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
     }
 }
 
-/* 带预缩放的打包：fp32 src × scale → fp16 tiles（scale 在 fp32 侧乘，避免双舍入） */
-static int ime2_pack_fp32_scale(const float* src, size_t ld, ncnn::Mat& T, int R, int K, float scale, ncnn::Allocator* alloc)
-{
-    const int rt = (R + 7) / 8, kt = (K + 7) / 8;
-    /* IME2_TILE_SLACK fp16 of tail room: the K-direction pipeline in
-     * ime2_tile_16x16p prefetches the next tile pair, and with an even kt the
-     * final prefetch reads 128 bytes past the last tile row. The data is never
-     * consumed, but the read has to stay inside the allocation. */
-    T.create((size_t)rt * kt * 64 + IME2_TILE_SLACK, (size_t)2u, 1, alloc);
-    if (T.empty())
-        return -100;
-    ime2_fp16* dst = (ime2_fp16*)T;
-
-    for (int i = 0; i < rt; i++)
-    {
-        const int gr0 = i * 8;
-        for (int j = 0; j < kt; j++)
-        {
-            ime2_fp16* t = dst + ((size_t)i * kt + j) * 64;
-            const int gk0 = j * 8;
-            if (gr0 + 8 <= R && gk0 + 8 <= K)
-            {
-                const float* s0 = src + (size_t)gr0 * ld + gk0;
-                for (int r = 0; r < 8; r++)
-                {
-                    const float* s = s0 + (size_t)r * ld;
-                    ime2_fp16* d = t + r * 8;
-                    for (int c = 0; c < 8; c++)
-                        d[c] = (ime2_fp16)(s[c] * scale);
-                }
-            }
-            else
-            {
-                for (int r = 0; r < 8; r++)
-                    for (int c = 0; c < 8; c++)
-                    {
-                        const int gr = gr0 + r, gk = gk0 + c;
-                        float v = 0.f;
-                        if (gr < R && gk < K)
-                            v = src[(size_t)gr * ld + gk];
-                        t[r * 8 + c] = (ime2_fp16)(v * scale);
-                    }
-            }
-        }
-    }
-    return 0;
-}
-
 /* flash 分块尺寸：BM=64 行 Q / BN=128 列 KV（官方建议 tile ≤8192 元素；
  * S=64×128×4B=32KB、acc=64×256×4B=64KB 栈上驻留，L1/L2 友好） */
 #define IME2_FLASH_BM    32
@@ -799,7 +807,7 @@ static void ime2_row_add(float* a, const float* b, int n)
  * Out: [L, Ev] fp32 行距 ldo。返回 0 成功；-1 表示 Ev 超栈上预算（调用方走旧路径）。 */
 static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const ime2_fp16* VT,
                                  const float* mask, size_t ldm, float* Out, size_t ldo,
-                                 int L, int dst, int E, int Ev, int past, int causal,
+                                 int L, int dst, int E, int Ev, int past, int causal, float scale,
                                  ncnn::Mat& PT, ncnn::Allocator* alloc)
 {
     if (Ev > IME2_FLASH_MAXEV)
@@ -834,10 +842,12 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
         {
             const int cols = BN < nend - n0 ? BN : nend - n0;
 
-            /* S = Q_blk · K_blk^T（QT 已含 scale，alpha=1 覆盖写） */
+            /* S = scale · Q_blk · K_blk^T：QT **不**预乘 scale（fp16 打包前乘
+             * scale 会把本来可表示的 Q 值溢出成 inf），改在 fp32 累加结果的
+             * 写回上乘 alpha=scale —— 与非 flash 的 IME2 路径及上游回退一致。 */
             ime2_gemm_fp32out_p(QT + (size_t)(m0 / 8) * ktE * 64,
                                 KT + (size_t)(n0 / 8) * ktE * 64,
-                                S, BN, rows, cols, E, 1.f, 0,
+                                S, BN, rows, cols, E, scale, 0,
                                 (size_t)ktE * 64, (size_t)ktE * 64);
 
             /* 仅对角区域（或任意 mask 的兜底）需要加 mask */

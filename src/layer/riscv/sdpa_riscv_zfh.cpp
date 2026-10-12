@@ -181,10 +181,12 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             Mat QT, PT;
             PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64, (size_t)2u, 1, opt.workspace_allocator);
             if (PT.empty()
-                    || ime2_pack_fp32_scale(query_head, embed_dim, QT, src_seqlen, embed_dim, _scale, opt.workspace_allocator) != 0
+                    /* Q 不预乘 scale：fp16 打包会把 Q·scale 溢出成 inf；scale 在
+                     * flash 内核里施加于 fp32 累加结果（见 ime2_flash_head_tiles）。 */
+                    || ime2_pack_fp32(query_head, embed_dim, QT, src_seqlen, embed_dim, opt.workspace_allocator) != 0
                     || ime2_flash_head_tiles((const ime2_fp16*)QT, (const ime2_fp16*)KTg[g], (const ime2_fp16*)VTg[g],
                                              maskm, dst_seqlen, (float*)top_blob_head, out_embed_dim,
-                                             src_seqlen, dst_seqlen, embed_dim, out_embed_dim, past_seqlen, causal,
+                                             src_seqlen, dst_seqlen, embed_dim, out_embed_dim, past_seqlen, causal, _scale,
                                              PT, opt.workspace_allocator)
                     != 0)
             {
