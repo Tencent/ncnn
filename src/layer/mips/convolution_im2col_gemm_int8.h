@@ -6,7 +6,9 @@ void convolution_im2col_gemm_transform_kernel_int8_loongson_mmi(const Mat& kerne
 #endif
 
 // gemm_mips.h
-#if NCNN_RUNTIME_CPU && __mips_msa
+#if NCNN_RUNTIME_CPU && __mips_mxu2
+namespace Gemm_mips_mxu2_utility {
+#elif NCNN_RUNTIME_CPU && __mips_msa
 namespace Gemm_mips_msa_utility {
 #else
 namespace Gemm_mips_utility {
@@ -18,7 +20,9 @@ void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& t
 static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
-#if NCNN_RUNTIME_CPU && __mips_msa
+#if NCNN_RUNTIME_CPU && __mips_mxu2
+    Gemm_mips_mxu2_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
+#elif NCNN_RUNTIME_CPU && __mips_msa
     Gemm_mips_msa_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
 #else
     Gemm_mips_utility::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
@@ -29,7 +33,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 {
     // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
-#if NCNN_RUNTIME_CPU && __mips_msa
+#if NCNN_RUNTIME_CPU && __mips_mxu2
+    Gemm_mips_mxu2_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+#elif NCNN_RUNTIME_CPU && __mips_msa
     Gemm_mips_msa_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 #else
     Gemm_mips_utility::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);

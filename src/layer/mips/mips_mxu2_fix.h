@@ -212,14 +212,6 @@ static inline v8i16 ncnn_mxu2_vshf_h(v8i16 mask, v8i16 a, v8i16 b)
 }
 #define __msa_vshf_h(mask, a, b) ncnn_mxu2_vshf_h((v8i16)(mask), (v8i16)(a), (v8i16)(b))
 
-static inline v8i16 ncnn_mxu2_mulhi_s_h(v8i16 a, v8i16 b)
-{
-    v8i16 r;
-    for (int i = 0; i < 8; i++) r[i] = (int(a[i]) * int(b[i])) >> 16;
-    return r;
-}
-#define __msa_mulhi_s_h(a, b) ncnn_mxu2_mulhi_s_h((v8i16)(a), (v8i16)(b))
-
 static inline v4f32 ncnn_mxu2_frint_w(v4f32 a)
 {
     v4f32 r;
