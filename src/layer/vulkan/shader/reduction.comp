@@ -151,6 +151,13 @@ afp finalize_out(afp outv)
     return outv;
 }
 
+float logsumexp_max(float a, float b)
+{
+    if ((floatBitsToUint(a) & 0x7fffffffu) > 0x7f800000u) return a;
+    if ((floatBitsToUint(b) & 0x7fffffffu) > 0x7f800000u) return b;
+    return max(a, b);
+}
+
 void main()
 {
     const int out_index = int(gl_WorkGroupID.y);
@@ -203,17 +210,25 @@ void main()
             }
             if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
             float v = float(buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic)));
-            max_value = max(max_value, v);
+            max_value = logsumexp_max(max_value, v);
         }
         sdata_logsumexp[tid] = max_value;
         barrier();
         for (int stride = 128; stride > 0; stride >>= 1)
         {
-            if (tid < stride) sdata_logsumexp[tid] = max(sdata_logsumexp[tid], sdata_logsumexp[tid + stride]);
+            if (tid < stride) sdata_logsumexp[tid] = logsumexp_max(sdata_logsumexp[tid], sdata_logsumexp[tid + stride]);
             barrier();
         }
         float max_shift = sdata_logsumexp[0];
-        if (isinf(max_shift)) max_shift = 0.f;
+        if ((floatBitsToUint(max_shift) & 0x7fffffffu) >= 0x7f800000u)
+        {
+            if (tid == 0)
+            {
+                float outv = max_shift * p.coeff;
+                buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
+            }
+            return;
+        }
 
         float sum = 0.f;
         for (int t = tid; t < reduce_size; t += 256)
@@ -240,7 +255,8 @@ void main()
             }
             if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
             float v = float(buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic)));
-            sum += exp(v - max_shift);
+            if (floatBitsToUint(v) != 0xff800000u)
+                sum += exp(v - max_shift);
         }
         // Every thread must read the maximum before reusing shared memory.
         barrier();

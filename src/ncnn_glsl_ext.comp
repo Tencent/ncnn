@@ -10,6 +10,22 @@
 #endif
 #endif
 
+#if NCNN_fp16_packed
+uint pack_half_preserve_special(vec2 v)
+{
+    uvec2 bits = floatBitsToUint(v);
+    uvec2 magnitude = bits & uvec2(0x7fffffffu);
+    bvec2 special = greaterThanEqual(magnitude, uvec2(0x477ff000u));
+    uint packed = packHalf2x16(vec2(special.x ? 0.f : v.x, special.y ? 0.f : v.y));
+    if (special.x)
+        packed = (packed & 0xffff0000u) | ((bits.x >> 16) & 0x8000u) | 0x7c00u | (magnitude.x > 0x7f800000u ? 0x200u : 0u);
+    if (special.y)
+        packed = (packed & 0x0000ffffu) | (bits.y & 0x80000000u) | 0x7c000000u | (magnitude.y > 0x7f800000u ? 0x02000000u : 0u);
+    return packed;
+}
+#define packHalf2x16(v) pack_half_preserve_special(v)
+#endif
+
 // storage types
 #if NCNN_bf16_storage
 #define sfp bfloat16_t
