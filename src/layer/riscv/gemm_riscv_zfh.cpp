@@ -1836,11 +1836,8 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     const int N = constantN;
     const int K = constantK;
 
-    if (A.elembits() != 16)
-        return -1;
-
     // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）。
-    // 前移到这里：团队校验失败的 fp32 回落也要按这个布局交输出。
+    // 在团队校验之前算好：fp16 回落分支与 IME2 主路径都用它。
     int out_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
@@ -1852,41 +1849,30 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (output_elempack)
         out_elempack = output_elempack;
 
-    /* 建管线时的探测只覆盖当时的上下文：绑定可能后来被 set_cpu_thread_affinity
-     * 改掉，forward 的团队也可能比探测时大。每次 forward 前校验当前团队不可能
-     * 落到非 A100 核上（掩码子集判定，见 ime2_team_ok）。
-     * 不满足时的回落：full-takeover 下 fp16s 管线从未构建（BT_data 是 fp32 面板，
-     * 落进 16 位分发会按错误布局读它），所以把输入升到 fp32 走**始终构建**的
-     * 通用 fp32 前向，输出再转回 fp16 存储。这条路径只在团队离开 A100 时触发，
-     * 属于降级模式：先求正确，再求快。 */
+    /* 团队校验对所有位宽生效：fp32 输入也不例外——通用 fp32 面板的 tile 是建
+     * 管线时按当时 vlenb 打包的，团队离开 A100 后通用路径会按新 vlenb 重算
+     * tile 去索引旧面板 → 错位。所以先验团队，再按位宽分流。 */
     if (!ncnn_ime2::ime2_team_ok(opt.num_threads))
     {
-        /* 团队不满足时的去向取决于建管线时建了哪套管线：
-         * - 非 full-takeover（constantC=0 或可能有 runtime C）：fp16s/fp16sa
-         *   管线在，返回 -99 让调度方落进 16 位分发即可（与无 IME2 构建的行为
-         *   一致——ncnn 的预打包面板本来就假定同构 VLEN，跨簇移动后所有层
-         *   都一样，不是本路径引入的）；
-         * - full-takeover（c_never_exists）：没有任何可用的 16 位管线，而通用
-         *   fp32 面板（BT_data 4u）也是按建管线时的 vlenb 选的 tile——落到
-         *   X100 上 tile 配置失效会读越界。此时唯一与 VLEN 无关的权重表示是
-         *   BT_data_ime2（固定 8x8 tile 布局，+pad 行距恒定）。用朴素
-         *   fp32 累加直接从它计算：VLEN 无关，任何核对上都正确。
-         *   这是降级模式：先求正确，再求快。 */
         const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
         if (!c_never_exists)
-            return -99;
+            return -99;   /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
+                           * fp32 输入由调度方继续通用路径（与无 IME2 构建同语义） */
 
-        /* 中间量走 workspace 分配器（blob 分配器是按存活图节点估的池）；
-         * 最终输出才用原 blob 分配器。 */
+        /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
+         * tile 布局，行距填充恒定）。朴素 fp32 累加直接从它算，任何核对上都
+         * 正确。这是降级模式：先求正确，再求快。 */
         Option opt_tmp = opt;
         opt_tmp.blob_allocator = opt.workspace_allocator;
 
         Mat A32;
-        cast_float16_to_float32(A, A32, opt_tmp);
+        if (A.elembits() == 16)
+            cast_float16_to_float32(A, A32, opt_tmp);
+        else
+            A32 = A;   /* fp32 共享，零拷贝 */
         if (A32.empty())
             return -100;
-        /* cast 保留 fp16 打包（packn=vlenb/2），朴素循环只按 pack1 索引：
-         * 先解到 pack1。 */
+        /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
         if (A32.elempack != 1)
         {
             Mat A32_p1;
@@ -1902,7 +1888,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         const size_t ldt = IME2_TILE_LD(kt);
         const __fp16* bt = (const __fp16*)BT_data_ime2;
 
-        Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
+        Mat C32(N, M, 4u, opt_tmp.blob_allocator);   /* [w=N, h=M] fp32 pack1 */
         if (C32.empty())
             return -100;
 
@@ -1925,11 +1911,8 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
 
                 float acc = 0.f;
 #if __riscv_vector
-                /* 累加器必须按 VLmax 全宽清零并按 VLmax 归约：逐块累加用 _tu
-                 * 保留高位 lane，若用末块的余数 vl 归约会丢掉 lane vl..VLmax-1
-                 * 里的全部贡献（如 K=33、VLmax=32 时只剩 lane 0）。
-                 * （convolution1d 的"末 vl 归约"惯用法是逐块独立归约，结构与
-                 * 这里的跨块共享累加器不同，不能照搬。） */
+                /* VLmax 全宽清零、VLmax 全宽归约（逐块 _tu 累加，末块余数 vl
+                 * 归约会丢高位 lane 的贡献） */
                 const size_t vlmax = __riscv_vsetvlmax_e32m1();
                 vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
                 int k = 0;
@@ -1949,26 +1932,56 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         }
 
         Mat& top_blob = top_blobs[0];
-        if (out_elempack == 1)
+        if (A.elembits() == 16)
         {
-            /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
-            cast_float32_to_float16(C32, top_blob, opt);
+            /* fp16 输入 → 转回 fp16 存储并重打包到本层正常布局 */
+            if (out_elempack == 1)
+            {
+                /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
+                cast_float32_to_float16(C32, top_blob, opt);
+                if (top_blob.empty())
+                    return -100;
+                return 0;
+            }
+            /* 需要重打包时，pack1 的 fp16 中间量放 workspace（与最终输出同在
+             * blob 池会瞬时占两份同尺寸；blob 池按一个返回输出估算会 -100）。 */
+            Mat top16_tmp;
+            cast_float32_to_float16(C32, top16_tmp, opt_tmp);
+            if (top16_tmp.empty())
+                return -100;
+            convert_packing(top16_tmp, top_blob, out_elempack, opt);
             if (top_blob.empty())
                 return -100;
             return 0;
         }
-        /* 需要重打包时，pack1 的 fp16 中间量放 workspace：若它也占 blob
-         * 分配器，中间量与最终打包结果会瞬时共存两份同尺寸，而 blob 池只
-         * 按一个返回输出估算，可能 -100。最终输出才用原 blob 分配器。 */
-        Mat top16_tmp;
-        cast_float32_to_float16(C32, top16_tmp, opt_tmp);
-        if (top16_tmp.empty())
-            return -100;
-        convert_packing(top16_tmp, top_blob, out_elempack, opt);
-        if (top_blob.empty())
-            return -100;
+        /* fp32 输入 → fp32 输出（通用路径的输出布局：按其自身的打包决策；
+         * C32 已是 pack1，重打包到 fp32 路径应有的 elempack）。 */
+        int out32_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            const int packn = csrr_vlenb() / 4;
+            out32_elempack = (M % packn == 0) ? packn : 1;
+        }
+#endif
+        if (output_elempack)
+            out32_elempack = output_elempack / 2 > 0 ? output_elempack / 2 : 1;   /* fp32 打包是 fp16 的一半 */
+        if (out32_elempack != 1)
+        {
+            Mat packed;
+            convert_packing(C32, packed, out32_elempack, opt_tmp);
+            if (packed.empty())
+                return -100;
+            top_blob = packed;
+            return 0;
+        }
+        top_blob = C32;
         return 0;
     }
+
+    if (A.elembits() != 16)
+        /* 团队在 A100 上、输入 fp32：dispatch 不应把 fp32 送到这里；防御。 */
+        return -1;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create(N, M / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);

@@ -3276,6 +3276,21 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
         return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+
+#if NCNN_RISCV_SPACEMIT_IME2
+    if (use_ime2_path && elembits == 32)
+    {
+        /* 团队校验对 fp32 输入同样必要：BT_data 面板按建管线时的 vlenb 打包，
+         * 团队离开 A100 后下面的通用路径会按新 vlenb 重算 tile 去索引旧面板。
+         * forward_ime2 里：团队 OK → 返回 -1（继续通用路径，面板同源有效）；
+         * 团队离开 + full-takeover → VLEN 无关回落直接算出（返回 0/-100）；
+         * 团队离开 + 非 takeover → -99，继续通用路径（与无 IME2 构建同语义，
+         * ncnn 本来就不承诺跨 VLEN 迁移后面板可用，此处不加剧）。 */
+        const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
+        if (ret != -1 && ret != -99)
+            return ret;
+    }
+#endif // NCNN_RISCV_SPACEMIT_IME2
 #endif
 
     int M;

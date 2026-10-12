@@ -50,16 +50,34 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if (tl_ime2_armed)
         siglongjmp(tl_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：恢复旧处置后重发，交给内核完整交付。
-     * 直接 C 调用旧处理器会绕过内核的信号交付语义——SA_RESETHAND 的一次性
-     * 复位、SA_ONSTACK 的栈切换、sa_mask 的屏蔽集全都会被丢掉；而且
-     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，根本不能当函数调。
-     * 恢复+重发是唯一对所有处置都正确的做法（DFL 终止、IGN 忽略、自定义
-     * 处理器由内核按原 flags 调用）。 */
-    (void)info;
-    (void)ucontext;
-    sigaction(SIGILL, &g_ime2_old, NULL);
-    raise(sig);
+    /* 不是探测线程的 SIGILL：按旧处置转交。
+     * - SIG_DFL/SIG_IGN：恢复后重发（它们不读 siginfo，合成信号无损失）；
+     * - 自定义处理器：直接以**原始** siginfo/ucontext 调用——raise 会合成
+     *   新信号，丢掉 si_code/si_addr，模拟器类回调拿不到故障指令地址。
+     *   同时手动补齐内核语义：SA_RESETHAND 先把处置复位成 DFL（内核会在
+     *   交付前做同样的事）；sa_mask 里的信号在回调期间屏蔽（当前线程本就
+     *   处于 SIGILL 上下文，SIGILL 自身已被内核阻塞，除非 SA_NODEFER）。
+     *   SA_ONSTACK 的栈切换无法在转交时补齐，记录在案（SIGILL 用它极罕见）。 */
+    if (g_ime2_old.sa_handler == SIG_DFL || g_ime2_old.sa_handler == SIG_IGN)
+    {
+        sigaction(SIGILL, &g_ime2_old, NULL);
+        raise(sig);
+        return;
+    }
+    if (g_ime2_old.sa_flags & SA_RESETHAND)
+    {
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+    }
+    sigset_t oldmask;
+    pthread_sigmask(SIG_BLOCK, &g_ime2_old.sa_mask, &oldmask);
+    if (g_ime2_old.sa_flags & SA_SIGINFO)
+        g_ime2_old.sa_sigaction(sig, info, ucontext);
+    else
+        g_ime2_old.sa_handler(sig);
+    pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
 #if defined __linux__
