@@ -1964,18 +1964,24 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
             out32_elempack = (M % packn == 0) ? packn : 1;
         }
 #endif
+        /* output_elempack 是**元素数**而非字节数，通用 fp32 路径原样采用
+         * （gemm_riscv.cpp 不折算）：此处同样保持，不能减半。 */
         if (output_elempack)
-            out32_elempack = output_elempack / 2 > 0 ? output_elempack / 2 : 1; /* fp32 打包是 fp16 的一半 */
+            out32_elempack = output_elempack;
         if (out32_elempack != 1)
         {
-            Mat packed;
-            convert_packing(C32, packed, out32_elempack, opt_tmp);
-            if (packed.empty())
+            /* 最终输出必须用 blob 分配器（C32 是 workspace 临时量，赋给
+             * top_blob 会把工作区内存带出本层，后续层会覆写）。 */
+            convert_packing(C32, top_blob, out32_elempack, opt);
+            if (top_blob.empty())
                 return -100;
-            top_blob = packed;
             return 0;
         }
-        top_blob = C32;
+        /* pack1：同上，拷到 blob 分配器再交出。 */
+        top_blob.create(N, M, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+        memcpy(top_blob.data, C32.data, (size_t)N * M * 4u);
         return 0;
     }
 
