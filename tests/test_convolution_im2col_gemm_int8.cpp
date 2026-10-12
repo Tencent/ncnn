@@ -33,7 +33,7 @@ static int packed_input_count = 0;
 // Inspect the actual CPU factory result, so a direct-path fallback cannot make
 // a GEMM test pass. Runtime dispatch creates a separate generated RVV class.
 template<typename T>
-static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, bool require_split, bool require_m_split)
+static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, int min_k_tiles, bool require_m_split)
 {
     const T* convolution = static_cast<const T*>(layer);
     if (convolution->weight_sgemm_data.empty() == sgemm
@@ -41,9 +41,9 @@ static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode,
             || (lightmode && !convolution->weight_data.empty()))
         return false;
 
-    if (sgemm && require_split && convolution->weight_sgemm_data.h <= 1)
+    if (sgemm && convolution->weight_sgemm_data.h < min_k_tiles)
     {
-        fprintf(stderr, "INT8 convolution expected split K but got %d transformed K tiles\n", convolution->weight_sgemm_data.h);
+        fprintf(stderr, "INT8 convolution expected at least %d K tiles but got %d\n", min_k_tiles, convolution->weight_sgemm_data.h);
         return false;
     }
 
@@ -56,20 +56,20 @@ static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode,
     return true;
 }
 
-static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, bool require_split, bool require_m_split)
+static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, int min_k_tiles, bool require_m_split)
 {
 #if NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
     if (ncnn::cpu_support_riscv_xtheadvector())
-        return check_pipeline<ncnn::Convolution_riscv_xtheadvector>(layer, sgemm, lightmode, require_split, require_m_split);
+        return check_pipeline<ncnn::Convolution_riscv_xtheadvector>(layer, sgemm, lightmode, min_k_tiles, require_m_split);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
-        return check_pipeline<ncnn::Convolution_riscv_rvv>(layer, sgemm, lightmode, require_split, require_m_split);
+        return check_pipeline<ncnn::Convolution_riscv_rvv>(layer, sgemm, lightmode, min_k_tiles, require_m_split);
 #endif
-    return check_pipeline<ncnn::Convolution_riscv>(layer, sgemm, lightmode, require_split, require_m_split);
+    return check_pipeline<ncnn::Convolution_riscv>(layer, sgemm, lightmode, min_k_tiles, require_m_split);
 }
 
-static int run_convolution(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& input, ncnn::Mat& output, const ncnn::Option& opt, int input_pack, bool naive, int forward_threads = 0, bool require_split = false, bool require_m_split = false)
+static int run_convolution(const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& input, ncnn::Mat& output, const ncnn::Option& opt, int input_pack, bool naive, int forward_threads = 0, int min_k_tiles = 1, bool require_m_split = false)
 {
     ncnn::Layer* layer = naive ? ncnn::create_layer_naive(ncnn::LayerType::Convolution) : ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
     if (!layer)
@@ -81,7 +81,7 @@ static int run_convolution(const ncnn::ParamDict& pd, const std::vector<ncnn::Ma
         ret = layer->load_model(mb);
     if (ret == 0)
         ret = layer->create_pipeline(opt);
-    if (ret == 0 && !naive && !check_pipeline(layer, opt.use_sgemm_convolution, opt.lightmode, require_split, require_m_split))
+    if (ret == 0 && !naive && !check_pipeline(layer, opt.use_sgemm_convolution, opt.lightmode, min_k_tiles, require_m_split))
     {
         fprintf(stderr, "INT8 convolution selected the wrong pipeline sgemm=%d\n", opt.use_sgemm_convolution);
         ret = -1;
@@ -144,7 +144,7 @@ static int compare_int8(const ncnn::Mat& a, const ncnn::Mat& b, int tolerance)
     return 0;
 }
 
-static int test_convolution(const ConvolutionGeometry& g, int inch, int outch, int packing, int mode, int activation, int num_threads = 1, int forward_threads = 0, bool require_split = false, bool require_m_split = false)
+static int test_convolution(const ConvolutionGeometry& g, int inch, int outch, int packing, int mode, int activation, int num_threads = 1, int forward_threads = 0, int min_k_tiles = 1, bool require_m_split = false)
 {
     // mode 0: unit scales/no bias or activation expose exact integer sums;
     // mode 1: dequantize; mode 2: requantize; mode 3: FP32 input quantization.
@@ -242,10 +242,10 @@ static int test_convolution(const ConvolutionGeometry& g, int inch, int outch, i
             input_pack = desired_pack;
     }
     if (ret == 0)
-        ret = run_convolution(pd, weights, input, direct, opt, input_pack, false, forward_threads, require_split, require_m_split);
+        ret = run_convolution(pd, weights, input, direct, opt, input_pack, false, forward_threads, min_k_tiles, require_m_split);
     opt.use_sgemm_convolution = true;
     if (ret == 0)
-        ret = run_convolution(pd, weights, input, gemm, opt, input_pack, false, forward_threads, require_split, require_m_split);
+        ret = run_convolution(pd, weights, input, gemm, opt, input_pack, false, forward_threads, min_k_tiles, require_m_split);
     if (ret == 0)
     {
         // Direct and GEMM use identical postprocessing and must match exactly.
@@ -294,6 +294,8 @@ static int test_raw_tile(int N, int output_pack, int max_ii)
             ptr[i] = sentinel;
     }
     std::vector<int> expected(max_ii * N, 0);
+    std::vector<int> scratch(max_ii * N + 2, sentinel);
+    ncnn::Mat topT(max_ii * N, scratch.data() + 1, (size_t)4u, 1);
     static const int panel_sizes[] = {1, 1024, 32};
     int offset = 0;
     for (int panel = 0; panel < 3; panel++)
@@ -326,7 +328,14 @@ static int test_raw_tile(int N, int output_pack, int max_ii)
             }
             jj += nn;
         }
-        ncnn::convolution_gemm_transB_packed_tile_int8_rvv(a.data(), b.data(), output, first_channel, max_ii, 1, N, offset, count);
+        const bool k_end = panel == 2;
+        const std::vector<int> previous_scratch = scratch;
+        ncnn::convolution_gemm_transB_packed_tile_int8_rvv(a.data(), b.data(), topT, output, first_channel, max_ii, 1, N, offset, count, k_end);
+        if (scratch.front() != sentinel || scratch.back() != sentinel || (k_end && scratch != previous_scratch))
+        {
+            fprintf(stderr, "raw INT32 GEMM scratch guard/final-store mismatch N=%d M=%d pack=%d panel=%d\n", N, max_ii, output_pack, panel);
+            return -1;
+        }
         for (int m = 0; m < max_ii; m++)
         {
             for (int n = 0; n < N; n++)
@@ -345,11 +354,31 @@ static int test_raw_tile(int N, int output_pack, int max_ii)
             for (int n = 0; n < width; n++)
             {
                 const int actual = ptr[n * output_pack + q % output_pack];
-                const int reference = q >= first_channel && q < first_channel + max_ii && n >= 1 && n <= N ? expected[(q - first_channel) * N + n - 1] : sentinel;
+                const int reference = k_end && q >= first_channel && q < first_channel + max_ii && n >= 1 && n <= N ? expected[(q - first_channel) * N + n - 1] : sentinel;
                 if (actual != reference)
                 {
                     fprintf(stderr, "raw INT32 GEMM mismatch N=%d M=%d pack=%d panel=%d q=%d n=%d expected=%d actual=%d\n", N, max_ii, output_pack, panel, q, n, reference, actual);
                     return -1;
+                }
+            }
+        }
+        if (!k_end)
+        {
+            for (int ii = 0; ii < max_ii; ii += packn)
+            {
+                const int lanes = std::min(packn, max_ii - ii);
+                for (int n = 0; n < N; n++)
+                {
+                    for (int lane = 0; lane < lanes; lane++)
+                    {
+                        const int actual = scratch[1 + ii * N + n * lanes + lane];
+                        const int reference = expected[(ii + lane) * N + n];
+                        if (actual != reference)
+                        {
+                            fprintf(stderr, "raw INT32 GEMM scratch layout mismatch N=%d M=%d pack=%d panel=%d ii=%d n=%d lane=%d\n", N, max_ii, output_pack, panel, ii, n, lane);
+                            return -1;
+                        }
+                    }
                 }
             }
         }
@@ -453,7 +482,31 @@ static int test_split_k()
     const ConvolutionGeometry geometry = {3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0};
     // Small values avoid accumulator overflow for machines with large caches.
     // Also require multiple transformed K rows and change forward threads.
-    return test_convolution(geometry, inch, outch, 0, 4, 0, 2, 3, true);
+    return test_convolution(geometry, inch, outch, 0, 4, 0, 2, 3, 2);
+}
+
+static int test_split_k_channel_tiles()
+{
+    const int packn = ncnn::cpu_riscv_vlenb() > 0 ? ncnn::cpu_riscv_vlenb() : 1;
+    const ConvolutionGeometry geometry = {17, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0};
+    for (int packing = 0; packing < 2; packing++)
+    {
+        const int outch = packn * 5 + (packing ? 0 : 1);
+        int inch = 1;
+        for (;;)
+        {
+            int tile_m, tile_n, tile_k;
+            ncnn::convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(outch, 17, inch, tile_m, tile_n, tile_k, 3);
+            if ((inch + tile_k - 1) / tile_k >= 3)
+                break;
+            inch = tile_k * 3 + 1;
+        }
+        // Multiple M/N tiles must retain independent partial sums through a
+        // middle K panel. Small values keep the reference accumulation exact.
+        if (test_convolution(geometry, inch, outch, packing, 4, 0, 3, 2, 3, true))
+            return -1;
+    }
+    return 0;
 }
 
 static int test_channel_tiles()
@@ -468,7 +521,7 @@ static int test_channel_tiles()
         {
             for (int threads = 1; threads <= 3; threads += 2)
             {
-                if (test_convolution(geometry, 7, packn * 5 + tail, packing, 0, 0, threads, 0, false, true))
+                if (test_convolution(geometry, 7, packn * 5 + tail, packing, 0, 0, threads, 0, 1, true))
                     return -1;
             }
         }
@@ -496,7 +549,7 @@ int main()
 {
 #if NCNN_INT8 && __riscv
     SRAND(7767517);
-    if (test_raw_accumulators() || test_geometry() || test_postprocessing() || test_tile_tails() || test_split_k() || test_channel_tiles())
+    if (test_raw_accumulators() || test_geometry() || test_postprocessing() || test_tile_tails() || test_split_k() || test_channel_tiles() || test_split_k_channel_tiles())
         return -1;
     fprintf(stderr, "PASS INT8 convolution GEMM: %d raw split-K checks, %d layer cases, %d packed input runs, vlenb=%d\n", raw_test_count, test_count, packed_input_count, ncnn::cpu_riscv_vlenb());
 #else
