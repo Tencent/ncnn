@@ -1856,7 +1856,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     {
         const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
         if (!c_never_exists)
-            return -99;   /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
+            return -99; /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
                            * fp32 输入由调度方继续通用路径（与无 IME2 构建同语义） */
 
         /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
@@ -1869,7 +1869,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         if (A.elembits() == 16)
             cast_float16_to_float32(A, A32, opt_tmp);
         else
-            A32 = A;   /* fp32 共享，零拷贝 */
+            A32 = A; /* fp32 共享，零拷贝 */
         if (A32.empty())
             return -100;
         /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
@@ -1888,7 +1888,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         const size_t ldt = IME2_TILE_LD(kt);
         const __fp16* bt = (const __fp16*)BT_data_ime2;
 
-        Mat C32(N, M, 4u, opt_tmp.blob_allocator);   /* [w=N, h=M] fp32 pack1 */
+        Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
         if (C32.empty())
             return -100;
 
@@ -1965,7 +1965,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         }
 #endif
         if (output_elempack)
-            out32_elempack = output_elempack / 2 > 0 ? output_elempack / 2 : 1;   /* fp32 打包是 fp16 的一半 */
+            out32_elempack = output_elempack / 2 > 0 ? output_elempack / 2 : 1; /* fp32 打包是 fp16 的一半 */
         if (out32_elempack != 1)
         {
             Mat packed;
