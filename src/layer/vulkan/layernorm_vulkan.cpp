@@ -252,7 +252,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[1].i = num_groups_per_channel;
         constants[2].i = (int)cstep;
 
-        // Split groups across x and y to stay within the dispatch limits.
+        // split groups across x and y to stay within the dispatch limits
         const int group_count_x = (num_groups_per_channel - 1) / vkdev->info.max_workgroup_count_y() + 1;
         const int group_count_y = (num_groups_per_channel - 1) / group_count_x + 1;
 

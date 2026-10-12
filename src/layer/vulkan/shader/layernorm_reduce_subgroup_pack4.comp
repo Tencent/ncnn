@@ -30,7 +30,7 @@ void main()
     const int offset = gz * p.cstep + gy * p.group_size;
     const float area = float(p.group_size);
 
-    // Keep the common offset out of the sum and compensate rounding in long groups.
+    // keep the common offset out of the sum and compensate rounding in long groups
     const vec4 center = vec4(buffer_ld4(bottom_top_blob_data, offset));
     precise vec4 sum = vec4(0.f);
     precise vec4 correction = vec4(0.f);

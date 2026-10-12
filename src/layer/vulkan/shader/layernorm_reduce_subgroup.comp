@@ -30,7 +30,7 @@ void main()
     const int offset = gz * p.cstep + gy * p.group_size;
     const float area = float(p.group_size);
 
-    // Keep the common offset out of the sum and compensate rounding in long groups.
+    // keep the common offset out of the sum and compensate rounding in long groups
     const float center = float(buffer_ld1(bottom_top_blob_data, offset));
     precise float sum = 0.f;
     precise float correction = 0.f;

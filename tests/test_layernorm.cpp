@@ -125,7 +125,7 @@ static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
     pd.set(1, eps);
     pd.set(2, 0);
 
-    // Use double precision instead of the generic CPU layer's serial float sums.
+    // use double precision instead of the generic CPU layer's serial float sums
     ncnn::Mat expected = a.clone();
     const int groups = a.w * a.h * a.d / affine_size;
     for (int q = 0; q < a.c; q++)
@@ -164,7 +164,7 @@ static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
         opt.use_subgroup_ops = subgroup != 0;
         ncnn::Mat b;
         int ret = test_layer_gpu(ncnn::layer_to_index("LayerNorm"), pd, std::vector<ncnn::Mat>(), opt, a, b, ncnn::Mat(), 0);
-        // Allow rounding in the existing float coeffs/norm shaders, including FMA.
+        // allow rounding in the existing float coeffs/norm shaders, including FMA
         if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.005f) != 0))
         {
             fprintf(stderr, "test_layernorm_gpu_reference failed a=(%d %d %d %d) affine_size=%d subgroup=%d\n", a.w, a.h, a.d, a.c, affine_size, subgroup);
@@ -219,7 +219,7 @@ static int test_layernorm_gpu_dispatch()
     const int heights[] = {65535, 65536, 65537};
     for (int s = 0; s < 3; s++)
     {
-        // Exercise pack1, pack4, and padding at the end of the tiled dispatch.
+        // exercise pack1, pack4, and padding at the end of the tiled dispatch
         ncnn::Mat a(s == 2 ? 8 : 32, heights[s], s == 2 ? 4 : 1);
         for (int q = 0; q < a.c; q++)
         {
