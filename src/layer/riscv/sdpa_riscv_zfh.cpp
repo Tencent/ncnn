@@ -84,10 +84,17 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
     /* fp16 打包值域预检：|v| > 65504 的输入打包成 ±inf，而上游 fp32 路径保持
      * 有限。必须在**任何状态改动之前**（kv cache 追加不可回退）发现并让
-     * 调度方落上游——返回 -99 时 top_blobs[1]/[2] 尚未写入。 */
+     * 调度方落上游——返回 -99 时 top_blobs[1]/[2] 尚未写入。
+     * V 的幅值也作闸门：Q/K 的 fp16 舍入合并（fp16 存储语义，与上游 fp16s
+     * 相同）造成的权重失真会乘 V 放大到输出——病态大 V（如 ±65504 的对消
+     * 构造）下"平均"与"选择"差异巨大。真实模型实测 mxv ≤ 63（qwen3-0.6b
+     * 长预填充 28 次调用），阈值 8192 留 130 倍余量。 */
+    float mxv = 0.f;
     if (!ncnn_ime2_sdpa::ime2_fits_fp16(query) || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_key)
-            || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key)
-            || !ncnn_ime2_sdpa::ime2_fits_fp16(past_value))
+            || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value, &mxv) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key)
+            || !ncnn_ime2_sdpa::ime2_fits_fp16(past_value, &mxv))
+        return -99;
+    if (mxv > 8192.f)
         return -99;
 
     // ---- kv cache 追加（与朴素路径完全相同的语义） ----

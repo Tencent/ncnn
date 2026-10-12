@@ -324,7 +324,8 @@ static int ime2_team_ok(int nthreads)
  * 有限。IME2 预填充在打包前对所有输入扫一遍（在任何状态改动之前），越界则
  * 调用方整体回落上游 GEMM 组合路径。逐 channel 只扫有效元素（cstep 填充区是
  * 未初始化垃圾，不能误伤）。max 是精确运算，顺序无关，可用无序归约。 */
-static int ime2_fits_fp16(const ncnn::Mat& m)
+/* out_mx 非空时回写有效元素的最大绝对值（供值域放大相关的闸门用） */
+static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
 {
     if (m.empty())
         return 1;
@@ -351,6 +352,8 @@ static int ime2_fits_fp16(const ncnn::Mat& m)
             i += vl;
         }
         const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
+        if (out_mx && mx > *out_mx)
+            *out_mx = mx;
         if (mx > 65504.f)
             return 0;
         /* 下溢到零：|v| <= 2^-25 的有限值打包成 +0（RNE 下恰为 2^-25 的值
