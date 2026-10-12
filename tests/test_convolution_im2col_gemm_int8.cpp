@@ -357,12 +357,12 @@ static int test_raw_accumulators()
 #else
     const int packn = 1;
 #endif
-    const int tails[] = {1, packn, packn * 2 + 1};
+    const int tails[] = {1, std::max(1, packn - 1), packn, packn + 1, packn * 2 - 1, packn * 2 + 1, packn + 3};
     // Exercise individual blocks, mixed tails and repeated 8-position blocks.
     const int spatial_sizes[] = {1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31};
     for (int n = 0; n < 11; n++)
     {
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 7; i++)
         {
             if (test_raw_tile(spatial_sizes[n], 1, tails[i]))
                 return -1;
@@ -464,7 +464,7 @@ int main()
     SRAND(7767517);
     if (test_raw_accumulators() || test_geometry() || test_postprocessing() || test_tile_tails() || test_split_k())
         return -1;
-    fprintf(stderr, "PASS INT8 convolution GEMM: 44 raw split-K checks, %d layer cases, %d packed input runs, vlenb=%d\n", test_count, packed_input_count, ncnn::cpu_riscv_vlenb());
+    fprintf(stderr, "PASS INT8 convolution GEMM: 88 raw split-K checks, %d layer cases, %d packed input runs, vlenb=%d\n", test_count, packed_input_count, ncnn::cpu_riscv_vlenb());
 #else
     fprintf(stderr, "SKIP RISC-V INT8 convolution GEMM tests\n");
 #endif

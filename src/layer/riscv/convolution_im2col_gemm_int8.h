@@ -70,9 +70,21 @@ static int convolution_im2col_gemm_transform_kernel_int8_rvv(const Mat& kernel, 
             int ii = 0;
 #if __riscv_vector
             const int packn = csrr_vlenb() / 4;
-            for (; ii < max_ii; ii += packn)
+            const size_t vl = __riscv_vsetvl_e32m1(packn);
+
+            for (; ii + (packn - 1) < max_ii; ii += packn)
             {
-                const size_t vl = __riscv_vsetvl_e32m1(std::min(max_ii - ii, packn));
+                const signed char* pA = (const signed char*)kernel + (i + ii) * K + k;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    vint8m1_t _a = __riscv_vlse8_v_i8m1(pA + kk, K, vl);
+                    __riscv_vse8_v_i8m1(pp, _a, vl);
+                    pp += packn;
+                }
+            }
+            if (ii < max_ii)
+            {
+                const size_t vl = __riscv_vsetvl_e32m1(max_ii - ii);
                 const signed char* pA = (const signed char*)kernel + (i + ii) * K + k;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -183,13 +195,322 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
 
 static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT, const signed char* pBT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
+    int ii = 0;
 #if __riscv_vector
     const int out_elempack = top_blob.elempack;
     const size_t out_hstep = top_blob.cstep;
     const int packn = csrr_vlenb() / 4;
-    for (int ii = 0; ii < max_ii; ii += packn)
+    const size_t vl = __riscv_vsetvl_e32m1(packn);
+
+    for (; ii + (packn - 1) < max_ii; ii += packn)
     {
-        const size_t vl = __riscv_vsetvl_e32m1(std::min(max_ii - ii, packn));
+        int* outptr0 = top_blob.channel((i + ii) / out_elempack);
+        outptr0 += j * out_elempack;
+
+        const signed char* pB = pBT;
+
+        int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            vint32m1_t _sum0;
+            vint32m1_t _sum1;
+            vint32m1_t _sum2;
+            vint32m1_t _sum3;
+            vint32m1_t _sum4;
+            vint32m1_t _sum5;
+            vint32m1_t _sum6;
+            vint32m1_t _sum7;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum1 = _sum0;
+                _sum2 = _sum0;
+                _sum3 = _sum0;
+                _sum4 = _sum0;
+                _sum5 = _sum0;
+                _sum6 = _sum0;
+                _sum7 = _sum0;
+            }
+            else
+            {
+                if (out_elempack == packn)
+                {
+                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
+                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
+                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
+                    _sum4 = __riscv_vle32_v_i32m1(outptr0 + packn * 4, vl);
+                    _sum5 = __riscv_vle32_v_i32m1(outptr0 + packn * 5, vl);
+                    _sum6 = __riscv_vle32_v_i32m1(outptr0 + packn * 6, vl);
+                    _sum7 = __riscv_vle32_v_i32m1(outptr0 + packn * 7, vl);
+                }
+                else // if (out_elempack == 1)
+                {
+                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
+                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
+                    _sum4 = __riscv_vlse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), vl);
+                    _sum5 = __riscv_vlse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), vl);
+                    _sum6 = __riscv_vlse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), vl);
+                    _sum7 = __riscv_vlse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), vl);
+                }
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+#if __riscv_xtheadvector
+                // Vector 0.7 has no fractional LMUL or vsext instructions.
+                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
+                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
+                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
+                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
+                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
+                _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (int)pB[4], _a32low, vl);
+                _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (int)pB[5], _a32low, vl);
+                _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (int)pB[6], _a32low, vl);
+                _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (int)pB[7], _a32low, vl);
+#else
+                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
+                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
+                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
+                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
+                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
+                _sum4 = __riscv_vwmacc_vx_i32m1(_sum4, (short)pB[4], _a16, vl);
+                _sum5 = __riscv_vwmacc_vx_i32m1(_sum5, (short)pB[5], _a16, vl);
+                _sum6 = __riscv_vwmacc_vx_i32m1(_sum6, (short)pB[6], _a16, vl);
+                _sum7 = __riscv_vwmacc_vx_i32m1(_sum7, (short)pB[7], _a16, vl);
+#endif // __riscv_xtheadvector
+
+                pA += packn;
+                pB += 8;
+            }
+
+            if (out_elempack == packn)
+            {
+                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 4, _sum4, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 5, _sum5, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 6, _sum6, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 7, _sum7, vl);
+                outptr0 += packn * 8;
+            }
+            else // if (out_elempack == 1)
+            {
+                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), _sum4, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), _sum5, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), _sum6, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), _sum7, vl);
+                outptr0 += 8;
+            }
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            vint32m1_t _sum0;
+            vint32m1_t _sum1;
+            vint32m1_t _sum2;
+            vint32m1_t _sum3;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum1 = _sum0;
+                _sum2 = _sum0;
+                _sum3 = _sum0;
+            }
+            else
+            {
+                if (out_elempack == packn)
+                {
+                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
+                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
+                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
+                }
+                else // if (out_elempack == 1)
+                {
+                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
+                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
+                }
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+#if __riscv_xtheadvector
+                // Vector 0.7 has no fractional LMUL or vsext instructions.
+                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
+                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
+                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
+                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
+                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
+#else
+                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
+                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
+                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
+                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
+                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
+#endif // __riscv_xtheadvector
+
+                pA += packn;
+                pB += 4;
+            }
+
+            if (out_elempack == packn)
+            {
+                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
+                outptr0 += packn * 4;
+            }
+            else // if (out_elempack == 1)
+            {
+                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
+                outptr0 += 4;
+            }
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            vint32m1_t _sum0;
+            vint32m1_t _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum1 = _sum0;
+            }
+            else
+            {
+                if (out_elempack == packn)
+                {
+                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
+                }
+                else // if (out_elempack == 1)
+                {
+                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
+                }
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+#if __riscv_xtheadvector
+                // Vector 0.7 has no fractional LMUL or vsext instructions.
+                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
+                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
+                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
+#else
+                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
+                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
+                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
+#endif // __riscv_xtheadvector
+
+                pA += packn;
+                pB += 2;
+            }
+
+            if (out_elempack == packn)
+            {
+                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
+                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
+                outptr0 += packn * 2;
+            }
+            else // if (out_elempack == 1)
+            {
+                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                outptr0 += 2;
+            }
+        }
+        for (; jj < max_jj; jj++)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            vint32m1_t _sum0;
+
+            if (k == 0)
+            {
+                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+            }
+            else
+            {
+                if (out_elempack == packn)
+                {
+                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                }
+                else // if (out_elempack == 1)
+                {
+                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                }
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+#if __riscv_xtheadvector
+                // Vector 0.7 has no fractional LMUL or vsext instructions.
+                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
+                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
+                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
+                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
+#else
+                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
+                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
+                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+#endif // __riscv_xtheadvector
+
+                pA += packn;
+                pB++;
+            }
+
+            if (out_elempack == packn)
+            {
+                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
+                outptr0 += packn;
+            }
+            else // if (out_elempack == 1)
+            {
+                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                outptr0++;
+            }
+        }
+    }
+
+    if (ii < max_ii)
+    {
+        const size_t vl = __riscv_vsetvl_e32m1(max_ii - ii);
         int* outptr0 = top_blob.channel((i + ii) / out_elempack);
         outptr0 += j * out_elempack;
 
@@ -494,7 +815,7 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         }
     }
 #else
-    for (int ii = 0; ii < max_ii; ii++)
+    for (; ii < max_ii; ii++)
     {
         int* outptr0 = top_blob.channel(i + ii);
         outptr0 += j;
