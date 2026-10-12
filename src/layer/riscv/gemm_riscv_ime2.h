@@ -36,10 +36,34 @@ typedef __fp16 ime2_fp16;
 
 /* ---------------- 运行时探测 ---------------- */
 
-static sigjmp_buf g_ime2_jb;
-static void ime2_sigill(int)
+/* 跳转上下文必须是**线程局部**的：SIGILL 处理器是进程级的，若在探测窗口内
+ * 另一个线程因自己的原因收到 SIGILL，处理器会在那个线程上运行；若无条件
+ * siglongjmp 到本线程保存的 jb，就是跨线程 longjmp（UB，会同时毁掉两个线程
+ * 的栈）。非探测线程的信号要交还给此前的处置。g_ime2_old 只在探测锁内
+ * 安装/恢复，读取它的异线程处理器与安装之间不存在长时间窗口。 */
+static __thread sigjmp_buf tl_ime2_jb;
+static __thread int tl_ime2_armed = 0;
+static struct sigaction g_ime2_old;
+
+static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
-    siglongjmp(g_ime2_jb, 1);
+    if (tl_ime2_armed)
+        siglongjmp(tl_ime2_jb, 1);
+
+    /* 不是探测线程的 SIGILL：按安装处理器之前的处置转交 */
+    if ((g_ime2_old.sa_flags & SA_SIGINFO) && g_ime2_old.sa_sigaction)
+    {
+        g_ime2_old.sa_sigaction(sig, info, ucontext);
+        return;
+    }
+    if (g_ime2_old.sa_handler && g_ime2_old.sa_handler != SIG_DFL && g_ime2_old.sa_handler != SIG_IGN)
+    {
+        g_ime2_old.sa_handler(sig);
+        return;
+    }
+    /* SIG_DFL / SIG_IGN（SIGILL 是同步信号，忽略无意义）：恢复默认后重发 */
+    sigaction(SIGILL, &g_ime2_old, NULL);
+    raise(sig);
 }
 
 #if defined __linux__
@@ -47,7 +71,7 @@ static void ime2_sigill(int)
  * "前向时 OpenMP 工人实际落到的核对"可能不同：前者恰好是 A100 就把 true 缓存
  * 下来，后者落到 X100 就吃 SIGILL。所以探测要覆盖 affinity mask 里的**每一个**
  * 核对：逐个把调用线程移过去读 vlenb，128B（1024bit）才算数。 */
-static int ime2_probe_affinity()
+static int ime2_probe_affinity(int nthreads)
 {
     cpu_set_t cs;
     if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
@@ -75,12 +99,14 @@ static int ime2_probe_affinity()
     sched_setaffinity(0, sizeof(orig), &orig); /* 恢复 */
 
     /* (a2) OpenMP 工人可能有**逐线程**绑定（OMP_PROC_BIND / GOMP_CPU_AFFINITY /
-     * 宿主运行时），上面的掩码遍历只看调用线程，看不到它们。在 omp 区域内让
-     * 每个工人各读一次自己的 vlenb —— 这才是内核实际会在上面执行的核对集合。 */
+     * 宿主运行时），上面的掩码遍历只看调用线程，看不到它们。而且 forward 的
+     * 并行区都带 num_threads(opt.num_threads)：若它大于默认团队，运行时会给
+     * forward 增派**从未被探测过**的工人。所以这里用与 forward 完全相同的
+     * 团队大小开区域，让每个真正的执行者各读一次自己的 vlenb。 */
     if (all_ok)
     {
         int workers_ok = 1;
-        #pragma omp parallel
+        #pragma omp parallel num_threads(nthreads)
         {
             unsigned long vlenb = 0;
             __asm__ volatile("csrr %0, vlenb"
@@ -96,26 +122,30 @@ static int ime2_probe_affinity()
     return all_ok;
 }
 #else
-static int ime2_probe_affinity()
+static int ime2_probe_affinity(int /*nthreads*/)
 {
     return 0;
 }
 #endif // __linux__
 
-static int ime2_probe_locked()
+static int ime2_probe_locked(int nthreads)
 {
-    /* (a) 亲和性：本进程所有允许核对的 vlenb 都必须是 1024bit */
-    if (!ime2_probe_affinity())
+    /* (a) 亲和性：本进程所有允许核对 + forward 团队的每个工人的 vlenb 都必须是 1024bit */
+    if (!ime2_probe_affinity(nthreads))
         return 0;
 
-    /* (b) 指令本身：SIGILL 保护下执行一条零向量 vfwmadot */
-    struct sigaction sa, old;
+    /* (b) 指令本身：SIGILL 保护下执行一条零向量 vfwmadot。
+     * 处理器是进程级的，但跳转上下文是**本线程**的 tl_ime2_jb：别的线程在
+     * 此窗口内收到 SIGILL 会被 ime2_sigill 转交给原处置，不会跨线程跳转。 */
+    struct sigaction sa;
     memset(&sa, 0, sizeof sa);
-    sa.sa_handler = ime2_sigill;
-    sigaction(SIGILL, &sa, &old);
+    sa.sa_sigaction = ime2_sigill;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGILL, &sa, &g_ime2_old);
 
     int ok = 0;
-    if (sigsetjmp(g_ime2_jb, 1) == 0)
+    tl_ime2_armed = 1;
+    if (sigsetjmp(tl_ime2_jb, 1) == 0)
     {
         __asm__ volatile(
             "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* e32m2 下清零累加器 v16:v17 */
@@ -129,22 +159,24 @@ static int ime2_probe_locked()
             : "t0", "v0", "v1", "v16", "v17", "memory");
         ok = 1;
     }
-    sigaction(SIGILL, &old, NULL);
+    tl_ime2_armed = 0;
+    sigaction(SIGILL, &g_ime2_old, NULL);
     return ok;
 }
 
 /* 返回 1 = 当前 affinity 上下文的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
- * 探测会临时替换进程级 SIGILL 处理器并使用共享 sigjmp_buf，两个线程并发进入
- * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。
+ * 探测会临时替换进程级 SIGILL 处理器，两个线程并发进入会互相覆盖安装/恢复，
+ * 因此整个探测用互斥锁串行化（跳转上下文本身是线程局部的，见上）。
  * 注意不做进程级缓存：affinity 是逐线程的，探测结果只对本次调用时的 affinity
  * 上下文有效。若进程先把某线程绑到 A100 簇建了管线、再绑到 X100 簇建第二个
  * 管线，缓存会把只对前者成立的答案错误地复用到后者（X100 上 forward 即 SIGILL）。
+ * nthreads 必须与 forward 的 num_threads 一致：探测的团队就是执行内核的团队。
  * 探测只在建管线时调用一次，重新探测的开销可忽略。 */
-static int ime2_probe(void)
+static int ime2_probe(int nthreads)
 {
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
-    return ime2_probe_locked();
+    return ime2_probe_locked(nthreads);
 }
 
 /* ---------------- 打包 ---------------- */

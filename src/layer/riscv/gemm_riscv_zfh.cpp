@@ -1793,7 +1793,9 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
 #else
     // 先探测：当前核能否执行 smt.vfwmadot（X100 上是 SIGILL）。
     // 探测失败 -> 返回非 0，调用方回退到 fp16s 路径。
-    if (!ncnn_ime2::ime2_probe())
+    // 用与 forward 相同的团队大小探测工人：forward 的并行区都带
+    // num_threads(opt.num_threads)，更大的团队会增派未探测过的工人。
+    if (!ncnn_ime2::ime2_probe(opt.num_threads))
         return -99;
 
     // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
