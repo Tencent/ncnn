@@ -231,5 +231,5 @@ int main()
 #if NCNN_VULKAN
            || test_rmsnorm_gpu_fp16a()
 #endif // NCNN_VULKAN
-        ;
+           ;
 }
