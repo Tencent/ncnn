@@ -436,7 +436,10 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(int M, int N, 
     TILE_N = 0;
     if (N > 0)
     {
-        tile_size = (l2_cache_size - TILE_M * TILE_K) / (TILE_K + TILE_M * 4);
+        if (TILE_K >= K)
+            tile_size = (l2_cache_size - TILE_M * TILE_K) / TILE_K;
+        else
+            tile_size = (l2_cache_size - TILE_M * TILE_K) / (TILE_K + TILE_M * 4);
         TILE_N = std::max(4, tile_size / 4 * 4);
         int nn_N = (N + TILE_N - 1) / TILE_N;
         nn_N = std::max(nn_N, std::min(nT, (N + 3) / 4));
@@ -519,6 +522,7 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
 
     const int w = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
+    const size_t cstep = bottom_blob.cstep * elempack;
     const int maxk = kernel_w * kernel_h;
     const int outw = (w - dilation_w * (kernel_w - 1) - 1) / stride_w + 1;
     signed char* pp = B;
@@ -526,89 +530,270 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
     int jj = 0;
     for (; jj + 3 < max_jj; jj += 4)
     {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            const int q = (k + kk) / maxk;
-            const int uv = (k + kk) % maxk;
-            const int u = uv / kernel_w;
-            const int v = uv % kernel_w;
-            const signed char* img = bottom_blob.channel(q / elempack);
+        const int dy0 = (j + jj) / outw;
+        const int dy3 = (j + jj + 3) / outw;
+        const int dx0 = (j + jj) % outw;
 
-            // A spatial microtile may cross output rows.
-            int x = 0;
-            while (x < 4)
+        const int q = k / maxk;
+        const int uv = k % maxk;
+        int u = uv / kernel_w;
+        int v = uv % kernel_w;
+        int lane = q % elempack;
+        const signed char* img = bottom_blob.channel(q / elempack);
+
+        if (dy0 == dy3)
+        {
+            const int offset = (dy0 * stride_h * w + dx0 * stride_w) * elempack;
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                const int dy = (j + jj + x) / outw;
-                const int dx = (j + jj + x) % outw;
-                const int count = std::min(4 - x, outw - dx);
-                const signed char* pB = img + ((dy * stride_h + u * dilation_h) * w + dx * stride_w + v * dilation_w) * elempack + q % elempack;
+                const signed char* pB = img + offset + (u * dilation_h * w + v * dilation_w) * elempack + lane;
 #if __riscv_vector
-                const size_t vl = __riscv_vsetvl_e8m1(count);
+                // All spatial blocks and row segments fit in e8m1.
+                const size_t vl = 4;
                 vint8m1_t _b;
                 if (stride_w == 1 && elempack == 1)
                     _b = __riscv_vle8_v_i8m1(pB, vl);
                 else
                     _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
-                __riscv_vse8_v_i8m1(pp + x, _b, vl);
+                __riscv_vse8_v_i8m1(pp, _b, vl);
 #else
-                for (int t = 0; t < count; t++)
-                    pp[x + t] = pB[t * stride_w * elempack];
+                pp[0] = pB[0];
+                pp[1] = pB[1 * stride_w * elempack];
+                pp[2] = pB[2 * stride_w * elempack];
+                pp[3] = pB[3 * stride_w * elempack];
 #endif // __riscv_vector
-                x += count;
+                pp += 4;
+
+                v++;
+                if (v == kernel_w)
+                {
+                    v = 0;
+                    u++;
+                    if (u == kernel_h)
+                    {
+                        u = 0;
+                        lane++;
+                        if (lane == elempack)
+                        {
+                            lane = 0;
+                            img += cstep;
+                        }
+                    }
+                }
             }
-            pp += 4;
+        }
+        else
+        {
+            int nn_size = 0;
+            int nn_offset[4];
+            int nn_count[4];
+            int offset_table[4];
+            int x = 0;
+            int dy = dy0;
+            int dx = dx0;
+            while (x < 4)
+            {
+                const int count = std::min(4 - x, outw - dx);
+                nn_offset[nn_size] = x;
+                nn_count[nn_size] = count;
+                offset_table[nn_size] = (dy * stride_h * w + dx * stride_w) * elempack;
+                nn_size++;
+                x += count;
+                dy++;
+                dx = 0;
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const signed char* img0 = img + (u * dilation_h * w + v * dilation_w) * elempack + lane;
+                for (int t = 0; t < nn_size; t++)
+                {
+                    const signed char* pB = img0 + offset_table[t];
+                    signed char* outptr = pp + nn_offset[t];
+                    const int count = nn_count[t];
+#if __riscv_vector
+                    const size_t vl = count;
+                    vint8m1_t _b;
+                    if (stride_w == 1 && elempack == 1)
+                        _b = __riscv_vle8_v_i8m1(pB, vl);
+                    else
+                        _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
+                    __riscv_vse8_v_i8m1(outptr, _b, vl);
+#else
+                    for (int n = 0; n < count; n++)
+                        outptr[n] = pB[n * stride_w * elempack];
+#endif // __riscv_vector
+                }
+                pp += 4;
+
+                v++;
+                if (v == kernel_w)
+                {
+                    v = 0;
+                    u++;
+                    if (u == kernel_h)
+                    {
+                        u = 0;
+                        lane++;
+                        if (lane == elempack)
+                        {
+                            lane = 0;
+                            img += cstep;
+                        }
+                    }
+                }
+            }
         }
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            const int q = (k + kk) / maxk;
-            const int uv = (k + kk) % maxk;
-            const int u = uv / kernel_w;
-            const int v = uv % kernel_w;
-            const signed char* img = bottom_blob.channel(q / elempack);
+        const int dy0 = (j + jj) / outw;
+        const int dy1 = (j + jj + 1) / outw;
+        const int dx0 = (j + jj) % outw;
 
-            // A spatial microtile may cross output rows.
-            int x = 0;
-            while (x < 2)
+        const int q = k / maxk;
+        const int uv = k % maxk;
+        int u = uv / kernel_w;
+        int v = uv % kernel_w;
+        int lane = q % elempack;
+        const signed char* img = bottom_blob.channel(q / elempack);
+
+        if (dy0 == dy1)
+        {
+            const int offset = (dy0 * stride_h * w + dx0 * stride_w) * elempack;
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                const int dy = (j + jj + x) / outw;
-                const int dx = (j + jj + x) % outw;
-                const int count = std::min(2 - x, outw - dx);
-                const signed char* pB = img + ((dy * stride_h + u * dilation_h) * w + dx * stride_w + v * dilation_w) * elempack + q % elempack;
+                const signed char* pB = img + offset + (u * dilation_h * w + v * dilation_w) * elempack + lane;
 #if __riscv_vector
-                const size_t vl = __riscv_vsetvl_e8m1(count);
+                const size_t vl = 2;
                 vint8m1_t _b;
                 if (stride_w == 1 && elempack == 1)
                     _b = __riscv_vle8_v_i8m1(pB, vl);
                 else
                     _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
-                __riscv_vse8_v_i8m1(pp + x, _b, vl);
+                __riscv_vse8_v_i8m1(pp, _b, vl);
 #else
-                for (int t = 0; t < count; t++)
-                    pp[x + t] = pB[t * stride_w * elempack];
+                pp[0] = pB[0];
+                pp[1] = pB[1 * stride_w * elempack];
 #endif // __riscv_vector
-                x += count;
+                pp += 2;
+
+                v++;
+                if (v == kernel_w)
+                {
+                    v = 0;
+                    u++;
+                    if (u == kernel_h)
+                    {
+                        u = 0;
+                        lane++;
+                        if (lane == elempack)
+                        {
+                            lane = 0;
+                            img += cstep;
+                        }
+                    }
+                }
             }
-            pp += 2;
+        }
+        else
+        {
+            int nn_size = 0;
+            int nn_offset[2];
+            int nn_count[2];
+            int offset_table[2];
+            int x = 0;
+            int dy = dy0;
+            int dx = dx0;
+            while (x < 2)
+            {
+                const int count = std::min(2 - x, outw - dx);
+                nn_offset[nn_size] = x;
+                nn_count[nn_size] = count;
+                offset_table[nn_size] = (dy * stride_h * w + dx * stride_w) * elempack;
+                nn_size++;
+                x += count;
+                dy++;
+                dx = 0;
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const signed char* img0 = img + (u * dilation_h * w + v * dilation_w) * elempack + lane;
+                for (int t = 0; t < nn_size; t++)
+                {
+                    const signed char* pB = img0 + offset_table[t];
+                    signed char* outptr = pp + nn_offset[t];
+                    const int count = nn_count[t];
+#if __riscv_vector
+                    const size_t vl = count;
+                    vint8m1_t _b;
+                    if (stride_w == 1 && elempack == 1)
+                        _b = __riscv_vle8_v_i8m1(pB, vl);
+                    else
+                        _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
+                    __riscv_vse8_v_i8m1(outptr, _b, vl);
+#else
+                    for (int n = 0; n < count; n++)
+                        outptr[n] = pB[n * stride_w * elempack];
+#endif // __riscv_vector
+                }
+                pp += 2;
+
+                v++;
+                if (v == kernel_w)
+                {
+                    v = 0;
+                    u++;
+                    if (u == kernel_h)
+                    {
+                        u = 0;
+                        lane++;
+                        if (lane == elempack)
+                        {
+                            lane = 0;
+                            img += cstep;
+                        }
+                    }
+                }
+            }
         }
     }
     for (; jj < max_jj; jj++)
     {
+        const int dy = (j + jj) / outw;
+        const int dx = (j + jj) % outw;
+        const int offset = (dy * stride_h * w + dx * stride_w) * elempack;
+
+        const int q = k / maxk;
+        const int uv = k % maxk;
+        int u = uv / kernel_w;
+        int v = uv % kernel_w;
+        int lane = q % elempack;
+        const signed char* img = bottom_blob.channel(q / elempack);
+
         for (int kk = 0; kk < max_kk; kk++)
         {
-            const int q = (k + kk) / maxk;
-            const int uv = (k + kk) % maxk;
-            const int u = uv / kernel_w;
-            const int v = uv % kernel_w;
-            const signed char* img = bottom_blob.channel(q / elempack);
-
-            const int dy = (j + jj) / outw;
-            const int dx = (j + jj) % outw;
-            const signed char* pB = img + ((dy * stride_h + u * dilation_h) * w + dx * stride_w + v * dilation_w) * elempack + q % elempack;
+            const signed char* pB = img + offset + (u * dilation_h * w + v * dilation_w) * elempack + lane;
             pp[0] = pB[0];
             pp++;
+
+            v++;
+            if (v == kernel_w)
+            {
+                v = 0;
+                u++;
+                if (u == kernel_h)
+                {
+                    u = 0;
+                    lane++;
+                    if (lane == elempack)
+                    {
+                        lane = 0;
+                        img += cstep;
+                    }
+                }
+            }
         }
     }
 }

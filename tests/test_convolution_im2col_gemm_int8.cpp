@@ -472,6 +472,28 @@ static int test_geometry()
     return 0;
 }
 
+static int test_im2col_spatial_tails()
+{
+    const int packn_s8 = ncnn::cpu_riscv_vlenb() > 0 ? ncnn::cpu_riscv_vlenb() : 16;
+    static const int widths[] = {9, 1, 2, 3, 5};
+    // N=63 exercises repeated four-position blocks followed by two and one.
+    // The narrower rows also split individual spatial blocks across rows.
+    for (int i = 0; i < 5; i++)
+    {
+        const ConvolutionGeometry geometry = {widths[i], 7, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1};
+        for (int packing = 0; packing < 2; packing++)
+        {
+            for (int threads = 1; threads <= 3; threads += 2)
+            {
+                const int channels = packing ? packn_s8 : 1;
+                if (test_convolution(geometry, channels, channels, packing, TEST_EXACT_INT8, false, 0, threads))
+                    return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 static int test_postprocessing()
 {
     const int packn_s8 = ncnn::cpu_riscv_vlenb() > 0 ? ncnn::cpu_riscv_vlenb() : 16;
@@ -579,6 +601,7 @@ int main()
 #if NCNN_INT8 && __riscv
     return 0
            || test_raw_accumulators()
+           || test_im2col_spatial_tails()
            || test_geometry()
            || test_postprocessing()
            || test_tile_tails()
