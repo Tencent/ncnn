@@ -3,9 +3,6 @@
 
 #include "testutil.h"
 
-#include <math.h>
-#include <limits>
-
 static int test_logsumexp(const ncnn::Mat& a, int mask, int keepdims, float coeff, float value)
 {
     const int shape[4] = {a.w, a.h, a.d, a.c};
@@ -69,8 +66,12 @@ static int test_logsumexp(const ncnn::Mat& a, int mask, int keepdims, float coef
 
 static int test_logsumexp_mixed_and_nonfinite()
 {
-    const float inf = std::numeric_limits<float>::infinity();
-    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const unsigned int inf_bits = 0x7f800000u;
+    const unsigned int nan_bits = 0x7fc00000u;
+    float inf;
+    float nan;
+    memcpy(&inf, &inf_bits, sizeof(inf));
+    memcpy(&nan, &nan_bits, sizeof(nan));
     const float inputs[12][2] = {{1000.f, 999.f}, {-1000.f, -1001.f}, {1.f, 0.f}, {inf, 1.f}, {-inf, -inf}, {nan, 1.f}, {1.f, inf}, {inf, inf}, {-inf, 1.f}, {1.f, -inf}, {1.f, nan}, {nan, inf}};
     const float expected[12] = {1000.f + logf(1.f + expf(-1.f)), -1000.f + logf(1.f + expf(-1.f)), logf(expf(1.f) + 1.f), inf, -inf, nan, inf, inf, 1.f, 1.f, nan, nan};
     for (int t = 0; t < 12; t++)

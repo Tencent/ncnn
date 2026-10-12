@@ -4,7 +4,6 @@
 #include "reduction.h"
 
 #include <float.h>
-#include <limits>
 
 namespace ncnn {
 
@@ -885,7 +884,9 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
 {
     const int out_inner = b.w * b.h * b.d;
     const int out_size = out_inner * b.c;
-    const float inf = std::numeric_limits<float>::infinity();
+    const unsigned int inf_bits = 0x7f800000u;
+    float inf;
+    memcpy(&inf, &inf_bits, sizeof(inf));
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < out_size; i++)
@@ -941,7 +942,14 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
                 for (int z = id; z < end_d; z++)
                     for (int y = ih; y < end_h; y++)
                         for (int x = iw; x < end_w; x++)
-                            sum += expf(ptr[(z * a.h + y) * a.w + x] - max_value);
+                        {
+                            const float v = ptr[(z * a.h + y) * a.w + x];
+                            unsigned int v_bits;
+                            memcpy(&v_bits, &v, sizeof(v_bits));
+                            // Negative infinity contributes zero; fast-math expf(-inf) can return NaN on x87.
+                            if (v_bits != 0xff800000u)
+                                sum += expf(v - max_value);
+                        }
             }
             value = max_value + logf(sum);
         }
