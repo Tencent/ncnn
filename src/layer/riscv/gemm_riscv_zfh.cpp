@@ -1839,6 +1839,12 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (A.elembits() != 16)
         return -1;
 
+    /* 建管线时的探测只覆盖当时的上下文：绑定可能后来被 set_cpu_thread_affinity
+     * 改掉，forward 的团队也可能比探测时大。每次 forward 前校验当前团队的每个
+     * 工人此刻都在 A100 上；不满足则返回 -99，让调度方回落非 IME2 路径。 */
+    if (!ncnn_ime2::ime2_team_ok(opt.num_threads))
+        return -99;
+
     // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）
     int out_elempack = 1;
 #if __riscv_vector
