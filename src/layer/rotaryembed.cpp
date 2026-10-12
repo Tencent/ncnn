@@ -81,6 +81,22 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             convert_packing(q32, q32_p1, 1, opt);
             q32 = q32_p1;
         }
+        /* the caches must be unpacked too: the recursive path iterates the
+         * unpacked sequence length and takes row(i) of the cache, so a packed
+         * cache would feed interleaved lanes and be read past its physical
+         * rows once i >= cache.h */
+        if (cos32.elempack != 1)
+        {
+            Mat cos32_p1;
+            convert_packing(cos32, cos32_p1, 1, opt);
+            cos32 = cos32_p1;
+        }
+        if (sin32.elempack != 1)
+        {
+            Mat sin32_p1;
+            convert_packing(sin32, sin32_p1, 1, opt);
+            sin32 = sin32_p1;
+        }
 
         /* the cast helpers return void and leave the destination empty on
          * allocation failure; recursing with an empty q32 would re-enter this
