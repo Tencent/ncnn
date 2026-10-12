@@ -167,9 +167,10 @@ static int sdpa_ime2_probe_locked(int nthreads)
     sigaction(SIGILL, &sa, &g_sdpa_ime2_old);
 
     int ok = 0;
-    tl_sdpa_ime2_armed = 1;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
     {
+        /* 上下文就绪后才武装：异步 SIGILL 先于武装到来会走转交路径 */
+        tl_sdpa_ime2_armed = 1;
         __asm__ volatile(
             "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* e32m2 下清零累加器 v16:v17 */
             "vmv.v.i v16, 0\n\t"
@@ -182,6 +183,7 @@ static int sdpa_ime2_probe_locked(int nthreads)
             : "t0", "v0", "v1", "v16", "v17", "memory");
         ok = 1;
     }
+    /* 两条返回路径都在这里解除武装（longjmp 回来时跳过 if 体直接到这） */
     tl_sdpa_ime2_armed = 0;
     /* 仅当当前处理器仍是我们的时才恢复旧处置：若探测窗口内发生过转发，
      * 当前已是旧处置（或已被内核按 RESETHAND 复位成 DFL）——再装回去会把
@@ -325,22 +327,34 @@ static int ime2_fits_fp16(const ncnn::Mat& m)
 {
     if (m.empty())
         return 1;
+    const size_t vlmax = __riscv_vsetvlmax_e32m1();
     const int nch = m.dims == 3 ? m.c : 1;
     for (int q = 0; q < nch; q++)
     {
         const float* p = m.dims == 3 ? (const float*)m.channel(q).data : (const float*)m.data;
         const size_t n = (size_t)m.w * m.h;
         size_t i = 0;
-        vfloat32m1_t vmax = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+        vfloat32m1_t vmax = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
+        vfloat32m1_t vmin = __riscv_vfmv_v_f_f32m1(FLT_MAX, vlmax);
         while (i < n)
         {
             const size_t vl = __riscv_vsetvl_e32m1(n - i);
             vfloat32m1_t v = __riscv_vle32_v_f32m1(p + i, vl);
-            vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, __riscv_vfabs_v_f32m1(v, vl), vl);
+            vfloat32m1_t vabs = __riscv_vfabs_v_f32m1(v, vl);
+            vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, vabs, vl);
+            /* 非零值才参与下限：0 是合法内容，不算下溢 */
+            vbool32_t nz = __riscv_vmfne_vf_f32m1(v, 0.f, vl);
+            vmin = __riscv_vfmin_vv_f32m1_mu(nz, vmin, vabs, vabs, vl);
             i += vl;
         }
-        const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), __riscv_vsetvlmax_e32m1()));
+        const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
         if (mx > 65504.f)
+            return 0;
+        /* 下溢到零：|v| < 2^-25 ≈ 2.98e-8 的有限值打包成 +0。Q/K 里的这种值
+         * 会被 scale 放大成不可忽略的点积损失（scale 在 fp32 结果上施加，
+         * 救不回来），同溢出一样回落。 */
+        const float mn = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmin_vs_f32m1_f32m1(vmin, __riscv_vfmv_v_f_f32m1(FLT_MAX, 1), vlmax));
+        if (mn < 2.98e-8f)
             return 0;
     }
     return 1;
