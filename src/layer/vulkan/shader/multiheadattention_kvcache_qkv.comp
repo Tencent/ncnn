@@ -1,0 +1,38 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer qk_blob { sfp qk_blob_data[]; };
+layout(binding = 1) readonly buffer v_blob { sfp v_blob_data[]; };
+layout(binding = 2) writeonly buffer output_blob { sfp output_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int src_seqlen;
+    int dst_seqlen;
+    int head_dim;
+    int num_heads;
+    int cache_cstep;
+} p;
+
+void main()
+{
+    const int x = int(gl_GlobalInvocationID.x);
+    const int y = int(gl_GlobalInvocationID.y);
+    const int z = int(gl_GlobalInvocationID.z);
+
+    if (x >= p.head_dim || y >= p.src_seqlen || z >= p.num_heads)
+        return;
+
+    afp sum = afp(0.f);
+    for (int s = 0; s < p.dst_seqlen; s++)
+    {
+        const int qki = (z * p.src_seqlen + y) * p.dst_seqlen + s;
+        const int vi = z * p.cache_cstep + s * p.head_dim + x;
+        sum += buffer_ld1(qk_blob_data, qki) * buffer_ld1(v_blob_data, vi);
+    }
+
+    const int out_index = (z * p.head_dim + x) * p.src_seqlen + y;
+    buffer_st1(output_blob_data, out_index, sum);
+}

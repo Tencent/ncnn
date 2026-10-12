@@ -12,6 +12,8 @@ if version.parse(torch.__version__) < version.parse('2.1'):
 from transformers import LayoutLMConfig
 from transformers.models.layoutlm.modeling_layoutlm import LayoutLMAttention
 
+import transformers
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -25,7 +27,10 @@ class Model(nn.Module):
     def forward(self, x, y):
         out0 = self.attn0(x, attention_mask=None, head_mask=None, encoder_hidden_states=None, encoder_attention_mask=None, past_key_value=None)
         out1 = self.attn1(y, attention_mask=None, head_mask=None, encoder_hidden_states=None, encoder_attention_mask=None, past_key_value=None)
-        return out0[0], out1[0]
+        if version.parse(transformers.__version__) < version.parse('5.0'):
+            return out0[0], out1[0]
+        else:
+            return out0, out1
 
 def test():
     net = Model()

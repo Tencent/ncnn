@@ -3,6 +3,10 @@
 
 #include "datareader.h"
 
+#include <ctype.h>
+#if NCNN_STRING
+#include <stdio.h>
+#endif
 #include <string.h>
 
 namespace ncnn {
@@ -80,15 +84,27 @@ class DataReaderFromMemoryPrivate
 {
 public:
     DataReaderFromMemoryPrivate(const unsigned char*& _mem)
-        : mem(_mem)
+        : mem(_mem), remaining(0), bounded(false)
     {
     }
     const unsigned char*& mem;
+    size_t remaining;
+    bool bounded;
+#if NCNN_STRING
+    std::vector<char> text;
+#endif
 };
 
 DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
     : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
 {
+}
+
+DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem, size_t mem_size)
+    : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
+{
+    d->remaining = mem_size;
+    d->bounded = true;
 }
 
 DataReaderFromMemory::~DataReaderFromMemory()
@@ -109,6 +125,22 @@ DataReaderFromMemory& DataReaderFromMemory::operator=(const DataReaderFromMemory
 #if NCNN_STRING
 int DataReaderFromMemory::scan(const char* format, void* p) const
 {
+    if (d->bounded && d->remaining == 0)
+        return 0;
+
+    const char* mem = (const char*)d->mem;
+    if (d->bounded)
+    {
+        // prepare bounded text once because the input may not be null-terminated
+        if (d->text.empty())
+        {
+            d->text.resize(d->remaining + 1);
+            memcpy(&d->text[0], mem, d->remaining);
+            d->text[d->remaining] = 0;
+        }
+        mem = &d->text[d->text.size() - d->remaining - 1];
+    }
+
     size_t fmtlen = strlen(format);
 
     const size_t nlen = fmtlen + 4;
@@ -116,8 +148,10 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
     snprintf(format_with_n, nlen, "%s%%n", format);
 
     int nconsumed = 0;
-    int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
+    int nscan = sscanf(mem, format_with_n, p, &nconsumed);
     d->mem += nconsumed;
+    if (d->bounded)
+        d->remaining -= nconsumed;
 
     delete[] format_with_n;
 
@@ -127,15 +161,31 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 
 size_t DataReaderFromMemory::read(void* buf, size_t size) const
 {
-    memcpy(buf, d->mem, size);
-    d->mem += size;
+    if (d->bounded && size > d->remaining)
+        size = d->remaining;
+
+    if (size != 0)
+    {
+        memcpy(buf, d->mem, size);
+        d->mem += size;
+        if (d->bounded)
+            d->remaining -= size;
+    }
     return size;
 }
 
 size_t DataReaderFromMemory::reference(size_t size, const void** buf) const
 {
+    if (d->bounded && size > d->remaining)
+        return 0;
+
     *buf = d->mem;
-    d->mem += size;
+    if (size != 0)
+    {
+        d->mem += size;
+        if (d->bounded)
+            d->remaining -= size;
+    }
     return size;
 }
 
@@ -187,23 +237,12 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
     std::string line;
     {
         off64_t remain_length = AAsset_getRemainingLength64(d->asset);
-        const char* newline_pos;
-        if (remain_length > 1 && ((const char*)d->mem)[0] == '\n')
-        {
-            // skip the leading newline
-            // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
-            newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
-        }
-        else if (remain_length > 2 && ((const char*)d->mem)[0] == '\r' && ((const char*)d->mem)[1] == '\n')
-        {
-            // skip the leading newline
-            // however, it is fine to create "\r\nXYZ 123 abc" as sscanf will skip the leading newline silently
-            newline_pos = (const char*)memchr((const char*)d->mem + 2, '\n', remain_length - 2);
-        }
-        else
-        {
-            newline_pos = (const char*)memchr((const char*)d->mem, '\n', remain_length);
-        }
+        // include all leading whitespace and the following line in the buffer
+        // sscanf decides whether the conversion consumes that whitespace
+        size_t offset = 0;
+        while (offset < (size_t)remain_length && isspace(d->mem[offset]))
+            offset++;
+        const char* newline_pos = (const char*)memchr(d->mem + offset, '\n', (size_t)remain_length - offset);
 
         size_t line_length = newline_pos ? newline_pos - (const char*)d->mem : (size_t)remain_length;
         line = std::string((const char*)d->mem, line_length);

@@ -26,6 +26,9 @@ public:
 
 #if NCNN_STRING
     // parse plain param text
+    // follow scanf conversion and input consumption rules, including field widths and scansets
+    // %1023[^\r\n] reads at most 1023 characters without skipping whitespace or consuming CR/LF
+    // append a null terminator on a successful scanset conversion
     // return 1 if scan success
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
@@ -65,7 +68,10 @@ class DataReaderFromMemoryPrivate;
 class NCNN_EXPORT DataReaderFromMemory : public DataReader
 {
 public:
+    // text input must be null-terminated
     explicit DataReaderFromMemory(const unsigned char*& mem);
+    // all reads and scans are limited to mem_size bytes
+    DataReaderFromMemory(const unsigned char*& mem, size_t mem_size);
     virtual ~DataReaderFromMemory();
 
 #if NCNN_STRING

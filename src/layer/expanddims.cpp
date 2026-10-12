@@ -15,6 +15,27 @@ int ExpandDims::load_param(const ParamDict& pd)
 {
     axes = pd.get(3, Mat());
 
+#if NCNN_VALIDATION
+    {
+        const int axes_type = pd.type(3);
+        if (axes_type != 0 && axes_type != 4 && axes_type != 5)
+            return -1;
+
+        if ((axes.dims != 0 || axes.w != 0 || axes.data) && (axes.dims != 1 || axes.w < 0 || axes.elempack != 1 || axes.elemsize != 4u || (axes.w > 0 && !axes.data)))
+            return -1;
+    }
+
+    if (axes.w > 4)
+        return -1;
+
+    const int* axes_ptr = axes;
+    for (int i = 0; i < axes.w; i++)
+    {
+        if (axes_ptr[i] < -4 || axes_ptr[i] > 3)
+            return -1;
+    }
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 

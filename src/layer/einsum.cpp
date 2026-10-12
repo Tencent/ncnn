@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "einsum.h"
-#include <string.h>
 
 namespace ncnn {
 
@@ -16,77 +15,106 @@ int Einsum::load_param(const ParamDict& pd)
 {
     Mat equation_mat = pd.get(0, Mat());
 
-    const int equation_len = equation_mat.w;
-
-    // restore to lexical equation string
-    std::string equation;
-    equation.resize(equation_len);
-    char* equation_ptr = (char*)equation.c_str();
+#if NCNN_VALIDATION
     {
-        const int* p = equation_mat;
-        for (int i = 0; i < equation_len; i++)
-        {
-            equation_ptr[i] = p[i];
-        }
+        const int equation_mat_type = pd.type(0);
+        if (equation_mat_type != 0 && equation_mat_type != 4 && equation_mat_type != 5)
+            return -1;
+
+        if ((equation_mat.dims != 0 || equation_mat.w != 0 || equation_mat.data) && (equation_mat.dims != 1 || equation_mat.w < 0 || equation_mat.elempack != 1 || equation_mat.elemsize != 4u || (equation_mat.w > 0 && !equation_mat.data)))
+            return -1;
+    }
+
+    if (equation_mat.empty())
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // validate character values before narrowing to char
+    const int* p = equation_mat;
+    std::string equation;
+    equation.resize(equation_mat.w);
+    for (int i = 0; i < equation_mat.w; i++)
+    {
+#if NCNN_VALIDATION
+        if ((p[i] < 'i' || p[i] > 'x') && p[i] != ',' && p[i] != '-' && p[i] != '>')
+            return -1;
+#endif // NCNN_VALIDATION
+        equation[i] = (char)p[i];
     }
 
     if (equation == "ii")
     {
-        // trace
+        lhs_tokens.clear();
         rhs_token = "ii";
-
         return 0;
     }
 
-    // split into tokens
-    char* arrow = strstr(equation_ptr, "->");
-    if (!arrow)
+    // keep parsed tokens local until the equation is valid
+    std::vector<std::string> tokens;
+    std::string token;
+#if NCNN_VALIDATION
+    bool seen[16] = {false};
+#endif // NCNN_VALIDATION
+    int arrow = -1;
+    for (int i = 0; i < equation_mat.w; i++)
     {
-        NCNN_LOGE("invalid equation %s", equation_ptr);
-        return -1;
-    }
-
-    arrow[0] = '\0';
-    arrow[1] = '\0';
-
-    char* lhs = equation_ptr;
-    char* rhs = arrow + 2;
-
-    {
-        char* t = strtok(lhs, ",");
-        while (t)
+        const char ch = equation[i];
+        if (ch == ',' || ch == '-')
         {
-            lhs_tokens.push_back(std::string(t));
-            t = strtok(NULL, ",");
-        }
-    }
-
-    rhs_token = std::string(rhs);
-
-    // check token always in ijkl
-    {
-        for (size_t i = 0; i < rhs_token.size(); i++)
-        {
-            if (rhs_token[i] < 'i' || rhs_token[i] > 'l')
-            {
-                NCNN_LOGE("invalid rhs_token %s", rhs_token.c_str());
+#if NCNN_VALIDATION
+            if (token.empty() || token.size() > 4)
                 return -1;
+#endif // NCNN_VALIDATION
+            tokens.push_back(token);
+            token.clear();
+            if (ch == '-')
+            {
+#if NCNN_VALIDATION
+                if (i + 1 >= equation_mat.w || equation[i + 1] != '>')
+                    return -1;
+#endif // NCNN_VALIDATION
+                arrow = i;
+                break;
             }
         }
-
-        for (size_t i = 0; i < lhs_tokens.size(); i++)
+        else
         {
-            const std::string& lhs_token = lhs_tokens[i];
-            for (size_t j = 0; j < lhs_token.size(); j++)
-            {
-                if (lhs_token[j] < 'i' || lhs_token[j] > 'x')
-                {
-                    NCNN_LOGE("invalid lhs_token %s", lhs_token.c_str());
-                    return -1;
-                }
-            }
+#if NCNN_VALIDATION
+            if (ch < 'i' || ch > 'x')
+                return -1;
+#endif // NCNN_VALIDATION
+            token.push_back(ch);
+#if NCNN_VALIDATION
+            seen[ch - 'i'] = true;
+#endif // NCNN_VALIDATION
         }
     }
+
+#if NCNN_VALIDATION
+    if (arrow < 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    const int output_dims = equation_mat.w - arrow - 2;
+#if NCNN_VALIDATION
+    if (output_dims < 1 || output_dims > 4)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    // the implementation emits dimensions in the canonical i,j,k,l order
+    std::string output;
+    output.resize(output_dims);
+    for (int i = 0; i < output_dims; i++)
+    {
+#if NCNN_VALIDATION
+        if (equation[arrow + 2 + i] != 'i' + i || !seen[i])
+            return -1;
+#endif // NCNN_VALIDATION
+        output[i] = equation[arrow + 2 + i];
+    }
+
+    lhs_tokens = tokens;
+    rhs_token = output;
 
     return 0;
 }

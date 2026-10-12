@@ -9,11 +9,14 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w, q):
         x = F.softplus(x)
         y = F.softplus(y, threshold=12)
         z = F.softplus(z)
-        return x, y, z
+        w = F.softplus(w)
+        q = F.max_pool2d(q, 1)
+        q = F.softplus(q)
+        return x, y, z, w, q
 
 def test():
     net = Model()
@@ -23,16 +26,18 @@ def test():
     x = torch.rand(16)
     y = torch.rand(3, 12, 16)
     z = torch.rand(2, 3, 4, 5)
+    w = torch.rand(2, 3, 5, 7)
+    q = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w, q))
     mod.save("test_F_softplus.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_softplus.pt inputshape=[16],[3,12,16],[2,3,4,5]")
+    os.system("../../src/pnnx test_F_softplus.pt inputshape=[16],[3,12,16],[2,3,4,5],[2,3,5,7],[2,3,5,7]")
 
     # ncnn inference
     import test_F_softplus_ncnn

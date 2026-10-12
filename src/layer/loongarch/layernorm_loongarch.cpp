@@ -150,7 +150,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         __m256 _eps = (__m256)__lasx_xvreplfr2vr_s(eps);
         _var_lasx = __lasx_xvfdiv_s(_var_lasx, _elemcount);
         _var_lasx = __lasx_xvfadd_s(_var_lasx, _eps);
-        _var_lasx = __lasx_xvfrsqrt_s(_var_lasx);
+        _var_lasx = __lasx_comp_rsqrt_s(_var_lasx);
         _mean_lasx = __lasx_xvfmul_s(_mean_lasx, _var_lasx);
         _mean_lasx = __lasx_xvfsub_s((__m256)__lasx_xvreplgr2vr_w(0), _mean_lasx);
     }
@@ -169,7 +169,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         __m128 _eps = (__m128)__lsx_vreplfr2vr_s(eps);
         _var = __lsx_vfdiv_s(_var, _elemcount);
         _var = __lsx_vfadd_s(_var, _eps);
-        _var = __lsx_vfrsqrt_s(_var);
+        _var = __lsx_comp_rsqrt_s(_var);
         _mean = __lsx_vfmul_s(_mean, _var);
         _mean = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(0), _mean);
 #if __loongarch_asx
@@ -588,7 +588,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         __m256 _eps = (__m256)__lasx_xvreplfr2vr_s(eps);
         _var_lasx = __lasx_xvfdiv_s(_var_lasx, _elemcount);
         _var_lasx = __lasx_xvfadd_s(_var_lasx, _eps);
-        _var_lasx = __lasx_xvfrsqrt_s(_var_lasx);
+        _var_lasx = __lasx_comp_rsqrt_s(_var_lasx);
         _mean_lasx = __lasx_xvfmul_s(_mean_lasx, _var_lasx);
         _mean_lasx = __lasx_xvfsub_s((__m256)__lasx_xvreplgr2vr_w(0), _mean_lasx);
     }
@@ -601,8 +601,8 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         _var1 = __lsx_vfdiv_s(_var1, _elemcount);
         _var = __lsx_vfadd_s(_var, _eps);
         _var1 = __lsx_vfadd_s(_var1, _eps);
-        _var = __lsx_vfrsqrt_s(_var);
-        _var1 = __lsx_vfrsqrt_s(_var1);
+        _var = __lsx_comp_rsqrt_s(_var);
+        _var1 = __lsx_comp_rsqrt_s(_var1);
         _mean = __lsx_vfmul_s(_mean, _var);
         _mean1 = __lsx_vfmul_s(_mean1, _var1);
         __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
@@ -626,7 +626,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         __m128 _eps = (__m128)__lsx_vreplfr2vr_s(eps);
         _var = __lsx_vfdiv_s(_var, _elemcount);
         _var = __lsx_vfadd_s(_var, _eps);
-        _var = __lsx_vfrsqrt_s(_var);
+        _var = __lsx_comp_rsqrt_s(_var);
         _mean = __lsx_vfmul_s(_mean, _var);
         _mean = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(0), _mean);
 #if __loongarch_asx

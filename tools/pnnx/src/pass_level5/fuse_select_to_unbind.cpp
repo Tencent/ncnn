@@ -33,6 +33,11 @@ void fuse_select_to_unbind(Graph& graph)
             }
 
             int dim = op->params.at("dim").i;
+            if (dim < 0)
+                dim = input_rank + dim;
+            if (dim < 0 || dim >= input_rank)
+                continue;
+
             const int select_dimsize = op_in->shape[dim];
             if (select_dimsize == -1)
             {
@@ -52,6 +57,9 @@ void fuse_select_to_unbind(Graph& graph)
                     continue;
 
                 int dim2 = x->params.at("dim").i;
+                if (dim2 < 0)
+                    dim2 = input_rank + dim2;
+
                 int index2 = x->params.at("index").i;
 
                 if (index2 < 0)

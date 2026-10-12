@@ -164,25 +164,32 @@ int RotaryEmbed_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::ve
             }
             else
             {
+                const int half = embed_dim / 2;
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const float* ptr0 = head.row(i);
-                const float* ptr1 = ptr0 + embed_dim / 2;
+                const float* ptr1 = ptr0 + half;
                 const float* cos_ptr = cos_cache.row(i);
                 const float* sin_ptr = sin_cache.row(i);
+                const float* cos_ptr1 = cos_ptr + cw;
+                const float* sin_ptr1 = sin_ptr + cw;
                 float* outptr0 = out_head.row(i);
-                float* outptr1 = outptr0 + embed_dim / 2;
+                float* outptr1 = outptr0 + half;
 
                 int j = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-                for (; j + 7 < embed_dim / 2; j += 8)
+                for (; j + 7 < half; j += 8)
                 {
                     __m256 _x0 = (__m256)__lasx_xvld(ptr0, 0);
                     __m256 _x1 = (__m256)__lasx_xvld(ptr1, 0);
                     __m256 _c = (__m256)__lasx_xvld(cos_ptr, 0);
                     __m256 _s = (__m256)__lasx_xvld(sin_ptr, 0);
+                    __m256 _c1 = (__m256)__lasx_xvld(cos_ptr1, 0);
+                    __m256 _s1 = (__m256)__lasx_xvld(sin_ptr1, 0);
 
                     __m256 _y0 = __lasx_xvfsub_s(__lasx_xvfmul_s(_x0, _c), __lasx_xvfmul_s(_x1, _s));
-                    __m256 _y1 = __lasx_xvfmadd_s(_x0, _s, __lasx_xvfmul_s(_x1, _c));
+                    __m256 _y1 = __lasx_xvfmadd_s(_x0, _s1, __lasx_xvfmul_s(_x1, _c1));
 
                     __lasx_xvst(_y0, outptr0, 0);
                     __lasx_xvst(_y1, outptr1, 0);
@@ -191,19 +198,23 @@ int RotaryEmbed_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     ptr1 += 8;
                     cos_ptr += 8;
                     sin_ptr += 8;
+                    cos_ptr1 += 8;
+                    sin_ptr1 += 8;
                     outptr0 += 8;
                     outptr1 += 8;
                 }
 #endif // __loongarch_asx
-                for (; j + 3 < embed_dim / 2; j += 4)
+                for (; j + 3 < half; j += 4)
                 {
                     __m128 _x0 = (__m128)__lsx_vld(ptr0, 0);
                     __m128 _x1 = (__m128)__lsx_vld(ptr1, 0);
                     __m128 _c = (__m128)__lsx_vld(cos_ptr, 0);
                     __m128 _s = (__m128)__lsx_vld(sin_ptr, 0);
+                    __m128 _c1 = (__m128)__lsx_vld(cos_ptr1, 0);
+                    __m128 _s1 = (__m128)__lsx_vld(sin_ptr1, 0);
 
                     __m128 _y0 = __lsx_vfsub_s(__lsx_vfmul_s(_x0, _c), __lsx_vfmul_s(_x1, _s));
-                    __m128 _y1 = __lsx_vfmadd_s(_x0, _s, __lsx_vfmul_s(_x1, _c));
+                    __m128 _y1 = __lsx_vfmadd_s(_x0, _s1, __lsx_vfmul_s(_x1, _c1));
 
                     __lsx_vst(_y0, outptr0, 0);
                     __lsx_vst(_y1, outptr1, 0);
@@ -212,19 +223,19 @@ int RotaryEmbed_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
+                    cos_ptr1 += 4;
+                    sin_ptr1 += 4;
                     outptr0 += 4;
                     outptr1 += 4;
                 }
 #endif // __loongarch_sx
-                for (; j < embed_dim / 2; j++)
+                for (; j < half; j++)
                 {
                     const float x0 = *ptr0++;
                     const float x1 = *ptr1++;
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
 
-                    *outptr0++ = x0 * cos_val - x1 * sin_val;
-                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                    *outptr0++ = x0 * *cos_ptr++ - x1 * *sin_ptr++;
+                    *outptr1++ = x0 * *sin_ptr1++ + x1 * *cos_ptr1++;
                 }
             }
         }
@@ -373,25 +384,32 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
             }
             else
             {
+                const int half = embed_dim / 2;
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const unsigned short* ptr0 = head.row<const unsigned short>(i);
-                const unsigned short* ptr1 = ptr0 + embed_dim / 2;
+                const unsigned short* ptr1 = ptr0 + half;
                 const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
                 const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+                const unsigned short* cos_ptr1 = cos_ptr + cw;
+                const unsigned short* sin_ptr1 = sin_ptr + cw;
                 unsigned short* outptr0 = out_head.row<unsigned short>(i);
-                unsigned short* outptr1 = outptr0 + embed_dim / 2;
+                unsigned short* outptr1 = outptr0 + half;
 
                 int j = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-                for (; j + 7 < embed_dim / 2; j += 8)
+                for (; j + 7 < half; j += 8)
                 {
                     __m256 _x0 = bfloat2float_lasx((const __m128i*)ptr0);
                     __m256 _x1 = bfloat2float_lasx((const __m128i*)ptr1);
                     __m256 _c = bfloat2float_lasx((const __m128i*)cos_ptr);
                     __m256 _s = bfloat2float_lasx((const __m128i*)sin_ptr);
+                    __m256 _c1 = bfloat2float_lasx((const __m128i*)cos_ptr1);
+                    __m256 _s1 = bfloat2float_lasx((const __m128i*)sin_ptr1);
 
                     __m256 _y0 = __lasx_xvfsub_s(__lasx_xvfmul_s(_x0, _c), __lasx_xvfmul_s(_x1, _s));
-                    __m256 _y1 = __lasx_xvfmadd_s(_x0, _s, __lasx_xvfmul_s(_x1, _c));
+                    __m256 _y1 = __lasx_xvfmadd_s(_x0, _s1, __lasx_xvfmul_s(_x1, _c1));
 
                     __lsx_vst(float2bfloat_lasx(_y0), outptr0, 0);
                     __lsx_vst(float2bfloat_lasx(_y1), outptr1, 0);
@@ -400,19 +418,23 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
                     ptr1 += 8;
                     cos_ptr += 8;
                     sin_ptr += 8;
+                    cos_ptr1 += 8;
+                    sin_ptr1 += 8;
                     outptr0 += 8;
                     outptr1 += 8;
                 }
 #endif // __loongarch_asx
-                for (; j + 3 < embed_dim / 2; j += 4)
+                for (; j + 3 < half; j += 4)
                 {
                     __m128 _x0 = bfloat2float_lsx(ptr0);
                     __m128 _x1 = bfloat2float_lsx(ptr1);
                     __m128 _c = bfloat2float_lsx(cos_ptr);
                     __m128 _s = bfloat2float_lsx(sin_ptr);
+                    __m128 _c1 = bfloat2float_lsx(cos_ptr1);
+                    __m128 _s1 = bfloat2float_lsx(sin_ptr1);
 
                     __m128 _y0 = __lsx_vfsub_s(__lsx_vfmul_s(_x0, _c), __lsx_vfmul_s(_x1, _s));
-                    __m128 _y1 = __lsx_vfmadd_s(_x0, _s, __lsx_vfmul_s(_x1, _c));
+                    __m128 _y1 = __lsx_vfmadd_s(_x0, _s1, __lsx_vfmul_s(_x1, _c1));
 
                     __lsx_vstelm_d(float2bfloat_lsx(_y0), outptr0, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_y1), outptr1, 0, 0);
@@ -421,19 +443,19 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
                     ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
+                    cos_ptr1 += 4;
+                    sin_ptr1 += 4;
                     outptr0 += 4;
                     outptr1 += 4;
                 }
 #endif // __loongarch_sx
-                for (; j < embed_dim / 2; j++)
+                for (; j < half; j++)
                 {
                     const float x0 = bfloat16_to_float32(*ptr0++);
                     const float x1 = bfloat16_to_float32(*ptr1++);
-                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
-                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
 
-                    *outptr0++ = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
-                    *outptr1++ = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
+                    *outptr0++ = float32_to_bfloat16(x0 * bfloat16_to_float32(*cos_ptr++) - x1 * bfloat16_to_float32(*sin_ptr++));
+                    *outptr1++ = float32_to_bfloat16(x0 * bfloat16_to_float32(*sin_ptr1++) + x1 * bfloat16_to_float32(*cos_ptr1++));
                 }
             }
         }

@@ -73,7 +73,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
         __m256 _eps = (__m256)__lasx_xvreplfr2vr_s(eps);
         _rms_lasx = __lasx_xvfdiv_s(_rms_lasx, _elemcount);
         _rms_lasx = __lasx_xvfadd_s(_rms_lasx, _eps);
-        _rms_lasx = __lasx_xvfrsqrt_s(_rms_lasx);
+        _rms_lasx = __lasx_comp_rsqrt_s(_rms_lasx);
     }
 #endif // __loongarch_asx
     if (elempack == 4)
@@ -90,7 +90,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
         __m128 _eps = (__m128)__lsx_vreplfr2vr_s(eps);
         _rms = __lsx_vfdiv_s(_rms, _elemcount);
         _rms = __lsx_vfadd_s(_rms, _eps);
-        _rms = __lsx_vfrsqrt_s(_rms);
+        _rms = __lsx_comp_rsqrt_s(_rms);
 #if __loongarch_asx
         _rms_lasx = __lasx_concat_128_s(_rms, _rms);
 #endif // __loongarch_asx
@@ -381,7 +381,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         __m256 _eps = (__m256)__lasx_xvreplfr2vr_s(eps);
         _rms_lasx = __lasx_xvfdiv_s(_rms_lasx, _elemcount);
         _rms_lasx = __lasx_xvfadd_s(_rms_lasx, _eps);
-        _rms_lasx = __lasx_xvfrsqrt_s(_rms_lasx);
+        _rms_lasx = __lasx_comp_rsqrt_s(_rms_lasx);
     }
 #else
     if (elempack == 8)
@@ -392,8 +392,8 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         _rms1 = __lsx_vfdiv_s(_rms1, _elemcount);
         _rms = __lsx_vfadd_s(_rms, _eps);
         _rms1 = __lsx_vfadd_s(_rms1, _eps);
-        _rms = __lsx_vfrsqrt_s(_rms);
-        _rms1 = __lsx_vfrsqrt_s(_rms1);
+        _rms = __lsx_comp_rsqrt_s(_rms);
+        _rms1 = __lsx_comp_rsqrt_s(_rms1);
     }
 #endif // __loongarch_asx
     if (elempack == 4)
@@ -413,7 +413,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         __m128 _eps = (__m128)__lsx_vreplfr2vr_s(eps);
         _rms = __lsx_vfdiv_s(_rms, _elemcount);
         _rms = __lsx_vfadd_s(_rms, _eps);
-        _rms = __lsx_vfrsqrt_s(_rms);
+        _rms = __lsx_comp_rsqrt_s(_rms);
 #if __loongarch_asx
         _rms_lasx = __lasx_concat_128_s(_rms, _rms);
 #else

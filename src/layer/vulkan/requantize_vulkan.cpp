@@ -74,7 +74,7 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
     specializations[9 + 1].u32 = in_stride;
     specializations[9 + 2].u32 = out_stride;
 
-    const int local_size_x = vkdev->info.subgroup_size();
+    const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
     // pack1
     if (shape.dims == 0 || shape.elempack == 1)

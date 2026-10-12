@@ -18,6 +18,7 @@ Here is a detailed breakdown of each `support` property and what it means for yo
 ### `one_blob_only`
 
 *   **Purpose**: Declares that the layer accepts only one input `blob` and produces only one output `blob`.
+*   **Parameter loading**: Except for `Input`, a layer with `one_blob_only = true` must have exactly one bottom and one top. Zero-output layers must use `one_blob_only = false`.
 *   **Requirements if `true`**: You must implement the single-input, single-output version of the `forward` method:
     ```cpp
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int packing_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int out_elempack)
 {
     ncnn::ParamDict pd;
@@ -206,12 +210,12 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 }
 
 #if NCNN_VULKAN
-static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_elempack)
+static int test_packing_gpu(const ncnn::Mat& a, int in_elempack, int out_elempack, int cast_type)
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1); // cast_type_from
-    pd.set(3, 1); // cast_type_to
+    pd.set(2, cast_type); // cast_type_from
+    pd.set(3, cast_type); // cast_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -222,6 +226,8 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = cast_type == 5; // bfloat16
+    opt.use_bf16_storage = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
@@ -250,8 +256,12 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
 
     op->create_pipeline(opt);
 
+    ncnn::Mat a_cast = a;
+    if (cast_type == 5)
+        ncnn::cast_float32_to_bfloat16(a, a_cast, opt);
+
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack, opt);
+    ncnn::convert_packing(a_cast, ap, in_elempack, opt);
 
     ncnn::Mat b;
     packing_cpu_naive(ap, b, out_elempack);
@@ -280,9 +290,19 @@ static int test_packing_gpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
+    if (cast_type == 5)
     {
-        fprintf(stderr, "test_packing_gpu failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
+        ncnn::Mat b32;
+        ncnn::Mat d32;
+        ncnn::cast_bfloat16_to_float32(b, b32, opt);
+        ncnn::cast_bfloat16_to_float32(d, d32, opt);
+        b = b32;
+        d = d32;
+    }
+
+    if (CompareMat(b, d, cast_type == 5 ? 0.f : 0.001f) != 0)
+    {
+        fprintf(stderr, "test_packing_gpu failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d cast_type=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack, cast_type);
         return -1;
     }
 
@@ -384,7 +404,8 @@ static int test_packing_gpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
 static int test_packing_gpu(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
     return 0
-           || test_packing_gpu_fp32(a, in_elempack, out_elempack)
+           || test_packing_gpu(a, in_elempack, out_elempack, 1)
+           || test_packing_gpu(a, in_elempack, out_elempack, 5)
            || test_packing_gpu_int8(a, in_elempack, out_elempack);
 }
 #endif
@@ -424,6 +445,7 @@ static int test_packing_0()
 {
     ncnn::Mat a = RandomMat(9, 7, 10, 16);
     ncnn::Mat b = RandomMat(9, 7, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -437,6 +459,7 @@ static int test_packing_1()
 {
     ncnn::Mat a = RandomMat(9, 10, 16);
     ncnn::Mat b = RandomMat(9, 10, 3);
+
     return 0
            || test_packing_cpu(a)
            || test_packing_cpu(b)
@@ -449,6 +472,7 @@ static int test_packing_1()
 static int test_packing_2()
 {
     ncnn::Mat a = RandomMat(19, 16);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -460,6 +484,7 @@ static int test_packing_2()
 static int test_packing_3()
 {
     ncnn::Mat a = RandomMat(80);
+
     return 0
            || test_packing_cpu(a)
 #if NCNN_VULKAN
@@ -467,6 +492,30 @@ static int test_packing_3()
 #endif
            ;
 }
+
+#if NCNN_VALIDATION
+static int test_packing_load_param()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Packing, base, 0) != 0)
+        return -1;
+
+    for (int i = 1; i <= 16; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {0, -1, INT_MIN};
+    for (int i = 0; i < 3; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Packing, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -476,5 +525,9 @@ int main()
            || test_packing_0()
            || test_packing_1()
            || test_packing_2()
-           || test_packing_3();
+           || test_packing_3()
+#if NCNN_VALIDATION
+           || test_packing_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }
