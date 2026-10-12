@@ -41,7 +41,8 @@ typedef __fp16 ime2_fp16;
  * 的栈）。非探测线程的信号要交还给此前的处置。g_sdpa_ime2_old 只在探测锁内
  * 安装/恢复，读取它的异线程处理器与安装之间不存在长时间窗口。 */
 static __thread sigjmp_buf tl_sdpa_ime2_jb;
-static __thread int tl_sdpa_ime2_armed = 0;
+/* 信号处理器读、探测写：必须是信号安全类型（volatile sig_atomic_t）。 */
+static __thread volatile sig_atomic_t tl_sdpa_ime2_armed = 0;
 static struct sigaction g_sdpa_ime2_old;
 
 static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
@@ -352,11 +353,12 @@ static int ime2_fits_fp16(const ncnn::Mat& m)
         const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
         if (mx > 65504.f)
             return 0;
-        /* 下溢到零：|v| < 2^-25 ≈ 2.98e-8 的有限值打包成 +0。Q/K 里的这种值
-         * 会被 scale 放大成不可忽略的点积损失（scale 在 fp32 结果上施加，
-         * 救不回来），同溢出一样回落。 */
+        /* 下溢到零：|v| <= 2^-25 的有限值打包成 +0（RNE 下恰为 2^-25 的值
+         * 平分给偶数侧 = 0；十进制字面量 2.98e-8f 比精确边界小，会漏掉
+         * (2.98e-8, 2^-25] 区间）。用精确十六进制边界且含边界。
+         * Q/K 里的这种值会被 scale 放大成不可忽略的点积损失，同溢出一样回落。 */
         const float mn = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmin_vs_f32m1_f32m1(vmin, __riscv_vfmv_v_f_f32m1(FLT_MAX, 1), vlmax));
-        if (mn < 2.98e-8f)
+        if (mn <= 0x1p-25f)
             return 0;
     }
     return 1;
