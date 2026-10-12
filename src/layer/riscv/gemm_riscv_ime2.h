@@ -42,7 +42,9 @@ typedef __fp16 ime2_fp16;
  * 的栈）。非探测线程的信号要交还给此前的处置。g_ime2_old 只在探测锁内
  * 安装/恢复，读取它的异线程处理器与安装之间不存在长时间窗口。 */
 static __thread sigjmp_buf tl_ime2_jb;
-static __thread int tl_ime2_armed = 0;
+/* 信号处理器读、探测写：必须是信号安全类型（volatile sig_atomic_t），
+ * 否则读写竞态是 UB，优化构建可能读不到探测侧的解除。 */
+static __thread volatile sig_atomic_t tl_ime2_armed = 0;
 static struct sigaction g_ime2_old;
 
 static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)

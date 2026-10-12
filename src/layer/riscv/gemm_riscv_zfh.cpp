@@ -1842,6 +1842,10 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     const int N = constantN;
     const int K = constantK;
 
+    /* 内核实际以 _nT（建管线时存的 nT 优先）起团队：校验必须覆盖它，
+     * 而不是 forward 时的 opt.num_threads（调用方减线程后两者不同）。 */
+    int _nT = nT ? nT : opt.num_threads;
+
     // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）。
     // 在团队校验之前算好：fp16 回落分支与 IME2 主路径都用它。
     int out_elempack = 1;
@@ -1858,7 +1862,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     /* 团队校验对所有位宽生效：fp32 输入也不例外——通用 fp32 面板的 tile 是建
      * 管线时按当时 vlenb 打包的，团队离开 A100 后通用路径会按新 vlenb 重算
      * tile 去索引旧面板 → 错位。所以先验团队，再按位宽分流。 */
-    if (!ncnn_ime2::ime2_team_ok(opt.num_threads))
+    if (!ncnn_ime2::ime2_team_ok(_nT))
     {
         const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
         if (!c_never_exists)
@@ -2000,7 +2004,6 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (top_blob.empty())
         return -100;
 
-    int _nT = nT ? nT : opt.num_threads;
     return ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt, BT_i8c_ime2, BT_wscale_ime2);
 #endif
 }
