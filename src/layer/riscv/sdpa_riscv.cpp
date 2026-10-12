@@ -531,8 +531,17 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             if (v >= 0)
                 ime2_minl = v;
         }
+        /* mask 形状契约：IME2 预填充的两条路径（flash 与旧逐行）都按完整
+         * [dst_seqlen, src_seqlen] 索引 mask；而下面的上游 GEMM 组合路径对 C
+         * 有真正的广播支持（broadcast_type_C 运行时检测：标量/M/N/MxN），
+         * 1xN key-padding 之类的广播 mask 在那里才是正确语义。形状不完整时
+         * 不接管，让 GEMM 路径处理。 */
+        const Mat& m0 = bottom_blobs[3];
+        const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
+        const bool mask_full = m0.dims >= 2 && m0.w >= dst_sl && m0.h >= q0.h;
         if (use_ime2_sdpa && kv_cache && attn_mask && !int8_scale_term
-                && q0.elembits() == 32 && q0.elempack == 1 && q0.h >= ime2_minl)
+                && q0.elembits() == 32 && q0.elempack == 1 && q0.h >= ime2_minl
+                && mask_full)
             return forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
     }
 #endif
