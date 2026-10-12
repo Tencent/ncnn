@@ -1831,139 +1831,146 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
 int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if !__riscv_v
-    (void)A; (void)M; (void)N; (void)K; (void)alpha; (void)out_elempack; (void)top_blobs; (void)opt;
+    (void)A;
+    (void)M;
+    (void)N;
+    (void)K;
+    (void)alpha;
+    (void)out_elempack;
+    (void)top_blobs;
+    (void)opt;
     return -1;
 #else
 
-        const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
-        if (!c_never_exists)
-            return -99; /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
+    const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+    if (!c_never_exists)
+        return -99; /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
                            * fp32 输入由调度方继续通用路径（与无 IME2 构建同语义） */
 
-        /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
+    /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
          * tile 布局，行距填充恒定）。朴素 fp32 累加直接从它算，任何核对上都
          * 正确。这是降级模式：先求正确，再求快。 */
-        Option opt_tmp = opt;
-        opt_tmp.blob_allocator = opt.workspace_allocator;
+    Option opt_tmp = opt;
+    opt_tmp.blob_allocator = opt.workspace_allocator;
 
-        Mat A32;
-        if (A.elembits() == 16)
-            cast_float16_to_float32(A, A32, opt_tmp);
-        else
-            A32 = A; /* fp32 共享，零拷贝 */
-        if (A32.empty())
+    Mat A32;
+    if (A.elembits() == 16)
+        cast_float16_to_float32(A, A32, opt_tmp);
+    else
+        A32 = A; /* fp32 共享，零拷贝 */
+    if (A32.empty())
+        return -100;
+    /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
+    if (A32.elempack != 1)
+    {
+        Mat A32_p1;
+        convert_packing(A32, A32_p1, 1, opt_tmp);
+        if (A32_p1.empty())
             return -100;
-        /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
-        if (A32.elempack != 1)
-        {
-            Mat A32_p1;
-            convert_packing(A32, A32_p1, 1, opt_tmp);
-            if (A32_p1.empty())
-                return -100;
-            A32 = A32_p1;
-        }
+        A32 = A32_p1;
+    }
 
-        /* BT_data_ime2 布局：tile (i,j) 在 (size_t)i*ldt + j*64，元素 (r,c) 在
+    /* BT_data_ime2 布局：tile (i,j) 在 (size_t)i*ldt + j*64，元素 (r,c) 在
          * t[r*8+c] = B[n=i*8+r][k=j*8+c]；ldt = kt*64 + IME2_TILE_PAD。 */
-        const int kt = (K + 7) / 8;
-        const size_t ldt = IME2_TILE_LD(kt);
-        const __fp16* bt = (const __fp16*)BT_data_ime2;
+    const int kt = (K + 7) / 8;
+    const size_t ldt = IME2_TILE_LD(kt);
+    const __fp16* bt = (const __fp16*)BT_data_ime2;
 
-        Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
-        if (C32.empty())
-            return -100;
+    Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
+    if (C32.empty())
+        return -100;
 
-        /* 每线程一份 K 行缓冲（B 行从 tile 布局解出），然后 RVV fp32 点积。 */
-        Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
-        if (kbuf_mat.empty())
-            return -100;
+    /* 每线程一份 K 行缓冲（B 行从 tile 布局解出），然后 RVV fp32 点积。 */
+    Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
+    if (kbuf_mat.empty())
+        return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int m = 0; m < M; m++)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int m = 0; m < M; m++)
+    {
+        const float* arow = A32.dims == 3 ? A32.channel(m).row(0) : (A32.dims == 2 ? A32.row(m) : (const float*)A32);
+        float* crow = C32.row(m);
+        float* kbuf = kbuf_mat.row(get_omp_thread_num());
+        for (int n = 0; n < N; n++)
         {
-            const float* arow = A32.dims == 3 ? A32.channel(m).row(0) : (A32.dims == 2 ? A32.row(m) : (const float*)A32);
-            float* crow = C32.row(m);
-            float* kbuf = kbuf_mat.row(get_omp_thread_num());
-            for (int n = 0; n < N; n++)
-            {
-                const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
-                for (int k = 0; k < K; k++)
-                    kbuf[k] = (float)btile[(k / 8) * 64 + (k % 8)];
+            const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
+            for (int k = 0; k < K; k++)
+                kbuf[k] = (float)btile[(k / 8) * 64 + (k % 8)];
 
-                float acc = 0.f;
+            float acc = 0.f;
 #if __riscv_vector
-                /* VLmax 全宽清零、VLmax 全宽归约（逐块 _tu 累加，末块余数 vl
+            /* VLmax 全宽清零、VLmax 全宽归约（逐块 _tu 累加，末块余数 vl
                  * 归约会丢高位 lane 的贡献） */
-                const size_t vlmax = __riscv_vsetvlmax_e32m1();
-                vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
-                int k = 0;
-                while (k < K)
-                {
-                    const size_t vl = __riscv_vsetvl_e32m1(K - k);
-                    vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
-                    k += vl;
-                }
-                acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vlmax), vlmax));
-#else
-                for (int k = 0; k < K; k++)
-                    acc += arow[k] * kbuf[k];
-#endif
-                crow[n] = alpha * acc;
-            }
-        }
-
-        Mat& top_blob = top_blobs[0];
-        if (A.elembits() == 16)
-        {
-            /* fp16 输入 → 转回 fp16 存储并重打包到本层正常布局 */
-            if (out_elempack == 1)
+            const size_t vlmax = __riscv_vsetvlmax_e32m1();
+            vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
+            int k = 0;
+            while (k < K)
             {
-                /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
-                cast_float32_to_float16(C32, top_blob, opt);
-                if (top_blob.empty())
-                    return -100;
-                return 0;
+                const size_t vl = __riscv_vsetvl_e32m1(K - k);
+                vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
+                k += vl;
             }
-            /* 需要重打包时，pack1 的 fp16 中间量放 workspace（与最终输出同在
-             * blob 池会瞬时占两份同尺寸；blob 池按一个返回输出估算会 -100）。 */
-            Mat top16_tmp;
-            cast_float32_to_float16(C32, top16_tmp, opt_tmp);
-            if (top16_tmp.empty())
-                return -100;
-            convert_packing(top16_tmp, top_blob, out_elempack, opt);
-            if (top_blob.empty())
-                return -100;
-            return 0;
-        }
-        /* fp32 输入 → fp32 输出（通用路径的输出布局：按其自身的打包决策；
-         * C32 已是 pack1，重打包到 fp32 路径应有的 elempack）。 */
-        int out32_elempack = 1;
-#if __riscv_vector
-        if (opt.use_packing_layout)
-        {
-            const int packn = csrr_vlenb() / 4;
-            out32_elempack = (M % packn == 0) ? packn : 1;
-        }
+            acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vlmax), vlmax));
+#else
+            for (int k = 0; k < K; k++)
+                acc += arow[k] * kbuf[k];
 #endif
-        /* output_elempack 是**元素数**而非字节数，通用 fp32 路径原样采用
-         * （gemm_riscv.cpp 不折算）：此处同样保持，不能减半。 */
-        if (output_elempack)
-            out32_elempack = output_elempack;
-        if (out32_elempack != 1)
+            crow[n] = alpha * acc;
+        }
+    }
+
+    Mat& top_blob = top_blobs[0];
+    if (A.elembits() == 16)
+    {
+        /* fp16 输入 → 转回 fp16 存储并重打包到本层正常布局 */
+        if (out_elempack == 1)
         {
-            /* 最终输出必须用 blob 分配器（C32 是 workspace 临时量，赋给
-             * top_blob 会把工作区内存带出本层，后续层会覆写）。 */
-            convert_packing(C32, top_blob, out32_elempack, opt);
+            /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
+            cast_float32_to_float16(C32, top_blob, opt);
             if (top_blob.empty())
                 return -100;
             return 0;
         }
-        /* pack1：同上，拷到 blob 分配器再交出。 */
-        top_blob.create(N, M, 4u, opt.blob_allocator);
+        /* 需要重打包时，pack1 的 fp16 中间量放 workspace（与最终输出同在
+             * blob 池会瞬时占两份同尺寸；blob 池按一个返回输出估算会 -100）。 */
+        Mat top16_tmp;
+        cast_float32_to_float16(C32, top16_tmp, opt_tmp);
+        if (top16_tmp.empty())
+            return -100;
+        convert_packing(top16_tmp, top_blob, out_elempack, opt);
         if (top_blob.empty())
             return -100;
-        memcpy(top_blob.data, C32.data, (size_t)N * M * 4u);
         return 0;
+    }
+    /* fp32 输入 → fp32 输出（通用路径的输出布局：按其自身的打包决策；
+         * C32 已是 pack1，重打包到 fp32 路径应有的 elempack）。 */
+    int out32_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 4;
+        out32_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    /* output_elempack 是**元素数**而非字节数，通用 fp32 路径原样采用
+         * （gemm_riscv.cpp 不折算）：此处同样保持，不能减半。 */
+    if (output_elempack)
+        out32_elempack = output_elempack;
+    if (out32_elempack != 1)
+    {
+        /* 最终输出必须用 blob 分配器（C32 是 workspace 临时量，赋给
+             * top_blob 会把工作区内存带出本层，后续层会覆写）。 */
+        convert_packing(C32, top_blob, out32_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
+    /* pack1：同上，拷到 blob 分配器再交出。 */
+    top_blob.create(N, M, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+    memcpy(top_blob.data, C32.data, (size_t)N * M * 4u);
+    return 0;
     return 0;
 #endif
 }

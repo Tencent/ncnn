@@ -1100,41 +1100,41 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
                     #pragma omp for
                     for (int j = 0; j < nt; j += 4)
                     {
-            const int jn = nt - j < 4 ? nt - j : 4;
-            float row[32];
-            if (jn == 4)
-            {
-                ime2_gemv_m1_x4(at, bt + (size_t)j * ldt, ldt, row, kt);
-            }
-            else
-            {
-                for (int t = 0; t < jn; t++)
-                {
-                    float tile[64];
-                    ime2_tile_8x8(at, bt + (size_t)(j + t) * ldt, tile, kt);
-                    for (int c = 0; c < 8; c++)
-                        row[t * 8 + c] = tile[c];
-                }
-            }
-            /* 64 个 fp32 -> fp16 连续写 128B（vl=64：VLEN=1024 下 e32m2 上限正好 64） */
-            /* jn counts tiles, so jn*8 rounds the width up to a multiple of 8.
-             * The real output has only N columns; without this cap the store
-             * below writes up to seven elements past top_blob and, since the
-             * buffers are adjacent, can overwrite allocator bookkeeping. */
-            const int n = ((j + jn) * 8 < N) ? jn * 8 : (N - j * 8);
-            int c = 0;
-            while (c < n)
-            {
-                size_t vl = __riscv_vsetvl_e32m2(n - c);
-                vfloat32m2_t v = __riscv_vle32_v_f32m2(row + c, vl);
-                if (alpha != 1.f)
-                    v = __riscv_vfmul_vf_f32m2(v, alpha, vl);
-                __riscv_vse16_v_f16m1(out + (size_t)j * 8 + c, __riscv_vfncvt_f_f_w_f16m1(v, vl), vl);
-                c += (int)vl;
+                        const int jn = nt - j < 4 ? nt - j : 4;
+                        float row[32];
+                        if (jn == 4)
+                        {
+                            ime2_gemv_m1_x4(at, bt + (size_t)j * ldt, ldt, row, kt);
+                        }
+                        else
+                        {
+                            for (int t = 0; t < jn; t++)
+                            {
+                                float tile[64];
+                                ime2_tile_8x8(at, bt + (size_t)(j + t) * ldt, tile, kt);
+                                for (int c = 0; c < 8; c++)
+                                    row[t * 8 + c] = tile[c];
+                            }
+                        }
+                        /* 64 个 fp32 -> fp16 连续写 128B（vl=64：VLEN=1024 下 e32m2 上限正好 64） */
+                        /* jn counts tiles, so jn*8 rounds the width up to a multiple of 8.
+                        * The real output has only N columns; without this cap the store
+                        * below writes up to seven elements past top_blob and, since the
+                        * buffers are adjacent, can overwrite allocator bookkeeping. */
+                        const int n = ((j + jn) * 8 < N) ? jn * 8 : (N - j * 8);
+                        int c = 0;
+                        while (c < n)
+                        {
+                            size_t vl = __riscv_vsetvl_e32m2(n - c);
+                            vfloat32m2_t v = __riscv_vle32_v_f32m2(row + c, vl);
+                            if (alpha != 1.f)
+                                v = __riscv_vfmul_vf_f32m2(v, alpha, vl);
+                            __riscv_vse16_v_f16m1(out + (size_t)j * 8 + c, __riscv_vfncvt_f_f_w_f16m1(v, vl), vl);
+                            c += (int)vl;
+                        }
                     }
                 }
             }
-        }
         }
         if (team_bad)
             return -99;
