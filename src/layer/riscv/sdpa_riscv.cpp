@@ -34,7 +34,12 @@ SDPA_riscv::SDPA_riscv()
 
 #if __riscv_vector
 // 向量化 exp（与 swish_riscv.cpp 同一套实现）：exp(x) = 2^(x*log2e) = 2^n * 2^f
-// 逐元素运算，结果与 VLEN 无关 —— 满足跨簇逐字节一致这一硬门槛。
+// 逐元素运算，结果与 VLEN 无关。
+// 注意跨簇逐字节一致的边界：exp 与本层 softmax 求和（固定 8 lane + vfredosum）
+// 是 VLEN 无关的；但 rvv_dot_f32（QK）与 PV 累加仍是按 lane 分组（e32m8 宽度
+// 随 VLEN 变化），所以整条解码路径只在**同一簇**上保证逐字节可复现——K3 上
+// 进程注册后被限制在 A100 簇内，这一前提成立；与 ncnn 全局一致（打包 tile
+// 的求和顺序本来就随 VLEN 变，上游不承诺跨 VLEN 位一致）。
 // 解码 softmax 原本用标量 expf（实测 44.7 ns/元素），507 token 时每层 8112 次 ≈ 363 µs，
 // 是长上下文解码的主要成本（每 token 约 10 ms）。这里换成向量版。
 static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
@@ -219,21 +224,27 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
 #if __riscv_vector
         /* 向量化 exp（原来逐元素调 expf，44.7 ns/元素 → 507 token 时每层约 363 µs） */
         {
+            /* 求和的分组必须与 VLEN 无关：lane 数跟随 VLEN（A100 e32m1=32 条，
+             * X100=16 条），lane 分组累加 + 无序归约会让 sum 跨簇不同。
+             * 固定 8 lane 分组（任何支持的 VLEN 都有 VLMAX≥8），归约用
+             * vfredosum（有序，顺序语义固定）——两簇逐字节一致。exp 本身是
+             * 逐元素运算，与 VLEN 无关；sum 不是热点，8 宽足够。 */
             int j = 0;
-            vfloat32m1_t vsum = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+            const size_t vl8 = 8;
+            vfloat32m1_t vsum = __riscv_vfmv_v_f_f32m1(0.f, vl8);
             while (j < dst_seqlen)
             {
-                const size_t vl = __riscv_vsetvl_e32m1(dst_seqlen - j);
+                /* 固定 8 元素一组（末组可短）：组内组间顺序都固定 */
+                const size_t vl = __riscv_vsetvl_e32m1(dst_seqlen - j < 8 ? dst_seqlen - j : 8);
                 vfloat32m1_t v = __riscv_vle32_v_f32m1(scores + j, vl);
                 v = sdpa_vexp_f32m1(__riscv_vfsub_vf_f32m1(v, mx, vl), vl);
                 __riscv_vse32_v_f32m1(scores + j, v, vl);
-                /* _tu keeps vsum's tail: dst_seqlen is usually not a multiple of
-                 * VLMAX, the unsuffixed add leaves the tail agnostic (possibly
-                 * NaN), and the reduction below reads the whole register. */
+                /* _tu keeps vsum's tail: the final chunk may be shorter than 8 */
                 vsum = __riscv_vfadd_vv_f32m1_tu(vsum, vsum, v, vl);
                 j += (int)vl;
             }
-            sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vsum, __riscv_vfmv_v_f_f32m1(0.f, 1), __riscv_vsetvlmax_e32m1()));
+            /* vfredosum：有序归约（0..7 顺序固定），与实现无关 */
+            sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredosum_vs_f32m1_f32m1(vsum, __riscv_vfmv_v_f_f32m1(0.f, 1), vl8));
         }
 #else
         for (int j = 0; j < dst_seqlen; j++)

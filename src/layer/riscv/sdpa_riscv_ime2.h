@@ -49,24 +49,15 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if (tl_sdpa_ime2_armed)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：按安装处理器之前的处置转交。
-     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，且可能同时带 SA_SIGINFO
-     * 标志（此时 sa_sigaction 也等于 0/1）：必须先把这两个特殊值排掉，
-     * 否则会把地址 1 当函数调。 */
-    if (g_sdpa_ime2_old.sa_handler == SIG_DFL || g_sdpa_ime2_old.sa_handler == SIG_IGN)
-    {
-        /* 恢复原处置后重发，由旧处置决定生死（SIG_IGN 下 SIGILL 是同步
-         * 信号，忽略后重执行会再次触发——但那是应用自己的选择） */
-        sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-        raise(sig);
-        return;
-    }
-    if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
-    {
-        g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
-        return;
-    }
-    g_sdpa_ime2_old.sa_handler(sig);
+    /* 不是探测线程的 SIGILL：恢复旧处置后重发，交给内核完整交付。
+     * 直接 C 调用旧处理器会绕过内核的信号交付语义——SA_RESETHAND 的一次性
+     * 复位、SA_ONSTACK 的栈切换、sa_mask 的屏蔽集全都会被丢掉；而且
+     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，根本不能当函数调。
+     * 恢复+重发是唯一对所有处置都正确的做法。 */
+    (void)info;
+    (void)ucontext;
+    sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+    raise(sig);
 }
 
 #if defined __linux__
@@ -192,7 +183,16 @@ static int sdpa_ime2_probe_locked(int nthreads)
         ok = 1;
     }
     tl_sdpa_ime2_armed = 0;
-    sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+    /* 仅当当前处理器仍是我们的时才恢复旧处置：若探测窗口内发生过转发，
+     * 当前已是旧处置（或已被内核按 RESETHAND 复位成 DFL）——再装回去会把
+     * 一次性处理器错误地重新武装。 */
+    {
+        struct sigaction cur;
+        memset(&cur, 0, sizeof cur);
+        sigaction(SIGILL, NULL, &cur);
+        if (cur.sa_sigaction == sdpa_ime2_sigill)
+            sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+    }
     return ok;
 }
 
