@@ -264,8 +264,7 @@ static int test_convolution(const ConvolutionGeometry& g, int inch, int outch, i
     return 0;
 }
 
-template<int N>
-static int test_raw_tile(int output_pack, int max_ii)
+static int test_raw_tile(int N, int output_pack, int max_ii)
 {
     // Values exceed FP32's exact integer range, so compare raw INT32 storage.
     // Three deliberately unequal K panels exercise initialization and reload.
@@ -303,24 +302,31 @@ static int test_raw_tile(int output_pack, int max_ii)
                 for (int lane = 0; lane < lanes; lane++)
                 {
                     const int m = ii + lane;
-                    a[ai++] = (signed char)(m % 2 ? -128 : (offset + k == K - 1 ? 126 : 127));
+                    a[ai++] = (signed char)(m % 2 ? -128 + m % 7 : (offset + k == K - 1 ? 126 : 127) - m % 5);
                 }
             }
         }
-        for (int k = 0; k < count; k++)
+        int bi = 0;
+        int jj = 0;
+        while (jj < N)
         {
-            for (int n = 0; n < N; n++)
-                b[k * N + n] = (signed char)(n % 2 ? -128 : 127);
+            const int nn = N - jj >= 8 ? 8 : N - jj >= 4 ? 4 : N - jj >= 2 ? 2 : 1;
+            for (int k = 0; k < count; k++)
+            {
+                for (int n = jj; n < jj + nn; n++)
+                    b[bi++] = (signed char)(n % 2 ? -128 + n % 7 : 127 - n % 5);
+            }
+            jj += nn;
         }
-        ncnn::convolution_gemm_transB_packed_tile_int8_rvv<N>(a.data(), b.data(), output, first_channel, max_ii, 1, offset, count);
+        ncnn::convolution_gemm_transB_packed_tile_int8_rvv(a.data(), b.data(), output, first_channel, max_ii, 1, N, offset, count);
         for (int m = 0; m < max_ii; m++)
         {
             for (int n = 0; n < N; n++)
             {
                 for (int k = 0; k < count; k++)
                 {
-                    const int av = m % 2 ? -128 : (offset + k == K - 1 ? 126 : 127);
-                    const int bv = n % 2 ? -128 : 127;
+                    const int av = m % 2 ? -128 + m % 7 : (offset + k == K - 1 ? 126 : 127) - m % 5;
+                    const int bv = n % 2 ? -128 + n % 7 : 127 - n % 5;
                     expected[m * N + n] += av * bv;
                 }
             }
@@ -352,12 +358,19 @@ static int test_raw_accumulators()
     const int packn = 1;
 #endif
     const int tails[] = {1, packn, packn * 2 + 1};
-    for (int i = 0; i < 3; i++)
+    // Exercise individual blocks, mixed tails and repeated 8-position blocks.
+    const int spatial_sizes[] = {1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31};
+    for (int n = 0; n < 11; n++)
     {
-        if (test_raw_tile<1>(1, tails[i]) || test_raw_tile<2>(1, tails[i]) || test_raw_tile<4>(1, tails[i]) || test_raw_tile<8>(1, tails[i]))
+        for (int i = 0; i < 3; i++)
+        {
+            if (test_raw_tile(spatial_sizes[n], 1, tails[i]))
+                return -1;
+        }
+        if (test_raw_tile(spatial_sizes[n], packn, packn * 2))
             return -1;
     }
-    return test_raw_tile<1>(packn, packn * 2) || test_raw_tile<2>(packn, packn * 2) || test_raw_tile<4>(packn, packn * 2) || test_raw_tile<8>(packn, packn * 2);
+    return 0;
 }
 
 static int test_geometry()
@@ -451,7 +464,7 @@ int main()
     SRAND(7767517);
     if (test_raw_accumulators() || test_geometry() || test_postprocessing() || test_tile_tails() || test_split_k())
         return -1;
-    fprintf(stderr, "PASS INT8 convolution GEMM: 16 raw split-K checks, %d layer cases, %d packed input runs, vlenb=%d\n", test_count, packed_input_count, ncnn::cpu_riscv_vlenb());
+    fprintf(stderr, "PASS INT8 convolution GEMM: 44 raw split-K checks, %d layer cases, %d packed input runs, vlenb=%d\n", test_count, packed_input_count, ncnn::cpu_riscv_vlenb());
 #else
     fprintf(stderr, "SKIP RISC-V INT8 convolution GEMM tests\n");
 #endif
