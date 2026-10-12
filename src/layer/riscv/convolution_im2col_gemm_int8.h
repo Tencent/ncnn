@@ -198,7 +198,8 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
 // makes GCC spill vector registers inside the K loop.
 __attribute__((noinline))
 #endif
-static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT, const signed char* pBT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk)
+static void
+convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT, const signed char* pBT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
     int ii = 0;
 #if __riscv_vector
