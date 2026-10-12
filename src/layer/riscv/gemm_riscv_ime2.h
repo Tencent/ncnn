@@ -208,11 +208,14 @@ static int ime2_probe(int nthreads)
     return ime2_probe_locked(nthreads);
 }
 
-/* 一次性测定本进程当前允许的核对里哪些是 A100（vlenb==128）。硬件属性，
- * 进程级缓存；若测定时 mask 只覆盖部分核对，得到的集合是真实 A100 集合的
- * 子集——偏差方向保守（只会误关 IME2，不会误放）。 */
+/* 一次性测定团队可能落到的核对里哪些是 A100（vlenb==128）。硬件属性，
+ * 进程级缓存。测定范围必须取**团队所有工人掩码的并集**，而不能只看调用
+ * 线程：OMP_PROC_BIND / GOMP_CPU_AFFINITY 下初始线程的掩码常只有自己的
+ * place，单看它会把其他 A100 工人误判为不可用，等于静默关闭 IME2（性能
+ * 回归）。若测定时团队未覆盖全部 A100 核对，得到的集合是真实集合的子集
+ * ——偏差方向保守（只会误关，不会误放）。 */
 #if defined __linux__
-static int ime2_a100_set(cpu_set_t* out)
+static int ime2_a100_set(int nthreads, cpu_set_t* out)
 {
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
@@ -223,14 +226,32 @@ static int ime2_a100_set(cpu_set_t* out)
         *out = cached;
         return 1;
     }
-    cpu_set_t cs;
-    if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
+    /* 1) 收集并集（区域内只做 sched_getaffinity，无特权指令，随处可跑） */
+    cpu_set_t uni;
+    CPU_ZERO(&uni);
+    #pragma omp parallel num_threads(nthreads)
+    {
+        cpu_set_t wcs;
+        if (sched_getaffinity(0, sizeof(wcs), &wcs) == 0)
+        {
+            #pragma omp critical
+            {
+                for (int c = 0; c < CPU_SETSIZE; c++)
+                    if (CPU_ISSET(c, &wcs))
+                        CPU_SET(c, &uni);
+            }
+        }
+    }
+    if (CPU_COUNT(&uni) == 0)
         return 0;
-    const cpu_set_t orig = cs;
+    /* 2) 调用线程逐核走一遍并集，记下 vlenb==128 的（走完恢复原绑定） */
+    cpu_set_t orig;
+    if (sched_getaffinity(0, sizeof(orig), &orig) != 0)
+        return 0;
     CPU_ZERO(&cached);
     for (int c = 0; c < CPU_SETSIZE; c++)
     {
-        if (!CPU_ISSET(c, &cs))
+        if (!CPU_ISSET(c, &uni))
             continue;
         cpu_set_t one;
         CPU_ZERO(&one);
@@ -262,7 +283,7 @@ static int ime2_team_ok(int nthreads)
 {
 #if defined __linux__
     cpu_set_t a100;
-    if (!ime2_a100_set(&a100))
+    if (!ime2_a100_set(nthreads, &a100))
         return 0;
     int ok = 1;
     #pragma omp parallel num_threads(nthreads)
