@@ -49,20 +49,24 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if (tl_sdpa_ime2_armed)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：按安装处理器之前的处置转交 */
-    if ((g_sdpa_ime2_old.sa_flags & SA_SIGINFO) && g_sdpa_ime2_old.sa_sigaction)
+    /* 不是探测线程的 SIGILL：按安装处理器之前的处置转交。
+     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，且可能同时带 SA_SIGINFO
+     * 标志（此时 sa_sigaction 也等于 0/1）：必须先把这两个特殊值排掉，
+     * 否则会把地址 1 当函数调。 */
+    if (g_sdpa_ime2_old.sa_handler == SIG_DFL || g_sdpa_ime2_old.sa_handler == SIG_IGN)
+    {
+        /* 恢复原处置后重发，由旧处置决定生死（SIG_IGN 下 SIGILL 是同步
+         * 信号，忽略后重执行会再次触发——但那是应用自己的选择） */
+        sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        raise(sig);
+        return;
+    }
+    if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
     {
         g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
         return;
     }
-    if (g_sdpa_ime2_old.sa_handler && g_sdpa_ime2_old.sa_handler != SIG_DFL && g_sdpa_ime2_old.sa_handler != SIG_IGN)
-    {
-        g_sdpa_ime2_old.sa_handler(sig);
-        return;
-    }
-    /* SIG_DFL / SIG_IGN（SIGILL 是同步信号，忽略无意义）：恢复默认后重发 */
-    sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-    raise(sig);
+    g_sdpa_ime2_old.sa_handler(sig);
 }
 
 #if defined __linux__
