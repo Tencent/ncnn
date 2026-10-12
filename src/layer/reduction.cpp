@@ -935,7 +935,7 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
         // Floating-point infinity/NaN comparisons can be removed by fast-math.
         if ((max_bits & 0x7fffffff) < 0x7f800000)
         {
-            float sum = 0.f;
+            double sum = 0.;
             for (int q = ic; q < end_c; q++)
             {
                 const float* ptr = a.channel(q);
@@ -951,7 +951,7 @@ static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_
                                 sum += expf(v - max_value);
                         }
             }
-            value = max_value + logf(sum);
+            value = max_value + logf((float)sum);
         }
 
         float* outptr = b.channel(i / out_inner);

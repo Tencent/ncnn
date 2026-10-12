@@ -106,6 +106,40 @@ static int test_logsumexp_mixed_and_nonfinite()
     return 0;
 }
 
+static int test_logsumexp_large_group()
+{
+    ncnn::Mat a(1 << 25);
+    if (a.empty()) return -1;
+    a.fill(0.f);
+    const float coeffs[3] = {1.f, 0.5f, -2.f};
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+    for (int c = 0; c < 3; c++)
+        for (int naive = 0; naive < 2; naive++)
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, 10);
+            pd.set(1, 1);
+            pd.set(2, coeffs[c]);
+            ncnn::Layer* op = naive ? ncnn::create_layer_naive("Reduction") : ncnn::create_layer_cpu("Reduction");
+            if (!op) return -1;
+            int ret = op->load_param(pd);
+            if (ret == 0) ret = op->create_pipeline(opt);
+            ncnn::Mat out;
+            if (ret == 0) ret = op->forward(a, out, opt);
+            op->destroy_pipeline(opt);
+            delete op;
+            const float expected = logf((float)a.w) * coeffs[c];
+            if (ret != 0 || out.empty() || !NearlyEqual(out[0], expected, 0.00001f))
+            {
+                fprintf(stderr, "logsumexp large-group mismatch coeff=%f naive=%d\n", coeffs[c], naive);
+                return -1;
+            }
+        }
+    return 0;
+}
+
 int main()
 {
     const float values[3] = {1000.f, -1000.f, 1.f};
@@ -132,6 +166,7 @@ int main()
     large.fill(-16.f);
     if (test_logsumexp(large, 1, 0, 1.f, -16.f) != 0) return -1;
     if (test_logsumexp_mixed_and_nonfinite() != 0) return -1;
-    fprintf(stderr, "logsumexp: 962 public CPU checks and 478 backend comparisons passed\n");
+    if (test_logsumexp_large_group() != 0) return -1;
+    fprintf(stderr, "logsumexp: 968 public CPU checks and 478 backend comparisons passed\n");
     return 0;
 }
