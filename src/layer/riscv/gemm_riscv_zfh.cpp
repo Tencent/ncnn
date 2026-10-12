@@ -1798,6 +1798,12 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
     if (!ncnn_ime2::ime2_probe(opt.num_threads))
         return -99;
 
+    /* 权重值域预检：|w| > 65504 的有限值打包成 ±inf 后整条 IME2 路径（含
+     * VLEN 无关回落，它也读 tile）失真。不武装 IME2，返回 -99 让调用方建
+     * 上游管线（fp16s/fp32 语义照旧）。 */
+    if (!ncnn_ime2::ime2_weights_fit_fp16(B_data))
+        return -99;
+
     // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
     // 线程数无关的布局：forward 阶段可以任意 num_threads。
     const int N = constantN;

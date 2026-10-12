@@ -339,6 +339,32 @@ static int ime2_team_ok(int nthreads)
 #endif
 }
 
+/* 权重值域检查：|w| > 65504 打包成 ±inf 后，IME2 路径（含 VLEN 无关回落——
+ * 它也从 tile 读权重）就此失真。这种层不武装 IME2（回落到上游管线；上游
+ * fp16s 存储对越界权重的语义由上游自担）。fp16/fp32 源都要扫。 */
+static int ime2_weights_fit_fp16(const ncnn::Mat& B)
+{
+    const size_t n = B.total();
+    if (B.elembits() == 16)
+    {
+        /* fp16 源的有限值天然在界内（至多 65504）；±inf 打包后仍 inf，
+         * 与上游 fp16s 语义一致，不视为越界。 */
+        return 1;
+    }
+    const float* p = (const float*)B;
+    size_t i = 0;
+    const size_t vlmax = __riscv_vsetvlmax_e32m1();
+    vfloat32m1_t vmax = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
+    while (i < n)
+    {
+        const size_t vl = __riscv_vsetvl_e32m1(n - i);
+        vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, __riscv_vfabs_v_f32m1(__riscv_vle32_v_f32m1(p + i, vl), vl), vl);
+        i += vl;
+    }
+    const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
+    return mx <= 65504.f ? 1 : 0;
+}
+
 /* ---------------- 打包 ---------------- */
 
 /* B: [N,K]（fp16 或 fp32, elempack=1）-> 8x8 tile 连续布局 [nt][kt][64] fp16 */
