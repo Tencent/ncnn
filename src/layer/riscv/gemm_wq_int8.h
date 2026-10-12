@@ -1419,29 +1419,7 @@ static void transpose_quantize_A_tile_wq_int8(const Mat& A, Mat& AT_tile, Mat& A
 
 
 
-    // 尾部（不足 8 列）：沿用通用内核的标量逐列写法，保证正确性
-    for (; jj < max_jj; jj++)
-    {
-        float* orow = outptr + (size_t)jj * packn;
-        float fsum;
-        if (k == 0)
-            fsum = 0.f;
-        else
-            fsum = orow[0];
 
-        for (int g = 0; g < local_block_count; g++)
-        {
-            const int max_kk0 = std::min(block_size, max_kk - g * block_size);
-            int sum = 0;
-            const signed char* pB = pBT + (size_t)jj * K + k + (size_t)g * block_size;
-            for (int kk = 0; kk < max_kk0; kk++)
-                sum += (int)pAT[g * block_size + kk] * (int)pB[kk];
-
-            fsum += pBT_descales[(size_t)jj * block_count + block_start + g] * ((float)sum * pAT_descales[g]);
-        }
-        orow[0] = fsum;
-    }
-}
 
 static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_descales_tile, const Mat& BT_tile, const Mat& BT_descales_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk, int K, int block_size)
 {
