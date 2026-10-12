@@ -168,7 +168,10 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
-        const Mat head = bottom_blob.channel(q);
+        /* 交换布局下 num_heads = bottom_blob.h，可能大于 bottom_blob.c（解码时
+         * 序列只有 1 个 channel）：channel(q) 只对正常布局构造，避免为被忽略
+         * 的 head 视图做出越界指针运算。 */
+        const Mat head = input_hc_swapped ? Mat() : bottom_blob.channel(q);
         Mat out_head = top_blob.channel(q);
 
         for (int i = 0; i < seqlen; i++)
