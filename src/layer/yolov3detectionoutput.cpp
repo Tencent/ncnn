@@ -3,6 +3,8 @@
 
 #include "yolov3detectionoutput.h"
 
+#include <limits.h>
+
 #include "layer_type.h"
 
 #include <float.h>
@@ -37,6 +39,126 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     biases = pd.get(4, Mat());
     mask = pd.get(5, Mat());
     anchors_scale = pd.get(6, Mat());
+
+#if NCNN_VALIDATION
+    // reject nan thresholds while preserving infinite cutoffs
+    unsigned int confidence_bits;
+    unsigned int nms_bits;
+    memcpy(&confidence_bits, &confidence_threshold, sizeof(confidence_bits));
+    memcpy(&nms_bits, &nms_threshold, sizeof(nms_bits));
+    if ((confidence_bits & 0x7fffffffu) > 0x7f800000u || (nms_bits & 0x7fffffffu) > 0x7f800000u)
+        return -1;
+
+    {
+        const int biases_type = pd.type(4);
+        if (biases_type != 0 && biases_type != 4 && biases_type != 5 && biases_type != 6)
+            return -1;
+
+        if ((biases.dims != 0 || biases.w != 0 || biases.data) && (biases.dims != 1 || biases.w < 0 || biases.elempack != 1 || biases.elemsize != 4u || (biases.w > 0 && !biases.data)))
+            return -1;
+    }
+
+    // integer text masks from ModelWriter contain float bit patterns
+    {
+        const int mask_type = pd.type(5);
+        if (mask_type != 0 && mask_type != 4 && mask_type != 5 && mask_type != 6)
+            return -1;
+
+        if ((mask.dims != 0 || mask.w != 0 || mask.data) && (mask.dims != 1 || mask.w < 0 || mask.elempack != 1 || mask.elemsize != 4u || (mask.w > 0 && !mask.data)))
+            return -1;
+    }
+
+    {
+        const int anchors_scale_type = pd.type(6);
+        if (anchors_scale_type != 0 && anchors_scale_type != 4 && anchors_scale_type != 5 && anchors_scale_type != 6)
+            return -1;
+
+        if ((anchors_scale.dims != 0 || anchors_scale.w != 0 || anchors_scale.data) && (anchors_scale.dims != 1 || anchors_scale.w < 0 || anchors_scale.elempack != 1 || anchors_scale.elemsize != 4u || (anchors_scale.w > 0 && !anchors_scale.data)))
+            return -1;
+    }
+
+    if (num_class <= 0 || num_class > INT_MAX - 5 || num_box <= 0 || num_box > INT_MAX / (num_class + 5) || biases.empty() || biases.w % 2 != 0 || mask.empty() || mask.w % num_box != 0 || anchors_scale.w < mask.w / num_box)
+        return -1;
+
+    for (int i = 0; i < mask.w / num_box; i++)
+    {
+        // check raw bits before floating-point operations under fast-math
+        if (pd.type(6) != 5)
+        {
+            unsigned int bits;
+            memcpy(&bits, (const float*)anchors_scale + i, sizeof(bits));
+            if ((bits & 0x7f800000u) == 0x7f800000u)
+                return -1;
+        }
+
+        // round to the stored fp32 value before checking the range on x87
+        const volatile float scale = pd.type(6) == 5 ? (float)((const int*)anchors_scale)[i] : anchors_scale[i];
+        // use the exactly representable exclusive upper bound under fast-math
+        if (scale <= 0.f || scale >= 2147483648.f)
+            return -1;
+    }
+
+    for (int i = 0; i < mask.w; i++)
+    {
+        // reject non-finite indices before floating-point comparisons
+        unsigned int bits;
+        memcpy(&bits, (const float*)mask + i, sizeof(bits));
+        if ((bits & 0x7f800000u) == 0x7f800000u)
+            return -1;
+
+        // check the floating-point index before converting it to int
+        const float index = mask[i];
+        if (!(index >= 0.f && (double)index < biases.w / 2) || index != (int)index)
+            return -1;
+
+        for (int j = 0; j < 2; j++)
+        {
+            const int bias_index = (int)index * 2 + j;
+
+            // check raw bits before floating-point operations under fast-math
+            if (pd.type(4) != 5)
+            {
+                unsigned int bias_bits;
+                memcpy(&bias_bits, (const float*)biases + bias_index, sizeof(bias_bits));
+                if ((bias_bits & 0x7f800000u) == 0x7f800000u)
+                    return -1;
+            }
+
+            const float bias = pd.type(4) == 5 ? (float)((const int*)biases)[bias_index] : biases[bias_index];
+            if (bias <= 0.f)
+                return -1;
+        }
+    }
+#endif // NCNN_VALIDATION
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(4) == 5 && !biases.empty())
+    {
+        Mat converted(biases.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = biases;
+        for (int i = 0; i < biases.w; i++)
+            converted[i] = (float)p[i];
+
+        biases = converted;
+    }
+
+    // convert integer text arrays without modifying the shared data
+    if (pd.type(6) == 5 && !anchors_scale.empty())
+    {
+        Mat converted(anchors_scale.w);
+        if (converted.empty())
+            return -100;
+
+        const int* p = anchors_scale;
+        for (int i = 0; i < anchors_scale.w; i++)
+            converted[i] = (float)p[i];
+
+        anchors_scale = converted;
+    }
+
     return 0;
 }
 

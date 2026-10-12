@@ -17,7 +17,7 @@ class Model(nn.Module):
         self.pool_5 = nn.MaxPool2d(kernel_size=2, stride=1, padding=0, dilation=1, return_indices=True, ceil_mode=True)
         self.pool_6 = nn.MaxPool2d(kernel_size=(5,4), stride=1, padding=2, dilation=1, ceil_mode=False)
 
-    def forward(self, x):
+    def forward(self, x, q):
         y = x.reshape(12, 64, 64)
 
         x = self.pool_0(x)
@@ -35,7 +35,10 @@ class Model(nn.Module):
         y = self.pool_4(y)
         y, ty = self.pool_5(y)
         y = self.pool_6(y)
-        return x, y
+
+        q = self.pool_0(q)
+        q = self.pool_4(q)
+        return x, y, q
 
 def test():
     net = Model()
@@ -43,16 +46,17 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 64, 64)
+    q = torch.rand(2, 3, 16, 18)
 
-    a = net(x)
+    a = net(x, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, q))
     mod.save("test_nn_MaxPool2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_MaxPool2d.pt inputshape=[1,12,64,64]")
+    os.system("../../src/pnnx test_nn_MaxPool2d.pt inputshape=[1,12,64,64],[2,3,16,18]")
 
     # ncnn inference
     import test_nn_MaxPool2d_ncnn

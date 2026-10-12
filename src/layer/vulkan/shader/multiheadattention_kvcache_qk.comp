@@ -1,0 +1,49 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int attn_mask = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout(binding = 2) writeonly buffer qk_blob { sfp qk_blob_data[]; };
+layout(binding = 3) readonly buffer mask_blob { sfp mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int src_seqlen;
+    int dst_seqlen;
+    int head_dim;
+    int num_heads;
+    int cache_cstep;
+    int mask_dims;
+    int mask_cstep;
+} p;
+
+void main()
+{
+    const int x = int(gl_GlobalInvocationID.x);
+    const int y = int(gl_GlobalInvocationID.y);
+    const int z = int(gl_GlobalInvocationID.z);
+
+    if (x >= p.dst_seqlen || y >= p.src_seqlen || z >= p.num_heads)
+        return;
+
+    afp sum = afp(0.f);
+    if (attn_mask != 0)
+    {
+        const int mask_head = p.mask_dims == 3 ? z : 0;
+        sum = buffer_ld1(mask_blob_data, mask_head * p.mask_cstep + y * p.dst_seqlen + x);
+    }
+
+    for (int d = 0; d < p.head_dim; d++)
+    {
+        const int qi = (z * p.head_dim + d) * p.src_seqlen + y;
+        const int ki = z * p.cache_cstep + x * p.head_dim + d;
+        sum += buffer_ld1(q_blob_data, qi) * buffer_ld1(k_blob_data, ki);
+    }
+
+    const int out_index = (z * p.src_seqlen + y) * p.dst_seqlen + x;
+    buffer_st1(qk_blob_data, out_index, sum);
+}

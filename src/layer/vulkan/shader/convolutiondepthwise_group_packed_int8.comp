@@ -1,0 +1,194 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int group = 1;
+layout(constant_id = 8) const int activation_type = 0;
+layout(constant_id = 9) const float activation_param_0 = 0;
+layout(constant_id = 10) const float activation_param_1 = 0;
+layout(constant_id = 11) const int use_int8_requantize = 0;
+layout(constant_id = 12) const int elempack = 1;
+layout(constant_id = 13) const int out_elempack = 1;
+layout(constant_id = 14) const int num_output_g = 1;
+
+#define shape_constant_id_offset 15
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob_1 { sint8 bottom_blob_int8_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+layout(binding = 2) readonly buffer bottom_blob_4 { sint8vec4 bottom_blob_int8_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_blob { sint8vec4 weight_data[]; };
+layout(binding = 5) readonly buffer bias_blob { vec4 bias_data[]; };
+layout(binding = 6) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
+layout(binding = 7) readonly buffer top_scales_blob { sfpvec4 top_scales_data[]; };
+layout(binding = 8) writeonly buffer top_blob_int8_1 { sint8 top_blob_int8_data_1[]; };
+layout(binding = 9) writeonly buffer top_blob_int8_4 { sint8vec4 top_blob_int8_data_4[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int c;
+    int cstep;
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    const int num_output_g4 = (num_output_g + 3) / 4;
+    const int gg = gz / num_output_g4;
+    const int gz4 = gz - gg * num_output_g4;
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gg >= group)
+        return;
+
+    const int maxk = kernel_w * kernel_h;
+    const int channels_g = psc(c) / group;
+    const int num_output_g4_aligned = (num_output_g4 + 7) / 8 * 8;
+    const int gz_aligned = gg * num_output_g4_aligned + gz4;
+
+    ivec4 sum = ivec4(0);
+
+    // group convolution
+    if (elempack == 4)
+    {
+        for (int z = 0; z < channels_g; z++)
+        {
+            int v_offset = (gg * channels_g + z) * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
+            int w_offset = (gz_aligned * channels_g + z) * maxk * 4;
+
+            for (int y = 0; y < kernel_h; y++)
+            {
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    int v0p = i8buffer_sm4(bottom_blob_int8_data_4, v_offset + x * dilation_w);
+                    int k0p = i8buffer_sm4(weight_data, w_offset + x * 4 + 0);
+                    int k1p = i8buffer_sm4(weight_data, w_offset + x * 4 + 1);
+                    int k2p = i8buffer_sm4(weight_data, w_offset + x * 4 + 2);
+                    int k3p = i8buffer_sm4(weight_data, w_offset + x * 4 + 3);
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+                    sum += ivec4(dotPacked4x8EXT(v0p, k0p), dotPacked4x8EXT(v0p, k1p), dotPacked4x8EXT(v0p, k2p), dotPacked4x8EXT(v0p, k3p));
+#else
+                    ivec4 v0 = unpackInt4x8(v0p);
+                    ivec4 k0 = unpackInt4x8(k0p);
+                    ivec4 k1 = unpackInt4x8(k1p);
+                    ivec4 k2 = unpackInt4x8(k2p);
+                    ivec4 k3 = unpackInt4x8(k3p);
+
+                    sum.r += v0.r * k0.r + v0.g * k0.g + v0.b * k0.b + v0.a * k0.a;
+                    sum.g += v0.r * k1.r + v0.g * k1.g + v0.b * k1.b + v0.a * k1.a;
+                    sum.b += v0.r * k2.r + v0.g * k2.g + v0.b * k2.b + v0.a * k2.a;
+                    sum.a += v0.r * k3.r + v0.g * k3.g + v0.b * k3.b + v0.a * k3.a;
+#endif
+                }
+
+                v_offset += dilation_h * psc(w);
+                w_offset += kernel_w * 4;
+            }
+        }
+    }
+    else // elempack == 1
+    {
+        for (int z = 0; z < channels_g; z++)
+        {
+            int w_offset = (gz_aligned * channels_g + z) * maxk;
+
+            for (int y = 0; y < kernel_h; y++)
+            {
+                int v_offset = (gg * channels_g + z) * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w + y * dilation_h * psc(w);
+
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    int v0 = i8buffer_ld1(bottom_blob_int8_data_1, v_offset + x * dilation_w);
+                    int k0p = i8buffer_sm4(weight_data, w_offset + x);
+                    ivec4 k0 = unpackInt4x8(k0p);
+
+                    sum += v0 * k0;
+                }
+
+                w_offset += kernel_w;
+            }
+        }
+    }
+
+    vec4 sumfp32 = vec4(sum) * weight_descales_data[gz_aligned];
+
+    if (bias_term == 1)
+    {
+        sumfp32 += bias_data[gz_aligned];
+    }
+
+    sumfp32 = vec4(activation_afpvec4(afpvec4(sumfp32), activation_type, activation_param_0, activation_param_1));
+
+    int outch0 = gz4 * 4;
+
+    if (use_int8_requantize == 1)
+    {
+        vec4 top_scale = vec4(buffer_ld4(top_scales_data, gz_aligned));
+        sumfp32 *= top_scale;
+        ivec4 v = float2int8vec4(sumfp32);
+
+        if (out_elempack == 4)
+        {
+            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+            i8buffer_st4(top_blob_int8_data_4, gi, v);
+        }
+        else // out_elempack == 1
+        {
+            int channel_step = psc(outcstep) / 4;
+            int base_ch = gg * num_output_g + outch0;
+            int gi = base_ch * channel_step + gy * psc(outw) + gx;
+
+            i8buffer_st1(top_blob_int8_data_1, gi, v.r);
+            if (outch0 + 1 < num_output_g) i8buffer_st1(top_blob_int8_data_1, gi + channel_step, v.g);
+            if (outch0 + 2 < num_output_g) i8buffer_st1(top_blob_int8_data_1, gi + channel_step * 2, v.b);
+            if (outch0 + 3 < num_output_g) i8buffer_st1(top_blob_int8_data_1, gi + channel_step * 3, v.a);
+        }
+    }
+    else
+    {
+        if (out_elempack == 4)
+        {
+            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+            buffer_st4(top_blob_data_4, gi, afpvec4(sumfp32));
+        }
+        else // out_elempack == 1
+        {
+            int channel_step = psc(outcstep) / 4;
+            int base_ch = gg * num_output_g + outch0;
+            int gi = base_ch * channel_step + gy * psc(outw) + gx;
+
+            buffer_st1(top_blob_data_1, gi, afp(sumfp32.r));
+            if (outch0 + 1 < num_output_g) buffer_st1(top_blob_data_1, gi + channel_step, afp(sumfp32.g));
+            if (outch0 + 2 < num_output_g) buffer_st1(top_blob_data_1, gi + channel_step * 2, afp(sumfp32.b));
+            if (outch0 + 3 < num_output_g) buffer_st1(top_blob_data_1, gi + channel_step * 3, afp(sumfp32.a));
+        }
+    }
+}

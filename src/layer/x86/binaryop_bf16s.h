@@ -37,7 +37,7 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         __m128 _b = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
         __m128 _outp4 = op.func_pack4(_p, _b);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr += 4;
         ptr1 += 4;
         outptr += 4;
@@ -58,7 +58,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __SSE2__
-    __m128 _b_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1)) : _mm_set1_ps(bfloat16_to_float32((short)*ptr1));
+    __m128 _b_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1)) : _mm_comp_bcstnebf16_ps(ptr1);
 #if __AVX__
     __m256 _b_256 = (elempack == 8) ? bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1)) : combine4x2_ps(_b_128, _b_128);
 #if __AVX512F__
@@ -85,7 +85,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
     {
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         __m128 _outp4 = op.func_pack4(_p, _b_128);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr += 4;
         outptr += 4;
     }
@@ -105,7 +105,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __SSE2__
-    __m128 _a_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr)) : _mm_set1_ps(bfloat16_to_float32((short)*ptr));
+    __m128 _a_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr)) : _mm_comp_bcstnebf16_ps(ptr);
 #if __AVX__
     __m256 _a_256 = (elempack == 8) ? bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr)) : combine4x2_ps(_a_128, _a_128);
 #if __AVX512F__
@@ -132,7 +132,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
     {
         __m128 _b = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
         __m128 _outp4 = op.func_pack4(_a_128, _b);
-        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
         ptr1 += 4;
         outptr += 4;
     }
@@ -171,7 +171,7 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
         for (int i = 0; i < w; i++)
         {
             __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
-            __m256 _b = _mm256_set1_ps(bfloat16_to_float32(*ptr1));
+            __m256 _b = _mm256_comp_bcstnebf16_ps(ptr1);
             __m128i _outp = float2bfloat_avx(op.func_pack8(_p, _b));
             _mm_storeu_si128((__m128i*)outptr, _outp);
             ptr += 8;
@@ -186,9 +186,9 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
         for (int i = 0; i < w; i++)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
-            __m128 _b = _mm_set1_ps(bfloat16_to_float32(*ptr1));
+            __m128 _b = _mm_comp_bcstnebf16_ps(ptr1);
             __m128 _outp4 = op.func_pack4(_p, _b);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr += 4;
             ptr1 += 1;
             outptr += 4;
@@ -223,7 +223,7 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
     }
 #endif // __AVX512F__
     {
-        __m256 _b_avx = _mm256_set1_ps(b);
+        __m256 _b_avx = _mm256_comp_bcstnebf16_ps(ptr1);
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
@@ -235,12 +235,12 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
     }
 #endif // __AVX__
     {
-        __m128 _b_sse = _mm_set1_ps(b);
+        __m128 _b_sse = _mm_comp_bcstnebf16_ps(ptr1);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _outp4 = op.func_pack4(_p, _b_sse);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr += 4;
             outptr += 4;
         }
@@ -279,7 +279,7 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
         for (int i = 0; i < w; i++)
         {
-            __m256 _b = _mm256_set1_ps(bfloat16_to_float32(*ptr1));
+            __m256 _b = _mm256_comp_bcstnebf16_ps(ptr1);
             __m128i _outp = float2bfloat_avx(op.func_pack8(_p, _b));
             _mm_storeu_si128((__m128i*)outptr, _outp);
             ptr1 += 1;
@@ -293,9 +293,9 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         for (int i = 0; i < w; i++)
         {
-            __m128 _b = _mm_set1_ps(bfloat16_to_float32(*ptr1));
+            __m128 _b = _mm_comp_bcstnebf16_ps(ptr1);
             __m128 _outp4 = op.func_pack4(_p, _b);
-            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4, _outp4));
+            _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_outp4));
             ptr1 += 1;
             outptr += 4;
         }

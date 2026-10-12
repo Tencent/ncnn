@@ -1,0 +1,74 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sint8vec4 top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
+        return;
+
+    ivec4 i4 = gx * 4 + ivec4(0, 1, 2, 3);
+
+    ivec4 v_offset;
+
+    if (psc(dims) == 2)
+    {
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
+
+        v_offset = y4 * psc(w) + x4;
+    }
+    else // if (psc(dims) == 3)
+    {
+        int size = psc(w) * psc(h);
+
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
+
+        v_offset = z4 * psc(cstep) + y4 * psc(w) + x4;
+    }
+
+    ivec4 v = ivec4(i8buffer_ld1(bottom_blob_data, v_offset.r),
+                    i8buffer_ld1(bottom_blob_data, v_offset.g),
+                    i8buffer_ld1(bottom_blob_data, v_offset.b),
+                    i8buffer_ld1(bottom_blob_data, v_offset.a));
+
+    i8buffer_st4(top_blob_data, gx, v);
+}

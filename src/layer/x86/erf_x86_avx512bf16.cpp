@@ -10,11 +10,15 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+
 #include "erf_bf16s.h"
 
 void erf_bf16s_avx512bf16(Mat& a, const Option& opt)
 {
     erf_bf16s(a, opt);
 }
+
+#endif // NCNN_BF16
 
 } // namespace ncnn

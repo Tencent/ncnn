@@ -5,6 +5,7 @@
 
 // #include <fenv.h>
 #include <float.h>
+#include "loongarch_usability.h"
 
 #if __loongarch_sx
 #include <lsxintrin.h>
@@ -207,12 +208,12 @@ struct unary_op_rsqrt
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return __lsx_vfrsqrt_s(x);
+        return __lsx_comp_rsqrt1_s(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_xvfrsqrt_s(x);
+        return __lasx_comp_rsqrt1_s(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -675,7 +676,6 @@ struct unary_op_log1p
 } // namespace UnaryOp_loongarch_functor
 
 #if NCNN_BF16
-#include "loongarch_usability.h"
 
 template<typename Op>
 static int unary_op_inplace_bf16s(Mat& a, const Option& opt)

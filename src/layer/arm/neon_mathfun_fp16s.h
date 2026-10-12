@@ -441,54 +441,58 @@ static inline float16x8_t cos_ps_f16(float16x8_t x)
     return ycos;
 }
 
-#define c_tanh_tiny 1e-4f
-#define c_tanh_hi   9.0f
+#define c_tanh_f16_tiny 1e-4f
+// tanh(4.5) = 0.99975 already rounds to 1.0 in half precision,
+// so anything outside [-4.5, 4.5] is -/+1.0f
+#define c_tanh_f16_hi 4.5f
+// tanh(x) ~= x * P(x^2) / Q(x^2), rational approximation fitted on [0, 4.5] for half precision.
+// The single precision coefficients used by tanh_ps cannot be represented in fp16:
+// alpha_9 alpha_11 alpha_13 underflow to zero and alpha_7 becomes subnormal,
+// which makes the approximation saturate at ~1.044 instead of 1.0 and
+// fast gelu return +0.022*|x| for large negative x.
+// All coefficients below are exactly representable in fp16 and stay in the normal range.
 // The monomial coefficients of the numerator polynomial (odd).
-#define c_tanh_alpha_1  4.89352455891786e-3f
-#define c_tanh_alpha_3  6.37261928875436e-4f
-#define c_tanh_alpha_5  1.48572235717979e-5f
-#define c_tanh_alpha_7  5.12229709037114e-8f
-#define c_tanh_alpha_9  -8.60467152213735e-11f
-#define c_tanh_alpha_11 2.00018790482477e-13f
-#define c_tanh_alpha_13 -2.76076847742355e-16f
+#define c_tanh_f16_alpha_1 1.f
+#define c_tanh_f16_alpha_3 0.1038818359375f
+#define c_tanh_f16_alpha_5 0.0007195472717285156f
 // The monomial coefficients of the denominator polynomial (even).
-#define c_tanh_beta_0 4.89352518554385e-3f
-#define c_tanh_beta_2 2.26843463243900e-3f
-#define c_tanh_beta_4 1.18534705686654e-4f
-#define c_tanh_beta_6 1.19825839466702e-6f
+#define c_tanh_f16_beta_0 1.f
+#define c_tanh_f16_beta_2 0.43701171875f
+#define c_tanh_f16_beta_4 0.0132904052734375f
 
-/* Single precision hyperbolic tangent computed for 4 simultaneous float */
+/* Half precision hyperbolic tangent computed for 4 simultaneous float16 */
 static inline float16x4_t tanh_ps_f16(float16x4_t x)
 {
     float16x4_t x2 = vabs_f16(x);
 
-    uint16x4_t tiny_mask = vcge_f16(x2, vdup_n_f16(c_tanh_tiny));
+    uint16x4_t tiny_mask = vcge_f16(x2, vdup_n_f16(c_tanh_f16_tiny));
 
-    // clamp the inputs to the range [-9, 9] since anything outside
-    // this range is -/+1.0f in single-precision.
-    x2 = (float16x4_t)(vbsl_u16(vcge_f16(vdup_n_f16(c_tanh_hi), x2), (uint16x4_t)(x2), (uint16x4_t)(vdup_n_f16(c_tanh_hi))));
+    // anything outside the range [-4.5, 4.5] is -/+1.0f in half precision.
+    uint16x4_t sat_mask = vcge_f16(x2, vdup_n_f16(c_tanh_f16_hi));
+
+    // clamp the inputs so that x**2 does not overflow.
+    x2 = vmin_f16(x2, vdup_n_f16(c_tanh_f16_hi));
 
     // since the polynomials are odd/even, we need x**2.
     float16x4_t z = vmul_f16(x2, x2);
 
     // evaluate the numerator polynomial y.
-    float16x4_t y = vdup_n_f16(c_tanh_alpha_13);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_11), y, z);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_9), y, z);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_7), y, z);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_5), y, z);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_3), y, z);
-    y = vfma_f16(vdup_n_f16(c_tanh_alpha_1), y, z);
+    float16x4_t y = vdup_n_f16(c_tanh_f16_alpha_5);
+    y = vfma_f16(vdup_n_f16(c_tanh_f16_alpha_3), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_f16_alpha_1), y, z);
     y = vmul_f16(y, x2);
 
     // evaluate the denominator polynomial w.
-    float16x4_t w = vdup_n_f16(c_tanh_beta_6);
-    w = vfma_f16(vdup_n_f16(c_tanh_beta_4), w, z);
-    w = vfma_f16(vdup_n_f16(c_tanh_beta_2), w, z);
-    w = vfma_f16(vdup_n_f16(c_tanh_beta_0), w, z);
+    float16x4_t w = vdup_n_f16(c_tanh_f16_beta_4);
+    w = vfma_f16(vdup_n_f16(c_tanh_f16_beta_2), w, z);
+    w = vfma_f16(vdup_n_f16(c_tanh_f16_beta_0), w, z);
 
     // divide the numerator by the denominator.
     y = vdiv_f16(y, w);
+
+    // the approximation must never exceed 1.0f, and saturate beyond the fitted range.
+    y = vmin_f16(y, vdup_n_f16(1.f));
+    y = (float16x4_t)(vbsl_u16(sat_mask, (uint16x4_t)(vdup_n_f16(1.f)), (uint16x4_t)(y)));
 
     // reinstate the sign.
     y = (float16x4_t)(vbsl_u16(vdup_n_u16(1u << 15), (uint16x4_t)(x), (uint16x4_t)(y)));
@@ -499,37 +503,39 @@ static inline float16x4_t tanh_ps_f16(float16x4_t x)
     return y;
 }
 
+/* Half precision hyperbolic tangent computed for 8 simultaneous float16 */
 static inline float16x8_t tanh_ps_f16(float16x8_t x)
 {
     float16x8_t x2 = vabsq_f16(x);
 
-    uint16x8_t tiny_mask = vcgeq_f16(x2, vdupq_n_f16(c_tanh_tiny));
+    uint16x8_t tiny_mask = vcgeq_f16(x2, vdupq_n_f16(c_tanh_f16_tiny));
 
-    // clamp the inputs to the range [-9, 9] since anything outside
-    // this range is -/+1.0f in single-precision.
-    x2 = vreinterpretq_f16_u16(vbslq_u16(vcgeq_f16(vdupq_n_f16(c_tanh_hi), x2), vreinterpretq_u16_f16(x2), vreinterpretq_u16_f16(vdupq_n_f16(c_tanh_hi))));
+    // anything outside the range [-4.5, 4.5] is -/+1.0f in half precision.
+    uint16x8_t sat_mask = vcgeq_f16(x2, vdupq_n_f16(c_tanh_f16_hi));
+
+    // clamp the inputs so that x**2 does not overflow.
+    x2 = vminq_f16(x2, vdupq_n_f16(c_tanh_f16_hi));
 
     // since the polynomials are odd/even, we need x**2.
     float16x8_t z = vmulq_f16(x2, x2);
 
     // evaluate the numerator polynomial y.
-    float16x8_t y = vdupq_n_f16(c_tanh_alpha_13);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_11), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_9), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_7), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_5), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_3), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_1), y, z);
+    float16x8_t y = vdupq_n_f16(c_tanh_f16_alpha_5);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_f16_alpha_3), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_f16_alpha_1), y, z);
     y = vmulq_f16(y, x2);
 
     // evaluate the denominator polynomial w.
-    float16x8_t w = vdupq_n_f16(c_tanh_beta_6);
-    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_4), w, z);
-    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_2), w, z);
-    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_0), w, z);
+    float16x8_t w = vdupq_n_f16(c_tanh_f16_beta_4);
+    w = vfmaq_f16(vdupq_n_f16(c_tanh_f16_beta_2), w, z);
+    w = vfmaq_f16(vdupq_n_f16(c_tanh_f16_beta_0), w, z);
 
     // divide the numerator by the denominator.
     y = vdivq_f16(y, w);
+
+    // the approximation must never exceed 1.0f, and saturate beyond the fitted range.
+    y = vminq_f16(y, vdupq_n_f16(1.f));
+    y = vreinterpretq_f16_u16(vbslq_u16(sat_mask, vreinterpretq_u16_f16(vdupq_n_f16(1.f)), vreinterpretq_u16_f16(y)));
 
     // reinstate the sign.
     y = vreinterpretq_f16_u16(vbslq_u16(vdupq_n_u16(1u << 15), vreinterpretq_u16_f16(x), vreinterpretq_u16_f16(y)));

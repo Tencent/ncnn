@@ -109,6 +109,8 @@ static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel,
 static int test_convolution_1()
 {
     return 0
+           || test_convolution_oom_int8(9, 7, 31, 32, 1, 1, 1, 0, 1)
+           || test_convolution_oom_int8(9, 7, 31, 32, 3, 1, 1, 1, 1)
            || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1)
            || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1);
 }
@@ -116,6 +118,8 @@ static int test_convolution_1()
 static int test_convolution_2()
 {
     return 0
+           || test_convolution_oom_int8(9, 7, 31, 32, 1, 1, 1, 0, 1, true)
+           || test_convolution_oom_int8(9, 7, 31, 32, 3, 1, 1, 1, 1, true)
            || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1, true)
            || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1, true);
 }
@@ -124,11 +128,6 @@ static int test_convolution_2()
 int main()
 {
     SRAND(7767517);
-
-#if __mips__ || __loongarch64 || __riscv
-    // TODO
-    return 0;
-#endif
 
 #if NCNN_INT8
     return test_convolution_0() || test_convolution_1() || test_convolution_2();

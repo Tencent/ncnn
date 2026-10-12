@@ -35,6 +35,17 @@ static inline vint8m1_t float2int8(vfloat32m4_t v, size_t vl)
     return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
 }
 
+static inline vint8m1_t float2int8(vfloat32m1_t v, size_t vl)
+{
+    vint32m1_t v32 = __riscv_vfcvt_x_f_v_i32m1_rm(v, __RISCV_FRM_RMM, vl);
+    v32 = __riscv_vmax_vx_i32m1(v32, -127, vl);
+    v32 = __riscv_vmin_vx_i32m1(v32, 127, vl);
+    vint32m4_t v32x4 = __riscv_vundefined_i32m4();
+    v32x4 = __riscv_vset_v_i32m1_i32m4(v32x4, 0, v32);
+    vint16m2_t v16 = __riscv_vnclip_wx_i16m2(v32x4, 0, __RISCV_VXRM_RNU, vl);
+    return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
 static inline vint8m2_t float2int8relu(vfloat32m8_t v, size_t vl)
 {
     vint32m8_t v32 = __riscv_vfcvt_x_f_v_i32m8_rm(v, __RISCV_FRM_RMM, vl);
@@ -93,6 +104,11 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
     return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
 }
 #endif // __riscv_zvfh
+
+static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
+{
+    return __riscv_vnclipu_wx_u16m1(__riscv_vreinterpret_v_f32m2_u32m2(v), 16, __RISCV_VXRM_RNE, vl);
+}
 
 static inline int csrr_vl()
 {

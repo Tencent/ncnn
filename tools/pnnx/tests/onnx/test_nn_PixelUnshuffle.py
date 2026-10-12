@@ -15,6 +15,7 @@ class Model(nn.Module):
 
     def forward(self, x, y):
         x = self.down_0(x)
+        x = F.relu(x)
         x = self.down_1(x)
 
         # onnx export only supports 4d

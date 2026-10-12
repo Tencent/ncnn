@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
 static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int outc)
 {
     ncnn::ParamDict pd;
@@ -207,6 +209,39 @@ static int test_reshape_9()
     return test_reshape(a, 19, 15, -233, 18);
 }
 
+#if NCNN_VALIDATION
+static int test_reshape_load_param()
+{
+    ncnn::ParamDict empty;
+    if (test_layer_param(ncnn::LayerType::Reshape, empty, -1) != 0
+            || test_layer_param(ncnn::LayerType::Reshape, empty, 0, -233, -1) != 0)
+        return -1;
+
+    ncnn::ParamDict expr;
+    expr.set(6, "1,1");
+    if (test_layer_param(ncnn::LayerType::Reshape, expr, 0) != 0)
+        return -1;
+
+    ncnn::ParamDict base;
+    base.set(0, -1);
+    if (test_layer_param(ncnn::LayerType::Reshape, base, 0) != 0)
+        return -1;
+
+    ncnn::ParamDict pd = base;
+
+    pd.set(6, "1,1,1,1,1");
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, -1) != 0)
+        return -1;
+#if NCNN_BATCH
+    pd.set(13, 0);
+    if (test_layer_param(ncnn::LayerType::Reshape, pd, 0) != 0)
+        return -1;
+#endif
+    pd.set(6, "1,1,1,1,1,1");
+    return test_layer_param(ncnn::LayerType::Reshape, pd, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -221,5 +256,9 @@ int main()
            || test_reshape_6()
            || test_reshape_7()
            || test_reshape_8()
-           || test_reshape_9();
+           || test_reshape_9()
+#if NCNN_VALIDATION
+           || test_reshape_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

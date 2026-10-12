@@ -12,12 +12,15 @@ class Model(nn.Module):
         self.dropout_0 = nn.Dropout2d()
         self.dropout_1 = nn.Dropout2d(p=0.7)
 
-    def forward(self, x, y):
+    def forward(self, x, y, q):
         x = self.dropout_0(x)
         y = self.dropout_1(y)
+        q = F.max_pool2d(q, 1)
+        q = self.dropout_0(q)
         x = F.relu(x)
         y = F.relu(y)
-        return x, y
+        q = F.relu(q)
+        return x, y, q
 
 def test():
     net = Model()
@@ -26,16 +29,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(12, 24, 64)
     y = torch.rand(3, 4, 5)
+    q = torch.rand(2, 3, 4, 5)
 
-    a = net(x, y)
+    a = net(x, y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, q))
     mod.save("test_nn_Dropout2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Dropout2d.pt inputshape=[12,24,64],[3,4,5]")
+    os.system("../../src/pnnx test_nn_Dropout2d.pt inputshape=[12,24,64],[3,4,5],[2,3,4,5]")
 
     # ncnn inference
     import test_nn_Dropout2d_ncnn
