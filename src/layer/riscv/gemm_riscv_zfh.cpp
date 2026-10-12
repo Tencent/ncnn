@@ -1840,10 +1840,36 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         return -1;
 
     /* 建管线时的探测只覆盖当时的上下文：绑定可能后来被 set_cpu_thread_affinity
-     * 改掉，forward 的团队也可能比探测时大。每次 forward 前校验当前团队的每个
-     * 工人此刻都在 A100 上；不满足则返回 -99，让调度方回落非 IME2 路径。 */
+     * 改掉，forward 的团队也可能比探测时大。每次 forward 前校验当前团队不可能
+     * 落到非 A100 核上（掩码子集判定，见 ime2_team_ok）。
+     * 不满足时的回落：full-takeover 下 fp16s 管线从未构建（BT_data 是 fp32 面板，
+     * 落进 16 位分发会按错误布局读它），所以把输入升到 fp32 走**始终构建**的
+     * 通用 fp32 前向，输出再转回 fp16 存储。这条路径只在团队离开 A100 时触发，
+     * 属于降级模式：先求正确，再求快。 */
     if (!ncnn_ime2::ime2_team_ok(opt.num_threads))
-        return -99;
+    {
+        Mat A32;
+        cast_float16_to_float32(A, A32, opt);
+        if (A32.empty())
+            return -100;
+
+        std::vector<Mat> in32(1);
+        in32[0] = A32;
+        std::vector<Mat> out32(1);
+        /* fp32 输入在 forward 里跳过 IME2（elembits==16 才进）与 fp16 分发，
+         * 落到通用 fp32 路径（BT_data 4u 面板），无递归风险。 */
+        const int ret = forward(in32, out32, opt);
+        if (ret != 0)
+            return ret;
+        if (out32[0].empty())
+            return -100;
+
+        Mat& top_blob = top_blobs[0];
+        cast_float32_to_float16(out32[0], top_blob, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
 
     // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）
     int out_elempack = 1;

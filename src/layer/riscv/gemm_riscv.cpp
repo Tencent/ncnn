@@ -3259,13 +3259,9 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             has_C = true; // 保守起见，多输入一律回退
 
         if (!has_C)
-        {
-            const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
-            /* -99 = forward 团队此刻不满足 IME2 条件（绑定被改/团队变大），
-             * 继续走下面的上游路径，结果语义不变。 */
-            if (ret != -99)
-                return ret;
-        }
+            /* 团队不满足 IME2 条件时 forward_ime2 内部已走 fp32 转换回落，
+             * 这里直接返回其结果即可。 */
+            return forward_ime2(bottom_blobs, top_blobs, opt);
     }
 #endif // NCNN_RISCV_SPACEMIT_IME2
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
