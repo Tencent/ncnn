@@ -7,7 +7,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(int M, int N, 
         nT = get_physical_big_cpu_count();
 
 #if __riscv_vector
-    const int packn = csrr_vlenb() / 4;
+    const int packn = csrr_vlenb();
 #else
     const int packn = 1;
 #endif
@@ -23,7 +23,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(int M, int N, 
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + packn - 1) / packn * packn);
 
     // Account for int8 A/B and int32 accumulators in the cache budget.
-    int tile_size = (l2_cache_size - TILE_M * 8 * 4) / (TILE_M + 8);
+    int tile_size = (l2_cache_size - TILE_M * 4 * 4) / (TILE_M + 4);
     TILE_K = std::max(8, tile_size / 8 * 8);
     const int nn_K = (K + TILE_K - 1) / TILE_K;
     TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
@@ -32,10 +32,10 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(int M, int N, 
     if (N > 0)
     {
         tile_size = (l2_cache_size - TILE_M * TILE_K) / (TILE_K + TILE_M * 4);
-        TILE_N = std::max(8, tile_size / 8 * 8);
+        TILE_N = std::max(4, tile_size / 4 * 4);
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        nn_N = std::max(nn_N, std::min(nT, (N + 7) / 8));
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
+        nn_N = std::max(nn_N, std::min(nT, (N + 3) / 4));
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
     }
 }
 
@@ -54,7 +54,7 @@ static int convolution_im2col_gemm_transform_kernel_int8_rvv(const Mat& kernel, 
         return -100;
 
     // K is input_channel * maxk + kernel_offset, independent of input packing.
-    // Interleave output channels so one weight vector serves eight positions.
+    // Interleave output channels so one weight vector serves four positions.
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
@@ -69,8 +69,8 @@ static int convolution_im2col_gemm_transform_kernel_int8_rvv(const Mat& kernel, 
 
             int ii = 0;
 #if __riscv_vector
-            const int packn = csrr_vlenb() / 4;
-            const size_t vl = __riscv_vsetvl_e32m1(packn);
+            const int packn = csrr_vlenb();
+            const size_t vl = __riscv_vsetvl_e8m1(packn);
 
             for (; ii + (packn - 1) < max_ii; ii += packn)
             {
@@ -84,7 +84,7 @@ static int convolution_im2col_gemm_transform_kernel_int8_rvv(const Mat& kernel, 
             }
             if (ii < max_ii)
             {
-                const size_t vl = __riscv_vsetvl_e32m1(max_ii - ii);
+                const size_t vl = __riscv_vsetvl_e8m1(max_ii - ii);
                 const signed char* pA = (const signed char*)kernel + (i + ii) * K + k;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -115,7 +115,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8_rvv(const Mat& bottom
     int jj = 0;
     while (jj < max_jj)
     {
-        const int nn = max_jj - jj >= 8 ? 8 : max_jj - jj >= 4 ? 4 : max_jj - jj >= 2 ? 2 : 1;
+        const int nn = max_jj - jj >= 4 ? 4 : max_jj - jj >= 2 ? 2 : 1;
         for (int kk = 0; kk < max_kk; kk++)
         {
             const int q = k + kk;
@@ -156,7 +156,7 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
     int jj = 0;
     while (jj < max_jj)
     {
-        const int nn = max_jj - jj >= 8 ? 8 : max_jj - jj >= 4 ? 4 : max_jj - jj >= 2 ? 2 : 1;
+        const int nn = max_jj - jj >= 4 ? 4 : max_jj - jj >= 2 ? 2 : 1;
         for (int kk = 0; kk < max_kk; kk++)
         {
             const int q = (k + kk) / maxk;
@@ -193,14 +193,21 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
     }
 }
 
+#if __riscv_vector
+// Keep wide accumulators local to the kernel. Inlining into the OpenMP loop
+// makes GCC spill vector registers inside the K loop.
+__attribute__((noinline))
+#endif
 static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT, const signed char* pBT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
     int ii = 0;
 #if __riscv_vector
     const int out_elempack = top_blob.elempack;
     const size_t out_hstep = top_blob.cstep;
-    const int packn = csrr_vlenb() / 4;
-    const size_t vl = __riscv_vsetvl_e32m1(packn);
+    const int packn = csrr_vlenb();
+    const int packn_int32 = packn / 4;
+    const size_t vl = __riscv_vsetvl_e32m4(packn);
+    const size_t vl_int32 = __riscv_vsetvl_e32m1(packn_int32);
 
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
@@ -210,187 +217,99 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         const signed char* pB = pBT;
 
         int jj = 0;
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            const signed char* pA = pAT + ii * max_kk;
-
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
-            vint32m1_t _sum2;
-            vint32m1_t _sum3;
-            vint32m1_t _sum4;
-            vint32m1_t _sum5;
-            vint32m1_t _sum6;
-            vint32m1_t _sum7;
-
-            if (k == 0)
-            {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                _sum1 = _sum0;
-                _sum2 = _sum0;
-                _sum3 = _sum0;
-                _sum4 = _sum0;
-                _sum5 = _sum0;
-                _sum6 = _sum0;
-                _sum7 = _sum0;
-            }
-            else
-            {
-                if (out_elempack == packn)
-                {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
-                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
-                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
-                    _sum4 = __riscv_vle32_v_i32m1(outptr0 + packn * 4, vl);
-                    _sum5 = __riscv_vle32_v_i32m1(outptr0 + packn * 5, vl);
-                    _sum6 = __riscv_vle32_v_i32m1(outptr0 + packn * 6, vl);
-                    _sum7 = __riscv_vle32_v_i32m1(outptr0 + packn * 7, vl);
-                }
-                else // if (out_elempack == 1)
-                {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
-                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
-                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
-                    _sum4 = __riscv_vlse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), vl);
-                    _sum5 = __riscv_vlse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), vl);
-                    _sum6 = __riscv_vlse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), vl);
-                    _sum7 = __riscv_vlse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), vl);
-                }
-            }
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
-                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
-                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
-                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
-                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
-                _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (int)pB[4], _a32low, vl);
-                _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (int)pB[5], _a32low, vl);
-                _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (int)pB[6], _a32low, vl);
-                _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (int)pB[7], _a32low, vl);
-#else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
-                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
-                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
-                _sum4 = __riscv_vwmacc_vx_i32m1(_sum4, (short)pB[4], _a16, vl);
-                _sum5 = __riscv_vwmacc_vx_i32m1(_sum5, (short)pB[5], _a16, vl);
-                _sum6 = __riscv_vwmacc_vx_i32m1(_sum6, (short)pB[6], _a16, vl);
-                _sum7 = __riscv_vwmacc_vx_i32m1(_sum7, (short)pB[7], _a16, vl);
-#endif // __riscv_xtheadvector
-
-                pA += packn;
-                pB += 8;
-            }
-
-            if (out_elempack == packn)
-            {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 4, _sum4, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 5, _sum5, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 6, _sum6, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 7, _sum7, vl);
-                outptr0 += packn * 8;
-            }
-            else // if (out_elempack == 1)
-            {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), _sum4, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), _sum5, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), _sum6, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), _sum7, vl);
-                outptr0 += 8;
-            }
-        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
-            vint32m1_t _sum2;
-            vint32m1_t _sum3;
+            vint32m4_t _sum0;
+            vint32m4_t _sum1;
+            vint32m4_t _sum2;
+            vint32m4_t _sum3;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
                 _sum1 = _sum0;
                 _sum2 = _sum0;
                 _sum3 = _sum0;
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
-                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
-                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
+                    vint32m1_t _s00 = __riscv_vle32_v_i32m1(outptr0, vl_int32);
+                    vint32m1_t _s01 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s02 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s03 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum0 = __riscv_vcreate_v_i32m1_i32m4(_s00, _s01, _s02, _s03);
+                    vint32m1_t _s10 = __riscv_vle32_v_i32m1(outptr0 + packn_int32, vl_int32);
+                    vint32m1_t _s11 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s12 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s13 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum1 = __riscv_vcreate_v_i32m1_i32m4(_s10, _s11, _s12, _s13);
+                    vint32m1_t _s20 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2, vl_int32);
+                    vint32m1_t _s21 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s22 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s23 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum2 = __riscv_vcreate_v_i32m1_i32m4(_s20, _s21, _s22, _s23);
+                    vint32m1_t _s30 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3, vl_int32);
+                    vint32m1_t _s31 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s32 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s33 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum3 = __riscv_vcreate_v_i32m1_i32m4(_s30, _s31, _s32, _s33);
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
-                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
-                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum2 = __riscv_vlse32_v_i32m4(outptr0 + 2, out_hstep * sizeof(int), vl);
+                    _sum3 = __riscv_vlse32_v_i32m4(outptr0 + 3, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
-                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
-                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
-                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
-                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m4(_sum1, (short)pB[1], _a16, vl);
+                _sum2 = __riscv_vwmacc_vx_i32m4(_sum2, (short)pB[2], _a16, vl);
+                _sum3 = __riscv_vwmacc_vx_i32m4(_sum3, (short)pB[3], _a16, vl);
 
                 pA += packn;
                 pB += 4;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
-                outptr0 += packn * 4;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32, __riscv_vget_v_i32m4_i32m1(_sum1, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum2, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum3, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum1, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum2, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum3, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum1, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum2, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum3, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum1, 3), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum2, 3), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum3, 3), vl_int32);
+                outptr0 += packn_int32 * 4;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
                 outptr0 += 4;
             }
         }
@@ -398,59 +317,67 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
+            vint32m4_t _sum0;
+            vint32m4_t _sum1;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
                 _sum1 = _sum0;
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
+                    vint32m1_t _s00 = __riscv_vle32_v_i32m1(outptr0, vl_int32);
+                    vint32m1_t _s01 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s02 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s03 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum0 = __riscv_vcreate_v_i32m1_i32m4(_s00, _s01, _s02, _s03);
+                    vint32m1_t _s10 = __riscv_vle32_v_i32m1(outptr0 + packn_int32, vl_int32);
+                    vint32m1_t _s11 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s12 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s13 = __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum1 = __riscv_vcreate_v_i32m1_i32m4(_s10, _s11, _s12, _s13);
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m4(_sum1, (short)pB[1], _a16, vl);
 
                 pA += packn;
                 pB += 2;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                outptr0 += packn * 2;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32, __riscv_vget_v_i32m4_i32m1(_sum1, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum1, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum1, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum1, 3), vl_int32);
+                outptr0 += packn_int32 * 2;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
                 outptr0 += 2;
             }
         }
@@ -458,51 +385,53 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
+            vint32m4_t _sum0;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                    vint32m1_t _s00 = __riscv_vle32_v_i32m1(outptr0, vl_int32);
+                    vint32m1_t _s01 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32);
+                    vint32m1_t _s02 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32);
+                    vint32m1_t _s03 = __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32);
+                    _sum0 = __riscv_vcreate_v_i32m1_i32m4(_s00, _s01, _s02, _s03);
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
 
                 pA += packn;
                 pB++;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                outptr0 += packn;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                outptr0 += packn_int32;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
                 outptr0++;
             }
         }
@@ -510,194 +439,127 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
 
     if (ii < max_ii)
     {
-        const size_t vl = __riscv_vsetvl_e32m1(max_ii - ii);
+        const size_t vl = __riscv_vsetvl_e32m4(max_ii - ii);
         int* outptr0 = top_blob.channel((i + ii) / out_elempack);
         outptr0 += j * out_elempack;
 
         const signed char* pB = pBT;
 
         int jj = 0;
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            const signed char* pA = pAT + ii * max_kk;
-
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
-            vint32m1_t _sum2;
-            vint32m1_t _sum3;
-            vint32m1_t _sum4;
-            vint32m1_t _sum5;
-            vint32m1_t _sum6;
-            vint32m1_t _sum7;
-
-            if (k == 0)
-            {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
-                _sum1 = _sum0;
-                _sum2 = _sum0;
-                _sum3 = _sum0;
-                _sum4 = _sum0;
-                _sum5 = _sum0;
-                _sum6 = _sum0;
-                _sum7 = _sum0;
-            }
-            else
-            {
-                if (out_elempack == packn)
-                {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
-                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
-                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
-                    _sum4 = __riscv_vle32_v_i32m1(outptr0 + packn * 4, vl);
-                    _sum5 = __riscv_vle32_v_i32m1(outptr0 + packn * 5, vl);
-                    _sum6 = __riscv_vle32_v_i32m1(outptr0 + packn * 6, vl);
-                    _sum7 = __riscv_vle32_v_i32m1(outptr0 + packn * 7, vl);
-                }
-                else // if (out_elempack == 1)
-                {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
-                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
-                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
-                    _sum4 = __riscv_vlse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), vl);
-                    _sum5 = __riscv_vlse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), vl);
-                    _sum6 = __riscv_vlse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), vl);
-                    _sum7 = __riscv_vlse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), vl);
-                }
-            }
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
-                vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
-                vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
-                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
-                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
-                _sum4 = __riscv_vmacc_vx_i32m1(_sum4, (int)pB[4], _a32low, vl);
-                _sum5 = __riscv_vmacc_vx_i32m1(_sum5, (int)pB[5], _a32low, vl);
-                _sum6 = __riscv_vmacc_vx_i32m1(_sum6, (int)pB[6], _a32low, vl);
-                _sum7 = __riscv_vmacc_vx_i32m1(_sum7, (int)pB[7], _a32low, vl);
-#else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
-                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
-                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
-                _sum4 = __riscv_vwmacc_vx_i32m1(_sum4, (short)pB[4], _a16, vl);
-                _sum5 = __riscv_vwmacc_vx_i32m1(_sum5, (short)pB[5], _a16, vl);
-                _sum6 = __riscv_vwmacc_vx_i32m1(_sum6, (short)pB[6], _a16, vl);
-                _sum7 = __riscv_vwmacc_vx_i32m1(_sum7, (short)pB[7], _a16, vl);
-#endif // __riscv_xtheadvector
-
-                pA += vl;
-                pB += 8;
-            }
-
-            if (out_elempack == packn)
-            {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 4, _sum4, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 5, _sum5, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 6, _sum6, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 7, _sum7, vl);
-                outptr0 += packn * 8;
-            }
-            else // if (out_elempack == 1)
-            {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 4, out_hstep * sizeof(int), _sum4, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 5, out_hstep * sizeof(int), _sum5, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 6, out_hstep * sizeof(int), _sum6, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 7, out_hstep * sizeof(int), _sum7, vl);
-                outptr0 += 8;
-            }
-        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
-            vint32m1_t _sum2;
-            vint32m1_t _sum3;
+            vint32m4_t _sum0;
+            vint32m4_t _sum1;
+            vint32m4_t _sum2;
+            vint32m4_t _sum3;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
                 _sum1 = _sum0;
                 _sum2 = _sum0;
                 _sum3 = _sum0;
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
-                    _sum2 = __riscv_vle32_v_i32m1(outptr0 + packn * 2, vl);
-                    _sum3 = __riscv_vle32_v_i32m1(outptr0 + packn * 3, vl);
+                    _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 0, __riscv_vle32_v_i32m1(outptr0, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 1, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 2, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 3, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32));
+                    _sum1 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 0, __riscv_vle32_v_i32m1(outptr0 + packn_int32, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 1, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 2, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 3, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, vl_int32));
+                    _sum2 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum2 = __riscv_vset_v_i32m1_i32m4(_sum2, 0, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum2 = __riscv_vset_v_i32m1_i32m4(_sum2, 1, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum2 = __riscv_vset_v_i32m1_i32m4(_sum2, 2, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum2 = __riscv_vset_v_i32m1_i32m4(_sum2, 3, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 3, vl_int32));
+                    _sum3 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum3 = __riscv_vset_v_i32m1_i32m4(_sum3, 0, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum3 = __riscv_vset_v_i32m1_i32m4(_sum3, 1, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum3 = __riscv_vset_v_i32m1_i32m4(_sum3, 2, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum3 = __riscv_vset_v_i32m1_i32m4(_sum3, 3, __riscv_vle32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 3, vl_int32));
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
-                    _sum2 = __riscv_vlse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), vl);
-                    _sum3 = __riscv_vlse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum2 = __riscv_vlse32_v_i32m4(outptr0 + 2, out_hstep * sizeof(int), vl);
+                    _sum3 = __riscv_vlse32_v_i32m4(outptr0 + 3, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
-                _sum2 = __riscv_vmacc_vx_i32m1(_sum2, (int)pB[2], _a32low, vl);
-                _sum3 = __riscv_vmacc_vx_i32m1(_sum3, (int)pB[3], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
-                _sum2 = __riscv_vwmacc_vx_i32m1(_sum2, (short)pB[2], _a16, vl);
-                _sum3 = __riscv_vwmacc_vx_i32m1(_sum3, (short)pB[3], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m4(_sum1, (short)pB[1], _a16, vl);
+                _sum2 = __riscv_vwmacc_vx_i32m4(_sum2, (short)pB[2], _a16, vl);
+                _sum3 = __riscv_vwmacc_vx_i32m4(_sum3, (short)pB[3], _a16, vl);
 
                 pA += vl;
                 pB += 4;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 2, _sum2, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn * 3, _sum3, vl);
-                outptr0 += packn * 4;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32, __riscv_vget_v_i32m4_i32m1(_sum1, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum2, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum3, 0), vl_int32);
+                if (max_ii - ii > packn_int32 * 1)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum1, 1), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum2, 1), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum3, 1), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 2)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum1, 2), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum2, 2), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum3, 2), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 3)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum1, 3), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 2 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum2, 3), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 * 3 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum3, 3), vl_int32);
+                }
+                outptr0 += packn_int32 * 4;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 2, out_hstep * sizeof(int), _sum2, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 3, out_hstep * sizeof(int), _sum3, vl);
                 outptr0 += 4;
             }
         }
@@ -705,59 +567,82 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
-            vint32m1_t _sum1;
+            vint32m4_t _sum0;
+            vint32m4_t _sum1;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
                 _sum1 = _sum0;
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
-                    _sum1 = __riscv_vle32_v_i32m1(outptr0 + packn, vl);
+                    _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 0, __riscv_vle32_v_i32m1(outptr0, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 1, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 2, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 3, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32));
+                    _sum1 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 0, __riscv_vle32_v_i32m1(outptr0 + packn_int32, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 1, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 2, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum1 = __riscv_vset_v_i32m1_i32m4(_sum1, 3, __riscv_vle32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, vl_int32));
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
-                    _sum1 = __riscv_vlse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
+                    _sum1 = __riscv_vlse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
-                _sum1 = __riscv_vmacc_vx_i32m1(_sum1, (int)pB[1], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
-                _sum1 = __riscv_vwmacc_vx_i32m1(_sum1, (short)pB[1], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
+                _sum1 = __riscv_vwmacc_vx_i32m4(_sum1, (short)pB[1], _a16, vl);
 
                 pA += vl;
                 pB += 2;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                __riscv_vse32_v_i32m1(outptr0 + packn, _sum1, vl);
-                outptr0 += packn * 2;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                __riscv_vse32_v_i32m1(outptr0 + packn_int32, __riscv_vget_v_i32m4_i32m1(_sum1, 0), vl_int32);
+                if (max_ii - ii > packn_int32 * 1)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum1, 1), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 2)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum1, 2), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 3)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                    __riscv_vse32_v_i32m1(outptr0 + packn_int32 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum1, 3), vl_int32);
+                }
+                outptr0 += packn_int32 * 2;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
-                __riscv_vsse32_v_i32m1(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0 + 1, out_hstep * sizeof(int), _sum1, vl);
                 outptr0 += 2;
             }
         }
@@ -765,51 +650,65 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         {
             const signed char* pA = pAT + ii * max_kk;
 
-            vint32m1_t _sum0;
+            vint32m4_t _sum0;
 
             if (k == 0)
             {
-                _sum0 = __riscv_vmv_v_x_i32m1(0, vl);
+                _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
             }
             else
             {
-                if (out_elempack == packn)
+                if (out_elempack == packn_int32)
                 {
-                    _sum0 = __riscv_vle32_v_i32m1(outptr0, vl);
+                    _sum0 = __riscv_vmv_v_x_i32m4(0, vl);
+                    _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 0, __riscv_vle32_v_i32m1(outptr0, vl_int32));
+                    if (max_ii - ii > packn_int32 * 1)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 1, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, vl_int32));
+                    if (max_ii - ii > packn_int32 * 2)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 2, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, vl_int32));
+                    if (max_ii - ii > packn_int32 * 3)
+                        _sum0 = __riscv_vset_v_i32m1_i32m4(_sum0, 3, __riscv_vle32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, vl_int32));
                 }
                 else // if (out_elempack == 1)
                 {
-                    _sum0 = __riscv_vlse32_v_i32m1(outptr0, out_hstep * sizeof(int), vl);
+                    _sum0 = __riscv_vlse32_v_i32m4(outptr0, out_hstep * sizeof(int), vl);
                 }
             }
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-#if __riscv_xtheadvector
-                // Vector 0.7 has no fractional LMUL or vsext instructions.
                 vint8m1_t _a = __riscv_vle8_v_i8m1(pA, vl);
+#if __riscv_xtheadvector
                 vint16m2_t _a16 = __riscv_vwadd_vx_i16m2(_a, 0, vl);
-                vint32m4_t _a32 = __riscv_vwadd_vx_i32m4(_a16, 0, vl);
-                vint32m1_t _a32low = __riscv_vget_v_i32m4_i32m1(_a32, 0);
-                _sum0 = __riscv_vmacc_vx_i32m1(_sum0, (int)pB[0], _a32low, vl);
 #else
-                vint8mf4_t _a = __riscv_vle8_v_i8mf4(pA, vl);
-                vint16mf2_t _a16 = __riscv_vsext_vf2_i16mf2(_a, vl);
-                _sum0 = __riscv_vwmacc_vx_i32m1(_sum0, (short)pB[0], _a16, vl);
+                vint16m2_t _a16 = __riscv_vsext_vf2_i16m2(_a, vl);
 #endif // __riscv_xtheadvector
+                _sum0 = __riscv_vwmacc_vx_i32m4(_sum0, (short)pB[0], _a16, vl);
 
                 pA += vl;
                 pB++;
             }
 
-            if (out_elempack == packn)
+            if (out_elempack == packn_int32)
             {
-                __riscv_vse32_v_i32m1(outptr0, _sum0, vl);
-                outptr0 += packn;
+                __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m4_i32m1(_sum0, 0), vl_int32);
+                if (max_ii - ii > packn_int32 * 1)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 1, __riscv_vget_v_i32m4_i32m1(_sum0, 1), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 2)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 2, __riscv_vget_v_i32m4_i32m1(_sum0, 2), vl_int32);
+                }
+                if (max_ii - ii > packn_int32 * 3)
+                {
+                    __riscv_vse32_v_i32m1(outptr0 + out_hstep * packn_int32 * 3, __riscv_vget_v_i32m4_i32m1(_sum0, 3), vl_int32);
+                }
+                outptr0 += packn_int32;
             }
             else // if (out_elempack == 1)
             {
-                __riscv_vsse32_v_i32m1(outptr0, out_hstep * sizeof(int), _sum0, vl);
+                __riscv_vsse32_v_i32m4(outptr0, out_hstep * sizeof(int), _sum0, vl);
                 outptr0++;
             }
         }
@@ -823,45 +722,6 @@ static void convolution_gemm_transB_packed_tile_int8_rvv(const signed char* pAT,
         const signed char* pB = pBT;
 
         int jj = 0;
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            const signed char* pA = pAT + ii * max_kk;
-
-            int sum0 = k == 0 ? 0 : outptr0[0];
-            int sum1 = k == 0 ? 0 : outptr0[1];
-            int sum2 = k == 0 ? 0 : outptr0[2];
-            int sum3 = k == 0 ? 0 : outptr0[3];
-            int sum4 = k == 0 ? 0 : outptr0[4];
-            int sum5 = k == 0 ? 0 : outptr0[5];
-            int sum6 = k == 0 ? 0 : outptr0[6];
-            int sum7 = k == 0 ? 0 : outptr0[7];
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const int a = pA[0];
-                sum0 += a * pB[0];
-                sum1 += a * pB[1];
-                sum2 += a * pB[2];
-                sum3 += a * pB[3];
-                sum4 += a * pB[4];
-                sum5 += a * pB[5];
-                sum6 += a * pB[6];
-                sum7 += a * pB[7];
-
-                pA++;
-                pB += 8;
-            }
-
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0[2] = sum2;
-            outptr0[3] = sum3;
-            outptr0[4] = sum4;
-            outptr0[5] = sum5;
-            outptr0[6] = sum6;
-            outptr0[7] = sum7;
-            outptr0 += 8;
-        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT + ii * max_kk;
