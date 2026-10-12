@@ -22,12 +22,13 @@
 
 namespace ncnn {
 
-int SDPA_riscv::ime2_available() const
+int SDPA_riscv::ime2_available(int num_threads) const
 {
 #if !__riscv_v
+    (void)num_threads;
     return 0;
 #else
-    return ncnn_ime2_sdpa::ime2_probe();
+    return ncnn_ime2_sdpa::ime2_probe(num_threads);
 #endif
 }
 
@@ -100,12 +101,23 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             use_flash = 0;
     }
 
+    /* mask 形状契约：与上游通用路径一致，attn_mask 必须是完整的
+     * [dst_seqlen, src_seqlen]（c=1 共享或逐头）；广播形状（1xN、Mx1、1-D）
+     * 在上游同样按 row(i) 全量索引，没有广播语义。flash 路径按行距
+     * ldm=dst_seqlen 逐行推进 mask 指针，causal 扫描也按 row(i) 取行——对
+     * 非完整形状两者都会越界。形状不完整时关掉 flash 走旧路径（其逐行语义与
+     * 上游逐字节一致），causal 扫描也随之跳过。 */
+    if (use_flash
+            && (attn_mask_blob.dims < 2 || attn_mask_blob.w < dst_seqlen || attn_mask_blob.h < src_seqlen))
+        use_flash = 0;
+
     // ---- causal 掩码检测（每层一次；非因果则 flash 不跳块、全量加 mask，语义不变） ----
     // 3-D masks are per head while this flag is applied to every head. Inspecting
     // only channel 0 means that if head 0 is triangular but some other head may
     // attend to a future position, the flash path truncates that head's KV scan
     // and the permitted values are never read. Every channel has to qualify.
     int causal = 1;
+    if (use_flash)
     {
         const int nmask = attn_mask_blob.c > 1 ? attn_mask_blob.c : 1;
         for (int g = 0; g < nmask && causal; g++)

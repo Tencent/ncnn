@@ -304,7 +304,8 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
 {
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
     // IME2 探测在 zfh 变体 TU 里做（那里有 smt.vfwmadot 的汇编）
-    use_ime2_sdpa = ime2_available();
+    // 用与 forward 相同的团队大小探测：forward 的并行区都带 num_threads(opt.num_threads)
+    use_ime2_sdpa = ime2_available(_opt.num_threads);
     // 调试开关：NCNN_SDPA_IME2=0 强制关闭（定位问题用）
     const char* ime2env = getenv("NCNN_SDPA_IME2");
     if (ime2env && ime2env[0] == '0' && ime2env[1] == '\0')

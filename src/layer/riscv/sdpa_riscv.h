@@ -28,7 +28,7 @@ public:
     // 仅在: fp32 输入、elempack=1、kv_cache=1、attn_mask=1、src_seqlen>1 时接管
     int forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-    int ime2_available() const;
+    int ime2_available(int num_threads) const;
     int use_ime2_sdpa; // 运行期探测结果（A100=1）
 #endif
 
