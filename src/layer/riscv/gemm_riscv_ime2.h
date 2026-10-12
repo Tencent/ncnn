@@ -187,9 +187,10 @@ static int ime2_probe_locked(int nthreads)
     sigaction(SIGILL, &sa, &g_ime2_old);
 
     int ok = 0;
-    tl_ime2_armed = 1;
     if (sigsetjmp(tl_ime2_jb, 1) == 0)
     {
+        /* 上下文就绪后才武装：异步 SIGILL 先于武装到来会走转交路径 */
+        tl_ime2_armed = 1;
         __asm__ volatile(
             "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* e32m2 下清零累加器 v16:v17 */
             "vmv.v.i v16, 0\n\t"
@@ -202,6 +203,7 @@ static int ime2_probe_locked(int nthreads)
             : "t0", "v0", "v1", "v16", "v17", "memory");
         ok = 1;
     }
+    /* 两条返回路径都在这里解除武装（longjmp 回来时跳过 if 体直接到这） */
     tl_ime2_armed = 0;
     /* 仅当当前处理器仍是我们的时才恢复旧处置：若探测窗口内发生过转发
      * （恢复旧处置+重发），当前的已经是旧处置（或已被内核按 RESETHAND
