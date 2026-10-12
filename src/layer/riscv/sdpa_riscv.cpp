@@ -508,12 +508,20 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (decode_enabled && kv_cache && attn_mask && !int8_scale_term
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h == 1)
         {
-            const int ret = forward_rvv_decode(bottom_blobs, top_blobs, _opt);
-            if (ret == 0)
-                return 0;
-            if (ret == -100)
-                return -100;
-            // 其它返回值：回落上游实现
+            /* 快速路径按 mptr[j]（j < dst_seqlen）逐键读 mask：标量或 w==1
+             * 的广播 mask 只有一个 float，会越界。GEMM 组合路径能识别这些
+             * 广播形状（broadcast_type_C），宽度不够就回落到那里。 */
+            const Mat& m0 = bottom_blobs[3];
+            const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
+            if (m0.w >= dst_sl)
+            {
+                const int ret = forward_rvv_decode(bottom_blobs, top_blobs, _opt);
+                if (ret == 0)
+                    return 0;
+                if (ret == -100)
+                    return -100;
+                // 其它返回值：回落上游实现
+            }
         }
     }
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
@@ -531,18 +539,22 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             if (v >= 0)
                 ime2_minl = v;
         }
-        /* mask 形状契约：IME2 预填充的两条路径（flash 与旧逐行）都按完整
-         * [dst_seqlen, src_seqlen] 索引 mask；而下面的上游 GEMM 组合路径对 C
-         * 有真正的广播支持（broadcast_type_C 运行时检测：标量/M/N/MxN），
-         * 1xN key-padding 之类的广播 mask 在那里才是正确语义。形状不完整时
-         * 不接管，让 GEMM 路径处理。 */
-        const Mat& m0 = bottom_blobs[3];
-        const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
-        const bool mask_full = m0.dims >= 2 && m0.w >= dst_sl && m0.h >= q0.h;
         if (use_ime2_sdpa && kv_cache && attn_mask && !int8_scale_term
-                && q0.elembits() == 32 && q0.elempack == 1 && q0.h >= ime2_minl
-                && mask_full)
-            return forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
+                && q0.elembits() == 32 && q0.elempack == 1 && q0.h >= ime2_minl)
+        {
+            /* mask 形状契约：IME2 预填充的两条路径（flash 与旧逐行）都按完整
+             * [dst_seqlen, src_seqlen] 索引 mask；而下面的上游 GEMM 组合路径对 C
+             * 有真正的广播支持（broadcast_type_C 运行时检测：标量/M/N/MxN），
+             * 1xN key-padding 之类的广播 mask 在那里才是正确语义。形状不完整时
+             * 不接管，让 GEMM 路径处理。
+             * 注意：bottom_blobs[3]/[4] 的访问必须在确认 kv_cache && attn_mask
+             * 之后——无 mask/无 cache 的调用只有 3~4 个输入 blob。 */
+            const Mat& m0 = bottom_blobs[3];
+            const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
+            const bool mask_full = m0.dims >= 2 && m0.w >= dst_sl && m0.h >= q0.h;
+            if (mask_full)
+                return forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
+        }
     }
 #endif
     // ---- 快速路径结束；以下为上游 GEMM 实现 ----
