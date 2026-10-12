@@ -241,7 +241,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
         if (layer->support_vulkan)
         {
-            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+            if (blob_mats_gpu[bottom_blob_index].dims == 0 && blob_mats[bottom_blob_index].dims != 0)
             {
                 // host to buffer
                 cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
@@ -255,7 +255,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
         else
         {
-            if (blob_mats[bottom_blob_index].dims == 0)
+            if (blob_mats[bottom_blob_index].dims == 0 && blob_mats_gpu[bottom_blob_index].dims != 0)
             {
                 Option opt_download = opt;
                 opt_download.use_packing_layout = layer->support_packing;
@@ -2564,9 +2564,18 @@ int Net::load_model(const char* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* ptr = (const unsigned char*)d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = ptr;
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
+            {
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            const size_t consumed = (size_t)(mem - ptr);
             if (consumed != size)
             {
                 NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
@@ -2602,9 +2611,18 @@ int Net::load_model(const wchar_t* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* ptr = (const unsigned char*)d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = ptr;
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
+            {
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            const size_t consumed = (size_t)(mem - ptr);
             if (consumed != size)
             {
                 NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);

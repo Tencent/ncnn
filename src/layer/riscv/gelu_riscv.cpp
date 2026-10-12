@@ -8,6 +8,8 @@
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 GELU_riscv::GELU_riscv()
@@ -15,10 +17,24 @@ GELU_riscv::GELU_riscv()
 #if __riscv_vector
     support_packing = true;
 #endif
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 }
 
 int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -63,32 +79,23 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-#if C906
-            // FIXME -O3 leads illegal instruction
-            for (int i = 0; i < size; i++)
-            {
-                // y = x * P(X <= x) where X ~ N(0, 1)
-                ptr[i] = 0.5f * ptr[i] * erfcf(-0.70710678f * ptr[i]);
-            }
-#else
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e32m8(n);
-                auto _p = __riscv_vle32_v_f32m8(ptr, vl);
-                auto _perfc = __riscv_vfmul_vf_f32m8(_p, -.70710678f, vl);
-                _p = __riscv_vfmul_vf_f32m8(_p, .5f, vl);
+                size_t vl = __riscv_vsetvl_e32m4(n);
+                auto _p = __riscv_vle32_v_f32m4(ptr, vl);
+                auto _perfc = __riscv_vfmul_vf_f32m4(_p, -.70710678f, vl);
+                _p = __riscv_vfmul_vf_f32m4(_p, .5f, vl);
                 // y = x * P(X <= x) where X ~ N(0, 1)
 
                 _perfc = erfc_ps(_perfc, vl);
 
-                _p = __riscv_vfmul_vv_f32m8(_p, _perfc, vl);
-                __riscv_vse32_v_f32m8(ptr, _p, vl);
+                _p = __riscv_vfmul_vv_f32m4(_p, _perfc, vl);
+                __riscv_vse32_v_f32m4(ptr, _p, vl);
 
                 n -= vl;
                 ptr += vl;
             }
-#endif
         }
     }
 

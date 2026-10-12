@@ -287,6 +287,9 @@ public:
     uint32_t reserved_type_index;
     bool mappable;
     bool coherent;
+    // HOST_CACHED. Reading write-combined (uncached) memory from the CPU is
+    // ~30x slower than cached, so downloads must not memcpy out of it.
+    bool cached;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
