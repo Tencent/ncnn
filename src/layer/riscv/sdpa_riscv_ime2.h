@@ -804,6 +804,9 @@ static void ime2_row_exp(float* s, int n, float mx)
         size_t vl = __riscv_vsetvl_e32m8(n - j);
         vfloat32m8_t x = __riscv_vle32_v_f32m8(s + j, vl);
         x = __riscv_vfsub_vf_f32m8(x, mx, vl);
+        /* 欠载置零：x-mx < -87.34 时真值 exp < 2^-126（构造下限），钳位会抬成
+         * 非零——硬掩码/深负 logit 乘上大 V 就泄漏。记录这些 lane，最后置零。 */
+        vbool4_t vund = __riscv_vmflt_vf_f32m8_b4(x, -87.34f, vl);
         x = __riscv_vfmax_vf_f32m8(x, -87.0f, vl);
         vint32m8_t ni = __riscv_vfcvt_x_f_v_i32m8(__riscv_vfmul_vf_f32m8(x, log2e, vl), vl); /* 默认 RNE */
         vfloat32m8_t nf = __riscv_vfcvt_f_x_v_f32m8(ni, vl);
@@ -818,6 +821,7 @@ static void ime2_row_exp(float* s, int n, float mx)
         p = __riscv_vfmacc_vv_f32m8(__riscv_vfmv_v_f_f32m8(1.f, vl), p, r, vl);
         vint32m8_t ei = __riscv_vsll_vx_i32m8(__riscv_vadd_vx_i32m8(ni, 127, vl), 23, vl);
         vfloat32m8_t y = __riscv_vfmul_vv_f32m8(p, __riscv_vreinterpret_v_i32m8_f32m8(ei), vl);
+        y = __riscv_vfmerge_vfm_f32m8(y, 0.f, vund, vl);
         __riscv_vse32_v_f32m8(s + j, y, vl);
         j += vl;
     }

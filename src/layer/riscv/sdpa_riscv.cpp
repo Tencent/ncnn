@@ -51,6 +51,10 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
      * 天文数字，f 会远离多项式的合法域，Horner 链溢出成 +inf 而不是 0，后面的
      * 归一化把整行污染成 NaN。钳位 t 到 [-126, 127] 后 f 落在 [-0.5, 0.5]。对
      * 正常值（|x| <= 87，fp32 exp 的合法范围）没有影响。 */
+    /* 先记录欠载 lane：x < -87.34 时真值 exp < 2^-126（本构造能表示的最小
+     * 正常值），钳位会把它抬成 2^-126 ≠ 0——硬掩码行（-inf）乘上大 V 就
+     * 泄漏。这些 lane 最终置零。 */
+    vbool32_t vund = __riscv_vmflt_vf_f32m1_b32(x, -87.34f, vl);
     t = __riscv_vfmin_vf_f32m1(t, 127.f, vl);
     t = __riscv_vfmax_vf_f32m1(t, -126.f, vl);
     vfloat32m1_t nf = __riscv_vfadd_vv_f32m1(t, vhalf, vl);
@@ -68,7 +72,7 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(1.0f, vl), vl);
     vint32m1_t bias = __riscv_vsll_vx_i32m1(ni, 23, vl);
     vfloat32m1_t scale = __riscv_vreinterpret_v_i32m1_f32m1(__riscv_vadd_vx_i32m1(bias, 0x3f800000, vl));
-    return __riscv_vfmul_vv_f32m1(p, scale, vl);
+    return __riscv_vfmerge_vfm_f32m1(__riscv_vfmul_vv_f32m1(p, scale, vl), 0.f, vund, vl);
 }
 #endif
 
