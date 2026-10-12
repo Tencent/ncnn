@@ -183,9 +183,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                      * 质量无害）。 */
                     const float max_dot = (float)embed_dim * 65504.f * 65504.f;
                     /* 余量还要随被截断键的数量缩放：单键余量只限制单键质量，
-                     * 截断 n 个键的聚合质量是 n·e^-margin。截断键数上界 =
-                     * dst - nend(首块) = src - BM。margin = 20 + ln(上界)。 */
-                    const int omitted = src_seqlen - IME2_FLASH_BM;
+                     * 截断 n 个键的聚合质量是 n·e^-margin。首块截断键数 =
+                     * dst - nend = cur - BM——用 cur（追加键数），不是 src
+                     * （查询行数）：跨注意时两者可不同。 */
+                    const int omitted = cur_seqlen - IME2_FLASH_BM;
                     const float margin = 20.f + logf((float)(omitted > 1 ? omitted : 1));
                     if (v < -2.f * fabsf(_scale) * max_dot - margin)
                         continue;

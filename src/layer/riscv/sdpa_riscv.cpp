@@ -51,15 +51,16 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
      * 天文数字，f 会远离多项式的合法域，Horner 链溢出成 +inf 而不是 0，后面的
      * 归一化把整行污染成 NaN。钳位 t 到 [-126, 127] 后 f 落在 [-0.5, 0.5]。对
      * 正常值（|x| <= 87，fp32 exp 的合法范围）没有影响。 */
-    /* 先记录欠载 lane：x < -87.34 时真值 exp < 2^-126（本构造能表示的最小
-     * 正常值），钳位会把它抬成 2^-126 ≠ 0——硬掩码行（-inf）乘上大 V 就
-     * 泄漏。这些 lane 最终置零。 */
-    vbool32_t vund = __riscv_vmflt_vf_f32m1_b32(x, -87.34f, vl);
+    /* 真下溢（x < -103.98，exp < 2^-149 的一半）才置零；(-103.98, -87.34)
+     * 区间的值是可表示的次正规数，必须保留（软权重乘以大 V 有真实贡献），
+     * 由下面的次正规分支构造。 */
+    vbool32_t vund = __riscv_vmflt_vf_f32m1_b32(x, -103.98f, vl);
     t = __riscv_vfmin_vf_f32m1(t, 127.f, vl);
-    t = __riscv_vfmax_vf_f32m1(t, -126.f, vl);
+    /* 下钳到 -150（不是 -126）：次正规区 t ∈ (-150, -126) 也要走完流程 */
+    t = __riscv_vfmax_vf_f32m1(t, -150.f, vl);
     vfloat32m1_t nf = __riscv_vfadd_vv_f32m1(t, vhalf, vl);
     nf = __riscv_vfmin_vf_f32m1(nf, 127.f, vl);
-    nf = __riscv_vfmax_vf_f32m1(nf, -126.f, vl);
+    nf = __riscv_vfmax_vf_f32m1(nf, -150.f, vl);
     vint32m1_t ni = __riscv_vfcvt_x_f_v_i32m1_rm(nf, __RISCV_FRM_RDN, vl);
     vfloat32m1_t n = __riscv_vfcvt_f_x_v_f32m1(ni, vl);
     vfloat32m1_t f = __riscv_vfsub_vv_f32m1(t, n, vl);
@@ -72,7 +73,17 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(1.0f, vl), vl);
     vint32m1_t bias = __riscv_vsll_vx_i32m1(ni, 23, vl);
     vfloat32m1_t scale = __riscv_vreinterpret_v_i32m1_f32m1(__riscv_vadd_vx_i32m1(bias, 0x3f800000, vl));
-    return __riscv_vfmerge_vfm_f32m1(__riscv_vfmul_vv_f32m1(p, scale, vl), 0.f, vund, vl);
+    vfloat32m1_t vnorm = __riscv_vfmul_vv_f32m1(p, scale, vl);
+    /* 次正规（ni <= -127，即 x·log2e 的指数低于正常下限）：fp32 次正规值
+     * = mantissa_int · 2^-149，mantissa_int = round(p · 2^(ni+149))——其整数
+     * 直接就是位模式（指数字段为 0）。ni ∈ [-150,-127] → ni+149 ∈ [-1,22]，
+     * 2^(ni+149) 用同一整数偏移技巧构造。 */
+    vfloat32m1_t scale2 = __riscv_vreinterpret_v_i32m1_f32m1(__riscv_vsll_vx_i32m1(__riscv_vadd_vx_i32m1(ni, 276, vl), 23, vl));
+    vint32m1_t qi = __riscv_vfcvt_x_f_v_i32m1(__riscv_vfmul_vv_f32m1(p, scale2, vl), vl); /* 默认 RNE */
+    vfloat32m1_t vsub = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(qi, vl), __riscv_vfmv_v_f_f32m1(0x1p-149f, vl), vl);
+    vbool32_t issub = __riscv_vmslt_vx_i32m1_b32(ni, -126, vl);
+    vfloat32m1_t y = __riscv_vmerge_vvm_f32m1(vnorm, vsub, issub, vl);
+    return __riscv_vfmerge_vfm_f32m1(y, 0.f, vund, vl);
 }
 #endif
 
