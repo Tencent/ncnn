@@ -805,7 +805,15 @@ static void ime2_gemv_m1_i8c(const signed char* a8, float a_scale,
             acc = __riscv_vwmacc_vv_i32m8_tu(acc, a16, w16, vl);
             k += (int)vl;
         }
-        const int isum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m8_i32m1(acc, __riscv_vmv_v_x_i32m1(0, 1), vlmax));
+        /* 宽化归约：i32 总和在 K > 133145 时溢出（127·127·133145 > INT32_MAX），
+         * 且是无符号环绕——反量化前就可能翻号。先把两半 lane 符号扩展到 i64
+         * 再归约（逐 lane 的 i32 部分和在 K > 3.4e7 前都不会溢出，远超任何
+         * 现实 K）。 */
+        vint32m4_t acc_lo = __riscv_vget_v_i32m8_i32m4(acc, 0);
+        vint32m4_t acc_hi = __riscv_vget_v_i32m8_i32m4(acc, 1);
+        const size_t vlmax64 = __riscv_vsetvlmax_e64m8();
+        vint64m8_t acc64 = __riscv_vadd_vv_i64m8(__riscv_vsext_vf2_i64m8(acc_lo, vlmax64), __riscv_vsext_vf2_i64m8(acc_hi, vlmax64), vlmax64);
+        const long long isum = __riscv_vmv_x_s_i64m1_i64(__riscv_vredsum_vs_i64m8_i64m1(acc64, __riscv_vmv_v_x_i64m1(0, 1), vlmax64));
         out[n] = a_scale * wscale[n] * (float)isum;
     }
 }
