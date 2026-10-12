@@ -133,20 +133,18 @@ static int ime2_probe_locked()
     return ok;
 }
 
-/* 返回 1 = 本进程的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
+/* 返回 1 = 当前 affinity 上下文的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
  * 探测会临时替换进程级 SIGILL 处理器并使用共享 sigjmp_buf，两个线程并发进入
- * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。 */
+ * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。
+ * 注意不做进程级缓存：affinity 是逐线程的，探测结果只对本次调用时的 affinity
+ * 上下文有效。若进程先把某线程绑到 A100 簇建了管线、再绑到 X100 簇建第二个
+ * 管线，缓存会把只对前者成立的答案错误地复用到后者（X100 上 forward 即 SIGILL）。
+ * 探测只在建管线时调用一次，重新探测的开销可忽略。 */
 static int ime2_probe(void)
 {
-    /* result 的读写都必须在锁内：锁外的"快路径"读与首次写入之间没有同步，
-     * 在 C++ 模型下仍是数据竞争。探测只在建管线时调用一次，锁的开销可忽略。 */
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
-    static int result = -1; /* -1 = 未探测 */
-    if (result >= 0)
-        return result;
-    result = ime2_probe_locked();
-    return result;
+    return ime2_probe_locked();
 }
 
 /* ---------------- 打包 ---------------- */
