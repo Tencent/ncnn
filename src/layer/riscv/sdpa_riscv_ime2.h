@@ -343,7 +343,7 @@ static int ime2_fits_fp16(const ncnn::Mat& m)
             vfloat32m1_t vabs = __riscv_vfabs_v_f32m1(v, vl);
             vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, vabs, vl);
             /* 非零值才参与下限：0 是合法内容，不算下溢 */
-            vbool32_t nz = __riscv_vmfne_vf_f32m1(v, 0.f, vl);
+            vbool32_t nz = __riscv_vmfne_vf_f32m1_b32(v, 0.f, vl);
             vmin = __riscv_vfmin_vv_f32m1_mu(nz, vmin, vabs, vabs, vl);
             i += vl;
         }
