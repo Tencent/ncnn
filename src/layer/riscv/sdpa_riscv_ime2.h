@@ -101,19 +101,48 @@ static int sdpa_ime2_probe_affinity(int nthreads)
      * 宿主运行时），上面的掩码遍历只看调用线程，看不到它们。而且 forward 的
      * 并行区都带 num_threads(opt.num_threads)：若它大于默认团队，运行时会给
      * forward 增派**从未被探测过**的工人。所以这里用与 forward 完全相同的
-     * 团队大小开区域，让每个真正的执行者各读一次自己的 vlenb。 */
+     * 团队大小开区域。
+     * 单读一次 vlenb 也不够：工人的掩码若同时覆盖两簇，探测时恰好落在 A100
+     * 会通过，forward 时调度器却可能把它挪到 X100。所以每个工人要遍历**自己**
+     * 的 affinity mask 里的每一个核对，逐核确认 vlenb==128（探测完恢复工人
+     * 原绑定）。任一工人的掩码里混有 X100 核对就保守关闭 IME2。 */
     if (all_ok)
     {
         int workers_ok = 1;
         #pragma omp parallel num_threads(nthreads)
         {
-            unsigned long vlenb = 0;
-            __asm__ volatile("csrr %0, vlenb"
-                             : "=r"(vlenb));
-            if (vlenb != 128)
+            cpu_set_t wcs;
+            if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
             {
                 #pragma omp atomic write
                 workers_ok = 0;
+            }
+            else
+            {
+                const cpu_set_t worig = wcs;
+                for (int c = 0; c < CPU_SETSIZE; c++)
+                {
+                    if (!CPU_ISSET(c, &wcs))
+                        continue;
+                    cpu_set_t one;
+                    CPU_ZERO(&one);
+                    CPU_SET(c, &one);
+                    if (sched_setaffinity(0, sizeof(one), &one) != 0)
+                    {
+                        #pragma omp atomic write
+                        workers_ok = 0;
+                        break;
+                    }
+                    unsigned long vlenb = 0;
+                    __asm__ volatile("csrr %0, vlenb"
+                                     : "=r"(vlenb));
+                    if (vlenb != 128)
+                    {
+                        #pragma omp atomic write
+                        workers_ok = 0;
+                    }
+                }
+                sched_setaffinity(0, sizeof(worig), &worig); /* 恢复工人原绑定 */
             }
         }
         all_ok = workers_ok;
