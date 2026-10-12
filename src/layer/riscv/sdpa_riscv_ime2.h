@@ -942,7 +942,12 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
                 mi[r] = mx;
             }
 
-            /* P 块转 fp16 tiles（零填充到 8 的倍数；多填的 K 列对应 P=0，PV 无贡献） */
+            /* P 块转 fp16 tiles（零填充到 8 的倍数；多填的 K 列对应 P=0，PV 无贡献）。
+             * 先放大 2^15 再打包：小概率（如 2.5e-8）直接打包会下溢成 0，聚合
+             * 质量（li 按 fp32 求和）被丢弃；放大后 fp16 常规精度保住它们。
+             * 归一处以 li·2^15 补偿。上限 p≤1 → ×32768 ≤ 32768 < 65504 不溢出。 */
+            for (int r = 0; r < rows; r++)
+                ime2_row_scale(S + r * BN, cols, 32768.f);
             if (ime2_pack_fp32(S, BN, PT, rows, cols, alloc) != 0)
                 return -100;
 
@@ -953,10 +958,10 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
                                 (size_t)ktP * 64, (size_t)ktD * 64);
         }
 
-        /* 扫完才归一化（一次乘法） */
+        /* 扫完才归一化（一次乘法）；li·32768 补偿 P 打包前的放大 */
         for (int r = 0; r < rows; r++)
         {
-            const float inv = 1.f / li[r];
+            const float inv = 1.f / (li[r] * 32768.f);
             ime2_row_scale(acc + r * Ev, Ev, inv);
             const float* arow = acc + r * Ev;
             float* o = Out + (size_t)(m0 + r) * ldo;

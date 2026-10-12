@@ -71,6 +71,17 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     if (top_blob.empty())
         return -100;
 
+    /* 病态大 scale 退避：fp16 打包对 Q/K 的普通舍入误差（相对 2^-11）会被
+     * scale 放大到 logit 域显著（keys 的第 4 位小数的差别在 fp16 里本就不可
+     * 分辨——这与上游 fp16s 存储语义相同；但只有 scale 极大时才影响 softmax
+     * 选择）。真实注意力 scale ≈ 1/sqrt(E) ≤ 1，病态场景 ≥ 1e4：阈值 1024
+     * 两侧各留两个数量级以上余量。更精细的按值界限测过：真实模型 qwen3-0.6b
+     * 长预填充的最坏情况界限已达 ~150（mxq 最大 417、mxk 最大 199），而输出
+     * 与上游逐字节一致——基于值的界限无法区分真实与对抗输入，只有 scale 能。
+     * 越界/下溢的硬情形由下面的值域预检负责。 */
+    if (fabsf(_scale) > 1024.f)
+        return -99;
+
     /* fp16 打包值域预检：|v| > 65504 的输入打包成 ±inf，而上游 fp32 路径保持
      * 有限。必须在**任何状态改动之前**（kv cache 追加不可回退）发现并让
      * 调度方落上游——返回 -99 时 top_blobs[1]/[2] 尚未写入。 */
@@ -159,8 +170,12 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                     const float v = r[j];
                     if (v == -__builtin_inff())
                         continue;
+                    /* 还要证明未来 logit 的 softmax **质量**可忽略，不只是顺序更低：
+                     * 未来 ≤ |scale|·max_dot + v，可见行内最大值 ≥ -|scale|·max_dot，
+                     * 差值 ≤ 2·|scale|·max_dot + v；再留 20 的余量（exp(-20)≈2e-9，
+                     * 质量无害）。 */
                     const float max_dot = (float)embed_dim * 65504.f * 65504.f;
-                    if (v < -2.f * fabsf(_scale) * max_dot)
+                    if (v < -2.f * fabsf(_scale) * max_dot - 20.f)
                         continue;
                     causal = 0;
                     break;
@@ -292,7 +307,19 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                 ptr[j] /= sum;
         }
 
-        // O = P·V（V 转置打包）
+        // O = P·V（V 转置打包）。P 先放大 2^15 再打包：小概率直接打包会下溢成 0，
+        // 聚合质量被丢弃；gemm 的 alpha=1/32768 在 fp32 结果上补偿回来。
+        {
+            float* pp = (float*)qk_cross_head;
+            const int nn = src_seqlen * dst_seqlen;
+            int j = 0;
+            while (j < nn)
+            {
+                const size_t vl = __riscv_vsetvl_e32m8(nn - j);
+                __riscv_vse32_v_f32m8(pp + j, __riscv_vfmul_vf_f32m8(__riscv_vle32_v_f32m8(pp + j, vl), 32768.f, vl), vl);
+                j += (int)vl;
+            }
+        }
         Mat A2T, B2T;
         if (ime2_pack_fp32((const float*)qk_cross_head, dst_seqlen, A2T, src_seqlen, dst_seqlen, opt.workspace_allocator) != 0)
         {
@@ -311,7 +338,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
         ime2_gemm_fp32out((const ime2_fp16*)A2T, (const ime2_fp16*)B2T,
                           (float*)top_blob_head, out_embed_dim,
-                          src_seqlen, out_embed_dim, dst_seqlen, 1.f);
+                          src_seqlen, out_embed_dim, dst_seqlen, 1.f / 32768.f);
     }
 
     if (head_fail)
