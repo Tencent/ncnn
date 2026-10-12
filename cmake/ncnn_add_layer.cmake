@@ -444,7 +444,9 @@ macro(ncnn_add_layer class)
         if(CMAKE_SIZEOF_VOID_P EQUAL 8)
             # SpacemiT K3 A100 IME2: zfh 变体需要带上 xsmtvdotii 扩展才能汇编 smt.vfwmadot
             if(NCNN_RISCV_SPACEMIT_IME2)
-                set(NCNN_RISCV_ZFH_RVV_MARCH "-march=rv64gcv_zfh_zvfh_xsmtvdotii -D__fp16=_Float16")
+                # zicbop 必须带上：缺了它 clang 把 __builtin_prefetch 降成空操作，
+                # M=1 内核依赖的冷缓存预取会静默丢失（prefetch.r 才生效）。
+                set(NCNN_RISCV_ZFH_RVV_MARCH "-march=rv64gcv_zicbop_zfh_zvfh_xsmtvdotii -D__fp16=_Float16")
             else()
                 set(NCNN_RISCV_ZFH_RVV_MARCH "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
             endif()

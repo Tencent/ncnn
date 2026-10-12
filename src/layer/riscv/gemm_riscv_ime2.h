@@ -50,24 +50,16 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if (tl_ime2_armed)
         siglongjmp(tl_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：按安装处理器之前的处置转交。
-     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，且可能同时带 SA_SIGINFO
-     * 标志（此时 sa_sigaction 也等于 0/1）：必须先把这两个特殊值排掉，
-     * 否则会把地址 1 当函数调。 */
-    if (g_ime2_old.sa_handler == SIG_DFL || g_ime2_old.sa_handler == SIG_IGN)
-    {
-        /* 恢复原处置后重发，由旧处置决定生死（SIG_IGN 下 SIGILL 是同步
-         * 信号，忽略后重执行会再次触发——但那是应用自己的选择） */
-        sigaction(SIGILL, &g_ime2_old, NULL);
-        raise(sig);
-        return;
-    }
-    if (g_ime2_old.sa_flags & SA_SIGINFO)
-    {
-        g_ime2_old.sa_sigaction(sig, info, ucontext);
-        return;
-    }
-    g_ime2_old.sa_handler(sig);
+    /* 不是探测线程的 SIGILL：恢复旧处置后重发，交给内核完整交付。
+     * 直接 C 调用旧处理器会绕过内核的信号交付语义——SA_RESETHAND 的一次性
+     * 复位、SA_ONSTACK 的栈切换、sa_mask 的屏蔽集全都会被丢掉；而且
+     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，根本不能当函数调。
+     * 恢复+重发是唯一对所有处置都正确的做法（DFL 终止、IGN 忽略、自定义
+     * 处理器由内核按原 flags 调用）。 */
+    (void)info;
+    (void)ucontext;
+    sigaction(SIGILL, &g_ime2_old, NULL);
+    raise(sig);
 }
 
 #if defined __linux__
@@ -193,7 +185,16 @@ static int ime2_probe_locked(int nthreads)
         ok = 1;
     }
     tl_ime2_armed = 0;
-    sigaction(SIGILL, &g_ime2_old, NULL);
+    /* 仅当当前处理器仍是我们的时才恢复旧处置：若探测窗口内发生过转发
+     * （恢复旧处置+重发），当前的已经是旧处置（或已被内核按 RESETHAND
+     * 复位成 DFL）——此时再装回去会把一次性处理器错误地重新武装。 */
+    {
+        struct sigaction cur;
+        memset(&cur, 0, sizeof cur);
+        sigaction(SIGILL, NULL, &cur);
+        if (cur.sa_sigaction == ime2_sigill)
+            sigaction(SIGILL, &g_ime2_old, NULL);
+    }
     return ok;
 }
 
@@ -663,12 +664,14 @@ static void ime2_quantize_B_int8_col(const ncnn::Mat& B, ncnn::Mat& BT_i8, ncnn:
 {
     const int is_fp16 = B.elembits() == 16;
     BT_i8.create((size_t)N * K, (size_t)1u, 1, (ncnn::Allocator*)0);
-    BT_wscale.create((size_t)N, (size_t)2u, 1, (ncnn::Allocator*)0);
+    /* scale 必须用 fp32 存：amax/127 在 amax < ~7.6e-6 时会下溢成 fp16 的 0，
+     * 而面板是按 fp32 的 sc 量化的非零值——scale 读回 0 会把整列点积抹成 0。 */
+    BT_wscale.create((size_t)N, (size_t)4u, 1, (ncnn::Allocator*)0);
     if (BT_i8.empty() || BT_wscale.empty())
         return;
 
     signed char* dst = (signed char*)BT_i8;
-    ime2_fp16* ws = (ime2_fp16*)BT_wscale;
+    float* ws = (float*)BT_wscale;
 
     for (int n = 0; n < N; n++)
     {
@@ -688,7 +691,7 @@ static void ime2_quantize_B_int8_col(const ncnn::Mat& B, ncnn::Mat& BT_i8, ncnn:
                 amax = a;
         }
         const float sc = amax > 0.f ? amax / 127.f : 1.f;
-        ws[n] = (ime2_fp16)sc;
+        ws[n] = sc;
         signed char* d = dst + (size_t)n * K;
         for (int k = 0; k < K; k++)
         {
@@ -727,7 +730,7 @@ static float ime2_quantize_a_int8(const ime2_fp16* a, int K, signed char* a8, in
 
 /* 整数域 M=1 GEMV：每列一个 int32 点积（128 个 MAC / 向量指令），最后乘两侧 scale。 */
 static void ime2_gemv_m1_i8c(const signed char* a8, float a_scale,
-                             const signed char* W, const ime2_fp16* wscale,
+                             const signed char* W, const float* wscale,
                              float* out, int n0, int n1, int K)
 {
     /* 冷缓存微基准（bench/i8_gemv_cold_bench.c，50MB 工作集远超 LLC）：
@@ -754,7 +757,7 @@ static void ime2_gemv_m1_i8c(const signed char* a8, float a_scale,
             k += (int)vl;
         }
         const int isum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m8_i32m1(acc, __riscv_vmv_v_x_i32m1(0, 1), vlmax));
-        out[n] = a_scale * (float)wscale[n] * (float)isum;
+        out[n] = a_scale * wscale[n] * (float)isum;
     }
 }
 
@@ -957,7 +960,7 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     if (!BT_i8c.empty() && !BT_wscale.empty() && M == 1 && p == 1 && A.elembits() == 16 && A.elempack == 1)
     {
         const signed char* w8c = (const signed char*)BT_i8c;
-        const ime2_fp16* wsc = (const ime2_fp16*)BT_wscale;
+        const float* wsc = (const float*)BT_wscale;
         static const int IME2_I8_STK = 8192;
         signed char a8stk[IME2_I8_STK];
         float ostk[IME2_I8_STK];
