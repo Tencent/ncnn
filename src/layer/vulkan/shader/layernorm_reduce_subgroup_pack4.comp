@@ -20,20 +20,30 @@ layout(push_constant) uniform parameter
 void main()
 {
     const int tid = int(gl_LocalInvocationID.x);
-    const int group_id = int(gl_WorkGroupID.z) * p.num_groups_per_channel + int(gl_WorkGroupID.y);
+    const uint group = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    if (group >= uint(p.num_groups_per_channel))
+        return;
 
-    const int gz = group_id / p.num_groups_per_channel;
-    const int gy = group_id % p.num_groups_per_channel;
+    const int gz = int(gl_WorkGroupID.z);
+    const int gy = int(group);
+    const int group_id = gz * p.num_groups_per_channel + gy;
     const int offset = gz * p.cstep + gy * p.group_size;
     const float area = float(p.group_size);
 
-    vec4 sum = vec4(0.f);
+    // Keep the common offset out of the sum and compensate rounding in long groups.
+    const vec4 center = vec4(buffer_ld4(bottom_top_blob_data, offset));
+    precise vec4 sum = vec4(0.f);
+    precise vec4 correction = vec4(0.f);
     for (int t = tid; t < p.group_size; t += ncnn_subgroupSize)
     {
-        sum += vec4(buffer_ld4(bottom_top_blob_data, offset + t));
+        const vec4 v = vec4(buffer_ld4(bottom_top_blob_data, offset + t)) - center;
+        precise vec4 y = v - correction;
+        precise vec4 next_sum = sum + y;
+        correction = (next_sum - sum) - y;
+        sum = next_sum;
     }
 
-    const vec4 mean = subgroupAdd(sum) / area;
+    const vec4 mean = center + subgroupAdd(sum) / area;
     if (subgroupElect())
     {
         mean_data[group_id] = mean;

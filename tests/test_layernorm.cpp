@@ -3,6 +3,12 @@
 
 #include "testutil.h"
 
+#if NCNN_VULKAN
+#include "gpu.h"
+
+#include <math.h>
+#endif
+
 static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int affine, int flag = 0)
 {
     ncnn::ParamDict pd;
@@ -110,6 +116,128 @@ static int test_layernorm_4()
            || test_layernorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
 }
 
+#if NCNN_VULKAN
+static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
+{
+    const float eps = 1e-5f;
+    ncnn::ParamDict pd;
+    pd.set(0, affine_size);
+    pd.set(1, eps);
+    pd.set(2, 0);
+
+    // Use double precision instead of the generic CPU layer's serial float sums.
+    ncnn::Mat expected = a.clone();
+    const int groups = a.w * a.h * a.d / affine_size;
+    for (int q = 0; q < a.c; q++)
+    {
+        const float* ptr = a.channel(q);
+        float* outptr = expected.channel(q);
+        for (int g = 0; g < groups; g++)
+        {
+            double sum = 0;
+            for (int i = 0; i < affine_size; i++)
+                sum += ptr[g * affine_size + i];
+            const double mean = sum / affine_size;
+
+            double sqsum = 0;
+            for (int i = 0; i < affine_size; i++)
+            {
+                const double v = ptr[g * affine_size + i] - mean;
+                sqsum += v * v;
+            }
+            const double inv_stddev = 1.0 / sqrt(sqsum / affine_size + eps);
+
+            for (int i = 0; i < affine_size; i++)
+                outptr[g * affine_size + i] = (float)((ptr[g * affine_size + i] - mean) * inv_stddev);
+        }
+    }
+
+    ncnn::Option opt;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+
+    for (int subgroup = 0; subgroup < 2; subgroup++)
+    {
+        opt.use_subgroup_ops = subgroup != 0;
+        ncnn::Mat b;
+        int ret = test_layer_gpu(ncnn::layer_to_index("LayerNorm"), pd, std::vector<ncnn::Mat>(), opt, a, b, ncnn::Mat(), 0);
+        // Allow rounding in the existing float coeffs/norm shaders, including FMA.
+        if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.005f) != 0))
+        {
+            fprintf(stderr, "test_layernorm_gpu_reference failed a=(%d %d %d %d) affine_size=%d subgroup=%d\n", a.w, a.h, a.d, a.c, affine_size, subgroup);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_layernorm_gpu_numerics()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const int subgroup_size = std::max(4, std::min(128, (int)ncnn::get_gpu_device()->info.subgroup_size()));
+    const int sizes[] = {subgroup_size - 1, subgroup_size, subgroup_size + 1, subgroup_size * 2 + 1, 4096, 16384};
+    const int channels[] = {1, 4};
+    for (int c = 0; c < 2; c++)
+    {
+        for (int s = 0; s < 6; s++)
+        {
+            ncnn::Mat a(sizes[s], 1, channels[c]);
+            for (int q = 0; q < a.c; q++)
+            {
+                float* ptr = a.channel(q);
+                for (int i = 0; i < a.w; i++)
+                    ptr[i] = 100.1f + q * 0.5f;
+            }
+            if (test_layernorm_gpu_reference(a, a.w) != 0)
+                return -1;
+
+            for (int q = 0; q < a.c; q++)
+            {
+                float* ptr = a.channel(q);
+                for (int i = 0; i < a.w; i++)
+                    ptr[i] = 100.f + q * 0.5f + (i % 7 - 3) * 0.125f;
+            }
+            if (test_layernorm_gpu_reference(a, a.w) != 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_layernorm_gpu_dispatch()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const int heights[] = {65535, 65536, 65537};
+    for (int s = 0; s < 3; s++)
+    {
+        // Exercise pack1, pack4, and padding at the end of the tiled dispatch.
+        ncnn::Mat a(s == 2 ? 8 : 32, heights[s], s == 2 ? 4 : 1);
+        for (int q = 0; q < a.c; q++)
+        {
+            float* ptr = a.channel(q);
+            for (int y = 0; y < a.h; y++)
+            {
+                for (int x = 0; x < a.w; x++)
+                    ptr[y * a.w + x] = (x % 7 - 3) * (1.f + (y % 5) * 0.125f) + (y % 11) * 0.25f + q * 0.5f;
+            }
+        }
+        if (test_layernorm_gpu_reference(a, a.w) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
@@ -119,5 +247,10 @@ int main()
            || test_layernorm_1()
            || test_layernorm_2()
            || test_layernorm_3()
-           || test_layernorm_4();
+           || test_layernorm_4()
+#if NCNN_VULKAN
+           || test_layernorm_gpu_numerics()
+           || test_layernorm_gpu_dispatch()
+#endif
+        ;
 }
