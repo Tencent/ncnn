@@ -342,9 +342,11 @@ static int ime2_fits_fp16(const ncnn::Mat& m)
             vfloat32m1_t v = __riscv_vle32_v_f32m1(p + i, vl);
             vfloat32m1_t vabs = __riscv_vfabs_v_f32m1(v, vl);
             vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, vabs, vl);
-            /* 非零值才参与下限：0 是合法内容，不算下溢 */
-            vbool32_t nz = __riscv_vmfne_vf_f32m1_b32(v, 0.f, vl);
-            vmin = __riscv_vfmin_vv_f32m1_mu(nz, vmin, vabs, vabs, vl);
+            /* 非零值才参与下限：0 是合法内容，不算下溢。零 lane 置 FLT_MAX
+             * （vfmerge：零 lane 选后者），再普通 _tu min。 */
+            vbool32_t iszero = __riscv_vmfeq_vf_f32m1_b32(v, 0.f, vl);
+            vfloat32m1_t vsel = __riscv_vfmerge_vfm_f32m1(vabs, FLT_MAX, iszero, vl);
+            vmin = __riscv_vfmin_vv_f32m1_tu(vmin, vmin, vsel, vl);
             i += vl;
         }
         const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
