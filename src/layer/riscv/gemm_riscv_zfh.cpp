@@ -1925,17 +1925,21 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
 
                 float acc = 0.f;
 #if __riscv_vector
-                /* 与 convolution1d_riscv.cpp 同款归约惯用法 */
-                size_t vl = __riscv_vsetvl_e32m1(K);
-                vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                /* 累加器必须按 VLmax 全宽清零并按 VLmax 归约：逐块累加用 _tu
+                 * 保留高位 lane，若用末块的余数 vl 归约会丢掉 lane vl..VLmax-1
+                 * 里的全部贡献（如 K=33、VLmax=32 时只剩 lane 0）。
+                 * （convolution1d 的"末 vl 归约"惯用法是逐块独立归约，结构与
+                 * 这里的跨块共享累加器不同，不能照搬。） */
+                const size_t vlmax = __riscv_vsetvlmax_e32m1();
+                vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
                 int k = 0;
                 while (k < K)
                 {
-                    vl = __riscv_vsetvl_e32m1(K - k);
+                    const size_t vl = __riscv_vsetvl_e32m1(K - k);
                     vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
                     k += vl;
                 }
-                acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vl), vl));
+                acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vlmax), vlmax));
 #else
                 for (int k = 0; k < K; k++)
                     acc += arow[k] * kbuf[k];
