@@ -14,7 +14,6 @@
 #include "platform.h"
 #include <float.h>
 #include <math.h>
-#include <chrono>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -133,20 +132,18 @@ static int sdpa_ime2_probe_locked()
     return ok;
 }
 
-/* 返回 1 = 本进程的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
+/* 返回 1 = 当前 affinity 上下文的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
  * 探测会临时替换进程级 SIGILL 处理器并使用共享 sigjmp_buf，两个线程并发进入
- * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。 */
+ * 会互相覆盖跳转状态，因此整个探测用互斥锁串行化。
+ * 注意不做进程级缓存：affinity 是逐线程的，探测结果只对本次调用时的 affinity
+ * 上下文有效。若进程先把某线程绑到 A100 簇建了管线、再绑到 X100 簇建第二个
+ * 管线，缓存会把只对前者成立的答案错误地复用到后者（X100 上 forward 即 SIGILL）。
+ * 探测只在建管线时调用一次，重新探测的开销可忽略。 */
 static int ime2_probe(void)
 {
-    /* result 的读写都必须在锁内：锁外的"快路径"读与首次写入之间没有同步，
-     * 在 C++ 模型下仍是数据竞争。探测只在建管线时调用一次，锁的开销可忽略。 */
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
-    static int result = -1; /* -1 = 未探测 */
-    if (result >= 0)
-        return result;
-    result = sdpa_ime2_probe_locked();
-    return result;
+    return sdpa_ime2_probe_locked();
 }
 
 /* ---------------- 打包：fp32 -> 8x8 fp16 tile 连续布局 ---------------- */
@@ -710,13 +707,6 @@ static void ime2_row_add(float* a, const float* b, int n)
 
 /* 单头 flash 前向：QT/KT/VT 为打包 tiles（Q 已预缩放），mask 可为 0（非 causal 时必传）。
  * Out: [L, Ev] fp32 行距 ldo。返回 0 成功；-1 表示 Ev 超栈上预算（调用方走旧路径）。 */
-/* 诊断计时（NCNN_SDPA_PROF=1 时由 sdpa_riscv_zfh.cpp 打印） */
-static inline double ime2_prof_now()
-{
-    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count();
-}
-static double g_prof_qk = 0, g_prof_softmax = 0, g_prof_ppack = 0, g_prof_pv = 0, g_prof_store = 0, g_prof_pack = 0;
-
 static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const ime2_fp16* VT,
                                  const float* mask, size_t ldm, float* Out, size_t ldo,
                                  int L, int dst, int E, int Ev, int past, int causal,
@@ -724,13 +714,6 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
 {
     if (Ev > IME2_FLASH_MAXEV)
         return -1;
-    const bool prof = (getenv("NCNN_SDPA_PROF") != nullptr);
-    struct
-    {
-        double qk, sm, pp, pv, st;
-    } local = {0, 0, 0, 0, 0};
-    ncnn::Mat& profPT = PT;
-    (void)profPT;
 
     const int ktE = (E + 7) / 8;
     const int ktD = (dst + 7) / 8;
@@ -762,13 +745,10 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
             const int cols = BN < nend - n0 ? BN : nend - n0;
 
             /* S = Q_blk · K_blk^T（QT 已含 scale，alpha=1 覆盖写） */
-            const double t_qk0 = prof ? ime2_prof_now() : 0.0;
             ime2_gemm_fp32out_p(QT + (size_t)(m0 / 8) * ktE * 64,
                                 KT + (size_t)(n0 / 8) * ktE * 64,
                                 S, BN, rows, cols, E, 1.f, 0,
                                 (size_t)ktE * 64, (size_t)ktE * 64);
-
-            if (prof) local.qk += ime2_prof_now() - t_qk0;
 
             /* 仅对角区域（或任意 mask 的兜底）需要加 mask */
             if (!causal || n0 + cols > past + m0)
@@ -778,7 +758,6 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
             }
 
             /* online softmax：行 max → exp → 行 sum → rescale 系数（RVV 向量化） */
-            const double t_sm0 = prof ? ime2_prof_now() : 0.0;
             for (int r = 0; r < rows; r++)
             {
                 float* s = S + r * BN;
@@ -791,28 +770,18 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
                 mi[r] = mx;
             }
 
-            if (prof) local.sm += ime2_prof_now() - t_sm0;
-
             /* P 块转 fp16 tiles（零填充到 8 的倍数；多填的 K 列对应 P=0，PV 无贡献） */
-            const double t_pp0 = prof ? ime2_prof_now() : 0.0;
             if (ime2_pack_fp32(S, BN, PT, rows, cols, alloc) != 0)
                 return -100;
-            if (prof) local.pp += ime2_prof_now() - t_pp0;
 
             /* acc += P · V_blk（V^T tiles 的 k 块偏移 n0/8，行距 ktD） */
             const int ktP = (cols + 7) / 8;
-            if (getenv("IME2_FLASH_DEBUG"))
-                fprintf(stderr, "[flash] m0=%d n0=%d rows=%d cols=%d ktP=%d ktD=%d E=%d Ev=%d L=%d dst=%d QT=%p KT=%p VT=%p PT=%p\n",
-                        m0, n0, rows, cols, ktP, ktD, E, Ev, L, dst, (const void*)QT, (const void*)KT, (const void*)VT, (const void*)PT);
-            const double t_pv0 = prof ? ime2_prof_now() : 0.0;
             ime2_gemm_fp32out_p((const ime2_fp16*)PT, VT + (size_t)(n0 / 8) * 64,
                                 acc, Ev, rows, Ev, ktP * 8, 1.f, 1,
                                 (size_t)ktP * 64, (size_t)ktD * 64);
-            if (prof) local.pv += ime2_prof_now() - t_pv0;
         }
 
         /* 扫完才归一化（一次乘法） */
-        const double t_st0 = prof ? ime2_prof_now() : 0.0;
         for (int r = 0; r < rows; r++)
         {
             const float inv = 1.f / li[r];
@@ -822,20 +791,6 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
             for (int e = 0; e < Ev; e++)
                 o[e] = arow[e];
         }
-        if (prof) local.st += ime2_prof_now() - t_st0;
-    }
-    if (prof)
-    {
-        #pragma omp atomic
-        g_prof_qk += local.qk;
-        #pragma omp atomic
-        g_prof_softmax += local.sm;
-        #pragma omp atomic
-        g_prof_ppack += local.pp;
-        #pragma omp atomic
-        g_prof_pv += local.pv;
-        #pragma omp atomic
-        g_prof_store += local.st;
     }
     return 0;
 }

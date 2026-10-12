@@ -31,21 +31,6 @@ int SDPA_riscv::ime2_available() const
 #endif
 }
 
-#if __riscv_v
-static void ime2_sdpa_prof_dump(int L, int dst, int past)
-{
-    if (!getenv("NCNN_SDPA_PROF"))
-        return;
-    fprintf(stderr, "[sdpa-prof] L=%d dst=%d past=%d | QK=%.2fms softmax=%.2fms Ppack=%.2fms PV=%.2fms store=%.2fms\n",
-            L, dst, past, ncnn_ime2_sdpa::g_prof_qk, ncnn_ime2_sdpa::g_prof_softmax,
-            ncnn_ime2_sdpa::g_prof_ppack, ncnn_ime2_sdpa::g_prof_pv, ncnn_ime2_sdpa::g_prof_store);
-    fprintf(stderr, "[sdpa-prof] QKVpack=%.2fms\n", ncnn_ime2_sdpa::g_prof_pack);
-    ncnn_ime2_sdpa::g_prof_pack = 0;
-    ncnn_ime2_sdpa::g_prof_qk = ncnn_ime2_sdpa::g_prof_softmax = 0;
-    ncnn_ime2_sdpa::g_prof_ppack = ncnn_ime2_sdpa::g_prof_pv = ncnn_ime2_sdpa::g_prof_store = 0;
-}
-#endif
-
 int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if !__riscv_v
@@ -150,8 +135,6 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     {
         // ---- K/V 打包按 GQA 组共享（2:1 时省一半打包），Q 逐头预缩放打包 ----
         std::vector<Mat> KTg(num_group), VTg(num_group);
-        const bool sdpa_prof = (getenv("NCNN_SDPA_PROF") != nullptr);
-        const double t_pack0 = sdpa_prof ? ncnn_ime2_sdpa::ime2_prof_now() : 0.0;
         int pack_fail = 0;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < num_group; g++)
@@ -165,18 +148,11 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                 #pragma omp atomic write
                 pack_fail = 1;
         }
-        const double t_pack1 = sdpa_prof ? ncnn_ime2_sdpa::ime2_prof_now() : 0.0;
-        if (sdpa_prof)
-        {
-            #pragma omp atomic
-            ncnn_ime2_sdpa::g_prof_pack += t_pack1 - t_pack0;
-        }
 
         if (pack_fail)
             return -100;
 
         int flash_fail = 0;
-        const double t_wall0 = sdpa_prof ? ncnn_ime2_sdpa::ime2_prof_now() : 0.0;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
         {
@@ -203,10 +179,6 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
         if (!flash_fail)
         {
-            if (sdpa_prof)
-                fprintf(stderr, "[sdpa-wall] QKVpack区=%.2fms heads区=%.2fms\n",
-                        (t_pack1 - t_pack0), (ncnn_ime2_sdpa::ime2_prof_now() - t_wall0));
-            ime2_sdpa_prof_dump(src_seqlen, dst_seqlen, past_seqlen);
             return 0;
         }
         // 有头失败：从头用旧路径整体重算（top_blob 会被覆盖写，语义安全）
@@ -301,8 +273,6 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
     if (head_fail)
         return -100;
-
-    ime2_sdpa_prof_dump(src_seqlen, dst_seqlen, past_seqlen);
 
     return 0;
 #endif // __riscv_v
