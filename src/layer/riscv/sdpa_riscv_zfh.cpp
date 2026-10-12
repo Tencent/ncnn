@@ -148,17 +148,19 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                     }
                 for (int j = vis; j < dst_seqlen && causal; j++)
                 {
-                    /* 只有**确实不可逾越**的掩码才算因果屏障：-inf 永远成立；
-                     * 有限大负值（如 ncnn_llm 用的 -1e38）只在 scale 无法翻转
-                     * 符号时成立——|q·k| ≤ E·65504²（fp16 打包值域），故
-                     * |scale| < 1e38/(E·65504²) 时 -1e38 必为硬屏障；病态大
-                     * scale 下有限负值是软掩码，放弃因果判定全量加 mask
-                     * （保守但正确，仅损失跳块收益）。 */
+                    /* 截断要求未来 logit 低于任何可见 logit，单侧"未来不为正"
+                     * 不够（可见 logit 可能更负：可见 K 与 Q 反号时点积为负，
+                     * scale·(-max_dot) + 0 可以比 scale·(+max_dot) + v 还小）。
+                     * 双侧证明：可见 logit ≥ -|scale|·max_dot（可见区掩码全 0
+                     * 已由前一段检查保证），未来 logit ≤ |scale|·max_dot + v，
+                     * 故 v < -2·|scale|·max_dot 时未来必不可见。max_dot 是
+                     * fp16 打包值域上界 E·65504²；乘积溢出 fp32 时变 inf，
+                     * 条件自然不成立（保守方向）。-inf 永远硬。 */
                     const float v = r[j];
                     if (v == -__builtin_inff())
                         continue;
                     const float max_dot = (float)embed_dim * 65504.f * 65504.f;
-                    if (fabsf(_scale) < 1e38f / max_dot && v <= -1e38f)
+                    if (v < -2.f * fabsf(_scale) * max_dot)
                         continue;
                     causal = 0;
                     break;
