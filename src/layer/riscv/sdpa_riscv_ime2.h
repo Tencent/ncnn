@@ -317,6 +317,35 @@ static int ime2_team_ok(int nthreads)
 #endif
 }
 
+/* fp16 打包值域检查：|v| > 65504 的有限值打包成 ±inf，而上游 fp32 路径保持
+ * 有限。IME2 预填充在打包前对所有输入扫一遍（在任何状态改动之前），越界则
+ * 调用方整体回落上游 GEMM 组合路径。逐 channel 只扫有效元素（cstep 填充区是
+ * 未初始化垃圾，不能误伤）。max 是精确运算，顺序无关，可用无序归约。 */
+static int ime2_fits_fp16(const ncnn::Mat& m)
+{
+    if (m.empty())
+        return 1;
+    const int nch = m.dims == 3 ? m.c : 1;
+    for (int q = 0; q < nch; q++)
+    {
+        const float* p = m.dims == 3 ? (const float*)m.channel(q).data : (const float*)m.data;
+        const size_t n = (size_t)m.w * m.h;
+        size_t i = 0;
+        vfloat32m1_t vmax = __riscv_vfmv_v_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+        while (i < n)
+        {
+            const size_t vl = __riscv_vsetvl_e32m1(n - i);
+            vfloat32m1_t v = __riscv_vle32_v_f32m1(p + i, vl);
+            vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, __riscv_vfabs_v_f32m1(v, vl), vl);
+            i += vl;
+        }
+        const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), __riscv_vsetvlmax_e32m1()));
+        if (mx > 65504.f)
+            return 0;
+    }
+    return 1;
+}
+
 /* ---------------- 打包：fp32 -> 8x8 fp16 tile 连续布局 ---------------- */
 
 /* src: [R, K] fp32 行主序（行距 ld 元素）-> tiles [rt][kt][64] fp16 */

@@ -71,6 +71,14 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     if (top_blob.empty())
         return -100;
 
+    /* fp16 打包值域预检：|v| > 65504 的输入打包成 ±inf，而上游 fp32 路径保持
+     * 有限。必须在**任何状态改动之前**（kv cache 追加不可回退）发现并让
+     * 调度方落上游——返回 -99 时 top_blobs[1]/[2] 尚未写入。 */
+    if (!ncnn_ime2_sdpa::ime2_fits_fp16(query) || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_key)
+            || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key)
+            || !ncnn_ime2_sdpa::ime2_fits_fp16(past_value))
+        return -99;
+
     // ---- kv cache 追加（与朴素路径完全相同的语义） ----
     Mat key = cur_key;
     Mat value = cur_value;
@@ -139,11 +147,22 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                         break;
                     }
                 for (int j = vis; j < dst_seqlen && causal; j++)
-                    if (r[j] > -1e30f)
-                    {
-                        causal = 0;
-                        break;
-                    }
+                {
+                    /* 只有**确实不可逾越**的掩码才算因果屏障：-inf 永远成立；
+                     * 有限大负值（如 ncnn_llm 用的 -1e38）只在 scale 无法翻转
+                     * 符号时成立——|q·k| ≤ E·65504²（fp16 打包值域），故
+                     * |scale| < 1e38/(E·65504²) 时 -1e38 必为硬屏障；病态大
+                     * scale 下有限负值是软掩码，放弃因果判定全量加 mask
+                     * （保守但正确，仅损失跳块收益）。 */
+                    const float v = r[j];
+                    if (v == -__builtin_inff())
+                        continue;
+                    const float max_dot = (float)embed_dim * 65504.f * 65504.f;
+                    if (fabsf(_scale) < 1e38f / max_dot && v <= -1e38f)
+                        continue;
+                    causal = 0;
+                    break;
+                }
             }
         }
     }
