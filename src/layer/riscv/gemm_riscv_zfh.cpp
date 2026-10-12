@@ -1902,7 +1902,7 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         const size_t ldt = IME2_TILE_LD(kt);
         const __fp16* bt = (const __fp16*)BT_data_ime2;
 
-        Mat C32(N, M, 4u, opt_tmp.blob_allocator);   /* [w=N, h=M] fp32 pack1 */
+        Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
         if (C32.empty())
             return -100;
 
