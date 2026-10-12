@@ -1863,16 +1863,21 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     {
         /* 团队不满足时的去向取决于建管线时建了哪套管线：
          * - 非 full-takeover（constantC=0 或可能有 runtime C）：fp16s/fp16sa
-         *   管线在，返回 -99 让调度方落进 16 位分发即可；
-         * - full-takeover（c_never_exists）：fp16s 从未构建，BT_data 是 fp32
-         *   面板，只能走通用 fp32 前向（输入升 fp32、输出转回 fp16）。 */
+         *   管线在，返回 -99 让调度方落进 16 位分发即可（与无 IME2 构建的行为
+         *   一致——ncnn 的预打包面板本来就假定同构 VLEN，跨簇移动后所有层
+         *   都一样，不是本路径引入的）；
+         * - full-takeover（c_never_exists）：没有任何可用的 16 位管线，而通用
+         *   fp32 面板（BT_data 4u）也是按建管线时的 vlenb 选的 tile——落到
+         *   X100 上 tile 配置失效会读越界。此时唯一与 VLEN 无关的权重表示是
+         *   BT_data_ime2（固定 8x8 tile 布局，+pad 行距恒定）。用朴素
+         *   fp32 累加直接从它计算：VLEN 无关，任何核对上都正确。
+         *   这是降级模式：先求正确，再求快。 */
         const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
         if (!c_never_exists)
             return -99;
 
-        /* 中间量（升精度后的输入、fp32 输出）走 workspace 分配器：blob 分配器
-         * 是按存活图节点估的池，塞临时量可能 -100 或挤出真实 blob；最终输出
-         * 才用原 blob 分配器。 */
+        /* 中间量走 workspace 分配器（blob 分配器是按存活图节点估的池）；
+         * 最终输出才用原 blob 分配器。 */
         Option opt_tmp = opt;
         opt_tmp.blob_allocator = opt.workspace_allocator;
 
@@ -1880,8 +1885,8 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         cast_float16_to_float32(A, A32, opt_tmp);
         if (A32.empty())
             return -100;
-        /* cast 保留 fp16 的打包（packn=vlenb/2），而通用 fp32 路径的 pack_A
-         * 只认 pack1 或 fp32 的 packn（vlenb/4）：先解到 pack1 再递归。 */
+        /* cast 保留 fp16 打包（packn=vlenb/2），朴素循环只按 pack1 索引：
+         * 先解到 pack1。 */
         if (A32.elempack != 1)
         {
             Mat A32_p1;
@@ -1891,25 +1896,59 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
             A32 = A32_p1;
         }
 
-        std::vector<Mat> in32(1);
-        in32[0] = A32;
-        std::vector<Mat> out32(1);
-        /* fp32 输入在 forward 里跳过 IME2（elembits==16 才进）与 fp16 分发，
-         * 落到通用 fp32 路径（BT_data 4u 面板），无递归风险。 */
-        const int ret = forward(in32, out32, opt_tmp);
-        if (ret != 0)
-            return ret;
-        if (out32[0].empty())
+        /* BT_data_ime2 布局：tile (i,j) 在 (size_t)i*ldt + j*64，元素 (r,c) 在
+         * t[r*8+c] = B[n=i*8+r][k=j*8+c]；ldt = kt*64 + IME2_TILE_PAD。 */
+        const int kt = (K + 7) / 8;
+        const size_t ldt = IME2_TILE_LD(kt);
+        const __fp16* bt = (const __fp16*)BT_data_ime2;
+
+        Mat C32(N, M, 4u, opt_tmp.blob_allocator);   /* [w=N, h=M] fp32 pack1 */
+        if (C32.empty())
             return -100;
 
+        /* 每线程一份 K 行缓冲（B 行从 tile 布局解出），然后 RVV fp32 点积。 */
+        Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
+        if (kbuf_mat.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int m = 0; m < M; m++)
+        {
+            const float* arow = A32.dims == 3 ? A32.channel(m).row(0) : (A32.dims == 2 ? A32.row(m) : (const float*)A32);
+            float* crow = C32.row(m);
+            float* kbuf = kbuf_mat.row(get_omp_thread_num());
+            for (int n = 0; n < N; n++)
+            {
+                const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
+                for (int k = 0; k < K; k++)
+                    kbuf[k] = (float)btile[(k / 8) * 64 + (k % 8)];
+
+                float acc = 0.f;
+#if __riscv_vector
+                /* 与 convolution1d_riscv.cpp 同款归约惯用法 */
+                size_t vl = __riscv_vsetvl_e32m1(K);
+                vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                int k = 0;
+                while (k < K)
+                {
+                    vl = __riscv_vsetvl_e32m1(K - k);
+                    vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
+                    k += vl;
+                }
+                acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vl), vl));
+#else
+                for (int k = 0; k < K; k++)
+                    acc += arow[k] * kbuf[k];
+#endif
+                crow[n] = alpha * acc;
+            }
+        }
+
         Mat& top_blob = top_blobs[0];
-        /* fp32 路径按 vlenb/4 选输出打包，与本层正常的 fp16 输出布局
-         * （vlenb/2 或 output_elempack）不同；cast 保留 elempack，所以要再
-         * 重打包到本层应产生的布局，否则下游（如 Convolution1D 的 fp16s
-         * 分发只认 pack1/packn）会拿到不认识的打包。 */
-        cast_float32_to_float16(out32[0], top_blob, opt);
+        cast_float32_to_float16(C32, top_blob, opt);
         if (top_blob.empty())
             return -100;
+        /* 输出重打包到本层正常应产生的 fp16 布局（out_elempack 决策见上） */
         if (top_blob.elempack != out_elempack)
         {
             Mat packed;
