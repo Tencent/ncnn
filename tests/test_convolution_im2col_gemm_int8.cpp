@@ -36,10 +36,18 @@ template<typename T>
 static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, bool require_split)
 {
     const T* convolution = static_cast<const T*>(layer);
-    return convolution->weight_sgemm_data.empty() != sgemm
-           && convolution->weight_data_tm.empty() == sgemm
-           && (!lightmode || convolution->weight_data.empty())
-           && (!sgemm || !require_split || convolution->weight_sgemm_data.h > 1);
+    if (convolution->weight_sgemm_data.empty() == sgemm
+            || convolution->weight_data_tm.empty() != sgemm
+            || (lightmode && !convolution->weight_data.empty()))
+        return false;
+
+    if (sgemm && require_split && convolution->weight_sgemm_data.h <= 1)
+    {
+        fprintf(stderr, "INT8 convolution expected split K but got %d transformed K tiles\n", convolution->weight_sgemm_data.h);
+        return false;
+    }
+
+    return true;
 }
 
 static bool check_pipeline(const ncnn::Layer* layer, bool sgemm, bool lightmode, bool require_split)
@@ -402,12 +410,19 @@ static int test_split_k()
 {
     const int packn = ncnn::cpu_riscv_vlenb() > 0 ? ncnn::cpu_riscv_vlenb() / 4 : 1;
     const int outch = packn * 2 + 1;
-    // Derive K from the cache budget instead of assuming a host L2 size.
+    // Query the actual candidate K: a balanced tile from a larger K can be
+    // smaller than the cache limit, so tile_k + 1 need not cause a split.
     // The scalar helper gives a conservative (at least as large) bound when
     // this test TU is scalar but the CPU factory dispatches to an RVV layer.
-    int tile_m, tile_n, tile_k;
-    ncnn::convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(outch, 3, 1 << 28, tile_m, tile_n, tile_k, 2);
-    const int inch = tile_k + 1;
+    int inch = 1;
+    for (;;)
+    {
+        int tile_m, tile_n, tile_k;
+        ncnn::convolution_im2col_gemm_get_optimal_tile_mnk_int8_rvv(outch, 3, inch, tile_m, tile_n, tile_k, 2);
+        if (tile_k < inch)
+            break;
+        inch = tile_k * 2 + 1;
+    }
     const ConvolutionGeometry geometry = {3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0};
     // Small values avoid accumulator overflow for machines with large caches.
     // Also require multiple transformed K rows and change forward threads.
