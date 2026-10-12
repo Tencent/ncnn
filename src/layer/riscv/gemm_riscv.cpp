@@ -3259,9 +3259,14 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             has_C = true; // 保守起见，多输入一律回退
 
         if (!has_C)
-            /* 团队不满足 IME2 条件时 forward_ime2 内部已走 fp32 转换回落，
-             * 这里直接返回其结果即可。 */
-            return forward_ime2(bottom_blobs, top_blobs, opt);
+        {
+            const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
+            /* -99 = 团队校验失败且本层建有 fp16s 管线（非 full-takeover）：
+             * 落进下面的 16 位分发。full-takeover 时 forward_ime2 内部已走
+             * fp32 转换回落，不会返回 -99。 */
+            if (ret != -99)
+                return ret;
+        }
     }
 #endif // NCNN_RISCV_SPACEMIT_IME2
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)

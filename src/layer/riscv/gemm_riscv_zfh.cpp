@@ -1861,6 +1861,15 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
      * 属于降级模式：先求正确，再求快。 */
     if (!ncnn_ime2::ime2_team_ok(opt.num_threads))
     {
+        /* 团队不满足时的去向取决于建管线时建了哪套管线：
+         * - 非 full-takeover（constantC=0 或可能有 runtime C）：fp16s/fp16sa
+         *   管线在，返回 -99 让调度方落进 16 位分发即可；
+         * - full-takeover（c_never_exists）：fp16s 从未构建，BT_data 是 fp32
+         *   面板，只能走通用 fp32 前向（输入升 fp32、输出转回 fp16）。 */
+        const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+        if (!c_never_exists)
+            return -99;
+
         /* 中间量（升精度后的输入、fp32 输出）走 workspace 分配器：blob 分配器
          * 是按存活图节点估的池，塞临时量可能 -100 或挤出真实 blob；最终输出
          * 才用原 blob 分配器。 */
@@ -1871,6 +1880,16 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         cast_float16_to_float32(A, A32, opt_tmp);
         if (A32.empty())
             return -100;
+        /* cast 保留 fp16 的打包（packn=vlenb/2），而通用 fp32 路径的 pack_A
+         * 只认 pack1 或 fp32 的 packn（vlenb/4）：先解到 pack1 再递归。 */
+        if (A32.elempack != 1)
+        {
+            Mat A32_p1;
+            convert_packing(A32, A32_p1, 1, opt_tmp);
+            if (A32_p1.empty())
+                return -100;
+            A32 = A32_p1;
+        }
 
         std::vector<Mat> in32(1);
         in32[0] = A32;
