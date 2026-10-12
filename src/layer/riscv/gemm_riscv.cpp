@@ -3613,12 +3613,7 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
                 Mat AT_tile(max_kk, max_ii, AT_channel.row<signed char>(k), (size_t)1u);
                 Mat AT_descales_tile(local_block_count, max_ii, AT_descales_channel.row<float>(k / block_size), (size_t)4u);
 
-                /* M=1（解码 GEMV）走专用内核：通用内核在 max_ii < packn 时会落到
-                 * 逐字节标量取权重（~1.9 GB/s），专用内核一次 vle8 取 8 列。 */
-                if (max_ii == 1)
-                    gemm_transB_packed_tile_wq_int8_m1(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_jj, k, max_kk, K, block_size);
-                else
-                    gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
+                gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
             }
 
             unpack_output_tile_wq_int8_riscv(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_elemtype, output_transpose);
@@ -3674,11 +3669,6 @@ static int gemm_BT_riscv_wq_int8(const Mat& A, const Mat& BT, const Mat& BT_desc
                     Mat AT_tile(max_kk, max_ii, ATX_tile.row<signed char>(k), (size_t)1u);
                     Mat AT_descales_tile(local_block_count, max_ii, ATX_descales_tile.row<float>(k / block_size), (size_t)4u);
 
-                    /* M=1（解码 GEMV）走专用内核：通用内核在 max_ii < packn 时会落到
-                 * 逐字节标量取权重（~1.9 GB/s），专用内核一次 vle8 取 8 列。 */
-                if (max_ii == 1)
-                    gemm_transB_packed_tile_wq_int8_m1(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_jj, k, max_kk, K, block_size);
-                else
                     gemm_transB_packed_tile_wq_int8(AT_tile, AT_descales_tile, BT_tile, BT_descales_tile, topT_tile, max_ii, max_jj, k, max_kk, K, block_size);
                 }
 
