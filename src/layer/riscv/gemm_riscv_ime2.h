@@ -306,6 +306,20 @@ static int ime2_a100_set(int nthreads, cpu_set_t* out)
  * affinity mask 是否为 A100 集合的子集（子集则调度器无处可迁）。每个工人
  * 一次 sched_getaffinity + 位测试，µs 级，相对每层 GEMM 可忽略。
  * 返回 0 时调用方回落非 IME2 路径，结果语义不变。 */
+/* 单个工人自校验：自己的 affinity mask ⊆ 给定集合。 */
+#if defined __linux__
+static int ime2_worker_in_set(const cpu_set_t* a100)
+{
+    cpu_set_t wcs;
+    if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
+        return 0;
+    for (int c = 0; c < CPU_SETSIZE; c++)
+        if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, a100))
+            return 0;
+    return 1;
+}
+#endif
+
 static int ime2_team_ok(int nthreads)
 {
 #if defined __linux__
@@ -315,23 +329,10 @@ static int ime2_team_ok(int nthreads)
     int ok = 1;
     #pragma omp parallel num_threads(nthreads)
     {
-        cpu_set_t wcs;
-        if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
+        if (!ime2_worker_in_set(&a100))
         {
             #pragma omp atomic write
             ok = 0;
-        }
-        else
-        {
-            for (int c = 0; c < CPU_SETSIZE; c++)
-            {
-                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &a100))
-                {
-                    #pragma omp atomic write
-                    ok = 0;
-                    break;
-                }
-            }
         }
     }
     return ok;
@@ -1080,9 +1081,25 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     /* 解码（M=1）快速路径：8 条累加链的 GEMV 内核，p 必为 1（M<packn） */
     if (M == 1 && p == 1)
     {
-        #pragma omp parallel for num_threads(nT)
-        for (int j = 0; j < nt; j += 4)
+        /* 守卫与内核是两个 omp region，运行时可换工人：在执行区域入口逐工人
+         * 自校验（掩码 ⊆ A100 集合），barrier 后全队一致开工或放弃。 */
+        cpu_set_t a100set;
+        int team_bad = !ime2_a100_set(nT, &a100set);
+        if (!team_bad)
         {
+            #pragma omp parallel num_threads(nT)
+            {
+                if (!ime2_worker_in_set(&a100set))
+                {
+                    #pragma omp atomic write
+                    team_bad = 1;
+                }
+                #pragma omp barrier
+                if (!team_bad)
+                {
+                    #pragma omp for
+                    for (int j = 0; j < nt; j += 4)
+                    {
             const int jn = nt - j < 4 ? nt - j : 4;
             float row[32];
             if (jn == 4)
@@ -1114,8 +1131,13 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
                     v = __riscv_vfmul_vf_f32m2(v, alpha, vl);
                 __riscv_vse16_v_f16m1(out + (size_t)j * 8 + c, __riscv_vfncvt_f_f_w_f16m1(v, vl), vl);
                 c += (int)vl;
+                    }
+                }
             }
         }
+        }
+        if (team_bad)
+            return -99;
         return 0;
     }
 
@@ -1137,20 +1159,41 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     const int nib = (mti + IB - 1) / IB;
     const int njb = (nti + JB - 1) / JB;
     /* 异构双簇分工（A100 IME2 + X100 RVV）已实验并否决 —— 平台限制，不是代码问题：
-                                                                                                                                                                                             *  (1) 两簇并发确实互不干扰（两个进程分别绑核：A100 374 + X100 120 = 490 t/s，潜力 +31%）；
-                                                                                                                                                                                             *  (2) 但 /proc/set_ai_thread 注册（A100 上拿到 VLEN=1024 的前提）会把进程**限制在 A100 簇内**：
-                                                                                                                                                                                             *      实测混合运行时的所有线程都落在 cpu8-15；不用注册直接 taskset 到 8-15 则直接失败。
-                                                                                                                                                                                             * 所以"单进程内双簇分工"在本平台上不可行，要兑现 +31% 只能走**多进程**方案。
-                                                                                                                                                                                             * 详见 REPORT 7.34；X100 的 RVV tile 内核（ime2_rvv_tile_8x8，已对拍通过）保留备用。 */
-    #pragma omp parallel for num_threads(nT) collapse(2)
-    for (int jbb = 0; jbb < njb; jbb++)
+                                                                                                                                                                                     *  (1) 两簇并发确实互不干扰（两个进程分别绑核：A100 374 + X100 120 = 490 t/s，潜力 +31%）；
+                                                                                                                                                                                     *  (2) 但 /proc/set_ai_thread 注册（A100 上拿到 VLEN=1024 的前提）会把进程**限制在 A100 簇内**：
+                                                                                                                                                                                     *      实测混合运行时的所有线程都落在 cpu8-15；不用注册直接 taskset 到 8-15 则直接失败。
+                                                                                                                                                                                     * 所以"单进程内双簇分工"在本平台上不可行，要兑现 +31% 只能走**多进程**方案。
+                                                                                                                                                                                     * 详见 REPORT 7.34；X100 的 RVV tile 内核（ime2_rvv_tile_8x8，已对拍通过）保留备用。 */
+    /* 与 M=1 区域相同：在执行区域内自校验（守卫与内核是两个 region，
+     * 运行时可能换工人），barrier 后全队一致开工或放弃。 */
+    cpu_set_t a100set2;
+    int team_bad2 = !ime2_a100_set(nT, &a100set2);
+    if (!team_bad2)
     {
-        for (int ibb = 0; ibb < nib; ibb++)
+        #pragma omp parallel num_threads(nT)
         {
-            ime2_compute_block_16x16(at, bt, out, ibb, jbb, mt, nt, M, N, ldat, ldt, kt, p, alpha);
+            if (!ime2_worker_in_set(&a100set2))
+            {
+                #pragma omp atomic write
+                team_bad2 = 1;
+            }
+            #pragma omp barrier
+            if (!team_bad2)
+            {
+                #pragma omp for collapse(2)
+                for (int jbb = 0; jbb < njb; jbb++)
+                {
+                    for (int ibb = 0; ibb < nib; ibb++)
+                    {
+                        ime2_compute_block_16x16(at, bt, out, ibb, jbb, mt, nt, M, N, ldat, ldt, kt, p, alpha);
+                    }
+                }
+            }
         }
     }
     (void)nt;
+    if (team_bad2)
+        return -99;
     return 0;
 }
 

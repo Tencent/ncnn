@@ -38,6 +38,9 @@ protected:
     // SpacemiT K3 A100 IME2 (smt.vfwmadot) 路径
     int create_pipeline_ime2(const Option& opt);
     int forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    /* 团队校验失败（队首或内核执行区域）时的 VLEN 无关朴素回落：
+     * 直接从固定布局的 BT_data_ime2 tile 做 fp32 累加。 */
+    int forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 
 public:
