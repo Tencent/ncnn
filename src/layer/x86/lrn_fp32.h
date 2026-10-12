@@ -72,7 +72,7 @@ static int lrn_fp32(Mat& bottom_top_blob, int region_type, int local_size, float
         for (int q = 0; q < channels; q++)
         {
             // square sum
-            for (int p = q - local_size / 2; p <= q + local_size / 2; p++)
+            for (int p = q - local_size / 2; p <= q + (local_size - 1) / 2; p++)
             {
                 if (p < 0 || p >= channels)
                     continue;
