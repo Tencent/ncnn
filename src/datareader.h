@@ -68,7 +68,10 @@ class DataReaderFromMemoryPrivate;
 class NCNN_EXPORT DataReaderFromMemory : public DataReader
 {
 public:
+    // text input must be null-terminated
     explicit DataReaderFromMemory(const unsigned char*& mem);
+    // all reads and scans are limited to mem_size bytes
+    DataReaderFromMemory(const unsigned char*& mem, size_t mem_size);
     virtual ~DataReaderFromMemory();
 
 #if NCNN_STRING
