@@ -4,6 +4,7 @@
 #include "testutil.h"
 
 #if NCNN_VULKAN
+#include "command.h"
 #include "gpu.h"
 
 #include <math.h>
@@ -117,14 +118,8 @@ static int test_layernorm_4()
 }
 
 #if NCNN_VULKAN
-static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
+static ncnn::Mat layernorm_reference(const ncnn::Mat& a, int affine_size, float eps)
 {
-    const float eps = 1e-5f;
-    ncnn::ParamDict pd;
-    pd.set(0, affine_size);
-    pd.set(1, eps);
-    pd.set(2, 0);
-
     // use double precision instead of the generic CPU layer's serial float sums
     ncnn::Mat expected = a.clone();
     const int groups = a.w * a.h * a.d / affine_size;
@@ -151,6 +146,19 @@ static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
                 outptr[g * affine_size + i] = (float)((ptr[g * affine_size + i] - mean) * inv_stddev);
         }
     }
+
+    return expected;
+}
+
+static int test_layernorm_gpu_reference(const ncnn::Mat& a, int affine_size)
+{
+    const float eps = 1e-5f;
+    ncnn::ParamDict pd;
+    pd.set(0, affine_size);
+    pd.set(1, eps);
+    pd.set(2, 0);
+
+    ncnn::Mat expected = layernorm_reference(a, affine_size, eps);
 
     ncnn::Option opt;
     opt.use_fp16_packed = false;
@@ -236,6 +244,109 @@ static int test_layernorm_gpu_dispatch()
 
     return 0;
 }
+
+static int test_layernorm_gpu_fp16a(const ncnn::Mat& a, bool use_subgroup_ops)
+{
+    const float eps = 1e-5f;
+    ncnn::ParamDict pd;
+    pd.set(0, a.w);
+    pd.set(1, eps);
+    pd.set(2, 0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_subgroup_ops = use_subgroup_ops;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    ncnn::Layer* op = ncnn::create_layer_vulkan("LayerNorm");
+    op->vkdev = vkdev;
+    op->load_param(pd);
+
+    std::vector<ncnn::Mat> weights;
+    ncnn::ModelBinFromMatArray mb(weights.data());
+    op->load_model(mb);
+    int ret = op->create_pipeline(opt);
+
+    ncnn::Mat out;
+    if (ret == 0)
+    {
+        // exercise fp16 arithmetic directly because test_layer_gpu disables it
+        ncnn::VkCompute cmd(vkdev);
+        ncnn::VkMat a_gpu;
+        cmd.record_upload(a, a_gpu, opt);
+        ret = op->forward_inplace(a_gpu, cmd, opt);
+        if (ret == 0)
+        {
+            cmd.record_download(a_gpu, out, opt);
+            ret = cmd.submit_and_wait();
+        }
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    ncnn::Mat expected = layernorm_reference(a, a.w, eps);
+    if (ret != 0 || CompareMat(expected, out, 0.002f) != 0)
+    {
+        fprintf(stderr, "test_layernorm_gpu_fp16a failed a=(%d %d %d %d) subgroup=%d ret=%d\n", a.w, a.h, a.d, a.c, use_subgroup_ops, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_layernorm_gpu_fp16a()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
+    if (!info.support_fp16_storage() || !info.support_fp16_arithmetic())
+        return 0;
+
+    const int sizes[] = {4096, 4097, 16384};
+    const int channels[] = {1, 4};
+    for (int c = 0; c < 2; c++)
+    {
+        for (int s = 0; s < 3; s++)
+        {
+            ncnn::Mat a(sizes[s], 2, channels[c]);
+            for (int q = 0; q < a.c; q++)
+            {
+                float* ptr = a.channel(q);
+                for (int i = 0; i < a.w; i++)
+                {
+                    // use exactly representable inputs and a nonconstant row with a large square sum
+                    ptr[i] = 8.f + q * 0.5f;
+                    ptr[a.w + i] = 8.f + q * 0.5f + (i % 7 - 3) * 8.f;
+                }
+            }
+            if (test_layernorm_gpu_fp16a(a, false) || test_layernorm_gpu_fp16a(a, true))
+                return -1;
+        }
+    }
+
+    return 0;
+}
 #endif // NCNN_VULKAN
 
 int main()
@@ -251,6 +362,7 @@ int main()
 #if NCNN_VULKAN
            || test_layernorm_gpu_numerics()
            || test_layernorm_gpu_dispatch()
+           || test_layernorm_gpu_fp16a()
 #endif
         ;
 }
