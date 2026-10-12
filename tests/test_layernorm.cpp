@@ -117,6 +117,24 @@ static int test_layernorm_4()
            || test_layernorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
 }
 
+static int test_layernorm_5()
+{
+    return 0
+           || test_layernorm(RandomMat(4095), 4095, 0.001f, 0)
+           || test_layernorm(RandomMat(4096), 4096, 0.001f, 0)
+           || test_layernorm(RandomMat(4097), 4097, 0.001f, 1)
+           || test_layernorm(RandomMat(16384), 16384, 0.001f, 1)
+           || test_layernorm(RandomMat(4095, 3), 4095, 0.001f, 1)
+           || test_layernorm(RandomMat(4096, 4), 4096, 0.001f, 0)
+           || test_layernorm(RandomMat(4097, 4), 4097, 0.001f, 1)
+           || test_layernorm(RandomMat(4096, 2, 1), 4096, 0.001f, 0)
+           || test_layernorm(RandomMat(4097, 2, 4), 4097, 0.001f, 1)
+           || test_layernorm(RandomMat(513, 3, 2, 4), 1539, 0.001f, 1)
+           || test_layernorm(RandomMat(32, 65535, 1), 32, 0.001f, 0)
+           || test_layernorm(RandomMat(32, 65536, 1), 32, 0.001f, 1)
+           || test_layernorm(RandomMat(8, 65537, 4), 8, 0.001f, 1);
+}
+
 #if NCNN_VULKAN
 static ncnn::Mat layernorm_reference(const ncnn::Mat& a, int affine_size, float eps)
 {
@@ -214,32 +232,6 @@ static int test_layernorm_gpu_numerics()
             if (test_layernorm_gpu_reference(a, a.w) != 0)
                 return -1;
         }
-    }
-
-    return 0;
-}
-
-static int test_layernorm_gpu_dispatch()
-{
-    if (ncnn::get_gpu_count() == 0)
-        return 0;
-
-    const int heights[] = {65535, 65536, 65537};
-    for (int s = 0; s < 3; s++)
-    {
-        // exercise pack1, pack4, and padding at the end of the tiled dispatch
-        ncnn::Mat a(s == 2 ? 8 : 32, heights[s], s == 2 ? 4 : 1);
-        for (int q = 0; q < a.c; q++)
-        {
-            float* ptr = a.channel(q);
-            for (int y = 0; y < a.h; y++)
-            {
-                for (int x = 0; x < a.w; x++)
-                    ptr[y * a.w + x] = (x % 7 - 3) * (1.f + (y % 5) * 0.125f) + (y % 11) * 0.25f + q * 0.5f;
-            }
-        }
-        if (test_layernorm_gpu_reference(a, a.w) != 0)
-            return -1;
     }
 
     return 0;
@@ -359,10 +351,10 @@ int main()
            || test_layernorm_2()
            || test_layernorm_3()
            || test_layernorm_4()
+           || test_layernorm_5()
 #if NCNN_VULKAN
            || test_layernorm_gpu_numerics()
-           || test_layernorm_gpu_dispatch()
            || test_layernorm_gpu_fp16a()
-#endif
-        ;
+#endif // NCNN_VULKAN
+           ;
 }
