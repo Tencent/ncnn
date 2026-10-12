@@ -1949,18 +1949,24 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
         }
 
         Mat& top_blob = top_blobs[0];
-        cast_float32_to_float16(C32, top_blob, opt);
+        if (out_elempack == 1)
+        {
+            /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
+            cast_float32_to_float16(C32, top_blob, opt);
+            if (top_blob.empty())
+                return -100;
+            return 0;
+        }
+        /* 需要重打包时，pack1 的 fp16 中间量放 workspace：若它也占 blob
+         * 分配器，中间量与最终打包结果会瞬时共存两份同尺寸，而 blob 池只
+         * 按一个返回输出估算，可能 -100。最终输出才用原 blob 分配器。 */
+        Mat top16_tmp;
+        cast_float32_to_float16(C32, top16_tmp, opt_tmp);
+        if (top16_tmp.empty())
+            return -100;
+        convert_packing(top16_tmp, top_blob, out_elempack, opt);
         if (top_blob.empty())
             return -100;
-        /* 输出重打包到本层正常应产生的 fp16 布局（out_elempack 决策见上） */
-        if (top_blob.elempack != out_elempack)
-        {
-            Mat packed;
-            convert_packing(top_blob, packed, out_elempack, opt);
-            if (packed.empty())
-                return -100;
-            top_blob = packed;
-        }
         return 0;
     }
 
