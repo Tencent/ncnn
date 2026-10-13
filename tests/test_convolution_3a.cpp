@@ -356,7 +356,9 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true)
            // large reduction depth with packed channels and scalar tails
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
-           || test_convolution_int8(7, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
+           || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
+           // single-tile output with split-K accumulation
+           || test_convolution_int8(3, 3, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
 }
 
 #endif // NCNN_INT8
