@@ -283,6 +283,28 @@ static ncnn::KMPGlobal g_kmp_global;
 
 static ncnn::ThreadLocalStorage tls_num_threads;
 static ncnn::ThreadLocalStorage tls_thread_num;
+#if __clang__
+static ncnn::ThreadLocalStorage tls_requested_num_threads;
+#endif
+
+class KMPThreadStateGuard
+{
+public:
+    KMPThreadStateGuard()
+        : num_threads(tls_num_threads.get()), thread_num(tls_thread_num.get())
+    {
+    }
+
+    ~KMPThreadStateGuard()
+    {
+        tls_num_threads.set(num_threads);
+        tls_thread_num.set(thread_num);
+    }
+
+private:
+    void* num_threads;
+    void* thread_num;
+};
 
 static void init_g_kmp_global()
 {
@@ -498,7 +520,7 @@ int32_t __kmpc_global_thread_num(void* /*loc*/)
 void __kmpc_push_num_threads(void* /*loc*/, int32_t /*gtid*/, int32_t num_threads)
 {
     // NCNN_LOGE("__kmpc_push_num_threads %d", num_threads);
-    omp_set_num_threads(num_threads);
+    tls_requested_num_threads.set(reinterpret_cast<void*>((size_t)std::max(num_threads, 1)));
 }
 
 void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
@@ -506,7 +528,12 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
     g_kmp_global.try_init();
 
     // NCNN_LOGE("__kmpc_fork_call %d", argc);
-    int num_threads = omp_get_num_threads();
+    KMPThreadStateGuard state_guard;
+    int num_threads = (int)reinterpret_cast<size_t>(tls_requested_num_threads.get());
+    tls_requested_num_threads.set(0);
+    if (num_threads == 0)
+        num_threads = omp_get_num_threads();
+    tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
 
     // build argv
     void* argv[32];
@@ -724,6 +751,8 @@ void GOMP_parallel_end()
 
 void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned int /*flags*/)
 {
+    KMPThreadStateGuard state_guard;
+
     g_kmp_global.try_init();
 
     // NCNN_LOGE("GOMP_parallel %p %p %u", fn, data, num_threads);
