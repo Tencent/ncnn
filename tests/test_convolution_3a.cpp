@@ -101,14 +101,10 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         return ret;
     }
 
-    if (input_int8)
-        return ret;
-
     if (kernel == 3 && dilation == 1 && stride == 1)
     {
         ncnn::Option opt;
         opt.num_threads = 1;
-        opt.use_packing_layout = true;
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
@@ -116,19 +112,26 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_bf16_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = true;
-        for (int i = 0; i < (test_winograd43 ? 2 : 1); i++)
+        for (int packing = 0; packing < (input_int8 ? 2 : 1); packing++)
         {
-            opt.use_winograd23_convolution = i == 0;
-            opt.use_winograd43_convolution = i == 1;
-
-            ret = test_layer_opt("Convolution", pd, weights, opt, a, use_requant ? 1.0f : 0.001f, flag);
-            if (ret != 0)
+            opt.use_packing_layout = !input_int8 || packing != 0;
+            for (int i = 0; i < (test_winograd43 ? 2 : 1); i++)
             {
-                fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, activation_type, activation_params[0], activation_params[1]);
-                return ret;
+                opt.use_winograd23_convolution = i == 0;
+                opt.use_winograd43_convolution = i == 1;
+
+                ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
+                if (ret != 0)
+                {
+                    fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, activation_type, activation_params[0], activation_params[1]);
+                    return ret;
+                }
             }
         }
     }
+
+    if (input_int8)
+        return ret;
 
     {
         ncnn::Option opt;
@@ -353,7 +356,7 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true)
            // large reduction depth with packed channels and scalar tails
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
-           || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
+           || test_convolution_int8(7, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
 }
 
 #endif // NCNN_INT8
