@@ -25,6 +25,17 @@ static void convolution_im2col_pack_A_tile_int8_rvv(const Mat& kernel, Mat& AT, 
         ii += vl;
     }
 #else
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        const signed char* pA0 = kernel_ptr + (i + ii) * K + k;
+        const signed char* pA1 = kernel_ptr + (i + ii + 1) * K + k;
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[0] = pA0[kk];
+            pp[1] = pA1[kk];
+            pp += 2;
+        }
+    }
     for (; ii < max_ii; ii++)
     {
         const signed char* pA = kernel_ptr + (i + ii) * K + k;
@@ -294,6 +305,96 @@ convolution_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Mat& BT_t
         ii += vl;
     }
 #else
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        int* outptr0 = top_blob.channel(i + ii);
+        int* outptr1 = top_blob.channel(i + ii + 1);
+        outptr0 += j;
+        outptr1 += j;
+
+        const signed char* pB = pBT;
+
+        int jj = 0;
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            int sum00 = k == 0 ? 0 : outptr[0];
+            int sum10 = k == 0 ? 0 : outptr[1];
+            int sum01 = k == 0 ? 0 : outptr[2];
+            int sum11 = k == 0 ? 0 : outptr[3];
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const int a0 = pA[0];
+                const int a1 = pA[1];
+                const int b0 = pB[0];
+                const int b1 = pB[1];
+                sum00 += a0 * b0;
+                sum10 += a1 * b0;
+                sum01 += a0 * b1;
+                sum11 += a1 * b1;
+
+                pA += 2;
+                pB += 2;
+            }
+
+            if (k_end)
+            {
+                outptr0[0] = sum00;
+                outptr1[0] = sum10;
+                outptr0[1] = sum01;
+                outptr1[1] = sum11;
+                outptr0 += 2;
+                outptr1 += 2;
+            }
+            else
+            {
+                outptr[0] = sum00;
+                outptr[1] = sum10;
+                outptr[2] = sum01;
+                outptr[3] = sum11;
+            }
+
+            if (outptr)
+                outptr += 4;
+        }
+        for (; jj < max_jj; jj++)
+        {
+            const signed char* pA = pAT + ii * max_kk;
+
+            int sum00 = k == 0 ? 0 : outptr[0];
+            int sum10 = k == 0 ? 0 : outptr[1];
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const int a0 = pA[0];
+                const int a1 = pA[1];
+                const int b0 = pB[0];
+                sum00 += a0 * b0;
+                sum10 += a1 * b0;
+
+                pA += 2;
+                pB++;
+            }
+
+            if (k_end)
+            {
+                outptr0[0] = sum00;
+                outptr1[0] = sum10;
+                outptr0++;
+                outptr1++;
+            }
+            else
+            {
+                outptr[0] = sum00;
+                outptr[1] = sum10;
+            }
+
+            if (outptr)
+                outptr += 2;
+        }
+    }
     for (; ii < max_ii; ii++)
     {
         int* outptr0 = top_blob.channel(i + ii);
@@ -302,46 +403,6 @@ convolution_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Mat& BT_t
         const signed char* pB = pBT;
 
         int jj = 0;
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            const signed char* pA = pAT + ii * max_kk;
-
-            int sum0 = k == 0 ? 0 : outptr[0];
-            int sum1 = k == 0 ? 0 : outptr[1];
-            int sum2 = k == 0 ? 0 : outptr[2];
-            int sum3 = k == 0 ? 0 : outptr[3];
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const int a = pA[0];
-                sum0 += a * pB[0];
-                sum1 += a * pB[1];
-                sum2 += a * pB[2];
-                sum3 += a * pB[3];
-
-                pA++;
-                pB += 4;
-            }
-
-            if (k_end)
-            {
-                outptr0[0] = sum0;
-                outptr0[1] = sum1;
-                outptr0[2] = sum2;
-                outptr0[3] = sum3;
-                outptr0 += 4;
-            }
-            else
-            {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-                outptr[2] = sum2;
-                outptr[3] = sum3;
-            }
-
-            if (outptr)
-                outptr += 4;
-        }
         for (; jj + 1 < max_jj; jj += 2)
         {
             const signed char* pA = pAT + ii * max_kk;
@@ -453,6 +514,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8_rvv(const Mat& bottom
     signed char* pp = B;
 
     int jj = 0;
+#if __riscv_vector
     for (; jj + 3 < max_jj; jj += 4)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -460,7 +522,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8_rvv(const Mat& bottom
             const int q = k + kk;
             const signed char* pB = bottom_blob.channel(q / elempack);
             pB += (j + jj) * elempack + q % elempack;
-#if __riscv_vector
             const size_t vl = __riscv_vsetvl_e8m1(4);
             vint8m1_t _b;
             if (elempack == 1)
@@ -468,15 +529,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8_rvv(const Mat& bottom
             else
                 _b = __riscv_vlse8_v_i8m1(pB, elempack, vl);
             __riscv_vse8_v_i8m1(pp, _b, vl);
-#else
-            pp[0] = pB[0];
-            pp[1] = pB[elempack];
-            pp[2] = pB[2 * elempack];
-            pp[3] = pB[3 * elempack];
-#endif // __riscv_vector
             pp += 4;
         }
     }
+#endif // __riscv_vector
     for (; jj + 1 < max_jj; jj += 2)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -528,6 +584,7 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
     signed char* pp = B;
 
     int jj = 0;
+#if __riscv_vector
     for (; jj + 3 < max_jj; jj += 4)
     {
         const int dy0 = (j + jj) / outw;
@@ -547,7 +604,6 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
             for (int kk = 0; kk < max_kk; kk++)
             {
                 const signed char* pB = img + offset + (u * dilation_h * w + v * dilation_w) * elempack + lane;
-#if __riscv_vector
                 // All spatial blocks and row segments fit in e8m1.
                 const size_t vl = 4;
                 vint8m1_t _b;
@@ -556,12 +612,6 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
                 else
                     _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
                 __riscv_vse8_v_i8m1(pp, _b, vl);
-#else
-                pp[0] = pB[0];
-                pp[1] = pB[1 * stride_w * elempack];
-                pp[2] = pB[2 * stride_w * elempack];
-                pp[3] = pB[3 * stride_w * elempack];
-#endif // __riscv_vector
                 pp += 4;
 
                 v++;
@@ -611,7 +661,6 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
                     const signed char* pB = img0 + offset_table[t];
                     signed char* outptr = pp + nn_offset[t];
                     const int count = nn_count[t];
-#if __riscv_vector
                     const size_t vl = count;
                     vint8m1_t _b;
                     if (stride_w == 1 && elempack == 1)
@@ -619,10 +668,6 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
                     else
                         _b = __riscv_vlse8_v_i8m1(pB, stride_w * elempack, vl);
                     __riscv_vse8_v_i8m1(outptr, _b, vl);
-#else
-                    for (int n = 0; n < count; n++)
-                        outptr[n] = pB[n * stride_w * elempack];
-#endif // __riscv_vector
                 }
                 pp += 4;
 
@@ -645,6 +690,7 @@ static void convolution_im2col_input_tile_int8_rvv(const Mat& bottom_blob, Mat& 
             }
         }
     }
+#endif // __riscv_vector
     for (; jj + 1 < max_jj; jj += 2)
     {
         const int dy0 = (j + jj) / outw;
@@ -813,7 +859,7 @@ static int convolution_im2col_gemm_transform_kernel_int8_rvv(const Mat& kernel, 
         return -100;
 
     // K is input_channel * maxk + kernel_offset, independent of input packing.
-    // Interleave output channels so one weight vector serves four positions.
+    // Interleave output channels for reuse across spatial positions.
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {

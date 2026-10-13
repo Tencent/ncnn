@@ -112,7 +112,8 @@ static int test_convolution_1()
            || test_convolution_oom_int8(9, 7, 31, 32, 1, 1, 1, 0, 1)
            || test_convolution_oom_int8(9, 7, 31, 32, 3, 1, 1, 1, 1)
            || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1)
-           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1);
+           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1)
+           || test_convolution_oom_int8(3, 1, 32769, 3, 1, 1, 1, 0, 1);
 }
 
 static int test_convolution_2()
