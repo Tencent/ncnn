@@ -546,7 +546,9 @@ int Convolution_riscv::create_pipeline_int8_rvv(const Option& opt)
     // bounded by 9 * 128 * 128 * K. Both bounds include -128 inputs/weights.
     const bool use_winograd23 = opt.use_winograd23_convolution && num_input <= 3640;
     const bool use_winograd43 = opt.use_winograd43_convolution && num_input <= 14563;
-    if (opt.use_winograd_convolution && (use_winograd23 || use_winograd43) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    const bool prefer_winograd = (use_winograd23 || use_winograd43) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int ret;
         if (use_winograd43)
@@ -662,7 +664,9 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
     const int num_input = bottom_blob_bordered.c * bottom_blob_bordered.elempack;
     const bool use_winograd23 = opt.use_winograd23_convolution && num_input <= 3640;
     const bool use_winograd43 = opt.use_winograd43_convolution && num_input <= 14563;
-    if (opt.use_winograd_convolution && (use_winograd23 || use_winograd43) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    const bool prefer_winograd = (use_winograd23 || use_winograd43) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int _nT = nT ? nT : opt.num_threads;
         if (nT != 0 && opt.num_threads != nT)
