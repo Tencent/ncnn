@@ -287,25 +287,6 @@ static ncnn::ThreadLocalStorage tls_thread_num;
 static ncnn::ThreadLocalStorage tls_requested_num_threads;
 #endif
 
-class KMPThreadStateGuard
-{
-public:
-    KMPThreadStateGuard()
-        : num_threads(tls_num_threads.get()), thread_num(tls_thread_num.get())
-    {
-    }
-
-    ~KMPThreadStateGuard()
-    {
-        tls_num_threads.set(num_threads);
-        tls_thread_num.set(thread_num);
-    }
-
-private:
-    void* num_threads;
-    void* thread_num;
-};
-
 static void init_g_kmp_global()
 {
     g_kmp_global.init();
@@ -528,7 +509,8 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
     g_kmp_global.try_init();
 
     // NCNN_LOGE("__kmpc_fork_call %d", argc);
-    KMPThreadStateGuard state_guard;
+    void* old_num_threads = tls_num_threads.get();
+    void* old_thread_num = tls_thread_num.get();
     int num_threads = (int)reinterpret_cast<size_t>(tls_requested_num_threads.get());
     tls_requested_num_threads.set(0);
     if (num_threads == 0)
@@ -554,6 +536,8 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
             kmp_invoke_microtask(fn, 0, 0, argc, argv);
         }
 
+        tls_num_threads.set(old_num_threads);
+        tls_thread_num.set(old_thread_num);
         return;
     }
 
@@ -595,6 +579,9 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
         }
         finish_lock.unlock();
     }
+
+    tls_num_threads.set(old_num_threads);
+    tls_thread_num.set(old_thread_num);
 }
 
 void __kmpc_for_static_init_4(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, int32_t* lower, int32_t* upper, int32_t* /*stride*/, int32_t /*incr*/, int32_t /*chunk*/)
@@ -751,7 +738,8 @@ void GOMP_parallel_end()
 
 void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned int /*flags*/)
 {
-    KMPThreadStateGuard state_guard;
+    void* old_num_threads = tls_num_threads.get();
+    void* old_thread_num = tls_thread_num.get();
 
     g_kmp_global.try_init();
 
@@ -771,6 +759,8 @@ void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned
             fn(data);
         }
 
+        tls_num_threads.set(old_num_threads);
+        tls_thread_num.set(old_thread_num);
         return;
     }
 
@@ -811,6 +801,9 @@ void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned
         }
         finish_lock.unlock();
     }
+
+    tls_num_threads.set(old_num_threads);
+    tls_thread_num.set(old_thread_num);
 }
 #endif // __clang__
 

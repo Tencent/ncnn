@@ -315,25 +315,34 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(int M, int N, int K
     // Budget all transform coefficients, including int32 partial sums.
     const int l2_cache_size = std::max(16384, (int)get_cpu_level2_cache_size()) / B;
 
-    int nn_M = (M + packn * 2 - 1) / (packn * 2);
-    TILE_M = ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn;
-    TILE_M *= std::min(nT, get_physical_cpu_count());
-    nn_M = (M + TILE_M - 1) / TILE_M;
-    TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn);
-    if (nT > 1)
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + packn - 1) / packn * packn);
+    // solve M
+    {
+        int nn_M = (M + packn * 2 - 1) / (packn * 2);
+        TILE_M = ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn;
+        TILE_M *= std::min(nT, get_physical_cpu_count());
+        nn_M = (M + TILE_M - 1) / TILE_M;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + packn - 1) / packn * packn);
+        if (nT > 1)
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + packn - 1) / packn * packn);
+    }
 
-    int tile_size = (l2_cache_size - TILE_M * 4 * 4) / (TILE_M * 2 + 4 * 2);
-    TILE_K = std::max(8, tile_size / 8 * 8);
-    if (B == 36)
-        TILE_K = std::min(TILE_K, 224);
-    const int nn_K = (K + TILE_K - 1) / TILE_K;
-    TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+    // solve K
+    {
+        int tile_size = (l2_cache_size - TILE_M * 4 * 4) / (TILE_M * 2 + 4 * 2);
+        TILE_K = std::max(8, tile_size / 8 * 8);
+        // F(4,3) normalizes each block into signed 26-bit outputs.
+        // 224 is the largest 8-aligned K with 9 * 128 * 128 * K < 2^25.
+        if (B == 36)
+            TILE_K = std::min(TILE_K, 224);
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+    }
 
+    // solve N
     TILE_N = 0;
     if (N > 0)
     {
-        tile_size = (l2_cache_size - TILE_M * TILE_K * 2) / (TILE_K * 2 + TILE_M * 4);
+        int tile_size = (l2_cache_size - TILE_M * TILE_K * 2) / (TILE_K * 2 + TILE_M * 4);
         TILE_N = std::max(4, tile_size / 4 * 4);
         int nn_N = (N + TILE_N - 1) / TILE_N;
         nn_N = std::max(nn_N, std::min(nT, (N + 3) / 4));
@@ -403,13 +412,14 @@ static int conv3x3s1_winograd23_transform_kernel_int8_rvv(const Mat& kernel, Mat
 {
     const int M = outch;
     const int K = inch;
+    const int B = 16;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, 0, K, 16, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
-    AT.create(TILE_M * TILE_K, 16, nn_K, nn_M, (size_t)2u, 1);
+    AT.create(TILE_M * TILE_K, B, nn_K, nn_M, (size_t)2u, 1);
     if (AT.empty())
         return -100;
 
@@ -760,9 +770,10 @@ static int conv3x3s1_winograd23_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
     const int M = top_blob.c * top_blob.elempack;
     const int N = w_tiles * h_tiles;
     const int K = bottom_blob.c * bottom_blob.elempack;
+    const int B = 16;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, N, K, 16, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -772,20 +783,20 @@ static int conv3x3s1_winograd23_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
     // Keep the per-worker panel and all split-K partial sums cache-bounded.
     int nn_Mgroup = std::min(nn_M, (nT + nn_N - 1) / nn_N);
     const size_t l2_cache_size = std::max(16384, (int)get_cpu_level2_cache_size());
-    const size_t bt_tile_size = (size_t)TILE_K * TILE_N * 16 * sizeof(short);
-    const size_t topT_tile_size = (size_t)TILE_M * TILE_N * 16 * sizeof(int);
+    const size_t bt_tile_size = (size_t)TILE_K * TILE_N * B * sizeof(short);
+    const size_t topT_tile_size = (size_t)TILE_M * TILE_N * B * sizeof(int);
     const size_t topT_budget = l2_cache_size > bt_tile_size ? l2_cache_size - bt_tile_size : 0;
     const int max_M_tiles = std::max(1, (int)(topT_budget / topT_tile_size));
     nn_Mgroup = std::max(nn_Mgroup, (nn_M + max_M_tiles - 1) / max_M_tiles);
     const int nn_MN = nn_Mgroup * nn_N;
     const int num_threads = std::min(nT, nn_MN);
 
-    Mat BT_tileX(TILE_K * TILE_N, 16, num_threads, (size_t)2u, 1, opt.workspace_allocator);
+    Mat BT_tileX(TILE_K * TILE_N, B, num_threads, (size_t)2u, 1, opt.workspace_allocator);
     if (BT_tileX.empty())
         return -100;
 
     const int nn_M_per_group = (nn_M + nn_Mgroup - 1) / nn_Mgroup;
-    Mat topT_tileX(TILE_M * TILE_N * 16, nn_M_per_group, num_threads, (size_t)4u, 1, opt.workspace_allocator);
+    Mat topT_tileX(TILE_M * TILE_N * B, nn_M_per_group, num_threads, (size_t)4u, 1, opt.workspace_allocator);
     if (topT_tileX.empty())
         return -100;
 
@@ -814,7 +825,7 @@ static int conv3x3s1_winograd23_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
                 const Mat AT_tile = AT.channel(ppi).depth(ppk);
                 Mat top_tile = topT_tileX.channel(tid).row_range(ppi - ppi_start, 1);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, 16, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
 
                 if (ppk + 1 == nn_K)
                     conv3x3s1_winograd23_transform_output_tile_int8_rvv(top_tile, top_blob, i, max_ii, j, max_jj);
@@ -892,13 +903,14 @@ static int conv3x3s1_winograd43_transform_kernel_int8_rvv(const Mat& kernel, Mat
 {
     const int M = outch;
     const int K = inch;
+    const int B = 36;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, 0, K, 36, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
-    AT.create(TILE_M * TILE_K, 36, nn_K, nn_M, (size_t)2u, 1);
+    AT.create(TILE_M * TILE_K, B, nn_K, nn_M, (size_t)2u, 1);
     if (AT.empty())
         return -100;
 
@@ -1409,9 +1421,10 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
     const int M = top_blob.c * top_blob.elempack;
     const int N = w_tiles * h_tiles;
     const int K = bottom_blob.c * bottom_blob.elempack;
+    const int B = 36;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, N, K, 36, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -1423,20 +1436,20 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
     // Keep the per-worker panel and all split-K partial sums cache-bounded.
     int nn_Mgroup = std::min(nn_M, (nT + nn_N - 1) / nn_N);
     const size_t l2_cache_size = std::max(16384, (int)get_cpu_level2_cache_size());
-    const size_t bt_tile_size = (size_t)TILE_K * TILE_N * 36 * sizeof(short);
-    const size_t topT_tile_size = (size_t)TILE_M * TILE_N * 36 * sizeof(int);
+    const size_t bt_tile_size = (size_t)TILE_K * TILE_N * B * sizeof(short);
+    const size_t topT_tile_size = (size_t)TILE_M * TILE_N * B * sizeof(int);
     const size_t topT_budget = l2_cache_size > bt_tile_size ? l2_cache_size - bt_tile_size : 0;
     const int max_M_tiles = std::max(1, (int)(topT_budget / topT_tile_size));
     nn_Mgroup = std::max(nn_Mgroup, (nn_M + max_M_tiles - 1) / max_M_tiles);
     const int nn_MN = nn_Mgroup * nn_N;
     const int num_threads = std::min(nT, nn_MN);
 
-    Mat BT_tileX(TILE_K * TILE_N, 36, num_threads, (size_t)2u, 1, opt.workspace_allocator);
+    Mat BT_tileX(TILE_K * TILE_N, B, num_threads, (size_t)2u, 1, opt.workspace_allocator);
     if (BT_tileX.empty())
         return -100;
 
     const int nn_M_per_group = (nn_M + nn_Mgroup - 1) / nn_Mgroup;
-    Mat topT_tileX(TILE_M * TILE_N * 36, nn_M_per_group, num_threads, (size_t)4u, 1, opt.workspace_allocator);
+    Mat topT_tileX(TILE_M * TILE_N * B, nn_M_per_group, num_threads, (size_t)4u, 1, opt.workspace_allocator);
     if (topT_tileX.empty())
         return -100;
 
@@ -1466,7 +1479,7 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
                 const Mat AT_tile = AT.channel(ppi).depth(ppk);
                 Mat top_tile = topT_tileX.channel(tid).row_range(ppi - ppi_start, 1);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, 36, max_ii, max_jj, k_relative, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k_relative, max_kk);
 
                 if ((ppk + 1) % nn_K_block == 0 || ppk + 1 == nn_K)
                 {

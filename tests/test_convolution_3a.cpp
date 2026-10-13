@@ -88,7 +88,10 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
             opt.use_packing_layout = packing != 0;
             ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
             if (ret != 0)
-                break;
+            {
+                fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d sgemm=%d input_int8=%d packing=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, sgemm, input_int8, opt.use_packing_layout, activation_type, activation_params[0], activation_params[1]);
+                return ret;
+            }
         }
     }
     else
@@ -123,7 +126,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
                 ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
                 if (ret != 0)
                 {
-                    fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, activation_type, activation_params[0], activation_params[1]);
+                    fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, opt.use_packing_layout, i == 0 ? 23 : 43, activation_type, activation_params[0], activation_params[1]);
                     return ret;
                 }
             }
