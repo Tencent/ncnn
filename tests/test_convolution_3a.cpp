@@ -67,12 +67,14 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     }
 
     int flag = input_int8 ? TEST_LAYER_DISABLE_AUTO_INPUT_CASTING : 0;
+    if (input_int8 && sgemm)
+        flag |= TEST_LAYER_ENABLE_THREADING;
+
     int ret = 0;
     if (input_int8)
     {
         ncnn::Option opt;
         opt.num_threads = 1;
-        opt.use_packing_layout = true;
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
@@ -81,7 +83,13 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_sgemm_convolution = sgemm;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
+        for (int packing = 0; packing < 2; packing++)
+        {
+            opt.use_packing_layout = packing != 0;
+            ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
+            if (ret != 0)
+                break;
+        }
     }
     else
     {
@@ -342,7 +350,10 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, false, 1, false, true)
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, false, 2, false, true)
            || test_convolution_int8(8, 6, 4, 8, 1, 1, 1, 0, 1, true, 102, false, true)
-           || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true);
+           || test_convolution_int8(9, 7, 8, 8, 2, 1, 1, 1, 1, false, 1, true, true)
+           // large reduction depth with packed channels and scalar tails
+           || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
+           || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
 }
 
 #endif // NCNN_INT8
