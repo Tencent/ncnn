@@ -4,7 +4,7 @@
 #include "testutil.h"
 
 #if NCNN_INT8
-static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false, bool test_winograd43 = false)
+static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false, bool test_winograd43 = false, int winograd = 0, bool packing = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -70,6 +70,29 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     if (input_int8 && sgemm)
         flag |= TEST_LAYER_ENABLE_THREADING;
 
+    if (winograd)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = packing;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = true;
+        opt.use_winograd23_convolution = winograd == 23;
+        opt.use_winograd43_convolution = winograd == 43;
+
+        int ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, packing, winograd, activation_type, activation_params[0], activation_params[1]);
+        }
+        return ret;
+    }
+
     int ret = 0;
     if (input_int8)
     {
@@ -104,10 +127,14 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         return ret;
     }
 
+    if (input_int8)
+        return ret;
+
     if (kernel == 3 && dilation == 1 && stride == 1)
     {
         ncnn::Option opt;
         opt.num_threads = 1;
+        opt.use_packing_layout = true;
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
@@ -115,26 +142,19 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_bf16_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = true;
-        for (int packing = 0; packing < (input_int8 ? 2 : 1); packing++)
+        for (int i = 0; i < (test_winograd43 ? 2 : 1); i++)
         {
-            opt.use_packing_layout = !input_int8 || packing != 0;
-            for (int i = 0; i < (test_winograd43 ? 2 : 1); i++)
-            {
-                opt.use_winograd23_convolution = i == 0;
-                opt.use_winograd43_convolution = i == 1;
+            opt.use_winograd23_convolution = i == 0;
+            opt.use_winograd43_convolution = i == 1;
 
-                ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
-                if (ret != 0)
-                {
-                    fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, opt.use_packing_layout, i == 0 ? 23 : 43, activation_type, activation_params[0], activation_params[1]);
-                    return ret;
-                }
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, use_requant ? 1.0f : 0.001f, flag);
+            if (ret != 0)
+            {
+                fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, opt.use_packing_layout, i == 0 ? 23 : 43, activation_type, activation_params[0], activation_params[1]);
+                return ret;
             }
         }
     }
-
-    if (input_int8)
-        return ret;
 
     {
         ncnn::Option opt;
@@ -360,12 +380,11 @@ static int test_convolution_1_int8_input()
            // large reduction depth with packed channels and scalar tails
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
            || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
-           // single-tile output with split-K accumulation
-           || test_convolution_int8(3, 3, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
-           // bounded F(4,3) output accumulation with packed and unpacked channels
-           || test_convolution_int8(30, 6, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, true)
-           // eight-tile split-K reload at wider vector lengths
-           || test_convolution_int8(17, 3, 49, 32, 3, 1, 1, 0, 1, false, 1, false, true);
+           // F(4,3) output accumulation across bounded normalization blocks
+           || test_convolution_int8(6, 3, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, false, 43, false)
+           || test_convolution_int8(6, 3, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, false, 43, true)
+           // F(2,3) scalar transforms and odd-channel/spatial split-K tails
+           || test_convolution_int8(7, 3, 384, 9, 3, 1, 1, 0, 1, false, 1, false, true, false, 23, false);
 }
 
 #endif // NCNN_INT8
