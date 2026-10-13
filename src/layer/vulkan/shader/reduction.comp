@@ -3,6 +3,11 @@
 
 #version 450
 
+#if NCNN_fp16_packed
+NCNN_DEFINE_PACK_HALF_PRESERVE_SPECIAL()
+#define packHalf2x16(v) pack_half_preserve_special(v)
+#endif
+
 #if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable

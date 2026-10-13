@@ -3,6 +3,11 @@
 
 #version 450
 
+#if NCNN_fp16_packed
+NCNN_DEFINE_PACK_HALF_PRESERVE_SPECIAL()
+#define packHalf2x16(v) pack_half_preserve_special(v)
+#endif
+
 #define shape_constant_id_offset 0
 layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
