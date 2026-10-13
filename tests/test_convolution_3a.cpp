@@ -358,7 +358,11 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
            || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
            // single-tile output with split-K accumulation
-           || test_convolution_int8(3, 3, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true);
+           || test_convolution_int8(3, 3, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
+           // bounded F(4,3) output accumulation with packed and unpacked channels
+           || test_convolution_int8(30, 6, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, true)
+           // eight-tile split-K reload at wider vector lengths
+           || test_convolution_int8(17, 3, 49, 32, 3, 1, 1, 0, 1, false, 1, false, true);
 }
 
 #endif // NCNN_INT8

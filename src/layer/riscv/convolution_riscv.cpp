@@ -541,11 +541,18 @@ int Convolution_riscv::create_pipeline_int8_rvv(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    // F(2,3) needs at most 36 * 128 * 128 * num_input in every int32
-    // transform-domain sum and output-transform intermediate, including -128.
-    if (opt.use_winograd_convolution && opt.use_winograd23_convolution && num_input <= 3640 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    // F(2,3) bounds every transformed intermediate by 36 * 128 * 128 * K.
+    // F(4,3) normalizes bounded K blocks, then accumulates ordinary outputs
+    // bounded by 9 * 128 * 128 * K. Both bounds include -128 inputs/weights.
+    const bool use_winograd23 = opt.use_winograd23_convolution && num_input <= 3640;
+    const bool use_winograd43 = opt.use_winograd43_convolution && num_input <= 14563;
+    if (opt.use_winograd_convolution && (use_winograd23 || use_winograd43) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-        int ret = conv3x3s1_winograd23_transform_kernel_int8_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
+        int ret;
+        if (use_winograd43)
+            ret = conv3x3s1_winograd43_transform_kernel_int8_rvv(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        else
+            ret = conv3x3s1_winograd23_transform_kernel_int8_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
         if (ret != 0)
             return ret;
     }
@@ -653,7 +660,9 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
         return -100;
 
     const int num_input = bottom_blob_bordered.c * bottom_blob_bordered.elempack;
-    if (opt.use_winograd_convolution && opt.use_winograd23_convolution && num_input <= 3640 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    const bool use_winograd23 = opt.use_winograd23_convolution && num_input <= 3640;
+    const bool use_winograd43 = opt.use_winograd43_convolution && num_input <= 14563;
+    if (opt.use_winograd_convolution && (use_winograd23 || use_winograd43) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int _nT = nT ? nT : opt.num_threads;
         if (nT != 0 && opt.num_threads != nT)
@@ -663,7 +672,11 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
             NCNN_LOGE("opt.num_threads %d changed, convolution winograd int8 will use load-time value %d", opt.num_threads, nT);
         }
 
-        int ret = conv3x3s1_winograd23_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+        int ret;
+        if (use_winograd43 && !weight_winograd43_data.empty())
+            ret = conv3x3s1_winograd43_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
+        else
+            ret = conv3x3s1_winograd23_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
         if (ret != 0)
             return ret;
     }
