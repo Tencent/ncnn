@@ -43,7 +43,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
                 else
                 {
                     _sum0 = __riscv_vle32_v_i32m2(outptr, vl);
-                    _sum1 = __riscv_vle32_v_i32m2(outptr + vl * 1, vl);
+                    _sum1 = __riscv_vle32_v_i32m2(outptr + vl, vl);
                     _sum2 = __riscv_vle32_v_i32m2(outptr + vl * 2, vl);
                     _sum3 = __riscv_vle32_v_i32m2(outptr + vl * 3, vl);
                 }
@@ -61,7 +61,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
                 }
 
                 __riscv_vse32_v_i32m2(outptr, _sum0, vl);
-                __riscv_vse32_v_i32m2(outptr + vl * 1, _sum1, vl);
+                __riscv_vse32_v_i32m2(outptr + vl, _sum1, vl);
                 __riscv_vse32_v_i32m2(outptr + vl * 2, _sum2, vl);
                 __riscv_vse32_v_i32m2(outptr + vl * 3, _sum3, vl);
                 outptr += vl * 4;
@@ -81,7 +81,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
                 else
                 {
                     _sum0 = __riscv_vle32_v_i32m2(outptr, vl);
-                    _sum1 = __riscv_vle32_v_i32m2(outptr + vl * 1, vl);
+                    _sum1 = __riscv_vle32_v_i32m2(outptr + vl, vl);
                 }
 
                 for (int kk = 0; kk < max_kk; kk++)
@@ -95,7 +95,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
                 }
 
                 __riscv_vse32_v_i32m2(outptr, _sum0, vl);
-                __riscv_vse32_v_i32m2(outptr + vl * 1, _sum1, vl);
+                __riscv_vse32_v_i32m2(outptr + vl, _sum1, vl);
                 outptr += vl * 2;
             }
             for (; jj < max_jj; jj++)
@@ -123,7 +123,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
                 }
 
                 __riscv_vse32_v_i32m2(outptr, _sum0, vl);
-                outptr += vl * 1;
+                outptr += vl;
             }
 
             ii += vl;
@@ -191,7 +191,7 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
         }
         for (; ii < max_ii; ii++)
         {
-            int* outptr = (int*)top_tile + ii * max_jj * 16 + b * max_jj * 1;
+            int* outptr = (int*)top_tile + ii * max_jj * 16 + b * max_jj;
             const short* pB = pBT;
 
             int jj = 0;
@@ -199,42 +199,39 @@ conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(const Mat& AT_tile, const Ma
             {
                 const short* pA = pAT + ii * max_kk;
 
-                int sum00 = k == 0 ? 0 : outptr[0];
-                int sum01 = k == 0 ? 0 : outptr[1];
+                int sum0 = k == 0 ? 0 : outptr[0];
+                int sum1 = k == 0 ? 0 : outptr[1];
 
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    const int a0 = pA[0];
-                    const int b0 = pB[0];
-                    const int b1 = pB[1];
-                    sum00 += a0 * b0;
-                    sum01 += a0 * b1;
+                    const int a = pA[0];
+                    sum0 += a * pB[0];
+                    sum1 += a * pB[1];
 
                     pA += 1;
                     pB += 2;
                 }
 
-                outptr[0] = sum00;
-                outptr[1] = sum01;
+                outptr[0] = sum0;
+                outptr[1] = sum1;
                 outptr += 2;
             }
             for (; jj < max_jj; jj++)
             {
                 const short* pA = pAT + ii * max_kk;
 
-                int sum00 = k == 0 ? 0 : outptr[0];
+                int sum0 = k == 0 ? 0 : outptr[0];
 
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    const int a0 = pA[0];
-                    const int b0 = pB[0];
-                    sum00 += a0 * b0;
+                    const int a = pA[0];
+                    sum0 += a * pB[0];
 
                     pA += 1;
                     pB += 1;
                 }
 
-                outptr[0] = sum00;
+                outptr[0] = sum0;
                 outptr += 1;
             }
         }
@@ -295,7 +292,8 @@ static void conv3x3s1_winograd23_transform_kernel_tile_int8_rvv(const Mat& kerne
     const int packn = 2;
 #endif
 
-    for (int ii = 0; ii < max_ii;)
+    int ii = 0;
+    while (ii < max_ii)
     {
         const int max_ii_block = std::min(max_ii - ii, packn);
         for (int kk = 0; kk < max_kk; kk++)
@@ -370,7 +368,13 @@ static int conv3x3s1_winograd23_transform_kernel_int8_rvv(const Mat& kernel, Mat
 
 static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat& bottom_blob, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    // B^T = {{1, 0, -1, 0}, {0, 1, 1, 0}, {0, -1, 1, 0}, {0, -1, 0, 1}}
+    // const signed char itm[4][4] = {
+    //     {1,  0, -1,  0},
+    //     {0,  1,  1,  0},
+    //     {0, -1,  1,  0},
+    //     {0, -1,  0,  1}
+    // };
+
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
@@ -385,26 +389,26 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
     int jj = 0;
     while (jj < max_jj)
     {
-        int jj_block = max_jj - jj >= 2 ? 2 : 1;
+        int max_jj_block = max_jj - jj >= 2 ? 2 : 1;
 #if __riscv_vector
         if (max_jj - jj >= 4)
-            jj_block = 4;
+            max_jj_block = 4;
 #endif
 
-        for (int jj_lane = 0; jj_lane < jj_block; jj_lane++)
+        for (int jjj = 0; jjj < max_jj_block; jjj++)
         {
-            const int ti = (j + jj + jj_lane) / w_tiles;
-            const int tj = (j + jj + jj_lane) % w_tiles;
+            const int ti = (j + jj + jjj) / w_tiles;
+            const int tj = (j + jj + jjj) % w_tiles;
 
             int kk = 0;
 #if __riscv_vector
             while (kk < max_kk)
             {
-                const int channel = k + kk;
-                const int phase = channel % elempack;
+                const int q = k + kk;
+                const int lane = q % elempack;
                 int max_vl = std::min(max_kk - kk, packn);
                 if (elempack != 1)
-                    max_vl = std::min(max_vl, elempack - phase);
+                    max_vl = std::min(max_vl, elempack - lane);
                 const size_t vl = __riscv_vsetvl_e8m1(max_vl);
 
                 short tmp[4][4][packn];
@@ -418,7 +422,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
 
                     if (ti * 2 + m < h && tj * 2 < w)
                     {
-                        const signed char* rptr = bottom_blob.channel(channel / elempack).row<const signed char>(ti * 2 + m) + tj * 2 * elempack + phase;
+                        const signed char* rptr = bottom_blob.channel(q / elempack).row<const signed char>(ti * 2 + m) + tj * 2 * elempack + lane;
                         if (elempack != 1)
                         {
                             _r0 = __riscv_vle8_v_i8m1(rptr, vl);
@@ -441,7 +445,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
                     __riscv_vse16_v_i16m2(tmp[3][m], __riscv_vwsub_vv_i16m2(_r3, _r1, vl), vl);
                 }
 
-                const int offset = jj * max_kk + kk * jj_block + jj_lane;
+                const int offset = jj * max_kk + kk * max_jj_block + jjj;
                 for (int m = 0; m < 4; m++)
                 {
                     vint16m2_t _r0 = __riscv_vle16_v_i16m2(tmp[m][0], vl);
@@ -449,10 +453,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
                     vint16m2_t _r2 = __riscv_vle16_v_i16m2(tmp[m][2], vl);
                     vint16m2_t _r3 = __riscv_vle16_v_i16m2(tmp[m][3], vl);
 
-                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4) + offset, jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r0, _r2, vl), vl);
-                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 1) + offset, jj_block * sizeof(short), __riscv_vadd_vv_i16m2(_r1, _r2, vl), vl);
-                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 2) + offset, jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r2, _r1, vl), vl);
-                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 3) + offset, jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r3, _r1, vl), vl);
+                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4) + offset, max_jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r0, _r2, vl), vl);
+                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 1) + offset, max_jj_block * sizeof(short), __riscv_vadd_vv_i16m2(_r1, _r2, vl), vl);
+                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 2) + offset, max_jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r2, _r1, vl), vl);
+                    __riscv_vsse16_v_i16m2(BT.row<short>(m * 4 + 3) + offset, max_jj_block * sizeof(short), __riscv_vsub_vv_i16m2(_r3, _r1, vl), vl);
                 }
 
                 kk += vl;
@@ -462,7 +466,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
             {
                 short tmp[4][4];
 
-                const int channel = k + kk;
+                const int q = k + kk;
                 for (int m = 0; m < 4; m++)
                 {
                     signed char r0 = 0;
@@ -472,7 +476,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
 
                     if (ti * 2 + m < h && tj * 2 < w)
                     {
-                        const signed char* rptr = bottom_blob.channel(channel / elempack).row<const signed char>(ti * 2 + m) + tj * 2 * elempack + channel % elempack;
+                        const signed char* rptr = bottom_blob.channel(q / elempack).row<const signed char>(ti * 2 + m) + tj * 2 * elempack + q % elempack;
                         r0 = rptr[0];
                         if (tj * 2 + 1 < w) r1 = rptr[elempack];
                         if (tj * 2 + 2 < w) r2 = rptr[elempack * 2];
@@ -485,7 +489,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
                     tmp[3][m] = r3 - r1;
                 }
 
-                const int offset = jj * max_kk + kk * jj_block + jj_lane;
+                const int offset = jj * max_kk + kk * max_jj_block + jjj;
                 for (int m = 0; m < 4; m++)
                 {
                     short r0 = tmp[m][0];
@@ -502,13 +506,17 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8_rvv(const Mat&
 #endif // __riscv_vector
         }
 
-        jj += jj_block;
+        jj += max_jj_block;
     }
 }
 
 static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat& top_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
-    // A^T = {{1, 1, 1, 0}, {0, 1, -1, 1}}
+    // const int otm[2][4] = {
+    //     {1,  1,  1,  0},
+    //     {0,  1, -1,  1}
+    // };
+
     // The kernel transform uses 2G, so the exact result is divided by four.
     // The caller limits inch to 3640, keeping each intermediate within int32.
     const int outw = top_blob.w;
@@ -523,8 +531,8 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat
 
     while (ii < max_ii)
     {
-        const int ii_block = std::min(max_ii - ii, packn);
-        const size_t vl = __riscv_vsetvl_e32m2(ii_block);
+        const int max_ii_block = std::min(max_ii - ii, packn);
+        const size_t vl = __riscv_vsetvl_e32m2(max_ii_block);
 
         int tmp[2][4][packn];
 
@@ -535,10 +543,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat
 
             for (int m = 0; m < 4; m++)
             {
-                const int* r0 = (const int*)top_tile + ii * max_jj * 16 + (m * 4 * max_jj + jj) * ii_block;
-                const int* r1 = r0 + max_jj * ii_block;
-                const int* r2 = r0 + max_jj * ii_block * 2;
-                const int* r3 = r0 + max_jj * ii_block * 3;
+                const int* r0 = (const int*)top_tile + ii * max_jj * 16 + (m * 4 * max_jj + jj) * max_ii_block;
+                const int* r1 = r0 + max_jj * max_ii_block;
+                const int* r2 = r0 + max_jj * max_ii_block * 2;
+                const int* r3 = r0 + max_jj * max_ii_block * 3;
 
                 vint32m2_t _r0 = __riscv_vle32_v_i32m2(r0, vl);
                 vint32m2_t _r1 = __riscv_vle32_v_i32m2(r1, vl);
@@ -574,15 +582,15 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat
                 else
                 {
                     // TILE_M and the GEMM blocks are aligned to packn channels.
-                    const size_t vl0 = __riscv_vsetvl_e32m1(std::min(ii_block, out_elempack));
+                    const size_t vl0 = __riscv_vsetvl_e32m1(std::min(max_ii_block, out_elempack));
                     int* outptr0 = top_blob.channel((i + ii) / out_elempack).row<int>(ti * 2 + m) + tj * 2 * out_elempack;
                     __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m2_i32m1(_tmp0, 0), vl0);
                     if (tj * 2 + 1 < outw)
                         __riscv_vse32_v_i32m1(outptr0 + out_elempack, __riscv_vget_v_i32m2_i32m1(_tmp1, 0), vl0);
 
-                    if (ii_block > out_elempack)
+                    if (max_ii_block > out_elempack)
                     {
-                        const size_t vl1 = __riscv_vsetvl_e32m1(ii_block - out_elempack);
+                        const size_t vl1 = __riscv_vsetvl_e32m1(max_ii_block - out_elempack);
                         int* outptr1 = top_blob.channel((i + ii) / out_elempack + 1).row<int>(ti * 2 + m) + tj * 2 * out_elempack;
                         __riscv_vse32_v_i32m1(outptr1, __riscv_vget_v_i32m2_i32m1(_tmp0, 1), vl1);
                         if (tj * 2 + 1 < outw)
@@ -592,7 +600,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat
             }
         }
 
-        ii += ii_block;
+        ii += max_ii_block;
     }
 #else
     for (; ii + 1 < max_ii; ii += 2)
