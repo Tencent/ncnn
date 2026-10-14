@@ -12,8 +12,8 @@
 
 namespace ncnn {
 
-#if NCNN_BF16 && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
-int clip_bf16s_zvfbfmin(Mat& bottom_top_blob, float min, float max, const Option& opt);
+#if NCNN_BF16
+#include "clip_bf16s.h"
 #endif
 
 Clip_riscv::Clip_riscv()
@@ -97,56 +97,7 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_BF16
 int Clip_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
-#if NCNN_RUNTIME_CPU
-    if (cpu_support_riscv_zvfbfmin())
-#endif
-    {
-        return clip_bf16s_zvfbfmin(bottom_top_blob, min, max, opt);
-    }
-#endif
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        unsigned short* ptr = bottom_top_blob.channel(q);
-
-#if __riscv_vector
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            _p = __riscv_vfmax_vf_f32m4(_p, min, vl);
-            _p = __riscv_vfmin_vf_f32m4(_p, max, vl);
-            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
-
-            ptr += vl;
-            n -= vl;
-        }
-#else  // __riscv_vector
-        for (int i = 0; i < size; i++)
-        {
-            float v = bfloat16_to_float32(*ptr);
-            if (v < min)
-                v = min;
-
-            if (v > max)
-                v = max;
-
-            *ptr = float32_to_bfloat16(v);
-            ptr++;
-        }
-#endif // __riscv_vector
-    }
-
+    clip_bf16s(bottom_top_blob, min, max, opt);
     return 0;
 }
 #endif // NCNN_BF16
