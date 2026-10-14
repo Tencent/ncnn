@@ -3070,6 +3070,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
                 // LlmHead）可能收到 fp32 输入，必须仍能落到 fp32 前向，
                 // 否则 BT_data 为空，fp32 内核会读空指针。
                 ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
+                if (ime2_full_takeover)
+                    ime2_fp32_fallback_ready = 1;   /* 下面会继续构建 fp32 回退管线 */
             }
             else
             {
@@ -3278,14 +3280,17 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 
 #if NCNN_RISCV_SPACEMIT_IME2
-    if (use_ime2_path && elembits == 32)
+    if (use_ime2_path && elembits == 32 && ime2_fp32_fallback_ready)
     {
-        /* 团队校验对 fp32 输入同样必要：BT_data 面板按建管线时的 vlenb 打包，
+        /* 此入口只在 full-takeover（fp32 回退面板真实存在）时有效。
+         * 非 takeover 分支建的是 fp16s 管线：BT_data 是 fp16 面板，fp32 通用
+         * 内核按 fp32 步长读它会越界（实测 M>=320 即崩）。那种情况下让正常
+         * 流程走 forward_fp16s（它内部会把 fp32 输入转成 fp16——上游对
+         * "fp16s 层 + fp32 裸输入"的既有行为）。
+         * 团队校验对 fp32 输入同样必要：BT_data 面板按建管线时的 vlenb 打包，
          * 团队离开 A100 后下面的通用路径会按新 vlenb 重算 tile 去索引旧面板。
          * forward_ime2 里：团队 OK → 返回 -1（继续通用路径，面板同源有效）；
-         * 团队离开 + full-takeover → VLEN 无关回落直接算出（返回 0/-100）；
-         * 团队离开 + 非 takeover → -99，继续通用路径（与无 IME2 构建同语义，
-         * ncnn 本来就不承诺跨 VLEN 迁移后面板可用，此处不加剧）。 */
+         * 团队离开 + full-takeover → VLEN 无关回落直接算出（返回 0/-100）。 */
         const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
         if (ret != -1 && ret != -99)
             return ret;

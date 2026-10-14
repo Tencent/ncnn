@@ -50,6 +50,10 @@ public:
     Mat CT_data;
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
     int use_ime2_path = 0;
+    /* fp32 面板是否真实构建：仅 full-takeover 分支在建管线时构建了 fp32 通用
+     * 回退管线（BT_data 为 fp32 4u）。非 takeover 分支建的是 fp16s 管线，
+     * BT_data 是 fp16（2u）——fp32 通用内核不能读它。 */
+    int ime2_fp32_fallback_ready = 0;
     Mat BT_data_ime2;
     Mat BT_i8c_ime2;    // int8 列主序权重面板（整数域设计，见 REPORT 7.41）
     Mat BT_wscale_ime2; // 每列一个 fp16 scale
