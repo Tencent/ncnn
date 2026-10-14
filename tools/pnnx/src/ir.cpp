@@ -1098,6 +1098,7 @@ static std::string expand_expression(const Operator* op)
             exprstack.push(r);
         }
         else if (t == "atan2"
+                 || t == "trunc_divide"
                  || t == "fmod"
                  || t == "max"
                  || t == "maximum"
@@ -1108,6 +1109,7 @@ static std::string expand_expression(const Operator* op)
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
+            if (t == "trunc_divide") binaryop = "torch.div";
             if (t == "fmod") binaryop = "torch.fmod";
             if (t == "max") binaryop = "torch.max";
             if (t == "maximum") binaryop = "torch.maximum";
@@ -1129,7 +1131,9 @@ static std::string expand_expression(const Operator* op)
                     b = std::string("torch.tensor(") + b + ")";
             }
 
-            std::string r = binaryop + "(" + a + ", " + b + ")";
+            std::string r = binaryop + "(" + a + ", " + b;
+            if (t == "trunc_divide") r += ", rounding_mode='trunc'";
+            r += ")";
             exprstack.push(r);
         }
         else if (t == "add"

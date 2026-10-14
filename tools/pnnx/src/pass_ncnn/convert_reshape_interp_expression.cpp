@@ -134,6 +134,15 @@ void convert_reshape_interp_expression(Graph& graph)
 
             // print_tokens(tokens);
 
+            for (size_t i = 0; i < tokens.size(); i++)
+            {
+                if (tokens[i] == "trunc_divide")
+                {
+                    tokens[i] = "trunc";
+                    tokens.insert(tokens.begin() + i + 1, "div");
+                }
+            }
+
             // filter unknown tokens
             for (std::string& t : tokens)
             {
