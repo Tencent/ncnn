@@ -1223,10 +1223,17 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8_rvv(const Mat
                 vint32m2_t _tmp2 = __riscv_vadd_vv_i32m2(_tmp12b, __riscv_vsll_vx_i32m2(_tmp34b, 2, vl), vl);
                 vint32m2_t _tmp3 = __riscv_vadd_vv_i32m2(__riscv_vadd_vv_i32m2(_tmp12a, __riscv_vsll_vx_i32m2(_tmp34a, 3, vl), vl), _r5, vl);
 
+#if __riscv_xtheadvector
+                _tmp0 = __riscv_vfcvt_x_f_v_i32m2_rm(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp0, vl), 1.f / 576, vl), __RISCV_FRM_RTZ, vl);
+                _tmp1 = __riscv_vfcvt_x_f_v_i32m2_rm(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp1, vl), 1.f / 576, vl), __RISCV_FRM_RTZ, vl);
+                _tmp2 = __riscv_vfcvt_x_f_v_i32m2_rm(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp2, vl), 1.f / 576, vl), __RISCV_FRM_RTZ, vl);
+                _tmp3 = __riscv_vfcvt_x_f_v_i32m2_rm(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp3, vl), 1.f / 576, vl), __RISCV_FRM_RTZ, vl);
+#else
                 _tmp0 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp0, vl), 1.f / 576, vl), vl);
                 _tmp1 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp1, vl), 1.f / 576, vl), vl);
                 _tmp2 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp2, vl), 1.f / 576, vl), vl);
                 _tmp3 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp3, vl), 1.f / 576, vl), vl);
+#endif
 
                 if (out_elempack == 1)
                 {
