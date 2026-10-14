@@ -45,7 +45,10 @@ static bool on_backend()
 
 struct Participant
 {
-    Participant() : calls(0), team(0), value(0), backend(false) {}
+    Participant()
+        : calls(0), team(0), value(0), backend(false)
+    {
+    }
     int calls;
     int team;
     int value;
@@ -115,10 +118,10 @@ static int test_static_loop(int threads, Index count)
 
 #ifdef __clang__
 extern "C" {
-typedef void (*kmpc_micro)(int32_t*, int32_t*, ...);
-void __kmpc_push_num_threads(void*, int32_t, int32_t);
-void __kmpc_fork_call(void*, int32_t, kmpc_micro, ...);
-int32_t __kmpc_global_thread_num(void*);
+    typedef void (*kmpc_micro)(int32_t*, int32_t*, ...);
+    void __kmpc_push_num_threads(void*, int32_t, int32_t);
+    void __kmpc_fork_call(void*, int32_t, kmpc_micro, ...);
+    int32_t __kmpc_global_thread_num(void*);
 }
 
 static void record(int32_t* gtid, int32_t* tid, Participant* results)
@@ -164,7 +167,7 @@ static int test_clang_abi(int requested, std::index_sequence<I...>)
 template<size_t Argc>
 static int test_clang_abi(int requested)
 {
-    return test_clang_abi(requested, std::make_index_sequence<Argc - 1>());
+    return test_clang_abi(requested, std::make_index_sequence < Argc - 1 > ());
 }
 #endif
 
@@ -174,21 +177,25 @@ static int test_nested_run()
     ncnn::Option opt;
     int inner_calls = 0;
     int bad = 0;
-    const int ret = ncnn::spert_run([&]() {
+    const int ret = ncnn::spert_run([&]()
+    {
         bad |= check(on_backend(), "nested_run", "outer callback ran on caller");
         bad |= check_streams(streams + 1, "outer callback");
         bad |= test_parallel(1);
         bad |= test_parallel(omp_get_max_threads());
-        const int nested_ret = ncnn::spert_run([&]() {
+        const int nested_ret = ncnn::spert_run([&]()
+        {
             inner_calls++;
             bad |= check(on_backend(), "nested_run", "inner callback ran on caller");
             bad |= check_streams(streams + 1, "inner callback");
             return -7;
-        }, opt);
+        },
+        opt);
         bad |= check(nested_ret == -7 && inner_calls == 1, "nested_run", "lost callback result");
         bad |= check(omp_get_num_threads() == 1 && omp_get_thread_num() == 0, "nested_run", "parent team state not restored");
         return -9;
-    }, opt);
+    },
+    opt);
     return bad | check(ret == -9, "nested_run", "lost outer callback result")
            | check_streams(streams, "nested_run return");
 }
@@ -223,7 +230,10 @@ static int test_stream_scope()
 
 struct LayerState
 {
-    LayerState() : pipelines(0), forwards(0), bad(0), fail_pipeline(false), fail_forward(false) {}
+    LayerState()
+        : pipelines(0), forwards(0), bad(0), fail_pipeline(false), fail_forward(false)
+    {
+    }
     int pipelines;
     int forwards;
     int bad;
@@ -234,7 +244,11 @@ struct LayerState
 class SpertTestLayer : public ncnn::Layer
 {
 public:
-    explicit SpertTestLayer(LayerState* state) : state(state) { one_blob_only = true; }
+    explicit SpertTestLayer(LayerState* state)
+        : state(state)
+    {
+        one_blob_only = true;
+    }
 
     virtual int create_pipeline(const ncnn::Option& opt)
     {
@@ -367,6 +381,6 @@ int main()
 #else
             ""
 #endif
-    );
+           );
     return failed;
 }

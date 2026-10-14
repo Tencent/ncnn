@@ -137,13 +137,16 @@ int spert_run(int (*fn)(void*), void* userdata, const Option& opt)
         return -1;
 
     int ret = -1;
-    auto fut = g_tls_spert_stream->launch(spert::Grid{1}, [](spert::Context* ctx, spert::Stream* stream, int (*fn)(void*), void* userdata, const Option* opt, int* result) {
+    auto fut = g_tls_spert_stream->launch(
+                   spert::Grid{1}, [](spert::Context * ctx, spert::Stream * stream, int (*fn)(void*), void* userdata, const Option * opt, int* result)
+    {
         SpertTileScope scope(ctx, stream, 1, 0);
         const int old_flush_denormals = get_flush_denormals();
         set_flush_denormals(opt->flush_denormals);
         *result = fn(userdata);
         set_flush_denormals(old_flush_denormals);
-    }, g_tls_spert_stream, fn, userdata, &opt, &ret);
+    },
+    g_tls_spert_stream, fn, userdata, &opt, &ret);
 
     const spert::Status status = spert_wait(fut);
     if (status != spert::Status::Ok)
@@ -249,8 +252,8 @@ extern "C" {
         spert_run_parallel(fn, data, num_threads);
     }
 
-// Legacy split pair, kept for ABI completeness (GCC >= 4.9 emits
-// GOMP_parallel instead; nothing in ncnn should reach these).
+    // Legacy split pair, kept for ABI completeness (GCC >= 4.9 emits
+    // GOMP_parallel instead; nothing in ncnn should reach these).
     void GOMP_parallel_start(void (*fn)(void*), void* data, unsigned num_threads)
     {
         spert_run_parallel(fn, data, num_threads);
@@ -315,28 +318,36 @@ void kmp_tile_body(spert::Context* ctx, spert::Stream* stream, KmpRegion r)
         ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7]);
         break;
     case 9:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7],
+                                                                                                            r.argv[8]);
         break;
     case 10:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6],
+                                                                                                                   r.argv[7], r.argv[8], r.argv[9]);
         break;
     case 11:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5],
+                                                                                                                          r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10]);
         break;
     case 12:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5],
+                r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11]);
         break;
     case 13:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4],
+                r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12]);
         break;
     case 14:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3],
+                r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13]);
         break;
     case 15:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3],
+                r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14]);
         break;
     case 16:
-        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14], r.argv[15]);
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2],
+                r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14], r.argv[15]);
         break;
     default:
         fprintf(stderr, "spertomp: unsupported microtask argc %d\n", r.argc);

@@ -50,7 +50,7 @@ int spert_run(Fn fn, const Option& opt)
 {
     return spert_run([](void* userdata) { return (*static_cast<Fn*>(userdata))(); }, &fn, opt);
 }
-}
+} // namespace ncnn
 #endif
 
 // Same ABI surface as simpleomp.h. GCC lowers `#pragma omp parallel for` to

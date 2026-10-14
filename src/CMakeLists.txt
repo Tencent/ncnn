@@ -240,6 +240,9 @@ target_include_directories(ncnn
 if(NCNN_SPERTOMP AND NCNN_SIMPLEOMP)
     message(FATAL_ERROR "NCNN_SPERTOMP and NCNN_SIMPLEOMP are mutually exclusive")
 endif()
+if(NCNN_SPERTOMP AND NOT NCNN_OPENMP)
+    message(FATAL_ERROR "NCNN_SPERTOMP requires NCNN_OPENMP=ON")
+endif()
 
 if(NCNN_OPENMP)
     if(NOT NCNN_SIMPLEOMP AND NOT NCNN_SPERTOMP)

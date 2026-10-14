@@ -357,9 +357,11 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
 #endif
 #if NCNN_SPERTOMP
-        ret = spert_run([&]() {
+        ret = spert_run([&]()
+        {
             return do_forward_layer(layer, blob_mats, layer->featmask ? get_masked_option(opt, layer->featmask) : opt);
-        }, opt);
+        },
+        opt);
 #else
         if (layer->featmask)
         {
