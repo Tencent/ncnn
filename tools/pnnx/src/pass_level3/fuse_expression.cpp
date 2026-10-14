@@ -764,6 +764,10 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         if (rounding_mode == "trunc")
         {
+            expr += "trunc(div";
+        }
+        else if (rounding_mode == "floor")
+        {
             expr += "floor_divide";
         }
         else
@@ -776,6 +780,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += ",";
         fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
         expr += ")";
+
+        if (rounding_mode == "trunc")
+            expr += ")";
     }
     else
     {
