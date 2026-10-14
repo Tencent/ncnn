@@ -3280,6 +3280,31 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 
 #if NCNN_RISCV_SPACEMIT_IME2
+    if (use_ime2_path && elembits == 32 && !ime2_fp32_fallback_ready)
+    {
+        /* 非 takeover：建的是 fp16s 管线，BT_data 是 fp16 面板，fp32 通用内核
+         * 不能读它（这是上游的潜在洞：fp16s 面板 + 裸 fp32 输入在任何 fp16s
+         * 真正可用的机器上都会错——K3 上它一直潜伏是因为静态初始化顺序与
+         * hwprobe 两个 bug 叠加让 fp16s 从未开启）。本层被 IME2 武装时必须
+         * 自己接住裸 fp32 输入（ncnn_llm 的 LlmHead 模式）：转成 fp16 再进
+         * 16 位分发，等价于 Net 里会自动发生的 cast。 */
+        std::vector<Mat> in16(bottom_blobs.size());
+        bool ok = true;
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
+            {
+                cast_float32_to_float16(bottom_blobs[i], in16[i], opt);
+                if (in16[i].empty()) { ok = false; break; }
+            }
+            else
+                in16[i] = bottom_blobs[i];
+        }
+        if (!ok)
+            return -100;
+        return forward(in16, top_blobs, opt);
+    }
+
     if (use_ime2_path && elembits == 32 && ime2_fp32_fallback_ready)
     {
         /* 此入口只在 full-takeover（fp32 回退面板真实存在）时有效。
