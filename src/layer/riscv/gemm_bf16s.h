@@ -148,7 +148,12 @@ static void pack_A_tile_fp32_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int
     }
 }
 
-static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME inline causes incorrect codegen on c906
+__attribute__((noinline))
+#endif
+static void
+pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
@@ -201,7 +206,12 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
     }
 }
 
-static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME inline causes incorrect codegen on c906
+__attribute__((noinline))
+#endif
+static void
+transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
@@ -254,7 +264,12 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
     }
 }
 
-static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME inline causes incorrect codegen on c906
+__attribute__((noinline))
+#endif
+static void
+pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
@@ -321,7 +336,12 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 }
 
-static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME inline causes incorrect codegen on c906
+__attribute__((noinline))
+#endif
+static void
+transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
     const size_t vl8 = __riscv_vsetvl_e32m2(8);
