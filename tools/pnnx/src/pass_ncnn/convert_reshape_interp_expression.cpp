@@ -82,7 +82,7 @@ void convert_reshape_interp_expression(Graph& graph)
         for (Operator* op : graph.ops)
         {
             if (op->type != "Tensor.reshape" && op->type != "Tensor.unflatten"
-                    && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
+                && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
                 continue;
 
             if (op->inputs.size() != 2)
@@ -133,15 +133,6 @@ void convert_reshape_interp_expression(Graph& graph)
             }
 
             // print_tokens(tokens);
-
-            for (size_t i = 0; i < tokens.size(); i++)
-            {
-                if (tokens[i] == "trunc_divide")
-                {
-                    tokens[i] = "trunc";
-                    tokens.insert(tokens.begin() + i + 1, "div");
-                }
-            }
 
             // filter unknown tokens
             for (std::string& t : tokens)
@@ -339,6 +330,7 @@ void convert_reshape_interp_expression(Graph& graph)
                          || t == "*"
                          || t == "/"
                          || t == "//"
+                         || t == "trunc_divide"
                          || t == "atan2"
                          || t == "max"
                          || t == "min"

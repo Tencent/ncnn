@@ -107,15 +107,6 @@ static std::vector<std::string> split_into_tokens(const std::string& expr)
         tokens.push_back(t);
     }
 
-    for (size_t i = 0; i < tokens.size(); i++)
-    {
-        if (tokens[i] == "trunc_divide")
-        {
-            tokens[i] = "trunc";
-            tokens.insert(tokens.begin() + i + 1, "div");
-        }
-    }
-
     // filter unknown tokens
     for (std::string& t : tokens)
     {
@@ -337,6 +328,7 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                  || t == "*"
                  || t == "/"
                  || t == "//"
+                 || t == "trunc_divide"
                  || t == "atan2"
                  || t == "max"
                  || t == "min"
