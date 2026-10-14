@@ -123,11 +123,30 @@ struct SequenceNameGenerator
     explicit SequenceNameGenerator(const onnx::GraphProto& graph)
         : next_id(0)
     {
+        reserve(graph);
+    }
+
+    void reserve(const onnx::GraphProto& graph)
+    {
         for (int i = 0; i < graph.node_size(); i++)
         {
-            used_names.insert(graph.node(i).name());
-            used_names.insert(graph.node(i).input().begin(), graph.node(i).input().end());
-            used_names.insert(graph.node(i).output().begin(), graph.node(i).output().end());
+            const onnx::NodeProto& node = graph.node(i);
+            used_names.insert(node.name());
+            used_names.insert(node.input().begin(), node.input().end());
+            used_names.insert(node.output().begin(), node.output().end());
+            for (int j = 0; j < node.attribute_size(); j++)
+            {
+                const onnx::AttributeProto& attr = node.attribute(j);
+                if (attr.has_g())
+                    reserve(attr.g());
+                for (int k = 0; k < attr.graphs_size(); k++)
+                    reserve(attr.graphs(k));
+            }
+        }
+        for (int i = 0; i < graph.sparse_initializer_size(); i++)
+        {
+            used_names.insert(graph.sparse_initializer(i).values().name());
+            used_names.insert(graph.sparse_initializer(i).indices().name());
         }
         for (int i = 0; i < graph.initializer_size(); i++)
         {
@@ -265,6 +284,13 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
         if (graph.value_info(i).name() == name)
         {
             value_info = &graph.value_info(i);
+        }
+    }
+    for (int i = 0; i < graph.output_size(); i++)
+    {
+        if (graph.output(i).name() == name)
+        {
+            value_info = &graph.output(i);
         }
     }
     if (!value_info || !value_info->type().has_tensor_type() || !value_info->type().tensor_type().has_shape())
@@ -557,7 +583,7 @@ static void inline_sequence_functions(onnx::ModelProto& model, int opset)
         {
             continue;
         }
-        std::string sequence;
+        std::set<std::string> sequences;
         for (int j = 0; j < i; j++)
         {
             if (is_native_node(graph.node(j)) && (graph.node(j).op_type() == "SequenceConstruct" || graph.node(j).op_type() == "SplitToSequence") && graph.node(j).output_size() == 1)
@@ -566,15 +592,58 @@ static void inline_sequence_functions(onnx::ModelProto& model, int opset)
                 {
                     if (call.input(k) == graph.node(j).output(0))
                     {
-                        sequence = call.input(k);
+                        sequences.insert(call.input(k));
                     }
                 }
             }
         }
-        if (sequence.empty())
+        if (sequences.empty())
         {
             continue;
         }
+        // Sequence arguments not produced by a supported direct producer
+        // cannot participate in this atomic lowering (including aliases).
+        std::set<std::string> sequence_values = sequences;
+        std::set<std::string> tensor_values;
+        for (int j = 0; j < graph.initializer_size(); j++)
+            tensor_values.insert(graph.initializer(j).name());
+        for (int j = 0; j < graph.input_size(); j++)
+        {
+            if (graph.input(j).type().has_sequence_type())
+                sequence_values.insert(graph.input(j).name());
+            if (graph.input(j).type().has_tensor_type())
+                tensor_values.insert(graph.input(j).name());
+        }
+        for (int j = 0; j < graph.value_info_size(); j++)
+        {
+            if (graph.value_info(j).type().has_sequence_type())
+                sequence_values.insert(graph.value_info(j).name());
+            if (graph.value_info(j).type().has_tensor_type())
+                tensor_values.insert(graph.value_info(j).name());
+        }
+        for (int j = 0; j < graph.output_size(); j++)
+        {
+            if (graph.output(j).type().has_sequence_type())
+                sequence_values.insert(graph.output(j).name());
+            if (graph.output(j).type().has_tensor_type())
+                tensor_values.insert(graph.output(j).name());
+        }
+        for (int j = 0; j < i; j++)
+        {
+            const onnx::NodeProto& node = graph.node(j);
+            if (!is_native_node(node))
+                continue;
+            if (node.op_type() == "SequenceConstruct" || node.op_type() == "SplitToSequence" || node.op_type() == "SequenceEmpty" || node.op_type() == "SequenceInsert" || node.op_type() == "SequenceErase" || (node.op_type() == "Identity" && node.input_size() == 1 && sequence_values.count(node.input(0))))
+                sequence_values.insert(node.output().begin(), node.output().end());
+        }
+        bool unsupported_sequence = false;
+        for (int j = 0; j < call.input_size(); j++)
+        {
+            if (!sequences.count(call.input(j)) && (sequence_values.count(call.input(j)) || !tensor_values.count(call.input(j))))
+                unsupported_sequence = true;
+        }
+        if (unsupported_sequence)
+            continue;
         const onnx::FunctionProto* function = 0;
         for (int j = 0; j < model.functions_size(); j++)
         {
@@ -619,6 +688,11 @@ static void inline_sequence_functions(onnx::ModelProto& model, int opset)
             onnx::NodeProto node = function->node(j);
             const std::string op_type = node.op_type();
             if (!is_native_node(node) || (op_type != "Constant" && op_type != "SequenceAt" && op_type != "SequenceLength" && op_type != "ConcatFromSequence" && op_type != "Einsum" && op_type != "Identity"))
+            {
+                safe = false;
+                break;
+            }
+            if ((op_type == "SequenceAt" || op_type == "SequenceLength" || op_type == "ConcatFromSequence") && (node.input_size() == 0 || !sequences.count(remap[node.input(0)])))
             {
                 safe = false;
                 break;
@@ -697,7 +771,12 @@ static void inline_sequence_functions(onnx::ModelProto& model, int opset)
         }
         eliminate_sequences_in_graph(candidate, opset);
         // Commit only when the complete sequence island can be lowered.
-        if (is_value_captured(candidate, sequence))
+        for (std::set<std::string>::const_iterator it = sequences.begin(); it != sequences.end(); ++it)
+        {
+            if (is_value_captured(candidate, *it))
+                safe = false;
+        }
+        if (!safe)
         {
             continue;
         }

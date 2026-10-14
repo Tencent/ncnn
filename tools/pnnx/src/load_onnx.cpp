@@ -803,6 +803,17 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
 
+        // Runtime shape inference has now reconciled both inputshape traces,
+        // including clearing dimensions that vary with inputshape2.
+        const std::string graph_before_sequences = model.graph().SerializeAsString();
+        onnx2pnnx::eliminate_sequences(model);
+        if (model.graph().SerializeAsString() != graph_before_sequences)
+        {
+            // Populate tensor metadata for the newly generated Split/Squeeze/
+            // Unsqueeze intermediates before folding and pnnx graph loading.
+            onnx2pnnx::shape_inference(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+        }
+
         fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
 
         t0 = get_current_time();

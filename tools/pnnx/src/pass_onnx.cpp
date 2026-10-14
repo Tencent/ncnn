@@ -770,6 +770,11 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
             // native onnx op
             sim_op_type = op_type;
 
+            if (op_type == "Constant" && node.attribute_size() == 1 && node.attribute(0).name() == "value" && node.attribute(0).has_t())
+            {
+                sim_op_type = "pnnx.Attribute";
+            }
+
             if (op_type == "SequenceConstruct")
             {
                 sim_op_type = "prim::ListConstruct";
@@ -1260,6 +1265,10 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 }
             }
         }
+        else if (sim_op_type == "pnnx.Attribute" && op_type == "Constant")
+        {
+            op->attrs["data"] = Attribute(node.attribute(0).t(), external_data);
+        }
         else if (is_prim_op)
         {
             // do nothing :)
@@ -1283,6 +1292,28 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
         Operator* op = pnnx_graph.new_operator("pnnx.Output", input);
 
         Operand* op_in = pnnx_graph.get_operand(input);
+        if (!op_in && modelproxy.has_initializer(input))
+        {
+            const onnx::TensorProto& tensor = modelproxy.initializer(input);
+            Operator* op_const = pnnx_graph.new_operator_before("pnnx.Attribute", input + "_constant", op);
+            op_in = pnnx_graph.new_operand(tensor);
+            op_in->producer = op_const;
+            op_const->outputs.push_back(op_in);
+            op_const->attrs["data"] = Attribute(tensor, external_data);
+        }
+
+        if (graph.output(i).type().has_tensor_type() && graph.output(i).type().tensor_type().has_shape() && graph.output(i).type().tensor_type().shape().dim_size() == 0 && op_in->producer->type == "pnnx.Attribute")
+        {
+            op_in->shape = op_in->producer->attrs.begin()->second.shape;
+            Operator* squeeze = pnnx_graph.new_operator_before("torch.squeeze", input + "_scalar", op);
+            Operand* scalar = pnnx_graph.new_operand(input + "_scalar");
+            scalar->type = op_in->type;
+            scalar->producer = squeeze;
+            squeeze->inputs.push_back(op_in);
+            op_in->consumers.push_back(squeeze);
+            squeeze->outputs.push_back(scalar);
+            op_in = scalar;
+        }
 
         op_in->consumers.push_back(op);
         op->inputs.push_back(op_in);

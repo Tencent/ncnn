@@ -289,6 +289,12 @@ void dead_code_elimination(onnx::ModelProto& model)
             }
         }
 
+        // Graph outputs keep initializers live even without node consumers.
+        for (int i = 0; i < graph->output_size(); i++)
+        {
+            live_inputs.insert(graph->output(i).name());
+        }
+
         // find live inputs in functions
         for (int i = 0; i < model.functions_size(); i++)
         {
