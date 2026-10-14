@@ -67,7 +67,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     }
 
     int flag = input_int8 ? TEST_LAYER_DISABLE_AUTO_INPUT_CASTING : 0;
-    if (input_int8 && sgemm)
+    if (input_int8 && (sgemm || winograd))
         flag |= TEST_LAYER_ENABLE_THREADING;
 
     if (winograd)
@@ -381,7 +381,7 @@ static int test_convolution_1_int8_input()
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
            || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
            // F(2,3) scalar transforms, split-K tails and threaded tile sizing
-           || test_convolution_int8(7, 3, 384, 9, 3, 1, 1, 0, 1, false, 1, true, true, false, 23);
+           || test_convolution_int8(7, 3, 384, 9, 3, 1, 1, 0, 1, false, 1, false, true, false, 23);
 }
 
 #endif // NCNN_INT8
