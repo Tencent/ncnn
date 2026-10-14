@@ -109,13 +109,22 @@ static int test_clip_bf16_storage(int elempack)
 #if __riscv_flen
     unsigned int original_rounding;
     // Test a non-RNE ambient mode without depending on libc fenv support.
-    asm volatile("fsrmi %0, 3" : "=r"(original_rounding) : : "memory");
+    asm volatile("fsrmi %0, 3"
+                 : "=r"(original_rounding)
+                 :
+                 : "memory");
 #endif
     if (ret == 0) ret = op->forward_inplace(a, opt);
 #if __riscv_flen
     unsigned int rounding;
-    asm volatile("csrr %0, frm" : "=r"(rounding) : : "memory");
-    asm volatile("csrw frm, %0" : : "r"(original_rounding) : "memory");
+    asm volatile("csrr %0, frm"
+                 : "=r"(rounding)
+                 :
+                 : "memory");
+    asm volatile("csrw frm, %0"
+                 :
+                 : "r"(original_rounding)
+                 : "memory");
     if (rounding != 3)
     {
         fprintf(stderr, "test_clip_bf16_storage changed rounding mode\n");

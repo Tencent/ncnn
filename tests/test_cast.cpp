@@ -259,15 +259,27 @@ static int test_cast_bfloat16_rounding()
 {
 #if __riscv_flen
     unsigned int original_rounding;
-    asm volatile("csrr %0, frm" : "=r"(original_rounding) : : "memory");
+    asm volatile("csrr %0, frm"
+                 : "=r"(original_rounding)
+                 :
+                 : "memory");
     // RNE, RTZ, RDN, RUP and RMM must all leave the BF16 conversion unchanged.
     for (unsigned int mode = 0; mode < 5; mode++)
     {
-        asm volatile("csrw frm, %0" : : "r"(mode) : "memory");
+        asm volatile("csrw frm, %0"
+                     :
+                     : "r"(mode)
+                     : "memory");
         int ret = test_cast_bfloat16_bits(1) || test_cast_bfloat16_bits(4);
         unsigned int rounding;
-        asm volatile("csrr %0, frm" : "=r"(rounding) : : "memory");
-        asm volatile("csrw frm, %0" : : "r"(original_rounding) : "memory");
+        asm volatile("csrr %0, frm"
+                     : "=r"(rounding)
+                     :
+                     : "memory");
+        asm volatile("csrw frm, %0"
+                     :
+                     : "r"(original_rounding)
+                     : "memory");
         if (ret != 0 || rounding != mode)
         {
             fprintf(stderr, "test_cast_bfloat16_rounding failed mode=%u actual=%u\n", mode, rounding);
