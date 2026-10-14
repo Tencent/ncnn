@@ -20,61 +20,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <algorithm>
-
-#if defined(__linux__)
-#include <fcntl.h>
-#include <unistd.h>
-#endif
 
 #include <spert.hpp>
 
-// ============================================================
-//  A100 placement (K3 only).
-//
-//  ncnn bakes the RVV element-pack width into its pipeline layout at
-//  create_pipeline() time:  packn = csrr_vlenb() / 4.
-//
-//  On K3 the two clusters have DIFFERENT vector lengths:
-//      X100  cpu 0-7   vlenb= 32 B  VLEN= 256 bit  packn= 8
-//      A100  cpu 8-15  vlenb=128 B  VLEN=1024 bit  packn=32
-//
-//  spert executes every tile on the A100 cluster, so any pipeline packed
-//  while the calling thread sits on X100 is sized 4x too small for the
-//  core that runs it -> out-of-bounds writes -> SIGSEGV.
-//
-//  The fix is therefore not in the RVV kernels: it is to make the thread
-//  that builds the pipelines live on A100 as well.  Writing "0" to
-//  /proc/set_ai_thread migrates the *calling* thread onto the A100 set.
-//
-//  That must happen before the first create_pipeline(), so it is done from
-//  a static constructor that runs at load time, before main().
-//  Set SPERTOMP_NO_A100=1 to disable (debugging / data layout checks).
-// ============================================================
-static void spert_place_on_a100()
-{
-#if defined(__linux__)
-    if (getenv("SPERTOMP_NO_A100"))
-        return;
-    int fd = open("/proc/set_ai_thread", O_WRONLY);
-    if (fd < 0)
-        return; // not a K3 / no CC cluster: nothing to do (e.g. x86 build)
-    ssize_t w = write(fd, "0", 1);
-    close(fd);
-    (void)w;
-#endif
-}
-
-namespace {
-struct SpertA100Init
-{
-    SpertA100Init()
-    {
-        spert_place_on_a100();
-    }
-} g_spert_a100_init;
-} // namespace
+#include "option.h"
+#include "cpu.h"
 
 // ============================================================
 //  TLS mirroring simpleomp's semantics
@@ -85,60 +36,137 @@ struct SpertA100Init
 namespace {
 thread_local int g_tls_num_threads = 0;
 thread_local int g_tls_thread_num = 0;
+thread_local spert::Context* g_tls_spert_context = 0;
+thread_local spert::Stream* g_tls_spert_stream = 0;
 
-// Lazily created; one spert stream for the process. The first Stream for a
-// backend checks out that backend's CC cores and starts its worker pool.
-spert::Stream& spert_stream()
+// A suspended tile may resume on a different worker. Keep TLS writes behind
+// a call boundary so the compiler cannot reuse a TLS address from before join.
+__attribute__((noinline)) void spert_restore_thread_state(spert::Context* ctx, spert::Stream* stream, int num_threads, int thread_num)
 {
-    static spert::Stream s;
-    return s;
+    g_tls_spert_context = ctx;
+    g_tls_spert_stream = stream;
+    g_tls_num_threads = num_threads;
+    g_tls_thread_num = thread_num;
+}
+
+struct SpertTileScope
+{
+    SpertTileScope(spert::Context* ctx, spert::Stream* stream, int num_threads, int thread_num)
+    {
+        g_tls_spert_context = ctx;
+        g_tls_spert_stream = stream;
+        g_tls_num_threads = num_threads;
+        g_tls_thread_num = thread_num;
+    }
+
+    ~SpertTileScope()
+    {
+        // Return a clean worker to the scheduler. A suspended parent restores
+        // its own state after join, possibly on a different worker.
+        spert_restore_thread_state(0, 0, 0, 0);
+    }
+};
+
+__attribute__((noinline)) spert::Status spert_wait(spert::Future& future)
+{
+    spert::Context* ctx = g_tls_spert_context;
+    spert::Stream* stream = g_tls_spert_stream;
+    // Clang's push_num_threads may have overwritten TLS with the next team's
+    // size. The current tile's grid still describes the enclosing team.
+    const int num_threads = ctx ? (int)ctx->grid_dim(0) : g_tls_num_threads;
+    const int thread_num = ctx ? (int)ctx->program_id(0) : g_tls_thread_num;
+    // A tile must yield its worker while waiting for nested OpenMP regions.
+    const spert::Status status = ctx ? ctx->join(future) : future.sync();
+    // Other tiles may have used this worker's TLS while the caller was parked.
+    spert_restore_thread_state(ctx, stream, num_threads, thread_num);
+    return status;
 }
 
 int spert_core_count()
 {
-    static int n = [] {
-        int c = (int)spert_stream().core_count();
-        return c > 0 ? c : 1;
-    }();
-    return n;
-}
-
-// Debug probe: report the (requested, clamped) team size and flag any
-// program_id that falls outside the team, so a mismatch with ncnn's
-// nT-sized scratch Mat is visible instead of a silent out-of-bounds access.
-int spert_debug_enabled()
-{
-    static int e = [] { const char* v = getenv("SPERTOMP_DEBUG"); return v && v[0] == '1'; }();
-    return e;
-}
-
-void spert_debug_launch(unsigned requested, unsigned used)
-{
-    if (!spert_debug_enabled())
-        return;
-    static int n = 0;
-    if (n++ < 12)
-        fprintf(stderr, "[spertomp] requested=%u clamped=%u cores=%d\n", requested, used, spert_core_count());
+    // Querying OpenMP capabilities must not check out the backend's cores.
+    const int cores = (int)(g_tls_spert_stream ? g_tls_spert_stream->core_count() : spert::backend_info().num_cores);
+    return cores > 0 ? cores : 1;
 }
 
 // The tile body. spert hands us the tile's coordinates; we translate the
 // grid position into the OpenMP thread number and run the outlined function.
-void spert_tile_body(spert::Context* ctx, void (*fn)(void*), void* data, int num_threads)
+void spert_tile_body(spert::Context* ctx, spert::Stream* stream, void (*fn)(void*), void* data, int num_threads)
 {
-    g_tls_num_threads = num_threads;
-    g_tls_thread_num = (int)ctx->program_id(0);
-    if (spert_debug_enabled() && g_tls_thread_num >= num_threads)
-        fprintf(stderr, "[spertomp] OUT OF RANGE program_id=%d num_threads=%d\n", g_tls_thread_num, num_threads);
+    SpertTileScope scope(ctx, stream, num_threads, (int)ctx->program_id(0));
     fn(data);
 }
 } // namespace
+
+namespace ncnn {
+SpertStreamScope::SpertStreamScope()
+    : stream(g_tls_spert_stream), owner(!stream)
+{
+    if (owner)
+    {
+        stream = new spert::Stream;
+        g_tls_spert_stream = stream;
+        if (!stream->valid())
+            NCNN_LOGE("spert stream creation failed");
+    }
+}
+
+SpertStreamScope::~SpertStreamScope()
+{
+    if (owner)
+    {
+        g_tls_spert_stream = 0;
+        delete stream;
+    }
+}
+
+bool SpertStreamScope::valid() const
+{
+    return stream->valid();
+}
+
+int spert_run(int (*fn)(void*), void* userdata, const Option& opt)
+{
+    if (g_tls_spert_context)
+        return fn(userdata);
+
+    // Root calls own an independent stream, released before returning.
+    // Nested calls reuse the enclosing stream for cooperative joins.
+    SpertStreamScope stream_scope;
+    if (!stream_scope.valid())
+        return -1;
+
+    int ret = -1;
+    auto fut = g_tls_spert_stream->launch(spert::Grid{1}, [](spert::Context* ctx, spert::Stream* stream, int (*fn)(void*), void* userdata, const Option* opt, int* result) {
+        SpertTileScope scope(ctx, stream, 1, 0);
+        const int old_flush_denormals = get_flush_denormals();
+        set_flush_denormals(opt->flush_denormals);
+        *result = fn(userdata);
+        set_flush_denormals(old_flush_denormals);
+    }, g_tls_spert_stream, fn, userdata, &opt, &ret);
+
+    const spert::Status status = spert_wait(fut);
+    if (status != spert::Status::Ok)
+    {
+        NCNN_LOGE("spert execution failed: %s", spert::to_string(status));
+        return -1;
+    }
+
+    return ret;
+}
+
+} // namespace ncnn
 
 // ============================================================
 //  Common dispatcher
 // ============================================================
 static void spert_run_parallel(void (*fn)(void*), void* data, unsigned num_threads)
 {
-    const unsigned requested = num_threads;
+    // Calls outside Extractor::extract() receive a temporary stream too.
+    ncnn::SpertStreamScope stream_scope;
+    if (!stream_scope.valid())
+        abort(); // The OpenMP ABI cannot return a stream creation error.
+
     if (num_threads == 0)
         num_threads = (unsigned)omp_get_max_threads();
 
@@ -148,11 +176,6 @@ static void spert_run_parallel(void (*fn)(void*), void* data, unsigned num_threa
     if (num_threads > (unsigned)cores)
         num_threads = (unsigned)cores;
 
-    spert_debug_launch(requested, num_threads);
-
-    g_tls_num_threads = (int)num_threads;
-    g_tls_thread_num = 0;
-
     // One SPMD tile per OpenMP thread. Launch is asynchronous, but the
     // contract above requires us to block before returning, so sync here.
     //
@@ -160,8 +183,8 @@ static void spert_run_parallel(void (*fn)(void*), void* data, unsigned num_threa
     // on the A100 cluster for the packn baked into the pipeline (create_pipeline
     // ran on an A100-placed thread) to match the core that actually runs the
     // kernel.
-    auto fut = spert_stream().launch(spert::Grid{(uint32_t)num_threads}, spert_tile_body, fn, data, (int)num_threads);
-    fut.sync();
+    auto fut = g_tls_spert_stream->launch(spert::Grid{(uint32_t)num_threads}, spert_tile_body, g_tls_spert_stream, fn, data, (int)num_threads);
+    spert_wait(fut);
 }
 
 // ============================================================
@@ -241,7 +264,7 @@ extern "C" {
 #endif // !__clang__
 
 // ============================================================
-//  clang / libomp ABI  (not exercised on K3; kept for parity)
+//  clang / libomp ABI
 // ============================================================
 #ifdef __clang__
 extern "C" typedef void (*kmpc_micro)(int32_t* gtid, int32_t* tid, ...);
@@ -256,12 +279,11 @@ struct KmpRegion
     int num_threads;
 };
 
-void kmp_tile_body(spert::Context* ctx, KmpRegion r)
+void kmp_tile_body(spert::Context* ctx, spert::Stream* stream, KmpRegion r)
 {
     int32_t tid = (int32_t)ctx->program_id(0);
-    int32_t gtid = 0;
-    g_tls_num_threads = r.num_threads;
-    g_tls_thread_num = (int)tid;
+    int32_t gtid = tid;
+    SpertTileScope scope(ctx, stream, r.num_threads, (int)tid);
 
     switch (r.argc)
     {
@@ -298,6 +320,24 @@ void kmp_tile_body(spert::Context* ctx, KmpRegion r)
     case 10:
         ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9]);
         break;
+    case 11:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10]);
+        break;
+    case 12:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11]);
+        break;
+    case 13:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12]);
+        break;
+    case 14:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13]);
+        break;
+    case 15:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14]);
+        break;
+    case 16:
+        ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))r.fn)(&gtid, &tid, r.argv[0], r.argv[1], r.argv[2], r.argv[3], r.argv[4], r.argv[5], r.argv[6], r.argv[7], r.argv[8], r.argv[9], r.argv[10], r.argv[11], r.argv[12], r.argv[13], r.argv[14], r.argv[15]);
+        break;
     default:
         fprintf(stderr, "spertomp: unsupported microtask argc %d\n", r.argc);
         break;
@@ -309,7 +349,7 @@ extern "C" {
 
     int32_t __kmpc_global_thread_num(void* /*loc*/)
     {
-        return 0;
+        return omp_get_thread_num();
     }
 
     void __kmpc_push_num_threads(void* /*loc*/, int32_t /*gtid*/, int32_t num_threads)
@@ -319,6 +359,10 @@ extern "C" {
 
     void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
     {
+        ncnn::SpertStreamScope stream_scope;
+        if (!stream_scope.valid())
+            abort(); // The OpenMP ABI cannot return a stream creation error.
+
         unsigned num_threads = (unsigned)omp_get_num_threads();
         if (num_threads == 0)
             num_threads = (unsigned)omp_get_max_threads();
@@ -339,41 +383,11 @@ extern "C" {
         if (num_threads > (unsigned)cores)
             num_threads = (unsigned)cores;
 
-        if (num_threads <= 1)
-        {
-            // Serial: invoke the microtask directly with tid 0. Cannot go through
-            // kmp_tile_body because there is no Context to read program_id from.
-            int32_t gtid = 0;
-            int32_t tid = 0;
-            g_tls_num_threads = 1;
-            g_tls_thread_num = 0;
-            switch (argc)
-            {
-            case 0:
-                fn(&gtid, &tid);
-                break;
-            case 1:
-                ((void (*)(int32_t*, int32_t*, void*))fn)(&gtid, &tid, argv[0]);
-                break;
-            case 2:
-                ((void (*)(int32_t*, int32_t*, void*, void*))fn)(&gtid, &tid, argv[0], argv[1]);
-                break;
-            case 3:
-                ((void (*)(int32_t*, int32_t*, void*, void*, void*))fn)(&gtid, &tid, argv[0], argv[1], argv[2]);
-                break;
-            case 4:
-                ((void (*)(int32_t*, int32_t*, void*, void*, void*, void*))fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3]);
-                break;
-            default:
-                fprintf(stderr, "spertomp: unsupported serial microtask argc %d\n", argc);
-                break;
-            }
-            return;
-        }
-
+        // Even a single participant must run in a runtime tile, with the same
+        // A100 placement and RVV layout as multi-participant regions.
         KmpRegion r{fn, (int)argc, argv, (int)num_threads};
-        auto fut = spert_stream().launch(spert::Grid{(uint32_t)num_threads}, kmp_tile_body, r);
-        fut.sync();
+        auto fut = g_tls_spert_stream->launch(spert::Grid{(uint32_t)num_threads}, kmp_tile_body, g_tls_spert_stream, r);
+        spert_wait(fut);
     }
 
     void __kmpc_for_static_init_4(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, int32_t* lower, int32_t* upper, int32_t* /*stride*/, int32_t /*incr*/, int32_t /*chunk*/)

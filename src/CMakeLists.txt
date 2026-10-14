@@ -237,8 +237,12 @@ target_include_directories(ncnn
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
+if(NCNN_SPERTOMP AND NCNN_SIMPLEOMP)
+    message(FATAL_ERROR "NCNN_SPERTOMP and NCNN_SIMPLEOMP are mutually exclusive")
+endif()
+
 if(NCNN_OPENMP)
-    if(NOT NCNN_SIMPLEOMP)
+    if(NOT NCNN_SIMPLEOMP AND NOT NCNN_SPERTOMP)
         find_package(OpenMP)
         if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
             target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
@@ -259,8 +263,9 @@ if(NCNN_OPENMP)
             # spert supplies the OpenMP runtime symbols (GOMP_parallel, omp_*),
             # so compile with -fopenmp but do NOT link libgomp.
             if(NCNN_SPERTOMP)
-                target_include_directories(ncnn PRIVATE ${NCNN_SPERT_INCLUDE_DIR})
-                target_link_libraries(ncnn PUBLIC ${NCNN_SPERT_LIBRARY})
+                find_package(spine-runtime CONFIG REQUIRED)
+                target_compile_features(ncnn PRIVATE cxx_std_17)
+                target_link_libraries(ncnn PUBLIC spine-runtime::spert)
             endif()
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)

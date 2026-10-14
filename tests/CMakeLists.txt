@@ -40,6 +40,15 @@ endmacro()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
 
+# Internal spert helpers and OpenMP ABI symbols are hidden in shared builds.
+if(NCNN_OPENMP AND NCNN_SPERTOMP AND NOT NCNN_SHARED_LIB)
+    ncnn_add_test(spertomp)
+    target_compile_features(test_spertomp PRIVATE cxx_std_17)
+    target_compile_options(test_spertomp PRIVATE -fopenmp)
+    # The suite acquires backend cores and exercises nested joins.
+    set_tests_properties(test_spertomp PROPERTIES LABELS "spertomp" RUN_SERIAL TRUE TIMEOUT 60)
+endif()
+
 if(NCNN_PIXEL_AFFINE)
     ncnn_add_test(mat_pixel_affine)
 endif()

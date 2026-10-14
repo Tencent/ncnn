@@ -17,6 +17,42 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+namespace spert {
+class Stream;
+}
+
+namespace ncnn {
+class Option;
+
+// Own a stream for one extraction or pipeline initialization. Nested scopes
+// reuse the current stream, including OpenMP regions inside runtime tiles.
+class SpertStreamScope
+{
+public:
+    SpertStreamScope();
+    ~SpertStreamScope();
+    bool valid() const;
+
+private:
+    SpertStreamScope(const SpertStreamScope&);
+    SpertStreamScope& operator=(const SpertStreamScope&);
+    spert::Stream* stream;
+    bool owner;
+};
+
+// Execute CPU work on the backend; nested calls stay in their current tile.
+// The callback and its arguments remain alive until this synchronous call ends.
+int spert_run(int (*fn)(void*), void* userdata, const Option& opt);
+
+template<typename Fn>
+int spert_run(Fn fn, const Option& opt)
+{
+    return spert_run([](void* userdata) { return (*static_cast<Fn*>(userdata))(); }, &fn, opt);
+}
+}
+#endif
+
 // Same ABI surface as simpleomp.h. GCC lowers `#pragma omp parallel for` to
 // GOMP_parallel (libgomp ABI); clang lowers it to __kmpc_fork_call (libomp ABI).
 // Both families are provided here.
