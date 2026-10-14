@@ -12,6 +12,11 @@
 
 namespace ncnn {
 
+#if NCNN_BF16 && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
+void cast_fp32_to_bf16_zvfbfmin(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_bf16_to_fp32_zvfbfmin(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+#endif
+
 Cast_riscv::Cast_riscv()
 {
 #if __riscv_vector
@@ -102,6 +107,15 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 #if NCNN_BF16
     if (type_from == 1 && type_to == 4)
     {
+#if NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
+#if NCNN_RUNTIME_CPU
+        if (cpu_support_riscv_zvfbfmin())
+#endif
+        {
+            cast_fp32_to_bf16_zvfbfmin(bottom_blob, top_blob, opt);
+            return 0;
+        }
+#endif
         const int total_bc = batch * channels;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int bc = 0; bc < total_bc; bc++)
@@ -134,6 +148,15 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
     if (type_from == 4 && type_to == 1)
     {
+#if NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
+#if NCNN_RUNTIME_CPU
+        if (cpu_support_riscv_zvfbfmin())
+#endif
+        {
+            cast_bf16_to_fp32_zvfbfmin(bottom_blob, top_blob, opt);
+            return 0;
+        }
+#endif
         const int total_bc = batch * channels;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int bc = 0; bc < total_bc; bc++)

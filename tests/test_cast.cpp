@@ -169,6 +169,17 @@ static int test_cast_bfloat16_bits(int elempack)
 #if NCNN_XTHEADVECTOR
     use_vector_rounding = use_vector_rounding || ncnn::cpu_support_riscv_xtheadvector();
 #endif
+    bool use_native_conversion = false;
+#if NCNN_ZVFBFMIN && NCNN_RVV && !__riscv_xtheadvector
+#if NCNN_RUNTIME_CPU
+    use_native_conversion = ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zvfbfmin();
+#if NCNN_XTHEADVECTOR
+    use_native_conversion = use_native_conversion && !ncnn::cpu_support_riscv_xtheadvector();
+#endif
+#else
+    use_native_conversion = true;
+#endif
+#endif
     const int batch = NCNN_BATCH ? 2 : 1;
     ncnn::Mat a(37, 1, 3, (size_t)4u * elempack, elempack, batch);
     ncnn::Mat a16(37, 1, 3, (size_t)2u * elempack, elempack, batch);
@@ -214,7 +225,7 @@ static int test_cast_bfloat16_bits(int elempack)
                 unsigned int bits;
                 memcpy(&bits, r32 + i, sizeof(bits));
                 unsigned short expected = ncnn::float32_to_bfloat16(p[i]);
-                if (use_vector_rounding)
+                if (use_vector_rounding || use_native_conversion)
                 {
                     // RVV vnclipu rounds ties to even and saturates unsigned overflow.
                     unsigned int fp32;
@@ -222,15 +233,51 @@ static int test_cast_bfloat16_bits(int elempack)
                     unsigned int rounded = (fp32 >> 16) + ((fp32 & 0xffff) > 0x8000 || ((fp32 & 0xffff) == 0x8000 && ((fp32 >> 16) & 1)));
                     expected = rounded > 0xffff ? 0xffff : (unsigned short)rounded;
                 }
-                if (r16[i] != expected || bits != (unsigned int)p16[i] << 16)
+                unsigned int expected32 = (unsigned int)p16[i] << 16;
+                if (use_native_conversion)
                 {
-                    fprintf(stderr, "test_cast_bfloat16_bits failed elempack=%d batch=%d channel=%d i=%d\n", elempack, b, q, i);
+                    // Zvfbfmin uses RNE and produces canonical NaNs in both directions.
+                    unsigned int fp32;
+                    memcpy(&fp32, p + i, sizeof(fp32));
+                    if ((fp32 & 0x7fffffff) > 0x7f800000)
+                        expected = 0x7fc0;
+                    if ((p16[i] & 0x7fff) > 0x7f80)
+                        expected32 = 0x7fc00000;
+                }
+                if (r16[i] != expected || bits != expected32)
+                {
+                    fprintf(stderr, "test_cast_bfloat16_bits failed elempack=%d batch=%d channel=%d i=%d native=%d expected=%04x/%08x actual=%04x/%08x\n", elempack, b, q, i, use_native_conversion, expected, expected32, r16[i], bits);
                     return -1;
                 }
             }
         }
     }
     return 0;
+}
+
+static int test_cast_bfloat16_rounding()
+{
+#if __riscv_flen
+    unsigned int original_rounding;
+    asm volatile("csrr %0, frm" : "=r"(original_rounding) : : "memory");
+    // RNE, RTZ, RDN, RUP and RMM must all leave the BF16 conversion unchanged.
+    for (unsigned int mode = 0; mode < 5; mode++)
+    {
+        asm volatile("csrw frm, %0" : : "r"(mode) : "memory");
+        int ret = test_cast_bfloat16_bits(1) || test_cast_bfloat16_bits(4);
+        unsigned int rounding;
+        asm volatile("csrr %0, frm" : "=r"(rounding) : : "memory");
+        asm volatile("csrw frm, %0" : : "r"(original_rounding) : "memory");
+        if (ret != 0 || rounding != mode)
+        {
+            fprintf(stderr, "test_cast_bfloat16_rounding failed mode=%u actual=%u\n", mode, rounding);
+            return -1;
+        }
+    }
+    return 0;
+#else
+    return test_cast_bfloat16_bits(1) || test_cast_bfloat16_bits(4);
+#endif
 }
 #endif // NCNN_BF16 && __riscv
 
@@ -549,8 +596,7 @@ int main()
     return 0
            || test_cast_rounding()
 #if NCNN_BF16 && __riscv
-           || test_cast_bfloat16_bits(1)
-           || test_cast_bfloat16_bits(4)
+           || test_cast_bfloat16_rounding()
 #endif
            || test_cast_0()
            || test_cast_1()
