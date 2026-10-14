@@ -81,7 +81,7 @@ static int test_clip_bf16_storage(int elempack)
     pd.set(0, -1.00390625f);
     pd.set(1, 1.00390625f);
 
-    const unsigned short input[] = {0xc000, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, 0x4000};
+    const unsigned short input[] = {0xc000, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, 0x4000, 0xff80, 0x7f80, 0x7fc0, 0xffc0};
 #if __riscv_vector || !NCNN_RUNTIME_CPU
     bool use_vector_rounding = true;
 #else
@@ -92,19 +92,36 @@ static int test_clip_bf16_storage(int elempack)
 #endif
     const unsigned short min_expected = use_vector_rounding ? 0xbf80 : 0xbf81;
     const unsigned short max_expected = use_vector_rounding ? 0x3f80 : 0x3f81;
-    const unsigned short expected[] = {min_expected, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, max_expected};
+    // Vector min/max select the numeric bound for NaNs. Scalar NaN behavior depends on fast-math.
+    const int input_count = use_vector_rounding ? sizeof(input) / sizeof(input[0]) : 10;
+    const unsigned short expected[] = {min_expected, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, max_expected, min_expected, max_expected, min_expected, min_expected};
     ncnn::Mat a(elempack == 1 ? 127 : 3, 3, 3, 2, (size_t)2u * elempack, elempack);
     const int size = a.w * a.h * a.d * elempack;
     for (int q = 0; q < a.c; q++)
     {
         unsigned short* ptr = a.channel(q);
         for (int i = 0; i < size; i++)
-            ptr[i] = input[(i + q) % 8];
+            ptr[i] = input[(i + q) % input_count];
     }
 
     int ret = op->load_param(pd);
     if (ret == 0) ret = op->create_pipeline(opt);
+#if __riscv_flen
+    unsigned int original_rounding;
+    // Test a non-RNE ambient mode without depending on libc fenv support.
+    asm volatile("fsrmi %0, 3" : "=r"(original_rounding) : : "memory");
+#endif
     if (ret == 0) ret = op->forward_inplace(a, opt);
+#if __riscv_flen
+    unsigned int rounding;
+    asm volatile("csrr %0, frm" : "=r"(rounding) : : "memory");
+    asm volatile("csrw frm, %0" : : "r"(original_rounding) : "memory");
+    if (rounding != 3)
+    {
+        fprintf(stderr, "test_clip_bf16_storage changed rounding mode\n");
+        ret = -1;
+    }
+#endif
     op->destroy_pipeline(opt);
     delete op;
     if (ret != 0)
@@ -115,9 +132,9 @@ static int test_clip_bf16_storage(int elempack)
         const unsigned short* ptr = a.channel(q);
         for (int i = 0; i < size; i++)
         {
-            if (ptr[i] != expected[(i + q) % 8])
+            if (ptr[i] != expected[(i + q) % input_count])
             {
-                fprintf(stderr, "test_clip_bf16_storage failed pack=%d q=%d i=%d expected=%04x actual=%04x\n", elempack, q, i, expected[(i + q) % 8], ptr[i]);
+                fprintf(stderr, "test_clip_bf16_storage failed pack=%d q=%d i=%d expected=%04x actual=%04x\n", elempack, q, i, expected[(i + q) % input_count], ptr[i]);
                 return -1;
             }
         }

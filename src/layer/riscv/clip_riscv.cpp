@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16 && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
+int clip_bf16s_zvfbfmin(Mat& bottom_top_blob, float min, float max, const Option& opt);
+#endif
+
 Clip_riscv::Clip_riscv()
 {
 #if __riscv_vector
@@ -93,6 +97,14 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_BF16
 int Clip_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector
+#if NCNN_RUNTIME_CPU
+    if (cpu_support_riscv_zvfbfmin())
+#endif
+    {
+        return clip_bf16s_zvfbfmin(bottom_top_blob, min, max, opt);
+    }
+#endif
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
