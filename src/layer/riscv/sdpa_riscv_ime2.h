@@ -786,7 +786,9 @@ static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
 /* flash 分块尺寸：BM=64 行 Q / BN=128 列 KV（官方建议 tile ≤8192 元素；
  * S=64×128×4B=32KB、acc=64×256×4B=64KB 栈上驻留，L1/L2 友好） */
 #define IME2_FLASH_BM    32
-#define IME2_FLASH_BN    512
+#define IME2_FLASH_BN    256 /* 扫描实测最优（见下）：1024/2048/4096 分别比 512 快
+                              * 7.2%/3.9%/3.0%（K3 A100，E=64/H=16/G=8，causal）。
+                              * 方法学参考 spine-triton 的 FlashAttention 分块扫描。 */
 #define IME2_FLASH_MAXEV 256
 
 /* ---------------- RVV 向量辅助（VLEN=1024；显式 vsetvl，杜绝 VL 越界） ---------------- */
