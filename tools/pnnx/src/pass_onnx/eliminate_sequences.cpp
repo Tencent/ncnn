@@ -573,37 +573,128 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset)
     }
 }
 
+static bool expand_sequence_function(const onnx::ModelProto& model, const onnx::NodeProto& call, const std::set<std::string>& sequences, int opset, SequenceNameGenerator& names, std::vector<onnx::NodeProto>& body)
+{
+    const onnx::FunctionProto* function = 0;
+    for (int j = 0; j < model.functions_size(); j++)
+    {
+        if (model.functions(j).domain() == call.domain() && model.functions(j).name() == call.op_type() && model.functions(j).overload() == call.overload())
+        {
+            function = &model.functions(j);
+        }
+    }
+    if (!function || function->input_size() != call.input_size() || function->output_size() != call.output_size() || function->attribute_size() || function->attribute_proto_size() || call.attribute_size())
+    {
+        return false;
+    }
+    bool safe = false;
+    for (int j = 0; j < function->opset_import_size(); j++)
+    {
+        if (function->opset_import(j).domain().empty() || function->opset_import(j).domain() == "ai.onnx")
+        {
+            safe = function->opset_import(j).version() == opset;
+        }
+    }
+    if (!safe)
+    {
+        return false;
+    }
+    std::map<std::string, std::string> remap;
+    for (int j = 0; j < call.input_size(); j++)
+    {
+        remap[function->input(j)] = call.input(j);
+    }
+    for (int j = 0; j < call.output_size(); j++)
+    {
+        if (!remap.count(function->output(j)))
+        {
+            remap[function->output(j)] = call.output(j);
+        }
+    }
+    std::set<std::string> available(function->input().begin(), function->input().end());
+    for (int j = 0; j < function->node_size() && safe; j++)
+    {
+        onnx::NodeProto node = function->node(j);
+        const std::string op_type = node.op_type();
+        if (!is_native_node(node) || (op_type != "Constant" && op_type != "SequenceAt" && op_type != "SequenceLength" && op_type != "ConcatFromSequence" && op_type != "Einsum" && op_type != "Identity"))
+        {
+            safe = false;
+            break;
+        }
+        if ((op_type == "SequenceAt" || op_type == "SequenceLength" || op_type == "ConcatFromSequence") && (node.input_size() == 0 || !sequences.count(remap[node.input(0)])))
+        {
+            safe = false;
+            break;
+        }
+        for (int k = 0; k < node.attribute_size(); k++)
+        {
+            if (!node.attribute(k).ref_attr_name().empty() || node.attribute(k).has_g() || node.attribute(k).graphs_size())
+            {
+                safe = false;
+            }
+        }
+        for (int k = 0; k < node.input_size(); k++)
+        {
+            const std::string value_name = node.input(k);
+            if (!available.count(value_name))
+            {
+                safe = false;
+                break;
+            }
+            node.set_input(k, remap[value_name]);
+        }
+        for (int k = 0; k < node.output_size(); k++)
+        {
+            const std::string value_name = node.output(k);
+            if (value_name.empty() || available.count(value_name))
+            {
+                safe = false;
+                break;
+            }
+            available.insert(value_name);
+            if (!remap.count(value_name))
+            {
+                remap[value_name] = names.generate();
+            }
+            node.set_output(k, remap[value_name]);
+        }
+        node.set_name(names.generate());
+        body.push_back(node);
+    }
+    for (int j = 0; j < function->output_size(); j++)
+    {
+        const std::string value_name = function->output(j);
+        if (!available.count(value_name))
+        {
+            safe = false;
+        }
+        else if (remap[value_name] != call.output(j))
+        {
+            onnx::NodeProto identity;
+            identity.set_op_type("Identity");
+            identity.set_name(names.generate());
+            identity.add_input(remap[value_name]);
+            identity.add_output(call.output(j));
+            body.push_back(identity);
+        }
+    }
+    if (!safe)
+    {
+        return false;
+    }
+    return true;
+}
+
 static void inline_sequence_functions(onnx::ModelProto& model, int opset)
 {
     onnx::GraphProto& graph = *model.mutable_graph();
-    for (int i = 0; i < graph.node_size(); i++)
+    for (int call_index = 0; call_index < graph.node_size(); call_index++)
     {
-        const onnx::NodeProto call = graph.node(i);
-        if (is_native_node(call))
-        {
+        if (is_native_node(graph.node(call_index)))
             continue;
-        }
-        std::set<std::string> sequences;
-        for (int j = 0; j < i; j++)
-        {
-            if (is_native_node(graph.node(j)) && (graph.node(j).op_type() == "SequenceConstruct" || graph.node(j).op_type() == "SplitToSequence") && graph.node(j).output_size() == 1)
-            {
-                for (int k = 0; k < call.input_size(); k++)
-                {
-                    if (call.input(k) == graph.node(j).output(0))
-                    {
-                        sequences.insert(call.input(k));
-                    }
-                }
-            }
-        }
-        if (sequences.empty())
-        {
-            continue;
-        }
-        // Sequence arguments not produced by a supported direct producer
-        // cannot participate in this atomic lowering (including aliases).
-        std::set<std::string> sequence_values = sequences;
+
+        std::map<std::string, int> sequence_producers;
+        std::set<std::string> sequence_values;
         std::set<std::string> tensor_values;
         for (int j = 0; j < graph.initializer_size(); j++)
             tensor_values.insert(graph.initializer(j).name());
@@ -628,160 +719,107 @@ static void inline_sequence_functions(onnx::ModelProto& model, int opset)
             if (graph.output(j).type().has_tensor_type())
                 tensor_values.insert(graph.output(j).name());
         }
-        for (int j = 0; j < i; j++)
+        for (int j = 0; j < graph.node_size(); j++)
         {
             const onnx::NodeProto& node = graph.node(j);
             if (!is_native_node(node))
                 continue;
+            if ((node.op_type() == "SequenceConstruct" || node.op_type() == "SplitToSequence") && node.output_size() == 1)
+                sequence_producers[node.output(0)] = j;
             if (node.op_type() == "SequenceConstruct" || node.op_type() == "SplitToSequence" || node.op_type() == "SequenceEmpty" || node.op_type() == "SequenceInsert" || node.op_type() == "SequenceErase" || (node.op_type() == "Identity" && node.input_size() == 1 && sequence_values.count(node.input(0))))
                 sequence_values.insert(node.output().begin(), node.output().end());
         }
-        bool unsupported_sequence = false;
-        for (int j = 0; j < call.input_size(); j++)
+
+        std::set<std::string> sequences;
+        const onnx::NodeProto& initial_call = graph.node(call_index);
+        for (int j = 0; j < initial_call.input_size(); j++)
         {
-            if (!sequences.count(call.input(j)) && (sequence_values.count(call.input(j)) || !tensor_values.count(call.input(j))))
-                unsupported_sequence = true;
+            std::map<std::string, int>::const_iterator producer = sequence_producers.find(initial_call.input(j));
+            if (producer != sequence_producers.end() && producer->second < call_index)
+                sequences.insert(producer->first);
         }
-        if (unsupported_sequence)
+        if (sequences.empty())
             continue;
-        const onnx::FunctionProto* function = 0;
-        for (int j = 0; j < model.functions_size(); j++)
+
+        // Close the region over calls and all their sequence arguments before
+        // expanding anything. A shared producer cannot lower one call at a time.
+        std::set<int> calls;
+        bool safe = true;
+        bool changed = true;
+        while (changed && safe)
         {
-            if (model.functions(j).domain() == call.domain() && model.functions(j).name() == call.op_type() && model.functions(j).overload() == call.overload())
+            changed = false;
+            for (int j = 0; j < graph.node_size() && safe; j++)
             {
-                function = &model.functions(j);
-            }
-        }
-        if (!function || function->input_size() != call.input_size() || function->output_size() != call.output_size() || function->attribute_size() || function->attribute_proto_size() || call.attribute_size())
-        {
-            continue;
-        }
-        bool safe = false;
-        for (int j = 0; j < function->opset_import_size(); j++)
-        {
-            if (function->opset_import(j).domain().empty() || function->opset_import(j).domain() == "ai.onnx")
-            {
-                safe = function->opset_import(j).version() == opset;
+                const onnx::NodeProto& call = graph.node(j);
+                if (is_native_node(call) || calls.count(j))
+                    continue;
+                bool uses_sequence = false;
+                for (int k = 0; k < call.input_size(); k++)
+                {
+                    if (sequences.count(call.input(k)))
+                        uses_sequence = true;
+                }
+                if (!uses_sequence)
+                    continue;
+                calls.insert(j);
+                changed = true;
+                for (int k = 0; k < call.input_size(); k++)
+                {
+                    const std::string& input = call.input(k);
+                    std::map<std::string, int>::const_iterator producer = sequence_producers.find(input);
+                    if (producer != sequence_producers.end() && producer->second < j)
+                        sequences.insert(input);
+                    else if (sequence_values.count(input) || !tensor_values.count(input))
+                        safe = false;
+                }
             }
         }
         if (!safe)
-        {
             continue;
-        }
+
         SequenceNameGenerator names(graph);
-        std::map<std::string, std::string> remap;
-        for (int j = 0; j < call.input_size(); j++)
+        std::map<int, std::vector<onnx::NodeProto> > replacements;
+        for (std::set<int>::const_iterator it = calls.begin(); it != calls.end(); ++it)
         {
-            remap[function->input(j)] = call.input(j);
-        }
-        for (int j = 0; j < call.output_size(); j++)
-        {
-            if (!remap.count(function->output(j)))
-            {
-                remap[function->output(j)] = call.output(j);
-            }
-        }
-        std::set<std::string> available(function->input().begin(), function->input().end());
-        std::vector<onnx::NodeProto> body;
-        for (int j = 0; j < function->node_size() && safe; j++)
-        {
-            onnx::NodeProto node = function->node(j);
-            const std::string op_type = node.op_type();
-            if (!is_native_node(node) || (op_type != "Constant" && op_type != "SequenceAt" && op_type != "SequenceLength" && op_type != "ConcatFromSequence" && op_type != "Einsum" && op_type != "Identity"))
+            if (!expand_sequence_function(model, graph.node(*it), sequences, opset, names, replacements[*it]))
             {
                 safe = false;
                 break;
-            }
-            if ((op_type == "SequenceAt" || op_type == "SequenceLength" || op_type == "ConcatFromSequence") && (node.input_size() == 0 || !sequences.count(remap[node.input(0)])))
-            {
-                safe = false;
-                break;
-            }
-            for (int k = 0; k < node.attribute_size(); k++)
-            {
-                if (!node.attribute(k).ref_attr_name().empty() || node.attribute(k).has_g() || node.attribute(k).graphs_size())
-                {
-                    safe = false;
-                }
-            }
-            for (int k = 0; k < node.input_size(); k++)
-            {
-                const std::string value_name = node.input(k);
-                if (!available.count(value_name))
-                {
-                    safe = false;
-                    break;
-                }
-                node.set_input(k, remap[value_name]);
-            }
-            for (int k = 0; k < node.output_size(); k++)
-            {
-                const std::string value_name = node.output(k);
-                if (value_name.empty() || available.count(value_name))
-                {
-                    safe = false;
-                    break;
-                }
-                available.insert(value_name);
-                if (!remap.count(value_name))
-                {
-                    remap[value_name] = names.generate();
-                }
-                node.set_output(k, remap[value_name]);
-            }
-            node.set_name(names.generate());
-            body.push_back(node);
-        }
-        for (int j = 0; j < function->output_size(); j++)
-        {
-            const std::string value_name = function->output(j);
-            if (!available.count(value_name))
-            {
-                safe = false;
-            }
-            else if (remap[value_name] != call.output(j))
-            {
-                onnx::NodeProto identity;
-                identity.set_op_type("Identity");
-                identity.set_name(names.generate());
-                identity.add_input(remap[value_name]);
-                identity.add_output(call.output(j));
-                body.push_back(identity);
             }
         }
         if (!safe)
-        {
             continue;
-        }
+
         onnx::GraphProto candidate = graph;
         candidate.clear_node();
         for (int j = 0; j < graph.node_size(); j++)
         {
-            if (j == i)
+            if (replacements.count(j))
             {
+                const std::vector<onnx::NodeProto>& body = replacements[j];
                 for (size_t k = 0; k < body.size(); k++)
-                {
                     *candidate.add_node() = body[k];
-                }
             }
             else
-            {
                 *candidate.add_node() = graph.node(j);
-            }
         }
         eliminate_sequences_in_graph(candidate, opset);
-        // Commit only when the complete sequence island can be lowered.
+        // Commit only when every producer in the connected region is gone.
         for (std::set<std::string>::const_iterator it = sequences.begin(); it != sequences.end(); ++it)
         {
             if (is_value_captured(candidate, *it))
                 safe = false;
+            for (int j = 0; j < candidate.node_size(); j++)
+            {
+                if (std::find(candidate.node(j).output().begin(), candidate.node(j).output().end(), *it) != candidate.node(j).output().end())
+                    safe = false;
+            }
         }
         if (!safe)
-        {
             continue;
-        }
         graph.Swap(&candidate);
-        i = -1;
+        call_index = -1;
     }
 }
 
