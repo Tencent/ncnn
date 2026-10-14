@@ -21,6 +21,7 @@
 #include "pass_onnx/dead_code_elimination.h"
 #include "pass_onnx/eliminate_initializer_input.h"
 #include "pass_onnx/eliminate_noop.h"
+#include "pass_onnx/eliminate_sequences.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
 #include "pass_onnx/inline_if_graph.h"
@@ -766,6 +767,10 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
 
+        // Run before folding (to expose constants) and again afterwards (for
+        // indices or split sizes computed by constant tensor expressions).
+        onnx2pnnx::eliminate_sequences(model);
+
         fprintf(stderr, "%-34s", "fold_constants ... ");
 
         t0 = get_current_time();
@@ -785,6 +790,8 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         t1 = get_current_time();
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        onnx2pnnx::eliminate_sequences(model);
 
         fprintf(stderr, "%-34s", "shape_inference ... ");
 
