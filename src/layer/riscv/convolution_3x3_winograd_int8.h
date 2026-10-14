@@ -330,10 +330,6 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk_int8_rvv(int M, int N, int K
     {
         int tile_size = (l2_cache_size - TILE_M * 4 * 4) / (TILE_M * 2 + 4 * 2);
         TILE_K = std::max(8, tile_size / 8 * 8);
-        // F(4,3) normalizes each block into signed 26-bit outputs.
-        // 224 is the largest 8-aligned K with 9 * 128 * 128 * K < 2^25.
-        if (B == 36)
-            TILE_K = std::min(TILE_K, 224);
         const int nn_K = (K + TILE_K - 1) / TILE_K;
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
     }
@@ -595,7 +591,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8_rvv(const Mat
     // };
 
     // The kernel transform uses 2G, so the exact result is divided by four.
-    // The caller limits inch to 3640, keeping each intermediate within int32.
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
@@ -1143,12 +1138,9 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8_rvv(const Mat&
     }
 }
 
-static inline void conv3x3s1_winograd43_transform_output_tile_int8_rvv(const Mat& top_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k)
+static inline void conv3x3s1_winograd43_transform_output_tile_int8_rvv(const Mat& top_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
-    // The transform gives 576 times the output modulo 2^32. Multiplying by
-    // the inverse of 9 modulo 2^32 and shifting by 6 recovers signed 26 bits.
-    // The caller normalizes at most 224 input channels at a time, so every
-    // exact output fits that range. Ordinary signed division would lose wraps.
+    // The combined transforms scale the output by 576.
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
@@ -1231,95 +1223,45 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8_rvv(const Mat
                 vint32m2_t _tmp2 = __riscv_vadd_vv_i32m2(_tmp12b, __riscv_vsll_vx_i32m2(_tmp34b, 2, vl), vl);
                 vint32m2_t _tmp3 = __riscv_vadd_vv_i32m2(__riscv_vadd_vv_i32m2(_tmp12a, __riscv_vsll_vx_i32m2(_tmp34a, 3, vl), vl), _r5, vl);
 
-                _tmp0 = __riscv_vsra_vx_i32m2(__riscv_vmul_vx_i32m2(_tmp0, 0x38e38e39, vl), 6, vl);
-                _tmp1 = __riscv_vsra_vx_i32m2(__riscv_vmul_vx_i32m2(_tmp1, 0x38e38e39, vl), 6, vl);
-                _tmp2 = __riscv_vsra_vx_i32m2(__riscv_vmul_vx_i32m2(_tmp2, 0x38e38e39, vl), 6, vl);
-                _tmp3 = __riscv_vsra_vx_i32m2(__riscv_vmul_vx_i32m2(_tmp3, 0x38e38e39, vl), 6, vl);
+                _tmp0 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp0, vl), 1.f / 576, vl), vl);
+                _tmp1 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp1, vl), 1.f / 576, vl), vl);
+                _tmp2 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp2, vl), 1.f / 576, vl), vl);
+                _tmp3 = __riscv_vfcvt_rtz_x_f_v_i32m2(__riscv_vfmul_vf_f32m2(__riscv_vfcvt_f_x_v_f32m2(_tmp3, vl), 1.f / 576, vl), vl);
 
                 if (out_elempack == 1)
                 {
                     int* outptr = top_blob.channel(i + ii).row<int>(ti * 4 + m) + tj * 4;
-                    if (k != 0)
-                        _tmp0 = __riscv_vadd_vv_i32m2(_tmp0, __riscv_vlse32_v_i32m2(outptr, out_hstep * sizeof(int), vl), vl);
                     __riscv_vsse32_v_i32m2(outptr, out_hstep * sizeof(int), _tmp0, vl);
                     if (tj * 4 + 1 < outw)
-                    {
-                        if (k != 0)
-                            _tmp1 = __riscv_vadd_vv_i32m2(_tmp1, __riscv_vlse32_v_i32m2(outptr + 1, out_hstep * sizeof(int), vl), vl);
                         __riscv_vsse32_v_i32m2(outptr + 1, out_hstep * sizeof(int), _tmp1, vl);
-                    }
                     if (tj * 4 + 2 < outw)
-                    {
-                        if (k != 0)
-                            _tmp2 = __riscv_vadd_vv_i32m2(_tmp2, __riscv_vlse32_v_i32m2(outptr + 2, out_hstep * sizeof(int), vl), vl);
                         __riscv_vsse32_v_i32m2(outptr + 2, out_hstep * sizeof(int), _tmp2, vl);
-                    }
                     if (tj * 4 + 3 < outw)
-                    {
-                        if (k != 0)
-                            _tmp3 = __riscv_vadd_vv_i32m2(_tmp3, __riscv_vlse32_v_i32m2(outptr + 3, out_hstep * sizeof(int), vl), vl);
                         __riscv_vsse32_v_i32m2(outptr + 3, out_hstep * sizeof(int), _tmp3, vl);
-                    }
                 }
                 else
                 {
                     const size_t vl0 = __riscv_vsetvl_e32m1(std::min(max_ii_block, out_elempack));
                     int* outptr0 = top_blob.channel((i + ii) / out_elempack).row<int>(ti * 4 + m) + tj * 4 * out_elempack;
-                    vint32m1_t _out00 = __riscv_vget_v_i32m2_i32m1(_tmp0, 0);
-                    if (k != 0)
-                        _out00 = __riscv_vadd_vv_i32m1(_out00, __riscv_vle32_v_i32m1(outptr0, vl0), vl0);
-                    __riscv_vse32_v_i32m1(outptr0, _out00, vl0);
+                    __riscv_vse32_v_i32m1(outptr0, __riscv_vget_v_i32m2_i32m1(_tmp0, 0), vl0);
                     if (tj * 4 + 1 < outw)
-                    {
-                        vint32m1_t _out01 = __riscv_vget_v_i32m2_i32m1(_tmp1, 0);
-                        if (k != 0)
-                            _out01 = __riscv_vadd_vv_i32m1(_out01, __riscv_vle32_v_i32m1(outptr0 + out_elempack, vl0), vl0);
-                        __riscv_vse32_v_i32m1(outptr0 + out_elempack, _out01, vl0);
-                    }
+                        __riscv_vse32_v_i32m1(outptr0 + out_elempack, __riscv_vget_v_i32m2_i32m1(_tmp1, 0), vl0);
                     if (tj * 4 + 2 < outw)
-                    {
-                        vint32m1_t _out02 = __riscv_vget_v_i32m2_i32m1(_tmp2, 0);
-                        if (k != 0)
-                            _out02 = __riscv_vadd_vv_i32m1(_out02, __riscv_vle32_v_i32m1(outptr0 + out_elempack * 2, vl0), vl0);
-                        __riscv_vse32_v_i32m1(outptr0 + out_elempack * 2, _out02, vl0);
-                    }
+                        __riscv_vse32_v_i32m1(outptr0 + out_elempack * 2, __riscv_vget_v_i32m2_i32m1(_tmp2, 0), vl0);
                     if (tj * 4 + 3 < outw)
-                    {
-                        vint32m1_t _out03 = __riscv_vget_v_i32m2_i32m1(_tmp3, 0);
-                        if (k != 0)
-                            _out03 = __riscv_vadd_vv_i32m1(_out03, __riscv_vle32_v_i32m1(outptr0 + out_elempack * 3, vl0), vl0);
-                        __riscv_vse32_v_i32m1(outptr0 + out_elempack * 3, _out03, vl0);
-                    }
+                        __riscv_vse32_v_i32m1(outptr0 + out_elempack * 3, __riscv_vget_v_i32m2_i32m1(_tmp3, 0), vl0);
 
                     if (max_ii_block > out_elempack)
                     {
                         const size_t vl1 = __riscv_vsetvl_e32m1(max_ii_block - out_elempack);
                         int* outptr1 = top_blob.channel((i + ii) / out_elempack + 1).row<int>(ti * 4 + m) + tj * 4 * out_elempack;
-                        vint32m1_t _out10 = __riscv_vget_v_i32m2_i32m1(_tmp0, 1);
-                        if (k != 0)
-                            _out10 = __riscv_vadd_vv_i32m1(_out10, __riscv_vle32_v_i32m1(outptr1, vl1), vl1);
-                        __riscv_vse32_v_i32m1(outptr1, _out10, vl1);
+                        __riscv_vse32_v_i32m1(outptr1, __riscv_vget_v_i32m2_i32m1(_tmp0, 1), vl1);
                         if (tj * 4 + 1 < outw)
-                        {
-                            vint32m1_t _out11 = __riscv_vget_v_i32m2_i32m1(_tmp1, 1);
-                            if (k != 0)
-                                _out11 = __riscv_vadd_vv_i32m1(_out11, __riscv_vle32_v_i32m1(outptr1 + out_elempack, vl1), vl1);
-                            __riscv_vse32_v_i32m1(outptr1 + out_elempack, _out11, vl1);
-                        }
+                            __riscv_vse32_v_i32m1(outptr1 + out_elempack, __riscv_vget_v_i32m2_i32m1(_tmp1, 1), vl1);
                         if (tj * 4 + 2 < outw)
-                        {
-                            vint32m1_t _out12 = __riscv_vget_v_i32m2_i32m1(_tmp2, 1);
-                            if (k != 0)
-                                _out12 = __riscv_vadd_vv_i32m1(_out12, __riscv_vle32_v_i32m1(outptr1 + out_elempack * 2, vl1), vl1);
-                            __riscv_vse32_v_i32m1(outptr1 + out_elempack * 2, _out12, vl1);
-                        }
+                            __riscv_vse32_v_i32m1(outptr1 + out_elempack * 2, __riscv_vget_v_i32m2_i32m1(_tmp2, 1), vl1);
                         if (tj * 4 + 3 < outw)
-                        {
-                            vint32m1_t _out13 = __riscv_vget_v_i32m2_i32m1(_tmp3, 1);
-                            if (k != 0)
-                                _out13 = __riscv_vadd_vv_i32m1(_out13, __riscv_vle32_v_i32m1(outptr1 + out_elempack * 3, vl1), vl1);
-                            __riscv_vse32_v_i32m1(outptr1 + out_elempack * 3, _out13, vl1);
-                        }
+                            __riscv_vse32_v_i32m1(outptr1 + out_elempack * 3, __riscv_vget_v_i32m2_i32m1(_tmp3, 1), vl1);
                     }
                 }
             }
@@ -1385,25 +1327,20 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8_rvv(const Mat
                     const unsigned int sum2 = tmp12b + tmp34b * 4;
                     const unsigned int sum3 = tmp12a + tmp34a * 8 + tmp[m][5][iii];
 
-                    const int v0 = (int)((sum0 * 0x38e38e39u) >> 6);
-                    const int v1 = (int)((sum1 * 0x38e38e39u) >> 6);
-                    const int v2 = (int)((sum2 * 0x38e38e39u) >> 6);
-                    const int v3 = (int)((sum3 * 0x38e38e39u) >> 6);
-
-                    const int tmp0 = v0 < 0x02000000 ? v0 : v0 - 0x04000000;
-                    const int tmp1 = v1 < 0x02000000 ? v1 : v1 - 0x04000000;
-                    const int tmp2 = v2 < 0x02000000 ? v2 : v2 - 0x04000000;
-                    const int tmp3 = v3 < 0x02000000 ? v3 : v3 - 0x04000000;
+                    const int tmp0 = (int)sum0 / 576;
+                    const int tmp1 = (int)sum1 / 576;
+                    const int tmp2 = (int)sum2 / 576;
+                    const int tmp3 = (int)sum3 / 576;
 
                     const int q = i + ii + iii;
                     int* outptr = top_blob.channel(q / out_elempack).row<int>(ti * 4 + m) + tj * 4 * out_elempack + q % out_elempack;
-                    outptr[0] = k == 0 ? tmp0 : outptr[0] + tmp0;
+                    outptr[0] = tmp0;
                     if (tj * 4 + 1 < outw)
-                        outptr[out_elempack] = k == 0 ? tmp1 : outptr[out_elempack] + tmp1;
+                        outptr[out_elempack] = tmp1;
                     if (tj * 4 + 2 < outw)
-                        outptr[out_elempack * 2] = k == 0 ? tmp2 : outptr[out_elempack * 2] + tmp2;
+                        outptr[out_elempack * 2] = tmp2;
                     if (tj * 4 + 3 < outw)
-                        outptr[out_elempack * 3] = k == 0 ? tmp3 : outptr[out_elempack * 3] + tmp3;
+                        outptr[out_elempack * 3] = tmp3;
                 }
             }
         }
@@ -1429,8 +1366,6 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
-    // Preserve wrapped sums until the end of each bounded normalization block.
-    const int nn_K_block = K <= 224 ? nn_K : std::max(1, 224 / TILE_K);
 
     // Reuse each transformed input panel across a group of output channels.
     // Keep the per-worker panel and all split-K partial sums cache-bounded.
@@ -1469,7 +1404,6 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
         {
             const int k = ppk * TILE_K;
             const int max_kk = std::min(K - k, TILE_K);
-            const int k_relative = (ppk % nn_K_block) * TILE_K;
             conv3x3s1_winograd43_transform_input_tile_int8_rvv(bottom_blob, BT_tile, j, max_jj, k, max_kk);
 
             for (int ppi = ppi_start; ppi < ppi_end; ppi++)
@@ -1479,13 +1413,10 @@ static int conv3x3s1_winograd43_int8_rvv(const Mat& bottom_blob, Mat& top_blob, 
                 const Mat AT_tile = AT.channel(ppi).depth(ppk);
                 Mat top_tile = topT_tileX.channel(tid).row_range(ppi - ppi_start, 1);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k_relative, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile_int8_rvv(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
 
-                if ((ppk + 1) % nn_K_block == 0 || ppk + 1 == nn_K)
-                {
-                    const int k_block = ppk / nn_K_block * nn_K_block * TILE_K;
-                    conv3x3s1_winograd43_transform_output_tile_int8_rvv(top_tile, top_blob, i, max_ii, j, max_jj, k_block);
-                }
+                if (ppk + 1 == nn_K)
+                    conv3x3s1_winograd43_transform_output_tile_int8_rvv(top_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }

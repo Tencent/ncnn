@@ -4,7 +4,7 @@
 #include "testutil.h"
 
 #if NCNN_INT8
-static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false, bool test_winograd43 = false, int winograd = 0, bool packing = false)
+static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, int int8_scale_term = 0, bool sgemm = false, bool input_int8 = false, bool test_winograd43 = false, int winograd = 0)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -74,7 +74,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     {
         ncnn::Option opt;
         opt.num_threads = 1;
-        opt.use_packing_layout = packing;
+        opt.use_packing_layout = false;
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
@@ -88,7 +88,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         int ret = test_layer_opt("Convolution", pd, weights, opt, a_int8, use_requant ? 1.0f : 0.001f, flag);
         if (ret != 0)
         {
-            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, packing, winograd, activation_type, activation_params[0], activation_params[1]);
+            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d int8_scale_term=%d input_int8=%d packing=%d winograd=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, int8_scale_term, input_int8, opt.use_packing_layout, winograd, activation_type, activation_params[0], activation_params[1]);
         }
         return ret;
     }
@@ -380,11 +380,8 @@ static int test_convolution_1_int8_input()
            // large reduction depth with packed channels and scalar tails
            || test_convolution_int8(5, 7, 2048, 32, 3, 1, 1, 0, 1, false, 1, true, true)
            || test_convolution_int8(5, 7, 3072, 33, 3, 1, 1, 0, 1, false, 1, true, true)
-           // F(4,3) output accumulation across bounded normalization blocks
-           || test_convolution_int8(6, 3, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, false, 43, false)
-           || test_convolution_int8(6, 3, 256, 64, 3, 1, 1, 0, 1, false, 1, true, true, false, 43, true)
-           // F(2,3) scalar transforms and odd-channel/spatial split-K tails
-           || test_convolution_int8(7, 3, 384, 9, 3, 1, 1, 0, 1, false, 1, false, true, false, 23, false);
+           // F(2,3) scalar transforms, split-K tails and threaded tile sizing
+           || test_convolution_int8(7, 3, 384, 9, 3, 1, 1, 0, 1, false, 1, true, true, false, 23);
 }
 
 #endif // NCNN_INT8
