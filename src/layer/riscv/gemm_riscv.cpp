@@ -3071,7 +3071,7 @@ int Gemm_riscv::create_pipeline(const Option& opt)
                 // 否则 BT_data 为空，fp32 内核会读空指针。
                 ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
                 if (ime2_full_takeover)
-                    ime2_fp32_fallback_ready = 1;   /* 下面会继续构建 fp32 回退管线 */
+                    ime2_fp32_fallback_ready = 1; /* 下面会继续构建 fp32 回退管线 */
             }
             else
             {
@@ -3295,7 +3295,11 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
             {
                 cast_float32_to_float16(bottom_blobs[i], in16[i], opt);
-                if (in16[i].empty()) { ok = false; break; }
+                if (in16[i].empty())
+                {
+                    ok = false;
+                    break;
+                }
             }
             else
                 in16[i] = bottom_blobs[i];
