@@ -138,6 +138,82 @@ static int test_cast_rounding()
            || test_float8_to_float16(0xb8, 0xbc00);
 }
 
+#if NCNN_BF16 && __riscv
+static int test_cast_bfloat16_bits(int elempack)
+{
+    // Include both sides of ties, signed zero, subnormals, overflow, Inf and NaN payloads.
+    const unsigned int fp32_bits[] = {
+        0x00000000u, 0x80000000u, 0x00000001u, 0x80000001u,
+        0x00007fffu, 0x00008000u, 0x00008001u, 0x80008000u,
+        0x007fffffu, 0x00800000u, 0x3f807fffu, 0x3f808000u,
+        0x3f808001u, 0x3f818000u, 0xbf807fffu, 0xbf808000u,
+        0xbf808001u, 0xbf818000u, 0x7f7f7fffu, 0x7f7f8000u,
+        0xff7f7fffu, 0xff7f8000u, 0x7f800000u, 0xff800000u,
+        0x7f800001u, 0xff800001u, 0x7fc00000u, 0xffc00000u,
+        0x7fff7fffu, 0x7fff8000u, 0xffff7fffu, 0xffff8000u,
+        0x7fffffffu, 0xffffffffu
+    };
+    const unsigned short bf16_bits[] = {
+        0x0000, 0x8000, 0x0001, 0x8001, 0x007f, 0x0080,
+        0x3f80, 0xbf80, 0x7f7f, 0xff7f, 0x7f80, 0xff80,
+        0x7f81, 0xff81, 0x7fc0, 0xffc0, 0x7fff, 0xffff
+    };
+    const int batch = NCNN_BATCH ? 2 : 1;
+    ncnn::Mat a(37, 1, 3, (size_t)4u * elempack, elempack, batch);
+    ncnn::Mat a16(37, 1, 3, (size_t)2u * elempack, elempack, batch);
+    const int size = a.w * a.h * elempack;
+    for (int b = 0; b < batch; b++)
+    {
+        for (int q = 0; q < a.c; q++)
+        {
+            float* p = a.batch(b).channel(q);
+            unsigned short* p16 = a16.batch(b).channel(q);
+            for (int i = 0; i < size; i++)
+            {
+                const unsigned int bits = fp32_bits[(i + q + b) % (sizeof(fp32_bits) / sizeof(fp32_bits[0]))];
+                memcpy(p + i, &bits, sizeof(bits));
+                p16[i] = bf16_bits[(i + q + b) % (sizeof(bf16_bits) / sizeof(bf16_bits[0]))];
+            }
+        }
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    ncnn::Mat out16;
+    ncnn::Mat out32;
+    ncnn::cast_float32_to_bfloat16(a, out16, opt);
+    ncnn::cast_bfloat16_to_float32(a16, out32, opt);
+    if (out16.empty() || out32.empty() || out16.n != batch || out32.n != batch
+            || out16.elempack != elempack || out32.elempack != elempack
+            || out16.elemsize != 2u * elempack || out32.elemsize != 4u * elempack)
+    {
+        fprintf(stderr, "test_cast_bfloat16_bits layout failed elempack=%d\n", elempack);
+        return -1;
+    }
+    for (int b = 0; b < batch; b++)
+    {
+        for (int q = 0; q < a.c; q++)
+        {
+            const float* p = a.batch(b).channel(q);
+            const unsigned short* p16 = a16.batch(b).channel(q);
+            const unsigned short* r16 = out16.batch(b).channel(q);
+            const float* r32 = out32.batch(b).channel(q);
+            for (int i = 0; i < size; i++)
+            {
+                unsigned int bits;
+                memcpy(&bits, r32 + i, sizeof(bits));
+                if (r16[i] != ncnn::float32_to_bfloat16(p[i]) || bits != (unsigned int)p16[i] << 16)
+                {
+                    fprintf(stderr, "test_cast_bfloat16_bits failed elempack=%d batch=%d channel=%d i=%d\n", elempack, b, q, i);
+                    return -1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+#endif // NCNN_BF16 && __riscv
+
 static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int type_to)
 {
     ncnn::ParamDict pd;
@@ -452,6 +528,10 @@ int main()
 
     return 0
            || test_cast_rounding()
+#if NCNN_BF16 && __riscv
+           || test_cast_bfloat16_bits(1)
+           || test_cast_bfloat16_bits(4)
+#endif
            || test_cast_0()
            || test_cast_1()
            || test_cast_2()
