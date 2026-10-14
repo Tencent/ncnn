@@ -117,7 +117,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             {
                 size_t vl = __riscv_vsetvl_e32m4(n);
                 vfloat32m4_t _p = __riscv_vle32_v_f32m4(ptr, vl);
-                __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv_roundaway(_p, vl), vl);
+                __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(_p, vl), vl);
                 ptr += vl;
                 outptr += vl;
                 n -= vl;

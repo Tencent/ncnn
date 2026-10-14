@@ -110,22 +110,12 @@ static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
     return __riscv_vnclipu_wx_u16m1(__riscv_vreinterpret_v_f32m2_u32m2(v), 16, __RISCV_VXRM_RNE, vl);
 }
 
+static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
+{
+    return __riscv_vnclipu_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(v), 16, __RISCV_VXRM_RNE, vl);
+}
+
 #if NCNN_BF16
-// Match float32_to_bfloat16, including ties away from zero and unsigned wrap for NaNs.
-static inline vuint16m1_t float2bfloat_rvv_roundaway(vfloat32m2_t v, size_t vl)
-{
-    vuint32m2_t u = __riscv_vreinterpret_v_f32m2_u32m2(v);
-    u = __riscv_vadd_vx_u32m2(u, 0x8000, vl);
-    return __riscv_vnsrl_wx_u16m1(u, 16, vl);
-}
-
-static inline vuint16m2_t float2bfloat_rvv_roundaway(vfloat32m4_t v, size_t vl)
-{
-    vuint32m4_t u = __riscv_vreinterpret_v_f32m4_u32m4(v);
-    u = __riscv_vadd_vx_u32m4(u, 0x8000, vl);
-    return __riscv_vnsrl_wx_u16m2(u, 16, vl);
-}
-
 static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
 {
     vuint32m2_t u = __riscv_vwcvtu_x_x_v_u32m2(v, vl);

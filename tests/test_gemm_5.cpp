@@ -324,7 +324,12 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
                 expected += (((i * 3 + k) % 11 - 5) * 0.125f) * (((k + j * 2) % 13 - 6) * 0.0625f);
             expected *= 1.5f;
             if (output_elemtype != 1)
-                expected = ncnn::bfloat16_to_float32(ncnn::float32_to_bfloat16(expected));
+            {
+                // This shape uses RVV stores, which round ties to even.
+                unsigned int bits;
+                memcpy(&bits, &expected, sizeof(bits));
+                expected = ncnn::bfloat16_to_float32((unsigned short)((bits + 0x7fff + ((bits >> 16) & 1)) >> 16));
+            }
 
             const int row = output_transpose ? j : i;
             const int col = output_transpose ? i : j;

@@ -114,7 +114,7 @@ int Clip_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
             _p = __riscv_vfmax_vf_f32m4(_p, min, vl);
             _p = __riscv_vfmin_vf_f32m4(_p, max, vl);
-            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv_roundaway(_p, vl), vl);
+            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
 
             ptr += vl;
             n -= vl;

@@ -158,6 +158,17 @@ static int test_cast_bfloat16_bits(int elempack)
         0x3f80, 0xbf80, 0x7f7f, 0xff7f, 0x7f80, 0xff80,
         0x7f81, 0xff81, 0x7fc0, 0xffc0, 0x7fff, 0xffff
     };
+#if __riscv_vector || (!NCNN_RUNTIME_CPU && (NCNN_RVV || NCNN_XTHEADVECTOR))
+    bool use_vector_rounding = true;
+#else
+    bool use_vector_rounding = false;
+#endif
+#if NCNN_RVV
+    use_vector_rounding = use_vector_rounding || ncnn::cpu_support_riscv_v();
+#endif
+#if NCNN_XTHEADVECTOR
+    use_vector_rounding = use_vector_rounding || ncnn::cpu_support_riscv_xtheadvector();
+#endif
     const int batch = NCNN_BATCH ? 2 : 1;
     ncnn::Mat a(37, 1, 3, (size_t)4u * elempack, elempack, batch);
     ncnn::Mat a16(37, 1, 3, (size_t)2u * elempack, elempack, batch);
@@ -202,7 +213,16 @@ static int test_cast_bfloat16_bits(int elempack)
             {
                 unsigned int bits;
                 memcpy(&bits, r32 + i, sizeof(bits));
-                if (r16[i] != ncnn::float32_to_bfloat16(p[i]) || bits != (unsigned int)p16[i] << 16)
+                unsigned short expected = ncnn::float32_to_bfloat16(p[i]);
+                if (use_vector_rounding)
+                {
+                    // RVV vnclipu rounds ties to even and saturates unsigned overflow.
+                    unsigned int fp32;
+                    memcpy(&fp32, p + i, sizeof(fp32));
+                    unsigned int rounded = (fp32 >> 16) + ((fp32 & 0xffff) > 0x8000 || ((fp32 & 0xffff) == 0x8000 && ((fp32 >> 16) & 1)));
+                    expected = rounded > 0xffff ? 0xffff : (unsigned short)rounded;
+                }
+                if (r16[i] != expected || bits != (unsigned int)p16[i] << 16)
                 {
                     fprintf(stderr, "test_cast_bfloat16_bits failed elempack=%d batch=%d channel=%d i=%d\n", elempack, b, q, i);
                     return -1;

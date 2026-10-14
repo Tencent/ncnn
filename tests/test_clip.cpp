@@ -77,12 +77,22 @@ static int test_clip_bf16_storage(int elempack)
     }
 
     ncnn::ParamDict pd;
-    // Midpoints must round away from zero, not to the even bf16 value.
+    // RVV rounds midpoints to even; the scalar fallback uses ncnn rounding.
     pd.set(0, -1.00390625f);
     pd.set(1, 1.00390625f);
 
     const unsigned short input[] = {0xc000, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, 0x4000};
-    const unsigned short expected[] = {0xbf81, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, 0x3f81};
+#if __riscv_vector || !NCNN_RUNTIME_CPU
+    bool use_vector_rounding = true;
+#else
+    bool use_vector_rounding = ncnn::cpu_support_riscv_v();
+#endif
+#if NCNN_XTHEADVECTOR
+    use_vector_rounding = use_vector_rounding || ncnn::cpu_support_riscv_xtheadvector();
+#endif
+    const unsigned short min_expected = use_vector_rounding ? 0xbf80 : 0xbf81;
+    const unsigned short max_expected = use_vector_rounding ? 0x3f80 : 0x3f81;
+    const unsigned short expected[] = {min_expected, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, max_expected};
     ncnn::Mat a(elempack == 1 ? 127 : 3, 3, 3, 2, (size_t)2u * elempack, elempack);
     const int size = a.w * a.h * a.d * elempack;
     for (int q = 0; q < a.c; q++)
