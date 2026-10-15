@@ -34,6 +34,39 @@ class Model(nn.Module):
         y = x.int()
         return x, y & 3, y | 3, y ^ 3, y << 3, y >> 3
 
+class ScalarDivision(nn.Module):
+    def __init__(self, dtype):
+        super(ScalarDivision, self).__init__()
+        self.register_buffer('vector', torch.tensor([3.0], dtype=dtype))
+
+    def forward(self, x):
+        return torch.div(3.0, x), self.vector / x, x / 3.0, x / self.vector, x / x, torch.div(3.0, x * x + 1)
+
+
+def test_scalar_division():
+    import importlib.util
+    import subprocess
+
+    for dtype, suffix in ((torch.float16, 'f16'), (torch.float32, 'f32'), (torch.float64, 'f64')):
+        net = ScalarDivision(dtype).eval()
+        x = torch.tensor([[5, -5, 3, -3], [0.25, -0.25, 1, -1]], dtype=dtype)
+        name = 'test_pnnx_expression_div_' + suffix
+        torch.jit.trace(net, x).save(name + '.pt')
+        subprocess.run(['../src/pnnx', name + '.pt', 'inputshape=[2,4]' + suffix], check=True)
+        spec = importlib.util.spec_from_file_location(name, name + '_pnnx.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        actual = module.Model().eval()(x)
+        expected = (torch.div(3.0, x), torch.div(3.0, x), torch.div(x, 3.0),
+                    torch.div(x, 3.0), torch.div(x, x), torch.div(3.0, x * x + 1))
+        if len(expected) != len(actual):
+            return False
+        for a, b in zip(expected, actual):
+            if a.dtype != b.dtype or a.shape != b.shape or not torch.equal(a, b):
+                return False
+    return True
+
+
 def test():
     net = Model()
     net.eval()
@@ -58,7 +91,7 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    return test_scalar_division()
 
 if __name__ == "__main__":
     if test():

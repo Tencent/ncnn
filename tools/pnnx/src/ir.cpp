@@ -1162,7 +1162,10 @@ static std::string expand_expression(const Operator* op)
             std::string b = exprstack.top();
             exprstack.pop();
 
-            std::string r = std::string("(") + a + " " + binaryop + " " + b + ")";
+            // Tensor.__rtruediv__ rounds the reciprocal before multiplying for float16.
+            std::string r = t == "div" && token_is_literal(a) && !token_is_literal(b)
+                ? std::string("torch.div(") + a + ", " + b + ")"
+                : std::string("(") + a + " " + binaryop + " " + b + ")";
             exprstack.push(r);
         }
         else if (t == "[") // list
