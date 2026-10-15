@@ -113,6 +113,79 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # Temporary standalone emulator diagnostic; defer failure until after ctest.
+    - name: diagnose-fxcr-bf16
+      id: fxcr-probe
+      if: matrix.cpu == 'c906' || matrix.cpu == 'c910'
+      continue-on-error: true
+      run: |
+        probe_dir=$(mktemp -d "$RUNNER_TEMP/fxcr-probe.XXXXXX")
+        trap 'rm -rf "$probe_dir"' EXIT
+        cxx=/data/action/osd/Xuantie-900-gcc-linux-6.6.36-glibc-x86_64-V3.4.0/bin/riscv64-unknown-linux-gnu-g++
+        qemu=/data/action/osd/xuantie-qemu-x86_64-Ubuntu-20.04-V5.4.1/bin/qemu-riscv64
+        "$cxx" --version
+        "$qemu" --version
+        cat > "$probe_dir/probe.cpp" <<'CPP'
+        #include <stdint.h>
+        #include <stdio.h>
+
+        static unsigned long fxcr() { unsigned long x; asm volatile("csrr %0, 0x800" : "=r"(x) :: "memory"); return x; }
+        static void set_fxcr(unsigned long x) { asm volatile("csrw 0x800, %0" :: "r"(x) : "memory"); }
+        static unsigned long fcsr() { unsigned long x; asm volatile("csrr %0, fcsr" : "=r"(x) :: "memory"); return x; }
+
+        // Exactly one lane; no ncnn, intrinsics, scalar float conversion, or auto-vectorization.
+        __attribute__((noinline)) static uint32_t widen()
+        {
+            const uint16_t in = 0x3c00;
+            uint32_t out;
+            asm volatile("th.vsetvli zero, %2, e16, m1\n\t"
+                         "th.vle.v v1, (%0)\n\t"
+                         "th.vfwcvt.f.f.v v2, v1\n\t"
+                         "th.vsetvli zero, %2, e32, m2\n\t"
+                         "th.vse.v v2, (%1)"
+                         :: "r"(&in), "r"(&out), "r"(1UL)
+                         : "memory", "v1", "v2", "v3", "vl", "vtype");
+            return out;
+        }
+
+        int main()
+        {
+            const unsigned long original = fxcr(), original_fcsr = fcsr();
+            const unsigned long bf16 = 1UL << 31;
+            set_fxcr(8); // Known BF16-off/RNE baseline, including a seeded exception flag.
+            const unsigned long before = fxcr();
+            const uint32_t fp16_before = widen();
+            unsigned long saved;
+            asm volatile("csrrs %0, 0x800, %1" : "=r"(saved) : "r"(bf16) : "memory");
+            const unsigned long on = fxcr();
+            const uint32_t bf16_on = widen();
+            asm volatile("csrc 0x800, %0" :: "r"(bf16) : "memory");
+            const unsigned long cleared = fxcr();
+            const uint32_t fp16_after_clear = widen();
+            set_fxcr(before);
+            const unsigned long restored = fxcr();
+            const uint32_t fp16_after_restore = widen();
+            set_fxcr(original);
+            asm volatile("csrw fcsr, %0" :: "r"(original_fcsr) : "memory");
+            const unsigned long final_fxcr = fxcr(), final_fcsr = fcsr();
+
+            printf("Expected input=0x3c00 FP16->FP32=0x3f800000 BF16->FP32=0x3c000000\n");
+            printf("FXCR original=%016lx before=%016lx saved=%016lx on=%016lx masked_clear=%016lx full_restore=%016lx final=%016lx\n",
+                   original, before, saved, on, cleared, restored, final_fxcr);
+            printf("Widen before_enable=%08x enabled=%08x after_masked_clear=%08x after_full_restore=%08x\n",
+                   fp16_before, bf16_on, fp16_after_clear, fp16_after_restore);
+            printf("FCSR original=%08lx final=%08lx (includes FRM and flags)\n", original_fcsr, final_fcsr);
+            const bool leak = (cleared & bf16) || fp16_after_clear == 0x3c000000;
+            const bool failed = before != 8 || saved != before || on != (before | bf16) || cleared != before || restored != before ||
+                                fp16_before != 0x3f800000 || bf16_on != 0x3c000000 || fp16_after_clear != 0x3f800000 ||
+                                fp16_after_restore != 0x3f800000 || final_fxcr != original || final_fcsr != original_fcsr;
+            printf("FXCR diagnosis=%s; exit=%d\n", leak ? "MASKED_CLEAR_LEAK" : failed ? "UNEXPECTED_RESULT" : "PASS", failed ? 1 : 0);
+            return failed ? 1 : 0;
+        }
+        CPP
+        "$cxx" -O2 -fno-tree-vectorize -march=rv64gc_zfh_xtheadvector_xtheadc -mabi=lp64d -mtune=${{ matrix.cpu }} -static "$probe_dir/probe.cpp" -o "$probe_dir/probe"
+        "$qemu" -cpu ${{ matrix.QEMU_CPU }} "$probe_dir/probe"
+
     - name: build
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-6.6.36-glibc-x86_64-V3.4.0
@@ -132,6 +205,10 @@ jobs:
         export PATH=/data/action/osd/xuantie-qemu-x86_64-Ubuntu-20.04-V5.4.1/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;${{ matrix.QEMU_CPU }}" ctest --output-on-failure -j 8
+        if [ "${{ steps.fxcr-probe.outcome }}" = failure ]; then
+          echo "::error::FXCR diagnostic failed; see diagnose-fxcr-bf16 output above"
+          exit 1
+        fi
 
   spacemit:
     name: spacemit-${{ matrix.cpu }}
