@@ -73,7 +73,7 @@ void main()
     {
         {
             const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
-            const uvec4 ai4 = gz * psc(A_cstep) + gy4 * psc(K) + (k + lx);
+            const uvec4 ai4 = gz * psc(A_cstep) + min(gy4, uvec4(psc(M) - 1)) * psc(K) + (k + lx);
 
             const uvec4 ai4d4 = ai4 / 4;
             const uvec4 ai4m4 = ai4 % 4;
@@ -91,12 +91,12 @@ void main()
         {
             if (psc(N) % 4 == 0)
             {
-                const uint bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) / 4 + (k + ly) * (psc(N) / 4) + gx;
+                const uint bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) / 4 + (k + ly) * (psc(N) / 4) + min(gx, uint(psc(N) / 4 - 1));
                 tmp_b[lx][ly] = buffer_sm4(B_blob_data, bi);
             }
             else
             {
-                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + (k + ly) * psc(N) + gx * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + (k + ly) * psc(N) + min(gx * 4 + uvec4(0, 1, 2, 3), uvec4(psc(N) - 1));
 
                 const uvec4 bi4d4 = bi4 / 4;
                 const uvec4 bi4m4 = bi4 % 4;
@@ -113,7 +113,7 @@ void main()
         else
         {
             const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
-            const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx4 * psc(K) + (k + ly);
+            const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + min(gx4, uvec4(psc(N) - 1)) * psc(K) + (k + ly);
 
             const uvec4 bi4d4 = bi4 / 4;
             const uvec4 bi4m4 = bi4 % 4;
@@ -151,7 +151,7 @@ void main()
         if (lx < remain)
         {
             const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
-            const uvec4 ai4 = gz * psc(A_cstep) + gy4 * psc(K) + (k + lx);
+            const uvec4 ai4 = gz * psc(A_cstep) + min(gy4, uvec4(psc(M) - 1)) * psc(K) + (k + lx);
 
             const uvec4 ai4d4 = ai4 / 4;
             const uvec4 ai4m4 = ai4 % 4;
@@ -171,12 +171,12 @@ void main()
             {
                 if (psc(N) % 4 == 0)
                 {
-                    const uint bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) / 4 + (k + ly) * (psc(N) / 4) + gx;
+                    const uint bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) / 4 + (k + ly) * (psc(N) / 4) + min(gx, uint(psc(N) / 4 - 1));
                     tmp_b[lx][ly] = buffer_sm4(B_blob_data, bi);
                 }
                 else
                 {
-                    const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + (k + ly) * psc(N) + gx * 4 + uvec4(0, 1, 2, 3);
+                    const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + (k + ly) * psc(N) + min(gx * 4 + uvec4(0, 1, 2, 3), uvec4(psc(N) - 1));
 
                     const uvec4 bi4d4 = bi4 / 4;
                     const uvec4 bi4m4 = bi4 % 4;
@@ -193,7 +193,7 @@ void main()
             else
             {
                 const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
-                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx4 * psc(K) + (k + ly);
+                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + min(gx4, uvec4(psc(N) - 1)) * psc(K) + (k + ly);
 
                 const uvec4 bi4d4 = bi4 / 4;
                 const uvec4 bi4m4 = bi4 % 4;
@@ -228,7 +228,7 @@ void main()
         afpvec4 a;
         {
             const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
-            const uvec4 ai4 = gz * psc(A_cstep) + gy4 * psc(K) + k;
+            const uvec4 ai4 = gz * psc(A_cstep) + min(gy4, uvec4(psc(M) - 1)) * psc(K) + k;
 
             const uvec4 ai4d4 = ai4 / 4;
             const uvec4 ai4m4 = ai4 % 4;
@@ -249,7 +249,7 @@ void main()
             }
             else
             {
-                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + k * psc(N) + gx * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + k * psc(N) + min(gx * 4 + uvec4(0, 1, 2, 3), uvec4(psc(N) - 1));
 
                 const uvec4 bi4d4 = bi4 / 4;
                 const uvec4 bi4m4 = bi4 % 4;
@@ -263,7 +263,7 @@ void main()
         else
         {
             const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
-            const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx4 * psc(K) + k;
+            const uvec4 bi4 = (gz / psc(num_heads_per_group)) * psc(B_cstep) + min(gx4, uvec4(psc(N) - 1)) * psc(K) + k;
 
             const uvec4 bi4d4 = bi4 / 4;
             const uvec4 bi4m4 = bi4 % 4;
@@ -297,28 +297,29 @@ void main()
     if (attn_mask == 1)
     {
         const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
-        uvec4 mi4 = gy4 * psc(N) + gx * 4;
+        uvec4 mi4 = min(gy4, uvec4(psc(M) - 1)) * psc(N) + gx * 4;
+        const uvec4 mj4 = min(gx * 4 + uvec4(0, 1, 2, 3), uvec4(psc(N) - 1)) - gx * 4;
         if (psc(attn_mask_dims) == 3)
         {
             mi4 += gz * psc(mask_cstep);
         }
 
-        sum0.r += buffer_ld1(mask_blob_data, mi4.r + 0);
-        sum0.g += buffer_ld1(mask_blob_data, mi4.r + 1);
-        sum0.b += buffer_ld1(mask_blob_data, mi4.r + 2);
-        sum0.a += buffer_ld1(mask_blob_data, mi4.r + 3);
-        sum1.r += buffer_ld1(mask_blob_data, mi4.g + 0);
-        sum1.g += buffer_ld1(mask_blob_data, mi4.g + 1);
-        sum1.b += buffer_ld1(mask_blob_data, mi4.g + 2);
-        sum1.a += buffer_ld1(mask_blob_data, mi4.g + 3);
-        sum2.r += buffer_ld1(mask_blob_data, mi4.b + 0);
-        sum2.g += buffer_ld1(mask_blob_data, mi4.b + 1);
-        sum2.b += buffer_ld1(mask_blob_data, mi4.b + 2);
-        sum2.a += buffer_ld1(mask_blob_data, mi4.b + 3);
-        sum3.r += buffer_ld1(mask_blob_data, mi4.a + 0);
-        sum3.g += buffer_ld1(mask_blob_data, mi4.a + 1);
-        sum3.b += buffer_ld1(mask_blob_data, mi4.a + 2);
-        sum3.a += buffer_ld1(mask_blob_data, mi4.a + 3);
+        sum0.r += buffer_ld1(mask_blob_data, mi4.r + mj4.r);
+        sum0.g += buffer_ld1(mask_blob_data, mi4.r + mj4.g);
+        sum0.b += buffer_ld1(mask_blob_data, mi4.r + mj4.b);
+        sum0.a += buffer_ld1(mask_blob_data, mi4.r + mj4.a);
+        sum1.r += buffer_ld1(mask_blob_data, mi4.g + mj4.r);
+        sum1.g += buffer_ld1(mask_blob_data, mi4.g + mj4.g);
+        sum1.b += buffer_ld1(mask_blob_data, mi4.g + mj4.b);
+        sum1.a += buffer_ld1(mask_blob_data, mi4.g + mj4.a);
+        sum2.r += buffer_ld1(mask_blob_data, mi4.b + mj4.r);
+        sum2.g += buffer_ld1(mask_blob_data, mi4.b + mj4.g);
+        sum2.b += buffer_ld1(mask_blob_data, mi4.b + mj4.b);
+        sum2.a += buffer_ld1(mask_blob_data, mi4.b + mj4.a);
+        sum3.r += buffer_ld1(mask_blob_data, mi4.a + mj4.r);
+        sum3.g += buffer_ld1(mask_blob_data, mi4.a + mj4.g);
+        sum3.b += buffer_ld1(mask_blob_data, mi4.a + mj4.b);
+        sum3.a += buffer_ld1(mask_blob_data, mi4.a + mj4.a);
     }
 
     {
