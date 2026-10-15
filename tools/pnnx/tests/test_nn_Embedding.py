@@ -38,8 +38,40 @@ def test():
 
     return torch.equal(a, b)
 
+
+class RenormModel(nn.Module):
+    def __init__(self, norm_type):
+        super(RenormModel, self).__init__()
+        self.embed = nn.Embedding(6, 3, max_norm=1.0, norm_type=norm_type)
+        with torch.no_grad():
+            self.embed.weight.copy_(torch.arange(1, 19, dtype=torch.float32).reshape(6, 3))
+
+    def forward(self, x):
+        return self.embed(x)
+
+def test_renorm():
+    import os
+    x = torch.tensor([0, 0], dtype=torch.int)
+    probe = torch.tensor([4, 5], dtype=torch.int)
+    for i, norm_type in enumerate([1.0, 2.0, 0.5]):
+        net = RenormModel(norm_type).eval()
+        mod = torch.jit.trace(net, x)
+        name = "test_nn_Embedding_renorm_" + str(i)
+        mod.save(name + ".pt")
+        if os.system("../src/pnnx " + name + ".pt inputshape=[2]i32 fp16=0") != 0:
+            return False
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(name, name + "_pnnx.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        expected = net(probe)
+        actual = module.Model().eval()(probe)
+        if not torch.allclose(expected, actual, 1e-6, 1e-6):
+            return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_renorm():
         exit(0)
     else:
         exit(1)
