@@ -33,11 +33,13 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
         const float* ptr = bottom_blob.batch(b).channel(q);
         unsigned short* outptr = top_blob.batch(b).channel(q);
 
-#if __riscv_vector && __riscv_xtheadvector
-        unsigned long old_fxcr = set_bfloat16_xtheadvector();
-#endif
         int n = size;
 #if __riscv_vector
+#if __riscv_xtheadvector
+        unsigned long old_fxcr = csrr_fxcr();
+        // Enable BF16 with round-to-nearest-even.
+        old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e32m4(n);
@@ -54,10 +56,11 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
             outptr += vl;
             n -= vl;
         }
-#endif // __riscv_vector
-#if __riscv_vector && __riscv_xtheadvector
-        restore_bfloat16_xtheadvector(old_fxcr);
+#if __riscv_xtheadvector
+        // Restore FXCR while retaining accrued exception flags, including FE.
+        csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
+#endif // __riscv_vector
         for (; n > 0; n--)
         {
             *outptr++ = float32_to_bfloat16(*ptr++);
@@ -92,11 +95,13 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
         const unsigned short* ptr = bottom_blob.batch(b).channel(q);
         float* outptr = top_blob.batch(b).channel(q);
 
-#if __riscv_vector && __riscv_xtheadvector
-        unsigned long old_fxcr = set_bfloat16_xtheadvector();
-#endif
         int n = size;
 #if __riscv_vector
+#if __riscv_xtheadvector
+        unsigned long old_fxcr = csrr_fxcr();
+        // Enable BF16 with round-to-nearest-even.
+        old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e32m4(n);
@@ -114,10 +119,11 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
             outptr += vl;
             n -= vl;
         }
-#endif // __riscv_vector
-#if __riscv_vector && __riscv_xtheadvector
-        restore_bfloat16_xtheadvector(old_fxcr);
+#if __riscv_xtheadvector
+        // Restore FXCR while retaining accrued exception flags, including FE.
+        csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
+#endif // __riscv_vector
         for (; n > 0; n--)
         {
             *outptr++ = bfloat16_to_float32(*ptr++);
