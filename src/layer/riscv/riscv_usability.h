@@ -132,13 +132,14 @@ static inline unsigned long set_bfloat16_xtheadvector()
 
 static inline void restore_bfloat16_xtheadvector(unsigned long old_fxcr)
 {
-    const unsigned long old_frm = (old_fxcr >> 24) & 7;
-    const unsigned long clear_bf16 = ~old_fxcr & (1ul << 31);
-    // Restore FRM and only the BF16 mode bit, retaining newly raised fflags.
-    asm volatile("csrw frm, %0\n\t"
-                 "csrc 0x800, %1"
-                 :
-                 : "r"(old_frm), "r"(clear_bf16)
+    unsigned long flags;
+    // Restore FXCR while retaining newly accrued exception flags, including FE.
+    asm volatile("csrr %0, 0x800\n\t"
+                 "andi %0, %0, 0x3f\n\t"
+                 "or %0, %0, %1\n\t"
+                 "csrw 0x800, %0"
+                 : "=&r"(flags)
+                 : "r"(old_fxcr)
                  : "memory", "frm");
 }
 
