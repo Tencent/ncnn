@@ -116,6 +116,57 @@ static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 }
 
 #if NCNN_BF16
+#if __riscv_xtheadvector
+static inline unsigned long set_bfloat16_xtheadvector()
+{
+    unsigned long old_fxcr;
+    const unsigned long bf16 = 1ul << 31;
+    // FXCR.BF16 selects bfloat16 for the existing half-precision conversions.
+    asm volatile("csrrs %0, 0x800, %1\n\t"
+                 "csrwi frm, 0"
+                 : "=r"(old_fxcr)
+                 : "r"(bf16)
+                 : "memory", "frm");
+    return old_fxcr;
+}
+
+static inline void restore_bfloat16_xtheadvector(unsigned long old_fxcr)
+{
+    const unsigned long old_frm = (old_fxcr >> 24) & 7;
+    const unsigned long clear_bf16 = ~old_fxcr & (1ul << 31);
+    // Restore FRM and only the BF16 mode bit, retaining newly raised fflags.
+    asm volatile("csrw frm, %0\n\t"
+                 "csrc 0x800, %1"
+                 :
+                 : "r"(old_frm), "r"(clear_bf16)
+                 : "memory", "frm");
+}
+
+static inline vuint16m2_t float2bfloat_xtheadvector(vfloat32m4_t v, size_t vl, unsigned long& old_fxcr)
+{
+    vuint16m2_t out;
+    // Carry the saved mode through each conversion to order it between the
+    // mode switch and restore, including when the helpers are inlined.
+    asm volatile("th.vsetvli zero, %3, e16, m2\n\t"
+                 "th.vfncvt.f.f.v %0, %2"
+                 : "=&vr"(out), "+r"(old_fxcr)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+}
+
+static inline vfloat32m4_t bfloat2float_xtheadvector(vuint16m2_t v, size_t vl, unsigned long& old_fxcr)
+{
+    vfloat32m4_t out;
+    asm volatile("th.vsetvli zero, %3, e16, m2\n\t"
+                 "th.vfwcvt.f.f.v %0, %2"
+                 : "=&vr"(out), "+r"(old_fxcr)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+}
+#endif // __riscv_xtheadvector
+
 static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
 {
     vuint32m2_t u = __riscv_vwcvtu_x_x_v_u32m2(v, vl);

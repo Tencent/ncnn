@@ -57,8 +57,8 @@ static int test_clip_3()
            || test_clip(RandomMat(127), -1.f, 1.f);
 }
 
-#if NCNN_BF16 && NCNN_RVV
-static int test_clip_bf16_storage(int elempack)
+#if NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
+static int test_clip_bf16_storage(int elempack, unsigned int mode)
 {
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -107,27 +107,28 @@ static int test_clip_bf16_storage(int elempack)
     int ret = op->load_param(pd);
     if (ret == 0) ret = op->create_pipeline(opt);
 #if __riscv_flen
-    unsigned int original_rounding;
-    // Test a non-RNE ambient mode without depending on libc fenv support.
-    asm volatile("fsrmi %0, 3"
-                 : "=r"(original_rounding)
-                 :
+    unsigned int original_fcsr;
+    // Keep a pre-existing divide-by-zero flag across the conversion.
+    const unsigned int fcsr = (mode << 5) | 8;
+    asm volatile("csrrw %0, fcsr, %1"
+                 : "=r"(original_fcsr)
+                 : "r"(fcsr)
                  : "memory");
 #endif
     if (ret == 0) ret = op->forward_inplace(a, opt);
 #if __riscv_flen
-    unsigned int rounding;
-    asm volatile("csrr %0, frm"
-                 : "=r"(rounding)
+    unsigned int actual_fcsr;
+    asm volatile("csrr %0, fcsr"
+                 : "=r"(actual_fcsr)
                  :
                  : "memory");
-    asm volatile("csrw frm, %0"
+    asm volatile("csrw fcsr, %0"
                  :
-                 : "r"(original_rounding)
+                 : "r"(original_fcsr)
                  : "memory");
-    if (rounding != 3)
+    if ((actual_fcsr >> 5) != mode || (actual_fcsr & 8) == 0)
     {
-        fprintf(stderr, "test_clip_bf16_storage changed rounding mode\n");
+        fprintf(stderr, "test_clip_bf16_storage changed floating-point state mode=%u fcsr=%u\n", mode, actual_fcsr);
         ret = -1;
     }
 #endif
@@ -151,17 +152,28 @@ static int test_clip_bf16_storage(int elempack)
 
     return 0;
 }
-#endif // NCNN_BF16 && NCNN_RVV
+#endif // NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
 
 int main()
 {
     SRAND(7767517);
 
-#if NCNN_BF16 && NCNN_RVV
-    if (test_clip_bf16_storage(1) != 0)
-        return -1;
-    if (ncnn::cpu_support_riscv_v() && test_clip_bf16_storage(ncnn::cpu_riscv_vlenb() / 2) != 0)
-        return -1;
+#if NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
+#if __riscv_vector || !NCNN_RUNTIME_CPU
+    bool use_vector = true;
+#else
+    bool use_vector = ncnn::cpu_support_riscv_v();
+#endif
+#if NCNN_XTHEADVECTOR
+    use_vector = use_vector || ncnn::cpu_support_riscv_xtheadvector();
+#endif
+    for (unsigned int mode = 0; mode < 5; mode++)
+    {
+        if (test_clip_bf16_storage(1, mode) != 0)
+            return -1;
+        if (use_vector && test_clip_bf16_storage(4, mode) != 0)
+            return -1;
+    }
 #endif
 
     return 0

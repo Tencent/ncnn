@@ -187,6 +187,12 @@ static int test_cpu_omp_nested()
 
 static int test_cpu_riscv_bf16()
 {
+    if ((ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector()) && ncnn::cpu_riscv_vlenb() <= 0)
+    {
+        fprintf(stderr, "The riscv vector length must be positive when V or XTheadVector is supported\n");
+        return 1;
+    }
+
     const int zvfbfmin = ncnn::cpu_support_riscv_zvfbfmin();
     const int zvfbfwma = ncnn::cpu_support_riscv_zvfbfwma();
 
