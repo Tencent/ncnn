@@ -58,7 +58,7 @@ def test_renorm():
     import os
     x = torch.tensor([0, 0], dtype=torch.int)
     probe = torch.tensor([4, 5], dtype=torch.int)
-    for i, norm_type in enumerate([1.0, 2.0, 0.5]):
+    for i, norm_type in enumerate([1.0, 2.0, 0.5, float("inf"), float("-inf"), float("nan")]):
         net = RenormModel(norm_type).eval()
         mod = torch.jit.trace(net, x)
         name = "test_nn_Embedding_renorm_" + str(i)

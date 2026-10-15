@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -1544,8 +1545,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 if (param.type == 3)
                 {
-                    std::string fs = float_to_string(param.f);
-                    fprintf(pyfp, "%s", fs.c_str());
+                    if (std::isnan(param.f))
+                        fprintf(pyfp, "float('nan')");
+                    else if (std::isinf(param.f))
+                        fprintf(pyfp, "float('%sinf')", param.f < 0 ? "-" : "");
+                    else
+                    {
+                        std::string fs = float_to_string(param.f);
+                        fprintf(pyfp, "%s", fs.c_str());
+                    }
                 }
                 if (param.type == 4)
                 {

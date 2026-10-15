@@ -40,9 +40,9 @@ def test():
 
 
 class RenormModel(nn.Module):
-    def __init__(self, norm_type):
+    def __init__(self, norm_type, max_norm=1.0):
         super(RenormModel, self).__init__()
-        self.embed = nn.Embedding(6, 3, max_norm=1.0, norm_type=norm_type)
+        self.embed = nn.Embedding(6, 3, max_norm=max_norm, norm_type=norm_type)
         with torch.no_grad():
             self.embed.weight.copy_(torch.arange(1, 19, dtype=torch.float32).reshape(6, 3))
 
@@ -53,8 +53,11 @@ def test_renorm():
     import os
     x = torch.tensor([0, 0], dtype=torch.int)
     probe = torch.tensor([4, 5], dtype=torch.int)
-    for i, norm_type in enumerate([1.0, 2.0, 0.5]):
-        net = RenormModel(norm_type).eval()
+    cases = [(1.0, 1.0), (1.0, 2.0), (1.0, 0.5),
+             (float("inf"), 2.0), (float("nan"), 2.0),
+             (1.0, float("inf")), (1.0, float("-inf")), (1.0, float("nan"))]
+    for i, (max_norm, norm_type) in enumerate(cases):
+        net = RenormModel(norm_type, max_norm).eval()
         mod = torch.jit.trace(net, x)
         name = "test_nn_Embedding_renorm_" + str(i)
         mod.save(name + ".pt")
