@@ -44,14 +44,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
         {
             size_t vl = __riscv_vsetvl_e32m4(n);
             vfloat32m4_t _p = __riscv_vle32_v_f32m4(ptr, vl);
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-            vbfloat16m2_t _outp = __riscv_vfncvtbf16_f_f_w_bf16m2_rm(_p, __RISCV_FRM_RNE, vl);
-            __riscv_vse16_v_u16m2(outptr, __riscv_vreinterpret_v_bf16m2_u16m2(_outp), vl);
-#elif __riscv_xtheadvector
-            __riscv_vse16_v_u16m2(outptr, float2bfloat_xtheadvector(_p, vl, old_fxcr), vl);
-#else
             __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(_p, vl), vl);
-#endif
             ptr += vl;
             outptr += vl;
             n -= vl;
@@ -105,16 +98,8 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e32m4(n);
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-            vbfloat16m2_t _p = __riscv_vreinterpret_v_u16m2_bf16m2(__riscv_vle16_v_u16m2(ptr, vl));
-            __riscv_vse32_v_f32m4(outptr, __riscv_vfwcvtbf16_f_f_v_f32m4(_p, vl), vl);
-#elif __riscv_xtheadvector
-            vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
-            __riscv_vse32_v_f32m4(outptr, bfloat2float_xtheadvector(_p, vl, old_fxcr), vl);
-#else
             vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
             __riscv_vse32_v_f32m4(outptr, bfloat2float_rvv(_p, vl), vl);
-#endif
             ptr += vl;
             outptr += vl;
             n -= vl;

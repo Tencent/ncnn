@@ -38,24 +38,10 @@ static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option&
         {
             size_t vl = __riscv_vsetvl_e16m2(n);
 
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-            vbfloat16m2_t _p = __riscv_vreinterpret_v_u16m2_bf16m2(__riscv_vle16_v_u16m2(ptr, vl));
-            vfloat32m4_t _v = __riscv_vfwcvtbf16_f_f_v_f32m4(_p, vl);
-#elif __riscv_xtheadvector
-            vfloat32m4_t _v = bfloat2float_xtheadvector(__riscv_vle16_v_u16m2(ptr, vl), vl, old_fxcr);
-#else
             vfloat32m4_t _v = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-#endif
             _v = __riscv_vfmax_vf_f32m4(_v, min, vl);
             _v = __riscv_vfmin_vf_f32m4(_v, max, vl);
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-            _p = __riscv_vfncvtbf16_f_f_w_bf16m2_rm(_v, __RISCV_FRM_RNE, vl);
-            __riscv_vse16_v_u16m2(ptr, __riscv_vreinterpret_v_bf16m2_u16m2(_p), vl);
-#elif __riscv_xtheadvector
-            __riscv_vse16_v_u16m2(ptr, float2bfloat_xtheadvector(_v, vl, old_fxcr), vl);
-#else
             __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_v, vl), vl);
-#endif
 
             ptr += vl;
             n -= vl;
