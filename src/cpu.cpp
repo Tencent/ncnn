@@ -3006,7 +3006,7 @@ int cpu_riscv_vlenb()
 #endif
     try_initialize_global_cpu_info();
 #if __riscv
-    if (!cpu_support_riscv_v())
+    if (!cpu_support_riscv_v() && !cpu_support_riscv_xtheadvector())
         return 0;
 
     int a = 0;

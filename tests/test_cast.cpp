@@ -180,6 +180,15 @@ static int test_cast_bfloat16_bits(int elempack)
     use_native_conversion = true;
 #endif
 #endif
+    bool use_xthead_conversion = false;
+#if NCNN_XTHEADVECTOR
+#if __riscv_xtheadvector || (!NCNN_RUNTIME_CPU && !NCNN_RVV)
+    use_xthead_conversion = true;
+#elif NCNN_RUNTIME_CPU
+    use_xthead_conversion = ncnn::cpu_support_riscv_xtheadvector();
+#endif
+    use_native_conversion = use_native_conversion || use_xthead_conversion;
+#endif
     const int batch = NCNN_BATCH ? 2 : 1;
     ncnn::Mat a(37, 1, 3, (size_t)4u * elempack, elempack, batch);
     ncnn::Mat a16(37, 1, 3, (size_t)2u * elempack, elempack, batch);
@@ -236,7 +245,7 @@ static int test_cast_bfloat16_bits(int elempack)
                 unsigned int expected32 = (unsigned int)p16[i] << 16;
                 if (use_native_conversion)
                 {
-                    // Zvfbfmin uses RNE and produces canonical NaNs in both directions.
+                    // Native BF16 conversion uses RNE. XThead DQNaN may propagate NaN payloads.
                     unsigned int fp32;
                     memcpy(&fp32, p + i, sizeof(fp32));
                     if ((fp32 & 0x7fffffff) > 0x7f800000)
@@ -244,7 +253,18 @@ static int test_cast_bfloat16_bits(int elempack)
                     if ((p16[i] & 0x7fff) > 0x7f80)
                         expected32 = 0x7fc00000;
                 }
-                if (r16[i] != expected || bits != expected32)
+                bool narrow_matches = r16[i] == expected;
+                bool widen_matches = bits == expected32;
+                if (use_xthead_conversion)
+                {
+                    unsigned int fp32;
+                    memcpy(&fp32, p + i, sizeof(fp32));
+                    if ((fp32 & 0x7fffffff) > 0x7f800000)
+                        narrow_matches = (r16[i] & 0x7fc0) == 0x7fc0;
+                    if ((p16[i] & 0x7fff) > 0x7f80)
+                        widen_matches = (bits & 0x7fc00000) == 0x7fc00000;
+                }
+                if (!narrow_matches || !widen_matches)
                 {
                     fprintf(stderr, "test_cast_bfloat16_bits failed elempack=%d batch=%d channel=%d i=%d native=%d expected=%04x/%08x actual=%04x/%08x\n", elempack, b, q, i, use_native_conversion, expected, expected32, r16[i], bits);
                     return -1;
@@ -258,31 +278,33 @@ static int test_cast_bfloat16_bits(int elempack)
 static int test_cast_bfloat16_rounding()
 {
 #if __riscv_flen
-    unsigned int original_rounding;
-    asm volatile("csrr %0, frm"
-                 : "=r"(original_rounding)
+    unsigned int original_fcsr;
+    asm volatile("csrr %0, fcsr"
+                 : "=r"(original_fcsr)
                  :
                  : "memory");
     // RNE, RTZ, RDN, RUP and RMM must all leave the BF16 conversion unchanged.
     for (unsigned int mode = 0; mode < 5; mode++)
     {
-        asm volatile("csrw frm, %0"
+        // Keep a pre-existing divide-by-zero flag across both conversions.
+        const unsigned int fcsr = (mode << 5) | 8;
+        asm volatile("csrw fcsr, %0"
                      :
-                     : "r"(mode)
+                     : "r"(fcsr)
                      : "memory");
         int ret = test_cast_bfloat16_bits(1) || test_cast_bfloat16_bits(4);
-        unsigned int rounding;
-        asm volatile("csrr %0, frm"
-                     : "=r"(rounding)
+        unsigned int actual_fcsr;
+        asm volatile("csrr %0, fcsr"
+                     : "=r"(actual_fcsr)
                      :
                      : "memory");
-        asm volatile("csrw frm, %0"
+        asm volatile("csrw fcsr, %0"
                      :
-                     : "r"(original_rounding)
+                     : "r"(original_fcsr)
                      : "memory");
-        if (ret != 0 || rounding != mode)
+        if (ret != 0 || (actual_fcsr >> 5) != mode || (actual_fcsr & 8) == 0)
         {
-            fprintf(stderr, "test_cast_bfloat16_rounding failed mode=%u actual=%u\n", mode, rounding);
+            fprintf(stderr, "test_cast_bfloat16_rounding failed mode=%u fcsr=%u\n", mode, actual_fcsr);
             return -1;
         }
     }

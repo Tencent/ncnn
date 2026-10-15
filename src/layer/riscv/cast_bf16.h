@@ -33,6 +33,9 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
         const float* ptr = bottom_blob.batch(b).channel(q);
         unsigned short* outptr = top_blob.batch(b).channel(q);
 
+#if __riscv_vector && __riscv_xtheadvector
+        unsigned long old_fxcr = set_bfloat16_xtheadvector();
+#endif
         int n = size;
 #if __riscv_vector
         while (n > 0)
@@ -42,6 +45,8 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
             vbfloat16m2_t _outp = __riscv_vfncvtbf16_f_f_w_bf16m2_rm(_p, __RISCV_FRM_RNE, vl);
             __riscv_vse16_v_u16m2(outptr, __riscv_vreinterpret_v_bf16m2_u16m2(_outp), vl);
+#elif __riscv_xtheadvector
+            __riscv_vse16_v_u16m2(outptr, float2bfloat_xtheadvector(_p, vl, old_fxcr), vl);
 #else
             __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(_p, vl), vl);
 #endif
@@ -50,6 +55,9 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
             n -= vl;
         }
 #endif // __riscv_vector
+#if __riscv_vector && __riscv_xtheadvector
+        restore_bfloat16_xtheadvector(old_fxcr);
+#endif
         for (; n > 0; n--)
         {
             *outptr++ = float32_to_bfloat16(*ptr++);
@@ -84,6 +92,9 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
         const unsigned short* ptr = bottom_blob.batch(b).channel(q);
         float* outptr = top_blob.batch(b).channel(q);
 
+#if __riscv_vector && __riscv_xtheadvector
+        unsigned long old_fxcr = set_bfloat16_xtheadvector();
+#endif
         int n = size;
 #if __riscv_vector
         while (n > 0)
@@ -92,6 +103,9 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
             vbfloat16m2_t _p = __riscv_vreinterpret_v_u16m2_bf16m2(__riscv_vle16_v_u16m2(ptr, vl));
             __riscv_vse32_v_f32m4(outptr, __riscv_vfwcvtbf16_f_f_v_f32m4(_p, vl), vl);
+#elif __riscv_xtheadvector
+            vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
+            __riscv_vse32_v_f32m4(outptr, bfloat2float_xtheadvector(_p, vl, old_fxcr), vl);
 #else
             vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
             __riscv_vse32_v_f32m4(outptr, bfloat2float_rvv(_p, vl), vl);
@@ -101,6 +115,9 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
             n -= vl;
         }
 #endif // __riscv_vector
+#if __riscv_vector && __riscv_xtheadvector
+        restore_bfloat16_xtheadvector(old_fxcr);
+#endif
         for (; n > 0; n--)
         {
             *outptr++ = bfloat16_to_float32(*ptr++);
