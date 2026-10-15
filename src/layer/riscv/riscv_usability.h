@@ -117,32 +117,6 @@ static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 
 #if NCNN_BF16
 #if __riscv_xtheadvector
-static inline unsigned long set_bfloat16_xtheadvector()
-{
-    unsigned long old_fxcr;
-    const unsigned long bf16 = 1ul << 31;
-    // FXCR.BF16 selects bfloat16 for the existing half-precision conversions.
-    asm volatile("csrrs %0, 0x800, %1\n\t"
-                 "csrwi frm, 0"
-                 : "=r"(old_fxcr)
-                 : "r"(bf16)
-                 : "memory", "frm");
-    return old_fxcr;
-}
-
-static inline void restore_bfloat16_xtheadvector(unsigned long old_fxcr)
-{
-    unsigned long flags;
-    // Restore FXCR while retaining newly accrued exception flags, including FE.
-    asm volatile("csrr %0, 0x800\n\t"
-                 "andi %0, %0, 0x3f\n\t"
-                 "or %0, %0, %1\n\t"
-                 "csrw 0x800, %0"
-                 : "=&r"(flags)
-                 : "r"(old_fxcr)
-                 : "memory", "frm");
-}
-
 static inline vuint16m2_t float2bfloat_xtheadvector(vfloat32m4_t v, size_t vl, unsigned long& old_fxcr)
 {
     vuint16m2_t out;
@@ -212,6 +186,28 @@ static inline int csrr_vlenb()
                  : "memory");
     return a;
 }
+
+#if __riscv_xtheadvector
+static inline unsigned long csrr_fxcr()
+{
+    unsigned long a = 0;
+    asm volatile("csrr %0, 0x800"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
+
+static inline unsigned long csrrw_fxcr(unsigned long value)
+{
+    unsigned long a = 0;
+    asm volatile("csrrw %0, 0x800, %1"
+                 : "=r"(a)
+                 : "r"(value)
+                 : "memory", "frm");
+    return a;
+}
+#endif // __riscv_xtheadvector
 
 static inline vfloat32m8_t __riscv_vle32_v_f32m8_f32m1(const float* ptr)
 {
