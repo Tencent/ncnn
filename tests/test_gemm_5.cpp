@@ -240,7 +240,7 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = true;
 
-    // Exact bf16 values keep the fp32 reference independent of Cast and its tolerance.
+    // exact bf16 values keep the fp32 reference independent of Cast and its tolerance
     std::vector<ncnn::Mat> a(3);
     a[0].create(K, M, (size_t)2u);
     a[1].create(K, N, (size_t)2u);
@@ -318,14 +318,14 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
     {
         for (int j = 0; j < N; j++)
         {
-            // ncnn Gemm applies alpha to both AB and beta * C.
+            // ncnn Gemm applies alpha to both AB and beta * C
             float expected = 0.25f * (((i - j) % 7) * 0.25f);
             for (int k = 0; k < K; k++)
                 expected += (((i * 3 + k) % 11 - 5) * 0.125f) * (((k + j * 2) % 13 - 6) * 0.0625f);
             expected *= 1.5f;
             if (output_elemtype != 1)
             {
-                // This shape uses RVV stores, which round ties to even.
+                // this shape uses RVV stores, which round ties to even
                 unsigned int bits;
                 memcpy(&bits, &expected, sizeof(bits));
                 expected = ncnn::bfloat16_to_float32((unsigned short)((bits + 0x7fff + ((bits >> 16) & 1)) >> 16));
@@ -359,7 +359,7 @@ int main()
                     if (test_gemm_bf16_storage(packing, output_elemtype, output_transpose, output_N1M) != 0)
                         return -1;
 
-    // Dynamic fp32 matrix C has a smaller natural pack than bf16 A and B.
+    // dynamic fp32 matrix C has a smaller natural pack than bf16 A and B
     if (test_gemm_bf16_storage(1, 1, 0, 0, 1) != 0 || test_gemm_bf16_storage(1, 1, 1, 1, 1) != 0)
         return -1;
 #endif

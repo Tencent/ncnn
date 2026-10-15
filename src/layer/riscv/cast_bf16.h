@@ -37,7 +37,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __riscv_vector
 #if __riscv_xtheadvector
         unsigned long old_fxcr = csrr_fxcr();
-        // Enable BF16 with round-to-nearest-even.
+        // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
 #endif
         while (n > 0)
@@ -57,7 +57,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
             n -= vl;
         }
 #if __riscv_xtheadvector
-        // Restore FXCR while retaining accrued exception flags, including FE.
+        // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
 #endif // __riscv_vector
@@ -99,7 +99,7 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __riscv_vector
 #if __riscv_xtheadvector
         unsigned long old_fxcr = csrr_fxcr();
-        // Enable BF16 with round-to-nearest-even.
+        // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
 #endif
         while (n > 0)
@@ -120,7 +120,7 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
             n -= vl;
         }
 #if __riscv_xtheadvector
-        // Restore FXCR while retaining accrued exception flags, including FE.
+        // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
 #endif // __riscv_vector
