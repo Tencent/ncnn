@@ -2216,11 +2216,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, ", ");
                 }
 
-                if (op->outputs.size() == 1 && (op->type == "torch.chunk" || op->type == "torch.split" || op->type == "torch.unbind" || op->type == "torch.tensor_split"))
-                {
-                    fprintf(pyfp, ",");
-                }
-
                 if (op->type == "torch.max" || op->type == "torch.min")
                 {
                     if (op->has_param("dim") && op->outputs.size() == 1)

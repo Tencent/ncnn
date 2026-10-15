@@ -765,7 +765,6 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         t0 = get_current_time();
 
         onnx2pnnx::inline_containers(model);
-        onnx2pnnx::materialize_external_split_sizes(model, onnx_extdata_path, external_data);
 
         t1 = get_current_time();
 
@@ -854,7 +853,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     t0 = get_current_time();
 
-    onnx2pnnx::fuse_constant_as_attribute(model, onnx_extdata_path, external_data);
+    onnx2pnnx::fuse_constant_as_attribute(model);
 
     t1 = get_current_time();
 

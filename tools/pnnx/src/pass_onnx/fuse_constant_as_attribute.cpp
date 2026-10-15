@@ -63,76 +63,7 @@ static const char* get_constant_as_attribute(const std::string& op_type, int inp
     return NULL;
 }
 
-static bool load_external_split(onnx::TensorProto& tensor, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
-{
-    if (tensor.data_type() != onnx::TensorProto::INT64 || tensor.dims_size() != 1 || tensor.dims(0) < 0 || tensor.dims(0) > INT_MAX || (uint64_t)tensor.dims(0) > SIZE_MAX / sizeof(int64_t))
-        return false;
-
-    const size_t expected_length = (size_t)tensor.dims(0) * sizeof(int64_t);
-    size_t offset = 0;
-    size_t length = expected_length;
-    std::string location;
-    std::unordered_set<std::string> keys;
-    for (int i = 0; i < tensor.external_data_size(); i++)
-    {
-        const onnx::StringStringEntryProto& entry = tensor.external_data(i);
-        if (!keys.insert(entry.key()).second)
-            return false;
-        if (entry.key() == "location")
-            location = entry.value();
-        if (entry.key() != "offset" && entry.key() != "length")
-            continue;
-        size_t value = 0;
-        if (entry.value().empty())
-            return false;
-        for (size_t j = 0; j < entry.value().size(); j++)
-        {
-            const char c = entry.value()[j];
-            if (c < '0' || c > '9' || value > (SIZE_MAX - (c - '0')) / 10)
-                return false;
-            value = value * 10 + c - '0';
-        }
-        if (entry.key() == "offset")
-            offset = value;
-        else
-            length = value;
-    }
-    const size_t slash = external_data_path.find_last_of("/\\");
-    const std::string filename = external_data_path.substr(slash == std::string::npos ? 0 : slash + 1);
-    if (location.empty() || (location != external_data_path && location != filename) || length != expected_length || offset > external_data.size() || length > external_data.size() - offset)
-        return false;
-
-    tensor.clear_int64_data();
-    tensor.set_raw_data(length ? (const char*)external_data.data() + offset : "", length);
-    tensor.clear_external_data();
-    tensor.set_data_location(onnx::TensorProto::DEFAULT);
-    return true;
-}
-
-void materialize_external_split_sizes(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
-{
-    onnx::GraphProto* graph = model.mutable_graph();
-    std::unordered_set<std::string> split_sizes;
-    for (int i = 0; i < graph->node_size(); i++)
-    {
-        const onnx::NodeProto& node = graph->node(i);
-        if (node.op_type() == "Split" && (node.domain().empty() || node.domain() == "ai.onnx") && node.input_size() > 1)
-            split_sizes.insert(node.input(1));
-    }
-    for (int i = 0; i < graph->initializer_size(); i++)
-    {
-        onnx::TensorProto* tensor = graph->mutable_initializer(i);
-        if (!split_sizes.count(tensor->name()) || (tensor->data_location() != onnx::TensorProto::EXTERNAL && !tensor->external_data_size()))
-            continue;
-        onnx::TensorProto decoded = *tensor;
-        if (!load_external_split(decoded, external_data_path, external_data))
-            continue;
-        // ORT shape inference requires Split sizes to be inline.
-        *tensor = decoded;
-    }
-}
-
-void fuse_constant_as_attribute(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
+void fuse_constant_as_attribute(onnx::ModelProto& model)
 {
     // collect initializers
     std::unordered_map<std::string, int> initializers;
@@ -173,16 +104,9 @@ void fuse_constant_as_attribute(onnx::ModelProto& model, const std::string& exte
 
             // fprintf(stderr, "fuse_constant_as_attribute  %s %d -> %s\n", op_type.c_str(), j, attr_name);
 
-            const onnx::TensorProto& initializer = graph->initializer(initializers.at(input));
-            onnx::TensorProto external_tensor;
-            const bool external_split = op_type == "Split" && (initializer.data_location() == onnx::TensorProto::EXTERNAL || initializer.external_data_size());
-            if (external_split)
-            {
-                external_tensor = initializer;
-                if (!load_external_split(external_tensor, external_data_path, external_data))
-                    continue;
-            }
-            const onnx::TensorProto& tensor = external_split ? external_tensor : initializer;
+            const onnx::TensorProto& tensor = graph->initializer(initializers.at(input));
+            if (op_type == "Split" && (tensor.data_location() == onnx::TensorProto::EXTERNAL || tensor.external_data_size()))
+                continue;
 
             int64_t numel = 1;
             for (int k = 0; k < tensor.dims_size(); k++)

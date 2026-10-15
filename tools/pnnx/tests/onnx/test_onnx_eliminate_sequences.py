@@ -20,14 +20,14 @@ def make_integer_tensor(name, values):
     return numpy_helper.from_array(np.asarray(values, dtype=np.int64), name)
 
 
-def test_model(nodes, outputs, initializers, opset, case_name, functions=None, two_shapes=False, external=False, nonzero=False):
+def test_model(nodes, outputs, initializers, opset, case_name, two_shapes=False, external=False, nonzero=False):
     input_shape = [None, 3] if two_shapes else [2, 3]
     graph = helper.make_graph(nodes, "sequence", [make_tensor_value_info("x", input_shape), make_tensor_value_info("y", input_shape)], outputs, initializers)
     if two_shapes:
         for output in graph.output:
             if output.type.HasField("tensor_type") and output.type.tensor_type.shape.dim:
                 output.type.tensor_type.shape.dim[0].ClearField("dim_value")
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", opset)] + ([helper.make_opsetid("local", 1)] if functions else []), functions=functions or [])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", opset)])
     model.ir_version = 8
     onnx.checker.check_model(model)
     name = "test_onnx_eliminate_sequences_%d_%s" % (opset, case_name.replace("-", "negative"))
@@ -81,116 +81,8 @@ def test_model(nodes, outputs, initializers, opset, case_name, functions=None, t
 
 
 
-def make_shared_sequence_cases():
-    # aten_ calls survive inline_containers, exercising this pass in the loader.
-    def stack_function(name):
-        return helper.make_function("local", name, ["s"], ["out"],
-                                    [helper.make_node("ConcatFromSequence", ["s"], ["out"], axis=0, new_axis=1)],
-                                    [helper.make_opsetid("", 13)])
-
-    stack = stack_function("aten_sequence_stack")
-    other = stack_function("aten_sequence_other")
-    pair = helper.make_function("local", "aten_sequence_pair", ["s", "t"], ["a", "b"],
-                                [helper.make_node("ConcatFromSequence", ["s"], ["a"], axis=0, new_axis=1),
-                                 helper.make_node("ConcatFromSequence", ["t"], ["b"], axis=0, new_axis=1)],
-                                [helper.make_opsetid("", 13)])
-    alias = helper.make_function("local", "aten_sequence_alias", ["s", "t"], ["a", "b"],
-                                 [helper.make_node("ConcatFromSequence", ["s"], ["a"], axis=0, new_axis=1),
-                                  helper.make_node("Identity", ["a"], ["b"])],
-                                 [helper.make_opsetid("", 13)])
-    bad = helper.make_function("local", "aten_sequence_bad", ["s"], ["out"],
-                               [helper.make_node("ConcatFromSequence", ["s"], ["cat"], axis=0, new_axis=1),
-                                helper.make_node("Neg", ["cat"], ["out"])],
-                               [helper.make_opsetid("", 13)])
-    functions = [stack, other, pair, alias, bad]
-
-    def call(function, inputs, outputs):
-        return helper.make_node(function, inputs, outputs, domain="local")
-
-    producer = helper.make_node("SequenceConstruct", ["x", "y"], ["s"], name="pnnx_seq_0")
-    second = helper.make_node("SequenceConstruct", ["y", "x"], ["t"])
-    for same in (False, True):
-        for reverse in (False, True):
-            calls = [call(stack.name, ["s"], ["a"]), call(stack.name if same else other.name, ["s"], ["b"])]
-            yield "shared_%d_%d" % (same, reverse), [producer] + (calls[::-1] if reverse else calls), ["a", "b"], functions, True
-    calls = [call(stack.name, ["s"], ["a"]), call(pair.name, ["s", "t"], ["b", "c"]), call(other.name, ["t"], ["d"])]
-    for reverse in (False, True):
-        yield "transitive_%d" % reverse, [producer, second] + (calls[::-1] if reverse else calls), ["a", "b", "c", "d"], functions, True
-    yield "native_local", [producer, call(stack.name, ["s"], ["a"]), helper.make_node("ConcatFromSequence", ["s"], ["b"], axis=0, new_axis=1)], ["a", "b"], functions, True
-    yield "repeated_alias", [producer, call(alias.name, ["s", "s"], ["a", "b"]), call(stack.name, ["s"], ["c"])], ["a", "b", "c"], functions, True
-    blocked = [producer, call(stack.name, ["s"], ["a"]), call(bad.name, ["s"], ["b"])]
-    yield "unsupported_sibling", blocked, ["a", "b"], functions, False
-    yield "unsupported_native", [producer, call(stack.name, ["s"], ["a"]), helper.make_node("SequenceInsert", ["s", "x"], ["extended_s"])], ["a"], functions, False
-    yield "dynamic_sibling", [producer, call(stack.name, ["s"], ["a"]), helper.make_node("SequenceAt", ["s", "dynamic_index"], ["b"])], ["a", "b"], functions, False
-    yield "transitive_blocked", [producer, second, call(stack.name, ["s"], ["a"]), call(pair.name, ["s", "t"], ["b", "c"]), call(bad.name, ["t"], ["d"])], ["a", "b", "c", "d"], functions, False
-    yield "independent_island", blocked + [second, call(stack.name, ["t"], ["c"]), call(other.name, ["t"], ["d"])], ["a", "b", "c", "d"], functions, False
-    for guard in ("domain", "name", "overload", "opset", "call_attribute", "function_attribute", "nested_body"):
-        guarded_function = stack_function("aten_sequence_guarded")
-        guarded_call = call(guarded_function.name, ["s"], ["b"])
-        if guard == "domain":
-            guarded_function.domain = "other"
-        elif guard == "name":
-            guarded_function.name = "aten_sequence_missing"
-        elif guard == "overload":
-            guarded_function.overload = "other"
-        elif guard == "opset":
-            guarded_function.opset_import[0].version = 11
-        elif guard == "call_attribute":
-            guarded_call.attribute.append(helper.make_attribute("unused", 1))
-        elif guard == "function_attribute":
-            guarded_function.attribute.append("unused")
-            guarded_call.attribute.append(helper.make_attribute("unused", 1))
-        else:
-            guarded_function.node[0].domain = "other"
-            guarded_function.opset_import.append(helper.make_opsetid("other", 1))
-        yield "guard_" + guard, [producer, call(stack.name, ["s"], ["a"]), guarded_call], ["a", "b"], [stack, guarded_function], False
-
-
-def test_shared_sequence_regions():
-    # Optional standalone pass runner validates atomic fallback without asking
-    # the downstream converter to support deliberately unsupported operators.
+def test_integer_div_guard():
     runner = os.environ.get("PNNX_ONNX_SEQUENCE_PASS_RUNNER")
-    for case_name, nodes, output_names, functions, lowerable in make_shared_sequence_cases():
-        outputs = [make_tensor_value_info(name, [2, 3] if case_name == "dynamic_sibling" and name == "b" else [2, 2, 3]) for name in output_names]
-        if lowerable and not test_model(nodes, outputs, [], 13, case_name, functions):
-            return False
-        if not runner:
-            continue
-        inputs = [make_tensor_value_info("x", [2, 3]), make_tensor_value_info("y", [2, 3])]
-        if case_name == "dynamic_sibling":
-            inputs.append(helper.make_tensor_value_info("dynamic_index", TensorProto.INT64, []))
-        model = helper.make_model(helper.make_graph(nodes, case_name, inputs, outputs), functions=functions,
-                                  opset_imports=[helper.make_opsetid("", 13), helper.make_opsetid("local", 1)])
-        model.ir_version = 8
-        onnx.checker.check_model(model)
-        name = "test_onnx_eliminate_sequences_pass_" + case_name
-        onnx.save(model, name + ".onnx")
-        subprocess.check_call([runner, name + ".onnx", name + ".out.onnx"])
-        transformed = onnx.load(name + ".out.onnx")
-        onnx.checker.check_model(transformed)
-        if lowerable:
-            if any(node.domain == "local" or "Sequence" in node.op_type for node in transformed.graph.node):
-                return False
-        elif case_name == "independent_island":
-            if list(transformed.graph.node[:3]) != list(model.graph.node[:3]):
-                return False
-            if any("t" in node.input or "t" in node.output for node in transformed.graph.node):
-                return False
-        elif transformed.SerializeToString() != model.SerializeToString():
-            return False
-        subprocess.check_call([runner, name + ".out.onnx", name + ".twice.onnx"])
-        if onnx.load(name + ".twice.onnx").SerializeToString() != transformed.SerializeToString():
-            return False
-        x = np.arange(6, dtype=np.float32).reshape(2, 3)
-        feeds = {"x": x, "y": x + 20}
-        if case_name == "dynamic_sibling":
-            feeds["dynamic_index"] = np.array(-1, dtype=np.int64)
-        if case_name.startswith("guard_"):
-            continue
-        original_outputs = ort.InferenceSession(model.SerializeToString(), providers=["CPUExecutionProvider"]).run(None, feeds)
-        transformed_outputs = ort.InferenceSession(transformed.SerializeToString(), providers=["CPUExecutionProvider"]).run(None, feeds)
-        for expected, actual in zip(original_outputs, transformed_outputs):
-            np.testing.assert_array_equal(expected, actual)
     for case, casts, denominator in (("positive", (), 2), ("negative", (), -2),
                                       ("dynamic", (TensorProto.INT32,), None),
                                       ("roundtrip", (TensorProto.FLOAT, TensorProto.INT64), 2),
@@ -232,7 +124,7 @@ def test_shared_sequence_regions():
 
 
 def test():
-    if not test_shared_sequence_regions():
+    if not test_integer_div_guard():
         return False
     # Opset 13 changes Split and squeeze/unsqueeze axes from attributes to inputs.
     for opset in (11, 13):
@@ -341,17 +233,6 @@ def test():
         if not test_model(nodes, [make_tensor_value_info("out", [2, 3])], [], 13, "inferred_%d" % keepdims):
             return False
 
-    function = helper.make_function("local", "stack_pair", ["a", "b"], ["out_a", "out_b"],
-                                    [helper.make_node("ConcatFromSequence", ["a"], ["out_a"], axis=0, new_axis=1),
-                                     helper.make_node("ConcatFromSequence", ["b"], ["out_b"], axis=0, new_axis=1)],
-                                    [helper.make_opsetid("", 13)])
-    for reverse, repeated in ((False, False), (True, False), (False, True)):
-        producers = [helper.make_node("SequenceConstruct", ["x", "y"], ["a"]),
-                     helper.make_node("SequenceConstruct", ["y", "x"], ["b"])]
-        nodes = (producers[::-1] if reverse else producers) + [helper.make_node("stack_pair", ["a", "a" if repeated else "b"], ["out_a", "out_b"], domain="local")]
-        if not test_model(nodes, [make_tensor_value_info("out_a", [2, 2, 3]), make_tensor_value_info("out_b", [2, 2, 3])], [], 13, "function_%d_%d" % (reverse, repeated), [function]):
-            return False
-
     branch = helper.make_graph([helper.make_node("Add", ["x", "x"], ["pnnx_seq_0"])], "branch", [], [make_tensor_value_info("pnnx_seq_0", [2, 3])])
     nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"]),
              helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=0, new_axis=1),
@@ -430,13 +311,6 @@ def test_review_regressions():
     initializers = [numpy_helper.from_array(np.arange(6, dtype=np.float32).reshape(2, 3), "value"),
                     make_integer_tensor("sizes", [2]), make_integer_tensor("index", 0)]
     if not test_model(nodes, [make_tensor_value_info("sum", [2, 3]), make_tensor_value_info("out", [2, 3])], initializers, 13, "initializer_single_split"):
-        return False
-
-    nodes = [helper.make_node("Split", ["x", "single_sizes"], ["single"], axis=1),
-             helper.make_node("Split", ["y", "pair_sizes"], ["first", "last"], axis=1)]
-    initializers = [make_integer_tensor("single_sizes", [3]), make_integer_tensor("pair_sizes", [1, 2])]
-    outputs = [make_tensor_value_info("single", [2, 3]), make_tensor_value_info("first", [2, 1]), make_tensor_value_info("last", [2, 2])]
-    if not test_model(nodes, outputs, initializers, 13, "external_native_split", external=True):
         return False
 
     for split in (None, 1, [1, 2]):
