@@ -20,7 +20,7 @@ def make_integer_tensor(name, values):
     return numpy_helper.from_array(np.asarray(values, dtype=np.int64), name)
 
 
-def test_model(nodes, outputs, initializers, opset, case_name, functions=None, two_shapes=False):
+def test_model(nodes, outputs, initializers, opset, case_name, functions=None, two_shapes=False, external=False, nonzero=False):
     input_shape = [None, 3] if two_shapes else [2, 3]
     graph = helper.make_graph(nodes, "sequence", [make_tensor_value_info("x", input_shape), make_tensor_value_info("y", input_shape)], outputs, initializers)
     if two_shapes:
@@ -31,9 +31,17 @@ def test_model(nodes, outputs, initializers, opset, case_name, functions=None, t
     model.ir_version = 8
     onnx.checker.check_model(model)
     name = "test_onnx_eliminate_sequences_%d_%s" % (opset, case_name.replace("-", "negative"))
-    onnx.save(model, name + ".onnx")
+    if external:
+        if os.path.exists(name + ".onnx.data"):
+            os.remove(name + ".onnx.data")
+        onnx.save_model(model, name + ".onnx", save_as_external_data=True, all_tensors_to_one_file=True, location=name + ".onnx.data", size_threshold=0)
+    else:
+        onnx.save(model, name + ".onnx")
 
-    session = ort.InferenceSession(model.SerializeToString(), providers=["CPUExecutionProvider"])
+    reference_model = onnx.load(name + ".onnx")
+    if external:
+        onnx.external_data_helper.convert_model_from_external_data(reference_model)
+    session = ort.InferenceSession(reference_model.SerializeToString(), providers=["CPUExecutionProvider"])
     command = ["../../src/pnnx", name + ".onnx", "inputshape=[2,3],[2,3]"]
     if two_shapes:
         command.append("inputshape2=[4,3],[4,3]")
@@ -47,7 +55,7 @@ def test_model(nodes, outputs, initializers, opset, case_name, functions=None, t
     spec.loader.exec_module(module)
     net = module.Model().eval()
     for rows in ((2, 4) if two_shapes else (2,)):
-        x = torch.arange(rows * 3, dtype=torch.float32).reshape(rows, 3)
+        x = torch.arange(rows * 3, dtype=torch.float32).reshape(rows, 3) + int(nonzero)
         y = x + 20
         expected = session.run(None, {"x": x.numpy(), "y": y.numpy()})
         with torch.no_grad():
@@ -61,7 +69,13 @@ def test_model(nodes, outputs, initializers, opset, case_name, functions=None, t
         for expected_output, actual_output in zip(expected, actual):
             expected_output = np.asarray(expected_output)
             actual_output = actual_output.numpy() if isinstance(actual_output, torch.Tensor) else np.asarray(actual_output)
-            if expected_output.dtype != actual_output.dtype or expected_output.shape != actual_output.shape or not np.allclose(expected_output, actual_output, rtol=1e-5, atol=1e-5):
+            if expected_output.dtype != actual_output.dtype or expected_output.shape != actual_output.shape:
+                return False
+            if np.issubdtype(expected_output.dtype, np.floating) and expected_output.dtype != np.float64:
+                equal = np.allclose(expected_output, actual_output, rtol=1e-5, atol=1e-5)
+            else:
+                equal = np.array_equal(expected_output, actual_output)
+            if not equal:
                 return False
     return True
 
@@ -184,38 +198,99 @@ def test():
     if not test_shared_sequence_regions():
         return False
     for opset in (11, 13, 18):
+        nodes = []
+        outputs = []
+        constants = []
         for use_raw_data in (False, True):
-            index = make_integer_tensor("index", -1)
+            suffix = "raw" if use_raw_data else "typed"
+            index_name, seq, at, cat = [name + "_" + suffix for name in ("index", "seq", "at", "cat")]
+            index = make_integer_tensor(index_name, -1)
             if not use_raw_data:
                 index.ClearField("raw_data")
                 index.int64_data.append(-1)
-            nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"]),
-                     helper.make_node("SequenceAt", ["seq", "index"], ["at"]),
-                     helper.make_node("ConcatFromSequence", ["seq"], ["cat"], axis=1)]
-            if not test_model(nodes, [make_tensor_value_info("at", [2, 3]), make_tensor_value_info("cat", [2, 6])], [index], opset, "cat_at_%d" % use_raw_data):
-                return False
+            constants.append(index)
+            nodes.extend([helper.make_node("SequenceConstruct", ["x", "y"], [seq]),
+                          helper.make_node("SequenceAt", [seq, index_name], [at]),
+                          helper.make_node("ConcatFromSequence", [seq], [cat], axis=1)])
+            outputs.extend([make_tensor_value_info(at, [2, 3]), make_tensor_value_info(cat, [2, 6])])
+        if not test_model(nodes, outputs, constants, opset, "cat_at"):
+            return False
+        nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"])]
+        outputs = []
         for axis, shape in ((0, [2, 2, 3]), (1, [2, 2, 3]), (-1, [2, 3, 2])):
-            nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"]),
-                     helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=axis, new_axis=1)]
-            if not test_model(nodes, [make_tensor_value_info("out", shape)], [], opset, "stack_%d" % axis):
-                return False
+            name = "stack_" + str(axis).replace("-", "negative")
+            nodes.append(helper.make_node("ConcatFromSequence", ["seq"], [name], axis=axis, new_axis=1))
+            outputs.append(make_tensor_value_info(name, shape))
+        if not test_model(nodes, outputs, [], opset, "stack_axes"):
+            return False
+        nodes = []
+        outputs = []
+        constants = [make_integer_tensor("index", -1)]
         for case_name, sizes, keepdims, shape in (("unbind", None, 0, [2]), ("unit", None, 1, [2, 1]),
                                                  ("chunk", 2, 1, [2, 1]), ("sizes", [1, 2], 1, [2, 2])):
             inputs = ["x"]
-            constants = [make_integer_tensor("index", -1)]
             if sizes is not None:
-                inputs.append("sizes")
-                constants.append(make_integer_tensor("sizes", sizes))
-            nodes = [helper.make_node("SplitToSequence", inputs, ["seq"], axis=1, keepdims=keepdims),
-                     helper.make_node("SequenceAt", ["seq", "index"], ["out"])]
-            if not test_model(nodes, [make_tensor_value_info("out", shape)], constants, opset, case_name):
-                return False
+                inputs.append("sizes_" + case_name)
+                constants.append(make_integer_tensor(inputs[-1], sizes))
+            seq, out = "seq_" + case_name, "out_" + case_name
+            nodes.extend([helper.make_node("SplitToSequence", inputs, [seq], axis=1, keepdims=keepdims),
+                          helper.make_node("SequenceAt", [seq, "index"], [out])])
+            outputs.append(make_tensor_value_info(out, shape))
+        if not test_model(nodes, outputs, constants, opset, "split_variants"):
+            return False
         nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"], name="pnnx_seq_0"),
                  helper.make_node("Constant", [], ["index"], value=make_integer_tensor("", 0)),
                  helper.make_node("SequenceAt", ["seq", "index"], ["first"]),
                  helper.make_node("SequenceAt", ["seq", "index"], ["second"])]
         if not test_model(nodes, [make_tensor_value_info("first", [2, 3]), make_tensor_value_info("second", [2, 3])], [], opset, "aliases"):
             return False
+    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+             helper.make_node("SequenceLength", ["seq"], ["length"])]
+    outputs = [helper.make_tensor_value_info("length", TensorProto.INT64, [])]
+    constants = [make_integer_tensor("two", 2), make_integer_tensor("negative_two", -2)]
+    for constant in ("two", "negative_two"):
+        for reverse in (False, True):
+            operands = [constant, "length"] if reverse else ["length", constant]
+            for op_type in ("Div", "Equal", "Greater", "Less", "GreaterOrEqual", "LessOrEqual"):
+                output = "%s_%s_%d" % (op_type, constant, reverse)
+                nodes.append(helper.make_node(op_type, operands, [output]))
+                outputs.append(helper.make_tensor_value_info(output, TensorProto.INT64 if op_type == "Div" else TensorProto.BOOL, []))
+    if not test_model(nodes, outputs, constants, 13, "length_consumers"):
+        return False
+
+    for divisor in (2, -2):
+        nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+                 helper.make_node("SequenceLength", ["seq"], ["length"]),
+                 helper.make_node("Div", ["length", "divisor"], ["out"])]
+        if not test_model(nodes, [helper.make_tensor_value_info("out", TensorProto.INT64, [])],
+                          [make_integer_tensor("divisor", divisor)], 13, "length_div_%d" % divisor):
+            return False
+
+    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+             helper.make_node("SequenceLength", ["seq"], ["length"]),
+             helper.make_node("Cast", ["length"], ["double_length"], to=TensorProto.DOUBLE),
+             helper.make_node("Cast", ["x"], ["double_x"], to=TensorProto.DOUBLE)]
+    outputs = []
+    for op_type in ("Add", "Sub", "Mul", "Div", "Equal", "Greater", "Less"):
+        output = "double_" + op_type
+        nodes.append(helper.make_node(op_type, ["double_x", "double_length"], [output]))
+        outputs.append(helper.make_tensor_value_info(output, TensorProto.BOOL if op_type in ("Equal", "Greater", "Less") else TensorProto.DOUBLE, [2, 3]))
+    for op_type in ("Add", "Greater"):
+        output = "large_" + op_type
+        nodes.append(helper.make_node(op_type, ["length", "large"], [output]))
+        outputs.append(helper.make_tensor_value_info(output, TensorProto.BOOL if op_type == "Greater" else TensorProto.INT64, []))
+    if not test_model(nodes, outputs, [make_integer_tensor("large", 9007199254740993)], 13, "precise_length_consumers"):
+        return False
+
+    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+             helper.make_node("SequenceLength", ["seq"], ["length"]),
+             helper.make_node("Cast", ["length"], ["numerator"], to=TensorProto.INT32),
+             helper.make_node("Cast", ["x"], ["denominator"], to=TensorProto.INT32),
+             helper.make_node("Div", ["numerator", "denominator"], ["out"])]
+    # Real inputs are nonzero; synthetic folding inputs cast to zero.
+    if not test_model(nodes, [helper.make_tensor_value_info("out", TensorProto.INT32, [2, 3])], [], 13, "fold_run_failure", two_shapes=True, nonzero=True):
+        return False
+
     for outputs_order in (("length",), ("length", "intermediate"), ("intermediate", "length")):
         nodes = [helper.make_node("Add", ["x", "y"], ["intermediate"]),
                  helper.make_node("SplitToSequence", ["intermediate"], ["seq"], axis=1),
@@ -277,8 +352,86 @@ def test():
     return True
 
 
+def test_review_regressions():
+    for kind in ("initializer", "constant"):
+        value = numpy_helper.from_array(np.array([7, 8], dtype=np.int64), "value")
+        nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
+        initializers = [value] if kind == "initializer" else []
+        if kind == "constant":
+            nodes.append(helper.make_node("Constant", [], ["value"], value=value))
+        nodes.extend([helper.make_node("SequenceConstruct", ["value", "value"], ["seq"]),
+                      helper.make_node("ConcatFromSequence", ["seq"], ["cat"], axis=0, new_axis=0),
+                      helper.make_node("ConcatFromSequence", ["seq"], ["stack"], axis=0, new_axis=1)])
+        outputs = [make_tensor_value_info("sum", [2, 3]),
+                   helper.make_tensor_value_info("cat", TensorProto.INT64, [4]),
+                   helper.make_tensor_value_info("stack", TensorProto.INT64, [2, 2])]
+        if not test_model(nodes, outputs, initializers, 13, kind + "_integer_cat_stack"):
+            return False
+
+    for shape in ([3, 2], [6]):
+        value = make_integer_tensor("value", shape)
+        nodes = [helper.make_node("Add", ["x", "y"], ["sum"]),
+                 helper.make_node("Reshape", ["sum", "value"], ["reshaped"]),
+                 helper.make_node("SequenceConstruct", ["value", "value"], ["seq"]),
+                 helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=0, new_axis=0)]
+        outputs = [make_tensor_value_info("reshaped", shape),
+                   helper.make_tensor_value_info("out", TensorProto.INT64, [2 * len(shape)])]
+        if not test_model(nodes, outputs, [value], 13, "shared_initializer_shape%d" % len(shape)):
+            return False
+
+    for kind in ("initializer", "constant"):
+        nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
+        initializers = [make_integer_tensor("index", 0)]
+        outputs = [make_tensor_value_info("sum", [2, 3])]
+        for shape in ([], [1], [1, 1]):
+            suffix = str(len(shape))
+            name = "value" + suffix
+            value = numpy_helper.from_array(np.full(shape, 7, dtype=np.int64), name)
+            if kind == "initializer":
+                initializers.append(value)
+            else:
+                nodes.append(helper.make_node("Constant", [], [name], value=value))
+            nodes.extend([helper.make_node("SequenceConstruct", [name], ["seq" + suffix]),
+                          helper.make_node("SequenceAt", ["seq" + suffix, "index"], ["out" + suffix])])
+            outputs.append(helper.make_tensor_value_info("out" + suffix, TensorProto.INT64, shape))
+        if not test_model(nodes, outputs, initializers, 13, kind + "_ranks"):
+            return False
+
+        value = numpy_helper.from_array(np.arange(6, dtype=np.float32).reshape(2, 3), "value")
+        nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
+        initializers = [make_integer_tensor("index", 1)]
+        if kind == "initializer":
+            initializers.append(value)
+        else:
+            nodes.append(helper.make_node("Constant", [], ["value"], value=value))
+        nodes.extend([helper.make_node("SplitToSequence", ["value"], ["seq"], axis=0),
+                      helper.make_node("SequenceAt", ["seq", "index"], ["out"])])
+        if not test_model(nodes, [make_tensor_value_info("sum", [2, 3]), make_tensor_value_info("out", [1, 3])], initializers, 13, kind + "_split_no_value_info"):
+            return False
+
+    nodes = [helper.make_node("Add", ["x", "y"], ["sum"]),
+             helper.make_node("SplitToSequence", ["value", "sizes"], ["seq"], axis=0),
+             helper.make_node("SequenceAt", ["seq", "index"], ["out"])]
+    initializers = [numpy_helper.from_array(np.arange(6, dtype=np.float32).reshape(2, 3), "value"),
+                    make_integer_tensor("sizes", [2]), make_integer_tensor("index", 0)]
+    if not test_model(nodes, [make_tensor_value_info("sum", [2, 3]), make_tensor_value_info("out", [2, 3])], initializers, 13, "initializer_single_split"):
+        return False
+
+    for split in (None, 1, [1, 2]):
+        nodes = [helper.make_node("SplitToSequence", ["x"] + (["sizes"] if split is not None else []), ["seq"], axis=1),
+                 helper.make_node("SequenceAt", ["seq", "index"], ["out"]),
+                 helper.make_node("Add", ["x", "y"], ["sum"])]
+        initializers = [make_integer_tensor("index", 1)]
+        if split is not None:
+            initializers.append(make_integer_tensor("sizes", split))
+        width = 2 if isinstance(split, list) else 1
+        if not test_model(nodes, [make_tensor_value_info("out", [2, width]), make_tensor_value_info("sum", [2, 3])], initializers, 13, "external_%s" % str(split), external=True):
+            return False
+    return True
+
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_review_regressions():
         exit(0)
     else:
         exit(1)

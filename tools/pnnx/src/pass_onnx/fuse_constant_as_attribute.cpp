@@ -44,6 +44,7 @@ static constant_as_attribute caas[] = {
     {"Slice", 2, "ends"},
     {"Slice", 3, "axes"},
     {"Slice", 4, "steps"},
+    {"Split", 1, "split"},
     {"Squeeze", 1, "axes"},
     {"Tile", 1, "repeats"},
     {"Unsqueeze", 1, "axes"},
@@ -111,7 +112,7 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                 numel *= tensor.dims(k);
             }
 
-            if (numel == 1)
+            if (numel == 1 && op_type != "Split")
             {
                 // int or float scalar
                 if (tensor.data_type() == onnx::TensorProto::INT32)
