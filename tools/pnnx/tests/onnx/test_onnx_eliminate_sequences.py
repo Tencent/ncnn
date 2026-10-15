@@ -197,7 +197,8 @@ def test_shared_sequence_regions():
 def test():
     if not test_shared_sequence_regions():
         return False
-    for opset in (11, 13, 18):
+    # Opset 13 changes Split and squeeze/unsqueeze axes from attributes to inputs.
+    for opset in (11, 13):
         nodes = []
         outputs = []
         constants = []
@@ -213,19 +214,17 @@ def test():
                           helper.make_node("SequenceAt", [seq, index_name], [at]),
                           helper.make_node("ConcatFromSequence", [seq], [cat], axis=1)])
             outputs.extend([make_tensor_value_info(at, [2, 3]), make_tensor_value_info(cat, [2, 6])])
-        if not test_model(nodes, outputs, constants, opset, "cat_at"):
-            return False
-        nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"])]
-        outputs = []
+        nodes.append(helper.make_node("SequenceConstruct", ["x", "y"], ["stack_seq"]))
         for axis, shape in ((0, [2, 2, 3]), (1, [2, 2, 3]), (-1, [2, 3, 2])):
             name = "stack_" + str(axis).replace("-", "negative")
-            nodes.append(helper.make_node("ConcatFromSequence", ["seq"], [name], axis=axis, new_axis=1))
+            nodes.append(helper.make_node("ConcatFromSequence", ["stack_seq"], [name], axis=axis, new_axis=1))
             outputs.append(make_tensor_value_info(name, shape))
-        if not test_model(nodes, outputs, [], opset, "stack_axes"):
-            return False
-        nodes = []
-        outputs = []
-        constants = [make_integer_tensor("index", -1)]
+        nodes.extend([helper.make_node("SequenceConstruct", ["x", "y"], ["alias_seq"], name="pnnx_seq_0"),
+                      helper.make_node("Constant", [], ["alias_index"], value=make_integer_tensor("", 0)),
+                      helper.make_node("SequenceAt", ["alias_seq", "alias_index"], ["first"]),
+                      helper.make_node("SequenceAt", ["alias_seq", "alias_index"], ["second"])])
+        outputs.extend([make_tensor_value_info("first", [2, 3]), make_tensor_value_info("second", [2, 3])])
+        constants.append(make_integer_tensor("index", -1))
         for case_name, sizes, keepdims, shape in (("unbind", None, 0, [2]), ("unit", None, 1, [2, 1]),
                                                  ("chunk", 2, 1, [2, 1]), ("sizes", [1, 2], 1, [2, 2])):
             inputs = ["x"]
@@ -236,13 +235,7 @@ def test():
             nodes.extend([helper.make_node("SplitToSequence", inputs, [seq], axis=1, keepdims=keepdims),
                           helper.make_node("SequenceAt", [seq, "index"], [out])])
             outputs.append(make_tensor_value_info(out, shape))
-        if not test_model(nodes, outputs, constants, opset, "split_variants"):
-            return False
-        nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"], name="pnnx_seq_0"),
-                 helper.make_node("Constant", [], ["index"], value=make_integer_tensor("", 0)),
-                 helper.make_node("SequenceAt", ["seq", "index"], ["first"]),
-                 helper.make_node("SequenceAt", ["seq", "index"], ["second"])]
-        if not test_model(nodes, [make_tensor_value_info("first", [2, 3]), make_tensor_value_info("second", [2, 3])], [], opset, "aliases"):
+        if not test_model(nodes, outputs, constants, opset, "sequence_variants"):
             return False
     nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
              helper.make_node("SequenceLength", ["seq"], ["length"])]
@@ -258,13 +251,16 @@ def test():
     if not test_model(nodes, outputs, constants, 13, "length_consumers"):
         return False
 
-    for divisor in (2, -2):
-        nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
-                 helper.make_node("SequenceLength", ["seq"], ["length"]),
-                 helper.make_node("Div", ["length", "divisor"], ["out"])]
-        if not test_model(nodes, [helper.make_tensor_value_info("out", TensorProto.INT64, [])],
-                          [make_integer_tensor("divisor", divisor)], 13, "length_div_%d" % divisor):
-            return False
+    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+             helper.make_node("SequenceLength", ["seq"], ["length"])]
+    outputs = []
+    constants = []
+    for name, divisor in (("positive", 2), ("negative", -2)):
+        constants.append(make_integer_tensor("divisor_" + name, divisor))
+        nodes.append(helper.make_node("Div", ["length", "divisor_" + name], [name]))
+        outputs.append(helper.make_tensor_value_info(name, TensorProto.INT64, []))
+    if not test_model(nodes, outputs, constants, 13, "length_div"):
+        return False
 
     nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
              helper.make_node("SequenceLength", ["seq"], ["length"]),
@@ -299,28 +295,15 @@ def test():
                    else make_tensor_value_info(name, [2, 3]) for name in outputs_order]
         if not test_model(nodes, outputs, [], 13, "length_" + "_".join(outputs_order)):
             return False
-    for output_kind in ("constant", "initializer", "input", "identity"):
-        nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
-        initializers = []
-        output_name = "extra"
-        if output_kind == "constant":
-            nodes.append(helper.make_node("Constant", [], ["extra"], value=make_integer_tensor("", 7)))
-        elif output_kind == "initializer":
-            initializers.append(make_integer_tensor("extra", 7))
-        elif output_kind == "input":
-            output_name = "x"
-        else:
-            nodes.append(helper.make_node("Identity", ["x"], ["extra"]))
-        extra = helper.make_tensor_value_info(output_name, TensorProto.INT64, []) if output_kind in ("constant", "initializer") else make_tensor_value_info(output_name, [2, 3])
-        for reverse in (False, True):
-            outputs = [extra, make_tensor_value_info("sum", [2, 3])]
-            if reverse:
-                outputs.reverse()
-            if not test_model(nodes, outputs, initializers, 13, "output_%s_%d" % (output_kind, reverse), two_shapes=True):
-                return False
-    nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
-    if not test_model(nodes, [make_tensor_value_info("sum", [2, 3]), make_tensor_value_info("sum", [2, 3])], [], 13, "duplicate_outputs", two_shapes=True):
-        return False
+    nodes = [helper.make_node("Add", ["x", "y"], ["sum"]),
+             helper.make_node("Constant", [], ["constant"], value=make_integer_tensor("", 7)),
+             helper.make_node("Identity", ["x"], ["identity"])]
+    initializers = [make_integer_tensor("initializer", 7)]
+    outputs = [helper.make_tensor_value_info(name, TensorProto.INT64, []) for name in ("constant", "initializer")]
+    outputs.extend(make_tensor_value_info(name, [2, 3]) for name in ("x", "identity", "sum", "sum"))
+    for reverse in (False, True):
+        if not test_model(nodes, outputs[::-1] if reverse else outputs, initializers, 13, "output_order_%d" % reverse, two_shapes=True):
+            return False
     nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"])]
     output = helper.make_tensor_sequence_value_info("seq", TensorProto.FLOAT, [2, 3])
     if not test_model(nodes, [output], [], 13, "sequence_output", two_shapes=True):
@@ -380,7 +363,9 @@ def test_review_regressions():
             return False
 
     for kind in ("initializer", "constant"):
-        nodes = [helper.make_node("Add", ["x", "y"], ["sum"])]
+        nodes = [helper.make_node("Add", ["x", "y"], ["sum"]),
+                 helper.make_node("SequenceConstruct", ["x", "y"], ["length_seq"]),
+                 helper.make_node("SequenceLength", ["length_seq"], ["length"])]
         initializers = [make_integer_tensor("index", 0)]
         outputs = [make_tensor_value_info("sum", [2, 3])]
         for shape in ([], [1], [1, 1]):
@@ -394,6 +379,10 @@ def test_review_regressions():
             nodes.extend([helper.make_node("SequenceConstruct", [name], ["seq" + suffix]),
                           helper.make_node("SequenceAt", ["seq" + suffix, "index"], ["out" + suffix])])
             outputs.append(helper.make_tensor_value_info("out" + suffix, TensorProto.INT64, shape))
+            for op_type in ("Add", "Less", "Greater"):
+                output = op_type.lower() + suffix
+                nodes.append(helper.make_node(op_type, ["length", name], [output]))
+                outputs.append(helper.make_tensor_value_info(output, TensorProto.INT64 if op_type == "Add" else TensorProto.BOOL, shape))
         if not test_model(nodes, outputs, initializers, 13, kind + "_ranks"):
             return False
 

@@ -958,6 +958,8 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
 
                         if (consumer_type == "Concat" || consumer_type == "Einsum"
                             || (consumer_type == "Div" && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                            || (tensor.dims_size() > 0 && (consumer_type == "Add" || consumer_type == "Sub" || consumer_type == "Mul" || consumer_type == "Div" || consumer_type == "Pow" || consumer_type == "Mod"
+                                || consumer_type == "Equal" || consumer_type == "Less" || consumer_type == "LessOrEqual" || consumer_type == "Greater" || consumer_type == "GreaterOrEqual"))
                             || (l == 0 && (consumer_type == "Equal" || consumer_type == "Less" || consumer_type == "LessOrEqual" || consumer_type == "Greater" || consumer_type == "GreaterOrEqual"))
                             || (l == 0 && (consumer_type == "Identity" || consumer_type == "Split" || consumer_type == "Unsqueeze" || consumer_type == "Squeeze")))
                             is_attr_weight = true;

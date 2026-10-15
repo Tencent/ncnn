@@ -262,7 +262,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         // fprintf(stderr, "operand pnnx.Attribute %s\n", operand->name.c_str());
 
         const Attribute& data = op->attrs["data"];
-        if (data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
+        if (operand->shape.empty() && data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
         {
             if (data.type == 0)
             {

@@ -289,6 +289,11 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
             float f = t.float_data().at(0);
             memcpy((void*)data.data(), (const void*)&f, data.size());
         }
+        else if (t.data_type() == onnx::TensorProto::FLOAT16)
+        {
+            uint16_t bits = (uint16_t)t.int32_data().at(0);
+            memcpy((void*)data.data(), (const void*)&bits, data.size());
+        }
         else if (t.data_type() == onnx::TensorProto::BOOL)
         {
             data[0] = t.int32_data().at(0) ? 1 : 0;
@@ -332,6 +337,14 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
         else if (t.data_type() == onnx::TensorProto::FLOAT)
         {
             memcpy((void*)data.data(), (const void*)t.float_data().data(), data.size());
+        }
+        else if (t.data_type() == onnx::TensorProto::FLOAT16)
+        {
+            for (size_t i = 0; i < elemcount(); i++)
+            {
+                uint16_t bits = (uint16_t)t.int32_data().at(i);
+                memcpy((void*)(data.data() + i * sizeof(bits)), (const void*)&bits, sizeof(bits));
+            }
         }
         else if (t.data_type() == onnx::TensorProto::BOOL)
         {
