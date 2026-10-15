@@ -120,8 +120,8 @@ static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 static inline vuint16m2_t float2bfloat_xtheadvector(vfloat32m4_t v, size_t vl, unsigned long& old_fxcr)
 {
     vuint16m2_t out;
-    // Carry the saved mode through each conversion to order it between the
-    // mode switch and restore, including when the helpers are inlined.
+    // carry the saved mode through each conversion to order it between the
+    // mode switch and restore, including when the helpers are inlined
     asm volatile("th.vsetvli zero, %3, e16, m2\n\t"
                  "th.vfncvt.f.f.v %0, %2"
                  : "=&vr"(out), "+r"(old_fxcr)

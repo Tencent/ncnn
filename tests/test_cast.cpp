@@ -141,7 +141,7 @@ static int test_cast_rounding()
 #if NCNN_BF16 && __riscv
 static int test_cast_bfloat16_bits(int elempack)
 {
-    // Include both sides of ties, signed zero, subnormals, overflow, Inf and NaN payloads.
+    // include both sides of ties, signed zero, subnormals, overflow, Inf and NaN payloads
     const unsigned int fp32_bits[] = {
         0x00000000u, 0x80000000u, 0x00000001u, 0x80000001u,
         0x00007fffu, 0x00008000u, 0x00008001u, 0x80008000u,
@@ -236,7 +236,7 @@ static int test_cast_bfloat16_bits(int elempack)
                 unsigned short expected = ncnn::float32_to_bfloat16(p[i]);
                 if (use_vector_rounding || use_native_conversion)
                 {
-                    // RVV vnclipu rounds ties to even and saturates unsigned overflow.
+                    // RVV vnclipu rounds ties to even and saturates unsigned overflow
                     unsigned int fp32;
                     memcpy(&fp32, p + i, sizeof(fp32));
                     unsigned int rounded = (fp32 >> 16) + ((fp32 & 0xffff) > 0x8000 || ((fp32 & 0xffff) == 0x8000 && ((fp32 >> 16) & 1)));
@@ -245,7 +245,7 @@ static int test_cast_bfloat16_bits(int elempack)
                 unsigned int expected32 = (unsigned int)p16[i] << 16;
                 if (use_native_conversion)
                 {
-                    // Native BF16 conversion uses RNE. XThead DQNaN may propagate NaN payloads.
+                    // native BF16 conversion uses RNE; XThead DQNaN may propagate NaN payloads
                     unsigned int fp32;
                     memcpy(&fp32, p + i, sizeof(fp32));
                     if ((fp32 & 0x7fffffff) > 0x7f800000)
@@ -283,10 +283,10 @@ static int test_cast_bfloat16_rounding()
                  : "=r"(original_fcsr)
                  :
                  : "memory");
-    // RNE, RTZ, RDN, RUP and RMM must all leave the BF16 conversion unchanged.
+    // RNE, RTZ, RDN, RUP and RMM must all leave the BF16 conversion unchanged
     for (unsigned int mode = 0; mode < 5; mode++)
     {
-        // Keep a pre-existing divide-by-zero flag across both conversions.
+        // keep a pre-existing divide-by-zero flag across both conversions
         const unsigned int fcsr = (mode << 5) | 8;
         asm volatile("csrw fcsr, %0"
                      :

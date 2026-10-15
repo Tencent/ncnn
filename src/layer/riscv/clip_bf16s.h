@@ -30,7 +30,7 @@ static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option&
 #if __riscv_vector
 #if __riscv_xtheadvector
         unsigned long old_fxcr = csrr_fxcr();
-        // Enable BF16 with round-to-nearest-even.
+        // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
 #endif
         int n = size;
@@ -61,7 +61,7 @@ static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option&
             n -= vl;
         }
 #if __riscv_xtheadvector
-        // Restore FXCR while retaining accrued exception flags, including FE.
+        // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
 #else  // __riscv_vector

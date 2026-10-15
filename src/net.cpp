@@ -442,7 +442,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             return -100;
     }
 
-    // Resolve storage before selecting packing for the destination layer.
+    // resolve storage before selecting packing for the destination layer
     if (bottom_blob.elembits() == 16)
     {
         // clang-format off

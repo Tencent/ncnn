@@ -77,7 +77,7 @@ static int test_clip_bf16_storage(int elempack, unsigned int mode)
     }
 
     ncnn::ParamDict pd;
-    // RVV rounds midpoints to even; the scalar fallback uses ncnn rounding.
+    // RVV rounds midpoints to even; the scalar fallback uses ncnn rounding
     pd.set(0, -1.00390625f);
     pd.set(1, 1.00390625f);
 
@@ -92,7 +92,7 @@ static int test_clip_bf16_storage(int elempack, unsigned int mode)
 #endif
     const unsigned short min_expected = use_vector_rounding ? 0xbf80 : 0xbf81;
     const unsigned short max_expected = use_vector_rounding ? 0x3f80 : 0x3f81;
-    // Vector min/max select the numeric bound for NaNs. Scalar NaN behavior depends on fast-math.
+    // vector min/max select the numeric bound for NaNs; scalar NaN behavior depends on fast-math
     const int input_count = use_vector_rounding ? sizeof(input) / sizeof(input[0]) : 10;
     const unsigned short expected[] = {min_expected, 0xbf80, 0xbf00, 0x8000, 0x0000, 0x3f00, 0x3f80, max_expected, min_expected, max_expected, min_expected, min_expected};
     ncnn::Mat a(elempack == 1 ? 127 : 3, 3, 3, 2, (size_t)2u * elempack, elempack);
@@ -108,7 +108,7 @@ static int test_clip_bf16_storage(int elempack, unsigned int mode)
     if (ret == 0) ret = op->create_pipeline(opt);
 #if __riscv_flen
     unsigned int original_fcsr;
-    // Keep a pre-existing divide-by-zero flag across the conversion.
+    // keep a pre-existing divide-by-zero flag across the conversion
     const unsigned int fcsr = (mode << 5) | 8;
     asm volatile("csrrw %0, fcsr, %1"
                  : "=r"(original_fcsr)
