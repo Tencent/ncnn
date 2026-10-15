@@ -191,6 +191,43 @@ def test_shared_sequence_regions():
         transformed_outputs = ort.InferenceSession(transformed.SerializeToString(), providers=["CPUExecutionProvider"]).run(None, feeds)
         for expected, actual in zip(original_outputs, transformed_outputs):
             np.testing.assert_array_equal(expected, actual)
+    for case, casts, denominator in (("positive", (), 2), ("negative", (), -2),
+                                      ("dynamic", (TensorProto.INT32,), None),
+                                      ("roundtrip", (TensorProto.FLOAT, TensorProto.INT64), 2),
+                                      ("shape", (TensorProto.FLOAT,), 2)):
+        nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
+                 helper.make_node("ConcatFromSequence", ["seq"], ["cat"], axis=1),
+                 helper.make_node("SequenceLength", ["seq"], ["length"])]
+        value = "length"
+        for i, dtype in enumerate(casts):
+            cast_output = "cast_%d" % i
+            nodes.append(helper.make_node("Cast", [value], [cast_output], to=dtype))
+            value = cast_output
+        inputs = [make_tensor_value_info("x", [2, 3]), make_tensor_value_info("y", [2, 3])]
+        dtype = casts[-1] if casts else TensorProto.INT64
+        shape = []
+        if case == "shape":
+            nodes.append(helper.make_node("Shape", [value], ["shape"]))
+            value, dtype, shape = "shape", TensorProto.INT64, [0]
+        nodes.append(helper.make_node("Identity", [value], ["identity"]))
+        if denominator is None:
+            inputs.append(helper.make_tensor_value_info("denominator", dtype, []))
+        else:
+            nodes.append(helper.make_node("Constant", [], ["denominator"],
+                                          value=helper.make_tensor("divisor", dtype, [], [denominator])))
+        nodes.append(helper.make_node("Div", ["identity", "denominator"], ["out"]))
+        model = helper.make_model(helper.make_graph(nodes, "integer_div_guard", inputs,
+                                  [make_tensor_value_info("cat", [2, 9]), helper.make_tensor_value_info("out", dtype, shape)]),
+                                  opset_imports=[helper.make_opsetid("", 13)])
+        model.ir_version = 8
+        onnx.checker.check_model(model)
+        if runner:
+            name = "test_onnx_eliminate_sequences_integer_div_" + case
+            onnx.save(model, name + ".onnx")
+            subprocess.check_call([runner, name + ".onnx", name + ".out.onnx"])
+            transformed = onnx.load(name + ".out.onnx")
+            if transformed.SerializeToString() != model.SerializeToString():
+                return False
     return True
 
 
@@ -238,31 +275,6 @@ def test():
         if not test_model(nodes, outputs, constants, opset, "sequence_variants"):
             return False
     nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
-             helper.make_node("SequenceLength", ["seq"], ["length"])]
-    outputs = [helper.make_tensor_value_info("length", TensorProto.INT64, [])]
-    constants = [make_integer_tensor("two", 2), make_integer_tensor("negative_two", -2)]
-    for constant in ("two", "negative_two"):
-        for reverse in (False, True):
-            operands = [constant, "length"] if reverse else ["length", constant]
-            for op_type in ("Div", "Equal", "Greater", "Less", "GreaterOrEqual", "LessOrEqual"):
-                output = "%s_%s_%d" % (op_type, constant, reverse)
-                nodes.append(helper.make_node(op_type, operands, [output]))
-                outputs.append(helper.make_tensor_value_info(output, TensorProto.INT64 if op_type == "Div" else TensorProto.BOOL, []))
-    if not test_model(nodes, outputs, constants, 13, "length_consumers"):
-        return False
-
-    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
-             helper.make_node("SequenceLength", ["seq"], ["length"])]
-    outputs = []
-    constants = []
-    for name, divisor in (("positive", 2), ("negative", -2)):
-        constants.append(make_integer_tensor("divisor_" + name, divisor))
-        nodes.append(helper.make_node("Div", ["length", "divisor_" + name], [name]))
-        outputs.append(helper.make_tensor_value_info(name, TensorProto.INT64, []))
-    if not test_model(nodes, outputs, constants, 13, "length_div"):
-        return False
-
-    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
              helper.make_node("SequenceLength", ["seq"], ["length"]),
              helper.make_node("Cast", ["length"], ["double_length"], to=TensorProto.DOUBLE),
              helper.make_node("Cast", ["x"], ["double_x"], to=TensorProto.DOUBLE)]
@@ -275,16 +287,30 @@ def test():
         output = "large_" + op_type
         nodes.append(helper.make_node(op_type, ["length", "large"], [output]))
         outputs.append(helper.make_tensor_value_info(output, TensorProto.BOOL if op_type == "Greater" else TensorProto.INT64, []))
-    if not test_model(nodes, outputs, [make_integer_tensor("large", 9007199254740993)], 13, "precise_length_consumers"):
-        return False
-
-    nodes = [helper.make_node("SequenceConstruct", ["x", "y", "x"], ["seq"]),
-             helper.make_node("SequenceLength", ["seq"], ["length"]),
-             helper.make_node("Cast", ["length"], ["numerator"], to=TensorProto.INT32),
-             helper.make_node("Cast", ["x"], ["denominator"], to=TensorProto.INT32),
-             helper.make_node("Div", ["numerator", "denominator"], ["out"])]
-    # Real inputs are nonzero; synthetic folding inputs cast to zero.
-    if not test_model(nodes, [helper.make_tensor_value_info("out", TensorProto.INT32, [2, 3])], [], 13, "fold_run_failure", two_shapes=True, nonzero=True):
+    nodes.append(helper.make_node("Cast", ["length"], ["float_length"], to=TensorProto.FLOAT))
+    constants = [make_integer_tensor("large", 9007199254740993),
+                 make_integer_tensor("negative_two", -2),
+                 numpy_helper.from_array(np.array(2, dtype=np.float32), "float_two"),
+                 make_integer_tensor("scalar_index", 0)]
+    for op_type in ("Equal", "Greater", "Less", "GreaterOrEqual", "LessOrEqual"):
+        for reverse in (False, True):
+            output = "%s_%d" % (op_type, reverse)
+            inputs = ["negative_two", "length"] if reverse else ["length", "negative_two"]
+            nodes.append(helper.make_node(op_type, inputs, [output]))
+            outputs.append(helper.make_tensor_value_info(output, TensorProto.BOOL, []))
+    for op_type in ("Relu", "Sqrt", "Gather", "ReduceSum"):
+        value = "float_length"
+        if op_type == "Gather":
+            nodes.append(helper.make_node("Unsqueeze", [value, "axes"], ["vector_length"]))
+            constants.append(make_integer_tensor("axes", [0]))
+            inputs = ["vector_length", "scalar_index"]
+        else:
+            inputs = [value]
+        value, output = op_type + "_value", op_type + "_div"
+        nodes.extend([helper.make_node(op_type, inputs, [value], **({"axis": 0} if op_type == "Gather" else {})),
+                      helper.make_node("Div", [value, "float_two"], [output])])
+        outputs.append(make_tensor_value_info(output, []))
+    if not test_model(nodes, outputs, constants, 13, "precise_length_consumers"):
         return False
 
     for outputs_order in (("length",), ("length", "intermediate"), ("intermediate", "length")):
@@ -404,6 +430,13 @@ def test_review_regressions():
     initializers = [numpy_helper.from_array(np.arange(6, dtype=np.float32).reshape(2, 3), "value"),
                     make_integer_tensor("sizes", [2]), make_integer_tensor("index", 0)]
     if not test_model(nodes, [make_tensor_value_info("sum", [2, 3]), make_tensor_value_info("out", [2, 3])], initializers, 13, "initializer_single_split"):
+        return False
+
+    nodes = [helper.make_node("Split", ["x", "single_sizes"], ["single"], axis=1),
+             helper.make_node("Split", ["y", "pair_sizes"], ["first", "last"], axis=1)]
+    initializers = [make_integer_tensor("single_sizes", [3]), make_integer_tensor("pair_sizes", [1, 2])]
+    outputs = [make_tensor_value_info("single", [2, 3]), make_tensor_value_info("first", [2, 1]), make_tensor_value_info("last", [2, 2])]
+    if not test_model(nodes, outputs, initializers, 13, "external_native_split", external=True):
         return False
 
     for split in (None, 1, [1, 2]):

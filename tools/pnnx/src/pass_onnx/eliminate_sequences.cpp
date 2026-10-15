@@ -8,6 +8,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <utility>
 #include <vector>
 
 namespace pnnx {
@@ -381,6 +382,79 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
     return true;
 }
 
+static bool is_floating_type(int type)
+{
+    return type == onnx::TensorProto::FLOAT || type == onnx::TensorProto::DOUBLE || type == onnx::TensorProto::FLOAT16 || type == onnx::TensorProto::BFLOAT16;
+}
+
+static bool has_integer_div_consumer(const onnx::GraphProto& graph, const std::string& output)
+{
+    std::map<std::string, int> types;
+    for (const auto& value : graph.input())
+        if (value.type().has_tensor_type())
+            types[value.name()] = value.type().tensor_type().elem_type();
+    for (const auto& value : graph.value_info())
+        if (value.type().has_tensor_type())
+            types[value.name()] = value.type().tensor_type().elem_type();
+    for (const auto& value : graph.output())
+        if (value.type().has_tensor_type())
+            types[value.name()] = value.type().tensor_type().elem_type();
+
+    std::set<std::pair<std::string, bool> > pending;
+    pending.insert(std::make_pair(output, true));
+    std::set<std::pair<std::string, bool> > visited;
+    while (!pending.empty())
+    {
+        const std::string name = pending.begin()->first;
+        bool integer = pending.begin()->second;
+        const auto declared_type = types.find(name);
+        if (declared_type != types.end() && declared_type->second != 0)
+            integer = !is_floating_type(declared_type->second);
+        pending.erase(pending.begin());
+        if (!visited.insert(std::make_pair(name, integer)).second)
+            continue;
+        for (int i = 0; i < graph.node_size(); i++)
+        {
+            const onnx::NodeProto& node = graph.node(i);
+            for (int j = 0; j < node.attribute_size(); j++)
+            {
+                const onnx::AttributeProto& attr = node.attribute(j);
+                if (attr.has_g() && is_value_captured(attr.g(), name))
+                    return true;
+                for (int k = 0; k < attr.graphs_size(); k++)
+                    if (is_value_captured(attr.graphs(k), name))
+                        return true;
+            }
+            if (std::find(node.input().begin(), node.input().end(), name) == node.input().end())
+                continue;
+            if (!is_native_node(node))
+                return true;
+            const std::string& op = node.op_type();
+            // Shape/index inputs do not determine the data output's element type.
+            if ((op == "Reshape" || op == "Squeeze" || op == "Unsqueeze" || op == "Gather" || op == "GatherElements" || op == "GatherND" || op == "Expand" || op == "Tile" || op == "Slice" || op == "Pad" || op == "Resize" || op == "TopK" || op == "Split" || op.compare(0, 6, "Reduce") == 0) && node.input(0) != name)
+                continue;
+            if (op == "Div" && integer)
+                return true;
+            bool output_integer = true;
+            if (op == "Identity" || op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Neg" || op == "Abs" || op == "Relu" || op == "Sqrt" || op == "Reshape" || op == "Squeeze" || op == "Unsqueeze" || op == "Transpose" || op == "Concat" || op == "Gather" || op == "GatherElements" || op == "GatherND" || op == "Expand" || op == "Tile" || op == "Slice" || op == "Pad" || op == "Resize" || op == "TopK" || op == "Split" || op.compare(0, 6, "Reduce") == 0)
+                output_integer = integer;
+            if (op == "Cast")
+                output_integer = !is_floating_type(get_integer_attribute(node, "to", 0));
+            for (int j = 0; j < node.output_size(); j++)
+            {
+                const auto type = types.find(node.output(j));
+                // Unknown operators remain conservative; declared output types
+                // and per-output semantics take precedence over propagation.
+                bool may_be_integer = type != types.end() && type->second != 0 ? !is_floating_type(type->second) : output_integer;
+                if (op == "TopK" && j == 1)
+                    may_be_integer = true;
+                pending.insert(std::make_pair(node.output(j), may_be_integer));
+            }
+        }
+    }
+    return false;
+}
+
 static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
 {
     SequenceNameGenerator names(graph);
@@ -595,6 +669,12 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
             }
             else if (consumer.op_type() == "SequenceLength" && consumer.input_size() == 1)
             {
+                // ncnn has no exact integer Div lowering, including through integer casts.
+                if (has_integer_div_consumer(graph, consumer.output(0)))
+                {
+                    safe = false;
+                    break;
+                }
                 replacement_nodes.push_back(make_constant_node({(int64_t)elements.size()}, true, consumer.output(0), names));
             }
             else if (consumer.op_type() == "ConcatFromSequence" && consumer.input_size() == 1)
