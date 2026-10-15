@@ -107,54 +107,79 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
 
 static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
 {
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+    vbfloat16m1_t out = __riscv_vfncvtbf16_f_f_w_bf16m1_rm(v, __RISCV_FRM_RNE, vl);
+    return __riscv_vreinterpret_v_bf16m1_u16m1(out);
+#elif __riscv_xtheadvector
+    vuint16m1_t out;
+    asm volatile("th.vsetvli zero, %2, e16, m1\n\t"
+                 "th.vfncvt.f.f.v %0, %1"
+                 : "=&vr"(out)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+#else
     return __riscv_vnclipu_wx_u16m1(__riscv_vreinterpret_v_f32m2_u32m2(v), 16, __RISCV_VXRM_RNE, vl);
+#endif
 }
 
 static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 {
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+    vbfloat16m2_t out = __riscv_vfncvtbf16_f_f_w_bf16m2_rm(v, __RISCV_FRM_RNE, vl);
+    return __riscv_vreinterpret_v_bf16m2_u16m2(out);
+#elif __riscv_xtheadvector
+    vuint16m2_t out;
+    asm volatile("th.vsetvli zero, %2, e16, m2\n\t"
+                 "th.vfncvt.f.f.v %0, %1"
+                 : "=&vr"(out)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+#else
     return __riscv_vnclipu_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(v), 16, __RISCV_VXRM_RNE, vl);
+#endif
 }
 
 #if NCNN_BF16
-#if __riscv_xtheadvector
-static inline vuint16m2_t float2bfloat_xtheadvector(vfloat32m4_t v, size_t vl, unsigned long& old_fxcr)
-{
-    vuint16m2_t out;
-    // carry the saved mode through each conversion to order it between the
-    // mode switch and restore, including when the helpers are inlined
-    asm volatile("th.vsetvli zero, %3, e16, m2\n\t"
-                 "th.vfncvt.f.f.v %0, %2"
-                 : "=&vr"(out), "+r"(old_fxcr)
-                 : "vr"(v), "r"(vl)
-                 : "memory", "vl", "vtype");
-    return out;
-}
-
-static inline vfloat32m4_t bfloat2float_xtheadvector(vuint16m2_t v, size_t vl, unsigned long& old_fxcr)
-{
-    vfloat32m4_t out;
-    asm volatile("th.vsetvli zero, %3, e16, m2\n\t"
-                 "th.vfwcvt.f.f.v %0, %2"
-                 : "=&vr"(out), "+r"(old_fxcr)
-                 : "vr"(v), "r"(vl)
-                 : "memory", "vl", "vtype");
-    return out;
-}
-#endif // __riscv_xtheadvector
-
 static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
 {
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+    return __riscv_vfwcvtbf16_f_f_v_f32m2(__riscv_vreinterpret_v_u16m1_bf16m1(v), vl);
+#elif __riscv_xtheadvector
+    vfloat32m2_t out;
+    asm volatile("th.vsetvli zero, %2, e16, m1\n\t"
+                 "th.vfwcvt.f.f.v %0, %1"
+                 : "=&vr"(out)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+#else
     vuint32m2_t u = __riscv_vwcvtu_x_x_v_u32m2(v, vl);
     u = __riscv_vsll_vx_u32m2(u, 16, vl);
     return __riscv_vreinterpret_v_u32m2_f32m2(u);
+#endif
 }
 
 static inline vfloat32m4_t bfloat2float_rvv(vuint16m2_t v, size_t vl)
 {
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+    return __riscv_vfwcvtbf16_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_bf16m2(v), vl);
+#elif __riscv_xtheadvector
+    vfloat32m4_t out;
+    asm volatile("th.vsetvli zero, %2, e16, m2\n\t"
+                 "th.vfwcvt.f.f.v %0, %1"
+                 : "=&vr"(out)
+                 : "vr"(v), "r"(vl)
+                 : "memory", "vl", "vtype");
+    return out;
+#else
     vuint32m4_t u = __riscv_vwcvtu_x_x_v_u32m4(v, vl);
     u = __riscv_vsll_vx_u32m4(u, 16, vl);
     return __riscv_vreinterpret_v_u32m4_f32m4(u);
+#endif
 }
+
 #endif // NCNN_BF16
 
 static inline int csrr_vl()

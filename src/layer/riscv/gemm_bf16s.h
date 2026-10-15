@@ -156,6 +156,11 @@ static void
 pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
 #endif
@@ -204,6 +209,12 @@ pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int ma
             p0++;
         }
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
 
 #if __riscv_vector && __riscv_xtheadvector
@@ -214,6 +225,11 @@ static void
 transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e32m2(packn);
 #endif
@@ -262,6 +278,12 @@ transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int
             p0 += A_hstep;
         }
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
 
 #if __riscv_vector && __riscv_xtheadvector
@@ -272,6 +294,11 @@ static void
 pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const size_t vl8 = __riscv_vsetvl_e16m1(8);
     const size_t vl4 = __riscv_vsetvl_e16m1(4);
 #endif
@@ -334,6 +361,12 @@ pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int ma
             p0++;
         }
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
 
 #if __riscv_vector && __riscv_xtheadvector
@@ -344,6 +377,11 @@ static void
 transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const size_t vl8 = __riscv_vsetvl_e32m2(8);
     const size_t vl4 = __riscv_vsetvl_e32m2(4);
 #endif
@@ -404,6 +442,12 @@ transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int
             p0 += B_hstep;
         }
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
 
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFWMA && __riscv_vector && !__riscv_zvfbfwma && !__riscv_xtheadvector
@@ -421,6 +465,11 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 #endif
 
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const int packn = csrr_vlenb() / 2;
     const size_t vl = __riscv_vsetvl_e16m1(packn);
     const size_t vl2 = __riscv_vsetvl_e32m2(packn);
@@ -1559,6 +1608,12 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
         pAT += max_kk;
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
 
 static void unpack_output_tile_bf16s(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int output_transpose)
@@ -1570,6 +1625,11 @@ static void unpack_output_tile_bf16s(const Mat& topT, Mat& top_blob, int i, int 
 
     int ii = 0;
 #if __riscv_vector
+#if __riscv_xtheadvector
+    unsigned long old_fxcr = csrr_fxcr();
+    // enable BF16 with round-to-nearest-even
+    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
     const int packn = csrr_vlenb() / 2;
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
@@ -1743,4 +1803,10 @@ static void unpack_output_tile_bf16s(const Mat& topT, Mat& top_blob, int i, int 
             pp++;
         }
     }
+#if __riscv_vector
+#if __riscv_xtheadvector
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+#endif
 }
