@@ -107,9 +107,8 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
 
 static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
 {
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-    vbfloat16m1_t out = __riscv_vfncvtbf16_f_f_w_bf16m1_rm(v, __RISCV_FRM_RNE, vl);
-    return __riscv_vreinterpret_v_bf16m1_u16m1(out);
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vreinterpret_v_bf16m1_u16m1(__riscv_vfncvtbf16_f_f_w_bf16m1_rm(v, __RISCV_FRM_RNE, vl));
 #elif __riscv_xtheadvector
     return __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfncvt_f_f_w_f16m1(v, vl));
 #else
@@ -119,9 +118,8 @@ static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
 
 static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 {
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
-    vbfloat16m2_t out = __riscv_vfncvtbf16_f_f_w_bf16m2_rm(v, __RISCV_FRM_RNE, vl);
-    return __riscv_vreinterpret_v_bf16m2_u16m2(out);
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vreinterpret_v_bf16m2_u16m2(__riscv_vfncvtbf16_f_f_w_bf16m2_rm(v, __RISCV_FRM_RNE, vl));
 #elif __riscv_xtheadvector
     return __riscv_vreinterpret_v_f16m2_u16m2(__riscv_vfncvt_f_f_w_f16m2(v, vl));
 #else
@@ -132,27 +130,23 @@ static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 #if NCNN_BF16
 static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
 {
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
     return __riscv_vfwcvtbf16_f_f_v_f32m2(__riscv_vreinterpret_v_u16m1_bf16m1(v), vl);
 #elif __riscv_xtheadvector
     return __riscv_vfwcvt_f_f_v_f32m2(__riscv_vreinterpret_v_u16m1_f16m1(v), vl);
 #else
-    vuint32m2_t u = __riscv_vwcvtu_x_x_v_u32m2(v, vl);
-    u = __riscv_vsll_vx_u32m2(u, 16, vl);
-    return __riscv_vreinterpret_v_u32m2_f32m2(u);
+    return __riscv_vreinterpret_v_u32m2_f32m2(__riscv_vsll_vx_u32m2(__riscv_vwcvtu_x_x_v_u32m2(v, vl), 16, vl));
 #endif
 }
 
 static inline vfloat32m4_t bfloat2float_rvv(vuint16m2_t v, size_t vl)
 {
-#if NCNN_ZVFBFMIN && __riscv_zvfbfmin && !__riscv_xtheadvector
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
     return __riscv_vfwcvtbf16_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_bf16m2(v), vl);
 #elif __riscv_xtheadvector
     return __riscv_vfwcvt_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_f16m2(v), vl);
 #else
-    vuint32m4_t u = __riscv_vwcvtu_x_x_v_u32m4(v, vl);
-    u = __riscv_vsll_vx_u32m4(u, 16, vl);
-    return __riscv_vreinterpret_v_u32m4_f32m4(u);
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vsll_vx_u32m4(__riscv_vwcvtu_x_x_v_u32m4(v, vl), 16, vl));
 #endif
 }
 

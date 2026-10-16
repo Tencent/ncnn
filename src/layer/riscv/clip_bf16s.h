@@ -1,13 +1,13 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector && !__riscv_zvfbfmin
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
 void clip_bf16s_zvfbfmin(Mat& bottom_top_blob, float min, float max, const Option& opt);
 #endif
 
 static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector && !__riscv_zvfbfmin
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
     if (cpu_support_riscv_zvfbfmin())
     {
         clip_bf16s_zvfbfmin(bottom_top_blob, min, max, opt);
@@ -28,7 +28,7 @@ static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option&
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __riscv_vector
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
         // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
@@ -46,7 +46,7 @@ static void clip_bf16s(Mat& bottom_top_blob, float min, float max, const Option&
             ptr += vl;
             n -= vl;
         }
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif

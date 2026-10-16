@@ -1,14 +1,14 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector && !__riscv_zvfbfmin
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
 void cast_fp32_to_bf16_zvfbfmin(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 void cast_bf16_to_fp32_zvfbfmin(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 #endif
 
 static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector && !__riscv_zvfbfmin
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
     if (cpu_support_riscv_zvfbfmin())
     {
         cast_fp32_to_bf16_zvfbfmin(bottom_blob, top_blob, opt);
@@ -35,7 +35,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
 
         int n = size;
 #if __riscv_vector
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
         // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
@@ -49,7 +49,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
             outptr += vl;
             n -= vl;
         }
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
@@ -63,7 +63,7 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_xtheadvector && !__riscv_zvfbfmin
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
     if (cpu_support_riscv_zvfbfmin())
     {
         cast_bf16_to_fp32_zvfbfmin(bottom_blob, top_blob, opt);
@@ -90,7 +90,7 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
 
         int n = size;
 #if __riscv_vector
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
         // enable BF16 with round-to-nearest-even
         old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
@@ -104,7 +104,7 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
             outptr += vl;
             n -= vl;
         }
-#if __riscv_xtheadvector
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
