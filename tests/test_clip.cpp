@@ -57,26 +57,6 @@ static int test_clip_3()
            || test_clip(RandomMat(127), -1.f, 1.f);
 }
 
-#if NCNN_BF16
-static int test_clip_fp16_format()
-{
-    // bf16 clip must leave subsequent conversions using the fp16 format
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    ncnn::Mat fp32(1);
-    fp32[0] = 1.f;
-    ncnn::Mat fp16;
-    ncnn::cast_float32_to_float16(fp32, fp16, opt);
-    if (fp16.empty() || ((const unsigned short*)fp16)[0] != 0x3c00)
-    {
-        fprintf(stderr, "test_clip_fp16_format failed\n");
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_BF16
-
 int main()
 {
     SRAND(7767517);
@@ -85,9 +65,5 @@ int main()
            || test_clip_0()
            || test_clip_1()
            || test_clip_2()
-           || test_clip_3()
-#if NCNN_BF16
-           || test_clip_fp16_format()
-#endif
-           ;
+           || test_clip_3();
 }

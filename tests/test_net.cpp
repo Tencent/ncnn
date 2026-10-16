@@ -665,7 +665,10 @@ static int test_storage_packing(int storage_type)
     const char* param = "7767517\n2 2\nInput in 0 1 in\nStoragePacking fp32 1 1 in out\n";
     BoundedNetReader dr(0, 0);
     if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+    {
+        fprintf(stderr, "test_net storage packing load failed storage_type=%d\n", storage_type);
         return -1;
+    }
 
     ncnn::Mat in(5, 3, 128);
     for (int q = 0; q < in.c; q++)
@@ -684,7 +687,10 @@ static int test_storage_packing(int storage_type)
     ncnn::Extractor ref = net.create_extractor();
     ncnn::Mat expected;
     if (ref.input("in", in) != 0 || ref.extract("out", expected, 1) != 0)
+    {
+        fprintf(stderr, "test_net storage packing reference failed storage_type=%d\n", storage_type);
         return -1;
+    }
 
     ncnn::Extractor ex = net.create_extractor();
     ncnn::Mat out;
@@ -693,7 +699,7 @@ static int test_storage_packing(int storage_type)
         ret = ex.extract("out", out, 1);
     if (ret != 0 || out.elembits() != 32 || out.elempack != expected.elempack || CompareMat(in, out, 0.f) != 0)
     {
-        fprintf(stderr, "test_net storage packing failed storage_type=%d ret=%d\n", storage_type, ret);
+        fprintf(stderr, "test_net storage packing failed storage_type=%d ret=%d elembits=%d elempack=%d expected=%d\n", storage_type, ret, out.elembits(), out.elempack, expected.elempack);
         return -1;
     }
     return 0;
