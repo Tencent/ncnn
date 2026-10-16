@@ -52,6 +52,25 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
         _ans = vminq_f32(_ans, _one);
         _v = vmulq_f32(_ans, _v);
     }
+    else if (activation_type == 7)
+    {
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        _v = fast_gelu ? fast_gelu_ps(_v) : gelu_ps(_v);
+    }
+    else if (activation_type == 8)
+    {
+        _v = div_ps(_v, vaddq_f32(vdupq_n_f32(1.f), exp_ps(vnegq_f32(_v))));
+    }
+    else if (activation_type == 9)
+    {
+        _v = elu_ps(_v, vdupq_n_f32(activation_params[0]));
+    }
+    else if (activation_type == 10)
+    {
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        _v = selu_ps(_v, vdupq_n_f32(alpha * lambda), vdupq_n_f32(lambda));
+    }
 
     return _v;
 }
@@ -101,6 +120,11 @@ static inline __fp16 activation_ss_f16(__fp16 v, int activation_type, const ncnn
         else
             v = v * (v * alpha + beta);
     }
+    else if (activation_type == 7 || activation_type == 8 || activation_type == 9 || activation_type == 10)
+    {
+        // keep the fp16 scalar path identical to the float scalar reference
+        v = (__fp16)activation_ss((float)v, activation_type, activation_params);
+    }
 
     return v;
 }
@@ -147,6 +171,25 @@ static inline float16x4_t activation_ps_f16(float16x4_t _v, int activation_type,
         _ans = vmin_f16(_ans, _one);
         _v = vmul_f16(_ans, _v);
     }
+    else if (activation_type == 7)
+    {
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        _v = fast_gelu ? fast_gelu_ps_f16(_v) : gelu_ps_f16(_v);
+    }
+    else if (activation_type == 8)
+    {
+        _v = vdiv_f16(_v, vadd_f16(vdup_n_f16(1.f), exp_ps_f16(vneg_f16(_v))));
+    }
+    else if (activation_type == 9)
+    {
+        _v = elu_ps_f16(_v, vdup_n_f16((__fp16)activation_params[0]));
+    }
+    else if (activation_type == 10)
+    {
+        const __fp16 alpha = (__fp16)activation_params[0];
+        const __fp16 lambda = (__fp16)activation_params[1];
+        _v = selu_ps_f16(_v, vdup_n_f16(alpha * lambda), vdup_n_f16(lambda));
+    }
 
     return _v;
 }
@@ -192,6 +235,25 @@ static inline float16x8_t activation_ps_f16(float16x8_t _v, int activation_type,
         _ans = vmaxq_f16(_ans, _zero);
         _ans = vminq_f16(_ans, _one);
         _v = vmulq_f16(_ans, _v);
+    }
+    else if (activation_type == 7)
+    {
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        _v = fast_gelu ? fast_gelu_ps_f16(_v) : gelu_ps_f16(_v);
+    }
+    else if (activation_type == 8)
+    {
+        _v = vdivq_f16(_v, vaddq_f16(vdupq_n_f16(1.f), exp_ps_f16(vnegq_f16(_v))));
+    }
+    else if (activation_type == 9)
+    {
+        _v = elu_ps_f16(_v, vdupq_n_f16((__fp16)activation_params[0]));
+    }
+    else if (activation_type == 10)
+    {
+        const __fp16 alpha = (__fp16)activation_params[0];
+        const __fp16 lambda = (__fp16)activation_params[1];
+        _v = selu_ps_f16(_v, vdupq_n_f16(alpha * lambda), vdupq_n_f16(lambda));
     }
     return _v;
 }
