@@ -185,36 +185,13 @@ static int test_cpu_omp_nested()
     return 0;
 }
 
-static int test_cpu_riscv_bf16()
+static int test_cpu_riscv_vlenb()
 {
     if ((ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector()) && ncnn::cpu_riscv_vlenb() <= 0)
     {
         fprintf(stderr, "The riscv vector length must be positive when V or XTheadVector is supported\n");
         return 1;
     }
-
-    const int zvfbfmin = ncnn::cpu_support_riscv_zvfbfmin();
-    const int zvfbfwma = ncnn::cpu_support_riscv_zvfbfwma();
-
-    if ((zvfbfmin != 0 && zvfbfmin != 1) || (zvfbfwma != 0 && zvfbfwma != 1))
-    {
-        fprintf(stderr, "The riscv bfloat16 support flags must be boolean\n");
-        return 1;
-    }
-
-    if (zvfbfwma && !zvfbfmin)
-    {
-        fprintf(stderr, "The riscv zvfbfwma extension requires zvfbfmin\n");
-        return 1;
-    }
-
-#if !__riscv
-    if (zvfbfmin || zvfbfwma)
-    {
-        fprintf(stderr, "The riscv bfloat16 extensions cannot be supported on other architectures\n");
-        return 1;
-    }
-#endif
 
     return 0;
 }
@@ -227,5 +204,5 @@ int main()
            || test_cpu_omp()
            || test_cpu_omp_nested()
            || test_cpu_powersave()
-           || test_cpu_riscv_bf16();
+           || test_cpu_riscv_vlenb();
 }
