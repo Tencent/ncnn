@@ -82,8 +82,37 @@ def test():
             return False
     return True
 
+class UnsupportedModel(nn.Module):
+    def __init__(self, add_zero_attn, add_bias_kv):
+        super(UnsupportedModel, self).__init__()
+        self.attention = nn.MultiheadAttention(8, 2, add_zero_attn=add_zero_attn, add_bias_kv=add_bias_kv)
+
+    def forward(self, x):
+        out, _ = self.attention(x, x, x)
+        return out
+
+def test_unsupported_options():
+    import os
+    import ncnn
+
+    torch.set_grad_enabled(False)
+    torch.manual_seed(0)
+    x = torch.rand(3, 1, 8)
+
+    for add_zero_attn, add_bias_kv in [(True, False), (False, True), (True, True)]:
+        net = UnsupportedModel(add_zero_attn, add_bias_kv).eval()
+        mod = torch.jit.trace(net, x, check_trace=False)
+        name = "test_nn_MultiheadAttention_unsupported_%d_%d" % (add_zero_attn, add_bias_kv)
+        mod.save(name + ".pt")
+        if os.system("../../src/pnnx " + name + ".pt inputshape=[3,1,8]") != 0:
+            return False
+        with ncnn.Net() as ncnn_net:
+            if ncnn_net.load_param(name + ".ncnn.param") != -1:
+                return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_unsupported_options():
         exit(0)
     else:
         exit(1)
