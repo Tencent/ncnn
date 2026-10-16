@@ -170,22 +170,19 @@ static int test_cast_bfloat16_bits(int elempack)
     use_vector_rounding = use_vector_rounding || ncnn::cpu_support_riscv_xtheadvector();
 #endif
     bool use_native_conversion = false;
-#if NCNN_ZVFBFMIN && NCNN_RVV && !__riscv_xtheadvector
+#if NCNN_ZVFBFMIN
 #if NCNN_RUNTIME_CPU
-    use_native_conversion = ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zvfbfmin();
-#if NCNN_XTHEADVECTOR
-    use_native_conversion = use_native_conversion && !ncnn::cpu_support_riscv_xtheadvector();
-#endif
-#else
+    use_native_conversion = use_vector_rounding && ncnn::cpu_support_riscv_zvfbfmin();
+#elif __riscv_zvfbfmin || (NCNN_RVV && !__riscv_xtheadvector)
     use_native_conversion = true;
 #endif
 #endif
     bool use_xthead_conversion = false;
 #if NCNN_XTHEADVECTOR
 #if __riscv_xtheadvector || (!NCNN_RUNTIME_CPU && !NCNN_RVV)
-    use_xthead_conversion = true;
+    use_xthead_conversion = !use_native_conversion;
 #elif NCNN_RUNTIME_CPU
-    use_xthead_conversion = ncnn::cpu_support_riscv_xtheadvector();
+    use_xthead_conversion = !use_native_conversion && ncnn::cpu_support_riscv_xtheadvector();
 #endif
     use_native_conversion = use_native_conversion || use_xthead_conversion;
 #endif
