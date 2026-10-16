@@ -105,6 +105,7 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
 }
 #endif // __riscv_zvfh
 
+// the XTheadVector path requires FXCR.BF16 enabled and FRM=RNE for narrowing
 static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
 {
 #if NCNN_ZVFBFMIN && __riscv_zvfbfmin
