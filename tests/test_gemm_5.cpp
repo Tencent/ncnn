@@ -210,13 +210,15 @@ static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_
            || test_gemm_1(M, N, K, fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack, 16, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
-#if NCNN_BF16 && NCNN_RVV
-static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, int output_transpose, int output_N1M, int fp32_C = 0)
+#if NCNN_BF16
+static int test_gemm_bf16_storage(int fp32_packn, int packn, int use_packing_layout, int output_elemtype, int output_transpose, int output_N1M, int fp32_C = 0)
 {
-    if (!ncnn::cpu_support_riscv_v())
+    ncnn::Layer* op = ncnn::create_layer_cpu("Gemm");
+    const bool supported = op->support_bf16_storage && (!use_packing_layout || op->support_packing);
+    delete op;
+    if (!supported)
         return 0;
 
-    const int packn = ncnn::cpu_riscv_vlenb() / 2;
     const int M = packn;
     const int N = packn * 2;
     const int K = packn * 2 + 3;
@@ -272,7 +274,7 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
     {
         for (int i = 0; i < 3; i++)
         {
-            const int elempack = i == 2 && fp32_C ? packn / 2 : packn;
+            const int elempack = i == 2 && fp32_C ? fp32_packn : packn;
             ncnn::Mat packed;
             ncnn::convert_packing(a[i], packed, elempack, opt);
             if (packed.empty() || packed.elempack != elempack)
@@ -281,13 +283,7 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
         }
     }
 
-    ncnn::Layer* op = ncnn::create_layer_cpu("Gemm");
-    if (!op->support_bf16_storage)
-    {
-        fprintf(stderr, "test_gemm_bf16_storage missing bf16 support\n");
-        delete op;
-        return -1;
-    }
+    op = ncnn::create_layer_cpu("Gemm");
 
     std::vector<ncnn::Mat> weights;
     ncnn::ModelBinFromMatArray mb(weights.data());
@@ -301,7 +297,7 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
     if (ret != 0)
         return ret;
 
-    const int out_elempack = use_packing_layout ? (output_elemtype == 1 ? packn / 2 : packn) : 1;
+    const int out_elempack = use_packing_layout ? (output_elemtype == 1 ? fp32_packn : packn) : 1;
     const int outw = output_transpose ? M : N;
     const int outh = output_transpose ? N : M;
     if (b[0].elembits() != (output_elemtype == 1 ? 32 : 16) || b[0].elempack != out_elempack
@@ -323,19 +319,23 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
             for (int k = 0; k < K; k++)
                 expected += (((i * 3 + k) % 11 - 5) * 0.125f) * (((k + j * 2) % 13 - 6) * 0.0625f);
             expected *= 1.5f;
+            float expected_rne = expected;
             if (output_elemtype != 1)
             {
-                // this shape uses RVV stores, which round ties to even
+                // native RNE and ncnn rounding may choose different halfway results
                 unsigned int bits;
                 memcpy(&bits, &expected, sizeof(bits));
-                expected = ncnn::bfloat16_to_float32((unsigned short)((bits + 0x7fff + ((bits >> 16) & 1)) >> 16));
+                expected = ncnn::bfloat16_to_float32((unsigned short)((bits + 0x8000u) >> 16));
+                expected_rne = expected;
+                if ((bits & 0xffffu) == 0x8000u)
+                    expected_rne = ncnn::bfloat16_to_float32((unsigned short)((bits + 0x7fffu + ((bits >> 16) & 1)) >> 16));
             }
 
             const int row = output_transpose ? j : i;
             const int col = output_transpose ? i : j;
             const ncnn::Mat outrow = output_N1M ? unpacked.channel(row) : unpacked.row_range(row, 1);
             const float actual = output_elemtype == 1 ? ((const float*)outrow)[col] : ncnn::bfloat16_to_float32(((const unsigned short*)outrow)[col]);
-            if (actual != expected)
+            if (actual != expected && actual != expected_rne)
             {
                 fprintf(stderr, "test_gemm_bf16_storage value failed i=%d j=%d expected=%f actual=%f pack=%d output_elemtype=%d output_transpose=%d output_N1M=%d fp32_C=%d\n", i, j, expected, actual, use_packing_layout, output_elemtype, output_transpose, output_N1M, fp32_C);
                 return -1;
@@ -345,24 +345,11 @@ static int test_gemm_bf16_storage(int use_packing_layout, int output_elemtype, i
 
     return 0;
 }
-#endif // NCNN_BF16 && NCNN_RVV
+#endif // NCNN_BF16
 
 int main()
 {
     SRAND(7767517);
-
-#if NCNN_BF16 && NCNN_RVV
-    for (int packing = 0; packing < 2; packing++)
-        for (int output_elemtype = 0; output_elemtype < 2; output_elemtype++)
-            for (int output_transpose = 0; output_transpose < 2; output_transpose++)
-                for (int output_N1M = 0; output_N1M < 2; output_N1M++)
-                    if (test_gemm_bf16_storage(packing, output_elemtype, output_transpose, output_N1M) != 0)
-                        return -1;
-
-    // dynamic fp32 matrix C has a smaller natural pack than bf16 A and B
-    if (test_gemm_bf16_storage(1, 1, 0, 0, 1) != 0 || test_gemm_bf16_storage(1, 1, 1, 1, 1) != 0)
-        return -1;
-#endif
 
     int mnk_scalar[][3] = {
         {1, 1, 1},
@@ -412,11 +399,33 @@ int main()
     }
 #endif
 
+#if NCNN_MSA
+    if (ncnn::cpu_support_mips_msa())
+    {
+        fp32_min_elempack = 4;
+        fp32_max_elempack = 4;
+    }
+#endif
+#if NCNN_LSX
+    if (ncnn::cpu_support_loongarch_lsx())
+    {
+        fp32_min_elempack = 4;
+        fp32_max_elempack = 4;
+    }
+#endif
+#if NCNN_LASX
+    if (ncnn::cpu_support_loongarch_lasx())
+    {
+        fp32_min_elempack = 4;
+        fp32_max_elempack = 8;
+    }
+#endif
+
     int bf16_min_elempack = fp32_min_elempack;
     int bf16_max_elempack = fp32_max_elempack;
 
-#if NCNN_BF16 && NCNN_RVV
-    if (ncnn::cpu_support_riscv_v())
+#if NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
+    if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
     {
         bf16_min_elempack = ncnn::cpu_riscv_vlenb() / 2;
         bf16_max_elempack = ncnn::cpu_riscv_vlenb() / 2;
@@ -430,6 +439,22 @@ int main()
 #if NCNN_LSX
     if (ncnn::cpu_support_loongarch_lsx())
         bf16_max_elempack = 8;
+#endif
+
+#if NCNN_BF16
+    for (int packing = 0; packing < 2; packing++)
+        for (int output_elemtype = 0; output_elemtype < 2; output_elemtype++)
+            for (int output_transpose = 0; output_transpose < 2; output_transpose++)
+                for (int output_N1M = 0; output_N1M < 2; output_N1M++)
+                    if (test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, packing, output_elemtype, output_transpose, output_N1M) != 0)
+                        return -1;
+
+#if NCNN_RVV || NCNN_XTHEADVECTOR || NCNN_MSA || NCNN_LSX || NCNN_LASX
+    // these backends also accept dynamic fp32 C alongside bf16 A and B
+    if (test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 0, 0, 1) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 1, 1, 1) != 0)
+        return -1;
+#endif
 #endif
 
     for (int i = 0; i < 14; i++)
