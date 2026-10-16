@@ -107,18 +107,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -253,18 +242,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -385,18 +363,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -505,18 +472,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -553,7 +509,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 offset
 DeformableConv2D        op_0        2 1 input offset a %*=%*
-HardSwish               op_1        1 1 a out %*=%*
+HardSwish               op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -622,7 +578,7 @@ pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 offset
 pnnx.Input              input_2     0 1 mask
 DeformableConv2D        op_0        3 1 input offset mask a %*=%*
-HardSwish               op_1        1 1 a out %*=%*
+HardSwish               op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -639,18 +595,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -779,18 +724,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -1029,18 +963,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -1157,18 +1080,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -1286,18 +1198,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.find("op_0.9") != captured_params.end())
-            return false;
-        // match ReLU with non-zero slope (LeakyReLU)
-        if (captured_params.find("op_1.0") != captured_params.end())
-        {
-            const Parameter& slope = captured_params.at("op_1.0");
-            if (slope.type == 2 && slope.i != 0)
-                return true;
-            if (slope.type == 3 && slope.f != 0.f)
-                return true;
-        }
-        return false;
+        return captured_params.find("op_0.9") == captured_params.end();
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const

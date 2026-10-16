@@ -46,21 +46,21 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     }
     case 6:
     {
+        // hardswish y = x * clamp(alpha * x + beta, 0, 1)
+        // use the clamped form like every vectorized hardswish helper and the vulkan shader,
+        // it also stays well defined for the degenerate alpha <= 0 case where the
+        // lower/upper bounds invert and the branch form no longer matches the vector paths
         float alpha = activation_params[0];
         float beta = activation_params[1];
-        float lower = -beta / alpha;
-        float upper = (1.f / alpha) + lower;
-        if (v < lower)
-            v = 0.f;
-        else if (v > upper)
-            ;
-        else
-            v = v * (v * alpha + beta);
+        v = v * std::min(std::max(v * alpha + beta, 0.f), 1.f);
         break;
     }
     case 7:
     {
-        // GELU
+        // GELU, activation_params[0] is the fast_gelu flag
+        // the flag is read as int so that both the plain numeric element written by pnnx
+        // (10=-23310=1,0 for slow gelu, 10=-23310=1,1 for fast gelu) and a float encoded
+        // element select the same branch, any nonzero value means fast_gelu
         int fast_gelu = activation_params.row<int>(0)[0];
         if (fast_gelu)
         {

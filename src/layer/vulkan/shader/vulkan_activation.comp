@@ -41,13 +41,33 @@ afp activation_afp(afp v, int activation_type, float activation_param_0, float a
     }
     if (activation_type == 7)
     {
-        // GELU: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
-        // vulkan always uses the tanh approximation regardless of the fast_gelu flag
+        // GELU
+        // activation_param_0 carries the fast_gelu flag, the host passes the plain numeric value
+        if (activation_param_0 != 0.f)
+        {
+            // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+            afp x = afp(0.79788452f) * (v + afp(0.044715f) * v * v * v);
+            // avoid overflow in tanh implementations based on exp(x) and exp(-x)
+            x = min(max(x, afp(-10.f)), afp(10.f));
 #if NCNN_moltenvk
-        v = afp(0.5f) * v * (afp(1.f) + afp(tanh(float(afp(0.79788452f) * (v + afp(0.044715f) * v * v * v)))));
+            v = afp(0.5f) * v * (afp(1.f) + afp(tanh(float(x))));
 #else
-        v = afp(0.5f) * v * (afp(1.f) + tanh(afp(0.79788452f) * (v + afp(0.044715f) * v * v * v)));
+            v = afp(0.5f) * v * (afp(1.f) + tanh(x));
 #endif
+        }
+        else
+        {
+            // y = 0.5 * x * erfc(-x / sqrt(2))
+            // glsl has no erfc builtin, erf is evaluated with the Abramowitz and Stegun
+            // 7.1.26 rational approximation (absolute error below 1.5e-7)
+            const afp z = afp(0.70710678f) * v;
+            const afp az = max(z, -z);
+            const afp t = afp(1.f) / (afp(1.f) + afp(0.3275911f) * az);
+            afp p = t * (afp(0.254829592f) + t * (afp(-0.284496736f) + t * (afp(1.421413741f) + t * (afp(-1.453152027f) + t * afp(1.061405429f)))));
+            p = afp(1.f) - p * exp(-az * az);
+            const afp erfz = z < afp(0.f) ? -p : p;
+            v = afp(0.5f) * v * (afp(1.f) + erfz);
+        }
     }
     if (activation_type == 8)
     {
@@ -108,13 +128,32 @@ afpvec4 activation_afpvec4(afpvec4 v, int activation_type, float activation_para
     }
     if (activation_type == 7)
     {
-        // GELU: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
-        // vulkan always uses the tanh approximation regardless of the fast_gelu flag
+        // GELU
+        // activation_param_0 carries the fast_gelu flag, the host passes the plain numeric value
+        if (activation_param_0 != 0.f)
+        {
+            // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+            afpvec4 x = afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v);
+            // avoid overflow in tanh implementations based on exp(x) and exp(-x)
+            x = clamp(x, afpvec4(-10.f), afpvec4(10.f));
 #if NCNN_moltenvk
-        v = afpvec4(0.5f) * v * (afpvec4(1.f) + afpvec4(tanh(vec4(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)))));
+            v = afpvec4(0.5f) * v * (afpvec4(1.f) + afpvec4(tanh(vec4(x))));
 #else
-        v = afpvec4(0.5f) * v * (afpvec4(1.f) + tanh(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)));
+            v = afpvec4(0.5f) * v * (afpvec4(1.f) + tanh(x));
 #endif
+        }
+        else
+        {
+            // y = 0.5 * x * erfc(-x / sqrt(2))
+            // glsl has no erfc builtin, erf is evaluated with the Abramowitz and Stegun
+            // 7.1.26 rational approximation (absolute error below 1.5e-7)
+            const afpvec4 z = afpvec4(0.70710678f) * v;
+            const afpvec4 az = max(z, -z);
+            const afpvec4 t = afpvec4(1.f) / (afpvec4(1.f) + afpvec4(0.3275911f) * az);
+            afpvec4 p = t * (afpvec4(0.254829592f) + t * (afpvec4(-0.284496736f) + t * (afpvec4(1.421413741f) + t * (afpvec4(-1.453152027f) + t * afpvec4(1.061405429f)))));
+            p = afpvec4(1.f) - p * exp(-az * az);
+            v = afpvec4(0.5f) * v * (afpvec4(1.f) + mix(p, -p, lessThan(z, afpvec4(0.f))));
+        }
     }
     if (activation_type == 8)
     {

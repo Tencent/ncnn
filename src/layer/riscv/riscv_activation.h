@@ -40,17 +40,13 @@
         }                                                                                                                                                                     \
         else if (activation_type == 6)                                                                                                                                        \
         {                                                                                                                                                                     \
-            const float alpha = activation_params[0];                                                                                                                         \
-            const float beta = activation_params[1];                                                                                                                          \
-            const float lower = -beta / alpha;                                                                                                                                \
-            const float upper = (1.f / alpha) + lower;                                                                                                                        \
-            vbool##MLEN##_t _lower = __riscv_vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)lower, vl);                                                                        \
-            vbool##MLEN##_t _higher = __riscv_vmfgt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)upper, vl);                                                                       \
-            vbool##MLEN##_t _apply = __riscv_vmnor_mm_b##MLEN(_lower, _higher, vl);                                                                                           \
-            _v = __riscv_vfmerge_vfm_f##SEW##m##LMUL(_v, (STYPE).0f, _lower, vl);                                                                                             \
-                                                                                                                                                                              \
-            vfloat##SEW##m##LMUL##_t _p0 = __riscv_vfadd_vf_f##SEW##m##LMUL##_m(_apply, __riscv_vfmul_vf_f##SEW##m##LMUL##_m(_apply, _v, (STYPE)alpha, vl), (STYPE)beta, vl); \
-            _v = __riscv_vfmul_vv_f##SEW##m##LMUL##_mu(_apply, _v, _v, _p0, vl);                                                                                              \
+            const STYPE alpha = (STYPE)activation_params[0];                                                                                                                  \
+            const STYPE beta = (STYPE)activation_params[1];                                                                                                                   \
+            vfloat##SEW##m##LMUL##_t _p0 = __riscv_vfmul_vf_f##SEW##m##LMUL(_v, alpha, vl);                                                                                   \
+            _p0 = __riscv_vfadd_vf_f##SEW##m##LMUL(_p0, beta, vl);                                                                                                            \
+            _p0 = __riscv_vfmax_vf_f##SEW##m##LMUL(_p0, (STYPE)0.f, vl);                                                                                                      \
+            _p0 = __riscv_vfmin_vf_f##SEW##m##LMUL(_p0, (STYPE)1.f, vl);                                                                                                      \
+            _v = __riscv_vfmul_vv_f##SEW##m##LMUL(_v, _p0, vl);                                                                                                               \
         }                                                                                                                                                                     \
                                                                                                                                                                               \
         else if (activation_type == 7)                                                                                                                                         \

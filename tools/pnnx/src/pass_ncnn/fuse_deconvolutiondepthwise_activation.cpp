@@ -258,7 +258,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 DeconvolutionDepthWise  op_0        1 1 input a %*=%*
-HardSwish               op_1        1 1 a out %*=%*
+HardSwish               op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

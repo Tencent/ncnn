@@ -109,16 +109,16 @@ static inline __fp16 activation_ss_f16(__fp16 v, int activation_type, const ncnn
     }
     else if (activation_type == 6)
     {
+        // keep the fp16 scalar path identical to the vectorized hardswish helpers,
+        // the lower/upper form diverges from them when alpha <= 0
         const __fp16 alpha = (__fp16)(activation_params[0]);
         const __fp16 beta = (__fp16)(activation_params[1]);
-        const __fp16 lower = -beta / alpha;
-        const __fp16 upper = ((__fp16)1.f / alpha) + lower;
-        if (v < lower)
-            v = (__fp16)0.f;
-        else if (v > upper)
-            ;
-        else
-            v = v * (v * alpha + beta);
+        __fp16 t = v * alpha + beta;
+        if (t < (__fp16)0.f)
+            t = (__fp16)0.f;
+        if (t > (__fp16)1.f)
+            t = (__fp16)1.f;
+        v = v * t;
     }
     else if (activation_type == 7 || activation_type == 8 || activation_type == 9 || activation_type == 10)
     {
