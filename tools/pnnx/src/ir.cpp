@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <stack>
@@ -382,6 +383,13 @@ Parameter Parameter::parse_from_string(const std::string& value)
         return p;
     }
 
+    if (value == "1.#INF" || value == "-1.#INF" || value == "1.#QNAN")
+    {
+        p.type = 3;
+        p.f = value == "1.#QNAN" ? std::numeric_limits<float>::quiet_NaN() : (value[0] == '-' ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::infinity());
+        return p;
+    }
+
     if (value.find('.') != std::string::npos || value.find('e') != std::string::npos)
     {
         // float
@@ -415,6 +423,10 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 3)
     {
+        if (std::isinf(param.f))
+            return param.f < 0 ? "-1.#INF" : "1.#INF";
+        if (std::isnan(param.f))
+            return "1.#QNAN";
         return float_to_string(param.f);
     }
     if (param.type == 4)
@@ -2373,7 +2385,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                     if (param.type == 3)
                     {
-                        if (scalar_as_tensor)
+                        if (!std::isfinite(param.f))
+                        {
+                            if (scalar_as_tensor)
+                                fprintf(pyfp, "torch.tensor(");
+                            fprintf(pyfp, "float('%s')", std::isnan(param.f) ? "nan" : (param.f < 0 ? "-inf" : "inf"));
+                            if (scalar_as_tensor)
+                                fprintf(pyfp, ")");
+                        }
+                        else if (scalar_as_tensor)
                         {
                             if (param.f == (int)param.f)
                                 fprintf(pyfp, "torch.tensor(%.1f)", param.f);
