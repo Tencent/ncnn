@@ -612,7 +612,7 @@ static int test_shape_layout()
     return 0;
 }
 
-#if NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
+#if NCNN_BF16
 class StoragePackingLayer : public ncnn::Layer
 {
 public:
@@ -624,17 +624,25 @@ public:
 
     virtual int load_param(const ncnn::ParamDict& pd)
     {
-        support_bf16_storage = pd.get(0, 0) != 0;
+        const int storage_type = pd.get(0, 1);
+        support_fp16_storage = storage_type == 2;
+        support_bf16_storage = storage_type == 4;
         return 0;
     }
 
     virtual int forward(const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, const ncnn::Option& opt) const
     {
-        const int elembits = support_bf16_storage ? 16 : 32;
-        const int elempack = opt.use_packing_layout ? ncnn::cpu_riscv_vlenb() / (elembits / 8) : 1;
+        const int elembits = support_fp16_storage || support_bf16_storage ? 16 : 32;
+        int elempack = bottom_blob.elempack;
+        if (!opt.use_packing_layout)
+            elempack = 1;
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+        else if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
+            elempack = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+#endif
         if (bottom_blob.elembits() != elembits || bottom_blob.elempack != elempack)
         {
-            fprintf(stderr, "test_net storage packing failed bf16=%d elembits=%d elempack=%d expected=%d\n", support_bf16_storage, bottom_blob.elembits(), bottom_blob.elempack, elempack);
+            fprintf(stderr, "test_net storage packing failed fp16=%d bf16=%d elembits=%d elempack=%d expected=%d\n", support_fp16_storage, support_bf16_storage, bottom_blob.elembits(), bottom_blob.elempack, elempack);
             return -1;
         }
         top_blob = bottom_blob;
@@ -647,46 +655,83 @@ static ncnn::Layer* create_storage_packing_layer(void*)
     return new StoragePackingLayer;
 }
 
-static int test_bfloat16_storage_packing(int packing)
+static int test_storage_packing(int storage_type, int packing)
 {
-    if (!ncnn::cpu_support_riscv_v() && !ncnn::cpu_support_riscv_xtheadvector())
-        return 0;
+    if (storage_type == 2)
+    {
+        bool support_fp16 = false;
+#if NCNN_ARM82
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_asimdhp();
+#endif
+#if NCNN_VFPV4
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_vfpv4();
+#endif
+#if NCNN_ZFH
+        support_fp16 = support_fp16 || ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh());
+#endif
+        if (!support_fp16)
+            return 0;
+    }
 
     ncnn::Net net;
     net.opt.num_threads = 1;
     net.opt.use_packing_layout = packing;
-    net.opt.use_fp16_storage = false;
-    net.opt.use_bf16_storage = true;
+    net.opt.use_fp16_storage = storage_type == 2;
+    net.opt.use_bf16_storage = storage_type == 4;
+    int channels = 32;
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
+        channels = ncnn::cpu_riscv_vlenb();
+    else
+        net.opt.use_packing_layout = false;
+#endif
     net.register_custom_layer("StoragePacking", create_storage_packing_layer);
-    const char* param = "7767517\n4 4\n"
-                        "Input in 0 1 in\n"
-                        "StoragePacking bf16 1 1 in a 0=1\n"
-                        "StoragePacking fp32 1 1 a b 0=0\n"
-                        "StoragePacking bf16_out 1 1 b out 0=1\n";
+    char param[256];
+    snprintf(param, sizeof(param), "7767517\n4 4\n"
+             "Input in 0 1 in\n"
+             "StoragePacking low_in 1 1 in a 0=%d\n"
+             "StoragePacking fp32 1 1 a b 0=1\n"
+             "StoragePacking low_out 1 1 b out 0=%d\n",
+             storage_type, storage_type);
     BoundedNetReader dr(0, 0);
     if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
         return -1;
 
-    ncnn::Mat in(5, 3, ncnn::cpu_riscv_vlenb());
+    ncnn::Mat in(5, 3, channels);
     for (int q = 0; q < in.c; q++)
     {
         float* p = in.channel(q);
         for (int i = 0; i < in.w * in.h; i++)
             p[i] = (i - 7) * 0.25f + (q % 8);
     }
+
+    ncnn::Mat input = in;
+    if (!packing)
+    {
+        // exercise unpacking a 16-bit input for the fp32 layer
+        ncnn::Mat input16;
+        if (storage_type == 2)
+            ncnn::cast_float32_to_float16(in, input16, net.opt);
+        else
+            ncnn::cast_float32_to_bfloat16(in, input16, net.opt);
+        ncnn::convert_packing(input16, input, 4, net.opt);
+        if (input.empty() || input.elembits() != 16 || input.elempack != 4)
+            return -1;
+    }
+
     ncnn::Extractor ex = net.create_extractor();
     ncnn::Mat out;
-    int ret = ex.input("in", in);
+    int ret = ex.input(packing ? "in" : "a", input);
     if (ret == 0)
         ret = ex.extract("out", out);
     if (ret != 0 || CompareMat(in, out, 0.f) != 0)
     {
-        fprintf(stderr, "test_net bfloat16 storage packing failed packing=%d ret=%d\n", packing, ret);
+        fprintf(stderr, "test_net storage packing failed storage_type=%d packing=%d ret=%d\n", storage_type, packing, ret);
         return -1;
     }
     return 0;
 }
-#endif // NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
+#endif // NCNN_BF16
 
 static int test_recreate_layer()
 {
@@ -1446,9 +1491,11 @@ int main()
            || test_builtin_without_override()
            || test_null_creators()
            || test_shape_layout()
-#if NCNN_BF16 && (NCNN_RVV || NCNN_XTHEADVECTOR)
-           || test_bfloat16_storage_packing(0)
-           || test_bfloat16_storage_packing(1)
+#if NCNN_BF16
+           || test_storage_packing(4, 0)
+           || test_storage_packing(4, 1)
+           || test_storage_packing(2, 0)
+           || test_storage_packing(2, 1)
 #endif
            || test_recreate_layer()
            || test_recreate_layer_null_creator()
