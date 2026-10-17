@@ -1,6 +1,8 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <fenv.h>
+
 #include "net.h"
 #include "testutil.h"
 
@@ -117,6 +119,50 @@ static int test_gridsample_3d_nearest_even()
         }
     }
 
+    return 0;
+}
+
+static int test_gridsample_nearest_even_rounding_mode()
+{
+#ifdef FE_UPWARD
+    ncnn::Mat image(5, 5, 1);
+    float* image_ptr = image.channel(0);
+    for (int y = 0; y < 5; y++)
+        for (int x = 0; x < 5; x++)
+            image_ptr[y * 5 + x] = (float)x;
+
+    ncnn::Mat grid(2, 1, 1);
+    float* grid_ptr = grid.channel(0);
+    grid_ptr[0] = -0.75f; // pixel coordinate 0.5, which rounds to zero
+    grid_ptr[1] = 0.f;
+
+    ncnn::Layer* layer = ncnn::create_layer("GridSample");
+    ncnn::ParamDict pd;
+    pd.set(0, 2);
+    pd.set(1, 1);
+    pd.set(2, 1);
+    pd.set(3, 0);
+    int ret = layer->load_param(pd);
+    std::vector<ncnn::Mat> inputs(2);
+    inputs[0] = image;
+    inputs[1] = grid;
+    std::vector<ncnn::Mat> outputs(1);
+    const int old_rounding_mode = fegetround();
+    if (fesetround(FE_UPWARD) == 0)
+    {
+        if (ret == 0)
+            ret = layer->forward(inputs, outputs, ncnn::Option());
+        fesetround(old_rounding_mode);
+        if (ret == 0 && ((const float*)outputs[0].channel(0))[0] != 0.f)
+            ret = -1;
+    }
+    delete layer;
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gridsample_nearest_even_rounding_mode failed\n");
+        return ret;
+    }
+#endif
     return 0;
 }
 
@@ -292,6 +338,7 @@ int main()
     return 0
            || test_gridsample_nearest_even()
            || test_gridsample_3d_nearest_even()
+           || test_gridsample_nearest_even_rounding_mode()
            || test_gridsample_0()
            || test_gridsample_1()
            || test_gridsample_2()

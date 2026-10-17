@@ -273,8 +273,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
                         sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
 
-                        int x0 = static_cast<int>(nearbyintf(sample_x));
-                        int y0 = static_cast<int>(nearbyintf(sample_y));
+                        int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+                        int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
 
                         float v = get_value_bounded(image, x0, y0);
 
@@ -540,9 +540,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             float sample_y = *offsetptr_y;
                             float sample_z = *offsetptr_z;
 
-                            int x0 = static_cast<int>(nearbyintf(sample_x));
-                            int y0 = static_cast<int>(nearbyintf(sample_y));
-                            int z0 = static_cast<int>(nearbyintf(sample_z));
+                            int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+                            int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
+                            int z0 = static_cast<int>(gridsample_round_nearest_even(sample_z));
 
                             float v = get_value_bounded(image, x0, y0, z0);
 

@@ -186,8 +186,8 @@ static void gridsample_store_2d_bilinear_lsx(float* offset_value_ptr, __m128 _sa
 
 static void gridsample_store_2d_nearest_lsx(int* offset_ptr, __m128 _sample_x, __m128 _sample_y, int w, int h, int elempack)
 {
-    __m128 _x0f = (__m128)__lsx_vfrintrm_s(__lsx_vfadd_s(_sample_x, (__m128)__lsx_vreplfr2vr_s(0.5f)));
-    __m128 _y0f = (__m128)__lsx_vfrintrm_s(__lsx_vfadd_s(_sample_y, (__m128)__lsx_vreplfr2vr_s(0.5f)));
+    __m128 _x0f = (__m128)__lsx_vfrintrne_s(_sample_x);
+    __m128 _y0f = (__m128)__lsx_vfrintrne_s(_sample_y);
 
     __m128i _in_range = __lsx_vand_v(gridsample_in_range_lsx(_x0f, w), gridsample_in_range_lsx(_y0f, h));
     __m128i _offset = __lsx_vmul_w(__lsx_vftintrz_w_s(_y0f), __lsx_vreplgr2vr_w(w));
@@ -276,9 +276,9 @@ static void gridsample_store_3d_bilinear_lsx(float* offset_value_ptr, __m128 _sa
 
 static void gridsample_store_3d_nearest_lsx(int* offset_ptr, __m128 _sample_x, __m128 _sample_y, __m128 _sample_z, int w, int h, int d, int elempack)
 {
-    __m128 _x0f = (__m128)__lsx_vfrintrm_s(__lsx_vfadd_s(_sample_x, (__m128)__lsx_vreplfr2vr_s(0.5f)));
-    __m128 _y0f = (__m128)__lsx_vfrintrm_s(__lsx_vfadd_s(_sample_y, (__m128)__lsx_vreplfr2vr_s(0.5f)));
-    __m128 _z0f = (__m128)__lsx_vfrintrm_s(__lsx_vfadd_s(_sample_z, (__m128)__lsx_vreplfr2vr_s(0.5f)));
+    __m128 _x0f = (__m128)__lsx_vfrintrne_s(_sample_x);
+    __m128 _y0f = (__m128)__lsx_vfrintrne_s(_sample_y);
+    __m128 _z0f = (__m128)__lsx_vfrintrne_s(_sample_z);
 
     __m128i _in_range = __lsx_vand_v(__lsx_vand_v(gridsample_in_range_lsx(_x0f, w), gridsample_in_range_lsx(_y0f, h)), gridsample_in_range_lsx(_z0f, d));
     __m128i _offset = __lsx_vmul_w(__lsx_vftintrz_w_s(_z0f), __lsx_vreplgr2vr_w(w * h));
@@ -490,8 +490,8 @@ static void gridsample_store_2d_bilinear_lasx(float* offset_value_ptr, __m256 _s
 
 static void gridsample_store_2d_nearest_lasx(int* offset_ptr, __m256 _sample_x, __m256 _sample_y, int w, int h, int elempack)
 {
-    __m256 _x0f = (__m256)__lasx_xvfrintrm_s(__lasx_xvfadd_s(_sample_x, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
-    __m256 _y0f = (__m256)__lasx_xvfrintrm_s(__lasx_xvfadd_s(_sample_y, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
+    __m256 _x0f = (__m256)__lasx_xvfrintrne_s(_sample_x);
+    __m256 _y0f = (__m256)__lasx_xvfrintrne_s(_sample_y);
 
     __m256i _in_range = __lasx_xvand_v(gridsample_in_range_lasx(_x0f, w), gridsample_in_range_lasx(_y0f, h));
     __m256i _offset = __lasx_xvmul_w(__lasx_xvftintrz_w_s(_y0f), __lasx_xvreplgr2vr_w(w));
@@ -580,9 +580,9 @@ static void gridsample_store_3d_bilinear_lasx(float* offset_value_ptr, __m256 _s
 
 static void gridsample_store_3d_nearest_lasx(int* offset_ptr, __m256 _sample_x, __m256 _sample_y, __m256 _sample_z, int w, int h, int d, int elempack)
 {
-    __m256 _x0f = (__m256)__lasx_xvfrintrm_s(__lasx_xvfadd_s(_sample_x, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
-    __m256 _y0f = (__m256)__lasx_xvfrintrm_s(__lasx_xvfadd_s(_sample_y, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
-    __m256 _z0f = (__m256)__lasx_xvfrintrm_s(__lasx_xvfadd_s(_sample_z, (__m256)__lasx_xvreplfr2vr_s(0.5f)));
+    __m256 _x0f = (__m256)__lasx_xvfrintrne_s(_sample_x);
+    __m256 _y0f = (__m256)__lasx_xvfrintrne_s(_sample_y);
+    __m256 _z0f = (__m256)__lasx_xvfrintrne_s(_sample_z);
 
     __m256i _in_range = __lasx_xvand_v(__lasx_xvand_v(gridsample_in_range_lasx(_x0f, w), gridsample_in_range_lasx(_y0f, h)), gridsample_in_range_lasx(_z0f, d));
     __m256i _offset = __lasx_xvmul_w(__lasx_xvftintrz_w_s(_z0f), __lasx_xvreplgr2vr_w(w * h));

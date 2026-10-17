@@ -37,8 +37,8 @@ static void gridsample_2d_nearest_compute_blob_mips(const Mat& src, const Mat& g
                 sample_x = compute_coord_mips(sample_x, src.w, padding_mode, align_corner);
                 sample_y = compute_coord_mips(sample_y, src.h, padding_mode, align_corner);
 
-                int x0 = (int)nearbyintf(sample_x);
-                int y0 = (int)nearbyintf(sample_y);
+                int x0 = (int)gridsample_round_nearest_even(sample_x);
+                int y0 = (int)gridsample_round_nearest_even(sample_y);
 
                 offset_ptr[0] = in_bounds_mips(x0, y0, src.w, src.h) ? (x0 + y0 * src.w) * src.elempack : -1;
 
@@ -79,8 +79,8 @@ static void gridsample_2d_nearest_compute_blob_mips(const Mat& src, const Mat& g
                 sample_x = compute_coord_mips(sample_x, src.w, padding_mode, align_corner);
                 sample_y = compute_coord_mips(sample_y, src.h, padding_mode, align_corner);
 
-                int x0 = (int)nearbyintf(sample_x);
-                int y0 = (int)nearbyintf(sample_y);
+                int x0 = (int)gridsample_round_nearest_even(sample_x);
+                int y0 = (int)gridsample_round_nearest_even(sample_y);
 
                 offset_ptr[0] = in_bounds_mips(x0, y0, src.w, src.h) ? (x0 + y0 * src.w) * src.elempack : -1;
 
@@ -136,9 +136,9 @@ static void gridsample_3d_nearest_compute_blob_mips(const Mat& src, const Mat& g
                     sample_y = compute_coord_mips(sample_y, src.h, padding_mode, align_corner);
                     sample_z = compute_coord_mips(sample_z, src.d, padding_mode, align_corner);
 
-                    int x0 = (int)nearbyintf(sample_x);
-                    int y0 = (int)nearbyintf(sample_y);
-                    int z0 = (int)nearbyintf(sample_z);
+                    int x0 = (int)gridsample_round_nearest_even(sample_x);
+                    int y0 = (int)gridsample_round_nearest_even(sample_y);
+                    int z0 = (int)gridsample_round_nearest_even(sample_z);
 
                     offset_ptr[0] = in_bounds_mips(x0, y0, z0, src.w, src.h, src.d) ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 
@@ -189,9 +189,9 @@ static void gridsample_3d_nearest_compute_blob_mips(const Mat& src, const Mat& g
                     sample_y = compute_coord_mips(sample_y, src.h, padding_mode, align_corner);
                     sample_z = compute_coord_mips(sample_z, src.d, padding_mode, align_corner);
 
-                    int x0 = (int)nearbyintf(sample_x);
-                    int y0 = (int)nearbyintf(sample_y);
-                    int z0 = (int)nearbyintf(sample_z);
+                    int x0 = (int)gridsample_round_nearest_even(sample_x);
+                    int y0 = (int)gridsample_round_nearest_even(sample_y);
+                    int z0 = (int)gridsample_round_nearest_even(sample_z);
 
                     offset_ptr[0] = in_bounds_mips(x0, y0, z0, src.w, src.h, src.d) ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 

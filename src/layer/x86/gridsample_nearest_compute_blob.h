@@ -60,8 +60,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_y = unormalize(src.h, sample_y);
                 sample_y = get_coord(src.h, sample_y);
 
-                int x0 = static_cast<int>(nearbyintf(sample_x));
-                int y0 = static_cast<int>(nearbyintf(sample_y));
+                int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+                int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
@@ -121,8 +121,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_y = unormalize(src.h, sample_y);
             sample_y = get_coord(src.h, sample_y);
 
-            int x0 = static_cast<int>(nearbyintf(sample_x));
-            int y0 = static_cast<int>(nearbyintf(sample_y));
+            int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+            int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
@@ -208,9 +208,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_z = unormalize(src.d, sample_z);
                 sample_z = get_coord(src.d, sample_z);
 
-                int x0 = static_cast<int>(nearbyintf(sample_x));
-                int y0 = static_cast<int>(nearbyintf(sample_y));
-                int z0 = static_cast<int>(nearbyintf(sample_z));
+                int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+                int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
+                int z0 = static_cast<int>(gridsample_round_nearest_even(sample_z));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
@@ -285,9 +285,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_z = unormalize(src.d, sample_z);
             sample_z = get_coord(src.d, sample_z);
 
-            int x0 = static_cast<int>(nearbyintf(sample_x));
-            int y0 = static_cast<int>(nearbyintf(sample_y));
-            int z0 = static_cast<int>(nearbyintf(sample_z));
+            int x0 = static_cast<int>(gridsample_round_nearest_even(sample_x));
+            int y0 = static_cast<int>(gridsample_round_nearest_even(sample_y));
+            int z0 = static_cast<int>(gridsample_round_nearest_even(sample_z));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
