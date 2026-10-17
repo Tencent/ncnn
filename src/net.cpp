@@ -294,6 +294,14 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     {
         pending_dispatch_threshold = 256 * 1024; // 256K
     }
+    if (vkdev->info.vendor_id() == 0x8086 && vkdev->info.type() == 1 && vkdev->info.driver_id() == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+            && vkdev->info.support_subgroup_size_control() && !vkdev->info.support_cooperative_matrix()
+            && vkdev->info.subgroup_size() < vkdev->info.max_subgroup_size())
+    {
+        // same devices as the smaller default subgroup size in GpuInfo
+        // many workgroup sizes follow that default, scale the threshold so a net is not split into more submissions than before
+        pending_dispatch_threshold *= vkdev->info.max_subgroup_size() / vkdev->info.subgroup_size();
+    }
     if (cmd.pending_dispatch_total() > pending_dispatch_threshold)
     {
         cmd_submit_and_wait = true;
