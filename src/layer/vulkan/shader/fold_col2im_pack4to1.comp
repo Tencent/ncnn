@@ -1,0 +1,73 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfpvec4 src_blob_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfp dst_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int size;
+    int maxk;
+    int inw;
+    int inh;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int pad_left;
+    int pad_top;
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh)
+        return;
+
+    int bx = gx + p.pad_left;
+    int by = gy + p.pad_top;
+
+    afp acc = afp(0.f);
+
+    for (int u = 0; u < p.kernel_h; u++)
+    {
+        int ty = by - u * p.dilation_h;
+        if (ty < 0 || ty % p.stride_h != 0)
+            continue;
+
+        int i = ty / p.stride_h;
+        if (i >= p.inh)
+            continue;
+
+        for (int v = 0; v < p.kernel_w; v++)
+        {
+            int tx = bx - v * p.dilation_w;
+            if (tx < 0 || tx % p.stride_w != 0)
+                continue;
+
+            int j = tx / p.stride_w;
+            if (j >= p.inw)
+                continue;
+
+            int t = i * p.inw + j;
+
+            // unpacked row r lives in lane (r & 3) of packed row (r >> 2)
+            int r = gz * p.maxk + u * p.kernel_w + v;
+            afpvec4 rv = buffer_ld4(src_blob_data, (r >> 2) * p.size + t);
+            acc += rv[r & 3];
+        }
+    }
+
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+    buffer_st1(dst_blob_data, gi, acc);
+}
