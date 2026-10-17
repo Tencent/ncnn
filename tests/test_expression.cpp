@@ -150,10 +150,22 @@ static int test_expression_2()
     return 0;
 }
 
+static int test_expression_3()
+{
+    std::vector<ncnn::Mat> blobs;
+
+    return 0
+           || test_eval_list_expression("trunc_divide(16777219,2),trunc_divide(-16777219,2),trunc_divide(16777219,-2),trunc_divide(-16777219,-2)", blobs, 4, 8388609, -8388609, -8388609, 8388609)
+           || test_eval_list_expression("trunc_divide(-7,2),trunc_divide(7,-2),trunc_divide(-7,-2),trunc_divide(7,2)", blobs, 4, -3, -3, 3, 3)
+           || test_eval_list_expression("trunc_divide(-7.5,2),trunc_divide(7,-2.5),trunc_divide(-7.5,-2.5),trunc_divide(7.5,2)", blobs, 4, -3, -2, 3, 3)
+           || test_eval_list_expression("-(trunc_divide(+(4,16777219),2),8388608)", blobs, 1, 3);
+}
+
 int main()
 {
     return 0
            || test_expression_0()
            || test_expression_1()
-           || test_expression_2();
+           || test_expression_2()
+           || test_expression_3();
 }
