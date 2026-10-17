@@ -283,6 +283,9 @@ static ncnn::KMPGlobal g_kmp_global;
 
 static ncnn::ThreadLocalStorage tls_num_threads;
 static ncnn::ThreadLocalStorage tls_thread_num;
+#if __clang__
+static ncnn::ThreadLocalStorage tls_requested_num_threads;
+#endif
 
 static void init_g_kmp_global()
 {
@@ -498,7 +501,7 @@ int32_t __kmpc_global_thread_num(void* /*loc*/)
 void __kmpc_push_num_threads(void* /*loc*/, int32_t /*gtid*/, int32_t num_threads)
 {
     // NCNN_LOGE("__kmpc_push_num_threads %d", num_threads);
-    omp_set_num_threads(num_threads);
+    tls_requested_num_threads.set(reinterpret_cast<void*>((size_t)std::max(num_threads, 1)));
 }
 
 void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
@@ -506,7 +509,13 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
     g_kmp_global.try_init();
 
     // NCNN_LOGE("__kmpc_fork_call %d", argc);
-    int num_threads = omp_get_num_threads();
+    void* old_num_threads = tls_num_threads.get();
+    void* old_thread_num = tls_thread_num.get();
+    int num_threads = (int)reinterpret_cast<size_t>(tls_requested_num_threads.get());
+    tls_requested_num_threads.set(0);
+    if (num_threads == 0)
+        num_threads = omp_get_num_threads();
+    tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
 
     // build argv
     void* argv[32];
@@ -527,6 +536,8 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
             kmp_invoke_microtask(fn, 0, 0, argc, argv);
         }
 
+        tls_num_threads.set(old_num_threads);
+        tls_thread_num.set(old_thread_num);
         return;
     }
 
@@ -568,6 +579,9 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
         }
         finish_lock.unlock();
     }
+
+    tls_num_threads.set(old_num_threads);
+    tls_thread_num.set(old_thread_num);
 }
 
 void __kmpc_for_static_init_4(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, int32_t* lower, int32_t* upper, int32_t* /*stride*/, int32_t /*incr*/, int32_t /*chunk*/)
@@ -724,6 +738,9 @@ void GOMP_parallel_end()
 
 void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned int /*flags*/)
 {
+    void* old_num_threads = tls_num_threads.get();
+    void* old_thread_num = tls_thread_num.get();
+
     g_kmp_global.try_init();
 
     // NCNN_LOGE("GOMP_parallel %p %p %u", fn, data, num_threads);
@@ -742,6 +759,8 @@ void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned
             fn(data);
         }
 
+        tls_num_threads.set(old_num_threads);
+        tls_thread_num.set(old_thread_num);
         return;
     }
 
@@ -782,6 +801,9 @@ void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned
         }
         finish_lock.unlock();
     }
+
+    tls_num_threads.set(old_num_threads);
+    tls_thread_num.set(old_thread_num);
 }
 #endif // __clang__
 

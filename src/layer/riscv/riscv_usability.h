@@ -105,10 +105,53 @@ static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
 }
 #endif // __riscv_zvfh
 
+// the XTheadVector path requires FXCR.BF16 enabled and FRM=RNE for narrowing
 static inline vuint16m1_t float2bfloat_rvv(vfloat32m2_t v, size_t vl)
 {
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vreinterpret_v_bf16m1_u16m1(__riscv_vfncvtbf16_f_f_w_bf16m1_rm(v, __RISCV_FRM_RNE, vl));
+#elif __riscv_xtheadvector
+    return __riscv_vreinterpret_v_f16m1_u16m1(__riscv_vfncvt_f_f_w_f16m1(v, vl));
+#else
     return __riscv_vnclipu_wx_u16m1(__riscv_vreinterpret_v_f32m2_u32m2(v), 16, __RISCV_VXRM_RNE, vl);
+#endif
 }
+
+static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
+{
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vreinterpret_v_bf16m2_u16m2(__riscv_vfncvtbf16_f_f_w_bf16m2_rm(v, __RISCV_FRM_RNE, vl));
+#elif __riscv_xtheadvector
+    return __riscv_vreinterpret_v_f16m2_u16m2(__riscv_vfncvt_f_f_w_f16m2(v, vl));
+#else
+    return __riscv_vnclipu_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(v), 16, __RISCV_VXRM_RNE, vl);
+#endif
+}
+
+#if NCNN_BF16
+static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
+{
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vfwcvtbf16_f_f_v_f32m2(__riscv_vreinterpret_v_u16m1_bf16m1(v), vl);
+#elif __riscv_xtheadvector
+    return __riscv_vfwcvt_f_f_v_f32m2(__riscv_vreinterpret_v_u16m1_f16m1(v), vl);
+#else
+    return __riscv_vreinterpret_v_u32m2_f32m2(__riscv_vsll_vx_u32m2(__riscv_vwcvtu_x_x_v_u32m2(v, vl), 16, vl));
+#endif
+}
+
+static inline vfloat32m4_t bfloat2float_rvv(vuint16m2_t v, size_t vl)
+{
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vfwcvtbf16_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_bf16m2(v), vl);
+#elif __riscv_xtheadvector
+    return __riscv_vfwcvt_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_f16m2(v), vl);
+#else
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vsll_vx_u32m4(__riscv_vwcvtu_x_x_v_u32m4(v, vl), 16, vl));
+#endif
+}
+
+#endif // NCNN_BF16
 
 static inline int csrr_vl()
 {
@@ -139,6 +182,28 @@ static inline int csrr_vlenb()
                  : "memory");
     return a;
 }
+
+#if __riscv_xtheadvector
+static inline unsigned long csrr_fxcr()
+{
+    unsigned long a = 0;
+    asm volatile("csrr %0, 0x800"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
+
+static inline unsigned long csrrw_fxcr(unsigned long value)
+{
+    unsigned long a = 0;
+    asm volatile("csrrw %0, 0x800, %1"
+                 : "=r"(a)
+                 : "r"(value)
+                 : "memory", "frm");
+    return a;
+}
+#endif // __riscv_xtheadvector
 
 static inline vfloat32m8_t __riscv_vle32_v_f32m8_f32m1(const float* ptr)
 {

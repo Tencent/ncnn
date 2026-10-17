@@ -1448,8 +1448,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             {
                 for (int q = 0; q < 4; q++)
                 {
-                    const int raw_ch = (kk + q) / maxk;
-                    const int kpos = (kk + q) % maxk;
+                    const int raw_ch = (k + kk + q) / maxk;
+                    const int kpos = (k + kk + q) % maxk;
                     const int p = raw_ch / 8;
                     const int n = raw_ch % 8;
                     const int u = kpos / kernel_w;
@@ -1469,8 +1469,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             }
             for (; kk < max_kk; kk++)
             {
-                const int raw_ch = kk / maxk;
-                const int kpos = kk % maxk;
+                const int raw_ch = (k + kk) / maxk;
+                const int kpos = (k + kk) % maxk;
                 const int p = raw_ch / 8;
                 const int n = raw_ch % 8;
                 const int u = kpos / kernel_w;
@@ -1612,8 +1612,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -1639,8 +1639,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -1823,8 +1823,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -1872,8 +1872,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -2042,8 +2042,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -2065,8 +2065,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -2224,8 +2224,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -2257,8 +2257,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -2377,8 +2377,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -2398,8 +2398,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -2474,8 +2474,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 {
                     for (int q = 0; q < 4; q++)
                     {
-                        int raw_ch = (kk + q) / maxk;
-                        int kpos = (kk + q) % maxk;
+                        int raw_ch = (k + kk + q) / maxk;
+                        int kpos = (k + kk + q) % maxk;
                         int p = raw_ch / 8;
                         int n = raw_ch % 8;
                         int u = kpos / kernel_w;
@@ -2498,8 +2498,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    int raw_ch = kk / maxk;
-                    int kpos = kk % maxk;
+                    int raw_ch = (k + kk) / maxk;
+                    int kpos = (k + kk) % maxk;
                     int p = raw_ch / 8;
                     int n = raw_ch % 8;
                     int u = kpos / kernel_w;
@@ -2585,8 +2585,8 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         {
             for (; kk < max_kk; kk++)
             {
-                int raw_ch = kk / maxk;
-                int kpos = kk % maxk;
+                int raw_ch = (k + kk) / maxk;
+                int kpos = (k + kk) % maxk;
                 int p = raw_ch / 8;
                 int n = raw_ch % 8;
                 int u = kpos / kernel_w;
