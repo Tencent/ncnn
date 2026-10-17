@@ -55,13 +55,10 @@ int HardSigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
 
-            vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, lower, vl);
-            vbool4_t _higher = __riscv_vmfgt_vf_f32m8_b4(_p, upper, vl);
-            vbool4_t _apply = __riscv_vmnor_mm_b4(_lower, _higher, vl);
-            _p = __riscv_vfmerge_vfm_f32m8(_p, .0f, _lower, vl);
-            _p = __riscv_vfmerge_vfm_f32m8(_p, 1.f, _higher, vl);
-
-            _p = __riscv_vfadd_vf_f32m8_mu(_apply, _p, __riscv_vfmul_vf_f32m8_m(_apply, _p, alpha, vl), beta, vl);
+            _p = __riscv_vfmul_vf_f32m8(_p, alpha, vl);
+            _p = __riscv_vfadd_vf_f32m8(_p, beta, vl);
+            _p = __riscv_vfmax_vf_f32m8(_p, .0f, vl);
+            _p = __riscv_vfmin_vf_f32m8(_p, 1.f, vl);
 
             __riscv_vse32_v_f32m8(ptr, _p, vl);
             ptr += vl;
@@ -70,12 +67,13 @@ int HardSigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            if (ptr[i] < lower)
-                ptr[i] = 0.f;
-            else if (ptr[i] > upper)
-                ptr[i] = 1.f;
-            else
-                ptr[i] = ptr[i] * alpha + beta;
+            // keep the scalar path identical to the vectorized body for alpha <= 0 too
+            float t = ptr[i] * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            ptr[i] = t;
         }
 #endif // __riscv_vector
     }

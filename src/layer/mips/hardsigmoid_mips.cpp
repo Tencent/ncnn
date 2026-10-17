@@ -61,12 +61,13 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            if (*ptr < lower)
-                *ptr = 0.f;
-            else if (*ptr > upper)
-                *ptr = 1.f;
-            else
-                *ptr = *ptr * alpha + beta;
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
+            float t = *ptr * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            *ptr = t;
             ++ptr;
         }
     }
@@ -122,14 +123,14 @@ int HardSigmoid_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
 #endif // __mips_msa
         for (; i < size; i++)
         {
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
             float v = bfloat16_to_float32(*ptr);
-            if (v < lower)
-                v = 0.f;
-            else if (v > upper)
-                v = 1.f;
-            else
-                v = v * alpha + beta;
-            *ptr = float32_to_bfloat16(v);
+            float t = v * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            *ptr = float32_to_bfloat16(t);
             ++ptr;
         }
     }

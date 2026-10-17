@@ -85,12 +85,8 @@ static void hardswish_fp32(Mat& bottom_top_blob, float alpha, float beta, float 
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            if (*ptr < lower)
-                *ptr = 0.f;
-            else if (*ptr > upper)
-                ;
-            else
-                *ptr = *ptr * (*ptr * alpha + beta);
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
+            *ptr = *ptr * std::min(std::max(*ptr * alpha + beta, 0.f), 1.f);
             ptr++;
         }
     }
