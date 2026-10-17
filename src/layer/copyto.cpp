@@ -100,6 +100,12 @@ int CopyTo::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     int _woffset, _hoffset, _doffset, _coffset;
     resolve_copyto_offset(self_blob.shape(), _woffset, _hoffset, _doffset, _coffset);
 
+    // bounds check offsets against destination dimensions
+    if (_woffset < 0 || _hoffset < 0 || _doffset < 0 || _coffset < 0)
+        return -100;
+    if (src_blob.w > w - _woffset || src_blob.h > h - _hoffset || src_blob.d > d - _doffset || src_blob.c > channels - _coffset)
+        return -100;
+
     if (dims == 1)
     {
         if (elemsize == 1)
