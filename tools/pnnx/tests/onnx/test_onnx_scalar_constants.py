@@ -56,6 +56,23 @@ def test():
                     outputs.append(helper.make_tensor_value_info(output, data_type, [2, 4]))
                     a.append(input + array.item())
 
+                    if data_type in (TensorProto.FLOAT16, TensorProto.FLOAT) and value == 3:
+                        square = "square_%d" % len(outputs)
+                        denominator = "denominator_%d" % len(outputs)
+                        one = helper.make_tensor("one_%d" % len(initializers), data_type, [], [1])
+                        initializers.append(one)
+                        nodes.append(helper.make_node("Mul", [name, name], [square]))
+                        nodes.append(helper.make_node("Add", [square, one.name], [denominator]))
+                        divisor = input * input + 1
+                        for reverse in (False, True):
+                            output = "output_%d" % len(outputs)
+                            operands = [tensor.name, denominator] if reverse else [denominator, tensor.name]
+                            nodes.append(helper.make_node("Div", operands, [output]))
+                            outputs.append(helper.make_tensor_value_info(output, data_type, [2, 4]))
+                            a.append(torch.div(3.0, divisor) if reverse else torch.div(divisor, 3.0))
+                            if reverse and data_type == TensorProto.FLOAT16:
+                                assert a[-1][0, 1].item() == 0.60009765625
+
     # save onnx
     graph = helper.make_graph(nodes, "scalar_constants", inputs, outputs, initializers)
     model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
@@ -77,8 +94,9 @@ def test():
 
     if len(a) != len(b):
         return False
-    for a0, b0 in zip(a, b):
-        if a0.dtype != b0.dtype or not torch.equal(a0, b0):
+    for i, (a0, b0) in enumerate(zip(a, b)):
+        if a0.dtype != b0.dtype or a0.shape != b0.shape or not torch.equal(a0, b0):
+            print("output %d mismatch: expected %s, got %s" % (i, a0, b0))
             return False
     return True
 
