@@ -39,6 +39,7 @@ set(ncnn_SRCS
     pipelinecache.cpp
     simpleocv.cpp
     simpleomp.cpp
+    spertomp.cpp
     simplestl.cpp
     simplemath.cpp
     simplevk.cpp
@@ -236,24 +237,38 @@ target_include_directories(ncnn
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
+if(NCNN_SPERTOMP AND NCNN_SIMPLEOMP)
+    message(FATAL_ERROR "NCNN_SPERTOMP and NCNN_SIMPLEOMP are mutually exclusive")
+endif()
+if(NCNN_SPERTOMP AND NOT NCNN_OPENMP)
+    message(FATAL_ERROR "NCNN_SPERTOMP requires NCNN_OPENMP=ON")
+endif()
+
 if(NCNN_OPENMP)
-    if(NOT NCNN_SIMPLEOMP)
+    if(NOT NCNN_SIMPLEOMP AND NOT NCNN_SPERTOMP)
         find_package(OpenMP)
         if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
             target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
         endif()
     endif()
 
-    if(NCNN_SIMPLEOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
+    if(NCNN_SIMPLEOMP OR NCNN_SPERTOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
         if(NCNN_CMAKE_VERBOSE)
             message("Building with OpenMP")
         endif()
 
-        if(NCNN_SIMPLEOMP)
+        if(NCNN_SIMPLEOMP OR NCNN_SPERTOMP)
             if(IOS OR APPLE)
                 target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)
+            endif()
+            # spert supplies the OpenMP runtime symbols (GOMP_parallel, omp_*),
+            # so compile with -fopenmp but do NOT link libgomp.
+            if(NCNN_SPERTOMP)
+                find_package(spine-runtime CONFIG REQUIRED)
+                target_compile_features(ncnn PRIVATE cxx_std_17)
+                target_link_libraries(ncnn PUBLIC spine-runtime::spert)
             endif()
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
