@@ -300,6 +300,24 @@ bool OnnxFunctionProxy::has_typed_node(const std::string& type) const
     return typed_nodes.count(type);
 }
 
+static void squeeze_scalar_attribute(Graph& graph, Operator* op)
+{
+    Operand* tensor = op->outputs[0];
+    const std::string name = tensor->name;
+    std::string tensor_name = name + "_rank1";
+    while (graph.get_operand(tensor_name))
+        tensor_name += "_rank1";
+    tensor->name = tensor_name;
+    tensor->shape = op->attrs["data"].shape;
+    Operator* squeeze = graph.new_operator_after("torch.squeeze", name + "_scalar", op);
+    Operand* scalar = graph.new_operand(name);
+    scalar->type = tensor->type;
+    scalar->producer = squeeze;
+    squeeze->inputs.push_back(tensor);
+    tensor->consumers.push_back(squeeze);
+    squeeze->outputs.push_back(scalar);
+}
+
 bool OnnxFunctionProxy::has_named_node(const std::string& name) const
 {
     return named_nodes.count(name);
@@ -770,6 +788,11 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
             // native onnx op
             sim_op_type = op_type;
 
+            if (op_type == "Constant" && node.attribute_size() == 1 && node.attribute(0).name() == "value" && node.attribute(0).has_t())
+            {
+                sim_op_type = "pnnx.Attribute";
+            }
+
             if (op_type == "SequenceConstruct")
             {
                 sim_op_type = "prim::ListConstruct";
@@ -921,6 +944,27 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 }
 
                 bool is_attr_weight = false;
+                for (int k = 0; k < graph.node_size(); k++)
+                {
+                    const onnx::NodeProto& consumer = graph.node(k);
+                    if (!consumer.domain().empty() && consumer.domain() != "ai.onnx")
+                        continue;
+
+                    const std::string& consumer_type = consumer.op_type();
+                    for (int l = 0; l < consumer.input_size(); l++)
+                    {
+                        if (consumer.input(l) != input)
+                            continue;
+
+                        if (consumer_type == "Concat" || consumer_type == "Einsum"
+                            || (consumer_type == "Div" && (tensor.data_type() == onnx::TensorProto::INT32 || tensor.data_type() == onnx::TensorProto::INT64))
+                            || (tensor.dims_size() > 0 && (consumer_type == "Add" || consumer_type == "Sub" || consumer_type == "Mul" || consumer_type == "Div" || consumer_type == "Pow" || consumer_type == "Mod"
+                                || consumer_type == "Equal" || consumer_type == "Less" || consumer_type == "LessOrEqual" || consumer_type == "Greater" || consumer_type == "GreaterOrEqual"))
+                            || (l == 0 && (consumer_type == "Equal" || consumer_type == "Less" || consumer_type == "LessOrEqual" || consumer_type == "Greater" || consumer_type == "GreaterOrEqual"))
+                            || (l == 0 && (consumer_type == "Identity" || consumer_type == "Split" || consumer_type == "Unsqueeze" || consumer_type == "Squeeze")))
+                            is_attr_weight = true;
+                    }
+                }
                 {
                     if (sim_op_type == "BatchNormalization" && (j == 1 || j == 2 || j == 3 || j == 4))
                         is_attr_weight = true;
@@ -954,11 +998,24 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                     numel *= tensor.dims(k);
                 }
 
+                if (tensor.data_type() == onnx::TensorProto::DOUBLE || tensor.data_location() == onnx::TensorProto_DataLocation_EXTERNAL)
+                    is_attr_weight = true;
+                if (!is_attr_weight && numel == 1 && tensor.data_type() == onnx::TensorProto::INT64)
+                {
+                    int64_t value;
+                    if (tensor.has_raw_data())
+                        memcpy(&value, tensor.raw_data().data(), sizeof(value));
+                    else
+                        value = tensor.int64_data().at(0);
+                    if (value < INT_MIN || value > INT_MAX)
+                        is_attr_weight = true;
+                }
+
                 if (numel == 1 && !is_attr_weight)
                 {
                     Operator* op_const = pnnx_graph.new_operator_before("prim::Constant", input, op);
 
-                    Operand* op_const_out = pnnx_graph.new_operand(input);
+                    Operand* op_const_out = pnnx_graph.new_operand(tensor);
 
                     op_const_out->producer = op_const;
                     op_const->outputs.push_back(op_const_out);
@@ -1120,6 +1177,8 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                     op_const->outputs.push_back(op_const_out);
 
                     op_const->attrs["data"] = Attribute(tensor, external_data);
+                    if (tensor.dims_size() == 0)
+                        onnx2pnnx::squeeze_scalar_attribute(pnnx_graph, op_const);
                 }
 
                 op_in = pnnx_graph.get_operand(input);
@@ -1143,6 +1202,24 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 const onnx::ValueInfoProto& value = modelproxy.valueinfo(output);
                 op_out = pnnx_graph.new_operand(value);
             }
+            else if (sim_op_type == "pnnx.Attribute" && op_type == "Constant")
+            {
+                op_out = pnnx_graph.new_operand(node.attribute(0).t());
+                op_out->name = output;
+            }
+            else if (op_type == "Cast" && (node.domain().empty() || node.domain() == "ai.onnx"))
+            {
+                onnx::ValueInfoProto value;
+                value.set_name(output);
+                for (int k = 0; k < node.attribute_size(); k++)
+                {
+                    if (node.attribute(k).name() == "to")
+                        value.mutable_type()->mutable_tensor_type()->set_elem_type(node.attribute(k).i());
+                }
+                op_out = pnnx_graph.new_operand(value);
+                if (!op->inputs.empty())
+                    op_out->shape = op->inputs[0]->shape;
+            }
             else
             {
                 op_out = pnnx_graph.new_operand(output);
@@ -1164,6 +1241,13 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 const onnx::AttributeProto& attr = node.attribute(j);
 
                 op->params[attr.name()] = attr;
+            }
+
+            if (op_type == "Div" && !op->inputs.empty() && (op->inputs[0]->type == 4 || op->inputs[0]->type == 5))
+            {
+                // ONNX integer division truncates toward zero and preserves the tensor dtype.
+                op->type = "torch.div";
+                op->params["rounding_mode"] = "trunc";
             }
 
             if (op_type == "Concat")
@@ -1260,6 +1344,12 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 }
             }
         }
+        else if (sim_op_type == "pnnx.Attribute" && op_type == "Constant")
+        {
+            op->attrs["data"] = Attribute(node.attribute(0).t(), external_data);
+            if (node.attribute(0).t().dims_size() == 0)
+                onnx2pnnx::squeeze_scalar_attribute(pnnx_graph, op);
+        }
         else if (is_prim_op)
         {
             // do nothing :)
@@ -1283,6 +1373,28 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
         Operator* op = pnnx_graph.new_operator("pnnx.Output", input);
 
         Operand* op_in = pnnx_graph.get_operand(input);
+        if (!op_in && modelproxy.has_initializer(input))
+        {
+            const onnx::TensorProto& tensor = modelproxy.initializer(input);
+            Operator* op_const = pnnx_graph.new_operator_before("pnnx.Attribute", input + "_constant", op);
+            op_in = pnnx_graph.new_operand(tensor);
+            op_in->producer = op_const;
+            op_const->outputs.push_back(op_in);
+            op_const->attrs["data"] = Attribute(tensor, external_data);
+        }
+
+        if (graph.output(i).type().has_tensor_type() && graph.output(i).type().tensor_type().has_shape() && graph.output(i).type().tensor_type().shape().dim_size() == 0 && op_in->producer->type == "pnnx.Attribute")
+        {
+            op_in->shape = op_in->producer->attrs.begin()->second.shape;
+            Operator* squeeze = pnnx_graph.new_operator_before("torch.squeeze", input + "_scalar", op);
+            Operand* scalar = pnnx_graph.new_operand(input + "_scalar");
+            scalar->type = op_in->type;
+            scalar->producer = squeeze;
+            squeeze->inputs.push_back(op_in);
+            op_in->consumers.push_back(squeeze);
+            squeeze->outputs.push_back(scalar);
+            op_in = scalar;
+        }
 
         op_in->consumers.push_back(op);
         op->inputs.push_back(op_in);

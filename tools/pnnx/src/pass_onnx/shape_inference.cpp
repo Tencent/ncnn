@@ -3,6 +3,7 @@
 
 #include "shape_inference.h"
 
+#include <set>
 #include <stdlib.h>
 #include <sstream>
 #include <string>
@@ -104,6 +105,12 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
             {
                 const std::vector<int64_t>& in_shape2 = input_shapes2[i];
 
+                if (in_shape2.size() != in_dims)
+                {
+                    value->mutable_type()->mutable_tensor_type()->clear_shape();
+                    continue;
+                }
+
                 for (size_t j = 0; j < in_dims; j++)
                 {
                     if (tsp->dim(j).dim_value() == in_shape2[j])
@@ -117,16 +124,17 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
     }
 
     // save original outputs
-    std::vector<std::string> orig_outputs;
+    std::vector<onnx::ValueInfoProto> orig_outputs;
     {
         for (int i = 0; i < graph->output_size(); i++)
         {
-            orig_outputs.push_back(graph->output(i).name());
+            orig_outputs.push_back(graph->output(i));
         }
     }
 
     // collect intermediates
     std::vector<std::string> intermediates;
+    std::set<std::string> captured_names;
     {
         for (int i = 0; i < graph->node_size(); i++)
         {
@@ -154,10 +162,19 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                     if (node.output(j).empty())
                         continue;
 
-                    intermediates.push_back(node.output(j));
+                    if (captured_names.insert(node.output(j)).second)
+                        intermediates.push_back(node.output(j));
                 }
             }
         }
+    }
+
+    // Original outputs must also be fetched, even when they are constants,
+    // inputs, initializers, or excluded sequence values.
+    for (size_t i = 0; i < orig_outputs.size(); i++)
+    {
+        if (captured_names.insert(orig_outputs[i].name()).second)
+            intermediates.push_back(orig_outputs[i].name());
     }
 
     // add intermediates to onnx output
@@ -166,7 +183,16 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
 
         for (size_t i = 0; i < intermediates.size(); i++)
         {
-            graph->add_output()->set_name(intermediates[i]);
+            onnx::ValueInfoProto* output = graph->add_output();
+            output->set_name(intermediates[i]);
+            for (size_t j = 0; j < orig_outputs.size(); j++)
+            {
+                if (orig_outputs[j].name() == intermediates[i])
+                {
+                    *output = orig_outputs[j];
+                    break;
+                }
+            }
         }
     }
 
@@ -177,14 +203,21 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
         if (!model.SerializeToOstream(&tmp_onnx_data_ss))
         {
             fprintf(stderr, "write onnx failed\n");
+            graph->clear_output();
+            for (size_t i = 0; i < orig_outputs.size(); i++)
+                *graph->add_output() = orig_outputs[i];
             return;
         }
 
         tmp_onnx_data = tmp_onnx_data_ss.str();
     }
 
+    // Restore output metadata and order before assigning inferred tensor shapes.
+    graph->clear_output();
+    for (size_t i = 0; i < orig_outputs.size(); i++)
+        *graph->add_output() = orig_outputs[i];
+
     // onnxrt inference
-    std::vector<std::string> new_outputs;
     {
         const OrtApi* ort_api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
 
@@ -320,15 +353,23 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
 
         // TODO get output data
 
-        graph->clear_output();
-
         for (size_t i = 0; i < output_names.size(); i++)
         {
+            if (!outputs[i])
+            {
+                fprintf(stderr, "missing runtime output %s\n", output_names[i]);
+                continue;
+            }
+
             OrtTypeInfo* type_info = 0;
             ort_status = ort_api->GetTypeInfo(outputs[i], &type_info);
             if (ort_status)
             {
                 fprintf(stderr, "ort GetTypeInfo failed %s\n", ort_api->GetErrorMessage(ort_status));
+                ort_api->ReleaseStatus(ort_status);
+                if (type_info)
+                    ort_api->ReleaseTypeInfo(type_info);
+                continue;
             }
 
             ONNXType type = ONNX_TYPE_UNKNOWN;
@@ -338,6 +379,9 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetOnnxTypeFromTypeInfo failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
             }
 
@@ -348,6 +392,10 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetTensorTypeAndShape failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 ONNXTensorElementDataType datatype = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
@@ -355,6 +403,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetTensorElementType failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 size_t out_dims = 0;
@@ -362,6 +415,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetDimensionsCount failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 // fprintf(stderr, "   out_dims = %lu\n", out_dims);
@@ -372,6 +430,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetDimensions failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 // fprintf(stderr, "%16s = ", output_names[i]);
@@ -388,11 +451,9 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                     // maybe output
                     for (size_t j = 0; j < orig_outputs.size(); j++)
                     {
-                        if (orig_outputs[j] == output_names[i])
+                        if (orig_outputs[j].name() == output_names[i])
                         {
-                            value = graph->add_output();
-                            value->set_name(output_names[i]);
-                            new_outputs.push_back(output_names[i]);
+                            value = graph->mutable_output(j);
                             break;
                         }
                     }
@@ -423,6 +484,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                     for (size_t j = 0; j < out_dims; j++)
                     {
                         tsp->add_dim()->set_dim_value(out_shape[j]);
+                    }
+                    for (int j = 0; j < graph->output_size(); j++)
+                    {
+                        if (graph->output(j).name() == output_names[i] && graph->mutable_output(j) != value)
+                            *graph->mutable_output(j)->mutable_type() = value->type();
                     }
                 }
 
@@ -557,15 +623,23 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
 
         // TODO get output data
 
-        // graph->clear_output();
-
         for (size_t i = 0; i < output_names.size(); i++)
         {
+            if (!outputs[i])
+            {
+                fprintf(stderr, "missing runtime output %s\n", output_names[i]);
+                continue;
+            }
+
             OrtTypeInfo* type_info = 0;
             ort_status = ort_api->GetTypeInfo(outputs[i], &type_info);
             if (ort_status)
             {
                 fprintf(stderr, "ort GetTypeInfo failed %s\n", ort_api->GetErrorMessage(ort_status));
+                ort_api->ReleaseStatus(ort_status);
+                if (type_info)
+                    ort_api->ReleaseTypeInfo(type_info);
+                continue;
             }
 
             ONNXType type = ONNX_TYPE_UNKNOWN;
@@ -575,6 +649,9 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetOnnxTypeFromTypeInfo failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
             }
 
@@ -585,6 +662,10 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetTensorTypeAndShape failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 ONNXTensorElementDataType datatype = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
@@ -592,6 +673,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetTensorElementType failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 size_t out_dims = 0;
@@ -599,6 +685,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetDimensionsCount failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 // fprintf(stderr, "   out_dims = %lu\n", out_dims);
@@ -609,6 +700,11 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                 if (ort_status)
                 {
                     fprintf(stderr, "ort GetDimensions failed %s\n", ort_api->GetErrorMessage(ort_status));
+                    ort_api->ReleaseStatus(ort_status);
+                    ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                    if (type_info)
+                        ort_api->ReleaseTypeInfo(type_info);
+                    continue;
                 }
 
                 // fprintf(stderr, "%16s = ", output_names[i]);
@@ -623,9 +719,9 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                     onnx::ValueInfoProto* value = 0;
 
                     // maybe output
-                    for (size_t j = 0; j < new_outputs.size(); j++)
+                    for (size_t j = 0; j < orig_outputs.size(); j++)
                     {
-                        if (new_outputs[j] == output_names[i])
+                        if (orig_outputs[j].name() == output_names[i])
                         {
                             value = graph->mutable_output(j);
                             break;
@@ -643,20 +739,50 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
                         }
                     }
 
+                    if (!value)
+                    {
+                        fprintf(stderr, "missing inferred value info for %s\n", output_names[i]);
+                        ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                        if (type_info)
+                            ort_api->ReleaseTypeInfo(type_info);
+                        continue;
+                    }
+
                     // fprintf(stderr, "assign value info2 %s\n", value->name().c_str());
 
                     value->mutable_type()->mutable_tensor_type()->set_elem_type((int32_t)datatype);
 
+                    if (!value->type().tensor_type().has_shape())
+                    {
+                        // A failed first trace must not turn unknown rank into a scalar.
+                        ort_api->ReleaseTensorTypeAndShapeInfo(info);
+                        if (type_info)
+                            ort_api->ReleaseTypeInfo(type_info);
+                        continue;
+                    }
+
                     onnx::TensorShapeProto* tsp = value->mutable_type()->mutable_tensor_type()->mutable_shape();
 
-                    // tsp->clear_dim();
-                    for (size_t j = 0; j < out_dims; j++)
+                    if ((size_t)tsp->dim_size() != out_dims)
                     {
-                        if (tsp->dim(j).dim_value() == out_shape[j])
-                            continue;
+                        // A varying rank cannot be represented by fixed dimensions.
+                        value->mutable_type()->mutable_tensor_type()->clear_shape();
+                    }
+                    else
+                    {
+                        for (size_t j = 0; j < out_dims; j++)
+                        {
+                            if (tsp->dim(j).dim_value() == out_shape[j])
+                                continue;
 
-                        // dynamic dim size
-                        tsp->mutable_dim(j)->clear_dim_value();
+                            // dynamic dim size
+                            tsp->mutable_dim(j)->clear_dim_value();
+                        }
+                    }
+                    for (int j = 0; j < graph->output_size(); j++)
+                    {
+                        if (graph->output(j).name() == output_names[i] && graph->mutable_output(j) != value)
+                            *graph->mutable_output(j)->mutable_type() = value->type();
                     }
                 }
 
@@ -685,24 +811,6 @@ void shape_inference(onnx::ModelProto& model, const std::string& external_data_p
         ort_api->ReleaseEnv(ort_env);
     }
 
-    // new_outputs order may differ from orig_outputs
-    {
-        for (size_t i = 0; i < orig_outputs.size(); i++)
-        {
-            if (orig_outputs[i] == new_outputs[i])
-                continue;
-
-            for (size_t j = 0; j < new_outputs.size(); j++)
-            {
-                if (orig_outputs[i] == new_outputs[j])
-                {
-                    graph->mutable_output()->SwapElements((int)i, (int)j);
-                    std::swap(new_outputs[i], new_outputs[j]);
-                    break;
-                }
-            }
-        }
-    }
 }
 
 } // namespace onnx2pnnx

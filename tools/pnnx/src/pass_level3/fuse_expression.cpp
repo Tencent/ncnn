@@ -262,7 +262,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         // fprintf(stderr, "operand pnnx.Attribute %s\n", operand->name.c_str());
 
         const Attribute& data = op->attrs["data"];
-        if (data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
+        if (operand->shape.empty() && data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
         {
             if (data.type == 0)
             {
@@ -274,7 +274,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else if (data.type == 2)
             {
-                expr += double_to_string(((const double*)data.data.data())[0]);
+                goto DEFAULT;
             }
             else if (data.type == 4)
             {
@@ -285,8 +285,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             else if (data.type == 5)
             {
                 int64_t v = ((const int64_t*)data.data.data())[0];
-                if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
-                if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+                if (v < INT_MIN || v > INT_MAX)
+                    goto DEFAULT;
 
                 char tmp[32];
                 snprintf(tmp, 32, "%d", (int)v);
@@ -358,7 +358,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 }
                 else if (data.type == 2)
                 {
-                    expr += double_to_string(((const double*)data.data.data())[si]);
+                    goto DEFAULT;
                 }
                 else if (data.type == 4)
                 {
@@ -369,8 +369,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 else if (data.type == 5)
                 {
                     int64_t v = ((const int64_t*)data.data.data())[si];
-                    if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
-                    if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+                    if (v < INT_MIN || v > INT_MAX)
+                        goto DEFAULT;
 
                     char tmp[32];
                     snprintf(tmp, 32, "%d", (int)v);

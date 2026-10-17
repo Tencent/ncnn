@@ -21,6 +21,7 @@
 #include "pass_onnx/dead_code_elimination.h"
 #include "pass_onnx/eliminate_initializer_input.h"
 #include "pass_onnx/eliminate_noop.h"
+#include "pass_onnx/eliminate_sequences.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
 #include "pass_onnx/inline_if_graph.h"
@@ -288,6 +289,11 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
             float f = t.float_data().at(0);
             memcpy((void*)data.data(), (const void*)&f, data.size());
         }
+        else if (t.data_type() == onnx::TensorProto::FLOAT16)
+        {
+            uint16_t bits = (uint16_t)t.int32_data().at(0);
+            memcpy((void*)data.data(), (const void*)&bits, data.size());
+        }
         else if (t.data_type() == onnx::TensorProto::BOOL)
         {
             data[0] = t.int32_data().at(0) ? 1 : 0;
@@ -331,6 +337,14 @@ Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char
         else if (t.data_type() == onnx::TensorProto::FLOAT)
         {
             memcpy((void*)data.data(), (const void*)t.float_data().data(), data.size());
+        }
+        else if (t.data_type() == onnx::TensorProto::FLOAT16)
+        {
+            for (size_t i = 0; i < elemcount(); i++)
+            {
+                uint16_t bits = (uint16_t)t.int32_data().at(i);
+                memcpy((void*)(data.data() + i * sizeof(bits)), (const void*)&bits, sizeof(bits));
+            }
         }
         else if (t.data_type() == onnx::TensorProto::BOOL)
         {
@@ -766,6 +780,10 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
 
+        // Run before folding (to expose constants) and again afterwards (for
+        // indices or split sizes computed by constant tensor expressions).
+        onnx2pnnx::eliminate_sequences(model, onnx_extdata_path, external_data);
+
         fprintf(stderr, "%-34s", "fold_constants ... ");
 
         t0 = get_current_time();
@@ -786,6 +804,8 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
 
+        onnx2pnnx::eliminate_sequences(model, onnx_extdata_path, external_data);
+
         fprintf(stderr, "%-34s", "shape_inference ... ");
 
         t0 = get_current_time();
@@ -795,6 +815,17 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         t1 = get_current_time();
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
+
+        // Runtime shape inference has now reconciled both inputshape traces,
+        // including clearing dimensions that vary with inputshape2.
+        const std::string graph_before_sequences = model.graph().SerializeAsString();
+        onnx2pnnx::eliminate_sequences(model, onnx_extdata_path, external_data);
+        if (model.graph().SerializeAsString() != graph_before_sequences)
+        {
+            // Populate tensor metadata for the newly generated Split/Squeeze/
+            // Unsqueeze intermediates before folding and pnnx graph loading.
+            onnx2pnnx::shape_inference(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+        }
 
         fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");
 

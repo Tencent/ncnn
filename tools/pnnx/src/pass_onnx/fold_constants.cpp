@@ -251,11 +251,11 @@ void fold_constants(onnx::ModelProto& model, const std::string& external_data_pa
     onnx::GraphProto* graph = model.mutable_graph();
 
     // save original outputs
-    std::vector<std::string> orig_outputs;
+    std::vector<onnx::ValueInfoProto> orig_outputs;
     {
         for (int i = 0; i < graph->output_size(); i++)
         {
-            orig_outputs.push_back(graph->output(i).name());
+            orig_outputs.push_back(graph->output(i));
         }
     }
 
@@ -276,6 +276,9 @@ void fold_constants(onnx::ModelProto& model, const std::string& external_data_pa
         if (!model.SerializeToOstream(&tmp_onnx_data_ss))
         {
             fprintf(stderr, "write onnx failed\n");
+            graph->clear_output();
+            for (size_t i = 0; i < orig_outputs.size(); i++)
+                *graph->add_output() = orig_outputs[i];
             return;
         }
 
@@ -413,7 +416,28 @@ void fold_constants(onnx::ModelProto& model, const std::string& external_data_pa
                                   output_names.data(), output_names.size(), outputs.data());
         if (ort_status)
         {
-            fprintf(stderr, "ort Run failed %s\n", ort_api->GetErrorMessage(ort_status));
+            fprintf(stderr, "ort Run failed %s, skipping constant folding\n", ort_api->GetErrorMessage(ort_status));
+            ort_api->ReleaseStatus(ort_status);
+
+            for (size_t i = 0; i < inputs.size(); i++)
+            {
+                if (inputs[i])
+                    ort_api->ReleaseValue(inputs[i]);
+            }
+            for (size_t i = 0; i < outputs.size(); i++)
+            {
+                if (outputs[i])
+                    ort_api->ReleaseValue(outputs[i]);
+            }
+            ort_api->ReleaseRunOptions(ort_run_opt);
+            ort_api->ReleaseSession(ort_session);
+            ort_api->ReleaseSessionOptions(ort_session_opt);
+            ort_api->ReleaseEnv(ort_env);
+
+            graph->clear_output();
+            for (size_t i = 0; i < orig_outputs.size(); i++)
+                *graph->add_output() = orig_outputs[i];
+            return;
         }
 
         // TODO get output data
@@ -542,7 +566,7 @@ void fold_constants(onnx::ModelProto& model, const std::string& external_data_pa
 
         for (size_t i = 0; i < orig_outputs.size(); i++)
         {
-            graph->add_output()->set_name(orig_outputs[i]);
+            *graph->add_output() = orig_outputs[i];
         }
     }
 
@@ -879,11 +903,11 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& ex
     onnx::GraphProto* graph = model.mutable_graph();
 
     // save original outputs
-    std::vector<std::string> orig_outputs;
+    std::vector<onnx::ValueInfoProto> orig_outputs;
     {
         for (int i = 0; i < graph->output_size(); i++)
         {
-            orig_outputs.push_back(graph->output(i).name());
+            orig_outputs.push_back(graph->output(i));
         }
     }
 
@@ -904,6 +928,9 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& ex
         if (!model.SerializeToOstream(&tmp_onnx_data_ss))
         {
             fprintf(stderr, "write onnx failed\n");
+            graph->clear_output();
+            for (size_t i = 0; i < orig_outputs.size(); i++)
+                *graph->add_output() = orig_outputs[i];
             return;
         }
 
@@ -1041,7 +1068,28 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& ex
                                   output_names.data(), output_names.size(), outputs.data());
         if (ort_status)
         {
-            fprintf(stderr, "ort Run failed %s\n", ort_api->GetErrorMessage(ort_status));
+            fprintf(stderr, "ort Run failed %s, skipping constant folding\n", ort_api->GetErrorMessage(ort_status));
+            ort_api->ReleaseStatus(ort_status);
+
+            for (size_t i = 0; i < inputs.size(); i++)
+            {
+                if (inputs[i])
+                    ort_api->ReleaseValue(inputs[i]);
+            }
+            for (size_t i = 0; i < outputs.size(); i++)
+            {
+                if (outputs[i])
+                    ort_api->ReleaseValue(outputs[i]);
+            }
+            ort_api->ReleaseRunOptions(ort_run_opt);
+            ort_api->ReleaseSession(ort_session);
+            ort_api->ReleaseSessionOptions(ort_session_opt);
+            ort_api->ReleaseEnv(ort_env);
+
+            graph->clear_output();
+            for (size_t i = 0; i < orig_outputs.size(); i++)
+                *graph->add_output() = orig_outputs[i];
+            return;
         }
 
         // TODO get output data
@@ -1170,7 +1218,7 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& ex
 
         for (size_t i = 0; i < orig_outputs.size(); i++)
         {
-            graph->add_output()->set_name(orig_outputs[i]);
+            *graph->add_output() = orig_outputs[i];
         }
     }
 
