@@ -612,6 +612,100 @@ static int test_shape_layout()
     return 0;
 }
 
+#if NCNN_BF16
+class StoragePackingLayer : public ncnn::Layer
+{
+public:
+    StoragePackingLayer()
+    {
+        one_blob_only = true;
+        support_packing = true;
+    }
+
+    virtual int forward(const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, const ncnn::Option&) const
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+};
+
+static ncnn::Layer* create_storage_packing_layer(void*)
+{
+    return new StoragePackingLayer;
+}
+
+static int test_storage_packing(int storage_type)
+{
+    if (storage_type == 2)
+    {
+        bool support_fp16 = false;
+#if NCNN_ARM82
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_asimdhp();
+#endif
+#if NCNN_VFPV4
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_vfpv4();
+#endif
+#if NCNN_ZFH
+        support_fp16 = support_fp16 || ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh());
+#endif
+        if (!support_fp16)
+            return 0;
+    }
+
+    ncnn::Net net;
+    net.opt.num_threads = 1;
+    net.opt.use_packing_layout = true;
+    net.opt.use_fp16_storage = storage_type == 2;
+    net.opt.use_bf16_storage = storage_type == 4;
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+    if (!ncnn::cpu_support_riscv_v() && !ncnn::cpu_support_riscv_xtheadvector())
+        net.opt.use_packing_layout = false;
+#endif
+    net.register_custom_layer("StoragePacking", create_storage_packing_layer);
+    const char* param = "7767517\n2 2\nInput in 0 1 in\nStoragePacking fp32 1 1 in out\n";
+    BoundedNetReader dr(0, 0);
+    if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+    {
+        fprintf(stderr, "test_net storage packing load failed storage_type=%d\n", storage_type);
+        return -1;
+    }
+
+    ncnn::Mat in(5, 3, 128);
+    for (int q = 0; q < in.c; q++)
+    {
+        float* p = in.channel(q);
+        for (int i = 0; i < in.w * in.h; i++)
+            p[i] = (i - 7) * 0.25f + (q % 8);
+    }
+
+    ncnn::Mat input;
+    if (storage_type == 2)
+        ncnn::cast_float32_to_float16(in, input, net.opt);
+    else
+        ncnn::cast_float32_to_bfloat16(in, input, net.opt);
+
+    ncnn::Extractor ref = net.create_extractor();
+    ncnn::Mat expected;
+    if (ref.input("in", in) != 0 || ref.extract("out", expected, 1) != 0)
+    {
+        fprintf(stderr, "test_net storage packing reference failed storage_type=%d\n", storage_type);
+        return -1;
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ncnn::Mat out;
+    int ret = ex.input("in", input);
+    if (ret == 0)
+        ret = ex.extract("out", out, 1);
+    if (ret != 0 || out.elembits() != 32 || out.elempack != expected.elempack || CompareMat(in, out, 0.f) != 0)
+    {
+        fprintf(stderr, "test_net storage packing failed storage_type=%d ret=%d elembits=%d elempack=%d expected=%d\n", storage_type, ret, out.elembits(), out.elempack, expected.elempack);
+        return -1;
+    }
+    return 0;
+}
+#endif // NCNN_BF16
+
 static int test_recreate_layer()
 {
     for (int binary = 0; binary < 2; binary++)
@@ -1370,6 +1464,10 @@ int main()
            || test_builtin_without_override()
            || test_null_creators()
            || test_shape_layout()
+#if NCNN_BF16
+           || test_storage_packing(4)
+           || test_storage_packing(2)
+#endif
            || test_recreate_layer()
            || test_recreate_layer_null_creator()
            || test_external_input()
