@@ -33,8 +33,8 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
         const float* ptr = bottom_blob.batch(b).channel(q);
         unsigned short* outptr = top_blob.batch(b).channel(q);
 
-        int n = size;
 #if __riscv_vector
+        int n = size;
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
         // enable BF16 with round-to-nearest-even
@@ -53,11 +53,12 @@ static void cast_fp32_to_bf16(const Mat& bottom_blob, Mat& top_blob, const Optio
         // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
-#endif // __riscv_vector
-        for (; n > 0; n--)
+#else  // __riscv_vector
+        for (int i = 0; i < size; i++)
         {
             *outptr++ = float32_to_bfloat16(*ptr++);
         }
+#endif // __riscv_vector
     }
 }
 
@@ -88,8 +89,8 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
         const unsigned short* ptr = bottom_blob.batch(b).channel(q);
         float* outptr = top_blob.batch(b).channel(q);
 
-        int n = size;
 #if __riscv_vector
+        int n = size;
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
         // enable BF16 with round-to-nearest-even
@@ -108,10 +109,11 @@ static void cast_bf16_to_fp32(const Mat& bottom_blob, Mat& top_blob, const Optio
         // restore FXCR while retaining accrued exception flags, including FE
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
-#endif // __riscv_vector
-        for (; n > 0; n--)
+#else  // __riscv_vector
+        for (int i = 0; i < size; i++)
         {
             *outptr++ = bfloat16_to_float32(*ptr++);
         }
+#endif // __riscv_vector
     }
 }
