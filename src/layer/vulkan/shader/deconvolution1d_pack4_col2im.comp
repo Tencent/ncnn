@@ -1,0 +1,82 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int dilation_w = 1;
+layout(constant_id = 2) const int stride_w = 1;
+layout(constant_id = 3) const int bias_term = 0;
+layout(constant_id = 4) const int activation_type = 0;
+layout(constant_id = 5) const float activation_param_0 = 0;
+layout(constant_id = 6) const float activation_param_1 = 0;
+layout(constant_id = 7) const int outc = 0;
+
+#define shape_constant_id_offset 8
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outw = 0;
+
+layout(binding = 0) readonly buffer col_blob { sfpvec4 col_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int cstep; // col channel stride in vec4 units
+    int outw;
+    int front_cut;
+} p;
+
+// col layout: 3D (w, 1, kernel_w*num_output/4) elempack 4, channel (o * kernel_w + k)
+// out[o][x] = bias[o] + sum_{sx} col[o * kernel_w + k][sx]
+//   where xf = x + front_cut, k = xf - sx * stride_w, k % dilation_w == 0
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gz = int(gl_GlobalInvocationID.y);
+
+    if (gx >= psc(outw) || gz >= outc)
+        return;
+
+    afpvec4 sum;
+
+    if (bias_term == 1)
+    {
+        sum = buffer_ld4(bias_data, gz);
+    }
+    else
+    {
+        sum = afpvec4(0.f);
+    }
+
+    const int xf = gx + p.front_cut;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+
+    const int sx_start = (xf < kernel_extent_w) ? 0 : (xf - kernel_extent_w) / stride_w + 1;
+    const int sx_end = min(xf / stride_w + 1, psc(w));
+
+    for (int sx = sx_start; sx < sx_end; sx += 1)
+    {
+        int w_k = xf - sx * stride_w;
+
+        if (w_k % dilation_w == 0)
+        {
+            w_k /= dilation_w;
+
+            const int gi = (gz * kernel_w + w_k) * psc(cstep) + sx;
+
+            sum += buffer_ld4(col_blob_data, gi);
+        }
+    }
+
+    sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
+
+    buffer_st4(top_blob_data, gz * psc(outw) + gx, sum);
+}
