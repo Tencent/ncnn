@@ -31,8 +31,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 gy = unormalize(_mm256_set1_ps(src.h), gy);
                 gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+                gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
                 __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
@@ -60,8 +60,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_y = unormalize(src.h, sample_y);
                 sample_y = get_coord(src.h, sample_y);
 
-                int x0 = static_cast<int>(floorf(sample_x + 0.5f));
-                int y0 = static_cast<int>(floorf(sample_y + 0.5f));
+                int x0 = static_cast<int>(nearbyintf(sample_x));
+                int y0 = static_cast<int>(nearbyintf(sample_y));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
@@ -91,8 +91,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             gy = unormalize(_mm256_set1_ps(src.h), gy);
             gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-            gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-            gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+            gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
             __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                               _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
@@ -121,8 +121,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_y = unormalize(src.h, sample_y);
             sample_y = get_coord(src.h, sample_y);
 
-            int x0 = static_cast<int>(floorf(sample_x + 0.5f));
-            int y0 = static_cast<int>(floorf(sample_y + 0.5f));
+            int x0 = static_cast<int>(nearbyintf(sample_x));
+            int y0 = static_cast<int>(nearbyintf(sample_y));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
@@ -171,9 +171,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 gz = unormalize(_mm256_set1_ps(src.d), gz);
                 gz = get_coord(_mm256_set1_ps(src.d), gz);
 
-                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
-                gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
+                gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                gz = _mm256_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
                 __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
@@ -208,9 +208,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_z = unormalize(src.d, sample_z);
                 sample_z = get_coord(src.d, sample_z);
 
-                int x0 = static_cast<int>(floorf(sample_x + 0.5f));
-                int y0 = static_cast<int>(floorf(sample_y + 0.5f));
-                int z0 = static_cast<int>(floorf(sample_z + 0.5f));
+                int x0 = static_cast<int>(nearbyintf(sample_x));
+                int y0 = static_cast<int>(nearbyintf(sample_y));
+                int z0 = static_cast<int>(nearbyintf(sample_z));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
@@ -245,9 +245,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             gz = unormalize(_mm256_set1_ps(src.d), gz);
             gz = get_coord(_mm256_set1_ps(src.d), gz);
 
-            gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-            gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
-            gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
+            gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            gz = _mm256_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
             __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                               _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
@@ -285,9 +285,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_z = unormalize(src.d, sample_z);
             sample_z = get_coord(src.d, sample_z);
 
-            int x0 = static_cast<int>(floorf(sample_x + 0.5f));
-            int y0 = static_cast<int>(floorf(sample_y + 0.5f));
-            int z0 = static_cast<int>(floorf(sample_z + 0.5f));
+            int x0 = static_cast<int>(nearbyintf(sample_x));
+            int y0 = static_cast<int>(nearbyintf(sample_y));
+            int z0 = static_cast<int>(nearbyintf(sample_z));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
