@@ -287,7 +287,7 @@ y = concat(x0, x1, x2, ...) by axis
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | axis          | int   | 0         |                   |
+| 0         | axis          | int   | 0         | -233 = batch axis |
 
 # Convolution
 ```
