@@ -87,6 +87,8 @@ if(NCNN_PIXEL)
     else()
         message(WARNING "OpenCV not found and NCNN_SIMPLEOCV disabled, examples won't be built")
     endif()
+
+    add_subdirectory(hunyuanocr)
 else()
     message(WARNING "NCNN_PIXEL not enabled, examples won't be built")
 endif()
