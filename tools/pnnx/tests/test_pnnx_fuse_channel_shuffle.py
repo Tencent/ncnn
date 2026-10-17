@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import torchscript_to_pnnx
+
 class ShuffleV1Block(nn.Module):
     def __init__(self, inp, oup, *, group, first_group, mid_channels, ksize, stride):
         super(ShuffleV1Block, self).__init__()
@@ -56,7 +58,7 @@ class ShuffleV1Block(nn.Module):
             return torch.cat((self.branch_proj(x_proj), F.relu(x)), 1)
 
     def channel_shuffle(self, x):
-        batchsize, num_channels, height, width = x.data.size()
+        batchsize, num_channels, height, width = x.size()
         assert num_channels % self.group == 0
         group_channels = num_channels // self.group
 
@@ -119,7 +121,7 @@ class ShuffleV2Block(nn.Module):
             return torch.cat((self.branch_proj(x_proj), self.branch_main(x)), 1)
 
     def channel_shuffle(self, x):
-        batchsize, num_channels, height, width = x.data.size()
+        batchsize, num_channels, height, width = x.size()
         assert (num_channels % 4 == 0)
         x = x.reshape(batchsize * num_channels // 2, 2, height * width)
         x = x.permute(1, 0, 2)
@@ -154,13 +156,8 @@ def test():
     mod = torch.jit.trace(net, x)
     mod.save("test_pnnx_channel_shuffle.pt")
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_pnnx_channel_shuffle.pt inputshape=[1,8,16,16]")
-
-    # pnnx inference
-    import test_pnnx_channel_shuffle_pnnx
-    b = test_pnnx_channel_shuffle_pnnx.test_inference()
+    converted = torchscript_to_pnnx("test_pnnx_channel_shuffle", "[1,8,16,16]")
+    b = converted(x)
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
