@@ -27,6 +27,37 @@ RotaryEmbed_arm::RotaryEmbed_arm()
 
 int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    /* The fused layout (input_hc_swapped) is produced by the exporter together
+     * with dropping a Permute in front of this layer. The overrides below still
+     * assume h is the sequence and c the heads, so hand the fused case to the
+     * generic implementation instead of mis-indexing the one-row caches. */
+    if (input_hc_swapped)
+    {
+#if NCNN_ARM82
+        /* fp16 存储 + fp16 算术（ARMv8.2 默认）时，委托给通用实现会把计算升级
+         * 成 fp32，只在使用者要求的算术模式上打了折扣；pack1 且三者都是 16 位
+         * 时走原生 fp16sa 融合路径，保持请求的算术语义。其余情况（打包输入、
+         * 混合位宽、bf16、fp16s）的算术都与通用 fp32 转换路径一致，照旧委托。 */
+        if (support_fp16_storage && opt.use_fp16_storage && opt.use_fp16_arithmetic
+                && bottom_blobs[0].elembits() == 16 && bottom_blobs[0].elempack == 1
+                && bottom_blobs[1].elembits() == 16 && bottom_blobs[1].elempack == 1
+                && bottom_blobs[2].elembits() == 16 && bottom_blobs[2].elempack == 1)
+            return forward_fp16sa_swapped(bottom_blobs, top_blobs, opt);
+#endif
+
+        /* 16-bit fused input goes through the generic implementation's fp32
+         * conversion path, which decides fp16-vs-bf16 from the storage flags.
+         * Set them to the format THIS backend would have selected for the same
+         * input, so fused 16-bit models decode the bits they actually contain. */
+        Option opt2 = opt;
+        if (bottom_blobs[0].elembits() == 16)
+        {
+            opt2.use_fp16_storage = support_fp16_storage && opt.use_fp16_storage ? 1 : 0;
+            opt2.use_bf16_storage = opt2.use_fp16_storage ? 0 : (opt.use_bf16_storage ? 1 : 0);
+        }
+        return RotaryEmbed::forward(bottom_blobs, top_blobs, opt2);
+    }
+
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && bottom_blobs[0].elembits() == 16)
     {
