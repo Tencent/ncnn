@@ -23,6 +23,7 @@ void chain_multi_output(Graph& graph)
                 continue;
 
             // prim::TupleConstruct     pnnx_791                 2 1 a b out
+            // prim::ListConstruct      pnnx_791                 2 1 a b out
             // pnnx.Expression          pnnx_expr_0              3 1 a b c out expr=[@0,@1,@2]
             // pnnx.Output              pnnx_output_0            1 0 out
             bool match_tuple_expr_output = false;
@@ -35,7 +36,7 @@ void chain_multi_output(Graph& graph)
 
                 Operator* op0 = r->producer;
 
-                if (op0->type == "prim::TupleConstruct")
+                if (op0->type == "prim::TupleConstruct" || op0->type == "prim::ListConstruct")
                 {
                     match_tuple_expr_output = true;
                 }

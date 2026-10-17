@@ -7,7 +7,7 @@
 
 namespace pnnx {
 
-void fuse_op1ton_unpack(Graph& graph)
+void fuse_op1ton_unpack(Graph& graph, bool fuse_single_output)
 {
     while (1)
     {
@@ -28,6 +28,10 @@ void fuse_op1ton_unpack(Graph& graph)
 
             Operator* op2 = op->outputs[0]->consumers[0];
             if (op2->type != "prim::ListUnpack")
+                continue;
+
+            // Keep single-output unpacking explicit in the PNNX graph and Python.
+            if (!fuse_single_output && op2->outputs.size() == 1)
                 continue;
 
             matched = true;

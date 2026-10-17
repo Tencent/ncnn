@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -47,17 +49,14 @@ def test():
 
     a0, a1, a2 = net(x, y, z, w0, b0, w1, b1, w2, b2)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w0, b0, w1, b1, w2, b2))
-    mod.save("test_F_group_norm.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z, w0, b0, w1, b1, w2, b2),
+        "test_F_group_norm",
+        pnnx_args=("inputshape=[1,16],[12,12,16],[1,32,12,16],[16],[16],[12],[12],[32],[32]",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_group_norm.pt inputshape=[1,16],[12,12,16],[1,32,12,16],[16],[16],[12],[12],[32],[32]")
-
-    # pnnx inference
-    import test_F_group_norm_pnnx
-    b0, b1, b2 = test_F_group_norm_pnnx.test_inference()
+    b0, b1, b2 = mod.test_inference()
 
     return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
 

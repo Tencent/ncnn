@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pnnx_test_utils import convert_and_import
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -28,17 +30,14 @@ def test():
 
     a = net(x, y, z, w)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_torch_istft.pt")
+    mod = convert_and_import(
+        net,
+        (x, y, z, w),
+        "test_torch_istft",
+        pnnx_args=("inputshape=[3,33,161]c64,[1,65,77]c64,[257,8]c64,[512,4]c64",),
+    )
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_torch_istft.pt inputshape=[3,33,161]c64,[1,65,77]c64,[257,8]c64,[512,4]c64")
-
-    # pnnx inference
-    import test_torch_istft_pnnx
-    b = test_torch_istft_pnnx.test_inference()
+    b = mod.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
