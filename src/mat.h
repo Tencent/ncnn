@@ -15,7 +15,9 @@
 #include <immintrin.h>
 #endif
 #endif
-#if __mips_msa
+#if __mips_mxu2
+#include <mxu2.h>
+#elif __mips_msa
 #include <msa.h>
 #endif
 #if __loongarch_sx
@@ -1433,7 +1435,11 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
     float* ptr = (float*)data;
     for (size_t i = 0; i < size; i++)
     {
+#if __mips_mxu2
+        _mx128_su1q((v16i8)_v, ptr, 0);
+#else
         __msa_st_w((v4i32)_v, ptr, 0);
+#endif
         ptr += 4;
     }
 }
