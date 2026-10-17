@@ -4,6 +4,7 @@
 #include "pass_level2.h"
 
 #include <algorithm>
+#include <climits>
 #include <map>
 #include <set>
 #include <unordered_map>
@@ -934,6 +935,21 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
         //         fprintf(stderr, "matched !\n");
 
+        // Native ncnn imports attach the original layer position as private
+        // metadata so cutstart/cutend can still address a layer after graph
+        // rewrites remove or fuse it.  Carry the earliest matched position to
+        // replacement operators; ordinary pnnx graphs have no such metadata.
+        int ncnn_original_index = -1;
+        for (const auto& matched : matched_operators)
+        {
+            const auto it = matched.second->params.find("__ncnn_original_index");
+            if (it == matched.second->params.end() || it->second.type != 2)
+                continue;
+
+            if (ncnn_original_index < 0 || it->second.i < ncnn_original_index)
+                ncnn_original_index = it->second.i;
+        }
+
         // lets replace
 
         // remove all operands inside matched graph
@@ -1037,6 +1053,9 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             pass->write(op, captured_params, captured_attrs);
 
+            if (ncnn_original_index >= 0)
+                op->params["__ncnn_original_index"] = Parameter(ncnn_original_index);
+
             new_ops.push_back(op);
         }
         else
@@ -1120,6 +1139,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             for (auto x : ops)
             {
+                if (ncnn_original_index >= 0)
+                    x.second->params["__ncnn_original_index"] = Parameter(ncnn_original_index);
                 new_ops.push_back(x.second);
             }
 
