@@ -1,0 +1,152 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int axis = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) buffer block_sums { sfpvec4 block_sums_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int cstep;
+    int scan_size;
+    int num_blocks;
+    int scan_stride;
+    int axis;
+} p;
+
+shared vec4 sdata[256];
+
+int get_base_offset(int base_idx)
+{
+    int pw = psc(w);
+    int ph = psc(h);
+    int pd = psc(d);
+    int pcstep = psc(cstep);
+    int pdims = psc(dims);
+    int paxis = p.axis;
+
+    if (pdims == 1)
+    {
+        return 0;
+    }
+    else if (pdims == 2)
+    {
+        if (paxis == 0)
+        {
+            return base_idx;
+        }
+        else
+        {
+            return base_idx * pw;
+        }
+    }
+    else if (pdims == 3)
+    {
+        if (paxis == 0)
+        {
+            return base_idx;
+        }
+        else if (paxis == 1)
+        {
+            int xi = base_idx % pw;
+            int ci = base_idx / pw;
+            return ci * pcstep + xi;
+        }
+        else
+        {
+            int yi = base_idx % ph;
+            int ci = base_idx / ph;
+            return ci * pcstep + yi * pw;
+        }
+    }
+    else
+    {
+        if (paxis == 0)
+        {
+            return base_idx;
+        }
+        else if (paxis == 1)
+        {
+            int wh = pw * ph;
+            int xi = base_idx % pw;
+            int yi = (base_idx / pw) % ph;
+            int ci = base_idx / wh;
+            return ci * pcstep + yi * pw + xi;
+        }
+        else if (paxis == 2)
+        {
+            int xi = base_idx % pw;
+            int di = (base_idx / pw) % pd;
+            int ci = base_idx / (pw * pd);
+            return ci * pcstep + di * ph * pw + xi;
+        }
+        else
+        {
+            int yi = base_idx % ph;
+            int di = (base_idx / ph) % pd;
+            int ci = base_idx / (ph * pd);
+            return ci * pcstep + di * ph * pw + yi * pw;
+        }
+    }
+}
+
+void main()
+{
+    const int block_id = int(gl_WorkGroupID.x);
+    const int base_idx = int(gl_WorkGroupID.y);
+    const int tid = int(gl_LocalInvocationID.x);
+
+    const int block_start = block_id * 256;
+    const int base_offset = get_base_offset(base_idx);
+
+    afpvec4 val = afpvec4(0.f);
+    if (block_start + tid < p.scan_size)
+    {
+        int idx = base_offset + (block_start + tid) * p.scan_stride;
+        val = buffer_ld4(bottom_top_blob_data, idx);
+    }
+    sdata[tid] = vec4(val);
+    barrier();
+
+    for (int stride = 1; stride < 256; stride *= 2)
+    {
+        vec4 tmp = vec4(0.f);
+        if (tid >= stride)
+        {
+            tmp = sdata[tid - stride];
+        }
+        barrier();
+        if (tid >= stride)
+        {
+            sdata[tid] = sdata[tid] + tmp;
+        }
+        barrier();
+    }
+
+    if (block_start + tid < p.scan_size)
+    {
+        int idx = base_offset + (block_start + tid) * p.scan_stride;
+        buffer_st4(bottom_top_blob_data, idx, afpvec4(sdata[tid]));
+    }
+
+    int last_idx = min(255, p.scan_size - block_start - 1);
+    if (tid == last_idx)
+    {
+        int block_sum_idx = base_idx * p.num_blocks + block_id;
+        buffer_st4(block_sums_data, block_sum_idx, afpvec4(sdata[last_idx]));
+    }
+}
