@@ -18,8 +18,99 @@ int Concat::load_param(const ParamDict& pd)
     return 0;
 }
 
+template<typename MatType>
+static int concat_check_shape(const std::vector<MatType>& bottom_blobs, int axis)
+{
+    if (bottom_blobs.empty())
+        return -1;
+
+    const MatType& ref = bottom_blobs[0];
+    const int dims = ref.dims;
+    const int positive_axis = axis < 0 ? dims + axis : axis;
+
+    if (dims < 1 || dims > 4 || positive_axis < 0 || positive_axis >= dims)
+    {
+        NCNN_LOGE("Concat invalid dims=%d axis=%d", dims, axis);
+        return -1;
+    }
+
+    for (size_t b = 1; b < bottom_blobs.size(); b++)
+    {
+        const MatType& bottom_blob = bottom_blobs[b];
+
+        if (bottom_blob.dims != dims)
+        {
+            NCNN_LOGE("Concat shape mismatch: dims %d vs %d", dims, bottom_blob.dims);
+            return -1;
+        }
+
+        if (dims == 2 && positive_axis == 0 && bottom_blob.w != ref.w)
+        {
+            NCNN_LOGE("Concat shape mismatch: w %d vs %d (axis=%d)", ref.w, bottom_blob.w, axis);
+            return -1;
+        }
+        if (dims == 2 && positive_axis == 1 && bottom_blob.h != ref.h)
+        {
+            NCNN_LOGE("Concat shape mismatch: h %d vs %d (axis=%d)", ref.h, bottom_blob.h, axis);
+            return -1;
+        }
+
+        if ((dims == 3 || dims == 4) && positive_axis == 0)
+        {
+            if (bottom_blob.w != ref.w || bottom_blob.h != ref.h || bottom_blob.d != ref.d)
+            {
+                NCNN_LOGE("Concat shape mismatch: (%d,%d,%d) vs (%d,%d,%d) (axis=%d)",
+                          ref.w, ref.h, ref.d, bottom_blob.w, bottom_blob.h, bottom_blob.d, axis);
+                return -1;
+            }
+        }
+        if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+        {
+            if (bottom_blob.w != ref.w || bottom_blob.d != ref.d || bottom_blob.c != ref.c)
+            {
+                NCNN_LOGE("Concat shape mismatch: non-concat dims disagree (axis=%d)", axis);
+                return -1;
+            }
+        }
+        if ((dims == 3 && positive_axis == 2) || (dims == 4 && positive_axis == 3))
+        {
+            if (bottom_blob.h != ref.h || bottom_blob.d != ref.d || bottom_blob.c != ref.c)
+            {
+                NCNN_LOGE("Concat shape mismatch: non-concat dims disagree (axis=%d)", axis);
+                return -1;
+            }
+        }
+        if (dims == 4 && positive_axis == 1)
+        {
+            if (bottom_blob.w != ref.w || bottom_blob.h != ref.h || bottom_blob.c != ref.c)
+            {
+                NCNN_LOGE("Concat shape mismatch: non-concat dims disagree (axis=%d)", axis);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Concat::check_shape(const std::vector<Mat>& bottom_blobs) const
+{
+    return concat_check_shape(bottom_blobs, axis);
+}
+
+#if NCNN_VULKAN
+int Concat::check_shape(const std::vector<VkMat>& bottom_blobs) const
+{
+    return concat_check_shape(bottom_blobs, axis);
+}
+#endif // NCNN_VULKAN
+
 int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int ret_shape = check_shape(bottom_blobs);
+    if (ret_shape != 0)
+        return ret_shape;
+
     int dims = bottom_blobs[0].dims;
     size_t elemsize = bottom_blobs[0].elemsize;
     int positive_axis = axis < 0 ? dims + axis : axis;
