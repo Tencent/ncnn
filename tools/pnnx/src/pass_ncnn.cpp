@@ -4,6 +4,7 @@
 #include "pass_ncnn.h"
 
 #include "pass_ncnn/convert_attribute.h"
+#include "pass_ncnn/convert_avg_pool.h"
 #include "pass_ncnn/convert_batch_layout.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_module_op.h"
@@ -115,6 +116,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::convert_Tensor_select(g);
     ncnn::convert_Tensor_slice(g);
     ncnn::convert_Tensor_slice_copy(g);
+
+    ncnn::convert_avg_pool(g);
 
     // slice        -> crop + reshape
     // slice_copy   -> reshape + copyto
