@@ -5,6 +5,7 @@ import time
 import re
 import shutil
 import subprocess
+import sysconfig
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
@@ -107,6 +108,16 @@ class CMakeBuild(build_ext):
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
+        if sys.platform == "android":
+            # use target python headers and library from cibuildwheel's sysconfig
+            # preserve its generated android toolchain and compiler flags
+            cmake_args += [
+                "-DPython_INCLUDE_DIR={}".format(sysconfig.get_path("include")),
+                "-DPython_LIBRARY={}".format(os.path.join(
+                    sysconfig.get_config_var("LIBDIR"),
+                    sysconfig.get_config_var("LDLIBRARY"),
+                )),
+            ]
         if Vulkan_LIBRARY != "":
             cmake_args.append("-DVulkan_LIBRARY=" + Vulkan_LIBRARY)
         if CMAKE_TOOLCHAIN_FILE != "":
@@ -185,7 +196,7 @@ class CMakeBuild(build_ext):
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+requirements = ["numpy", "tqdm", "requests", "portalocker"]
 setup_requires = []
 if shutil.which("cmake") is None:
     setup_requires += ["cmake>=3.12"]
@@ -228,6 +239,7 @@ setup(
     package_dir={"": "python"},
     setup_requires=setup_requires,
     install_requires=requirements,
+    extras_require={"opencv": ["opencv-python"]},
     ext_modules=[CMakeExtension("ncnn")],
     cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
 )

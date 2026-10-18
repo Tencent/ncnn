@@ -12,6 +12,38 @@ python -m pip install -U pip
 python -m pip install -U ncnn
 ```
 
+The base `ncnn` package does not require OpenCV. Core inference, model imports,
+and `print_topk` work without it. Drawing helpers and Yolact inference require a
+compatible `cv2` module. To install the optional OpenCV dependency:
+
+```bash
+python -m pip install -U "ncnn[opencv]"
+```
+
+If your environment already provides `cv2` through a system package, a custom
+build, or `opencv-python-headless`, install plain `ncnn` instead. Do not install
+multiple OpenCV distributions together; they share the same `cv2` namespace.
+The drawing helpers use `imshow` and `waitKey`, so they also require an OpenCV
+build with GUI support and a working display. Headless builds can be used for
+Yolact, but cannot display the drawing helpers' windows.
+
+## Experimental mobile wheels
+
+The separate `python-mobile-experiment.yml` workflow builds CPython 3.14,
+CPU-only Android and iOS wheels as CI artifacts. It does not publish releases
+or change the desktop wheel release matrix. Vulkan and OpenMP are disabled.
+Android arm64 and iOS device wheels are build-only; emulator/simulator tests
+run only where the host architecture is supported.
+
+The initial smoke test installs the wheel without runtime dependencies and
+checks import, tensor access, and a small ReLU network without model downloads.
+This does not validate a normal `pip install ncnn`, NumPy interoperability, or
+the model zoo on mobile. CPython 3.14 Android NumPy wheels and Android/iOS
+`opencv-python` wheels are not available on PyPI at the time of this experiment.
+iOS NumPy wheels require a supplemental provider such as BeeWare. A compatible
+mobile `cv2` build is still needed for OpenCV-dependent features; the `opencv`
+extra alone does not supply one on these platforms.
+
 # Build from source
 
 If you want to build ncnn with some options not as default, or just like to build everything yourself, it is not difficult to build ncnn from source.
