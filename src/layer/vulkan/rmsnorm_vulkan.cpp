@@ -45,49 +45,65 @@ int RMSNorm_vulkan::create_pipeline(const Option& opt)
         // sanitize wired subgroup_size
         use_subgroup_ops = false;
     }
-    // Reuse the LN reduce_sum4 / reduce_mean size and local workgroup configuration [from LN code].
-    // square: only compute x^2; coeffs: a = 1 / sqrt(rms + eps); norm: v = v * a; (if affine: v *= gamma)
+    if (use_subgroup_ops)
     {
-        pipeline_rmsnorm_square = new Pipeline(vkdev);
-        pipeline_rmsnorm_square->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_square->create(LayerShaderType::rmsnorm_square, opt, std::vector<vk_specialization_type>());
+        pipeline_rmsnorm_reduce_subgroup = new Pipeline(vkdev);
+        pipeline_rmsnorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_rmsnorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_rmsnorm_reduce_subgroup->create(LayerShaderType::rmsnorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_square_pack4 = new Pipeline(vkdev);
-        pipeline_rmsnorm_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_square_pack4->create(LayerShaderType::rmsnorm_square_pack4, opt, std::vector<vk_specialization_type>());
+        pipeline_rmsnorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_rmsnorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_rmsnorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_rmsnorm_reduce_subgroup_pack4->create(LayerShaderType::rmsnorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
+    else
     {
-        // Same as LN's reduce_sum4 (first pass fp16->fp32, then iterative fp32 passes alternating between two pipelines) and reduce_mean (see LN).
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(16, 4, 1);
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::layernorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
+        // Reuse the LN reduce_sum4 / reduce_mean size and local workgroup configuration [from LN code].
+        // square: only compute x^2; coeffs: a = 1 / sqrt(rms + eps); norm: v = v * a; (if affine: v *= gamma)
+        {
+            pipeline_rmsnorm_square = new Pipeline(vkdev);
+            pipeline_rmsnorm_square->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_square->create(LayerShaderType::rmsnorm_square, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_reduce_sum4_fp32[0]->create(LayerShaderType::layernorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
-        pipeline_rmsnorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_reduce_sum4_fp32[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_square_pack4 = new Pipeline(vkdev);
+            pipeline_rmsnorm_square_pack4->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_square_pack4->create(LayerShaderType::rmsnorm_square_pack4, opt, std::vector<vk_specialization_type>());
+        }
+        {
+            // Same as LN's reduce_sum4 (first pass fp16->fp32, then iterative fp32 passes alternating between two pipelines) and reduce_mean (see LN).
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(16, 4, 1);
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::layernorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 4, 1);
-        pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::layernorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_reduce_sum4_fp32[0]->create(LayerShaderType::layernorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_reduce_sum4_fp32[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(8, 8, 1);
-        pipeline_rmsnorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 4, 1);
+            pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::layernorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_reduce_mean = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_mean->set_optimal_local_size_xyz(1, 8, 8);
-        pipeline_rmsnorm_reduce_mean->create(LayerShaderType::layernorm_reduce_mean, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(8, 8, 1);
+            pipeline_rmsnorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::layernorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
 
-        pipeline_rmsnorm_reduce_mean_pack4 = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_mean_pack4->set_optimal_local_size_xyz(1, 8, 8);
-        pipeline_rmsnorm_reduce_mean_pack4->create(LayerShaderType::layernorm_reduce_mean_pack4, opt, std::vector<vk_specialization_type>());
+            pipeline_rmsnorm_reduce_mean = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_mean->set_optimal_local_size_xyz(1, 8, 8);
+            pipeline_rmsnorm_reduce_mean->create(LayerShaderType::layernorm_reduce_mean, opt, std::vector<vk_specialization_type>());
+
+            pipeline_rmsnorm_reduce_mean_pack4 = new Pipeline(vkdev);
+            pipeline_rmsnorm_reduce_mean_pack4->set_optimal_local_size_xyz(1, 8, 8);
+            pipeline_rmsnorm_reduce_mean_pack4->create(LayerShaderType::layernorm_reduce_mean_pack4, opt, std::vector<vk_specialization_type>());
+        }
     }
+
     {
         // coeffs: only eps is used as a specialization constant
         std::vector<vk_specialization_type> spec(1);
@@ -114,19 +130,6 @@ int RMSNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_rmsnorm_norm_pack4 = new Pipeline(vkdev);
         pipeline_rmsnorm_norm_pack4->set_optimal_local_size_xyz(8, 8, 1);
         pipeline_rmsnorm_norm_pack4->create(LayerShaderType::rmsnorm_norm_pack4, opt, spec);
-    }
-
-    if (use_subgroup_ops)
-    {
-        pipeline_rmsnorm_reduce_subgroup = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_subgroup->set_subgroup_size(subgroup_size);
-        pipeline_rmsnorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
-        pipeline_rmsnorm_reduce_subgroup->create(LayerShaderType::rmsnorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
-
-        pipeline_rmsnorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-        pipeline_rmsnorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
-        pipeline_rmsnorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
-        pipeline_rmsnorm_reduce_subgroup_pack4->create(LayerShaderType::rmsnorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
 
     return 0;
