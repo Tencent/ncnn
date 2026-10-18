@@ -44,22 +44,32 @@ Among them, the commonly used `add` `sub` `mul` `div` `floor_div` are abbreviate
 * `+(*(-2,1),10)` means (-2 * 1) + 10
 * `1,2,+(3,2)` list can represent output shape with 3-rank
 
-The input shape can be referenced at runtime, format is `id(w|h|d|c)`, the maximum id is 9, which means that up to 10 inputs can be referenced
+The input shape can be referenced at runtime, format is `id(w|h|d|c|n)`, the maximum id is 9, which means that up to 10 inputs can be referenced
 
 Assuming that the Reshape layer has two input blobs, A and B, then
 
 * `0w,1h` means A.w, B.h
 * `*(+(0c,1c),2)` means (A.c + B.c) * 2
 
+For `Reshape`, input 0 contains the data. Inputs 1 through 9 provide shape information only; their native batch sizes do not have to match input 0 or each other. Expressions use the complete shapes of these inputs, including `0n`, `1n`, etc.
+
+Without parameters `12` and `13`, the target describes the physical shape of each sample, and the output preserves input 0's native batch size. With explicit batch layout parameters, the target describes the full logical shape, and parameter `13` selects its native batch dimension. References to `n` require a build with `NCNN_BATCH=ON`.
+
 ### helper api
 
 ```cpp
 #include "expression.h"
 
+int analyze_list_expression(const std::string& expr, int& list_size, int& blob_count, bool& has_batch);
+
 int count_expression_blobs(const std::string& expr);
 
 int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs, std::vector<int>& outlist);
 ```
+
+* `analyze_list_expression`
+
+Inspect the list size, required input count, and whether any input's batch dimension is referenced, without evaluating runtime shapes. The results are written to the output parameters; the return value is 0 on success and -1 for unbalanced parentheses.
 
 * `count_expression_blobs`
 

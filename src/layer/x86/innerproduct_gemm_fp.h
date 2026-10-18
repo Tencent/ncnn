@@ -1,20 +1,52 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_gemm_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+void innerproduct_gemm_fma4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+void innerproduct_gemm_fp16s_fma(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
-void innerproduct_gemm_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_gemm_fp16s_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 #endif
 
 #if NCNN_IMPL_FP16S
-static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct_gemm_fp16s(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #else
-static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct_gemm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #endif
 {
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_gemm_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && !NCNN_IMPL_FP16S && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        innerproduct_gemm_fma4(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__F16C__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        innerproduct_gemm_fp16s_fma(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        innerproduct_gemm_fp16s_sse_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm_fp16s_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
 #else // NCNN_RUNTIME_CPU

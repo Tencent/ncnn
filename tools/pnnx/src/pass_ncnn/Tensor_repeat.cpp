@@ -34,24 +34,25 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
-        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+        const int ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
 
         // drop sizes batch index
         std::vector<int> new_sizes;
         for (int i = 0; i < (int)sizes.size(); i++)
         {
-            if (i == batch_index)
+            if (i == ncnn_batch_axis)
             {
                 if (sizes[i] == 1)
                     continue;
 
-                fprintf(stderr, "repeat tensor along batch index %d is not supported yet!\n", batch_index);
+                fprintf(stderr, "repeat tensor along batch index %d is not supported yet!\n", ncnn_batch_axis);
+                continue;
             }
 
             new_sizes.push_back(sizes[i]);
         }
 
-        if (new_sizes.size() == 5 && batch_index == 233)
+        if (new_sizes.size() == 5 && ncnn_batch_axis == 233)
         {
             if (new_sizes[0] == 1)
             {
@@ -65,7 +66,6 @@ pnnx.Output             output      1 0 out
         if (sizes_rank > 5)
         {
             fprintf(stderr, "repeat to %d-rank tensor is not supported yet!\n", sizes_rank);
-            return;
         }
 
         op->params["2"] = new_sizes;

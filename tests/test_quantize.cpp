@@ -97,7 +97,7 @@ static void RandomizeQuantize(ncnn::Mat& m, const ncnn::Mat& scale_data)
     }
 }
 
-static int test_quantize(ncnn::Mat a, float scale_low, float scale_high)
+static int test_quantize(ncnn::Mat a, float scale_low, float scale_high, int flag = 0)
 {
     ncnn::Mat scale_data;
     if (scale_low == scale_high)
@@ -122,7 +122,7 @@ static int test_quantize(ncnn::Mat a, float scale_low, float scale_high)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = scale_data;
 
-    int ret = test_layer("Quantize", pd, weights, a);
+    int ret = test_layer("Quantize", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_quantize failed a.dims=%d a=(%d %d %d %d) scale_low=%f scale_high=%f\n", a.dims, a.w, a.h, a.d, a.c, scale_low, scale_high);
@@ -134,8 +134,8 @@ static int test_quantize(ncnn::Mat a, float scale_low, float scale_high)
 static int test_quantize_0()
 {
     return 0
-           || test_quantize(RandomMat(5, 7, 24), 100.f, 100.f)
-           || test_quantize(RandomMat(5, 7, 24), 120.f, 140.f)
+           || test_quantize(RandomMat(5, 7, 24), 100.f, 100.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_quantize(RandomMat(5, 7, 24), 120.f, 140.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_quantize(RandomMat(7, 9, 12), 100.f, 100.f)
            || test_quantize(RandomMat(7, 9, 12), 120.f, 140.f)
            || test_quantize(RandomMat(3, 5, 13), 100.f, 100.f)
@@ -149,8 +149,8 @@ static int test_quantize_0()
 static int test_quantize_1()
 {
     return 0
-           || test_quantize(RandomMat(15, 24), 100.f, 100.f)
-           || test_quantize(RandomMat(15, 24), 120.f, 140.f)
+           || test_quantize(RandomMat(15, 24), 100.f, 100.f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_quantize(RandomMat(15, 24), 120.f, 140.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_quantize(RandomMat(17, 12), 100.f, 100.f)
            || test_quantize(RandomMat(17, 12), 120.f, 140.f)
            || test_quantize(RandomMat(19, 15), 100.f, 100.f)

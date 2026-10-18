@@ -48,11 +48,14 @@ public:
 
 #if NCNN_STRING
     // register custom layer or overwrite built-in layer by layer type name
+    // a registered override returning null fails parameter loading without built-in fallback
     // return 0 if success
     int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
     virtual int custom_layer_to_index(const char* type);
 #endif // NCNN_STRING
     // register custom layer or overwrite built-in layer by layer type
+    // a registered override returning null fails parameter loading without built-in fallback
+    // custom indexes must carry LayerType::CustomBit; the untagged slot must be < 1000000
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 
@@ -189,12 +192,20 @@ public:
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
+    // set kv cache memory allocator
+    void set_kvcache_allocator(Allocator* allocator);
+
+    // set maximum kv cache sequence length hint
+    void set_kvcache_max_seqlen_hint(int max_seqlen_hint);
+
 #if NCNN_VULKAN
     void set_blob_vkallocator(VkAllocator* allocator);
 
     void set_workspace_vkallocator(VkAllocator* allocator);
 
     void set_staging_vkallocator(VkAllocator* allocator);
+
+    void set_kvcache_vkallocator(VkAllocator* allocator);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -205,7 +216,7 @@ public:
     // get result by blob name
     // return 0 if success
     // type = 0, default
-    // type = 1, do not convert fp16/bf16 or / and packing
+    // type = 1, do not convert fp16/bf16 or / and packing, required for kv cache
     int extract(const char* blob_name, Mat& feat, int type = 0);
 #endif // NCNN_STRING
 
@@ -216,7 +227,7 @@ public:
     // get result by blob index
     // return 0 if success
     // type = 0, default
-    // type = 1, do not convert fp16/bf16 or / and packing
+    // type = 1, do not convert fp16/bf16 or / and packing, required for kv cache
     int extract(int blob_index, Mat& feat, int type = 0);
 
 #if NCNN_VULKAN

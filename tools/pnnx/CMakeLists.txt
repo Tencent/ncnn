@@ -59,7 +59,10 @@ if(Torch_VERSION VERSION_LESS "1.8")
     message(FATAL_ERROR "pnnx only supports PyTorch >= 1.8")
 endif()
 
-if(Torch_VERSION VERSION_GREATER_EQUAL "2.1")
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.13")
+    # c++20 is required for using torch 2.13+ headers
+    set(CMAKE_CXX_STANDARD 20)
+elseif(Torch_VERSION VERSION_GREATER_EQUAL "2.1")
     # c++17 is required for using torch 2.1+ headers
     set(CMAKE_CXX_STANDARD 17)
 endif()

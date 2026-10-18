@@ -5,7 +5,7 @@
 
 layout(constant_id = 0) const float eps = 0;
 
-layout(binding = 0) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout(binding = 0) writeonly buffer coeffs_blob { vec4 coeffs_blob_data[]; };
 layout(binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
 layout(binding = 2) readonly buffer var_blob { vec4 var_data[]; };
 
@@ -31,6 +31,6 @@ void main()
     vec4 a = 1.f / (sqrt(var + eps));
     vec4 b = -mean * a;
 
-    buffer_st4(coeffs_blob_data, group_id * 2, afpvec4(a));
-    buffer_st4(coeffs_blob_data, group_id * 2 + 1, afpvec4(b));
+    coeffs_blob_data[group_id * 2] = a;
+    coeffs_blob_data[group_id * 2 + 1] = b;
 }

@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_reorg(const ncnn::Mat& a, int stride, int mode)
 {
     ncnn::ParamDict pd;
@@ -46,9 +50,57 @@ static int test_reorg_1()
            || test_reorg(RandomMat(9, 9, 16), 3, 1);
 }
 
+#if NCNN_VALIDATION
+static int test_reorg_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    if (test_layer_param(ncnn::LayerType::Reorg, base, 0) != 0)
+        return -1;
+
+    const int invalid[] = {0, -1, -8, INT_MIN};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Reorg, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+    // the squared value exceeds the int range
+    return test_layer_param(ncnn::LayerType::Reorg, base, 0, 65536, -1);
+}
+
+static int test_reorg_load_param_type()
+{
+    ncnn::ParamDict base;
+    if (test_layer_param(ncnn::LayerType::Reorg, base, 0) != 0)
+        return -1;
+
+    for (int i = 0; i <= 1; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Reorg, base, 1, i, 0) != 0)
+            return -1;
+    }
+
+    const int invalid[] = {-1, 2, INT_MIN, INT_MAX};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::Reorg, base, 1, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
-    return test_reorg_0() || test_reorg_1();
+    return 0
+           || test_reorg_0()
+           || test_reorg_1()
+#if NCNN_VALIDATION
+           || test_reorg_load_param()
+           || test_reorg_load_param_type()
+#endif // NCNN_VALIDATION
+           ;
 }

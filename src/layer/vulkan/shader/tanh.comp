@@ -21,6 +21,9 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
+    // avoid overflow in tanh implementations based on exp(x) and exp(-x)
+    v = clamp(v, afpvec4(-10.f), afpvec4(10.f));
+
 #if NCNN_moltenvk
     v = afpvec4(tanh(vec4(v)));
 #else

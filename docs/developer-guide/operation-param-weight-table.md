@@ -131,6 +131,25 @@
 ||2|expand_c|0|
 ||3|axes|[ ]|
 |Flatten|||
+|Gemm|0|alpha|1.f|A_data B_data C_data A_data_int8_scales B_data_int8_scales/B_data_quantize_scales B_data_input_scales|
+||1|beta|1.f|
+||2|transA|0|
+||3|transB|0|
+||4|constantA|0|
+||5|constantB|0|
+||6|constantC|0|
+||7|constantM|0|
+||8|constantN|0|
+||9|constantK|0|
+||10|constant_broadcast_type_C|0|
+||11|output_N1M|0|
+||12|output_elempack|0|
+||13|output_elemtype|0|
+||14|output_transpose|0|
+||18|quantize_term|0|
+||20|constant_TILE_M|0|
+||21|constant_TILE_N|0|
+||22|constant_TILE_K|0|
 |HardSigmoid|0|alpha|0.2f||
 ||1|beta|0.5f|
 |HardSwish|0|alpha|0.2f||
@@ -298,6 +317,12 @@
 |RNN|0|num_output|0|
 ||1|weight_data_size|0|
 ||2|direction|0|
-|MultiHeadAttention|0|embed_dim|0|
+|MultiHeadAttention|0|embed_dim|0|q_weight_data q_bias_data k_weight_data k_bias_data v_weight_data v_bias_data out_weight_data out_bias_data q_weight_data_int8_scales k_weight_data_int8_scales v_weight_data_int8_scales out_weight_data_int8_scales q_weight_data_quantize_scales k_weight_data_quantize_scales v_weight_data_quantize_scales out_weight_data_quantize_scales q_weight_data_input_scales k_weight_data_input_scales v_weight_data_input_scales out_weight_data_input_scales|
 ||1|num_head|1|
 ||2|weight_data_size|0|
+||3|kdim|embed_dim|
+||4|vdim|embed_dim|
+||5|attn_mask|0|
+||6|scale|1.f / sqrt(embed_dim / num_heads)|
+||7|kv_cache|0|
+||18|quantize_term|0|

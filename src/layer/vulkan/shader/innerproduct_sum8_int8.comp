@@ -1,0 +1,75 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+layout(constant_id = 0) const int weight_data_stride = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outh = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
+layout(binding = 1) writeonly buffer top_blob { ivec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { ivec4 weight_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+
+    int outw;
+    int outh;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= 1)
+        return;
+
+    const int start = gx * 8;
+    const int end = min(gx * 8 + 8, (psc(w) + 3) / 4);
+
+    ivec4 sum = ivec4(0);
+
+    int w_offset = gy * weight_data_stride + start;
+
+    for (int i = start; i < end; i++)
+    {
+        const int v4 = i8buffer_sm4(bottom_blob_int8_data, i);
+
+        const ivec4 k = weight_data[w_offset];
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+        sum.r += dotPacked4x8EXT(v4, k.r);
+        sum.g += dotPacked4x8EXT(v4, k.g);
+        sum.b += dotPacked4x8EXT(v4, k.b);
+        sum.a += dotPacked4x8EXT(v4, k.a);
+#else
+        const ivec4 v0 = unpackInt4x8(v4);
+        const ivec4 k0v = unpackInt4x8(k.r);
+        const ivec4 k1v = unpackInt4x8(k.g);
+        const ivec4 k2v = unpackInt4x8(k.b);
+        const ivec4 k3v = unpackInt4x8(k.a);
+
+        sum.r += v0.r * k0v.r + v0.g * k0v.g + v0.b * k0v.b + v0.a * k0v.a;
+        sum.g += v0.r * k1v.r + v0.g * k1v.g + v0.b * k1v.b + v0.a * k1v.a;
+        sum.b += v0.r * k2v.r + v0.g * k2v.g + v0.b * k2v.b + v0.a * k2v.a;
+        sum.a += v0.r * k3v.r + v0.g * k3v.g + v0.b * k3v.b + v0.a * k3v.a;
+#endif
+
+        w_offset += 1;
+    }
+
+    const int gi = gy * psc(outw) + gx;
+    top_blob_data[gi] = sum;
+}

@@ -51,7 +51,11 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
+        // retain the separate 1x1 path; other small convolutions already use direct convolution by default
+        if (!(kernel == 1 && dilation == 1 && stride == 1) && (c * kernel * kernel < 8 || outch < 8))
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, TEST_LAYER_DISABLE_GPU_TESTING);
+        else
+            ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -84,7 +88,8 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         opt.num_threads = 1;
         opt.use_a53_a55_optimized_kernel = true;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
+        // a53/a55 tuning is CPU-only; the default Vulkan options are already tested
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon, TEST_LAYER_DISABLE_GPU_TESTING);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);

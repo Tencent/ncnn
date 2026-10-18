@@ -17,11 +17,14 @@ Option::Option()
     num_threads = get_physical_big_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;
+    kvcache_allocator = 0;
+    kvcache_max_seqlen_hint = 0;
 
 #if NCNN_VULKAN
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
+    kvcache_vkallocator = 0;
     pipeline_cache = 0;
 #endif // NCNN_VULKAN
 
@@ -39,7 +42,7 @@ Option::Option()
     use_fp16_arithmetic = true;
     use_int8_packed = true;
     use_int8_storage = true;
-    use_int8_arithmetic = false;
+    use_int8_arithmetic = true;
 
     use_packing_layout = true;
 
@@ -70,8 +73,8 @@ Option::Option()
     use_fp16_uniform = true;
     use_int8_uniform = true;
 
-    use_reserved_9 = false;
-    use_reserved_10 = false;
+    use_int16_packed = true;
+    use_int16_storage = true;
     use_reserved_11 = false;
 }
 

@@ -276,6 +276,9 @@ int NetOptimize::fuse_convolution_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = convolution->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -364,6 +367,9 @@ int NetOptimize::fuse_convolution_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = convolution->num_output;
 
@@ -541,6 +547,9 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = convolutiondepthwise->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -629,6 +638,9 @@ int NetOptimize::fuse_convolutiondepthwise_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = convolutiondepthwise->num_output;
 
@@ -806,6 +818,9 @@ int NetOptimize::fuse_deconvolution_mul()
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
 
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         int channels = deconvolution->num_output;
 
         if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
@@ -894,6 +909,9 @@ int NetOptimize::fuse_deconvolution_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = deconvolution->num_output;
 
@@ -1153,6 +1171,9 @@ int NetOptimize::fuse_innerproduct_add()
             continue;
 
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
 
         int channels = innerproduct->num_output;
 
@@ -1757,6 +1778,10 @@ int NetOptimize::fuse_memorydata_binaryop()
 
         // fuse MemoryData - BinaryOp to BinaryOp
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[i];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
 
         if (memorydata->w != 1 || memorydata->h != 0 || memorydata->c != 0)
@@ -1859,6 +1884,10 @@ int NetOptimize::fuse_memorydata_binaryop()
 
         // fuse MemoryData - Split - BinaryOp to BinaryOp
         ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[i];
+
+        if (memorydata->data.elemsize != 4u)
+            continue;
+
         ncnn::Split* split = (ncnn::Split*)layers[j0];
         ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j1];
 
@@ -2779,6 +2808,10 @@ int main(int argc, char** argv)
     if (flag == 65536 || flag == 1)
     {
         optimizer.storage_type = 1;
+    }
+    else if (flag == 2)
+    {
+        optimizer.storage_type = 2;
     }
     else
     {

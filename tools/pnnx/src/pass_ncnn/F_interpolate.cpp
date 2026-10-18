@@ -3,6 +3,8 @@
 
 #include "pass_ncnn.h"
 
+#include <stdio.h>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -15,7 +17,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.interpolate           op_0        1 1 input out mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
+F.interpolate           op_0        1 1 input out mode=%mode recompute_scale_factor=%recompute_scale_factor scale_factor=%scale_factor
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -55,7 +57,21 @@ pnnx.Output             output      1 0 out
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 1)
+        if (captured_params.at("recompute_scale_factor").type == 1 && captured_params.at("recompute_scale_factor").b)
+        {
+            char expr[256];
+            if (scale_factor.size() == 1)
+                snprintf(expr, sizeof(expr), "floor(*(0w,%.9e))", scale_factor[0]);
+            else if (scale_factor.size() == 2)
+                snprintf(expr, sizeof(expr), "floor(*(0w,%.9e)),floor(*(0h,%.9e))", scale_factor[1], scale_factor[0]);
+            else
+            {
+                fprintf(stderr, "unsupported interpolate scale_factor\n");
+                return;
+            }
+            op->params["9"] = expr;
+        }
+        else if (scale_factor.size() == 1)
         {
             op->params["1"] = 1.f;
             op->params["2"] = scale_factor[0];
@@ -84,7 +100,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode recompute_scale_factor=* scale_factor=%scale_factor
+F.interpolate           op_0        1 1 input out align_corners=%align_corners mode=%mode recompute_scale_factor=%recompute_scale_factor scale_factor=%scale_factor
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -124,7 +140,21 @@ pnnx.Output             output      1 0 out
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 1)
+        if (captured_params.at("recompute_scale_factor").type == 1 && captured_params.at("recompute_scale_factor").b)
+        {
+            char expr[256];
+            if (scale_factor.size() == 1)
+                snprintf(expr, sizeof(expr), "floor(*(0w,%.9e))", scale_factor[0]);
+            else if (scale_factor.size() == 2)
+                snprintf(expr, sizeof(expr), "floor(*(0w,%.9e)),floor(*(0h,%.9e))", scale_factor[1], scale_factor[0]);
+            else
+            {
+                fprintf(stderr, "unsupported interpolate scale_factor\n");
+                return;
+            }
+            op->params["9"] = expr;
+        }
+        else if (scale_factor.size() == 1)
         {
             op->params["1"] = 1.f;
             op->params["2"] = scale_factor[0];

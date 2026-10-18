@@ -21,6 +21,12 @@ namespace ncnn {
 #include "convolution_3x3_winograd.h"
 #include "convolution_packed.h"
 
+#if NCNN_INT8
+#include "convolution_packed_int8.h"
+#include "convolution_im2col_gemm_int8.h"
+#include "convolution_3x3_winograd_int8.h"
+#endif // NCNN_INT8
+
 #if __riscv_vector
 #include "convolution_3x3_pack1ton.h"
 #include "convolution_7x7_pack1ton.h"
@@ -54,8 +60,7 @@ int Convolution_riscv::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO implement int8
-        return 0;
+        return create_pipeline_int8_rvv(opt);
     }
 #endif
 
@@ -201,33 +206,22 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
+        if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
         {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+            NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
         }
 
-        Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
-        if (bottom_blob_unpacked.elembits() == 16)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
-        }
-
-        Option opt_unpacked = opt;
-        opt_unpacked.use_packing_layout = false;
-        return Convolution::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_rvv(bottom_blob, top_blob, opt);
     }
 #endif
 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
+        NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
+        NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
         Mat bottom_blob_3d;
         if (bottom_blob.elemsize % 16 == 0)
         {
@@ -320,12 +314,15 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __riscv_vector
     if (elempack == packn && out_elempack == packn && opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+        int ret = 0;
         if ((opt.use_winograd63_convolution && num_input >= packn * 2 && num_output >= packn * 2 && num_input <= packn * 16 && num_output <= packn * 16) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-            conv3x3s1_winograd63_rvv(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd63_rvv(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, nT, opt);
         else if ((opt.use_winograd43_convolution && num_input >= packn * 2 && num_output >= packn * 2) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-            conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
         else // if (opt.use_winograd23_convolution)
-            conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -338,14 +335,17 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (elempack == 1 && out_elempack == 1 && opt.use_winograd_convolution && (opt.use_winograd43_convolution || opt.use_winograd23_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+        int ret = 0;
         if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || !opt.use_winograd23_convolution)
         {
-            conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd43_rvv(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, nT, opt);
         }
         else if (opt.use_winograd23_convolution)
         {
-            conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
+            ret = conv3x3s1_winograd23_rvv(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, nT, opt);
         }
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -534,5 +534,188 @@ int Convolution_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_INT8
+int Convolution_riscv::create_pipeline_int8_rvv(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    const bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int ret;
+        if (opt.use_winograd43_convolution)
+            ret = conv3x3s1_winograd43_transform_kernel_int8_rvv(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        else
+            ret = conv3x3s1_winograd23_transform_kernel_int8_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else if (opt.use_sgemm_convolution)
+    {
+        int ret = convolution_im2col_gemm_transform_kernel_int8_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else
+    {
+        convolution_transform_kernel_packed_int8_rvv(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+    }
+
+    scale_in_data.create(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // requantize and relu
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_in_data[p] = scale_in;
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    const int packn_s8 = csrr_vlenb();
+#endif // __riscv_vector
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+        if (bottom_blob_int8.empty())
+            return -100;
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    int w = bottom_blob_bordered.w;
+    int h = bottom_blob_bordered.h;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    bool use_int8_requantize = int8_scale_term > 100;
+    int out_elempack = 1;
+    int out_elempack_int32 = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        if (use_int8_requantize)
+        {
+            out_elempack = num_output % packn_s8 == 0 ? packn_s8 : 1;
+        }
+        else
+        {
+#if NCNN_ZFH
+            if (support_fp16_storage && opt.use_fp16_storage)
+            {
+                const int packn_f16 = csrr_vlenb() / 2;
+                out_elempack = num_output % packn_f16 == 0 ? packn_f16 : 1;
+            }
+            else
+#endif // NCNN_ZFH
+            {
+                out_elempack = num_output % packn == 0 ? packn : 1;
+            }
+        }
+        out_elempack_int32 = num_output % packn == 0 ? packn : 1;
+    }
+#endif // __riscv_vector
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage)
+    {
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+    }
+#endif // NCNN_ZFH
+
+    Mat top_blob_int32;
+    top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
+    const int num_input = bottom_blob_bordered.c * bottom_blob_bordered.elempack;
+    const bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd int8 will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret;
+        if (opt.use_winograd43_convolution && !weight_winograd43_data.empty())
+            ret = conv3x3s1_winograd43_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
+        else
+            ret = conv3x3s1_winograd23_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else if (opt.use_sgemm_convolution)
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm int8 will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret = convolution_im2col_gemm_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else
+    {
+        convolution_packed_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+    }
+    bottom_blob_bordered.release();
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (use_int8_requantize)
+    {
+        requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+    }
+    else
+    {
+        dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+    }
+    return 0;
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

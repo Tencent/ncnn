@@ -34,9 +34,16 @@ def test_extractor():
             and out_mat.h == 225
             and out_mat.c == 3
         )
+        assert out_mat.allocator is None
+
+        ret, out_mat_raw = ex.extract("conv0_fwd", type=1)
+        assert ret == 0 and out_mat_raw.allocator is alloctor
 
         ret, out_mat = ex.extract("output")
         assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
+
+    out_mat_raw_copy = out_mat_raw.clone()
+    assert out_mat_raw_copy.dims == 3 and out_mat_raw_copy.w == 225
 
 
 def test_extractor_index():
@@ -65,9 +72,16 @@ def test_extractor_index():
         and out_mat.h == 225
         and out_mat.c == 3
     )
+    assert out_mat.allocator is None
+
+    ret, out_mat_raw = ex.extract(1, type=1)
+    assert ret == 0 and out_mat_raw.allocator is alloctor
 
     ret, out_mat = ex.extract(2)
     assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
 
     # not use with sentence, call clear manually to ensure ex destruct before net
     ex.clear()
+
+    out_mat_raw_copy = out_mat_raw.clone()
+    assert out_mat_raw_copy.dims == 3 and out_mat_raw_copy.w == 225

@@ -830,7 +830,7 @@ static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 
 // MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
 // This function still be inlined compiled by MSVC 2017 even without that.
-#if _MSC_VER < 1920
+#if defined(_MSC_VER) && _MSC_VER < 1920
 static __m512 atan2512_ps(const __m512& y, const __m512& x)
 #else
 static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
@@ -898,8 +898,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
 
 static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
 {
-    const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
-    return _mm512_and_ps(abs_mask, x);
+    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
 }
 
 static NCNN_FORCEINLINE __m512 trunc512_ps(const __m512& x)

@@ -13,13 +13,16 @@ class Model(nn.Module):
         self.bn_1 = nn.BatchNorm3d(num_features=32, eps=1e-1, affine=False)
         self.bn_2 = nn.BatchNorm3d(num_features=11, affine=True)
 
-    def forward(self, x, y):
+    def forward(self, x, y, q):
         x = self.bn_0(x)
         x = self.bn_1(x)
 
         y = self.bn_2(y)
 
-        return x, y
+        q = self.bn_0(q)
+        q = self.bn_1(q)
+
+        return x, y, q
 
 def test():
     net = Model()
@@ -28,22 +31,23 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 32, 12, 5, 64)
     y = torch.rand(1, 11, 3, 1, 1)
+    q = torch.rand(2, 32, 4, 5, 6)
 
-    a0, a1 = net(x, y)
+    a0, a1, a2 = net(x, y, q)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, q))
     mod.save("test_nn_BatchNorm3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_BatchNorm3d.pt inputshape=[1,32,12,5,64],[1,11,3,1,1]")
+    os.system("../../src/pnnx test_nn_BatchNorm3d.pt inputshape=[1,32,12,5,64],[1,11,3,1,1],[2,32,4,5,6]")
 
     # ncnn inference
     import test_nn_BatchNorm3d_ncnn
-    b0, b1 = test_nn_BatchNorm3d_ncnn.test_inference()
+    b0, b1, b2 = test_nn_BatchNorm3d_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

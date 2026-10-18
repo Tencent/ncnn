@@ -3,6 +3,10 @@
 
 #include "testutil.h"
 
+#include "layer_type.h"
+
+#include <limits.h>
+
 static int test_groupnorm(const ncnn::Mat& a, int group, float eps, int affine)
 {
     int channels = a.c;
@@ -102,6 +106,34 @@ static int test_groupnorm_3()
            || test_groupnorm(RandomMat(324), 3, 0.0001f, 1);
 }
 
+#if NCNN_VALIDATION
+static int test_groupnorm_load_param()
+{
+    ncnn::ParamDict base;
+    base.set(0, 2);
+    base.set(1, 8);
+    if (test_layer_param(ncnn::LayerType::GroupNorm, base, 0) != 0)
+        return -1;
+
+    const int invalid[] = {0, -1, -8, INT_MIN};
+    for (int i = 0; i < 4; i++)
+    {
+        if (test_layer_param(ncnn::LayerType::GroupNorm, base, 0, invalid[i], -1) != 0)
+            return -1;
+    }
+
+    ncnn::ParamDict nonaffine = base;
+    nonaffine.set(3, 0);
+
+    return 0
+           || test_layer_param(ncnn::LayerType::GroupNorm, base, 0, 3, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, base, 1, -1, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, -1, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 7, -1)
+           || test_layer_param(ncnn::LayerType::GroupNorm, nonaffine, 1, 8, 0);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -110,5 +142,9 @@ int main()
            || test_groupnorm_0()
            || test_groupnorm_1()
            || test_groupnorm_2()
-           || test_groupnorm_3();
+           || test_groupnorm_3()
+#if NCNN_VALIDATION
+           || test_groupnorm_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

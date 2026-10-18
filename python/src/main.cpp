@@ -6,12 +6,17 @@
 #include <pybind11/numpy.h>
 #include <pybind11/functional.h>
 
+#include <string.h>
+#include <map>
+#include <memory>
+
 #include <cpu.h>
 #include <gpu.h>
 #include <net.h>
 #include <option.h>
 #include <blob.h>
 #include <paramdict.h>
+#include <layer_type.h>
 
 #include "pybind11_mat.h"
 #include "pybind11_datareader.h"
@@ -21,6 +26,8 @@
 using namespace ncnn;
 
 namespace py = pybind11;
+
+static const int batch_index_none = 233;
 
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
@@ -36,84 +43,93 @@ public:
     }
 };
 
-struct LayerFactory
+struct LayerCallbacks
 {
-    std::string name;
-    int index;
     std::function<Layer*()> creator;
     std::function<void(Layer*)> destroyer;
-    layer_creator_func creator_func;
-    layer_destroyer_func destroyer_func;
 };
 
-#define LayerFactoryDeclear(n)                  \
-    static ncnn::Layer* LayerCreator##n(void*); \
-    static void LayerDestroyer##n(ncnn::Layer*, void*);
+struct LayerFactory
+{
+    int index;
+    bool custom;
+    std::string name;
+    std::shared_ptr<LayerCallbacks> callbacks;
+    std::map<Layer*, std::shared_ptr<LayerCallbacks> > layer_callbacks;
 
-LayerFactoryDeclear(0);
-LayerFactoryDeclear(1);
-LayerFactoryDeclear(2);
-LayerFactoryDeclear(3);
-LayerFactoryDeclear(4);
-LayerFactoryDeclear(5);
-LayerFactoryDeclear(6);
-LayerFactoryDeclear(7);
-LayerFactoryDeclear(8);
-LayerFactoryDeclear(9);
-
-std::vector<LayerFactory> g_layer_factroys = {
-    {"", -1, nullptr, nullptr, LayerCreator0, LayerDestroyer0},
-    {"", -1, nullptr, nullptr, LayerCreator1, LayerDestroyer1},
-    {"", -1, nullptr, nullptr, LayerCreator2, LayerDestroyer2},
-    {"", -1, nullptr, nullptr, LayerCreator3, LayerDestroyer3},
-    {"", -1, nullptr, nullptr, LayerCreator4, LayerDestroyer4},
-    {"", -1, nullptr, nullptr, LayerCreator5, LayerDestroyer5},
-    {"", -1, nullptr, nullptr, LayerCreator6, LayerDestroyer6},
-    {"", -1, nullptr, nullptr, LayerCreator7, LayerDestroyer7},
-    {"", -1, nullptr, nullptr, LayerCreator8, LayerDestroyer8},
-    {"", -1, nullptr, nullptr, LayerCreator9, LayerDestroyer9},
+    void replace_callbacks(const std::function<Layer*()>& creator, const std::function<void(Layer*)>& destroyer)
+    {
+        std::shared_ptr<LayerCallbacks> replacement(new LayerCallbacks);
+        replacement->creator = creator;
+        replacement->destroyer = destroyer;
+        callbacks = replacement;
+    }
 };
-int g_layer_factroy_index = 0;
 
-#define LayerFactoryDefine(n)                                  \
-    static ncnn::Layer* LayerCreator##n(void* p)               \
-    {                                                          \
-        if (g_layer_factroys[n].creator != nullptr)            \
-        {                                                      \
-            return g_layer_factroys[n].creator();              \
-        }                                                      \
-        return nullptr;                                        \
-    }                                                          \
-    static void LayerDestroyer##n(ncnn::Layer* layer, void* p) \
-    {                                                          \
-        if (g_layer_factroys[n].destroyer)                     \
-        {                                                      \
-            g_layer_factroys[n].destroyer(layer);              \
-        }                                                      \
+static Layer* LayerCreator(void* userdata)
+{
+    LayerFactory* factory = static_cast<LayerFactory*>(userdata);
+    std::shared_ptr<LayerCallbacks> callbacks = factory->callbacks;
+    Layer* layer = callbacks->creator ? callbacks->creator() : nullptr;
+    if (layer)
+        factory->layer_callbacks[layer] = callbacks;
+    return layer;
+}
+
+static void LayerDestroyer(Layer* layer, void* userdata)
+{
+    LayerFactory* factory = static_cast<LayerFactory*>(userdata);
+    std::shared_ptr<LayerCallbacks> callbacks = factory->callbacks;
+    std::shared_ptr<LayerCallbacks> original;
+    std::map<Layer*, std::shared_ptr<LayerCallbacks> >::iterator entry = factory->layer_callbacks.find(layer);
+    if (entry != factory->layer_callbacks.end())
+        original = entry->second;
+    // Match the native registry's current destroyer while keeping the creator's
+    // Python owner alive until its loaded layer has been destroyed.
+    if (callbacks->destroyer)
+        callbacks->destroyer(layer);
+    factory->layer_callbacks.erase(layer);
+}
+
+class PyNet : public Net
+{
+public:
+    PyNet()
+        : custom_layer_registry_size(0)
+    {
     }
 
-LayerFactoryDefine(0);
-LayerFactoryDefine(1);
-LayerFactoryDefine(2);
-LayerFactoryDefine(3);
-LayerFactoryDefine(4);
-LayerFactoryDefine(5);
-LayerFactoryDefine(6);
-LayerFactoryDefine(7);
-LayerFactoryDefine(8);
-LayerFactoryDefine(9);
+    ~PyNet()
+    {
+        // The layer destroyers need the factories while clearing the network.
+        clear();
+    }
+
+    LayerFactory* find_layer_factory(int index, bool custom)
+    {
+        for (size_t i = 0; i < layer_factories.size(); i++)
+        {
+            if (layer_factories[i]->index == index && layer_factories[i]->custom == custom)
+                return layer_factories[i].get();
+        }
+        return nullptr;
+    }
+
+    void record_custom_layer_index(int index)
+    {
+        if (custom_layer_registry_size <= index)
+            custom_layer_registry_size = index + 1;
+    }
+
+    // Net::clear() preserves registrations for subsequent model loads.
+    // Keep stable addresses for both userdata and registered type names.
+    std::vector<std::unique_ptr<LayerFactory> > layer_factories;
+    // Numeric registration can extend the native registry with empty slots.
+    int custom_layer_registry_size;
+};
 
 PYBIND11_MODULE(ncnn, m)
 {
-    auto atexit = py::module_::import("atexit");
-    atexit.attr("register")(py::cpp_function([]() {
-        for (int i = 0; i < g_layer_factroys.size(); i++)
-        {
-            g_layer_factroys[i].creator = nullptr;
-            g_layer_factroys[i].destroyer = nullptr;
-        }
-    }));
-
     py::class_<Allocator, PyAllocator<> >(m, "Allocator");
     py::class_<PoolAllocator, Allocator, PyAllocatorOther<PoolAllocator> >(m, "PoolAllocator")
     .def(py::init<>())
@@ -179,10 +195,13 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("num_threads", &Option::num_threads)
     .def_readwrite("blob_allocator", &Option::blob_allocator)
     .def_readwrite("workspace_allocator", &Option::workspace_allocator)
+    .def_readwrite("kvcache_allocator", &Option::kvcache_allocator)
+    .def_readwrite("kvcache_max_seqlen_hint", &Option::kvcache_max_seqlen_hint)
 #if NCNN_VULKAN
     .def_readwrite("blob_vkallocator", &Option::blob_vkallocator)
     .def_readwrite("workspace_vkallocator", &Option::workspace_vkallocator)
     .def_readwrite("staging_vkallocator", &Option::staging_vkallocator)
+    .def_readwrite("kvcache_vkallocator", &Option::kvcache_vkallocator)
     //.def_readwrite("pipeline_cache", &Option::pipeline_cache)
 #endif // NCNN_VULKAN
     .def_readwrite("openmp_blocktime", &Option::openmp_blocktime)
@@ -248,9 +267,17 @@ PYBIND11_MODULE(ncnn, m)
 
     .def(py::init<const Mat&>(), py::arg("m"))
 
-    .def(py::init([](py::buffer const b) {
+    .def(py::init([](py::buffer const b, int batch_index) {
         py::buffer_info info = b.request();
-        if (info.ndim > 4)
+#if !NCNN_BATCH
+        if (batch_index != batch_index_none)
+        {
+            std::stringstream ss;
+            ss << "ncnn batch support disabled";
+            pybind11::pybind11_fail(ss.str());
+        }
+#endif
+        if (batch_index == batch_index_none && info.ndim > 4)
         {
             std::stringstream ss;
             ss << "convert numpy.ndarray to ncnn.Mat only dims <=4 support now, but given " << info.ndim;
@@ -258,6 +285,85 @@ PYBIND11_MODULE(ncnn, m)
         }
 
         size_t elemsize = info.itemsize;
+
+        if (batch_index != batch_index_none)
+        {
+            if (info.ndim > 5)
+            {
+                std::stringstream ss;
+                ss << "convert numpy.ndarray to ncnn.Mat with batch only dims <=5 support now, but given " << info.ndim;
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            if (info.ndim < 2)
+            {
+                std::stringstream ss;
+                ss << "convert numpy.ndarray to ncnn.Mat with batch only dims >=2 support now, but given " << info.ndim;
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            if (batch_index < 0)
+                batch_index += info.ndim;
+
+            if (batch_index < 0 || batch_index >= info.ndim)
+            {
+                std::stringstream ss;
+                ss << "batch_index out of range";
+                pybind11::pybind11_fail(ss.str());
+            }
+
+            std::vector<int> shape;
+            for (int i = 0; i < info.ndim; i++)
+            {
+                if (i == batch_index)
+                    continue;
+                shape.push_back((int)info.shape[i]);
+            }
+
+            Mat* v = new Mat;
+            if (shape.size() == 1)
+            {
+                v->create(shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 2)
+            {
+                v->create(shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 3)
+            {
+                v->create(shape[2], shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+            else if (shape.size() == 4)
+            {
+                v->create(shape[3], shape[2], shape[1], shape[0], elemsize, 1, (int)info.shape[batch_index]);
+            }
+
+            py::object src = py::reinterpret_borrow<py::object>(b);
+            for (int i = 0; i < v->n; i++)
+            {
+                py::array slice = src.attr("take")(i, py::arg("axis") = batch_index).attr("copy")();
+                py::buffer_info slice_info = slice.request();
+
+                Mat mb = v->batch(i);
+                const unsigned char* sptr = (const unsigned char*)slice_info.ptr;
+
+                if (mb.dims <= 2)
+                {
+                    memcpy(mb.data, sptr, (size_t)mb.w * mb.h * elemsize);
+                }
+                else
+                {
+                    size_t channel_size = (size_t)mb.w * mb.h * mb.d * elemsize;
+                    for (int q = 0; q < mb.c; q++)
+                    {
+                        Mat mbq = mb.channel(q);
+                        memcpy(mbq.data, sptr + channel_size * q, channel_size);
+                    }
+                }
+            }
+
+            return std::unique_ptr<Mat>(v);
+        }
 
         Mat* v = nullptr;
         if (info.ndim == 1)
@@ -288,16 +394,32 @@ PYBIND11_MODULE(ncnn, m)
         }
         return std::unique_ptr<Mat>(v);
     }),
-    py::arg("array"))
+    py::arg("array"), py::arg("batch_index") = batch_index_none)
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
     .def(
-    "numpy", [](py::object obj, const std::string& format = "") -> py::array {
+    "numpy", [](py::object obj, const std::string& format = "", int batch_index = batch_index_none) -> py::array {
         auto* m = obj.cast<Mat*>();
+        if (batch_index != batch_index_none)
+        {
+#if !NCNN_BATCH
+            std::stringstream ss;
+            ss << "ncnn batch support disabled";
+            pybind11::pybind11_fail(ss.str());
+#endif
+            py::object numpy = py::module_::import("numpy");
+            py::list batch_slices;
+            for (int i = 0; i < m->n; i++)
+            {
+                Mat mb = m->batch(i);
+                batch_slices.append(py::array(to_buffer_info(mb, format), obj));
+            }
+            return numpy.attr("stack")(batch_slices, py::arg("axis") = batch_index).cast<py::array>();
+        }
         return py::array(to_buffer_info(*m, format), obj);
     },
-    py::arg("format") = "", "i for int32, f for float32, d for double")
+    py::arg("format") = "", py::arg("batch_index") = batch_index_none, "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
@@ -328,17 +450,17 @@ PYBIND11_MODULE(ncnn, m)
     .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
-    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, int n, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
-            return mat.create(shape[0].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), elemsize, elempack, n, allocator);
         case 2:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, n, allocator);
         case 3:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, n, allocator);
         case 4:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, n, allocator);
         default:
             std::stringstream ss;
             ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
@@ -346,18 +468,20 @@ PYBIND11_MODULE(ncnn, m)
         }
         return;
     },
-    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("n") = 1, py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
+    .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("n"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
     .def("shape", &Mat::shape)
+    .def("batch", (Mat(Mat::*)(int)) & Mat::batch, py::arg("b"))
     .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
     .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
@@ -471,10 +595,21 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("d", &Mat::d)
     .def_readwrite("c", &Mat::c)
     .def_readwrite("cstep", &Mat::cstep)
+#if NCNN_BATCH
+    .def_readwrite("n", &Mat::n)
+#else
+    .def_property_readonly("n", [](const Mat&) {
+        return 1;
+    })
+#endif
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
         ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " d=" << m.d << " c=" << m.c << " dims=" << m.dims
-           << " cstep=" << m.cstep << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
+           << " n=" << m.n << " cstep=" << m.cstep
+#if NCNN_BATCH
+           << " nstep=" << m.nstep
+#endif
+           << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
            << "refcount=" << (m.refcount ? *m.refcount : 0) << " data=0x" << static_cast<const void*>(m.data)
            << " allocator=0x" << static_cast<const void*>(m.allocator) << ">\n";
 
@@ -842,6 +977,8 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
+    .def("set_kvcache_allocator", &Extractor::set_kvcache_allocator, py::arg("allocator"))
+    .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen_hint"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
     .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
@@ -849,6 +986,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_name"), py::arg("type") = 0)
@@ -859,6 +999,9 @@ PYBIND11_MODULE(ncnn, m)
     "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
+        if (type == 1)
+            return py::make_tuple(ret, ncnn::Mat(feat));
+
         return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_index"), py::arg("type") = 0);
@@ -896,8 +1039,8 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("bottom_shapes", &Layer::bottom_shapes)
     .def_readwrite("top_shapes", &Layer::top_shapes);
 
-    py::class_<Net>(m, "Net")
-    .def(py::init<>())
+    py::class_<Net, PyNet>(m, "Net")
+    .def(py::init_alias<>())
     .def_readwrite("opt", &Net::opt)
     .def("__enter__", [](Net& net) -> Net& { return net; })
     .def("__exit__", [](Net& net, pybind11::args) {
@@ -913,33 +1056,72 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_STRING
     .def(
     "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
-        if (g_layer_factroy_index == g_layer_factroys.size())
+        PyNet& self = static_cast<PyNet&>(net);
+        int index = layer_to_index(type);
+        bool custom = index == -1;
+        if (custom)
+            index = net.custom_layer_to_index(type);
+        if (custom && index == -1 && (self.custom_layer_registry_size & LayerType::CustomBit))
+            return -1;
+        LayerFactory* existing = self.find_layer_factory(index, custom);
+        if (existing)
         {
-            std::stringstream ss;
-            ss << "python version only support " << g_layer_factroys.size() << " custom layers now";
-            pybind11::pybind11_fail(ss.str());
+            // Integer registration leaves the custom type name pointer intact.
+            // Reuse its storage as well as its userdata when replacing callbacks.
+            if (existing->name.empty())
+                existing->name = type;
+            int ret = net.register_custom_layer(existing->name.c_str(), LayerCreator, LayerDestroyer, existing);
+            if (ret == 0)
+            {
+                existing->replace_callbacks(creator, destroyer);
+            }
+            return ret;
         }
-        LayerFactory& lf = g_layer_factroys[g_layer_factroy_index++];
-        lf.name = type;
-        lf.creator = creator;
-        lf.destroyer = destroyer;
-        return net.register_custom_layer(lf.name.c_str(), lf.creator_func, lf.destroyer_func);
+        std::unique_ptr<LayerFactory> factory(new LayerFactory);
+        factory->index = index;
+        factory->custom = custom;
+        factory->name = type;
+        factory->replace_callbacks(creator, destroyer);
+        self.layer_factories.push_back(std::move(factory));
+        LayerFactory* lf = self.layer_factories.back().get();
+        int ret = net.register_custom_layer(lf->name.c_str(), LayerCreator, LayerDestroyer, lf);
+        if (ret == 0 && index == -1)
+            lf->index = net.custom_layer_to_index(type);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(lf->index);
+        if (ret != 0)
+            self.layer_factories.pop_back();
+        return ret;
     },
     py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
     .def(
     "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
-        if (g_layer_factroy_index == g_layer_factroys.size())
+        PyNet& self = static_cast<PyNet&>(net);
+        int custom_index = index & ~LayerType::CustomBit;
+        bool custom = index != custom_index;
+        LayerFactory* existing = self.find_layer_factory(custom ? custom_index : index, custom);
+        if (existing)
         {
-            std::stringstream ss;
-            ss << "python version only support " << g_layer_factroys.size() << " custom layers now";
-            pybind11::pybind11_fail(ss.str());
+            int ret = net.register_custom_layer(index, LayerCreator, LayerDestroyer, existing);
+            if (ret == 0)
+            {
+                existing->replace_callbacks(creator, destroyer);
+            }
+            return ret;
         }
-        LayerFactory& lf = g_layer_factroys[g_layer_factroy_index++];
-        lf.index = index;
-        lf.creator = creator;
-        lf.destroyer = destroyer;
-        return net.register_custom_layer(index, lf.creator_func, lf.destroyer_func);
+        std::unique_ptr<LayerFactory> factory(new LayerFactory);
+        factory->index = custom ? custom_index : index;
+        factory->custom = custom;
+        factory->replace_callbacks(creator, destroyer);
+        self.layer_factories.push_back(std::move(factory));
+        LayerFactory* lf = self.layer_factories.back().get();
+        int ret = net.register_custom_layer(index, LayerCreator, LayerDestroyer, lf);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(custom_index);
+        if (ret != 0)
+            self.layer_factories.pop_back();
+        return ret;
     },
     py::arg("index"), py::arg("creator"), py::arg("destroyer"))
 #if NCNN_STRING

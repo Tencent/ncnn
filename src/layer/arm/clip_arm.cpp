@@ -190,10 +190,10 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 "fmin   v1.4s, v1.4s, %3.4s     \n"
                 "fmin   v2.4s, v2.4s, %3.4s     \n"
                 "fmin   v3.4s, v3.4s, %3.4s     \n"
-                "shrn   v0.4h, v0.4s, #16       \n"
-                "shrn   v1.4h, v1.4s, #16       \n"
-                "shrn   v2.4h, v2.4s, #16       \n"
-                "shrn   v3.4h, v3.4s, #16       \n"
+                "rshrn  v0.4h, v0.4s, #16       \n"
+                "rshrn  v1.4h, v1.4s, #16       \n"
+                "rshrn  v2.4h, v2.4s, #16       \n"
+                "rshrn  v3.4h, v3.4s, #16       \n"
                 "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
@@ -216,10 +216,10 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 "vmin.f32   q1, q1, %q3     \n"
                 "vmin.f32   q2, q2, %q3     \n"
                 "vmin.f32   q3, q3, %q3     \n"
-                "vshrn.u32  d0, q0, #16     \n"
-                "vshrn.u32  d1, q1, #16     \n"
-                "vshrn.u32  d2, q2, #16     \n"
-                "vshrn.u32  d3, q3, #16     \n"
+                "vrshrn.u32 d0, q0, #16     \n"
+                "vrshrn.u32 d1, q1, #16     \n"
+                "vrshrn.u32 d2, q2, #16     \n"
+                "vrshrn.u32 d3, q3, #16     \n"
                 "vst1.u16   {d0-d3}, [%0]!  \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),

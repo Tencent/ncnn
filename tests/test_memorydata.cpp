@@ -18,6 +18,7 @@ static int test_memorydata(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
     set_memorydata_params(pd, a);
+    pd.set(21, a.elemsize == 1u ? 3 : 1);
 
     std::vector<ncnn::Mat> weights(1);
     weights[0] = a;
@@ -37,28 +38,36 @@ static int test_memorydata_4d()
 {
     return 0
            || test_memorydata(RandomMat(5, 7, 3, 16))
-           || test_memorydata(RandomMat(3, 5, 4, 13));
+           || test_memorydata(RandomMat(3, 5, 4, 13))
+           || test_memorydata(RandomS8Mat(5, 7, 3, 16))
+           || test_memorydata(RandomS8Mat(3, 5, 4, 13));
 }
 
 static int test_memorydata_0()
 {
     return 0
            || test_memorydata(RandomMat(5, 7, 16))
-           || test_memorydata(RandomMat(3, 5, 13));
+           || test_memorydata(RandomMat(3, 5, 13))
+           || test_memorydata(RandomS8Mat(5, 7, 16))
+           || test_memorydata(RandomS8Mat(3, 5, 13));
 }
 
 static int test_memorydata_1()
 {
     return 0
            || test_memorydata(RandomMat(6, 16))
-           || test_memorydata(RandomMat(7, 15));
+           || test_memorydata(RandomMat(7, 15))
+           || test_memorydata(RandomS8Mat(6, 16))
+           || test_memorydata(RandomS8Mat(7, 15));
 }
 
 static int test_memorydata_2()
 {
     return 0
            || test_memorydata(RandomMat(128))
-           || test_memorydata(RandomMat(127));
+           || test_memorydata(RandomMat(127))
+           || test_memorydata(RandomS8Mat(128))
+           || test_memorydata(RandomS8Mat(127));
 }
 
 int main()
