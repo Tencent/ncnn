@@ -19,17 +19,17 @@ static void perf_instancenorm(int w, int h, int c)
 
 int main()
 {
-    // StyleGAN / diffusion representative shapes
+    // stylegan / diffusion representative shapes
     perf_instancenorm(64, 64, 128);
     perf_instancenorm(32, 32, 256);
     perf_instancenorm(16, 16, 512);
     perf_instancenorm(8, 8, 512);
 
-    // Larger spatial
+    // larger spatial
     perf_instancenorm(224, 224, 64);
     perf_instancenorm(224, 224, 3);
 
-    // LLM-style degenerate case
+    // llm-style degenerate case
     perf_instancenorm(4096, 1, 1);
     perf_instancenorm(512, 1, 1);
 

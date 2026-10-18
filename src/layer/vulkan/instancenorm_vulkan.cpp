@@ -20,9 +20,6 @@ InstanceNorm_vulkan::InstanceNorm_vulkan()
     pipeline_instancenorm_coeffs = 0;
     pipeline_instancenorm_norm = 0;
 
-    pipeline_instancenorm_reduce_subgroup = 0;
-    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
-
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = 0;
     pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = 0;
     pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = 0;
@@ -30,6 +27,9 @@ InstanceNorm_vulkan::InstanceNorm_vulkan()
     pipeline_instancenorm_sub_mean_square_pack4 = 0;
     pipeline_instancenorm_coeffs_pack4 = 0;
     pipeline_instancenorm_norm_pack4 = 0;
+
+    pipeline_instancenorm_reduce_subgroup = 0;
+    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
 }
 
 int InstanceNorm_vulkan::create_pipeline(const Option& opt)
@@ -291,11 +291,6 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_instancenorm_norm;
     pipeline_instancenorm_norm = 0;
 
-    delete pipeline_instancenorm_reduce_subgroup;
-    pipeline_instancenorm_reduce_subgroup = 0;
-    delete pipeline_instancenorm_reduce_subgroup_pack4;
-    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
-
     delete pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4;
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = 0;
 
@@ -315,6 +310,11 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_instancenorm_norm_pack4;
     pipeline_instancenorm_norm_pack4 = 0;
+
+    delete pipeline_instancenorm_reduce_subgroup;
+    pipeline_instancenorm_reduce_subgroup = 0;
+    delete pipeline_instancenorm_reduce_subgroup_pack4;
+    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
 
     return 0;
 }
