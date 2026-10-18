@@ -850,6 +850,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
+
+    if(NCNN_THREADS OR NCNN_OPENMP)
+        # enable pthreads for ncnn and its dependencies
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+        # allow applications to override the default worker pool
+        set(CMAKE_EXE_LINKER_FLAGS "-pthread -sPTHREAD_POOL_SIZE=15 ${CMAKE_EXE_LINKER_FLAGS}")
+    endif()
 endif()
 
 if(NCNN_VULKAN)
