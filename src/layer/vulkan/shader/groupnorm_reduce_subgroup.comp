@@ -78,14 +78,19 @@ void main()
         mean_data[group_id] = mean;
     }
 
-    float sqsum = 0.f;
+    // compensate rounding when squared differences have very different magnitudes
+    precise float sqsum = 0.f;
+    precise float sqcorrection = 0.f;
     for (int t = tid; t < group_size; t += ncnn_subgroupSize)
     {
         const int q = t / p.group_area;
         const int s = t % p.group_area;
         const int actual_channel = actual_channel_start + q;
         const float d = float(buffer_ld1(bottom_top_blob_data, actual_channel * p.cstep + s)) - mean;
-        sqsum += d * d;
+        precise float y = d * d - sqcorrection;
+        precise float next_sqsum = sqsum + y;
+        sqcorrection = (next_sqsum - sqsum) - y;
+        sqsum = next_sqsum;
     }
 
     sqsum = subgroupAdd(sqsum);

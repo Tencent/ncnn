@@ -105,7 +105,9 @@ void main()
         mean_data[group_id] = mean;
     }
 
-    float sqsum = 0.f;
+    // compensate rounding when squared differences have very different magnitudes
+    precise float sqsum = 0.f;
+    precise float sqcorrection = 0.f;
     for (int s = tid; s < p.group_area; s += ncnn_subgroupSize)
     {
         for (int pc = packed_start; pc <= packed_end; pc++)
@@ -116,22 +118,34 @@ void main()
             if (actual_channel >= actual_channel_start && actual_channel < actual_channel_end)
             {
                 d = v.r - mean;
-                sqsum += d * d;
+                precise float y = d * d - sqcorrection;
+                precise float next_sqsum = sqsum + y;
+                sqcorrection = (next_sqsum - sqsum) - y;
+                sqsum = next_sqsum;
             }
             if (actual_channel + 1 >= actual_channel_start && actual_channel + 1 < actual_channel_end)
             {
                 d = v.g - mean;
-                sqsum += d * d;
+                precise float y = d * d - sqcorrection;
+                precise float next_sqsum = sqsum + y;
+                sqcorrection = (next_sqsum - sqsum) - y;
+                sqsum = next_sqsum;
             }
             if (actual_channel + 2 >= actual_channel_start && actual_channel + 2 < actual_channel_end)
             {
                 d = v.b - mean;
-                sqsum += d * d;
+                precise float y = d * d - sqcorrection;
+                precise float next_sqsum = sqsum + y;
+                sqcorrection = (next_sqsum - sqsum) - y;
+                sqsum = next_sqsum;
             }
             if (actual_channel + 3 >= actual_channel_start && actual_channel + 3 < actual_channel_end)
             {
                 d = v.a - mean;
-                sqsum += d * d;
+                precise float y = d * d - sqcorrection;
+                precise float next_sqsum = sqsum + y;
+                sqcorrection = (next_sqsum - sqsum) - y;
+                sqsum = next_sqsum;
             }
         }
     }

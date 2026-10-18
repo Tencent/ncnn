@@ -141,7 +141,7 @@ static int test_groupnorm_load_param()
 #endif // NCNN_VALIDATION
 
 #if NCNN_VULKAN
-static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affine)
+static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affine, float tolerance = 0.005f)
 {
     const float eps = 1e-5f;
     const int channels = a.dims == 1 ? a.w : a.dims == 2 ? a.h : a.c;
@@ -201,7 +201,7 @@ static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affin
         ncnn::Mat b;
         int ret = test_layer_gpu(ncnn::layer_to_index("GroupNorm"), pd, weights, opt, a, b, ncnn::Mat(), 0);
         // allow rounding in the existing float coeffs/norm shaders, including FMA
-        if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.005f) != 0))
+        if (ret != 233 && (ret != 0 || CompareMat(expected, b, tolerance) != 0))
         {
             fprintf(stderr, "test_groupnorm_gpu_reference failed dims=%d a=(%d %d %d) group=%d affine=%d subgroup=%d\n", a.dims, a.w, a.h, a.c, group, affine, subgroup);
             return -1;
@@ -240,6 +240,35 @@ static int test_groupnorm_gpu_numerics()
     return 0;
 }
 
+static int test_groupnorm_gpu_variance()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const int channels[] = {4, 17};
+    for (int c = 0; c < 2; c++)
+    {
+        ncnn::Mat a(1024, c == 0 ? 512 : 128, channels[c]);
+        for (int q = 0; q < a.c; q++)
+        {
+            float* ptr = a.channel(q);
+            for (int i = 0; i < a.w * a.h; i++)
+                ptr[i] = q == 16 ? 0.f : q % 2 == 0 ? 1.f / 64 : -1.f / 64;
+        }
+        // large initial squares must not hide the later small squared differences
+        float* ptr0 = a.channel(0);
+        float* ptr1 = a.channel(1);
+        for (int i = 0; i < 4; i++)
+        {
+            ptr0[i] = 64.f;
+            ptr1[i] = -64.f;
+        }
+        if (test_groupnorm_gpu_reference(a, 1, 0, 0.0001f) != 0)
+            return -1;
+    }
+    return 0;
+}
+
 static int test_groupnorm_gpu_dispatch()
 {
     if (ncnn::get_gpu_count() == 0)
@@ -262,6 +291,7 @@ int main()
            || test_groupnorm_3()
 #if NCNN_VULKAN
            || test_groupnorm_gpu_numerics()
+           || test_groupnorm_gpu_variance()
            || test_groupnorm_gpu_dispatch()
 #endif // NCNN_VULKAN
 #if NCNN_VALIDATION
