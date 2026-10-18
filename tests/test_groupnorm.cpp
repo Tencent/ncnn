@@ -141,15 +141,12 @@ static int test_groupnorm_load_param()
 #endif // NCNN_VALIDATION
 
 #if NCNN_VULKAN
-static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affine, float tolerance = 0.005f)
+static ncnn::Mat groupnorm_reference(const ncnn::Mat& a, int group, float eps, int affine, const std::vector<ncnn::Mat>& weights)
 {
-    const float eps = 1e-5f;
+    // use double precision instead of the generic cpu layer's serial float sums
     const int channels = a.dims == 1 ? a.w : a.dims == 2 ? a.h : a.c;
     const int size = a.dims == 1 ? 1 : a.dims == 2 ? a.w : a.w * a.h * a.d;
     const int channels_g = channels / group;
-    std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat(channels, 0.5f, 1.5f);
-    weights[1] = RandomMat(channels, -0.5f, 0.5f);
     ncnn::Mat expected = a.clone();
     for (int g = 0; g < group; g++)
     {
@@ -183,11 +180,23 @@ static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affin
         }
     }
 
+    return expected;
+}
+
+static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affine, float tolerance = 0.005f)
+{
+    const float eps = 1e-5f;
+    const int channels = a.dims == 1 ? a.w : a.dims == 2 ? a.h : a.c;
     ncnn::ParamDict pd;
     pd.set(0, group);
     pd.set(1, channels);
     pd.set(2, eps);
     pd.set(3, affine);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = RandomMat(channels, 0.5f, 1.5f);
+    weights[1] = RandomMat(channels, -0.5f, 0.5f);
+    ncnn::Mat expected = groupnorm_reference(a, group, eps, affine, weights);
 
     ncnn::Option opt;
     opt.use_fp16_packed = false;
@@ -203,7 +212,7 @@ static int test_groupnorm_gpu_reference(const ncnn::Mat& a, int group, int affin
         // allow rounding in the existing float coeffs/norm shaders, including FMA
         if (ret != 233 && (ret != 0 || CompareMat(expected, b, tolerance) != 0))
         {
-            fprintf(stderr, "test_groupnorm_gpu_reference failed dims=%d a=(%d %d %d) group=%d affine=%d subgroup=%d\n", a.dims, a.w, a.h, a.c, group, affine, subgroup);
+            fprintf(stderr, "test_groupnorm_gpu_reference failed a.dims=%d a=(%d %d %d %d) group=%d affine=%d subgroup=%d ret=%d\n", a.dims, a.w, a.h, a.d, a.c, group, affine, subgroup, ret);
             return -1;
         }
     }
@@ -245,15 +254,19 @@ static int test_groupnorm_gpu_variance()
     if (ncnn::get_gpu_count() == 0)
         return 0;
 
-    const int channels[] = {4, 17};
+    const int shapes[][3] = {{1024, 512, 4}, {1024, 128, 17}};
     for (int c = 0; c < 2; c++)
     {
-        ncnn::Mat a(1024, c == 0 ? 512 : 128, channels[c]);
+        ncnn::Mat a(shapes[c][0], shapes[c][1], shapes[c][2]);
         for (int q = 0; q < a.c; q++)
         {
+            float value = q % 2 == 0 ? 1.f / 64 : -1.f / 64;
+            // the extra odd channel selects pack1 while keeping the group mean zero
+            if (a.c % 2 == 1 && q == a.c - 1)
+                value = 0.f;
             float* ptr = a.channel(q);
             for (int i = 0; i < a.w * a.h; i++)
-                ptr[i] = q == 16 ? 0.f : q % 2 == 0 ? 1.f / 64 : -1.f / 64;
+                ptr[i] = value;
         }
         // large initial squares must not hide the later small squared differences
         float* ptr0 = a.channel(0);

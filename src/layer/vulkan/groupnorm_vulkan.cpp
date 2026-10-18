@@ -71,6 +71,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     if (_channels != 0) workspace_shape = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
     // reduce_sum4 pipelines
+    if (!use_subgroup_ops)
     {
         Mat local_size_xyz;
         {
@@ -115,6 +116,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     // reduce_mean pipeline
+    if (!use_subgroup_ops)
     {
         std::vector<vk_specialization_type> specializations(0 + 4);
         specializations[0].i = 0; // w - unknown at pipeline creation
@@ -140,6 +142,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     // sub_mean_square pipeline - use original shape like InstanceNorm, with h*d flattening for dims=4
+    if (!use_subgroup_ops)
     {
         // shape hints must match what forward_inplace sends as push constants
         int shape_dims = std::min(3, shape.dims);
