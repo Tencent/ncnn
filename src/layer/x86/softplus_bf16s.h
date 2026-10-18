@@ -135,8 +135,8 @@ static void softplus_bf16s(Mat& a, const Option& opt)
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
-            v = logf(expf(v) + 1.f);
-            *ptr = float32_to_bfloat16(v);
+            if (v <= 88.3762626647949f)
+                *ptr = float32_to_bfloat16(logf(expf(v) + 1.f));
             ptr++;
         }
     }

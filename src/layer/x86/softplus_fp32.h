@@ -86,7 +86,8 @@ static void softplus_fp32(Mat& bottom_top_blob, const Option& opt)
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = logf(expf(*ptr) + 1.f);
+            if (*ptr <= 88.3762626647949f)
+                *ptr = logf(expf(*ptr) + 1.f);
             ptr++;
         }
 #endif // __AVX512F__
