@@ -314,11 +314,58 @@ jobs:
         name: wheels_qemu_cp-${{ matrix.arch }}-${{ matrix.build_cp }}-${{ matrix.build_sub }}
         path: wheelhouse/*.whl
 
+  build_wheels_android:
+    permissions:
+      contents: read
+    name: Android CP314 CPU (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64_v8a, x86_64]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14'
+    # ubuntu's android sdk and cibuildwheel provision the matching ndk and
+    # gradle-managed emulator. keep cibuildwheel's generated toolchain file
+    - name: Build Android wheel and test native architecture
+      uses: pypa/cibuildwheel@v4.3.1
+      with:
+        package-dir: .
+        output-dir: wheelhouse
+      env:
+        CIBW_PLATFORM: android
+        CIBW_ARCHS_ANDROID: ${{ matrix.arch }}
+        CIBW_BUILD: cp314-android_*
+        CIBW_BUILD_FRONTEND: build
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT_ANDROID: >-
+          CMAKE_BUILD_PARALLEL_LEVEL=4
+          EXTRA_CMAKE_ARGS="-DNCNN_VULKAN=OFF -DNCNN_OPENMP=OFF"
+        # cp314 numpy/opencv target wheels are not currently available on pypi
+        # this changes only the ephemeral test venv, after build dependencies
+        # are installed. it does not alter wheel metadata or release installs
+        CIBW_BEFORE_TEST_ANDROID: python -m pip config --site set install.no-deps true
+        CIBW_TEST_SOURCES: python/ci/mobile_smoke.py
+        CIBW_TEST_COMMAND: python -m unittest discover -s python/ci -p mobile_smoke.py -v
+        # ubuntu x86_64 can emulator-test x86_64 only. arm64 remains build-only
+        CIBW_TEST_SKIP: '*-android_arm64_v8a'
+    - uses: actions/upload-artifact@v7
+      with:
+        name: wheels-android-cp314-${{ matrix.arch }}
+        path: wheelhouse/*.whl
+        if-no-files-found: error
+
   upload_all:
     permissions:
       contents: none
     name: Upload
-    needs: [build_wheels, build_wheels_qemu_cp, build_sdist]
+    needs: [build_wheels, build_wheels_qemu_cp, build_wheels_android, build_sdist]
     runs-on: ubuntu-latest
 
     steps:
