@@ -4,6 +4,7 @@
 #include "testutil.h"
 
 #if NCNN_VULKAN
+#include "command.h"
 #include "gpu.h"
 
 #include <math.h>
@@ -52,7 +53,7 @@ static int test_instancenorm_1()
 }
 
 #if NCNN_VULKAN
-static int test_instancenorm_gpu_reference(const ncnn::Mat& a)
+static int test_instancenorm_gpu_reference(const ncnn::Mat& a, float tolerance = 0.005f)
 {
     const float eps = 1e-5f;
     const int size = a.w * a.h * a.d;
@@ -94,7 +95,7 @@ static int test_instancenorm_gpu_reference(const ncnn::Mat& a)
         ncnn::Mat b;
         int ret = test_layer_gpu(ncnn::layer_to_index("InstanceNorm"), pd, std::vector<ncnn::Mat>(), opt, a, b, ncnn::Mat(), 0);
         // allow rounding in the existing float coeffs/norm shaders, including FMA
-        if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.005f) != 0))
+        if (ret != 233 && (ret != 0 || CompareMat(expected, b, tolerance) != 0))
         {
             fprintf(stderr, "test_instancenorm_gpu_reference failed a=(%d %d %d) subgroup=%d\n", a.w, a.h, a.c, subgroup);
             return -1;
@@ -131,6 +132,21 @@ static int test_instancenorm_gpu_numerics()
         }
         if (test_instancenorm_gpu_reference(a) != 0)
             return -1;
+
+        // keep small squared deviations from being lost after large outliers
+        a.create(1024, 2048, channels[c]);
+        for (int q = 0; q < a.c; q++)
+        {
+            float* ptr = a.channel(q);
+            for (int i = 0; i < a.w * a.h; i++)
+                ptr[i] = ((i / 4) % 2 ? -1.f : 1.f) / 64;
+            for (int i = 0; i < 4; i++)
+                ptr[i] = 64.f;
+            for (int i = 4; i < 8; i++)
+                ptr[i] = -64.f;
+        }
+        if (test_instancenorm_gpu_reference(a, 0.0001f) != 0)
+            return -1;
     }
 
     return 0;
@@ -148,7 +164,73 @@ static int test_instancenorm_gpu_dispatch()
         ptr[0] = -1.f;
         ptr[1] = 1.f;
     }
-    return test_instancenorm_gpu_reference(a);
+    const float eps = 1e-5f;
+    ncnn::Mat expected = a.clone();
+    const float scale = (float)(1.0 / sqrt(1.0 + eps));
+    for (int q = 0; q < a.c; q++)
+    {
+        float* ptr = expected.channel(q);
+        ptr[0] = -scale;
+        ptr[1] = scale;
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, 0);
+    pd.set(1, eps);
+    pd.set(2, 0);
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    for (int subgroup = 0; subgroup < 2; subgroup++)
+    {
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.use_subgroup_ops = subgroup != 0;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+
+        ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+        ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+        opt.blob_vkallocator = blob_vkallocator;
+        opt.workspace_vkallocator = blob_vkallocator;
+        opt.staging_vkallocator = staging_vkallocator;
+
+        ncnn::Layer* op = ncnn::create_layer_vulkan("InstanceNorm");
+        op->vkdev = vkdev;
+        op->load_param(pd);
+        ncnn::ModelBinFromMatArray mb(0);
+        op->load_model(mb);
+        int ret = op->create_pipeline(opt);
+
+        ncnn::Mat b;
+        if (ret == 0)
+        {
+            // clone directly to avoid the packing shader's separate channel dispatch limit
+            ncnn::VkCompute cmd(vkdev);
+            ncnn::VkMat a_gpu;
+            cmd.record_clone(a, a_gpu, opt);
+            ret = op->forward_inplace(a_gpu, cmd, opt);
+            if (ret == 0)
+            {
+                cmd.record_clone(a_gpu, b, opt);
+                ret = cmd.submit_and_wait();
+            }
+        }
+
+        op->destroy_pipeline(opt);
+        delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+        if (ret != 0 || CompareMat(expected, b, 0.001f) != 0)
+        {
+            fprintf(stderr, "test_instancenorm_gpu_dispatch failed subgroup=%d ret=%d\n", subgroup, ret);
+            return -1;
+        }
+    }
+    return 0;
 }
 #endif // NCNN_VULKAN
 

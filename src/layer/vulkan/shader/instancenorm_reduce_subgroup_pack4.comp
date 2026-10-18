@@ -73,11 +73,15 @@ void main()
         mean_data[channel_id] = mean;
     }
 
-    vec4 sqsum = vec4(0.f);
+    precise vec4 sqsum = vec4(0.f);
+    correction = vec4(0.f);
     for (int t = tid; t < p.size; t += ncnn_subgroupSize)
     {
         const vec4 d = vec4(buffer_ld4(bottom_top_blob_data, offset + t)) - mean;
-        sqsum += d * d;
+        precise vec4 y = d * d - correction;
+        precise vec4 next_sum = sqsum + y;
+        correction = (next_sum - sqsum) - y;
+        sqsum = next_sum;
     }
 
     sqsum = subgroupAdd(sqsum);
