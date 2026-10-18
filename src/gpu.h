@@ -363,6 +363,7 @@ public:
     int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
+    int support_VK_EXT_pageable_device_local_memory() const;
     int support_VK_EXT_queue_family_foreign() const;
     int support_VK_EXT_robustness2() const;
     int support_VK_EXT_shader_atomic_float() const;
