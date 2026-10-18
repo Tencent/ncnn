@@ -1,0 +1,389 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_integerDotProduct16BitSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+#define LOCAL_MEMORY_UNROLL_INCH  8
+#define LOCAL_MEMORY_UNROLL_INCH4 (LOCAL_MEMORY_UNROLL_INCH / 4)
+
+layout(constant_id = 0) const int batch = 1;
+layout(constant_id = 1) const int c = 0;
+layout(constant_id = 2) const int outc = 0;
+layout(constant_id = 3) const int elempack = 1;
+layout(constant_id = 4) const int out_elempack = 1;
+
+#define shape_constant_id_offset 5
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_tm_blob { sint16 bottom_tm_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_tm_blob_4 { sint16vec4 bottom_tm_blob_data_4[]; };
+layout(binding = 2) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
+layout(binding = 3) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
+layout(binding = 4) readonly buffer weight_tm_blob { sint16vec4 weight_tm_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+    int outw;
+    int outcstep;
+} p;
+
+#if NCNN_shader_local_memory
+shared lint16vec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH4][4];
+shared lint16vec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH4][4];
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    const int c4 = (c + 3) / 4;
+    const int outc4 = (outc + 3) / 4;
+    const int outc_aligned = outc4 * 4;
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(outw) || gy * 4 >= outc || gz >= batch)
+        return;
+#endif
+
+    ivec4 sum0 = ivec4(0);
+    ivec4 sum1 = ivec4(0);
+    ivec4 sum2 = ivec4(0);
+    ivec4 sum3 = ivec4(0);
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int q4 = 0;
+    for (; q4 + (LOCAL_MEMORY_UNROLL_INCH4 - 1) < c4; q4 += LOCAL_MEMORY_UNROLL_INCH4)
+    {
+        if (ly < 4)
+        {
+            const int pos = gx + ly;
+            if (pos < psc(outw))
+            {
+                for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+                {
+                    if (elempack == 4)
+                    {
+                        tmp_v[lx][z4][ly] = i16buffer_sm4(bottom_tm_blob_data_4, gz * c4 * psc(cstep) + (q4 + z4) * psc(cstep) + pos);
+                    }
+                    else
+                    {
+                        const ivec4 q = min((q4 + z4) * 4 + ivec4(0, 1, 2, 3), ivec4(c - 1));
+                        const int v_offset = gz * c * psc(cstep) + pos;
+                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
+                    }
+                }
+            }
+            else
+            {
+                for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+                {
+                    i16buffer_st4(tmp_v[lx][z4], ly, ivec4(0));
+                }
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+            {
+                if (gy * 4 + lx < outc_aligned)
+                    tmp_k[ly][z4][lx] = i16buffer_sm4(weight_tm_data, gz * outc_aligned * c4 + (gy * 4 + lx) * c4 + q4 + z4);
+                else
+                    i16buffer_st4(tmp_k[ly][z4], lx, ivec4(0));
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH4; z4++)
+        {
+            const aint16vec4 v0 = lint162aint16vec4(tmp_v[lx][z4][0]);
+            const aint16vec4 v1 = lint162aint16vec4(tmp_v[lx][z4][1]);
+            const aint16vec4 v2 = lint162aint16vec4(tmp_v[lx][z4][2]);
+            const aint16vec4 v3 = lint162aint16vec4(tmp_v[lx][z4][3]);
+
+            const aint16vec4 k0 = lint162aint16vec4(tmp_k[ly][z4][0]);
+            const aint16vec4 k1 = lint162aint16vec4(tmp_k[ly][z4][1]);
+            const aint16vec4 k2 = lint162aint16vec4(tmp_k[ly][z4][2]);
+            const aint16vec4 k3 = lint162aint16vec4(tmp_k[ly][z4][3]);
+
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+            sum0 += ivec4(dotEXT(v0, k0), dotEXT(v0, k1), dotEXT(v0, k2), dotEXT(v0, k3));
+            sum1 += ivec4(dotEXT(v1, k0), dotEXT(v1, k1), dotEXT(v1, k2), dotEXT(v1, k3));
+            sum2 += ivec4(dotEXT(v2, k0), dotEXT(v2, k1), dotEXT(v2, k2), dotEXT(v2, k3));
+            sum3 += ivec4(dotEXT(v3, k0), dotEXT(v3, k1), dotEXT(v3, k2), dotEXT(v3, k3));
+#else
+            const ivec4 v0i = ivec4(v0);
+            const ivec4 v1i = ivec4(v1);
+            const ivec4 v2i = ivec4(v2);
+            const ivec4 v3i = ivec4(v3);
+            const ivec4 k0i = ivec4(k0);
+            const ivec4 k1i = ivec4(k1);
+            const ivec4 k2i = ivec4(k2);
+            const ivec4 k3i = ivec4(k3);
+
+            sum0.r += v0i.r * k0i.r + v0i.g * k0i.g + v0i.b * k0i.b + v0i.a * k0i.a;
+            sum0.g += v0i.r * k1i.r + v0i.g * k1i.g + v0i.b * k1i.b + v0i.a * k1i.a;
+            sum0.b += v0i.r * k2i.r + v0i.g * k2i.g + v0i.b * k2i.b + v0i.a * k2i.a;
+            sum0.a += v0i.r * k3i.r + v0i.g * k3i.g + v0i.b * k3i.b + v0i.a * k3i.a;
+
+            sum1.r += v1i.r * k0i.r + v1i.g * k0i.g + v1i.b * k0i.b + v1i.a * k0i.a;
+            sum1.g += v1i.r * k1i.r + v1i.g * k1i.g + v1i.b * k1i.b + v1i.a * k1i.a;
+            sum1.b += v1i.r * k2i.r + v1i.g * k2i.g + v1i.b * k2i.b + v1i.a * k2i.a;
+            sum1.a += v1i.r * k3i.r + v1i.g * k3i.g + v1i.b * k3i.b + v1i.a * k3i.a;
+
+            sum2.r += v2i.r * k0i.r + v2i.g * k0i.g + v2i.b * k0i.b + v2i.a * k0i.a;
+            sum2.g += v2i.r * k1i.r + v2i.g * k1i.g + v2i.b * k1i.b + v2i.a * k1i.a;
+            sum2.b += v2i.r * k2i.r + v2i.g * k2i.g + v2i.b * k2i.b + v2i.a * k2i.a;
+            sum2.a += v2i.r * k3i.r + v2i.g * k3i.g + v2i.b * k3i.b + v2i.a * k3i.a;
+
+            sum3.r += v3i.r * k0i.r + v3i.g * k0i.g + v3i.b * k0i.b + v3i.a * k0i.a;
+            sum3.g += v3i.r * k1i.r + v3i.g * k1i.g + v3i.b * k1i.b + v3i.a * k1i.a;
+            sum3.b += v3i.r * k2i.r + v3i.g * k2i.g + v3i.b * k2i.b + v3i.a * k2i.a;
+            sum3.a += v3i.r * k3i.r + v3i.g * k3i.g + v3i.b * k3i.b + v3i.a * k3i.a;
+#endif
+        }
+
+        barrier();
+    }
+
+    if (q4 < c4)
+    {
+        const int remain = c4 - q4;
+
+        if (ly < 4)
+        {
+            const int pos = gx + ly;
+            if (pos < psc(outw))
+            {
+                for (int z4 = 0; z4 < remain; z4++)
+                {
+                    if (elempack == 4)
+                    {
+                        tmp_v[lx][z4][ly] = i16buffer_sm4(bottom_tm_blob_data_4, gz * c4 * psc(cstep) + (q4 + z4) * psc(cstep) + pos);
+                    }
+                    else
+                    {
+                        const ivec4 q = min((q4 + z4) * 4 + ivec4(0, 1, 2, 3), ivec4(c - 1));
+                        const int v_offset = gz * c * psc(cstep) + pos;
+                        i16buffer_st4(tmp_v[lx][z4], ly, ivec4(i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep)), i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep))));
+                    }
+                }
+            }
+            else
+            {
+                for (int z4 = 0; z4 < remain; z4++)
+                {
+                    i16buffer_st4(tmp_v[lx][z4], ly, ivec4(0));
+                }
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                if (gy * 4 + lx < outc_aligned)
+                    tmp_k[ly][z4][lx] = i16buffer_sm4(weight_tm_data, gz * outc_aligned * c4 + (gy * 4 + lx) * c4 + q4 + z4);
+                else
+                    i16buffer_st4(tmp_k[ly][z4], lx, ivec4(0));
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            const aint16vec4 v0 = lint162aint16vec4(tmp_v[lx][z4][0]);
+            const aint16vec4 v1 = lint162aint16vec4(tmp_v[lx][z4][1]);
+            const aint16vec4 v2 = lint162aint16vec4(tmp_v[lx][z4][2]);
+            const aint16vec4 v3 = lint162aint16vec4(tmp_v[lx][z4][3]);
+
+            const aint16vec4 k0 = lint162aint16vec4(tmp_k[ly][z4][0]);
+            const aint16vec4 k1 = lint162aint16vec4(tmp_k[ly][z4][1]);
+            const aint16vec4 k2 = lint162aint16vec4(tmp_k[ly][z4][2]);
+            const aint16vec4 k3 = lint162aint16vec4(tmp_k[ly][z4][3]);
+
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+            sum0 += ivec4(dotEXT(v0, k0), dotEXT(v0, k1), dotEXT(v0, k2), dotEXT(v0, k3));
+            sum1 += ivec4(dotEXT(v1, k0), dotEXT(v1, k1), dotEXT(v1, k2), dotEXT(v1, k3));
+            sum2 += ivec4(dotEXT(v2, k0), dotEXT(v2, k1), dotEXT(v2, k2), dotEXT(v2, k3));
+            sum3 += ivec4(dotEXT(v3, k0), dotEXT(v3, k1), dotEXT(v3, k2), dotEXT(v3, k3));
+#else
+            const ivec4 v0i = ivec4(v0);
+            const ivec4 v1i = ivec4(v1);
+            const ivec4 v2i = ivec4(v2);
+            const ivec4 v3i = ivec4(v3);
+            const ivec4 k0i = ivec4(k0);
+            const ivec4 k1i = ivec4(k1);
+            const ivec4 k2i = ivec4(k2);
+            const ivec4 k3i = ivec4(k3);
+
+            sum0.r += v0i.r * k0i.r + v0i.g * k0i.g + v0i.b * k0i.b + v0i.a * k0i.a;
+            sum0.g += v0i.r * k1i.r + v0i.g * k1i.g + v0i.b * k1i.b + v0i.a * k1i.a;
+            sum0.b += v0i.r * k2i.r + v0i.g * k2i.g + v0i.b * k2i.b + v0i.a * k2i.a;
+            sum0.a += v0i.r * k3i.r + v0i.g * k3i.g + v0i.b * k3i.b + v0i.a * k3i.a;
+
+            sum1.r += v1i.r * k0i.r + v1i.g * k0i.g + v1i.b * k0i.b + v1i.a * k0i.a;
+            sum1.g += v1i.r * k1i.r + v1i.g * k1i.g + v1i.b * k1i.b + v1i.a * k1i.a;
+            sum1.b += v1i.r * k2i.r + v1i.g * k2i.g + v1i.b * k2i.b + v1i.a * k2i.a;
+            sum1.a += v1i.r * k3i.r + v1i.g * k3i.g + v1i.b * k3i.b + v1i.a * k3i.a;
+
+            sum2.r += v2i.r * k0i.r + v2i.g * k0i.g + v2i.b * k0i.b + v2i.a * k0i.a;
+            sum2.g += v2i.r * k1i.r + v2i.g * k1i.g + v2i.b * k1i.b + v2i.a * k1i.a;
+            sum2.b += v2i.r * k2i.r + v2i.g * k2i.g + v2i.b * k2i.b + v2i.a * k2i.a;
+            sum2.a += v2i.r * k3i.r + v2i.g * k3i.g + v2i.b * k3i.b + v2i.a * k3i.a;
+
+            sum3.r += v3i.r * k0i.r + v3i.g * k0i.g + v3i.b * k0i.b + v3i.a * k0i.a;
+            sum3.g += v3i.r * k1i.r + v3i.g * k1i.g + v3i.b * k1i.b + v3i.a * k1i.a;
+            sum3.b += v3i.r * k2i.r + v3i.g * k2i.g + v3i.b * k2i.b + v3i.a * k2i.a;
+            sum3.a += v3i.r * k3i.r + v3i.g * k3i.g + v3i.b * k3i.b + v3i.a * k3i.a;
+#endif
+        }
+    }
+#else
+    for (int q4 = 0; q4 < c4; q4++)
+    {
+        aint16vec4 v0;
+        aint16vec4 v1;
+        aint16vec4 v2;
+        aint16vec4 v3;
+
+        if (elempack == 4)
+        {
+            const int v_offset = gz * c4 * psc(cstep) + q4 * psc(cstep) + gx;
+            v0 = i16buffer_ld4(bottom_tm_blob_data_4, v_offset + 0);
+            v1 = i16buffer_ld4(bottom_tm_blob_data_4, v_offset + 1);
+            v2 = i16buffer_ld4(bottom_tm_blob_data_4, v_offset + 2);
+            v3 = i16buffer_ld4(bottom_tm_blob_data_4, v_offset + 3);
+        }
+        else
+        {
+            const ivec4 q = min(q4 * 4 + ivec4(0, 1, 2, 3), ivec4(c - 1));
+            const int v_offset = gz * c * psc(cstep) + gx;
+            v0 = aint16vec4(ivec4(
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep) + 0),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep) + 0),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep) + 0),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep) + 0)));
+            v1 = aint16vec4(ivec4(
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep) + 1),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep) + 1),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep) + 1),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep) + 1)));
+            v2 = aint16vec4(ivec4(
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep) + 2),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep) + 2),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep) + 2),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep) + 2)));
+            v3 = aint16vec4(ivec4(
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.r * psc(cstep) + 3),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.g * psc(cstep) + 3),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.b * psc(cstep) + 3),
+                i16buffer_ld1(bottom_tm_blob_data, v_offset + q.a * psc(cstep) + 3)));
+        }
+
+        const int w_offset = gz * outc_aligned * c4 + gy * 4 * c4 + q4;
+        const aint16vec4 k0 = i16buffer_ld4(weight_tm_data, w_offset + 0 * c4);
+        const aint16vec4 k1 = i16buffer_ld4(weight_tm_data, w_offset + 1 * c4);
+        const aint16vec4 k2 = i16buffer_ld4(weight_tm_data, w_offset + 2 * c4);
+        const aint16vec4 k3 = i16buffer_ld4(weight_tm_data, w_offset + 3 * c4);
+
+#if (NCNN_int16_storage || NCNN_int16_packed) && ncnn_shaderInt16 && ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct16BitSignedAccelerated
+        sum0 += ivec4(dotEXT(v0, k0), dotEXT(v0, k1), dotEXT(v0, k2), dotEXT(v0, k3));
+        sum1 += ivec4(dotEXT(v1, k0), dotEXT(v1, k1), dotEXT(v1, k2), dotEXT(v1, k3));
+        sum2 += ivec4(dotEXT(v2, k0), dotEXT(v2, k1), dotEXT(v2, k2), dotEXT(v2, k3));
+        sum3 += ivec4(dotEXT(v3, k0), dotEXT(v3, k1), dotEXT(v3, k2), dotEXT(v3, k3));
+#else
+        const ivec4 v0i = ivec4(v0);
+        const ivec4 v1i = ivec4(v1);
+        const ivec4 v2i = ivec4(v2);
+        const ivec4 v3i = ivec4(v3);
+        const ivec4 k0i = ivec4(k0);
+        const ivec4 k1i = ivec4(k1);
+        const ivec4 k2i = ivec4(k2);
+        const ivec4 k3i = ivec4(k3);
+
+        sum0.r += v0i.r * k0i.r + v0i.g * k0i.g + v0i.b * k0i.b + v0i.a * k0i.a;
+        sum0.g += v0i.r * k1i.r + v0i.g * k1i.g + v0i.b * k1i.b + v0i.a * k1i.a;
+        sum0.b += v0i.r * k2i.r + v0i.g * k2i.g + v0i.b * k2i.b + v0i.a * k2i.a;
+        sum0.a += v0i.r * k3i.r + v0i.g * k3i.g + v0i.b * k3i.b + v0i.a * k3i.a;
+
+        sum1.r += v1i.r * k0i.r + v1i.g * k0i.g + v1i.b * k0i.b + v1i.a * k0i.a;
+        sum1.g += v1i.r * k1i.r + v1i.g * k1i.g + v1i.b * k1i.b + v1i.a * k1i.a;
+        sum1.b += v1i.r * k2i.r + v1i.g * k2i.g + v1i.b * k2i.b + v1i.a * k2i.a;
+        sum1.a += v1i.r * k3i.r + v1i.g * k3i.g + v1i.b * k3i.b + v1i.a * k3i.a;
+
+        sum2.r += v2i.r * k0i.r + v2i.g * k0i.g + v2i.b * k0i.b + v2i.a * k0i.a;
+        sum2.g += v2i.r * k1i.r + v2i.g * k1i.g + v2i.b * k1i.b + v2i.a * k1i.a;
+        sum2.b += v2i.r * k2i.r + v2i.g * k2i.g + v2i.b * k2i.b + v2i.a * k2i.a;
+        sum2.a += v2i.r * k3i.r + v2i.g * k3i.g + v2i.b * k3i.b + v2i.a * k3i.a;
+
+        sum3.r += v3i.r * k0i.r + v3i.g * k0i.g + v3i.b * k0i.b + v3i.a * k0i.a;
+        sum3.g += v3i.r * k1i.r + v3i.g * k1i.g + v3i.b * k1i.b + v3i.a * k1i.a;
+        sum3.b += v3i.r * k2i.r + v3i.g * k2i.g + v3i.b * k2i.b + v3i.a * k2i.a;
+        sum3.a += v3i.r * k3i.r + v3i.g * k3i.g + v3i.b * k3i.b + v3i.a * k3i.a;
+#endif
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(outw) || gy * 4 >= outc || gz >= batch)
+        return;
+#endif
+
+    if (out_elempack == 4)
+    {
+        int gi = (gz * outc4 + gy) * psc(outcstep) + gx;
+
+        top_tm_blob_data_4[gi + 0] = sum0;
+        if (gx + 1 < psc(outw)) top_tm_blob_data_4[gi + 1] = sum1;
+        if (gx + 2 < psc(outw)) top_tm_blob_data_4[gi + 2] = sum2;
+        if (gx + 3 < psc(outw)) top_tm_blob_data_4[gi + 3] = sum3;
+    }
+    else
+    {
+        int gi = (gz * outc + gy * 4) * psc(outcstep) + gx;
+
+        top_tm_blob_data[gi + 0 * psc(outcstep) + 0] = sum0.r;
+        if (gy * 4 + 1 < outc) top_tm_blob_data[gi + 1 * psc(outcstep) + 0] = sum0.g;
+        if (gy * 4 + 2 < outc) top_tm_blob_data[gi + 2 * psc(outcstep) + 0] = sum0.b;
+        if (gy * 4 + 3 < outc) top_tm_blob_data[gi + 3 * psc(outcstep) + 0] = sum0.a;
+
+        if (gx + 1 < psc(outw))
+        {
+            top_tm_blob_data[gi + 0 * psc(outcstep) + 1] = sum1.r;
+            if (gy * 4 + 1 < outc) top_tm_blob_data[gi + 1 * psc(outcstep) + 1] = sum1.g;
+            if (gy * 4 + 2 < outc) top_tm_blob_data[gi + 2 * psc(outcstep) + 1] = sum1.b;
+            if (gy * 4 + 3 < outc) top_tm_blob_data[gi + 3 * psc(outcstep) + 1] = sum1.a;
+        }
+
+        if (gx + 2 < psc(outw))
+        {
+            top_tm_blob_data[gi + 0 * psc(outcstep) + 2] = sum2.r;
+            if (gy * 4 + 1 < outc) top_tm_blob_data[gi + 1 * psc(outcstep) + 2] = sum2.g;
+            if (gy * 4 + 2 < outc) top_tm_blob_data[gi + 2 * psc(outcstep) + 2] = sum2.b;
+            if (gy * 4 + 3 < outc) top_tm_blob_data[gi + 3 * psc(outcstep) + 2] = sum2.a;
+        }
+
+        if (gx + 3 < psc(outw))
+        {
+            top_tm_blob_data[gi + 0 * psc(outcstep) + 3] = sum3.r;
+            if (gy * 4 + 1 < outc) top_tm_blob_data[gi + 1 * psc(outcstep) + 3] = sum3.g;
+            if (gy * 4 + 2 < outc) top_tm_blob_data[gi + 2 * psc(outcstep) + 3] = sum3.b;
+            if (gy * 4 + 3 < outc) top_tm_blob_data[gi + 3 * psc(outcstep) + 3] = sum3.a;
+        }
+    }
+}

@@ -2,19 +2,76 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void softmax_bf16s_sse_avx512bf16(unsigned short* _ptr, int elemcount, int elempack);
-void softmax_bf16s_pack1_sse_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
-void softmax_bf16s_pack4_sse_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
-void softmax_bf16s_pack8_sse_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
-void softmax_bf16s_pack16_sse_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_avx512bf16(unsigned short* _ptr, int elemcount, int elempack);
+void softmax_bf16s_pack1_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack4_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack8_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack16_avx512bf16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
 #endif
 
-static void softmax_bf16s_sse(unsigned short* _ptr, int elemcount, int elempack)
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+void softmax_bf16s_avxneconvert(unsigned short* _ptr, int elemcount, int elempack);
+void softmax_bf16s_pack1_avxneconvert(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack4_avxneconvert(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack8_avxneconvert(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+void softmax_bf16s_avx2(unsigned short* _ptr, int elemcount, int elempack);
+void softmax_bf16s_pack1_avx2(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack4_avx2(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack8_avx2(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void softmax_bf16s_fma(unsigned short* _ptr, int elemcount, int elempack);
+void softmax_bf16s_pack1_fma(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack4_fma(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack8_fma(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+void softmax_bf16s_fma4(unsigned short* _ptr, int elemcount, int elempack);
+void softmax_bf16s_pack1_fma4(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack4_fma4(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+void softmax_bf16s_pack8_fma4(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr);
+#endif
+
+static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        softmax_bf16s_sse_avx512bf16(_ptr, elemcount, elempack);
+        softmax_bf16s_avx512bf16(_ptr, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        softmax_bf16s_avxneconvert(_ptr, elemcount, elempack);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        softmax_bf16s_avx2(_ptr, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        softmax_bf16s_fma(_ptr, elemcount, elempack);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_bf16s_fma4(_ptr, elemcount, elempack);
         return;
     }
 #endif
@@ -167,7 +224,7 @@ static void softmax_bf16s_sse(unsigned short* _ptr, int elemcount, int elempack)
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_sub_ps(_p, _max);
             _p = exp_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             _sum = _mm_add_ps(_sum, _p);
             ptr += 4;
         }
@@ -289,7 +346,7 @@ static void softmax_bf16s_sse(unsigned short* _ptr, int elemcount, int elempack)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__
@@ -304,12 +361,12 @@ static void softmax_bf16s_sse(unsigned short* _ptr, int elemcount, int elempack)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-static void softmax_bf16s_pack16_sse(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack16(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        softmax_bf16s_pack16_sse_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack16_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -402,12 +459,42 @@ static void softmax_bf16s_pack16_sse(unsigned short* _ptr, int elemcount, size_t
 }
 #endif // __AVX512F__
 
-static void softmax_bf16s_pack8_sse(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack8(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        softmax_bf16s_pack8_sse_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack8_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        softmax_bf16s_pack8_avxneconvert(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        softmax_bf16s_pack8_avx2(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        softmax_bf16s_pack8_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_bf16s_pack8_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -502,12 +589,42 @@ static void softmax_bf16s_pack8_sse(unsigned short* _ptr, int elemcount, size_t 
 }
 #endif // __AVX__
 
-static void softmax_bf16s_pack4_sse(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack4(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        softmax_bf16s_pack4_sse_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack4_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        softmax_bf16s_pack4_avxneconvert(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        softmax_bf16s_pack4_avx2(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        softmax_bf16s_pack4_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_bf16s_pack4_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -541,7 +658,7 @@ static void softmax_bf16s_pack4_sse(unsigned short* _ptr, int elemcount, size_t 
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _max = _mm_set1_ps(*maxptr);
             _p = exp_ps(_mm_sub_ps(_p, _max));
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             *sumptr += _mm_reduce_add_ps(_p);
             ptr += 4;
             maxptr++;
@@ -596,7 +713,7 @@ static void softmax_bf16s_pack4_sse(unsigned short* _ptr, int elemcount, size_t 
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _sum = _mm_set1_ps(*sumptr);
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
             sumptr++;
         }
@@ -604,12 +721,42 @@ static void softmax_bf16s_pack4_sse(unsigned short* _ptr, int elemcount, size_t 
 }
 #endif // __SSE2__
 
-static void softmax_bf16s_pack1_sse(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s_pack1(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        softmax_bf16s_pack1_sse_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack1_avx512bf16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
+    if (ncnn::cpu_support_x86_avx_ne_convert())
+    {
+        softmax_bf16s_pack1_avxneconvert(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        softmax_bf16s_pack1_avx2(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma())
+    {
+        softmax_bf16s_pack1_fma(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        return;
+    }
+#endif
+#if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_fma4())
+    {
+        softmax_bf16s_pack1_fma4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
         return;
     }
 #endif
@@ -710,7 +857,7 @@ static void softmax_bf16s_pack1_sse(unsigned short* _ptr, int elemcount, size_t 
             __m128 _sum = _mm_loadu_ps(sumptr);
             _p = _mm_sub_ps(_p, _max);
             _p = exp_ps(_p);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             _sum = _mm_add_ps(_sum, _p);
             _mm_storeu_ps(sumptr, _sum);
             ptr += 4;
@@ -801,7 +948,7 @@ static void softmax_bf16s_pack1_sse(unsigned short* _ptr, int elemcount, size_t 
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
             __m128 _sum = _mm_loadu_ps(sumptr);
             _p = _mm_mul_ps(_p, _sum);
-            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p));
             ptr += 4;
             sumptr += 4;
         }
@@ -815,7 +962,7 @@ static void softmax_bf16s_pack1_sse(unsigned short* _ptr, int elemcount, size_t 
     }
 }
 
-static void softmax_bf16s_sse_dispatch(unsigned short* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // init max
     {
@@ -892,21 +1039,21 @@ static void softmax_bf16s_sse_dispatch(unsigned short* _ptr, int elemcount, int 
 #if __AVX512F__
     if (elempack == 16)
     {
-        softmax_bf16s_pack16_sse(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack16(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 #endif // __AVX512F__
     if (elempack == 8)
     {
-        softmax_bf16s_pack8_sse(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack8(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 #endif // __AVX__
     if (elempack == 4)
     {
-        softmax_bf16s_pack4_sse(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack4(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 #endif // __SSE2__
     if (elempack == 1)
     {
-        softmax_bf16s_pack1_sse(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+        softmax_bf16s_pack1(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
 }

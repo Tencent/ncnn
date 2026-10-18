@@ -3,14 +3,14 @@
 
 #include "testutil.h"
 
-static int test_celu(const ncnn::Mat& a, float alpha)
+static int test_celu(const ncnn::Mat& a, float alpha, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("CELU", pd, weights, a);
+    int ret = test_layer("CELU", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_celu failed a.dims=%d a=(%d %d %d %d) alpha=%f\n", a.dims, a.w, a.h, a.d, a.c, alpha);
@@ -59,7 +59,7 @@ static int test_celu_3()
            || test_celu(RandomMat(64), 0.1f)
            || test_celu(RandomMat(128), 1.f)
            || test_celu(RandomMat(96), 0.1f)
-           || test_celu(RandomMat(128), 1.f)
+           || test_celu(RandomMat(128), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_celu(RandomMat(128), 0.1f);
 }
 

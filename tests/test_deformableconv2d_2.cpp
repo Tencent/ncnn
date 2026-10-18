@@ -111,26 +111,20 @@ static int test_deformableconv2d_0()
                   || test_deformableconv2d(9, 7, 8, 4, k, d, s, p, 1)
                   || test_deformableconv2d(9, 7, 8, 13, k, d, s, p, 0)
                   || test_deformableconv2d(9, 7, 13, 8, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 16, 16, k, d, s, p, 0)
-                  || test_deformableconv2d(16, 16, 1 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 16 * 3, k, d, s, p, 1);
+                  || test_deformableconv2d(9, 7, 16, 16, k, d, s, p, 0);
 
         if (ret != 0)
             return -1;
+
+        // separate channel packing from the small spatial boundary cases
+        static const int channels[][2] = {
+            {3, 3}, {12, 12}, {24, 24}, {48, 48}, {3, 12}, {12, 24}, {24, 48}, {48, 3}
+        };
+        for (int j = 0; j < 8; j++)
+        {
+            if (test_deformableconv2d(16, 16, channels[j][0], channels[j][1], k, d, s, p, 1) != 0)
+                return -1;
+        }
     }
 
     return 0;

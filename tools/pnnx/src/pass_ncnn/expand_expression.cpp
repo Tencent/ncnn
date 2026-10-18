@@ -303,7 +303,16 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                     out_shape.resize(outrank);
                     for (int k = 0; k < outrank; k++)
                     {
-                        out_shape[k] = std::max(a_shape[k], b_shape[k]);
+                        if (a_shape[k] == 1)
+                            out_shape[k] = b_shape[k];
+                        else if (b_shape[k] == 1)
+                            out_shape[k] = a_shape[k];
+                        else if (a_shape[k] == -1 || b_shape[k] == -1)
+                            out_shape[k] = -1;
+                        else if (a_shape[k] == b_shape[k])
+                            out_shape[k] = a_shape[k];
+                        else
+                            out_shape[k] = std::max(a_shape[k], b_shape[k]);
                     }
                 }
                 op_binary_out->shape = out_shape;

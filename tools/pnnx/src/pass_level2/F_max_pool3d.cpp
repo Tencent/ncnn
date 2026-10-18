@@ -138,12 +138,14 @@ pnnx.Output             output      1 0 out
                 // ceil_mode for opset9
                 const Operator* avgpool = matched_operators.at("op_0");
                 const std::vector<int>& in_shape = avgpool->inputs[0]->shape;
-                if (in_shape.size() < 2)
+                if (in_shape.size() < 3)
                     return false;
 
                 const int ind = in_shape[in_shape.size() - 3];
                 const int inh = in_shape[in_shape.size() - 2];
                 const int inw = in_shape[in_shape.size() - 1];
+                if (ind <= 0 || inh <= 0 || inw <= 0)
+                    return false;
                 const int kd = captured_params.at("op_0.kernel_shape").ai[0];
                 const int kh = captured_params.at("op_0.kernel_shape").ai[1];
                 const int kw = captured_params.at("op_0.kernel_shape").ai[2];

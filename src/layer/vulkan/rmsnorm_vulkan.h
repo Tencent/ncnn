@@ -39,6 +39,10 @@ public:
     Pipeline* pipeline_rmsnorm_reduce_mean_pack4;
     Pipeline* pipeline_rmsnorm_coeffs_pack4;
     Pipeline* pipeline_rmsnorm_norm_pack4;
+
+    // subgroup
+    Pipeline* pipeline_rmsnorm_reduce_subgroup;
+    Pipeline* pipeline_rmsnorm_reduce_subgroup_pack4;
 };
 
 } // namespace ncnn

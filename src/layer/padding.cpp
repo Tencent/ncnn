@@ -23,6 +23,11 @@ int Padding::load_param(const ParamDict& pd)
     front = pd.get(7, 0);
     behind = pd.get(8, 0);
 
+#if NCNN_VALIDATION
+    if (type < 0 || type > 2)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 

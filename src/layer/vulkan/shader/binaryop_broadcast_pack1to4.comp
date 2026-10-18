@@ -98,8 +98,8 @@ void main()
     if (op_type == 10) res = afpvec4(atan(vec4(v1), vec4(v2)));
     if (op_type == 11) res = afpvec4(atan(vec4(v2), vec4(v1)));
 #else
-#if ncnn_driverID == 13
-    // llvmpipe driver (VK_DRIVER_ID_MESA_LLVMPIPE = 13) workaround for atan(0, 0), match atan2f(0, 0) == 0
+#if ncnn_driverID == 13 || ncnn_driverID == 19
+    // llvmpipe and v3dv drivers (VK_DRIVER_ID_MESA_LLVMPIPE = 13, VK_DRIVER_ID_MESA_V3DV = 19) workaround for atan(0, 0), match atan2f(0, 0) == 0
     if (op_type == 10)
     {
         bvec4 zero_mask = bvec4(uvec4(equal(v1, afpvec4(0.f))) & uvec4(equal(v2, afpvec4(0.f))));

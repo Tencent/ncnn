@@ -1,8 +1,10 @@
 // Copyright 2017 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "datareader.h"
 #include "layer.h"
 #include "layer_type.h"
+#include "paramdict.h"
 
 #include <cstddef>
 #include <ctype.h>
@@ -11,7 +13,6 @@
 #include <string>
 #include <vector>
 
-static std::vector<std::string> layer_names;
 static std::vector<std::string> blob_names;
 
 static int find_blob_index_by_name(const char* name)
@@ -30,11 +31,11 @@ static int find_blob_index_by_name(const char* name)
 
 static void sanitize_name(char* name)
 {
-    for (std::size_t i = 0; i < strlen(name); i++)
+    for (char* p = name; *p; p++)
     {
-        if (!isalnum(name[i]))
+        if (!isalnum((unsigned char)*p))
         {
-            name[i] = '_';
+            *p = '_';
         }
     }
 }
@@ -45,124 +46,132 @@ static std::string path_to_varname(const char* path)
     const char* name = lastslash == NULL ? path : lastslash + 1;
 
     std::string varname = name;
-    sanitize_name((char*)varname.c_str());
+    for (std::size_t i = 0; i < varname.size(); i++)
+    {
+        if (!isalnum((unsigned char)varname[i]))
+        {
+            varname[i] = '_';
+        }
+    }
 
     return varname;
 }
 
-static bool vstr_is_float(const char vstr[16])
+static bool write_param(FILE* fp, const void* data, size_t size)
 {
-    // look ahead for determine isfloat
-    for (int j = 0; j < 16; j++)
+    if (fwrite(data, 1, size, fp) != size)
     {
-        if (vstr[j] == '\0')
-            break;
-
-        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
-            return true;
+        fprintf(stderr, "write param failed\n");
+        return false;
     }
-
-    return false;
+    return true;
 }
 
-static bool vstr_is_string(const char vstr[16])
+// numeric fields in binary params use little-endian 32-bit words
+static bool write_param_32(FILE* fp, const void* data, size_t size)
 {
-    return isalpha(vstr[0]) || vstr[0] == '\"';
+#if __BIG_ENDIAN__
+    const unsigned char* ptr = (const unsigned char*)data;
+    while (size > 0)
+    {
+        unsigned char buffer[1024];
+        const size_t n = size < sizeof(buffer) ? size : sizeof(buffer);
+        memcpy(buffer, ptr, n);
+        for (size_t i = 0; i < n; i += 4)
+            ncnn::swap_endianness_32(buffer + i);
+        if (!write_param(fp, buffer, n))
+            return false;
+        ptr += n;
+        size -= n;
+    }
+    return true;
+#else
+    return write_param(fp, data, size);
+#endif
 }
 
-static float vstr_to_float(const char vstr[16])
+static int close_file(FILE* fp, const char* path)
 {
-    double v = 0.0;
-
-    const char* p = vstr;
-
-    // sign
-    bool sign = *p != '-';
-    if (*p == '+' || *p == '-')
+    // fclose may report a buffered write failure even when earlier writes succeeded
+    const int io_error = ferror(fp);
+    const int close_error = fclose(fp);
+    if (io_error || close_error != 0)
     {
-        p++;
+        fprintf(stderr, "file io failed %s\n", path);
+        return -1;
     }
-
-    // digits before decimal point or exponent
-    unsigned int v1 = 0;
-    while (isdigit(*p))
-    {
-        v1 = v1 * 10 + (*p - '0');
-        p++;
-    }
-
-    v = (double)v1;
-
-    // digits after decimal point
-    if (*p == '.')
-    {
-        p++;
-
-        unsigned int pow10 = 1;
-        unsigned int v2 = 0;
-
-        while (isdigit(*p))
-        {
-            v2 = v2 * 10 + (*p - '0');
-            pow10 *= 10;
-            p++;
-        }
-
-        v += v2 / (double)pow10;
-    }
-
-    // exponent
-    if (*p == 'e' || *p == 'E')
-    {
-        p++;
-
-        // sign of exponent
-        bool fact = *p != '-';
-        if (*p == '+' || *p == '-')
-        {
-            p++;
-        }
-
-        // digits of exponent
-        unsigned int expon = 0;
-        while (isdigit(*p))
-        {
-            expon = expon * 10 + (*p - '0');
-            p++;
-        }
-
-        double scale = 1.0;
-        while (expon >= 8)
-        {
-            scale *= 1e8;
-            expon -= 8;
-        }
-        while (expon > 0)
-        {
-            scale *= 10.0;
-            expon -= 1;
-        }
-
-        v = fact ? v * scale : v / scale;
-    }
-
-    //     fprintf(stderr, "v = %f\n", v);
-    return sign ? (float)v : (float)-v;
+    return 0;
 }
 
-static int dump_param(const char* parampath, const char* parambinpath, const char* idcpppath)
+class ParamDictText : public ncnn::ParamDict
 {
-    FILE* fp = fopen(parampath, "rb");
+public:
+    using ncnn::ParamDict::load_param;
+};
 
-    if (!fp)
+static int dump_param_values(FILE* fp, FILE* mp)
+{
+    ncnn::DataReaderFromStdio dr(fp);
+    ParamDictText pd;
+    if (pd.load_param(dr) != 0)
+        return -1;
+    if (ferror(fp))
     {
-        fprintf(stderr, "fopen %s failed\n", parampath);
+        fprintf(stderr, "read param failed\n");
         return -1;
     }
 
-    FILE* mp = fopen(parambinpath, "wb");
-    FILE* ip = fopen(idcpppath, "wb");
+    for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++)
+    {
+        const int type = pd.type(id);
+        if (type == 0)
+            continue;
+        if (type == 2)
+        {
+            const int value = pd.get(id, 0);
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(int)))
+                return -1;
+        }
+        else if (type == 3)
+        {
+            const float value = pd.get(id, 0.f);
+            if (!write_param_32(mp, &id, sizeof(int)) || !write_param_32(mp, &value, sizeof(float)))
+                return -1;
+        }
+        else if (type == 4 || type == 5 || type == 6)
+        {
+            const ncnn::Mat value = pd.get(id, ncnn::Mat());
+            const int encoded_id = -id - 23300;
+            const int len = value.w;
+            if (!write_param_32(mp, &encoded_id, sizeof(int)) || !write_param_32(mp, &len, sizeof(int)))
+                return -1;
+            if (len > 0 && !write_param_32(mp, value.data, (size_t)len * sizeof(float)))
+                return -1;
+        }
+        else if (type == 7)
+        {
+            const std::string value = pd.get(id, std::string());
+            const int encoded_id = -id - 23400;
+            const int len = (int)value.size();
+            const char padding[3] = {0};
+            const int padding_size = (4 - len % 4) % 4;
+            if (!write_param_32(mp, &encoded_id, sizeof(int)) || !write_param_32(mp, &len, sizeof(int))
+                    || !write_param(mp, value.data(), len) || !write_param(mp, padding, padding_size))
+                return -1;
+        }
+        else
+        {
+            fprintf(stderr, "unsupported parameter type %d (id=%d)\n", type, id);
+            return -1;
+        }
+    }
 
+    const int eop = -233;
+    return write_param_32(mp, &eop, sizeof(int)) ? 0 : -1;
+}
+
+static int dump_param_impl(FILE* fp, FILE* mp, FILE* ip, const char* parampath, const char* idcpppath)
+{
     std::string param_var = path_to_varname(parampath);
 
     std::string include_guard_var = path_to_varname(idcpppath);
@@ -179,7 +188,13 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fprintf(stderr, "read magic failed %d\n", nscan);
         return -1;
     }
-    fwrite(&magic, sizeof(int), 1, mp);
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return -1;
+    }
+    if (!write_param_32(mp, &magic, sizeof(int)))
+        return -1;
 
     int layer_count = 0;
     int blob_count = 0;
@@ -189,10 +204,14 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fprintf(stderr, "read layer_count and blob_count failed %d\n", nscan);
         return -1;
     }
-    fwrite(&layer_count, sizeof(int), 1, mp);
-    fwrite(&blob_count, sizeof(int), 1, mp);
+    if (layer_count <= 0 || blob_count <= 0)
+    {
+        fprintf(stderr, "invalid layer_count or blob_count\n");
+        return -1;
+    }
+    if (!write_param_32(mp, &layer_count, sizeof(int)) || !write_param_32(mp, &blob_count, sizeof(int)))
+        return -1;
 
-    layer_names.resize(layer_count);
     blob_names.resize(blob_count);
 
     std::vector<std::string> custom_layer_index;
@@ -208,6 +227,11 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         if (nscan != 4)
         {
             fprintf(stderr, "read layer params failed %d\n", nscan);
+            return -1;
+        }
+        if (bottom_count < 0 || top_count < 0 || top_count > blob_count - blob_index)
+        {
+            fprintf(stderr, "invalid bottom_count or top_count (layer=%d)\n", i);
             return -1;
         }
 
@@ -234,10 +258,9 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                 typeindex = ncnn::LayerType::CustomBit | j;
             }
         }
-        fwrite(&typeindex, sizeof(int), 1, mp);
-
-        fwrite(&bottom_count, sizeof(int), 1, mp);
-        fwrite(&top_count, sizeof(int), 1, mp);
+        if (!write_param_32(mp, &typeindex, sizeof(int))
+                || !write_param_32(mp, &bottom_count, sizeof(int)) || !write_param_32(mp, &top_count, sizeof(int)))
+            return -1;
 
         fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
 
@@ -255,8 +278,11 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             sanitize_name(bottom_name);
 
             int bottom_blob_index = find_blob_index_by_name(bottom_name);
+            if (bottom_blob_index < 0)
+                return -1;
 
-            fwrite(&bottom_blob_index, sizeof(int), 1, mp);
+            if (!write_param_32(mp, &bottom_blob_index, sizeof(int)))
+                return -1;
         }
 
         //         layer->tops.resize(top_count);
@@ -276,230 +302,19 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
             fprintf(ip, "const int BLOB_%s = %d;\n", blob_name, blob_index);
 
-            fwrite(&blob_index, sizeof(int), 1, mp);
+            if (!write_param_32(mp, &blob_index, sizeof(int)))
+                return -1;
 
             blob_index++;
         }
 
-        // dump layer specific params
-        // parse each key=value pair
-        int id = 0;
-        while (fscanf(fp, "%d=", &id) == 1)
+        if (dump_param_values(fp, mp) != 0)
+            return -1;
+        if (ferror(ip))
         {
-            bool is_array = id <= -23300;
-
-            if (is_array)
-            {
-                fwrite(&id, sizeof(int), 1, mp);
-
-                // old style array
-                int len = 0;
-                nscan = fscanf(fp, "%d", &len);
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "read array length failed %d\n", nscan);
-                    return -1;
-                }
-                fwrite(&len, sizeof(int), 1, mp);
-
-                for (int j = 0; j < len; j++)
-                {
-                    char vstr[16];
-                    nscan = fscanf(fp, ",%15[^,\n ]", vstr);
-                    if (nscan != 1)
-                    {
-                        fprintf(stderr, "read array element failed %d\n", nscan);
-                        return -1;
-                    }
-
-                    bool is_float = vstr_is_float(vstr);
-
-                    if (is_float)
-                    {
-                        float vf = vstr_to_float(vstr);
-                        fwrite(&vf, sizeof(float), 1, mp);
-                    }
-                    else
-                    {
-                        int v;
-                        sscanf(vstr, "%d", &v);
-                        fwrite(&v, sizeof(int), 1, mp);
-                    }
-                }
-
-                continue;
-            }
-
-            char vstr[16];
-            char comma[4];
-            nscan = fscanf(fp, "%15[^,\n ]", vstr);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "read value failed %d\n", nscan);
-                return -1;
-            }
-
-            bool is_string = vstr_is_string(vstr);
-            if (is_string)
-            {
-                id = -id - 23400;
-                fwrite(&id, sizeof(int), 1, mp);
-
-                // scan the remaining string
-                char vstr2[256];
-                vstr2[241] = '\0'; // max 255 = 15 + 240
-
-                if (vstr[0] == '\"')
-                {
-                    int len = 0;
-                    while (vstr[len] != '\0')
-                        len++;
-                    char end = vstr[len - 1];
-                    if (end != '\"')
-                    {
-                        nscan = fscanf(fp, "%255[^\"\n]\"", vstr2);
-                    }
-                    else
-                        nscan = 0; // already ended with a quote, no need to scan more
-                }
-                else
-                {
-                    nscan = fscanf(fp, "%255[^\n ]", vstr2);
-                }
-
-                std::string str;
-                if (nscan == 1)
-                {
-                    if (vstr2[241] != '\0')
-                    {
-                        fprintf(stderr, "string too long (id=%d)\n", id);
-                        return -1;
-                    }
-
-                    if (vstr[0] == '\"')
-                        str = std::string(&vstr[1]) + vstr2;
-                    else
-                        str = std::string(vstr) + vstr2;
-                }
-                else
-                {
-                    if (vstr[0] == '\"')
-                        str = std::string(&vstr[1]);
-                    else
-                        str = std::string(vstr);
-                }
-
-                if (str[str.size() - 1] == '\"')
-                    str.resize(str.size() - 1);
-
-                int len = (int)str.length();
-
-                // pad to 4 bytes
-                str.resize((str.size() + 3) / 4 * 4, 0);
-
-                fwrite(&len, sizeof(int), 1, mp);
-                fwrite(str.data(), sizeof(char), str.size(), mp);
-
-                continue;
-            }
-
-            bool is_float = vstr_is_float(vstr);
-
-            nscan = fscanf(fp, "%1[,]", comma);
-            is_array = nscan == 1;
-
-            if (is_array)
-            {
-                id = -id - 23300;
-                fwrite(&id, sizeof(int), 1, mp);
-
-                std::vector<float> af;
-                std::vector<int> ai;
-
-                if (is_float)
-                {
-                    af.push_back(vstr_to_float(vstr));
-                }
-                else
-                {
-                    int v = 0;
-                    nscan = sscanf(vstr, "%d", &v);
-                    if (nscan != 1)
-                    {
-                        fprintf(stderr, "parse value failed %d\n", nscan);
-                        return -1;
-                    }
-
-                    ai.push_back(v);
-                }
-
-                while (1)
-                {
-                    nscan = fscanf(fp, "%15[^,\n ]", vstr);
-                    if (nscan != 1)
-                    {
-                        break;
-                    }
-
-                    if (is_float)
-                    {
-                        af.push_back(vstr_to_float(vstr));
-                    }
-                    else
-                    {
-                        int v = 0;
-                        nscan = sscanf(vstr, "%d", &v);
-                        if (nscan != 1)
-                        {
-                            fprintf(stderr, "parse value failed %d\n", nscan);
-                            return -1;
-                        }
-
-                        ai.push_back(v);
-                    }
-
-                    nscan = fscanf(fp, "%1[,]", comma);
-                    if (nscan != 1)
-                    {
-                        break;
-                    }
-                }
-
-                if (is_float)
-                {
-                    int len = (int)af.size();
-                    fwrite(&len, sizeof(int), 1, mp);
-                    fwrite(af.data(), sizeof(float), len, mp);
-                }
-                else
-                {
-                    int len = (int)ai.size();
-                    fwrite(&len, sizeof(int), 1, mp);
-                    fwrite(ai.data(), sizeof(int), len, mp);
-                }
-            }
-            else
-            {
-                fwrite(&id, sizeof(int), 1, mp);
-
-                if (is_float)
-                {
-                    float vf = vstr_to_float(vstr);
-                    fwrite(&vf, sizeof(float), 1, mp);
-                }
-                else
-                {
-                    int v;
-                    sscanf(vstr, "%d", &v);
-                    fwrite(&v, sizeof(int), 1, mp);
-                }
-            }
+            fprintf(stderr, "write %s failed\n", idcpppath);
+            return -1;
         }
-
-        int EOP = -233;
-        fwrite(&EOP, sizeof(int), 1, mp);
-
-        layer_names[i] = std::string(layer_name);
     }
 
     // dump custom layer index
@@ -516,30 +331,51 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     fprintf(ip, "} // namespace %s_id\n", param_var.c_str());
     fprintf(ip, "#endif // NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
 
-    fclose(fp);
-
-    fclose(mp);
-    fclose(ip);
-
     return 0;
 }
 
-static int write_memcpp(const char* parambinpath, const char* modelpath, const char* memcpppath)
+static int dump_param(const char* parampath, const char* parambinpath, const char* idcpppath)
 {
-    FILE* cppfp = fopen(memcpppath, "wb");
+    FILE* fp = fopen(parampath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", parampath);
+        return -1;
+    }
 
+    FILE* mp = fopen(parambinpath, "wb");
+    if (!mp)
+    {
+        fprintf(stderr, "fopen %s failed\n", parambinpath);
+        close_file(fp, parampath);
+        return -1;
+    }
+
+    FILE* ip = fopen(idcpppath, "wb");
+    if (!ip)
+    {
+        fprintf(stderr, "fopen %s failed\n", idcpppath);
+        close_file(fp, parampath);
+        close_file(mp, parambinpath);
+        return -1;
+    }
+
+    int ret = dump_param_impl(fp, mp, ip, parampath, idcpppath);
+    if (close_file(fp, parampath) != 0)
+        ret = -1;
+    if (close_file(mp, parambinpath) != 0)
+        ret = -1;
+    if (close_file(ip, idcpppath) != 0)
+        ret = -1;
+    return ret;
+}
+
+static int write_memcpp_impl(FILE* mp, FILE* bp, FILE* cppfp, const char* parambinpath, const char* modelpath, const char* memcpppath)
+{
     // dump param
     std::string param_var = path_to_varname(parambinpath);
 
     std::string include_guard_var = path_to_varname(memcpppath);
-
-    FILE* mp = fopen(parambinpath, "rb");
-
-    if (!mp)
-    {
-        fprintf(stderr, "fopen %s failed\n", parambinpath);
-        return -1;
-    }
 
     fprintf(cppfp, "#ifndef NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
     fprintf(cppfp, "#define NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
@@ -553,7 +389,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
         int c = fgetc(mp);
         if (c == EOF)
             break;
-        fprintf(cppfp, "0x%02x,", c);
+        if (fprintf(cppfp, "0x%02x,", c) < 0)
+        {
+            fprintf(stderr, "write %s failed\n", memcpppath);
+            return -1;
+        }
 
         i++;
         if (i % 16 == 0)
@@ -564,18 +404,14 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     fprintf(cppfp, "};\n");
 
-    fclose(mp);
+    if (ferror(mp))
+    {
+        fprintf(stderr, "read %s failed\n", parambinpath);
+        return -1;
+    }
 
     // dump model
     std::string model_var = path_to_varname(modelpath);
-
-    FILE* bp = fopen(modelpath, "rb");
-
-    if (!bp)
-    {
-        fprintf(stderr, "fopen %s failed\n", modelpath);
-        return -1;
-    }
 
     fprintf(cppfp, "\n#ifdef _MSC_VER\n__declspec(align(4))\n#else\n__attribute__((aligned(4)))\n#endif\n");
     fprintf(cppfp, "static const unsigned char %s[] = {\n", model_var.c_str());
@@ -586,7 +422,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
         int c = fgetc(bp);
         if (c == EOF)
             break;
-        fprintf(cppfp, "0x%02x,", c);
+        if (fprintf(cppfp, "0x%02x,", c) < 0)
+        {
+            fprintf(stderr, "write %s failed\n", memcpppath);
+            return -1;
+        }
 
         i++;
         if (i % 16 == 0)
@@ -599,11 +439,43 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     fprintf(cppfp, "#endif // NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
 
-    fclose(bp);
-
-    fclose(cppfp);
-
     return 0;
+}
+
+static int write_memcpp(const char* parambinpath, const char* modelpath, const char* memcpppath)
+{
+    FILE* mp = fopen(parambinpath, "rb");
+    if (!mp)
+    {
+        fprintf(stderr, "fopen %s failed\n", parambinpath);
+        return -1;
+    }
+
+    FILE* bp = fopen(modelpath, "rb");
+    if (!bp)
+    {
+        fprintf(stderr, "fopen %s failed\n", modelpath);
+        close_file(mp, parambinpath);
+        return -1;
+    }
+
+    FILE* cppfp = fopen(memcpppath, "wb");
+    if (!cppfp)
+    {
+        fprintf(stderr, "fopen %s failed\n", memcpppath);
+        close_file(mp, parambinpath);
+        close_file(bp, modelpath);
+        return -1;
+    }
+
+    int ret = write_memcpp_impl(mp, bp, cppfp, parambinpath, modelpath, memcpppath);
+    if (close_file(mp, parambinpath) != 0)
+        ret = -1;
+    if (close_file(bp, modelpath) != 0)
+        ret = -1;
+    if (close_file(cppfp, memcpppath) != 0)
+        ret = -1;
+    return ret;
 }
 
 int main(int argc, char** argv)
@@ -621,9 +493,8 @@ int main(int argc, char** argv)
 
     std::string parambinpath = std::string(parampath) + ".bin";
 
-    dump_param(parampath, parambinpath.c_str(), idcpppath);
+    if (dump_param(parampath, parambinpath.c_str(), idcpppath) != 0)
+        return -1;
 
-    write_memcpp(parambinpath.c_str(), modelpath, memcpppath);
-
-    return 0;
+    return write_memcpp(parambinpath.c_str(), modelpath, memcpppath);
 }

@@ -3,6 +3,8 @@
 
 #include "reorg.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 Reorg::Reorg()
@@ -15,6 +17,14 @@ int Reorg::load_param(const ParamDict& pd)
 {
     stride = pd.get(0, 1);
     mode = pd.get(1, 0);
+
+#if NCNN_VALIDATION
+    if (mode < 0 || mode > 1)
+        return -1;
+
+    if (stride <= 0 || stride > INT_MAX / stride)
+        return -1;
+#endif // NCNN_VALIDATION
 
     return 0;
 }

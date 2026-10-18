@@ -83,7 +83,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -113,6 +113,9 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
         }
 #endif
@@ -147,7 +150,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -186,7 +189,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (top_blob.empty())
         return -100;
 
-    innerproduct_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -196,7 +199,7 @@ int InnerProduct_x86::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_bf16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel_bf16s(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -219,7 +222,7 @@ int InnerProduct_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_bf16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm_bf16s(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -258,7 +261,7 @@ int InnerProduct_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    innerproduct_bf16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct_bf16s(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -269,7 +272,7 @@ int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+    innerproduct_transform_kernel_fp16s(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
         weight_data.release();
@@ -292,7 +295,7 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         if (top_blob.empty())
             return -100;
 
-        innerproduct_gemm_fp16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_gemm_fp16s(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
         return 0;
     }
@@ -327,7 +330,7 @@ int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    innerproduct_fp16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    innerproduct_fp16s(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
 
     return 0;
 }

@@ -606,7 +606,7 @@ void visualize(const char* title, const ncnn::Mat& m)
 
    使用方式一：
     - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag
-    <br/>注意这里的flag指的是fp32和fp16，其中0指的是fp32，1指的是fp16
+    <br/>注意这里的flag指的是权重存储类型，其中0指的是fp32，1指的是fp16，2指的是bf16
 
    使用方式二：
     - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname

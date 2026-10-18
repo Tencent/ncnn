@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_transpose, int constantA, int constantB, int constantC)
+static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB, int output_transpose, int constantA, int constantB, int constantC, int flag = 0)
 {
     int broadcast_type_C = 0;
     if (C.dims == 1 && C.w == 1)
@@ -72,7 +72,7 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
         Randomize(a[i]);
     }
 
-    int ret = test_layer("Gemm", pd, weights, a);
+    int ret = test_layer("Gemm", pd, weights, a, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_transpose, constantA, constantB, constantC);
@@ -81,7 +81,7 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
     return ret;
 }
 
-static int test_gemm_0(int M, int N, int K)
+static int test_gemm_0(int M, int N, int K, int constant_flag = 0)
 {
     return 0
            || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 0, 0, 0, 0)
@@ -91,26 +91,26 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0, 0, 0, 0, 0)
            || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1, 0, 0, 0, 0)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 0, 0, 1, 0, 0)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 1, 0, 1, 0, 0)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 0, 1, 1, 0, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 1, 1, 1, 0, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 0, 0, 1, 0, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 1, 0, 1, 0, 0)
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 0, 0, 1, 0, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 1, 0, 1, 0, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 0, 1, 1, 0, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 1, 1, 1, 0, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 0, 0, 1, 0, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 1, 0, 1, 0, 0, constant_flag)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 1, 0, 0, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 0, 0, 0, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 1, 1, 0, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 0, 1, 0, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 1, 0, 0, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 0, 0, 0, 1, 0)
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 1, 0, 0, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 0, 0, 0, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 1, 1, 0, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 0, 1, 0, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 1, 0, 0, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 0, 0, 0, 1, 0, constant_flag)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 1, 0, 1, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 0, 0, 1, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 1, 1, 1, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 0, 1, 1, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 1, 0, 1, 1, 0)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 0, 0, 1, 1, 0)
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 1, 0, 1, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 0, 0, 1, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 1, 1, 1, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 0, 1, 1, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 1, 0, 1, 1, 0, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 0, 0, 1, 1, 0, constant_flag)
 
            || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 0, 0, 0, 0, 1)
            || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 1, 0, 0, 0, 1)
@@ -119,24 +119,24 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 0, 0, 0, 0, 1)
            || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 1, 0, 0, 0, 1)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 0, 1, 0, 1)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1, 0, 1, 0, 1)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0, 1, 1, 0, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1, 1, 1, 0, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0, 0, 1, 0, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1, 0, 1, 0, 1)
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0, 0, 1, 0, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1, 0, 1, 0, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0, 1, 1, 0, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1, 1, 1, 0, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0, 0, 1, 0, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1, 0, 1, 0, 1, constant_flag)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 1, 0, 0, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 0, 0, 0, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 1, 1, 0, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 0, 1, 0, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 1, 0, 0, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 0, 0, 0, 1, 1)
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 1, 0, 0, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 0, 0, 0, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 0, 1, 1, 0, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 0, 1, 0, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 1, 1, 0, 0, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 0, 0, 0, 1, 1, constant_flag)
 
-           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 1, 0, 1, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 0, 0, 1, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 1, 1, 1, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 0, 1, 1, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 1, 0, 1, 1, 1)
-           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 0, 0, 1, 1, 1);
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 1, 0, 1, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 1, 0, 0, 1, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 1, 1, 1, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 0, 0, 1, 1, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 1, 0, 1, 1, 1, constant_flag)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 1, 0, 0, 1, 1, 1, constant_flag);
 }

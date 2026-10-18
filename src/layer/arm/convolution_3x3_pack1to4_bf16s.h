@@ -550,14 +550,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v30.4s, %29.4s, v1.s[0]     \n"
                         "fmla   v31.4s, %29.4s, v1.s[1]     \n"
 
-                        "shrn   v24.4h, v24.4s, #16         \n"
-                        "shrn   v25.4h, v25.4s, #16         \n"
-                        "shrn   v26.4h, v26.4s, #16         \n"
-                        "shrn   v27.4h, v27.4s, #16         \n"
-                        "shrn   v28.4h, v28.4s, #16         \n"
-                        "shrn   v29.4h, v29.4s, #16         \n"
-                        "shrn   v30.4h, v30.4s, #16         \n"
-                        "shrn   v31.4h, v31.4s, #16         \n"
+                        "rshrn  v24.4h, v24.4s, #16         \n"
+                        "rshrn  v25.4h, v25.4s, #16         \n"
+                        "rshrn  v26.4h, v26.4s, #16         \n"
+                        "rshrn  v27.4h, v27.4s, #16         \n"
+                        "rshrn  v28.4h, v28.4s, #16         \n"
+                        "rshrn  v29.4h, v29.4s, #16         \n"
+                        "rshrn  v30.4h, v30.4s, #16         \n"
+                        "rshrn  v31.4h, v31.4s, #16         \n"
 
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
@@ -664,10 +664,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "add    %4, %4, #4                  \n"
 
-                        "shrn   v24.4h, v24.4s, #16         \n"
-                        "shrn   v25.4h, v25.4s, #16         \n"
-                        "shrn   v26.4h, v26.4s, #16         \n"
-                        "shrn   v27.4h, v27.4s, #16         \n"
+                        "rshrn  v24.4h, v24.4s, #16         \n"
+                        "rshrn  v25.4h, v25.4s, #16         \n"
+                        "rshrn  v26.4h, v26.4s, #16         \n"
+                        "rshrn  v27.4h, v27.4s, #16         \n"
 
                         "add    %5, %5, #4                  \n"
 
@@ -1478,14 +1478,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v30.4s, %18.4s, v2.s[0]     \n"
                         "fmla   v31.4s, %18.4s, v2.s[1]     \n"
 
-                        "shrn   v24.4h, v24.4s, #16         \n"
-                        "shrn   v25.4h, v25.4s, #16         \n"
-                        "shrn   v26.4h, v26.4s, #16         \n"
-                        "shrn   v27.4h, v27.4s, #16         \n"
-                        "shrn   v28.4h, v28.4s, #16         \n"
-                        "shrn   v29.4h, v29.4s, #16         \n"
-                        "shrn   v30.4h, v30.4s, #16         \n"
-                        "shrn   v31.4h, v31.4s, #16         \n"
+                        "rshrn  v24.4h, v24.4s, #16         \n"
+                        "rshrn  v25.4h, v25.4s, #16         \n"
+                        "rshrn  v26.4h, v26.4s, #16         \n"
+                        "rshrn  v27.4h, v27.4s, #16         \n"
+                        "rshrn  v28.4h, v28.4s, #16         \n"
+                        "rshrn  v29.4h, v29.4s, #16         \n"
+                        "rshrn  v30.4h, v30.4s, #16         \n"
+                        "rshrn  v31.4h, v31.4s, #16         \n"
 
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%0], #32 \n"
@@ -1598,10 +1598,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v26.4s, %18.4s, v1.s[0]     \n"
                         "fmla   v27.4s, %18.4s, v1.s[1]     \n"
 
-                        "shrn   v24.4h, v24.4s, #16         \n"
-                        "shrn   v25.4h, v25.4s, #16         \n"
-                        "shrn   v26.4h, v26.4s, #16         \n"
-                        "shrn   v27.4h, v27.4s, #16         \n"
+                        "rshrn  v24.4h, v24.4s, #16         \n"
+                        "rshrn  v25.4h, v25.4s, #16         \n"
+                        "rshrn  v26.4h, v26.4s, #16         \n"
+                        "rshrn  v27.4h, v27.4s, #16         \n"
 
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
 
@@ -1785,8 +1785,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "add    %4, %4, #4                  \n"
 
-                        "shrn   v28.4h, v28.4s, #16         \n"
-                        "shrn   v29.4h, v29.4s, #16         \n"
+                        "rshrn  v28.4h, v28.4s, #16         \n"
+                        "rshrn  v29.4h, v29.4s, #16         \n"
 
                         "st1    {v28.4h, v29.4h}, [%0], #16 \n"
 
@@ -2539,17 +2539,17 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %29.4s, v1.s[2]     \n"
                         "fmla   v13.4s, %29.4s, v4.s[0]     \n"
 
-                        "shrn   v6.4h, v6.4s, #16           \n"
-                        "shrn   v7.4h, v7.4s, #16           \n"
-                        "shrn   v8.4h, v8.4s, #16           \n"
-                        "shrn   v9.4h, v9.4s, #16           \n"
-                        "shrn   v10.4h, v10.4s, #16         \n"
-                        "shrn   v11.4h, v11.4s, #16         \n"
+                        "rshrn  v6.4h, v6.4s, #16           \n"
+                        "rshrn  v7.4h, v7.4s, #16           \n"
+                        "rshrn  v8.4h, v8.4s, #16           \n"
+                        "rshrn  v9.4h, v9.4s, #16           \n"
+                        "rshrn  v10.4h, v10.4s, #16         \n"
+                        "rshrn  v11.4h, v11.4s, #16         \n"
 
                         "st1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%0], #32 \n"
 
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%1], #32 \n"
 
@@ -2666,10 +2666,10 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %29.4s, v0.s[2]     \n"
                         "fmla   v13.4s, %29.4s, v1.s[0]     \n"
 
-                        "shrn   v10.4h, v10.4s, #16         \n"
-                        "shrn   v11.4h, v11.4s, #16         \n"
-                        "shrn   v12.4h, v12.4s, #16         \n"
-                        "shrn   v13.4h, v13.4s, #16         \n"
+                        "rshrn  v10.4h, v10.4s, #16         \n"
+                        "rshrn  v11.4h, v11.4s, #16         \n"
+                        "rshrn  v12.4h, v12.4s, #16         \n"
+                        "rshrn  v13.4h, v13.4s, #16         \n"
 
                         "st1    {v10.4h, v11.4h}, [%0], #16 \n"
                         "st1    {v12.4h, v13.4h}, [%1], #16 \n"
@@ -3342,10 +3342,10 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v8.4s, %18.4s, v1.s[2]      \n"
                         "fmla   v9.4s, %18.4s, v4.s[0]      \n"
 
-                        "shrn   v6.4h, v6.4s, #16           \n"
-                        "shrn   v7.4h, v7.4s, #16           \n"
-                        "shrn   v8.4h, v8.4s, #16           \n"
-                        "shrn   v9.4h, v9.4s, #16           \n"
+                        "rshrn  v6.4h, v6.4s, #16           \n"
+                        "rshrn  v7.4h, v7.4s, #16           \n"
+                        "rshrn  v8.4h, v8.4s, #16           \n"
+                        "rshrn  v9.4h, v9.4s, #16           \n"
 
                         "st1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%0], #32 \n"
 
@@ -3458,10 +3458,10 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q2, %q18, d11[0]    \n"
                         "vmla.f32   q3, %q18, d8[0]     \n"
 
-                        "vshrn.u32  d0, q0, #16         \n"
-                        "vshrn.u32  d1, q1, #16         \n"
-                        "vshrn.u32  d2, q2, #16         \n"
-                        "vshrn.u32  d3, q3, #16         \n"
+                        "vrshrn.u32 d0, q0, #16         \n"
+                        "vrshrn.u32 d1, q1, #16         \n"
+                        "vrshrn.u32 d2, q2, #16         \n"
+                        "vrshrn.u32 d3, q3, #16         \n"
 
                         "vst1.u16   {d0-d3}, [%0 :64]!  \n"
 
@@ -3554,8 +3554,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fadd   v8.4s, v8.4s, v6.4s         \n"
                         "fadd   v9.4s, v9.4s, v7.4s         \n"
 
-                        "shrn   v8.4h, v8.4s, #16           \n"
-                        "shrn   v9.4h, v9.4s, #16           \n"
+                        "rshrn  v8.4h, v8.4s, #16           \n"
+                        "rshrn  v9.4h, v9.4s, #16           \n"
 
                         "st1    {v8.4h, v9.4h}, [%0], #16   \n"
 
@@ -3644,8 +3644,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vadd.f32   q2, q2, q0          \n"
                         "vadd.f32   q3, q3, q1          \n"
 
-                        "vshrn.u32  d2, q2, #16         \n"
-                        "vshrn.u32  d3, q3, #16         \n"
+                        "vrshrn.u32 d2, q2, #16         \n"
+                        "vrshrn.u32 d3, q3, #16         \n"
 
                         "vst1.u16   {d2-d3}, [%0 :64]!  \n"
 
