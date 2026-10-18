@@ -236,6 +236,12 @@ target_include_directories(ncnn
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND (NCNN_THREADS OR NCNN_OPENMP))
+    # propagate pthread support to applications linking ncnn
+    target_compile_options(ncnn PUBLIC -pthread)
+    target_link_libraries(ncnn PUBLIC -pthread)
+endif()
+
 if(NCNN_OPENMP)
     if(NOT NCNN_SIMPLEOMP)
         find_package(OpenMP)
