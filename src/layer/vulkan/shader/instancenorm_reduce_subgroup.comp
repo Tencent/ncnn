@@ -14,23 +14,61 @@ layout(push_constant) uniform parameter
 {
     int cstep;
     int size;
+    int channels;
 } p;
+
+// spirv-1.6 guarantees one full subgroup with local size (required subgroup size, 1, 1)
+#if !ncnn_maintenance4 || !ncnn_subgroupSizeControl
+shared float sum_shared[ncnn_subgroupSize];
+shared float mean_shared;
+#endif
 
 void main()
 {
     const int tid = int(gl_LocalInvocationID.x);
-    const int channel_id = int(gl_WorkGroupID.z);
-    const int base_offset = channel_id * p.cstep;
+    const uint channel = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    if (channel >= uint(p.channels))
+        return;
+
+    const int channel_id = int(channel);
+    const int offset = channel_id * p.cstep;
     const float area = float(p.size);
 
-    float sum = 0.f;
+    // keep the common offset out of the sum and compensate rounding in long groups
+    const float center = float(buffer_ld1(bottom_top_blob_data, offset));
+    precise float sum = 0.f;
+    precise float correction = 0.f;
     for (int t = tid; t < p.size; t += ncnn_subgroupSize)
     {
-        sum += float(buffer_ld1(bottom_top_blob_data, base_offset + t));
+        const float v = float(buffer_ld1(bottom_top_blob_data, offset + t)) - center;
+        precise float y = v - correction;
+        precise float next_sum = sum + y;
+        correction = (next_sum - sum) - y;
+        sum = next_sum;
     }
 
-    const float mean = subgroupAdd(sum) / area;
-    if (subgroupElect())
+    sum = subgroupAdd(sum);
+    float mean = center + sum / area;
+#if !ncnn_maintenance4 || !ncnn_subgroupSizeControl
+    if (gl_NumSubgroups > 1)
+    {
+        sum_shared[tid] = subgroupElect() ? sum : 0.f;
+        barrier();
+
+        if (tid == 0)
+        {
+            sum = 0.f;
+            for (int i = 0; i < ncnn_subgroupSize; i++)
+                sum += sum_shared[i];
+            mean_shared = center + sum / area;
+        }
+        barrier();
+
+        // keep the mean separate so sum_shared can be reused for variance
+        mean = mean_shared;
+    }
+#endif
+    if (tid == 0)
     {
         mean_data[channel_id] = mean;
     }
@@ -38,13 +76,27 @@ void main()
     float sqsum = 0.f;
     for (int t = tid; t < p.size; t += ncnn_subgroupSize)
     {
-        const float d = float(buffer_ld1(bottom_top_blob_data, base_offset + t)) - mean;
+        const float d = float(buffer_ld1(bottom_top_blob_data, offset + t)) - mean;
         sqsum += d * d;
     }
 
-    const float variance = subgroupAdd(sqsum) / area;
-    if (subgroupElect())
+    sqsum = subgroupAdd(sqsum);
+#if !ncnn_maintenance4 || !ncnn_subgroupSizeControl
+    if (gl_NumSubgroups > 1)
     {
-        var_data[channel_id] = variance;
+        sum_shared[tid] = subgroupElect() ? sqsum : 0.f;
+        barrier();
+
+        if (tid == 0)
+        {
+            sqsum = 0.f;
+            for (int i = 0; i < ncnn_subgroupSize; i++)
+                sqsum += sum_shared[i];
+        }
+    }
+#endif
+    if (tid == 0)
+    {
+        var_data[channel_id] = sqsum / area;
     }
 }
