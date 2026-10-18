@@ -277,7 +277,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [riscv64]
-        build_cp: [cp39, cp310, cp311, cp312, cp313, cp314]
+        build_cp: [cp39, cp310, cp311, cp312, cp313, cp314, cp315]
         build_sub: [manylinux, musllinux]
 
     steps:
