@@ -35,7 +35,7 @@ def prepare(output):
     suffix = sysconfig.get_config_var("EXT_SUFFIX")
     if not suffix or "cpython-314" not in suffix or sdk not in suffix:
         raise RuntimeError("Unexpected iOS extension suffix: " + str(suffix))
-    deployment_target = os.environ.get("IPHONEOS_DEPLOYMENT_TARGET", "13.0")
+    deployment_target = os.environ.get("IPHONEOS_DEPLOYMENT_TARGET", "14.0")
     sdk_path = subprocess.check_output(
         ["xcrun", "--sdk", sdk, "--show-sdk-path"], text=True
     ).strip()

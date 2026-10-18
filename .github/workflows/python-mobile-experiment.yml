@@ -101,6 +101,8 @@ jobs:
       env:
         CIBW_PLATFORM: ios
         CIBW_ARCHS_IOS: ${{ matrix.arch }}
+        # beeware cross sysconfig reports ios13 even when deployment target is overridden
+        CIBW_CONFIG_SETTINGS_IOS: --build-option=--plat-name=ios_14_0_${{ matrix.arch }}
         CIBW_BUILD: cp314-ios_*
         CIBW_BUILD_FRONTEND: build
         CIBW_BUILD_VERBOSITY: 1
@@ -109,7 +111,7 @@ jobs:
           CMAKE_BUILD_PARALLEL_LEVEL=4
           CMAKE_GENERATOR=Ninja
           CMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.ci-ios/toolchain.cmake"
-          IPHONEOS_DEPLOYMENT_TARGET=13.0
+          IPHONEOS_DEPLOYMENT_TARGET=14.0
           EXTRA_CMAKE_ARGS="-DNCNN_VULKAN=OFF -DNCNN_OPENMP=OFF"
         CIBW_BEFORE_BUILD_IOS: python {project}/python/ci/prepare_ios.py "$CMAKE_TOOLCHAIN_FILE"
         # test the native binding independently of unavailable pypi ios numpy

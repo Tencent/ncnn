@@ -20,7 +20,7 @@ def inspect(wheel_dir):
     if len(wheels) != 1:
         raise RuntimeError("Expected exactly one experimental iOS wheel")
     wheel = wheels[0]
-    if not wheel.name.endswith("-cp314-cp314-ios_13_0_" + arch + ".whl"):
+    if not wheel.name.endswith("-cp314-cp314-ios_14_0_" + arch + ".whl"):
         raise RuntimeError("Unexpected wheel target: " + wheel.name)
     with tempfile.TemporaryDirectory() as temp, zipfile.ZipFile(wheel) as archive:
         modules = [n for n in archive.namelist() if n.endswith(".so")]
@@ -35,6 +35,12 @@ def inspect(wheel_dir):
         print(build)
         if not re.search(r"\bplatform\s+" + expected_platform + r"\b", build):
             raise RuntimeError("Mach-O was not built for " + expected_platform)
+        minimum = re.search(r"\bminos\s+(\d+(?:\.\d+){0,2})\b", build)
+        if minimum is None:
+            raise RuntimeError("Mach-O deployment target is missing")
+        parts = tuple(int(part) for part in minimum.group(1).split("."))
+        if (parts + (0, 0, 0))[:3] > (14, 0, 0):
+            raise RuntimeError("Mach-O requires newer iOS than the wheel tag: " + minimum.group(1))
         links = subprocess.check_output(["otool", "-L", str(module)], text=True)
         print(links)
         if "/opt/homebrew/" in links or "/usr/local/" in links or "MacOSX.sdk" in links:
