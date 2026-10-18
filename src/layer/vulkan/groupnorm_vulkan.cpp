@@ -27,10 +27,22 @@ GroupNorm_vulkan::GroupNorm_vulkan()
     pipeline_groupnorm_sub_mean_square_pack4 = 0;
     pipeline_groupnorm_coeffs_pack4 = 0;
     pipeline_groupnorm_norm_pack4 = 0;
+
+    pipeline_groupnorm_reduce_subgroup = 0;
+    pipeline_groupnorm_reduce_subgroup_pack4 = 0;
 }
 
 int GroupNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     // resolve total actual channels
@@ -59,6 +71,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     if (_channels != 0) workspace_shape = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
     // reduce_sum4 pipelines
+    if (!use_subgroup_ops)
     {
         Mat local_size_xyz;
         {
@@ -103,6 +116,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     // reduce_mean pipeline
+    if (!use_subgroup_ops)
     {
         std::vector<vk_specialization_type> specializations(0 + 4);
         specializations[0].i = 0; // w - unknown at pipeline creation
@@ -128,6 +142,7 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     // sub_mean_square pipeline - use original shape like InstanceNorm, with h*d flattening for dims=4
+    if (!use_subgroup_ops)
     {
         // shape hints must match what forward_inplace sends as push constants
         int shape_dims = std::min(3, shape.dims);
@@ -276,6 +291,25 @@ int GroupNorm_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    if (use_subgroup_ops)
+    {
+        if (elempack == 1 || _channels == 0)
+        {
+            pipeline_groupnorm_reduce_subgroup = new Pipeline(vkdev);
+            pipeline_groupnorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+            pipeline_groupnorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+            pipeline_groupnorm_reduce_subgroup->create(LayerShaderType::groupnorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
+        }
+
+        if (elempack == 4 || _channels == 0)
+        {
+            pipeline_groupnorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
+            pipeline_groupnorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+            pipeline_groupnorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+            pipeline_groupnorm_reduce_subgroup_pack4->create(LayerShaderType::groupnorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
+        }
+    }
+
     return 0;
 }
 
@@ -320,6 +354,11 @@ int GroupNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_groupnorm_norm_pack4;
     pipeline_groupnorm_norm_pack4 = 0;
+
+    delete pipeline_groupnorm_reduce_subgroup;
+    pipeline_groupnorm_reduce_subgroup = 0;
+    delete pipeline_groupnorm_reduce_subgroup_pack4;
+    pipeline_groupnorm_reduce_subgroup_pack4 = 0;
 
     return 0;
 }
@@ -369,197 +408,227 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     int channels_g = channels / group;
 
-    // mean - one float per group
+    // mean and var - one float per group
     VkMat mean_workspace(group, 4u, 1, opt.workspace_vkallocator);
+    VkMat var_workspace(group, 4u, 1, opt.workspace_vkallocator);
+
+    const Pipeline* pipeline_reduce_subgroup = elempack == 4 ? pipeline_groupnorm_reduce_subgroup_pack4 : pipeline_groupnorm_reduce_subgroup;
+    if (pipeline_reduce_subgroup)
     {
-        // reduce sum per channel first
-        VkMat sum_workspace;
-        {
-            int reduced_w = (size_virtual + 3) / 4;
-            int reduced_c = c_virtual;
+        std::vector<VkMat> bindings(3);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = mean_workspace;
+        bindings[2] = var_workspace;
 
-            sum_workspace.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = size_virtual;
+        constants[1].i = channels_g;
+        constants[2].i = cstep_virtual;
+        constants[3].i = group;
+
+        // split groups across x and y to stay within the dispatch limits
+        const int group_count_x = (group - 1) / vkdev->info.max_workgroup_count_y() + 1;
+        const int group_count_y = (group - 1) / group_count_x + 1;
+
+        VkMat dispatcher;
+        dispatcher.w = group_count_x * pipeline_reduce_subgroup->local_size_x();
+        dispatcher.h = group_count_y;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);
+    }
+    else
+    {
+        // mean
+        {
+            // reduce sum per channel first
+            VkMat sum_workspace;
             {
-                std::vector<VkMat> bindings(2);
-                bindings[0] = bottom_top_blob;
-                bindings[1] = sum_workspace;
+                int reduced_w = (size_virtual + 3) / 4;
+                int reduced_c = c_virtual;
 
-                std::vector<vk_constant_type> constants(8);
-                constants[0].i = size_virtual;
-                constants[1].i = 1;
-                constants[2].i = c_virtual;
-                constants[3].i = cstep_virtual;
-                constants[4].i = sum_workspace.w;
-                constants[5].i = 1;
-                constants[6].i = sum_workspace.c;
-                constants[7].i = sum_workspace.cstep;
+                sum_workspace.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = bottom_top_blob;
+                    bindings[1] = sum_workspace;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_groupnorm_reduce_sum4_fp16_to_fp32;
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = size_virtual;
+                    constants[1].i = 1;
+                    constants[2].i = c_virtual;
+                    constants[3].i = cstep_virtual;
+                    constants[4].i = sum_workspace.w;
+                    constants[5].i = 1;
+                    constants[6].i = sum_workspace.c;
+                    constants[7].i = sum_workspace.cstep;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_groupnorm_reduce_sum4_fp16_to_fp32;
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+                }
             }
-        }
 
-        int pb = 0;
-        while (sum_workspace.w > 4)
-        {
-            int reduced_w = (sum_workspace.w + 3) / 4;
-            int reduced_c = sum_workspace.c;
+            int pb = 0;
+            while (sum_workspace.w > 4)
+            {
+                int reduced_w = (sum_workspace.w + 3) / 4;
+                int reduced_c = sum_workspace.c;
 
-            VkMat sum_workspace_reduced;
-            sum_workspace_reduced.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+                VkMat sum_workspace_reduced;
+                sum_workspace_reduced.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
 
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = sum_workspace;
+                    bindings[1] = sum_workspace_reduced;
+
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = sum_workspace.w;
+                    constants[1].i = 1;
+                    constants[2].i = sum_workspace.c;
+                    constants[3].i = sum_workspace.cstep;
+                    constants[4].i = sum_workspace_reduced.w;
+                    constants[5].i = 1;
+                    constants[6].i = sum_workspace_reduced.c;
+                    constants[7].i = sum_workspace_reduced.cstep;
+
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
+
+                    pb++;
+                }
+
+                sum_workspace = sum_workspace_reduced;
+            }
+
+            // reduce mean across channels within each group
             {
                 std::vector<VkMat> bindings(2);
                 bindings[0] = sum_workspace;
-                bindings[1] = sum_workspace_reduced;
+                bindings[1] = mean_workspace;
 
-                std::vector<vk_constant_type> constants(8);
+                std::vector<vk_constant_type> constants(7);
                 constants[0].i = sum_workspace.w;
                 constants[1].i = 1;
                 constants[2].i = sum_workspace.c;
                 constants[3].i = sum_workspace.cstep;
-                constants[4].i = sum_workspace_reduced.w;
-                constants[5].i = 1;
-                constants[6].i = sum_workspace_reduced.c;
-                constants[7].i = sum_workspace_reduced.cstep;
+                constants[4].f = (float)(channels_g * size_virtual);
+                constants[5].i = group;
+                constants[6].i = channels_g;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
+                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
-
-                pb++;
+                cmd.record_pipeline(pipeline, bindings, constants, mean_workspace);
             }
-
-            sum_workspace = sum_workspace_reduced;
         }
 
-        // reduce mean across channels within each group
+        // var
         {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = sum_workspace;
-            bindings[1] = mean_workspace;
-
-            std::vector<vk_constant_type> constants(7);
-            constants[0].i = sum_workspace.w;
-            constants[1].i = 1;
-            constants[2].i = sum_workspace.c;
-            constants[3].i = sum_workspace.cstep;
-            constants[4].f = (float)(channels_g * size_virtual);
-            constants[5].i = group;
-            constants[6].i = channels_g;
-
-            const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
-
-            cmd.record_pipeline(pipeline, bindings, constants, mean_workspace);
-        }
-    }
-
-    // var - one float per group
-    VkMat var_workspace(group, 4u, 1, opt.workspace_vkallocator);
-    {
-        // sub mean and square
-        VkMat square_workspace;
-        if (dims == 1 || dims == 2)
-        {
-            square_workspace.create(size_virtual, 1, c_virtual, 4u * elempack, elempack, opt.workspace_vkallocator);
-        }
-        else
-        {
-            square_workspace.create(w, h, c, 4u * elempack, elempack, opt.workspace_vkallocator);
-        }
-        {
-            std::vector<VkMat> bindings(3);
-            bindings[0] = bottom_top_blob;
-            bindings[1] = mean_workspace;
-            bindings[2] = square_workspace;
-
-            std::vector<vk_constant_type> constants(11);
+            // sub mean and square
+            VkMat square_workspace;
             if (dims == 1 || dims == 2)
             {
-                constants[0].i = 3;
-                constants[1].i = size_virtual;
-                constants[2].i = 1;
-                constants[3].i = c_virtual;
-                constants[4].i = cstep_virtual;
+                square_workspace.create(size_virtual, 1, c_virtual, 4u * elempack, elempack, opt.workspace_vkallocator);
             }
             else
             {
-                constants[0].i = std::min(3, dims);
-                constants[1].i = w;
-                constants[2].i = h;
-                constants[3].i = c;
-                constants[4].i = cstep;
+                square_workspace.create(w, h, c, 4u * elempack, elempack, opt.workspace_vkallocator);
             }
-            constants[5].i = square_workspace.dims;
-            constants[6].i = square_workspace.w;
-            constants[7].i = square_workspace.h;
-            constants[8].i = square_workspace.c;
-            constants[9].i = square_workspace.cstep;
-            constants[10].i = channels_g;
+            {
+                std::vector<VkMat> bindings(3);
+                bindings[0] = bottom_top_blob;
+                bindings[1] = mean_workspace;
+                bindings[2] = square_workspace;
 
-            const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_sub_mean_square_pack4 : pipeline_groupnorm_sub_mean_square;
+                std::vector<vk_constant_type> constants(11);
+                if (dims == 1 || dims == 2)
+                {
+                    constants[0].i = 3;
+                    constants[1].i = size_virtual;
+                    constants[2].i = 1;
+                    constants[3].i = c_virtual;
+                    constants[4].i = cstep_virtual;
+                }
+                else
+                {
+                    constants[0].i = std::min(3, dims);
+                    constants[1].i = w;
+                    constants[2].i = h;
+                    constants[3].i = c;
+                    constants[4].i = cstep;
+                }
+                constants[5].i = square_workspace.dims;
+                constants[6].i = square_workspace.w;
+                constants[7].i = square_workspace.h;
+                constants[8].i = square_workspace.c;
+                constants[9].i = square_workspace.cstep;
+                constants[10].i = channels_g;
 
-            cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
-        }
+                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_sub_mean_square_pack4 : pipeline_groupnorm_sub_mean_square;
 
-        // reduce square
-        VkMat sqsum_workspace = square_workspace;
-        sqsum_workspace.w = sqsum_workspace.w * sqsum_workspace.h;
-        sqsum_workspace.h = 1;
+                cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
+            }
 
-        int pb = 0;
-        while (sqsum_workspace.w > 4)
-        {
-            int reduced_w = (sqsum_workspace.w + 3) / 4;
-            int reduced_c = sqsum_workspace.c;
+            // reduce square
+            VkMat sqsum_workspace = square_workspace;
+            sqsum_workspace.w = sqsum_workspace.w * sqsum_workspace.h;
+            sqsum_workspace.h = 1;
 
-            VkMat sqsum_workspace_reduced;
-            sqsum_workspace_reduced.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+            int pb = 0;
+            while (sqsum_workspace.w > 4)
+            {
+                int reduced_w = (sqsum_workspace.w + 3) / 4;
+                int reduced_c = sqsum_workspace.c;
 
+                VkMat sqsum_workspace_reduced;
+                sqsum_workspace_reduced.create(reduced_w, 1, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = sqsum_workspace;
+                    bindings[1] = sqsum_workspace_reduced;
+
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = sqsum_workspace.w;
+                    constants[1].i = 1;
+                    constants[2].i = sqsum_workspace.c;
+                    constants[3].i = sqsum_workspace.cstep;
+                    constants[4].i = sqsum_workspace_reduced.w;
+                    constants[5].i = 1;
+                    constants[6].i = sqsum_workspace_reduced.c;
+                    constants[7].i = sqsum_workspace_reduced.cstep;
+
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+
+                    pb++;
+                }
+
+                sqsum_workspace = sqsum_workspace_reduced;
+            }
+
+            // reduce var across channels within each group
             {
                 std::vector<VkMat> bindings(2);
                 bindings[0] = sqsum_workspace;
-                bindings[1] = sqsum_workspace_reduced;
+                bindings[1] = var_workspace;
 
-                std::vector<vk_constant_type> constants(8);
+                std::vector<vk_constant_type> constants(7);
                 constants[0].i = sqsum_workspace.w;
                 constants[1].i = 1;
                 constants[2].i = sqsum_workspace.c;
                 constants[3].i = sqsum_workspace.cstep;
-                constants[4].i = sqsum_workspace_reduced.w;
-                constants[5].i = 1;
-                constants[6].i = sqsum_workspace_reduced.c;
-                constants[7].i = sqsum_workspace_reduced.cstep;
+                constants[4].f = (float)(channels_g * size_virtual);
+                constants[5].i = group;
+                constants[6].i = channels_g;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
+                const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
-
-                pb++;
+                cmd.record_pipeline(pipeline, bindings, constants, var_workspace);
             }
-
-            sqsum_workspace = sqsum_workspace_reduced;
-        }
-
-        // reduce var across channels within each group
-        {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = sqsum_workspace;
-            bindings[1] = var_workspace;
-
-            std::vector<vk_constant_type> constants(7);
-            constants[0].i = sqsum_workspace.w;
-            constants[1].i = 1;
-            constants[2].i = sqsum_workspace.c;
-            constants[3].i = sqsum_workspace.cstep;
-            constants[4].f = (float)(channels_g * size_virtual);
-            constants[5].i = group;
-            constants[6].i = channels_g;
-
-            const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
-
-            cmd.record_pipeline(pipeline, bindings, constants, var_workspace);
         }
     }
 
