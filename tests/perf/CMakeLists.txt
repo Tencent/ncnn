@@ -39,6 +39,8 @@ ncnn_add_layer_perf(BinaryOp)
 ncnn_add_layer_perf(Concat)
 ncnn_add_layer_perf(Sigmoid)
 ncnn_add_layer_perf(BatchNorm)
+ncnn_add_layer_perf(RMSNorm)
+ncnn_add_layer_perf(LayerNorm)
 ncnn_add_layer_perf(Normalize)
 ncnn_add_layer_perf(Permute)
 

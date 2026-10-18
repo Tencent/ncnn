@@ -109,6 +109,114 @@ static int test_rmsnorm_4()
            || test_rmsnorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
 }
 
+static int test_rmsnorm_5()
+{
+    return 0
+           || test_rmsnorm(RandomMat(4095), 4095, 0.001f, 0)
+           || test_rmsnorm(RandomMat(4096), 4096, 0.001f, 0)
+           || test_rmsnorm(RandomMat(4097), 4097, 0.001f, 1)
+           || test_rmsnorm(RandomMat(16384), 16384, 0.001f, 1)
+           || test_rmsnorm(RandomMat(4095, 3), 4095, 0.001f, 1)
+           || test_rmsnorm(RandomMat(4096, 4), 4096, 0.001f, 0)
+           || test_rmsnorm(RandomMat(4097, 4), 4097, 0.001f, 1)
+           || test_rmsnorm(RandomMat(4096, 2, 1), 4096, 0.001f, 0)
+           || test_rmsnorm(RandomMat(4097, 2, 4), 4097, 0.001f, 1)
+           || test_rmsnorm(RandomMat(513, 3, 2, 4), 1539, 0.001f, 1)
+           || test_rmsnorm(RandomMat(64, 65536, 1), 64, 0.001f, 1)
+           || test_rmsnorm(RandomMat(64, 65537, 1), 64, 0.001f, 1)
+           || test_rmsnorm(RandomMat(16, 65537, 4), 16, 0.001f, 1);
+}
+
+#if NCNN_VULKAN
+static int test_rmsnorm_gpu_fp16a(const ncnn::Mat& a, bool use_subgroup_ops)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, a.w);
+    pd.set(1, 0.001f);
+    pd.set(2, 0);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_subgroup_ops = use_subgroup_ops;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    ncnn::Layer* op = ncnn::create_layer_vulkan("RMSNorm");
+    op->vkdev = vkdev;
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+    op->load_model(mb);
+    op->create_pipeline(opt);
+
+    ncnn::Mat expected;
+    test_layer_naive(ncnn::layer_to_index("RMSNorm"), pd, weights, a, expected, 0);
+
+    ncnn::Mat out;
+    int ret;
+    {
+        ncnn::VkCompute cmd(vkdev);
+        ncnn::VkMat a_gpu;
+        cmd.record_upload(a, a_gpu, opt);
+        ret = op->forward_inplace(a_gpu, cmd, opt);
+        if (ret == 0)
+        {
+            cmd.record_download(a_gpu, out, opt);
+            ret = cmd.submit_and_wait();
+        }
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    if (ret != 0 || CompareMat(expected, out, 0.001f) != 0)
+    {
+        fprintf(stderr, "test_rmsnorm_gpu_fp16a failed a.dims=%d a=(%d %d %d %d) subgroup=%d ret=%d\n", a.dims, a.w, a.h, a.d, a.c, use_subgroup_ops, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_rmsnorm_gpu_fp16a()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
+    if (!info.support_fp16_storage() || !info.support_fp16_arithmetic())
+        return 0;
+
+    ncnn::Mat a(4096);
+    a.fill(8.f);
+    ncnn::Mat b(4096, 1, 4);
+    b.fill(8.f);
+
+    return test_rmsnorm_gpu_fp16a(a, false)
+           || test_rmsnorm_gpu_fp16a(a, true)
+           || test_rmsnorm_gpu_fp16a(b, false)
+           || test_rmsnorm_gpu_fp16a(b, true);
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
@@ -118,5 +226,10 @@ int main()
            || test_rmsnorm_1()
            || test_rmsnorm_2()
            || test_rmsnorm_3()
-           || test_rmsnorm_4();
+           || test_rmsnorm_4()
+           || test_rmsnorm_5()
+#if NCNN_VULKAN
+           || test_rmsnorm_gpu_fp16a()
+#endif // NCNN_VULKAN
+           ;
 }

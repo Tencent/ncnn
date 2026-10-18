@@ -442,6 +442,48 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             return -100;
     }
 
+    bool cast_fp16_to_fp32 = false;
+    bool cast_bf16_to_fp32 = false;
+    if (bottom_blob.elembits() == 16)
+    {
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_ARM82
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_VFPV4
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_ZFH
+#if NCNN_BF16
+        if (opt.use_bf16_storage && !layer->support_bf16_storage)
+        {
+            cast_bf16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_BF16
+        {
+        }
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+
     int dst_elempack = 1;
     if (opt.use_packing_layout)
     {
@@ -452,7 +494,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
         if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
 
-        int elembits = bottom_blob.elembits();
+        int elembits = cast_fp16_to_fp32 || cast_bf16_to_fp32 ? 32 : bottom_blob.elembits();
 
         if (layer->support_packing)
         {
@@ -559,56 +601,26 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             return -100;
     }
 
-    if (bottom_blob.elembits() == 16)
+    if (cast_fp16_to_fp32)
     {
-        // clang-format off
-        // *INDENT-OFF*
-
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_ARM82
-#if NCNN_VFPV4
-        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_VFPV4
-#if NCNN_ZFH
-        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_ZFH
-#if NCNN_BF16
-        if (opt.use_bf16_storage && !layer->support_bf16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_BF16
-        {
-        }
-
-        // *INDENT-ON*
-        // clang-format on
+        Mat bottom_blob_fp32;
+        cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+        bottom_blob = bottom_blob_fp32;
 
         if (bottom_blob.empty())
             return -100;
     }
+#if NCNN_BF16
+    if (cast_bf16_to_fp32)
+    {
+        Mat bottom_blob_fp32;
+        cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+        bottom_blob = bottom_blob_fp32;
+
+        if (bottom_blob.empty())
+            return -100;
+    }
+#endif
 
     return 0;
 }
