@@ -27,20 +27,22 @@ The drawing helpers use `imshow` and `waitKey`, so they also require an OpenCV
 build with GUI support and a working display. Headless builds can be used for
 Yolact, but cannot display the drawing helpers' windows.
 
-## Experimental mobile wheels
+## Mobile wheels
 
-The separate `python-mobile-experiment.yml` workflow builds CPython 3.14,
-CPU-only Android and iOS wheels as CI artifacts. It does not publish releases
-or change the desktop wheel release matrix. Vulkan and OpenMP are disabled.
+The `release-python.yml` workflow builds CPython 3.14, CPU-only wheels for
+Android API 24 and later, and iOS 14.0 and later. It collects these wheels with
+the desktop wheels for the existing PyPI upload step. Vulkan and OpenMP are
+disabled.
 Android arm64 and iOS device wheels are build-only; emulator/simulator tests
 run only where the host architecture is supported.
 
-The initial smoke test installs the wheel without runtime dependencies and
+The mobile smoke test installs the wheel without runtime dependencies and
 checks import, tensor access, and a small ReLU network without model downloads.
 This does not validate a normal `pip install ncnn`, NumPy interoperability, or
 the model zoo on mobile. CPython 3.14 Android NumPy wheels and Android/iOS
-`opencv-python` wheels are not available on PyPI at the time of this experiment.
-iOS NumPy wheels require a supplemental provider such as BeeWare. A compatible
+`opencv-python` wheels are not available on PyPI as of October 2026.
+iOS NumPy wheels require a supplemental provider such as
+[BeeWare](https://pypi.anaconda.org/beeware/simple/numpy/). A compatible
 mobile `cv2` build is still needed for OpenCV-dependent features; the `opencv`
 extra alone does not supply one on these platforms.
 

@@ -1,7 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fail the experiment if wheel tags, extension ABI, or Mach-O target disagree."""
+"""Check that wheel tags, extension ABI, and Mach-O target agree."""
 
 import os
 from pathlib import Path
@@ -18,7 +18,7 @@ def inspect(wheel_dir):
     expected_platform = "IOS" if sdk == "iphoneos" else "IOSSIMULATOR"
     wheels = list(Path(wheel_dir).glob("*.whl"))
     if len(wheels) != 1:
-        raise RuntimeError("Expected exactly one experimental iOS wheel")
+        raise RuntimeError("Expected exactly one iOS wheel")
     wheel = wheels[0]
     if not wheel.name.endswith("-cp314-cp314-ios_14_0_" + arch + ".whl"):
         raise RuntimeError("Unexpected wheel target: " + wheel.name)
