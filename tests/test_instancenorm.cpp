@@ -53,9 +53,8 @@ static int test_instancenorm_1()
 }
 
 #if NCNN_VULKAN
-static int test_instancenorm_gpu_reference(const ncnn::Mat& a, float tolerance = 0.005f)
+static ncnn::Mat instancenorm_reference(const ncnn::Mat& a, float eps)
 {
-    const float eps = 1e-5f;
     const int size = a.w * a.h * a.d;
     ncnn::Mat expected = a.clone();
     for (int q = 0; q < a.c; q++)
@@ -77,6 +76,14 @@ static int test_instancenorm_gpu_reference(const ncnn::Mat& a, float tolerance =
             outptr[i] = (float)((ptr[i] - mean) * inv_stddev);
     }
 
+    return expected;
+}
+
+static int test_instancenorm_gpu_reference(const ncnn::Mat& a, float tolerance = 0.005f)
+{
+    const float eps = 1e-5f;
+    ncnn::Mat expected = instancenorm_reference(a, eps);
+
     ncnn::ParamDict pd;
     pd.set(0, 0);
     pd.set(1, eps);
@@ -97,7 +104,7 @@ static int test_instancenorm_gpu_reference(const ncnn::Mat& a, float tolerance =
         // allow rounding in the existing float coeffs/norm shaders, including FMA
         if (ret != 233 && (ret != 0 || CompareMat(expected, b, tolerance) != 0))
         {
-            fprintf(stderr, "test_instancenorm_gpu_reference failed a=(%d %d %d) subgroup=%d\n", a.w, a.h, a.c, subgroup);
+            fprintf(stderr, "test_instancenorm_gpu_reference failed a=(%d %d %d %d) subgroup=%d\n", a.w, a.h, a.d, a.c, subgroup);
             return -1;
         }
     }
@@ -165,14 +172,7 @@ static int test_instancenorm_gpu_dispatch()
         ptr[1] = 1.f;
     }
     const float eps = 1e-5f;
-    ncnn::Mat expected = a.clone();
-    const float scale = (float)(1.0 / sqrt(1.0 + eps));
-    for (int q = 0; q < a.c; q++)
-    {
-        float* ptr = expected.channel(q);
-        ptr[0] = -scale;
-        ptr[1] = scale;
-    }
+    ncnn::Mat expected = instancenorm_reference(a, eps);
 
     ncnn::ParamDict pd;
     pd.set(0, 0);
@@ -226,7 +226,7 @@ static int test_instancenorm_gpu_dispatch()
 
         if (ret != 0 || CompareMat(expected, b, 0.001f) != 0)
         {
-            fprintf(stderr, "test_instancenorm_gpu_dispatch failed subgroup=%d ret=%d\n", subgroup, ret);
+            fprintf(stderr, "test_instancenorm_gpu_dispatch failed a=(%d %d %d %d) subgroup=%d ret=%d\n", a.w, a.h, a.d, a.c, subgroup, ret);
             return -1;
         }
     }

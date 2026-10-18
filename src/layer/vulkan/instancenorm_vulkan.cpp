@@ -65,82 +65,6 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     Mat workspace_shape;
     if (_channels != 0) workspace_shape = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
-    {
-        Mat local_size_xyz;
-        {
-            local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-            if (workspace_shape.dims != 0)
-            {
-                local_size_xyz.w = 16;
-                local_size_xyz.h = 1;
-                local_size_xyz.c = std::min(4, workspace_shape.c);
-            }
-        }
-
-        // pack1
-        if (elempack == 1 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
-
-            pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
-            pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
-        }
-
-        // pack4
-        if (elempack == 4 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
-
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-        }
-    }
-
-    {
-        std::vector<vk_specialization_type> specializations(0 + 4);
-        specializations[0].i = 0; // TODO resolve workspace_shape.w;
-        specializations[1].i = 0; // TODO resolve workspace_shape.h;
-        specializations[2].i = workspace_shape.c;
-        specializations[3].i = 0; // TODO resolve workspace_shape.cstep;
-
-        Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
-        if (workspace_shape.dims != 0)
-        {
-            local_size_xyz.w = std::min(64, workspace_shape.c);
-            local_size_xyz.h = 1;
-            local_size_xyz.c = 1;
-        }
-
-        if (elempack == 1 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
-        }
-
-        if (elempack == 4 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
-        }
-    }
-
-    Mat square_workspace;
-    if (shape.dims == 3 || shape.dims == 4) square_workspace = Mat(shape.w, shape.h * shape.d, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
-
     int shape_dims = std::min(3, shape.dims);
     int shape_w = shape.w;
     int shape_h = shape.h * shape.d;
@@ -155,39 +79,130 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         shape_cstep = 0;
     }
 
+    if (use_subgroup_ops)
     {
-        std::vector<vk_specialization_type> specializations(0 + 10);
-        specializations[0 + 0].i = shape_dims;
-        specializations[0 + 1].i = shape_w;
-        specializations[0 + 2].i = shape_h;
-        specializations[0 + 3].i = shape_c;
-        specializations[0 + 4].i = shape_cstep;
-        specializations[0 + 5].i = square_workspace.dims;
-        specializations[0 + 6].i = square_workspace.w;
-        specializations[0 + 7].i = square_workspace.h;
-        specializations[0 + 8].i = square_workspace.c;
-        specializations[0 + 9].i = square_workspace.cstep;
+        pipeline_instancenorm_reduce_subgroup = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_instancenorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_instancenorm_reduce_subgroup->create(LayerShaderType::instancenorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
 
-        Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-        if (square_workspace.dims != 0)
+        pipeline_instancenorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_instancenorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_instancenorm_reduce_subgroup_pack4->create(LayerShaderType::instancenorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
+    }
+    else
+    {
         {
-            local_size_xyz.w = std::min(4, square_workspace.w);
-            local_size_xyz.h = std::min(4, square_workspace.h);
-            local_size_xyz.c = std::min(4, square_workspace.c);
+            Mat local_size_xyz;
+            {
+                local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
+                if (workspace_shape.dims != 0)
+                {
+                    local_size_xyz.w = 16;
+                    local_size_xyz.h = 1;
+                    local_size_xyz.c = std::min(4, workspace_shape.c);
+                }
+            }
+
+            // pack1
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
+
+                pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+                pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+            }
+
+            // pack4
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
+
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+            }
         }
 
-        if (elempack == 1 || _channels == 0)
         {
-            pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
+            std::vector<vk_specialization_type> specializations(0 + 4);
+            specializations[0].i = 0; // TODO resolve workspace_shape.w;
+            specializations[1].i = 0; // TODO resolve workspace_shape.h;
+            specializations[2].i = workspace_shape.c;
+            specializations[3].i = 0; // TODO resolve workspace_shape.cstep;
+
+            Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
+            if (workspace_shape.dims != 0)
+            {
+                local_size_xyz.w = std::min(64, workspace_shape.c);
+                local_size_xyz.h = 1;
+                local_size_xyz.c = 1;
+            }
+
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
+            }
+
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
+            }
         }
 
-        if (elempack == 4 || _channels == 0)
+        Mat square_workspace;
+        if (shape.dims == 3 || shape.dims == 4) square_workspace = Mat(shape.w, shape.h * shape.d, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
+
         {
-            pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
+            std::vector<vk_specialization_type> specializations(0 + 10);
+            specializations[0 + 0].i = shape_dims;
+            specializations[0 + 1].i = shape_w;
+            specializations[0 + 2].i = shape_h;
+            specializations[0 + 3].i = shape_c;
+            specializations[0 + 4].i = shape_cstep;
+            specializations[0 + 5].i = square_workspace.dims;
+            specializations[0 + 6].i = square_workspace.w;
+            specializations[0 + 7].i = square_workspace.h;
+            specializations[0 + 8].i = square_workspace.c;
+            specializations[0 + 9].i = square_workspace.cstep;
+
+            Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
+            if (square_workspace.dims != 0)
+            {
+                local_size_xyz.w = std::min(4, square_workspace.w);
+                local_size_xyz.h = std::min(4, square_workspace.h);
+                local_size_xyz.c = std::min(4, square_workspace.c);
+            }
+
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
+                pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
+            }
+
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
+            }
         }
     }
 
@@ -249,19 +264,6 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
             pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm_pack4->create(LayerShaderType::instancenorm_norm_pack4, opt, specializations);
         }
-    }
-
-    if (use_subgroup_ops)
-    {
-        pipeline_instancenorm_reduce_subgroup = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_subgroup->set_subgroup_size(subgroup_size);
-        pipeline_instancenorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
-        pipeline_instancenorm_reduce_subgroup->create(LayerShaderType::instancenorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
-
-        pipeline_instancenorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
-        pipeline_instancenorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
-        pipeline_instancenorm_reduce_subgroup_pack4->create(LayerShaderType::instancenorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
     }
 
     return 0;
