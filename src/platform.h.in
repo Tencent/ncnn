@@ -9,6 +9,7 @@
 #cmakedefine01 NCNN_VALIDATION
 #cmakedefine01 NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOMP
+#cmakedefine01 NCNN_SPERTOMP
 #cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_SIMPLEMATH
 #cmakedefine01 NCNN_THREADS

@@ -9,6 +9,10 @@
 #include "modelbin.h"
 #include "paramdict.h"
 
+#if NCNN_SPERTOMP
+#include "spertomp.h"
+#endif
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -352,6 +356,13 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
+#if NCNN_SPERTOMP
+        ret = spert_run([&]()
+        {
+            return do_forward_layer(layer, blob_mats, layer->featmask ? get_masked_option(opt, layer->featmask) : opt);
+        },
+        opt);
+#else
         if (layer->featmask)
         {
             ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
@@ -360,6 +371,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         {
             ret = do_forward_layer(layer, blob_mats, opt);
         }
+#endif
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -2402,7 +2414,11 @@ int Net::load_model(const DataReader& dr)
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 
+#if NCNN_SPERTOMP
+        int cret = spert_run([&]() { return layer->create_pipeline(opt1); }, opt1);
+#else
         int cret = layer->create_pipeline(opt1);
+#endif
         if (cret != 0)
         {
 #if NCNN_STRING
@@ -3243,6 +3259,12 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
 #endif // NCNN_BATCH
 
+#if NCNN_SPERTOMP
+    SpertStreamScope stream_scope;
+    if (!stream_scope.valid())
+        return -1;
+#endif
+
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
@@ -3318,12 +3340,14 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
         }
         else
-        {
-            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->opt);
-        }
-#else
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->opt);
 #endif // NCNN_VULKAN
+        {
+#if NCNN_SPERTOMP
+            ret = spert_run([&]() { return d->net->d->forward_layer(layer_index, d->blob_mats, d->opt); }, d->opt);
+#else
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->opt);
+#endif
+        }
     }
 
     feat = d->blob_mats[blob_index];
@@ -3504,6 +3528,12 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
         }
     }
 #endif // NCNN_BATCH
+
+#if NCNN_SPERTOMP
+    SpertStreamScope stream_scope;
+    if (!stream_scope.valid())
+        return -1;
+#endif
 
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
