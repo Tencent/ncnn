@@ -1,0 +1,65 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+layout(constant_id = 0) const int local_size = 32;
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int cstep;
+    int outc;
+} p;
+
+// one workgroup reduces one channel with the lanes splitting its spatial plane, the host only
+// creates this pipeline for the across-spatial mode
+// the workgroup is widened with several subgroups per channel, so their partial sums are
+// merged through shared memory, sized by the workgroup width the host asked for
+shared vec4 sqsum_shared[local_size];
+
+void main()
+{
+    const uint gid = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+
+    if (gid >= uint(p.outc))
+        return;
+
+    const int tid = int(gl_LocalInvocationID.x);
+    const int offset = int(gid) * p.cstep;
+
+    vec4 sqsum = vec4(0.f);
+    for (int t = tid; t < p.w; t += local_size)
+    {
+        const vec4 v = vec4(buffer_ld4(bottom_top_blob_data, offset + t));
+        sqsum += v * v;
+    }
+
+    sqsum = subgroupAdd(sqsum);
+
+    if (gl_NumSubgroups > 1)
+    {
+        sqsum_shared[tid] = subgroupElect() ? sqsum : vec4(0.f);
+        barrier();
+
+        if (tid == 0)
+        {
+            sqsum = vec4(0.f);
+            for (int i = 0; i < local_size; i++)
+                sqsum += sqsum_shared[i];
+            sqsum_blob_data[gid] = sqsum;
+        }
+        return;
+    }
+
+    if (subgroupElect())
+    {
+        sqsum_blob_data[gid] = sqsum;
+    }
+}
