@@ -22,7 +22,7 @@ on:
     - 'tests/**'
 
 env:
-  EMSCRIPTEN_VERSION: 3.1.28
+  EMSCRIPTEN_VERSION: 6.0.12
 
 concurrency:
   group: web-assembly-${{ github.ref }}
