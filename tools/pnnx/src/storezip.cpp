@@ -3,6 +3,8 @@
 
 #include "storezip.h"
 
+#include "../../fileio.h"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <map>
@@ -185,7 +187,7 @@ int StoreZipReader::open(const std::string& path)
                     if (extra_id != 0x0001)
                     {
                         // skip this extra field block
-                        fseek(fp, extra_size - 4, SEEK_CUR);
+                        ncnn_file_seek(fp, extra_size - 4, SEEK_CUR);
                         extra_offset += extra_size;
                         continue;
                     }
@@ -198,25 +200,29 @@ int StoreZipReader::open(const std::string& path)
                     uncompressed_size = zip64_eef.uncompressed_size;
 
                     // skip remaining extra field blocks
-                    fseek(fp, lfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
+                    ncnn_file_seek(fp, lfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
                     break;
                 }
             }
             else
             {
                 // skip extra field
-                fseek(fp, lfh.extra_field_length, SEEK_CUR);
+                ncnn_file_seek(fp, lfh.extra_field_length, SEEK_CUR);
             }
 
+            const int64_t offset = ncnn_file_tell(fp);
+            if (offset < 0 || compressed_size > (uint64_t)INT64_MAX)
+                return -1;
+
             StoreZipMeta fm;
-            fm.offset = ftell(fp);
+            fm.offset = (uint64_t)offset;
             fm.size = compressed_size;
 
             filemetas[name] = fm;
 
             // fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
 
-            fseek(fp, compressed_size, SEEK_CUR);
+            ncnn_file_seek(fp, (int64_t)compressed_size, SEEK_CUR);
         }
         else if (signature == 0x02014b50)
         {
@@ -224,13 +230,13 @@ int StoreZipReader::open(const std::string& path)
             fread((char*)&cdfh, sizeof(cdfh), 1, fp);
 
             // skip file name
-            fseek(fp, cdfh.file_name_length, SEEK_CUR);
+            ncnn_file_seek(fp, cdfh.file_name_length, SEEK_CUR);
 
             // skip extra field
-            fseek(fp, cdfh.extra_field_length, SEEK_CUR);
+            ncnn_file_seek(fp, cdfh.extra_field_length, SEEK_CUR);
 
             // skip file comment
-            fseek(fp, cdfh.file_comment_length, SEEK_CUR);
+            ncnn_file_seek(fp, cdfh.file_comment_length, SEEK_CUR);
         }
         else if (signature == 0x06054b50)
         {
@@ -238,7 +244,7 @@ int StoreZipReader::open(const std::string& path)
             fread((char*)&eocdr, sizeof(eocdr), 1, fp);
 
             // skip comment
-            fseek(fp, eocdr.comment_length, SEEK_CUR);
+            ncnn_file_seek(fp, eocdr.comment_length, SEEK_CUR);
         }
         else if (signature == 0x06064b50)
         {
@@ -246,7 +252,7 @@ int StoreZipReader::open(const std::string& path)
             fread((char*)&eocdr64, sizeof(eocdr64), 1, fp);
 
             // skip comment
-            fseek(fp, eocdr64.size_of_eocd64_m12 - 44, SEEK_CUR);
+            ncnn_file_seek(fp, (int64_t)(eocdr64.size_of_eocd64_m12 - 44), SEEK_CUR);
         }
         else if (signature == 0x07064b50)
         {
@@ -296,7 +302,8 @@ int StoreZipReader::read_file(const std::string& name, char* data)
     uint64_t offset = filemetas[name].offset;
     uint64_t size = filemetas[name].size;
 
-    fseek(fp, offset, SEEK_SET);
+    if (offset > (uint64_t)INT64_MAX || ncnn_file_seek(fp, (int64_t)offset, SEEK_SET) != 0)
+        return -1;
     fread(data, size, 1, fp);
 
     return 0;
@@ -341,7 +348,9 @@ int StoreZipWriter::open(const std::string& path)
 
 int StoreZipWriter::write_file(const std::string& name, const char* data, uint64_t size)
 {
-    long offset = ftell(fp);
+    const int64_t offset = ncnn_file_tell(fp);
+    if (offset < 0)
+        return -1;
 
     uint32_t signature = 0x04034b50;
     fwrite((char*)&signature, sizeof(signature), 1, fp);
@@ -397,7 +406,9 @@ int StoreZipWriter::close()
     if (!fp)
         return 0;
 
-    long offset = ftell(fp);
+    const int64_t offset = ncnn_file_tell(fp);
+    if (offset < 0)
+        return -1;
 
     for (const StoreZipMeta& szm : filemetas)
     {
@@ -442,7 +453,9 @@ int StoreZipWriter::close()
         fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
     }
 
-    long offset2 = ftell(fp);
+    const int64_t offset2 = ncnn_file_tell(fp);
+    if (offset2 < offset)
+        return -1;
 
     {
         uint32_t signature = 0x06064b50;
