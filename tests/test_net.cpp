@@ -13,6 +13,7 @@
 #include "testutil.h"
 
 #include <errno.h>
+#include <string>
 
 #if defined _WIN32
 #include <process.h>
@@ -1431,6 +1432,120 @@ static int test_binary_cycles()
     return 0;
 }
 
+// built-in layers whose forward() indexes bottom_blobs[N] or writes top_blobs[0]
+// must be rejected at load time when the model declares fewer blobs
+static int check_builtin_arity(int binary, const char* type, int typeindex, int param_count, const int* params, int bottom_count, int top_count, int expected_ret)
+{
+    ncnn::Net net;
+    int ret;
+    if (binary)
+    {
+        std::vector<unsigned char> data = binary_header(bottom_count + 1, bottom_count + top_count);
+        for (int i = 0; i < bottom_count; i++)
+        {
+            append_layer_header(data, ncnn::LayerType::Input, 0, 1);
+            append_int(data, i);
+            append_int(data, -233);
+        }
+        append_layer_header(data, typeindex, bottom_count, top_count);
+        for (int i = 0; i < bottom_count + top_count; i++)
+            append_int(data, i);
+        for (int i = 0; i < param_count * 2; i++)
+            append_int(data, params[i]);
+        append_int(data, -233);
+        ret = load_binary(net, &data[0], data.size());
+    }
+    else
+    {
+        std::string text = "7767517\n";
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%d %d\n", bottom_count + 1, bottom_count + top_count);
+        text += buf;
+        for (int i = 0; i < bottom_count; i++)
+        {
+            snprintf(buf, sizeof(buf), "Input in%d 0 1 b%d\n", i, i);
+            text += buf;
+        }
+        snprintf(buf, sizeof(buf), "%s op %d %d", type, bottom_count, top_count);
+        text += buf;
+        for (int i = 0; i < bottom_count; i++)
+        {
+            snprintf(buf, sizeof(buf), " b%d", i);
+            text += buf;
+        }
+        for (int i = 0; i < top_count; i++)
+        {
+            snprintf(buf, sizeof(buf), " t%d", i);
+            text += buf;
+        }
+        for (int i = 0; i < param_count; i++)
+        {
+            snprintf(buf, sizeof(buf), " %d=%d", params[i * 2], params[i * 2 + 1]);
+            text += buf;
+        }
+        text += "\n";
+        ret = net.load_param_mem(text.c_str());
+    }
+
+    if (ret != expected_ret || (ret != 0 && !empty_net(net)))
+    {
+        fprintf(stderr, "test_net builtin arity failed binary=%d type=%s bottoms=%d tops=%d ret=%d expected=%d\n", binary, type, bottom_count, top_count, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_builtin_layer_arity()
+{
+    struct Case
+    {
+        const char* type;
+        int typeindex;
+        int min_bottom;
+        int param_count;
+        int params[4];
+    };
+    const Case cases[] = {
+        {"BinaryOp", ncnn::LayerType::BinaryOp, 2},
+        {"CopyTo", ncnn::LayerType::CopyTo, 2},
+        {"Eltwise", ncnn::LayerType::Eltwise, 2},
+        {"GridSample", ncnn::LayerType::GridSample, 2},
+        {"MatMul", ncnn::LayerType::MatMul, 2},
+        {"PSROIPooling", ncnn::LayerType::PSROIPooling, 2},
+        {"ROIAlign", ncnn::LayerType::ROIAlign, 2, 2, {0, 2, 1, 2}},
+        {"ROIPooling", ncnn::LayerType::ROIPooling, 2},
+        {"DetectionOutput", ncnn::LayerType::DetectionOutput, 3},
+        {"Proposal", ncnn::LayerType::Proposal, 3},
+        {"RotaryEmbed", ncnn::LayerType::RotaryEmbed, 3},
+        {"SDPA", ncnn::LayerType::SDPA, 3},
+        {"Crop", ncnn::LayerType::Crop, 2},
+        {"Concat", ncnn::LayerType::Concat, 1},
+        {"Slice", ncnn::LayerType::Slice, 1},
+    };
+    for (int binary = 0; binary < 2; binary++)
+    {
+        for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+        {
+            const Case& c = cases[i];
+            if (check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, 1, 0)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom - 1, 1, -1)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, 0, 1, -1)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, 0, -1))
+                return -1;
+        }
+
+        // one_blob_only forms of the same layer types keep loading with a single bottom blob
+        const int binaryop_scalar[] = {0, 0, 1, 1};
+        const int crop_roi[] = {3, 1};
+        if (check_builtin_arity(binary, "BinaryOp", ncnn::LayerType::BinaryOp, 2, binaryop_scalar, 1, 1, 0)
+                || check_builtin_arity(binary, "Crop", ncnn::LayerType::Crop, 1, crop_roi, 1, 1, 0))
+            return -1;
+    }
+
+    return 0;
+}
+
 static int test_name_length_invalid()
 {
     char name[257];
@@ -1491,6 +1606,7 @@ int main()
            || test_integer_length(32)
            || test_shape_hint_errors()
            || test_one_blob_only()
+           || test_builtin_layer_arity()
            || test_custom_index_limit()
            || test_binary_param_types()
 #endif // NCNN_VALIDATION

@@ -107,6 +107,12 @@ int Convolution::load_model(const ModelBin& mb)
     if (weight_data.empty())
         return -100;
 
+#if NCNN_VALIDATION && NCNN_INT8
+    // int8 weights are only usable together with the int8 scale records
+    if (weight_data.elemsize == (size_t)1u && !int8_scale_term)
+        return -1;
+#endif // NCNN_VALIDATION && NCNN_INT8
+
     if (bias_term)
     {
         bias_data = mb.load(num_output, 1);

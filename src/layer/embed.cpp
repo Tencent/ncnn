@@ -21,6 +21,12 @@ int Embed::load_param(const ParamDict& pd)
     weight_data_size = pd.get(3, 0);
     int8_scale_term = pd.get(18, 0);
 
+#if NCNN_VALIDATION
+    // forward() reads weight_data + num_output * word_index for word_index < input_dim
+    if (num_output <= 0 || input_dim <= 0 || weight_data_size <= 0 || (long long)num_output * input_dim > weight_data_size)
+        return -1;
+#endif // NCNN_VALIDATION
+
     return 0;
 }
 
@@ -29,6 +35,12 @@ int Embed::load_model(const ModelBin& mb)
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
+
+#if NCNN_VALIDATION && NCNN_INT8
+    // embed_int8() reads signed char, embed() reads float
+    if (weight_data.elemsize != (int8_scale_term ? (size_t)1u : (size_t)4u))
+        return -1;
+#endif // NCNN_VALIDATION && NCNN_INT8
 
     if (bias_term)
     {

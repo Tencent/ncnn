@@ -28,6 +28,53 @@ namespace ncnn {
 #if NCNN_VALIDATION
 // bound model header allocations, including repeated blob references
 static const int max_net_count = 1000000;
+
+// built-in layers whose forward() reads bottom_blobs[N] / writes top_blobs[0] without checking the vector size,
+// the one_blob_only check in load_param cannot see them
+// called after layer->load_param(), so one_blob_only reflects the loaded params
+static bool check_builtin_layer_arity(const Layer* layer, int bottom_count, int top_count)
+{
+    if (layer->typeindex & LayerType::CustomBit)
+        return true;
+
+    // already validated by the one_blob_only check, eg. BinaryOp with_scalar=1 or Crop with a static roi
+    if (layer->one_blob_only)
+        return true;
+
+    int min_bottom = 0;
+    int min_top = 0;
+    switch (layer->typeindex)
+    {
+    case LayerType::BinaryOp:
+    case LayerType::CopyTo:
+    case LayerType::Crop:
+    case LayerType::Eltwise:
+    case LayerType::GridSample:
+    case LayerType::MatMul:
+    case LayerType::PSROIPooling:
+    case LayerType::ROIAlign:
+    case LayerType::ROIPooling:
+        min_bottom = 2;
+        min_top = 1;
+        break;
+    case LayerType::DetectionOutput:
+    case LayerType::Proposal:
+    case LayerType::RotaryEmbed:
+    case LayerType::SDPA:
+        min_bottom = 3;
+        min_top = 1;
+        break;
+    case LayerType::Concat:
+    case LayerType::Slice:
+        min_bottom = 1;
+        min_top = 1;
+        break;
+    default:
+        break;
+    }
+
+    return bottom_count >= min_bottom && top_count >= min_top;
+}
 #endif // NCNN_VALIDATION
 
 class NetPrivate
@@ -1837,6 +1884,13 @@ int Net::load_param(const DataReader& dr)
             d->clear_layers();
             return -1;
         }
+
+        if (!check_builtin_layer_arity(layer, bottom_count, top_count))
+        {
+            NCNN_LOGE("invalid bottom_count or top_count for layer %d", i);
+            d->clear_layers();
+            return -1;
+        }
 #endif // NCNN_VALIDATION
 
         // set bottom and top shape hints
@@ -2230,6 +2284,13 @@ int Net::load_param_bin(const DataReader& dr)
         if (layer->typeindex != LayerType::Input && layer->one_blob_only && (bottom_count != 1 || top_count != 1))
         {
             NCNN_LOGE("invalid bottom_count or top_count for one_blob_only layer %d", i);
+            d->clear_layers();
+            return -1;
+        }
+
+        if (!check_builtin_layer_arity(layer, bottom_count, top_count))
+        {
+            NCNN_LOGE("invalid bottom_count or top_count for layer %d", i);
             d->clear_layers();
             return -1;
         }
