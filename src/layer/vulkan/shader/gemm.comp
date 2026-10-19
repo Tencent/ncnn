@@ -92,6 +92,28 @@ void main()
         const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
         const uvec4 ci4 = gy4 * psc(N) + gx * 4;
 
+#if ncnn_vendorID == 0x5143 && NCNN_fp16_packed
+        const uvec4 ci4_1 = ci4 + 1;
+        const uvec4 ci4_2 = ci4 + 2;
+        const uvec4 ci4_3 = ci4 + 3;
+
+        sum0.r = buffer_ld1(C_blob_data, ci4.r);
+        sum0.g = buffer_ld1(C_blob_data, ci4_1.r);
+        sum0.b = buffer_ld1(C_blob_data, ci4_2.r);
+        sum0.a = buffer_ld1(C_blob_data, ci4_3.r);
+        sum1.r = buffer_ld1(C_blob_data, ci4.g);
+        sum1.g = buffer_ld1(C_blob_data, ci4_1.g);
+        sum1.b = buffer_ld1(C_blob_data, ci4_2.g);
+        sum1.a = buffer_ld1(C_blob_data, ci4_3.g);
+        sum2.r = buffer_ld1(C_blob_data, ci4.b);
+        sum2.g = buffer_ld1(C_blob_data, ci4_1.b);
+        sum2.b = buffer_ld1(C_blob_data, ci4_2.b);
+        sum2.a = buffer_ld1(C_blob_data, ci4_3.b);
+        sum3.r = buffer_ld1(C_blob_data, ci4.a);
+        sum3.g = buffer_ld1(C_blob_data, ci4_1.a);
+        sum3.b = buffer_ld1(C_blob_data, ci4_2.a);
+        sum3.a = buffer_ld1(C_blob_data, ci4_3.a);
+#else
         sum0.r = buffer_ld1(C_blob_data, ci4.r + 0);
         sum0.g = buffer_ld1(C_blob_data, ci4.r + 1);
         sum0.b = buffer_ld1(C_blob_data, ci4.r + 2);
@@ -108,6 +130,7 @@ void main()
         sum3.g = buffer_ld1(C_blob_data, ci4.a + 1);
         sum3.b = buffer_ld1(C_blob_data, ci4.a + 2);
         sum3.a = buffer_ld1(C_blob_data, ci4.a + 3);
+#endif
     }
     if (broadcast_type_C == 4)
     {
