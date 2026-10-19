@@ -6050,17 +6050,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             DD_APPEND_PROPERTY(quadOperationsInAllStages)
 
             // append subgroup ops
-            device_defines.append("subgroup_basic", (properties.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT) ? 1 : 0);
-            device_defines.append("subgroup_vote", (properties.supportedOperations & VK_SUBGROUP_FEATURE_VOTE_BIT) ? 1 : 0);
-            device_defines.append("subgroup_arithmetic", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) ? 1 : 0);
-            device_defines.append("subgroup_ballot", (properties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT) ? 1 : 0);
-            device_defines.append("subgroup_shuffle", (properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) ? 1 : 0);
-            device_defines.append("subgroup_shuffle_relative", (properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT) ? 1 : 0);
-            device_defines.append("subgroup_clustered", (properties.supportedOperations & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) ? 1 : 0);
-            device_defines.append("subgroup_quad", (properties.supportedOperations & VK_SUBGROUP_FEATURE_QUAD_BIT) ? 1 : 0);
-            device_defines.append("subgroup_rotate", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ROTATE_BIT) ? 1 : 0);
-            device_defines.append("subgroup_rotate_relative", (properties.supportedOperations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT) ? 1 : 0);
-            device_defines.append("subgroup_partitioned", (properties.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV) ? 1 : 0);
+            // the caller may switch subgroup ops off, then shaders that pick their algorithm from
+            // these macros take their non subgroup path
+            const VkSubgroupFeatureFlags subgroup_operations = opt.use_subgroup_ops ? properties.supportedOperations : 0;
+
+            device_defines.append("subgroup_basic", (subgroup_operations & VK_SUBGROUP_FEATURE_BASIC_BIT) ? 1 : 0);
+            device_defines.append("subgroup_vote", (subgroup_operations & VK_SUBGROUP_FEATURE_VOTE_BIT) ? 1 : 0);
+            device_defines.append("subgroup_arithmetic", (subgroup_operations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) ? 1 : 0);
+            device_defines.append("subgroup_ballot", (subgroup_operations & VK_SUBGROUP_FEATURE_BALLOT_BIT) ? 1 : 0);
+            device_defines.append("subgroup_shuffle", (subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) ? 1 : 0);
+            device_defines.append("subgroup_shuffle_relative", (subgroup_operations & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT) ? 1 : 0);
+            device_defines.append("subgroup_clustered", (subgroup_operations & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) ? 1 : 0);
+            device_defines.append("subgroup_quad", (subgroup_operations & VK_SUBGROUP_FEATURE_QUAD_BIT) ? 1 : 0);
+            device_defines.append("subgroup_rotate", (subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_BIT) ? 1 : 0);
+            device_defines.append("subgroup_rotate_relative", (subgroup_operations & VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT) ? 1 : 0);
+            device_defines.append("subgroup_partitioned", (subgroup_operations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV) ? 1 : 0);
         }
         if (info.support_VK_NV_cooperative_matrix2())
         {

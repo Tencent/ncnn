@@ -240,6 +240,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
             // assert FA_coopmat_N == FA_coopmat_K
             // assert local_size % FA_coopmat_M == 0
+            // sdpa_fa reduces each row on one subgroup, so M must stay equal to UNROLL_WG_M
+            // to keep local_size / M == subgroup_size
 
             // fa
             std::vector<vk_specialization_type> specializations(1 + 6);
