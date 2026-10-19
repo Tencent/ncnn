@@ -104,22 +104,27 @@ def test_extractor_releases_gil():
 
     def measure():
         timing = {}
+        go = threading.Event()
 
         def worker():
             with net.create_extractor() as ex:
                 ex.input("data", in_mat)
+                go.wait()
                 start = time.perf_counter()
                 timing["ret"], _ = ex.extract("conv0_fwd")
                 timing["duration"] = time.perf_counter() - start
 
         thread = threading.Thread(target=worker)
-        last = time.perf_counter()
-        max_gap = 0.0
         thread.start()
+        max_gap = 0.0
+        last = time.perf_counter()
+        go.set()
         while thread.is_alive():
             now = time.perf_counter()
             max_gap = max(max_gap, now - last)
             last = now
+        # Count a stall that ended the call before this loop could run.
+        max_gap = max(max_gap, time.perf_counter() - last)
         thread.join()
         assert timing["ret"] == 0
         return max_gap, timing["duration"]
