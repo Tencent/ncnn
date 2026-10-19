@@ -218,13 +218,32 @@ static int ime2_probe(int nthreads)
  * 进程级缓存；若测定时 mask 只覆盖部分核对，得到的集合是真实 A100 集合的
  * 子集——偏差方向保守（只会误关 IME2，不会误放）。 */
 #if defined __linux__
-static int sdpa_ime2_a100_set(int nthreads, cpu_set_t* out)
+/* force_collect=1：team_ok 发现缓存不全时的强制重收集（绕过调用者掩码快路径） */
+static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* out)
 {
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
     static int probed = 0;
     static cpu_set_t cached;      /* 已确认 vlenb==128 的核集合（只增不减） */
     static cpu_set_t seen_union;  /* 已见过的团队掩码并集 */
+
+    /* 快路径：缓存覆盖了调用者的掩码，且未强制重收集——直接用缓存（一次
+     * 系统调用，无 omp 区域；解码每 token 多层，开销必须可控）。 */
+    if (probed && !force_collect)
+    {
+        cpu_set_t wcs;
+        if (sched_getaffinity(0, sizeof(wcs), &wcs) == 0)
+        {
+            int covered = 1;
+            for (int c = 0; c < CPU_SETSIZE; c++)
+                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &seen_union)) { covered = 0; break; }
+            if (covered)
+            {
+                *out = cached;
+                return 1;
+            }
+        }
+    }
 
     /* 1) 每次调用都收集当前团队的并集（区域内只做 sched_getaffinity，无特权
      *    指令，随处可跑）。缓存只对"已见过的核"有效：先探小团队再用大团队时，
@@ -284,6 +303,11 @@ static int sdpa_ime2_a100_set(int nthreads, cpu_set_t* out)
     *out = cached;
     return probed;
 }
+
+static int sdpa_ime2_a100_set(int nthreads, cpu_set_t* out)
+{
+    return sdpa_ime2_a100_set_impl(nthreads, 0, out);
+}
 #endif
 
 /* forward 入口的轻量校验：本次 forward 的团队**不可能**落到非 A100 核上。
@@ -301,6 +325,34 @@ static int ime2_team_ok(int nthreads)
     if (!sdpa_ime2_a100_set(nthreads, &a100))
         return 0;
     int ok = 1;
+    #pragma omp parallel num_threads(nthreads)
+    {
+        cpu_set_t wcs;
+        if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
+        {
+            #pragma omp atomic write
+            ok = 0;
+        }
+        else
+        {
+            for (int c = 0; c < CPU_SETSIZE; c++)
+            {
+                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &a100))
+                {
+                    #pragma omp atomic write
+                    ok = 0;
+                    break;
+                }
+            }
+        }
+    }
+    if (ok)
+        return 1;
+    /* 失败：可能是缓存不含团队新见的核（逐工人绑定扩展了掩码）。强制重收集
+     * 一次并重验；仍失败才算真失败。 */
+    if (!sdpa_ime2_a100_set_impl(nthreads, 1, &a100))
+        return 0;
+    ok = 1;
     #pragma omp parallel num_threads(nthreads)
     {
         cpu_set_t wcs;
