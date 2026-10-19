@@ -801,9 +801,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         fprintf(stderr, "%8.2fms\n", t1 - t0);
 
-        const std::string sequence_graph_before = model.graph().SerializeAsString();
-        onnx2pnnx::eliminate_sequences(model);
-        if (model.graph().SerializeAsString() != sequence_graph_before)
+        if (onnx2pnnx::eliminate_sequences(model))
             onnx2pnnx::shape_inference(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         fprintf(stderr, "%-34s", "fold_constants_dynamic_shape ... ");

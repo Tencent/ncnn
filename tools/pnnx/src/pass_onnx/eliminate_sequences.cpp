@@ -321,14 +321,15 @@ static std::set<std::string> collect_constant_data(const onnx::GraphProto& graph
             if (!node.input(j).empty() && constants.find(node.input(j)) == constants.end())
                 constant = false;
         }
-        if (constant)
+        if (constant || (is_native_node(node) && node.op_type() == "Shape"))
             constants.insert(node.output().begin(), node.output().end());
     }
     return constants;
 }
 
-static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, bool allow_split)
+static bool eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, bool allow_split)
 {
+    bool changed = false;
     const std::set<std::string> constant_data = collect_constant_data(graph);
     SequenceNameGenerator names(graph);
     for (int producer_index = 0; producer_index < graph.node_size(); producer_index++)
@@ -615,16 +616,18 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, boo
                 graph.mutable_value_info()->DeleteSubrange(i, 1);
             }
         }
+        changed = true;
         producer_index = -1;
     }
+    return changed;
 }
 
-void eliminate_sequences(onnx::ModelProto& model, bool allow_split)
+bool eliminate_sequences(onnx::ModelProto& model, bool allow_split)
 {
     const char* disable = std::getenv("PNNX_ONNX_DISABLE_SEQUENCE_ELIMINATION");
     if (disable && std::string(disable) == "1")
     {
-        return;
+        return false;
     }
     int opset = 0;
     for (int i = 0; i < model.opset_import_size(); i++)
@@ -636,9 +639,9 @@ void eliminate_sequences(onnx::ModelProto& model, bool allow_split)
     }
     if (opset < 11)
     {
-        return;
+        return false;
     }
-    eliminate_sequences_in_graph(*model.mutable_graph(), opset, allow_split);
+    return eliminate_sequences_in_graph(*model.mutable_graph(), opset, allow_split);
 }
 
 } // namespace onnx2pnnx

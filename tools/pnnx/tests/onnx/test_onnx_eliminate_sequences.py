@@ -43,7 +43,7 @@ def test_model(nodes, outputs, initializers, opset, case_name, two_shapes=False,
             return False
         transformed = onnx.load(name + ".pnnxsim.onnx")
         sequence_op = "SplitToSequence" if preserve_sequence is True else preserve_sequence
-        return any(node.op_type == sequence_op for node in transformed.graph.node) and not any(node.op_type in ("Split", "Concat") for node in transformed.graph.node)
+        return sum(node.op_type == sequence_op for node in transformed.graph.node) == sum(node.op_type == sequence_op for node in nodes) and not any(node.op_type in ("Split", "Concat") for node in transformed.graph.node)
     if subprocess.call(command) != 0:
         return False
     with open(name + ".pnnx.param") as param_file:
@@ -148,8 +148,15 @@ def test():
              helper.make_node("Add", ["x", "y"], ["sum"]),
              helper.make_node("Add", ["sum", "c"], ["out"]),
              helper.make_node("SequenceConstruct", ["c", "x"], ["seq"]),
-             helper.make_node("SequenceAt", ["seq", "index"], ["selected"])]
-    if not test_model(nodes, [make_tensor_value_info("out", [2, 3]), make_tensor_value_info("selected", [1])],
+             helper.make_node("SequenceAt", ["seq", "index"], ["selected"]),
+             helper.make_node("Reshape", ["x", "flat_shape"], ["flat"]),
+             helper.make_node("Shape", ["flat"], ["shape"]),
+             helper.make_node("Reshape", ["y", "shape"], ["reshaped"]),
+             helper.make_node("SequenceConstruct", ["shape", "shape"], ["shape_seq"]),
+             helper.make_node("SequenceAt", ["shape_seq", "index"], ["selected_shape"])]
+    constants.append(make_integer_tensor("flat_shape", [6]))
+    if not test_model(nodes, [make_tensor_value_info("out", [2, 3]), make_tensor_value_info("selected", [1]),
+                              make_tensor_value_info("reshaped", [6]), helper.make_tensor_value_info("selected_shape", TensorProto.INT64, [1])],
                       constants, 13, "constant_expression", preserve_sequence="SequenceConstruct"):
         return False
 
