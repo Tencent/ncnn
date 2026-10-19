@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import numpy as np
-import cv2
+from ._opencv import _require_cv2
 
 
 def draw_detection_objects(image, class_names, objects, min_prob=0.0):
+    cv2 = _require_cv2()
+
     for obj in objects:
         if obj.prob < min_prob:
             continue
@@ -63,6 +65,8 @@ def print_topk(cls_scores, topk):
 
 
 def draw_faceobjects(image, faceobjects):
+    cv2 = _require_cv2()
+
     for obj in faceobjects:
         print(
             "%.5f at %.2f %.2f %.2f x %.2f"
@@ -145,6 +149,8 @@ def draw_faceobjects(image, faceobjects):
 
 
 def draw_pose(image, keypoints):
+    cv2 = _require_cv2()
+
     # draw bone
     joint_pairs = [
         (0, 1),
