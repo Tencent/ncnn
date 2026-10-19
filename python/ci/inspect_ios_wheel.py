@@ -14,17 +14,20 @@ import zipfile
 
 def inspect(wheel_dir):
     arch = os.environ["EXPECTED_ARCH"]
+    python = os.environ["EXPECTED_PYTHON"]
+    if python not in {"cp313", "cp314", "cp315"}:
+        raise RuntimeError("Unexpected Python tag: " + python)
     cpu, sdk = arch.rsplit("_", 1)
     expected_platform = "IOS" if sdk == "iphoneos" else "IOSSIMULATOR"
     wheels = list(Path(wheel_dir).glob("*.whl"))
     if len(wheels) != 1:
         raise RuntimeError("Expected exactly one iOS wheel")
     wheel = wheels[0]
-    if not wheel.name.endswith("-cp314-cp314-ios_14_0_" + arch + ".whl"):
+    if not wheel.name.endswith("-{}-{}-ios_14_0_{}.whl".format(python, python, arch)):
         raise RuntimeError("Unexpected wheel target: " + wheel.name)
     with tempfile.TemporaryDirectory() as temp, zipfile.ZipFile(wheel) as archive:
         modules = [n for n in archive.namelist() if n.endswith(".so")]
-        expected = "ncnn/ncnn.cpython-314-" + sdk + ".so"
+        expected = "ncnn/ncnn.cpython-{}-{}.so".format(python[2:], sdk)
         if modules != [expected]:
             raise RuntimeError("Unexpected Python extension files: " + repr(modules))
         module = Path(archive.extract(expected, temp))
@@ -45,7 +48,7 @@ def inspect(wheel_dir):
         print(links)
         if "/opt/homebrew/" in links or "/usr/local/" in links or "MacOSX.sdk" in links:
             raise RuntimeError("Host macOS library leaked into the iOS extension")
-    print("Verified iOS CP314 wheel tag, extension suffix, Mach-O CPU and platform")
+    print("Verified iOS " + python + " wheel tag, extension suffix, Mach-O CPU and platform")
 
 
 if __name__ == "__main__":

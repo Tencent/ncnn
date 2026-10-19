@@ -1,15 +1,18 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
-import ast
 import builtins
+import os
+import runpy
 from pathlib import Path
 import subprocess
 import sys
+import textwrap
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import setuptools
 
 from ncnn import utils
 from ncnn.model_zoo.yolact import Yolact
@@ -17,28 +20,28 @@ from ncnn.utils._opencv import _require_cv2
 
 
 def test_import_without_opencv():
-    subprocess.run(
-        [sys.executable, "-c", """
-import builtins
-original_import = builtins.__import__
-def without_cv2(name, *args, **kwargs):
-    if name == 'cv2':
-        raise AssertionError('cv2 imported eagerly')
-    return original_import(name, *args, **kwargs)
-builtins.__import__ = without_cv2
-import ncnn
-import ncnn.utils as utils
-import ncnn.model_zoo as model_zoo
-from ncnn.model_zoo.yolact import Yolact
-assert ncnn.Net
-assert utils.Rect(0, 0, 2, 3).area() == 6
-assert 'yolact' in model_zoo.get_model_list()
-for name in ('draw_detection_objects', 'draw_faceobjects', 'draw_pose', 'print_topk'):
-    assert callable(getattr(utils, name))
-utils.print_topk(utils.np.array([0.1, 0.9]), 1)
-"""],
-        check=True,
-    )
+    script = textwrap.dedent("""
+        import builtins
+        original_import = builtins.__import__
+        def without_cv2(name, *args, **kwargs):
+            if name == 'cv2':
+                raise AssertionError('cv2 imported eagerly')
+            return original_import(name, *args, **kwargs)
+        builtins.__import__ = without_cv2
+        import ncnn
+        import ncnn.utils as utils
+        import ncnn.model_zoo as model_zoo
+        from ncnn.model_zoo.yolact import Yolact
+        assert ncnn.Net
+        assert utils.Rect(0, 0, 2, 3).area() == 6
+        assert 'yolact' in model_zoo.get_model_list()
+        for name in ('draw_detection_objects', 'draw_faceobjects', 'draw_pose', 'print_topk'):
+            assert callable(getattr(utils, name))
+        utils.print_topk(utils.np.array([0.1, 0.9]), 1)
+    """)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(os.path.abspath(path) for path in sys.path)
+    subprocess.run([sys.executable, "-c", script], env=env, check=True, timeout=30)
 
 
 def block_cv2(monkeypatch, error):
@@ -88,24 +91,25 @@ def test_drawing_with_opencv(monkeypatch):
 
 
 @pytest.mark.parametrize("filename", ["setup.py", "python/setup.py.i"])
-def test_opencv_extra_metadata(filename):
+def test_opencv_extra_metadata(monkeypatch, filename):
     root = Path(__file__).resolve().parents[2]
-    tree = ast.parse((root / filename).read_text())
-    requirements = next(
-        ast.literal_eval(node.value)
-        for node in tree.body
-        if isinstance(node, ast.Assign)
-        and any(isinstance(target, ast.Name) and target.id == "requirements"
-                for target in node.targets)
-    )
-    assert requirements == ["numpy", "tqdm", "requests", "portalocker"]
-    setup = next(node.value for node in tree.body
-                 if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-                 and isinstance(node.value.func, ast.Name)
-                 and node.value.func.id == "setup")
-    extras = next(keyword.value for keyword in setup.keywords
-                  if keyword.arg == "extras_require")
-    assert ast.literal_eval(extras) == {"opencv": ["opencv-python"]}
+    setup = Mock()
+    monkeypatch.setattr(setuptools, "setup", setup)
+    monkeypatch.chdir(root)
+    runpy.run_path(str(root / filename))
+    metadata = setup.call_args[1]
+    assert "opencv-python" not in metadata["install_requires"]
+    assert metadata["extras_require"]["opencv"] == ["opencv-python"]
+
+
+def test_missing_opencv_python35(monkeypatch):
+    filename = Path(__file__).resolve().parents[1] / "ncnn/utils/_opencv.py"
+    with monkeypatch.context() as patch:
+        patch.delattr(builtins, "ModuleNotFoundError")
+        require_cv2 = runpy.run_path(str(filename))["_require_cv2"]
+    block_cv2(monkeypatch, ImportError("No module named 'cv2'", name="cv2"))
+    with pytest.raises(ImportError, match=r'ncnn\[opencv\]'):
+        require_cv2()
 
 
 def test_yolact_with_opencv(monkeypatch):

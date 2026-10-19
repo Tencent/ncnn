@@ -17,8 +17,8 @@ import sysconfig
 
 
 def prepare(output):
-    if sys.platform != "ios" or sys.version_info[:2] != (3, 14):
-        raise RuntimeError("Run with cibuildwheel's CPython 3.14 iOS cross Python")
+    if sys.platform != "ios" or sys.version_info[:2] not in {(3, 13), (3, 14), (3, 15)}:
+        raise RuntimeError("Run with cibuildwheel's CPython 3.13-3.15 iOS cross Python")
     multiarch = sys.implementation._multiarch
     if multiarch not in {
         "arm64-iphoneos", "arm64-iphonesimulator", "x86_64-iphonesimulator"
@@ -33,7 +33,8 @@ def prepare(output):
     if not include.is_relative_to(prefix) or not (include / "Python.h").is_file():
         raise RuntimeError("Missing iOS target Python headers: " + str(include))
     suffix = sysconfig.get_config_var("EXT_SUFFIX")
-    if not suffix or "cpython-314" not in suffix or sdk not in suffix:
+    abi = "{}{}".format(*sys.version_info[:2])
+    if suffix != ".cpython-{}-{}.so".format(abi, sdk):
         raise RuntimeError("Unexpected iOS extension suffix: " + str(suffix))
     deployment_target = os.environ.get("IPHONEOS_DEPLOYMENT_TARGET", "14.0")
     sdk_path = subprocess.check_output(
@@ -77,7 +78,6 @@ def prepare(output):
         )
     )
     details = {"platform": sysconfig.get_platform(), "multiarch": multiarch, **values}
-    output.with_suffix(".json").write_text(json.dumps(details, indent=2) + "\n")
     print(json.dumps(details, indent=2))
 
 

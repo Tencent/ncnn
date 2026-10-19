@@ -1,6 +1,6 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
-"""Dependency-free native binding/inference smoke test for mobile wheel experiments.
+"""Dependency-free native binding/inference smoke test for mobile wheels.
 
 This intentionally does not cover NumPy interoperability, model-zoo utilities,
 or installation of the wheel's runtime dependencies.

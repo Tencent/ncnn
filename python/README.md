@@ -29,7 +29,7 @@ Yolact, but cannot display the drawing helpers' windows.
 
 ## Mobile wheels
 
-The `release-python.yml` workflow builds CPython 3.14, CPU-only wheels for
+The `release-python.yml` workflow builds CPython 3.13, 3.14, and 3.15 CPU-only wheels for
 Android API 24 and later, and iOS 14.0 and later. It collects these wheels with
 the desktop wheels for the existing PyPI upload step. Vulkan and OpenMP are
 disabled.
@@ -39,12 +39,11 @@ run only where the host architecture is supported.
 The mobile smoke test installs the wheel without runtime dependencies and
 checks import, tensor access, and a small ReLU network without model downloads.
 This does not validate a normal `pip install ncnn`, NumPy interoperability, or
-the model zoo on mobile. CPython 3.14 Android NumPy wheels and Android/iOS
-`opencv-python` wheels are not available on PyPI as of October 2026.
-iOS NumPy wheels require a supplemental provider such as
-[BeeWare](https://pypi.anaconda.org/beeware/simple/numpy/). A compatible
-mobile `cv2` build is still needed for OpenCV-dependent features; the `opencv`
-extra alone does not supply one on these platforms.
+the model zoo on mobile. Required dependencies such as NumPy need compatible
+mobile builds for the selected Python version; the workflow does not configure
+supplemental package indexes. A compatible mobile `cv2` build is also needed for
+OpenCV-dependent features; the `opencv` extra alone does not supply one on these
+platforms.
 
 # Build from source
 
