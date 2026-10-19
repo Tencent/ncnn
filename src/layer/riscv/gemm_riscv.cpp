@@ -3311,6 +3311,20 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         if (!ok)
             return -100;
+        /* cast 保留输入的 elempack：打包的 fp32（A100 上 packn=32）转成 fp16
+         * 仍是 pack32，而 fp16s 管线按本机 fp16 packn（A100 上 64）索引——
+         * 位宽变了打包数没变就是错位。统一重打包到 pack1（所有内核都能接）再递归。 */
+        for (size_t i = 0; i < in16.size(); i++)
+        {
+            if (!in16[i].empty() && in16[i].elempack != 1)
+            {
+                Mat tmp;
+                convert_packing(in16[i], tmp, 1, opt_cast);
+                if (tmp.empty())
+                    return -100;
+                in16[i] = tmp;
+            }
+        }
         return forward(in16, top_blobs, opt);
     }
 

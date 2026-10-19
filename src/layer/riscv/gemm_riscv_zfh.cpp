@@ -1843,9 +1843,11 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
 #else
 
     const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
-    if (!c_never_exists)
-        return -99; /* 非 takeover：fp16s 管线在（fp16 输入由调度方落过去）；
-                           * fp32 输入由调度方继续通用路径（与无 IME2 构建同语义） */
+    /* 此前非 takeover 在此返回 -99 让调度方落 fp16s——但那是错的场景恰恰
+     * 需要这个回落：团队已离开建管线时的簇（fp16s 面板按当时 vlenb 打包，
+     * 新 vlenb 下通用/fp16s 内核都会错位）。能走到这的调用都已确认无 C 项
+     * （派发处 has_C 已查），固定布局的朴素回落对它们同样正确。 */
+    (void)c_never_exists;
 
     /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
          * tile 布局，行距填充恒定）。朴素 fp32 累加直接从它算，任何核对上都
