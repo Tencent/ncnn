@@ -325,10 +325,31 @@ static int test_modelbin_invalid_shape()
         }
     }
 
+    // on 32-bit size_t targets, positive element counts whose byte size would wrap size_t are rejected
+    if (sizeof(size_t) == 4)
+    {
+        const int overflow32[] = {1073741808, 1073741824, INT_MAX};
+        for (int type = 0; type < 2; type++)
+        {
+            for (size_t i = 0; i < sizeof(overflow32) / sizeof(overflow32[0]); i++)
+            {
+                const unsigned char* mem = &model_data[0];
+                ncnn::DataReaderFromMemory dr(mem, model_data.size());
+                ncnn::ModelBinFromDataReader mb(dr);
+                ncnn::Mat m = mb.load(overflow32[i], type);
+                if (!m.empty())
+                {
+                    fprintf(stderr, "test_modelbin_invalid_shape 32-bit overflow count failed w=%d type=%d\n", overflow32[i], type);
+                    return -1;
+                }
+            }
+        }
+    }
+
     return 0;
 }
 
-#if NCNN_INT8
+#if NCNN_VALIDATION
 static void append_bytes(std::vector<unsigned char>& data, const void* p, size_t size)
 {
     const unsigned char* b = (const unsigned char*)p;
@@ -389,13 +410,18 @@ static int test_modelbin_int8_weights()
 {
     for (int scale = 0; scale < 2; scale++)
     {
+#if NCNN_INT8
+        const int expected_ret = scale ? 0 : -1;
+#else
+        const int expected_ret = -1;
+#endif
         {
             ncnn::ParamDict pd;
             pd.set(0, 1);
             pd.set(1, 1);
             pd.set(6, 4);
             pd.set(8, scale);
-            if (check_int8_weights_load("Convolution", pd, 4, scale ? 2 : 0, scale ? 0 : -1))
+            if (check_int8_weights_load("Convolution", pd, 4, scale ? 2 : 0, expected_ret))
                 return -1;
         }
         {
@@ -405,7 +431,7 @@ static int test_modelbin_int8_weights()
             pd.set(6, 2);
             pd.set(7, 2);
             pd.set(8, scale);
-            if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, scale ? 3 : 0, scale ? 0 : -1))
+            if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, scale ? 3 : 0, expected_ret))
                 return -1;
         }
         {
@@ -413,7 +439,7 @@ static int test_modelbin_int8_weights()
             pd.set(0, 1);
             pd.set(2, 4);
             pd.set(8, scale);
-            if (check_int8_weights_load("InnerProduct", pd, 4, scale ? 2 : 0, scale ? 0 : -1))
+            if (check_int8_weights_load("InnerProduct", pd, 4, scale ? 2 : 0, expected_ret))
                 return -1;
         }
         {
@@ -422,9 +448,58 @@ static int test_modelbin_int8_weights()
             pd.set(1, 2);
             pd.set(3, 4);
             pd.set(18, scale ? 2 : 0);
-            if (check_int8_weights_load("Embed", pd, 4, scale ? 1 : 0, scale ? 0 : -1))
+            if (check_int8_weights_load("Embed", pd, 4, scale ? 1 : 0, expected_ret))
                 return -1;
         }
+    }
+
+#if NCNN_INT8
+    // truncated int8 scale records must fail load_model with -100 instead of dereferencing an empty Mat
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 1);
+        pd.set(6, 4);
+        pd.set(8, 1);
+        if (check_int8_weights_load("Convolution", pd, 4, 0, -100)
+                || check_int8_weights_load("Convolution", pd, 4, 1, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 1);
+        pd.set(6, 2);
+        pd.set(7, 2);
+        pd.set(8, 1);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 0, -100)
+                || check_int8_weights_load("ConvolutionDepthWise", pd, 2, 2, -100))
+            return -1;
+        pd.set(8, 2);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 0, -100)
+                || check_int8_weights_load("ConvolutionDepthWise", pd, 2, 1, -100))
+            return -1;
+        pd.set(8, 102);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 2, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(2, 4);
+        pd.set(8, 1);
+        if (check_int8_weights_load("InnerProduct", pd, 4, 0, -100)
+                || check_int8_weights_load("InnerProduct", pd, 4, 1, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 2);
+        pd.set(3, 4);
+        pd.set(18, 2);
+        if (check_int8_weights_load("Embed", pd, 4, 0, -100))
+            return -1;
     }
 
     // float weights cannot feed the int8 Embed path
@@ -453,10 +528,11 @@ static int test_modelbin_int8_weights()
             return -1;
         }
     }
+#endif // NCNN_INT8
 
     return 0;
 }
-#endif // NCNN_INT8
+#endif // NCNN_VALIDATION
 
 int main()
 {
@@ -466,7 +542,7 @@ int main()
            || test_modelbin_int8()
            || test_modelbin_bounded()
            || test_modelbin_invalid_shape()
-#if NCNN_INT8
+#if NCNN_VALIDATION
            || test_modelbin_int8_weights()
 #endif
            ;

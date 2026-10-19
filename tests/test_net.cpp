@@ -1503,34 +1503,46 @@ static int test_builtin_layer_arity()
         const char* type;
         int typeindex;
         int min_bottom;
+        int min_top;
         int param_count;
-        int params[4];
+        int params[10];
     };
     const Case cases[] = {
-        {"BinaryOp", ncnn::LayerType::BinaryOp, 2},
-        {"CopyTo", ncnn::LayerType::CopyTo, 2},
-        {"Eltwise", ncnn::LayerType::Eltwise, 2},
-        {"GridSample", ncnn::LayerType::GridSample, 2},
-        {"MatMul", ncnn::LayerType::MatMul, 2},
-        {"PSROIPooling", ncnn::LayerType::PSROIPooling, 2},
-        {"ROIAlign", ncnn::LayerType::ROIAlign, 2, 2, {0, 2, 1, 2}},
-        {"ROIPooling", ncnn::LayerType::ROIPooling, 2},
-        {"DetectionOutput", ncnn::LayerType::DetectionOutput, 3},
-        {"Proposal", ncnn::LayerType::Proposal, 3},
-        {"RotaryEmbed", ncnn::LayerType::RotaryEmbed, 3},
-        {"SDPA", ncnn::LayerType::SDPA, 3},
-        {"Crop", ncnn::LayerType::Crop, 2},
-        {"Concat", ncnn::LayerType::Concat, 1},
-        {"Slice", ncnn::LayerType::Slice, 1},
+        {"BinaryOp", ncnn::LayerType::BinaryOp, 2, 1},
+        {"CopyTo", ncnn::LayerType::CopyTo, 2, 1},
+        {"DeformableConv2D", ncnn::LayerType::DeformableConv2D, 2, 1, 3, {0, 1, 1, 1, 6, 1}},
+        {"Eltwise", ncnn::LayerType::Eltwise, 2, 1},
+        {"Gemm", ncnn::LayerType::Gemm, 2, 1},
+        {"GridSample", ncnn::LayerType::GridSample, 2, 1},
+        {"MatMul", ncnn::LayerType::MatMul, 2, 1},
+        {"PSROIPooling", ncnn::LayerType::PSROIPooling, 2, 1},
+        {"ROIAlign", ncnn::LayerType::ROIAlign, 2, 1, 2, {0, 2, 1, 2}},
+        {"ROIPooling", ncnn::LayerType::ROIPooling, 2, 1},
+        {"DetectionOutput", ncnn::LayerType::DetectionOutput, 3, 1},
+        {"Proposal", ncnn::LayerType::Proposal, 3, 1},
+        {"RotaryEmbed", ncnn::LayerType::RotaryEmbed, 3, 1},
+        {"SDPA", ncnn::LayerType::SDPA, 3, 1},
+        {"SDPA", ncnn::LayerType::SDPA, 4, 1, 1, {5, 1}},
+        {"SDPA", ncnn::LayerType::SDPA, 5, 3, 1, {7, 1}},
+        {"SDPA", ncnn::LayerType::SDPA, 6, 3, 2, {5, 1, 7, 1}},
+        {"MultiHeadAttention", ncnn::LayerType::MultiHeadAttention, 1, 1, 3, {0, 1, 1, 1, 2, 1}},
+        {"MultiHeadAttention", ncnn::LayerType::MultiHeadAttention, 2, 1, 4, {0, 1, 1, 1, 2, 1, 5, 1}},
+        {"MultiHeadAttention", ncnn::LayerType::MultiHeadAttention, 3, 3, 4, {0, 1, 1, 1, 2, 1, 7, 1}},
+        {"MultiHeadAttention", ncnn::LayerType::MultiHeadAttention, 4, 3, 5, {0, 1, 1, 1, 2, 1, 5, 1, 7, 1}},
+        {"Crop", ncnn::LayerType::Crop, 2, 1},
+        {"Concat", ncnn::LayerType::Concat, 1, 1},
+        {"Slice", ncnn::LayerType::Slice, 1, 1},
+        {"Split", ncnn::LayerType::Split, 1, 1},
     };
     for (int binary = 0; binary < 2; binary++)
     {
         for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
         {
             const Case& c = cases[i];
-            if (check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, 1, 0)
-                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom - 1, 1, -1)
-                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, 0, 1, -1)
+            if (check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, c.min_top, 0)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom - 1, c.min_top, -1)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, 0, c.min_top, -1)
+                    || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, c.min_top - 1, -1)
                     || check_builtin_arity(binary, c.type, c.typeindex, c.param_count, c.params, c.min_bottom, 0, -1))
                 return -1;
         }
