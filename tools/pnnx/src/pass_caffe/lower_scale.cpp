@@ -199,7 +199,8 @@ static int lower_broadcast_scale(Graph& graph, Operator* op)
     }
     for (Operand* x : op->inputs)
         x->remove_consumer(op);
-    op->inputs = bias ? std::vector<Operand*> {product, bias_data} : std::vector<Operand*> {input, weight};
+    op->inputs = bias ? std::vector<Operand*> {product, bias_data} :
+                 std::vector<Operand*> {input, weight};
     for (Operand* x : op->inputs)
         x->consumers.push_back(op);
     op->type = bias ? "aten::add" : "aten::mul";

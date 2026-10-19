@@ -530,7 +530,6 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_tnn, 120)
 
-
 class F_max_pool2d_caffe : public GraphRewriterPass
 {
 public:
@@ -560,7 +559,7 @@ pnnx.Output             output      1 0 out
         op->params["stride"] = captured_params.at("op_0.stride");
         op->params["padding"] = captured_params.at("op_0.pad");
         op->params["ceil_mode"] = true;
-        op->params["dilation"] = std::vector<int> {1, 1};
+        op->params["dilation"] = std::vector<int>{1, 1};
         op->params["return_indices"] = false;
     }
 };

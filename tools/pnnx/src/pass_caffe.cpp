@@ -52,9 +52,9 @@ int check_caffe_operators(const Graph& graph)
 
         // these extensions have both Python helpers and ncnn exporters
         if (op->type == "caffe.PriorBox" || op->type == "caffe.DetectionOutput"
-            || op->type == "caffe.ROIPooling" || op->type == "caffe.PSROIPooling" || op->type == "caffe.ROIAlign"
-            || op->type == "caffe.Proposal" || op->type == "caffe.ArgMax" || op->type == "caffe.Power"
-            || op->type == "caffe.YoloDetectionOutput" || op->type == "caffe.Yolov3DetectionOutput")
+                || op->type == "caffe.ROIPooling" || op->type == "caffe.PSROIPooling" || op->type == "caffe.ROIAlign"
+                || op->type == "caffe.Proposal" || op->type == "caffe.ArgMax" || op->type == "caffe.Power"
+                || op->type == "caffe.YoloDetectionOutput" || op->type == "caffe.Yolov3DetectionOutput")
             continue;
 
         fprintf(stderr, "caffe layer %s (%s): operator was not converted by level2\n", op->name.c_str(), op->type.c_str());

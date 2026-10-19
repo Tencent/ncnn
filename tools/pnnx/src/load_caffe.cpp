@@ -280,8 +280,7 @@ int load_caffe(const std::string& caffeprotopath, Graph& g,
         for (int j = 0; j < net.layer(i).top_size(); j++)
             blob_names.insert(net.layer(i).top(j));
     std::vector<std::pair<std::string, std::vector<int64_t> > > input_defs;
-    if ((net.input_shape_size() && net.input_shape_size() != net.input_size()) || (net.input_dim_size() && net.input_dim_size() != net.input_size() * 4) || (net.input_shape_size()
-            && net.input_dim_size()))
+    if ((net.input_shape_size() && net.input_shape_size() != net.input_size()) || (net.input_dim_size() && net.input_dim_size() != net.input_size() * 4) || (net.input_shape_size() && net.input_dim_size()))
     {
         fprintf(stderr, "invalid caffe net input shape declarations\n");
         return -1;
@@ -449,7 +448,7 @@ int load_caffe(const std::string& caffeprotopath, Graph& g,
         {
             const google::protobuf::FieldDescriptor* field = descriptor->field(j);
             if (field->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE && !field->is_repeated()
-                && field->message_type()->name() == parameter_type && reflection->HasField(layer, field))
+                    && field->message_type()->name() == parameter_type && reflection->HasField(layer, field))
             {
                 if (load_caffe_parameters(reflection->GetMessage(layer, field), "", op) != 0)
                     return -1;

@@ -136,7 +136,6 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_max_pool2d_tnn, 120)
 
-
 class F_adaptive_max_pool2d_caffe : public GraphRewriterPass
 {
 public:
@@ -162,7 +161,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        op->params["output_size"] = std::vector<int> {1, 1};
+        op->params["output_size"] = std::vector<int>{1, 1};
         op->params["return_indices"] = false;
     }
 };

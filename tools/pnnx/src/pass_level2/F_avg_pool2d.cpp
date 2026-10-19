@@ -477,7 +477,6 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_tnn, 120)
 
-
 class F_avg_pool2d_caffe : public GraphRewriterPass
 {
 public:

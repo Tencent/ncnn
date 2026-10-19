@@ -114,7 +114,6 @@ int prepare_embed(Operator* op)
     return 0;
 }
 
-
 } // namespace caffe2pnnx
 
 } // namespace pnnx

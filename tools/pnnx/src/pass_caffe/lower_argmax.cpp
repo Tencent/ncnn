@@ -68,7 +68,7 @@ int lower_argmax(Operator* op)
     {
         op->type = "torch.amax";
         op->params.clear();
-        op->params["dim"] = std::vector<int>{axis};
+        op->params["dim"] = std::vector<int> {axis};
         op->params["keepdim"] = true;
         if (axis == 0)
         {

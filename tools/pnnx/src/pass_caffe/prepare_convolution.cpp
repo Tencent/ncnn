@@ -91,7 +91,8 @@ int prepare_convolution(Operator* op)
         fprintf(stderr, "caffe layer %s (%s): weight blob 0 has %lld elements, expected %lld\n", op->name.c_str(), op->type.c_str(), (long long)weight.elemcount(), weight_count);
         return -1;
     }
-    weight.shape = transpose ? std::vector<int> {channels, outputs / groups, kernel[0], kernel[1]} : std::vector<int> {outputs, channels / groups, kernel[0], kernel[1]};
+    weight.shape = transpose ? std::vector<int> {channels, outputs / groups, kernel[0], kernel[1]} :
+                   std::vector<int> {outputs, channels / groups, kernel[0], kernel[1]};
     Attribute bias_data;
     if (bias)
     {
