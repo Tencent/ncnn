@@ -3299,17 +3299,12 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         {
             if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
             {
-<<<<<<< HEAD
-                cast_float32_to_float16(bottom_blobs[i], in16[i], opt);
+                cast_float32_to_float16(bottom_blobs[i], in16[i], opt_cast);
                 if (in16[i].empty())
                 {
                     ok = false;
                     break;
                 }
-=======
-                cast_float32_to_float16(bottom_blobs[i], in16[i], opt_cast);
-                if (in16[i].empty()) { ok = false; break; }
->>>>>>> 4c299e5c (riscv(ime2): allocate recursive input casts from the workspace allocator)
             }
             else
                 in16[i] = bottom_blobs[i];
