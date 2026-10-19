@@ -1,17 +1,16 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <string>
-#include <vector>
-
 #include "onnx-ml.pb.h"
 
 namespace pnnx {
 
 namespace onnx2pnnx {
 
-// Lower only statically enumerable sequences with fully supported consumers.
-void eliminate_sequences(onnx::ModelProto& model, const std::string& external_data_path = std::string(), const std::vector<unsigned char>& external_data = std::vector<unsigned char>());
+// Lower static SequenceConstruct/SplitToSequence regions only when every consumer
+// is a constant-index SequenceAt or ConcatFromSequence. Constant tensor data and
+// external indices/sizes are unsupported. Disable splitting before shape inference.
+void eliminate_sequences(onnx::ModelProto& model, bool allow_split = true);
 
 } // namespace onnx2pnnx
 

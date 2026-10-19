@@ -97,23 +97,10 @@ void canonicalize(onnx::ModelProto& model)
             onnx::ValueInfoProto* output = graph->mutable_output(i);
 
             std::string new_name = std::string("out") + std::to_string(i);
-            if (input_output_remap.find(output->name()) != input_output_remap.end())
-                new_name = input_output_remap.at(output->name());
 
             // fprintf(stderr, "%s -> %s\n", output->name().c_str(), new_name.c_str());
             input_output_remap[output->name()] = new_name;
             output->set_name(new_name);
-        }
-    }
-
-    for (int i = 0; i < graph->initializer_size(); i++)
-    {
-        onnx::TensorProto* tensor = graph->mutable_initializer(i);
-        if (input_output_remap.find(tensor->name()) != input_output_remap.end())
-        {
-            initializers.erase(tensor->name());
-            tensor->set_name(input_output_remap.at(tensor->name()));
-            initializers.insert(tensor->name());
         }
     }
 

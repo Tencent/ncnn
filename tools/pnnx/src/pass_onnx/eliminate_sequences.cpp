@@ -8,7 +8,6 @@
 #include <cstring>
 #include <map>
 #include <set>
-#include <utility>
 #include <vector>
 
 namespace pnnx {
@@ -40,7 +39,7 @@ static void add_integer_attribute(onnx::NodeProto& node, const char* name, int64
     attr->set_i(value);
 }
 
-static bool get_constant_integers(const onnx::GraphProto& graph, const std::string& name, std::vector<int64_t>& values, bool scalar, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
+static bool get_constant_integers(const onnx::GraphProto& graph, const std::string& name, std::vector<int64_t>& values, bool scalar)
 {
     // Initializers that are also inputs are overridable, not constants.
     for (int i = 0; i < graph.input_size(); i++)
@@ -86,43 +85,11 @@ static bool get_constant_integers(const onnx::GraphProto& graph, const std::stri
     {
         return false;
     }
-    std::string raw_data = tensor->raw_data();
     if (tensor->data_location() == onnx::TensorProto::EXTERNAL || tensor->external_data_size())
     {
-        size_t offset = 0;
-        size_t length = (size_t)count * 8;
-        std::string location;
-        std::set<std::string> keys;
-        for (int i = 0; i < tensor->external_data_size(); i++)
-        {
-            const onnx::StringStringEntryProto& entry = tensor->external_data(i);
-            if (!keys.insert(entry.key()).second)
-                return false;
-            if (entry.key() == "location")
-                location = entry.value();
-            if (entry.key() != "offset" && entry.key() != "length")
-                continue;
-            size_t value = 0;
-            if (entry.value().empty())
-                return false;
-            for (size_t j = 0; j < entry.value().size(); j++)
-            {
-                const char c = entry.value()[j];
-                if (c < '0' || c > '9' || value > (SIZE_MAX - (c - '0')) / 10)
-                    return false;
-                value = value * 10 + c - '0';
-            }
-            if (entry.key() == "offset")
-                offset = value;
-            else
-                length = value;
-        }
-        const size_t slash = external_data_path.find_last_of("/\\");
-        const std::string filename = external_data_path.substr(slash == std::string::npos ? 0 : slash + 1);
-        if (location.empty() || (location != external_data_path && location != filename) || length != (size_t)count * 8 || offset > external_data.size() || length > external_data.size() - offset)
-            return false;
-        raw_data.assign(external_data.begin() + offset, external_data.begin() + offset + length);
+        return false;
     }
+    const std::string& raw_data = tensor->raw_data();
     values.clear();
     if (!raw_data.empty())
     {
@@ -231,25 +198,6 @@ static onnx::NodeProto make_node(const char* op_type, const std::vector<std::str
     return node;
 }
 
-static onnx::NodeProto make_constant_node(const std::vector<int64_t>& values, bool scalar, const std::string& output, SequenceNameGenerator& names)
-{
-    onnx::NodeProto node = make_node("Constant", {}, {output}, names);
-    onnx::AttributeProto* attr = node.add_attribute();
-    attr->set_name("value");
-    attr->set_type(onnx::AttributeProto::TENSOR);
-    onnx::TensorProto* tensor = attr->mutable_t();
-    tensor->set_data_type(onnx::TensorProto::INT64);
-    if (!scalar)
-    {
-        tensor->add_dims(values.size());
-    }
-    for (size_t i = 0; i < values.size(); i++)
-    {
-        tensor->add_int64_data(values[i]);
-    }
-    return node;
-}
-
 static void append_axes_node(const char* op_type, const std::string& input, const std::string& output, int64_t axis, int opset, SequenceNameGenerator& names, std::vector<onnx::NodeProto>& nodes, std::vector<onnx::TensorProto>& initializers)
 {
     onnx::NodeProto node = make_node(op_type, {input}, {output}, names);
@@ -336,36 +284,7 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
             value_info = &graph.output(i);
         }
     }
-    if (!value_info)
-    {
-        const onnx::TensorProto* tensor = 0;
-        for (int i = 0; i < graph.initializer_size(); i++)
-        {
-            if (graph.initializer(i).name() == name)
-                tensor = &graph.initializer(i);
-        }
-        for (int i = 0; i < graph.node_size(); i++)
-        {
-            const onnx::NodeProto& node = graph.node(i);
-            if (!is_native_node(node) || node.op_type() != "Constant" || node.output_size() != 1 || node.output(0) != name)
-                continue;
-            for (int j = 0; j < node.attribute_size(); j++)
-            {
-                if (node.attribute(j).name() == "value" && node.attribute(j).has_t())
-                    tensor = &node.attribute(j).t();
-            }
-        }
-        if (!tensor)
-            return false;
-        shape.assign(tensor->dims().begin(), tensor->dims().end());
-        for (size_t i = 0; i < shape.size(); i++)
-        {
-            if (shape[i] < 0)
-                return false;
-        }
-        return true;
-    }
-    if (!value_info->type().has_tensor_type() || !value_info->type().tensor_type().has_shape())
+    if (!value_info || !value_info->type().has_tensor_type() || !value_info->type().tensor_type().has_shape())
     {
         return false;
     }
@@ -382,80 +301,28 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
     return true;
 }
 
-static bool is_floating_type(int type)
+static bool is_constant_data(const onnx::GraphProto& graph, const std::string& name)
 {
-    return type == onnx::TensorProto::FLOAT || type == onnx::TensorProto::DOUBLE || type == onnx::TensorProto::FLOAT16 || type == onnx::TensorProto::BFLOAT16;
-}
-
-static bool has_integer_div_consumer(const onnx::GraphProto& graph, const std::string& output)
-{
-    std::map<std::string, int> types;
-    for (const auto& value : graph.input())
-        if (value.type().has_tensor_type())
-            types[value.name()] = value.type().tensor_type().elem_type();
-    for (const auto& value : graph.value_info())
-        if (value.type().has_tensor_type())
-            types[value.name()] = value.type().tensor_type().elem_type();
-    for (const auto& value : graph.output())
-        if (value.type().has_tensor_type())
-            types[value.name()] = value.type().tensor_type().elem_type();
-
-    std::set<std::pair<std::string, bool> > pending;
-    pending.insert(std::make_pair(output, true));
-    std::set<std::pair<std::string, bool> > visited;
-    while (!pending.empty())
+    for (int i = 0; i < graph.initializer_size(); i++)
     {
-        const std::string name = pending.begin()->first;
-        bool integer = pending.begin()->second;
-        const auto declared_type = types.find(name);
-        if (declared_type != types.end() && declared_type->second != 0)
-            integer = !is_floating_type(declared_type->second);
-        pending.erase(pending.begin());
-        if (!visited.insert(std::make_pair(name, integer)).second)
-            continue;
-        for (int i = 0; i < graph.node_size(); i++)
-        {
-            const onnx::NodeProto& node = graph.node(i);
-            for (int j = 0; j < node.attribute_size(); j++)
-            {
-                const onnx::AttributeProto& attr = node.attribute(j);
-                if (attr.has_g() && is_value_captured(attr.g(), name))
-                    return true;
-                for (int k = 0; k < attr.graphs_size(); k++)
-                    if (is_value_captured(attr.graphs(k), name))
-                        return true;
-            }
-            if (std::find(node.input().begin(), node.input().end(), name) == node.input().end())
-                continue;
-            if (!is_native_node(node))
-                return true;
-            const std::string& op = node.op_type();
-            // Shape/index inputs do not determine the data output's element type.
-            if ((op == "Reshape" || op == "Squeeze" || op == "Unsqueeze" || op == "Gather" || op == "GatherElements" || op == "GatherND" || op == "Expand" || op == "Tile" || op == "Slice" || op == "Pad" || op == "Resize" || op == "TopK" || op == "Split" || op.compare(0, 6, "Reduce") == 0) && node.input(0) != name)
-                continue;
-            if (op == "Div" && integer)
-                return true;
-            bool output_integer = true;
-            if (op == "Identity" || op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Neg" || op == "Abs" || op == "Relu" || op == "Sqrt" || op == "Reshape" || op == "Squeeze" || op == "Unsqueeze" || op == "Transpose" || op == "Concat" || op == "Gather" || op == "GatherElements" || op == "GatherND" || op == "Expand" || op == "Tile" || op == "Slice" || op == "Pad" || op == "Resize" || op == "TopK" || op == "Split" || op.compare(0, 6, "Reduce") == 0)
-                output_integer = integer;
-            if (op == "Cast")
-                output_integer = !is_floating_type(get_integer_attribute(node, "to", 0));
-            for (int j = 0; j < node.output_size(); j++)
-            {
-                const auto type = types.find(node.output(j));
-                // Unknown operators remain conservative; declared output types
-                // and per-output semantics take precedence over propagation.
-                bool may_be_integer = type != types.end() && type->second != 0 ? !is_floating_type(type->second) : output_integer;
-                if (op == "TopK" && j == 1)
-                    may_be_integer = true;
-                pending.insert(std::make_pair(node.output(j), may_be_integer));
-            }
-        }
+        if (graph.initializer(i).name() == name)
+            return true;
+    }
+    for (int i = 0; i < graph.sparse_initializer_size(); i++)
+    {
+        if (graph.sparse_initializer(i).values().name() == name)
+            return true;
+    }
+    for (int i = 0; i < graph.node_size(); i++)
+    {
+        const onnx::NodeProto& node = graph.node(i);
+        if (is_native_node(node) && node.op_type() == "Constant" && std::find(node.output().begin(), node.output().end(), name) != node.output().end())
+            return true;
     }
     return false;
 }
 
-static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
+static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, bool allow_split)
 {
     SequenceNameGenerator names(graph);
     for (int producer_index = 0; producer_index < graph.node_size(); producer_index++)
@@ -466,12 +333,23 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
             continue;
         }
         bool is_split = producer.op_type() == "SplitToSequence";
+        if (is_split && !allow_split)
+        {
+            continue;
+        }
         if (!is_split && producer.op_type() != "SequenceConstruct")
         {
             continue;
         }
         const std::string sequence_name = producer.output(0);
         bool safe = true;
+        // Keep constant tensor data out of rewrites that would rely on importer
+        // dtype and scalar-rank handling. This includes overridable initializers.
+        for (int i = 0; i < producer.input_size() && (!is_split || i == 0); i++)
+        {
+            if (is_constant_data(graph, producer.input(i)))
+                safe = false;
+        }
         for (int i = 0; i < graph.output_size(); i++)
         {
             if (graph.output(i).name() == sequence_name)
@@ -535,7 +413,7 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
             }
             std::vector<int64_t> sizes;
             bool explicit_split = producer.input_size() == 2 && !producer.input(1).empty();
-            if (explicit_split && !get_constant_integers(graph, producer.input(1), sizes, false, external_data_path, external_data))
+            if (explicit_split && !get_constant_integers(graph, producer.input(1), sizes, false))
             {
                 continue;
             }
@@ -550,7 +428,7 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
             if (explicit_split)
             {
                 std::vector<int64_t> scalar;
-                scalar_split = get_constant_integers(graph, producer.input(1), scalar, true, external_data_path, external_data);
+                scalar_split = get_constant_integers(graph, producer.input(1), scalar, true);
             }
             if (scalar_split)
             {
@@ -650,7 +528,7 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
             if (consumer.op_type() == "SequenceAt" && consumer.input_size() == 2)
             {
                 std::vector<int64_t> index;
-                if (!get_constant_integers(graph, consumer.input(1), index, true, external_data_path, external_data))
+                if (!get_constant_integers(graph, consumer.input(1), index, true))
                 {
                     safe = false;
                     break;
@@ -666,16 +544,6 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
                     break;
                 }
                 replacement_nodes.push_back(make_node("Identity", {elements[element_index]}, {consumer.output(0)}, names));
-            }
-            else if (consumer.op_type() == "SequenceLength" && consumer.input_size() == 1)
-            {
-                // ncnn has no exact integer Div lowering, including through integer casts.
-                if (has_integer_div_consumer(graph, consumer.output(0)))
-                {
-                    safe = false;
-                    break;
-                }
-                replacement_nodes.push_back(make_constant_node({(int64_t)elements.size()}, true, consumer.output(0), names));
             }
             else if (consumer.op_type() == "ConcatFromSequence" && consumer.input_size() == 1)
             {
@@ -744,7 +612,7 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, con
     }
 }
 
-void eliminate_sequences(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data)
+void eliminate_sequences(onnx::ModelProto& model, bool allow_split)
 {
     const char* disable = std::getenv("PNNX_ONNX_DISABLE_SEQUENCE_ELIMINATION");
     if (disable && std::string(disable) == "1")
@@ -763,7 +631,7 @@ void eliminate_sequences(onnx::ModelProto& model, const std::string& external_da
     {
         return;
     }
-    eliminate_sequences_in_graph(*model.mutable_graph(), opset, external_data_path, external_data);
+    eliminate_sequences_in_graph(*model.mutable_graph(), opset, allow_split);
 }
 
 } // namespace onnx2pnnx
