@@ -21,7 +21,7 @@ static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, in
     pd.set(6, outch / group * c / group * kernel * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
