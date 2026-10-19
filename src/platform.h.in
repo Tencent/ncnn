@@ -60,6 +60,7 @@
 #cmakedefine01 NCNN_ZFH
 #cmakedefine01 NCNN_ZVFH
 #cmakedefine01 NCNN_XTHEADVECTOR
+#cmakedefine01 NCNN_RISCV_SPACEMIT_IME2
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_WEIGHT_QUANT
 #cmakedefine01 NCNN_BF16
