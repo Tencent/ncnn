@@ -506,6 +506,18 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     float* xptr = X;
     float* outptr = top_blob;
 
+    // Reuse the final output for the identity layout; other layouts scatter bounded tiles.
+    const bool direct_gemm_output = batch == 1 && rhs_token.size() == 2 && aout_count == 1 && bout_count == 1 && rhs_token[0] == (char)('i' + aout_chars[0]) && rhs_token[1] == (char)('i' + bout_chars[0]) && top_blob.dims == 2 && top_blob.h == (int)M && top_blob.w == (int)N;
+    // Bound the temporary GEMM output instead of allocating another full M x N result.
+    const size_t max_gemm_tile_size = 256;
+    const size_t gemm_tile_m = direct_gemm_output ? M : std::min(M, max_gemm_tile_size);
+    const size_t gemm_tile_n = direct_gemm_output ? N : std::min(N, max_gemm_tile_size);
+
+    std::vector<Mat> gemm_bottoms(2);
+    std::vector<Mat> gemm_tops(1);
+    if (direct_gemm_output)
+        gemm_tops[0] = top_blob;
+
     int gemm_ret = 0;
 
     for (size_t bi = 0; bi < batch; bi++)
@@ -549,52 +561,67 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
             }
         }
 
-        std::vector<Mat> gemm_bottoms(2);
-        gemm_bottoms[0] = W;
-        gemm_bottoms[1] = X;
-
-        std::vector<Mat> gemm_tops(1);
-
-        gemm_ret = gemm->forward(gemm_bottoms, gemm_tops, opt);
-        if (gemm_ret != 0)
-            break;
-
-        const Mat& product = gemm_tops[0];
-        if (product.dims != 2 || product.w != (int)N || product.h != (int)M || product.elemsize != 4u)
+        for (size_t m_start = 0; m_start < M; m_start += gemm_tile_m)
         {
-            gemm_ret = -1;
-            break;
-        }
+            const size_t tile_m = std::min(gemm_tile_m, M - m_start);
+            const Mat w_tile = W.row_range((int)m_start, (int)tile_m);
 
-        const float* cptr = product;
-
-        for (size_t m = 0; m < M; m++)
-        {
-            size_t mm = m;
-            for (int d = aout_count - 1; d >= 0; d--)
+            for (size_t n_start = 0; n_start < N; n_start += gemm_tile_n)
             {
-                const int c = aout_chars[d];
-                char_index[c] = (int)(mm % dim_sizes[c]);
-                mm /= dim_sizes[c];
-            }
+                const size_t tile_n = std::min(gemm_tile_n, N - n_start);
+                gemm_bottoms[0] = w_tile;
+                gemm_bottoms[1] = X.row_range((int)n_start, (int)tile_n);
 
-            for (size_t n = 0; n < N; n++)
-            {
-                size_t nn = n;
-                for (int d = bout_count - 1; d >= 0; d--)
+                gemm_ret = gemm->forward(gemm_bottoms, gemm_tops, opt);
+                if (gemm_ret != 0)
+                    break;
+
+                const Mat& product = gemm_tops[0];
+                if (product.dims != 2 || product.w != (int)tile_n || product.h != (int)tile_m || product.elemsize != 4u)
                 {
-                    const int c = bout_chars[d];
-                    char_index[c] = (int)(nn % dim_sizes[c]);
-                    nn /= dim_sizes[c];
+                    gemm_ret = -1;
+                    break;
                 }
 
-                size_t off = 0;
-                for (size_t p = 0; p < rhs_token.size(); p++)
-                    off += (size_t)char_index[rhs_token[p] - 'i'] * stride_out[p];
+                if (direct_gemm_output)
+                    continue;
 
-                outptr[off] = cptr[m * N + n];
+                const float* cptr = product;
+                for (size_t m = 0; m < tile_m; m++)
+                {
+                    size_t mm = m_start + m;
+                    for (int d = aout_count - 1; d >= 0; d--)
+                    {
+                        const int c = aout_chars[d];
+                        char_index[c] = (int)(mm % dim_sizes[c]);
+                        mm /= dim_sizes[c];
+                    }
+
+                    for (size_t n = 0; n < tile_n; n++)
+                    {
+                        size_t nn = n_start + n;
+                        for (int d = bout_count - 1; d >= 0; d--)
+                        {
+                            const int c = bout_chars[d];
+                            char_index[c] = (int)(nn % dim_sizes[c]);
+                            nn /= dim_sizes[c];
+                        }
+
+                        size_t off = 0;
+                        for (size_t p = 0; p < rhs_token.size(); p++)
+                            off += (size_t)char_index[rhs_token[p] - 'i'] * stride_out[p];
+
+                        outptr[off] = cptr[m * tile_n + n];
+                    }
+                }
             }
+
+            if (gemm_ret != 0)
+                break;
         }
+
+        if (gemm_ret != 0)
+            break;
 
         if (bi + 1 < batch)
             advance_char(batch_chars, dim_sizes, batch_count, char_index);

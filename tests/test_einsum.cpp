@@ -5,6 +5,8 @@
 
 #include "layer_type.h"
 
+#include <utility>
+
 static int test_einsum(const std::vector<ncnn::Mat>& a, const std::string& equation)
 {
     ncnn::Mat equation_mat(equation.size());
@@ -552,6 +554,50 @@ public:
     int count;
 };
 
+class PeakBlobAllocator : public ncnn::Allocator
+{
+public:
+    PeakBlobAllocator()
+    {
+        live_bytes = 0;
+        peak_live_bytes = 0;
+    }
+
+    virtual void* fastMalloc(size_t size)
+    {
+        void* ptr = ncnn::fastMalloc(size);
+        if (!ptr)
+            return 0;
+
+        allocations.push_back(std::make_pair(ptr, size));
+        live_bytes += size;
+        if (live_bytes > peak_live_bytes)
+            peak_live_bytes = live_bytes;
+
+        return ptr;
+    }
+
+    virtual void fastFree(void* ptr)
+    {
+        for (std::vector<std::pair<void*, size_t> >::iterator it = allocations.begin(); it != allocations.end(); ++it)
+        {
+            if (it->first == ptr)
+            {
+                live_bytes -= it->second;
+                allocations.erase(it);
+                break;
+            }
+        }
+
+        ncnn::fastFree(ptr);
+    }
+
+public:
+    size_t live_bytes;
+    size_t peak_live_bytes;
+    std::vector<std::pair<void*, size_t> > allocations;
+};
+
 static int test_einsum_oracle_path(const std::vector<ncnn::Mat>& a, const char* equation, bool expect_fast)
 {
     ncnn::Mat ref;
@@ -588,11 +634,21 @@ static int test_einsum_oracle_path(const std::vector<ncnn::Mat>& a, const char* 
         return -1;
     }
 
-    return CompareMat(ref, b[0], 0.001f);
+    int compare_ret = CompareMat(ref, b[0], 0.001f);
+    if (compare_ret != 0)
+    {
+        fprintf(stderr, "test_einsum_oracle_path comparison failed equation=%s\n", equation);
+    }
+
+    return compare_ret;
 }
 
 static int test_einsum_oracle_paths()
 {
+    ncnn::Layer* gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+    const bool gemm_available = gemm != 0;
+    delete gemm;
+
     // packed path: a contraction with a long reduction
     {
         std::vector<ncnn::Mat> a(2);
@@ -600,8 +656,8 @@ static int test_einsum_oracle_paths()
         a[1] = RandomMat(256, 5);
 
         int ret = 0
-                  || test_einsum_oracle_path(a, "ljk,il->ijk", true)
-                  || test_einsum_oracle_path(a, "ljk,il->ijk", true);
+                  || test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available)
+                  || test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available);
         if (ret != 0)
             return ret;
     }
@@ -626,6 +682,71 @@ static int test_einsum_oracle_paths()
         int ret = test_einsum_oracle_path(a, "i,i->i", false);
         if (ret != 0)
             return ret;
+    }
+
+    // Keep the temporary GEMM result bounded for direct and scattered outputs.
+    {
+        const char* equations[] = {"i,j->ij", "ik,j->ijk"};
+        for (int i = 0; i < 2; i++)
+        {
+            std::vector<ncnn::Mat> a(2);
+            if (i == 0)
+            {
+                a[0] = RandomMat(512);
+                a[1] = RandomMat(512);
+            }
+            else
+            {
+                a[0] = RandomMat(16, 16);
+                a[1] = RandomMat(1024);
+            }
+
+            ncnn::Mat ref;
+            if (einsum_reference(a, equations[i], ref) != 0)
+            {
+                fprintf(stderr, "test_einsum_oracle_paths case is out of oracle contract equation=%s\n", equations[i]);
+                return -1;
+            }
+
+            ncnn::Layer* layer = ncnn::create_layer(ncnn::LayerType::Einsum);
+            if (!layer)
+            {
+                fprintf(stderr, "test_einsum_oracle_paths failed to create Einsum layer equation=%s\n", equations[i]);
+                return -1;
+            }
+
+            int ret = layer->load_param(equation_params(equations[i]));
+            PeakBlobAllocator blob_allocator;
+            std::vector<ncnn::Mat> b(1);
+            ncnn::Option opt;
+            opt.num_threads = 1;
+            opt.blob_allocator = &blob_allocator;
+
+            if (ret == 0)
+                ret = layer->forward(a, b, opt);
+            delete layer;
+
+            if (ret != 0)
+            {
+                fprintf(stderr, "test_einsum_oracle_paths forward failed equation=%s ret=%d\n", equations[i], ret);
+                return ret;
+            }
+
+            const size_t output_bytes = ref.total() * ref.elemsize;
+            if (blob_allocator.peak_live_bytes >= output_bytes * 3 / 2)
+            {
+                fprintf(stderr, "test_einsum_oracle_paths output scratch too large equation=%s output_bytes=%lu peak_blob_bytes=%lu\n",
+                        equations[i], (unsigned long)output_bytes, (unsigned long)blob_allocator.peak_live_bytes);
+                return -1;
+            }
+
+            ret = CompareMat(ref, b[0], 0.001f);
+            if (ret != 0)
+            {
+                fprintf(stderr, "test_einsum_oracle_paths comparison failed equation=%s\n", equations[i]);
+                return ret;
+            }
+        }
     }
 
     return 0;
