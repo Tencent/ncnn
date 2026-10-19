@@ -224,8 +224,8 @@ static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* o
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
     static int probed = 0;
-    static cpu_set_t cached;      /* 已确认 vlenb==128 的核集合（只增不减） */
-    static cpu_set_t seen_union;  /* 已见过的团队掩码并集 */
+    static cpu_set_t cached;     /* 已确认 vlenb==128 的核集合（只增不减） */
+    static cpu_set_t seen_union; /* 已见过的团队掩码并集 */
 
     /* 快路径：缓存覆盖了调用者的掩码，且未强制重收集——直接用缓存（一次
      * 系统调用，无 omp 区域；解码每 token 多层，开销必须可控）。 */
@@ -236,7 +236,11 @@ static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* o
         {
             int covered = 1;
             for (int c = 0; c < CPU_SETSIZE; c++)
-                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &seen_union)) { covered = 0; break; }
+                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &seen_union))
+                {
+                    covered = 0;
+                    break;
+                }
             if (covered)
             {
                 *out = cached;
