@@ -351,8 +351,8 @@ jobs:
         # test the native binding without installing runtime dependencies
         # this only changes the disposable test venv, not wheel metadata
         CIBW_BEFORE_TEST_ANDROID: python -m pip config --site set install.no-deps true
-        CIBW_TEST_SOURCES: python/ci/mobile_smoke.py
-        CIBW_TEST_COMMAND: python -m unittest discover -s python/ci -p mobile_smoke.py -v
+        CIBW_TEST_SOURCES: python/tests/mobile_smoke.py
+        CIBW_TEST_COMMAND: python -m unittest discover -s python/tests -p mobile_smoke.py -v
         # ubuntu x86_64 can emulator-test x86_64 only. arm64 remains build-only
         CIBW_TEST_SKIP: '*-android_arm64_v8a'
     - uses: actions/upload-artifact@v7
@@ -407,22 +407,47 @@ jobs:
         CIBW_ENVIRONMENT_IOS: >-
           CMAKE_BUILD_PARALLEL_LEVEL=4
           CMAKE_GENERATOR=Ninja
-          CMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.ci-ios/toolchain.cmake"
           IPHONEOS_DEPLOYMENT_TARGET=14.0
           EXTRA_CMAKE_ARGS="-DNCNN_VULKAN=OFF -DNCNN_OPENMP=OFF"
-        CIBW_BEFORE_BUILD_IOS: python {project}/python/ci/prepare_ios.py "$CMAKE_TOOLCHAIN_FILE"
         # test the native binding without installing runtime dependencies
         # this only changes the disposable testbed, not wheel metadata
         CIBW_TEST_ENVIRONMENT_IOS: PIP_NO_DEPS=1
-        CIBW_TEST_SOURCES: python/ci/mobile_smoke.py
-        CIBW_TEST_COMMAND: python -m unittest discover -s python/ci -p mobile_smoke.py -v
+        CIBW_TEST_SOURCES: python/tests/mobile_smoke.py
+        CIBW_TEST_COMMAND: python -m unittest discover -s python/tests -p mobile_smoke.py -v
         # cibuildwheel can test only native simulators, never physical devices
         CIBW_TEST_SKIP: '*-ios_arm64_iphoneos'
     - name: Inspect wheel target and linked libraries
       env:
         EXPECTED_ARCH: ${{ matrix.arch }}
         EXPECTED_PYTHON: ${{ matrix.build_cp }}
-      run: python python/ci/inspect_ios_wheel.py wheelhouse
+      run: |
+        python - <<'PY'
+        import os, pathlib, re, subprocess, tempfile, zipfile
+
+        arch, python = os.environ["EXPECTED_ARCH"], os.environ["EXPECTED_PYTHON"]
+        cpu, sdk = arch.rsplit("_", 1)
+        platform = "IOS" if sdk == "iphoneos" else "IOSSIMULATOR"
+        wheels = list(pathlib.Path("wheelhouse").glob("*.whl"))
+        assert len(wheels) == 1, wheels
+        assert wheels[0].name.endswith(f"-{python}-{python}-ios_14_0_{arch}.whl"), wheels[0]
+        with tempfile.TemporaryDirectory() as temp, zipfile.ZipFile(wheels[0]) as wheel:
+            modules = [name for name in wheel.namelist() if name.endswith(".so")]
+            expected = f"ncnn/ncnn.cpython-{python[2:]}-{sdk}.so"
+            assert modules == [expected], modules
+            module = wheel.extract(expected, temp)
+            cpus = subprocess.check_output(["lipo", "-archs", module], text=True).split()
+            assert cpus == [cpu], cpus
+            build = subprocess.check_output(["xcrun", "vtool", "-show-build", module], text=True)
+            print(build)
+            assert re.search(r"\bplatform\s+" + platform + r"\b", build), build
+            minimum = re.search(r"\bminos\s+(\d+(?:\.\d+){0,2})\b", build)
+            assert minimum, "missing Mach-O deployment target"
+            version = tuple(map(int, minimum.group(1).split(".")))
+            assert (version + (0, 0, 0))[:3] <= (14, 0, 0), minimum.group(1)
+            links = subprocess.check_output(["otool", "-L", module], text=True)
+            print(links)
+            assert not any(path in links for path in ("/opt/homebrew/", "/usr/local/", "MacOSX.sdk")), links
+        PY
     - uses: actions/upload-artifact@v7
       with:
         name: wheels_ios-${{ matrix.build_cp }}-${{ matrix.arch }}
