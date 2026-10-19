@@ -46,7 +46,9 @@ def inference(prefix, x, batched):
         args = (x,)
         result = model(*args)
         # repeated inference must start from zero state, not carry hidden state
-        torch.testing.assert_close(model(*args), result, atol=0, rtol=0)
+        repeated = model(*args)
+        assert repeated.dtype == result.dtype and repeated.device == result.device
+        assert torch.equal(repeated, result)
     with ncnn.Net() as net:
         net.opt.num_threads = 1
         net.opt.use_vulkan_compute = False
@@ -67,7 +69,8 @@ def inference(prefix, x, batched):
                 assert ret == 0
                 actual = torch.from_numpy(np.array(output).copy())
             if previous is not None:
-                torch.testing.assert_close(actual, previous, atol=0, rtol=0)
+                assert actual.dtype == previous.dtype and actual.device == previous.device
+                assert torch.equal(actual, previous)
             previous = actual
     return result, actual
 

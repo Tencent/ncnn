@@ -161,7 +161,7 @@ int pass_caffe(Graph& graph)
         else if (type == "caffe.Python")
             ret = caffe2pnnx::lower_proposal(op);
         else if (type == "caffe.LSTM")
-            ret = caffe2pnnx::lower_lstm(op);
+            ret = caffe2pnnx::lower_lstm(graph, op);
         else if (type == "caffe.Reduction")
             ret = caffe2pnnx::lower_reduction(graph, op);
         else if (type == "caffe.ArgMax")

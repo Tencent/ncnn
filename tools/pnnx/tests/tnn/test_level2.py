@@ -47,7 +47,9 @@ def test(args):
             spec.loader.exec_module(module)
             with torch.no_grad():
                 actual = module.Model().eval()(x)
-            torch.testing.assert_close(actual, reference, atol=1e-6, rtol=1e-5)
+            assert actual.shape == reference.shape and actual.dtype == reference.dtype
+            assert actual.device == reference.device
+            assert torch.allclose(actual, reference, atol=1e-6, rtol=1e-5)
             with ncnn.Net() as net:
                 net.opt.num_threads = 1
                 net.opt.use_vulkan_compute = False
@@ -62,7 +64,9 @@ def test(args):
                     ret, result = ex.extract(net.output_names()[0])
                     assert ret == 0
                     actual_ncnn = torch.from_numpy(result.numpy(batch_index=233).copy())
-                torch.testing.assert_close(actual_ncnn, reference, atol=1e-5, rtol=1e-4)
+                assert actual_ncnn.shape == reference.shape and actual_ncnn.dtype == reference.dtype
+                assert actual_ncnn.device == reference.device
+                assert torch.allclose(actual_ncnn, reference, atol=1e-5, rtol=1e-4)
             print('%s: PyTorch and ncnn passed' % prefix)
     return True
 

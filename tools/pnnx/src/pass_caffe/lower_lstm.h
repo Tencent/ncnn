@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace caffe2pnnx {
 
-int lower_lstm(Operator* op);
+int lower_lstm(Graph& graph, Operator* op);
 
 } // namespace caffe2pnnx
 

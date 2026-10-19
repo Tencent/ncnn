@@ -454,8 +454,14 @@ layers and Split/Eltwise, and the output shape returned by generated
 DetectionOutput ncnn Python helpers. CI builds the legacy caffe2ncnn executable
 and supplies its explicit path for the SqueezeNet comparison.
 
-Local validation uses an isolated Caffe/TNN converter build because the installed
-CUDA Torch package lacks its required development toolkit. The TorchScript loader
-is stubbed in that validation build; TorchScript conversion and the full CI matrix
-are not covered by these results. External MobileNet-SSD, ARM, Vulkan and
-optlevel=0/1 were not rerun during this review.
+A full pnnx build with CPU Torch 2.14.1 and protobuf 21.12 now passes without
+TorchScript stubs. All 23 selected regressions pass with no failures or skips:
+six existing TorchScript Conv/ConvTranspose tests, all 16 Caffe suites and the
+TNN level2 regression. All 17 Caffe/TNN tests also pass without skips on genuine
+CPU Torch 1.8.1 and 1.9.1 with Python 3.8 and NumPy 1.24.4. Generated helpers
+preserve stable-sort ordering on older Torch, and rank-two LSTM inputs use an
+explicit singleton sequence batch dimension internally.
+
+These full-build results supersede the earlier isolated Caffe/TNN build limitation
+for these selected tests. The complete CI matrix is tracked separately;
+external MobileNet-SSD, ARM, Vulkan and optlevel=0/1 were not rerun locally.

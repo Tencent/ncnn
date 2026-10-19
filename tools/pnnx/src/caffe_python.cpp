@@ -31,6 +31,23 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
         return;
 
     fprintf(pyfp, "class caffe:\n");
+    if (argmax || detectionoutput || proposal || yolo)
+    {
+        fputs(R"PY(    @staticmethod
+    def _argsort(input, descending=False):
+        try:
+            return torch.argsort(input, descending=descending, stable=True)
+        except TypeError:
+            # PyTorch 1.8/1.9 lack stable argsort; preserve ties and NaN ordering.
+            values = input.detach().cpu().numpy()
+            if descending:
+                indices = values.size - 1 - np.argsort(values[::-1], kind='stable')[::-1]
+            else:
+                indices = np.argsort(values, kind='stable')
+            return torch.from_numpy(indices.copy()).to(input.device)
+
+)PY", pyfp);
+    }
     if (power)
     {
         fputs(R"PY(    @staticmethod
@@ -46,7 +63,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
         values = input.reshape(-1)
         # Caffe sorts (value, index) pairs descending, including index ties
         # stable sorting of the reversed input gives the same larger-index rule
-        reversed_order = torch.argsort(values.flip(0), descending=True, stable=True)[:top_k]
+        reversed_order = caffe._argsort(values.flip(0), descending=True)[:top_k]
         indices = values.numel() - 1 - reversed_order
         if mode == 0:
             output = indices.to(input.dtype)
@@ -72,7 +89,8 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
             for ratio in aspect_ratios:
                 box_sizes.append((size * ratio ** 0.5, size / ratio ** 0.5))
         sizes = feature.new_tensor(box_sizes)
-        yy, xx = torch.meshgrid(torch.arange(height, device=feature.device, dtype=feature.dtype), torch.arange(width, device=feature.device, dtype=feature.dtype), indexing='ij')
+        yy = torch.arange(height, dtype=feature.dtype, device=feature.device).reshape(-1, 1).expand(height, width)
+        xx = torch.arange(width, dtype=feature.dtype, device=feature.device).reshape(1, -1).expand(height, width)
         centers = torch.stack(((xx + offset) * step_w, (yy + offset) * step_h), dim=-1).unsqueeze(-2)
         boxes = torch.cat((centers - sizes * 0.5, centers + sizes * 0.5), dim=-1)
         boxes = boxes / feature.new_tensor((image_w, image_h, image_w, image_h))
@@ -100,7 +118,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
         for label in range(1, num_classes):
             scores = confidence[0, :, label]
             indices = torch.nonzero(scores > confidence_threshold, as_tuple=False).flatten()
-            indices = indices[torch.argsort(scores[indices], descending=True, stable=True)]
+            indices = indices[caffe._argsort(scores[indices], descending=True)]
             if top_k >= 0:
                 indices = indices[:top_k]
             kept = []
@@ -126,9 +144,9 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
             return output
         output = torch.cat(detections)
         if keep_top_k >= 0 and output.shape[0] > keep_top_k:
-            order = torch.argsort(output[:, 2], descending=True, stable=True)[:keep_top_k]
+            order = caffe._argsort(output[:, 2], descending=True)[:keep_top_k]
             output = output[order]
-            output = output[torch.argsort(output[:, 1], stable=True)]
+            output = output[caffe._argsort(output[:, 1])]
         if output.shape[0] == 0:
             output = boxes.new_full((1, 7), -1)
             output[0, 0] = 0
@@ -226,7 +244,8 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
             for scale in (8., 16., 32.):
                 sizes.append((rw * scale, rh * scale))
         sizes = scores.new_tensor(sizes).reshape(9, 1, 1, 2)
-        yy, xx = torch.meshgrid(torch.arange(height, dtype=scores.dtype, device=scores.device), torch.arange(width, dtype=scores.dtype, device=scores.device), indexing='ij')
+        yy = torch.arange(height, dtype=scores.dtype, device=scores.device).reshape(-1, 1).expand(height, width)
+        xx = torch.arange(width, dtype=scores.dtype, device=scores.device).reshape(1, -1).expand(height, width)
         centers = torch.stack((8 + xx * feat_stride, 8 + yy * feat_stride), dim=-1)
         deltas = deltas.reshape(9, 4, height, width).permute(0, 2, 3, 1)
         centers = centers + deltas[..., :2] * sizes
@@ -237,7 +256,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
         scores = scores[0, 9:].reshape(-1)
         keep = ((boxes[:, 2:] - boxes[:, :2] + 1) >= 16 * im_scale).all(dim=1)
         boxes, scores = boxes[keep], scores[keep]
-        order = torch.argsort(scores, descending=True, stable=True)[:6000]
+        order = caffe._argsort(scores, descending=True)[:6000]
         kept = []
         while order.numel() and len(kept) < 300:
             index = order[0]
@@ -265,7 +284,8 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
         for head_index, head in enumerate(heads):
             height, width = head.shape[-2:]
             values = head.reshape(num_box, num_classes + 5, height, width).permute(0, 2, 3, 1)
-            yy, xx = torch.meshgrid(torch.arange(height, dtype=head.dtype, device=head.device), torch.arange(width, dtype=head.dtype, device=head.device), indexing='ij')
+            yy = torch.arange(height, dtype=head.dtype, device=head.device).reshape(-1, 1).expand(height, width)
+            xx = torch.arange(width, dtype=head.dtype, device=head.device).reshape(1, -1).expand(height, width)
             grid = torch.stack((xx, yy), dim=-1)
             centers = (values[..., :2].sigmoid() + grid) / head.new_tensor((width, height))
             anchors = head.new_tensor(biases).reshape(-1, 2)
@@ -290,7 +310,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
             all_areas.append(areas[keep])
         boxes, scores = torch.cat(all_boxes), torch.cat(all_scores)
         labels, areas = torch.cat(all_labels), torch.cat(all_areas)
-        order = torch.argsort(scores, descending=True, stable=True)
+        order = caffe._argsort(scores, descending=True)
         kept = []
         while order.numel():
             index = order[0]

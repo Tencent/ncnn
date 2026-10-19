@@ -26,7 +26,7 @@ static Attribute reorder_lstm_gates(const Attribute& attr, const std::vector<int
     return result;
 }
 
-int lower_lstm(Operator* op)
+int lower_lstm(Graph& graph, Operator* op)
 {
     if (op->inputs.size() == 2)
     {
@@ -90,6 +90,39 @@ int lower_lstm(Operator* op)
     op->outputs[0]->params["__batch_index"] = batch_index;
     op->outputs[0]->shape = shape;
     op->outputs[0]->shape.back() = hidden_size;
+    if (shape.size() == 2)
+    {
+        // Older PyTorch versions require an explicit sequence batch dimension.
+        Operand* input = op->inputs[0];
+        Operand* output = op->outputs[0];
+        Operator* batch = graph.new_operator_before("Tensor.reshape", op->name + "_batch", op);
+        Operand* batched_input = graph.new_operand(op->name + "_batch");
+        batched_input->type = input->type;
+        batched_input->shape = {shape[0], 1, input_size};
+        batched_input->params["__batch_index"] = 1;
+        batched_input->producer = batch;
+        batched_input->consumers.push_back(op);
+        batch->params["shape"] = batched_input->shape;
+        batch->inputs.push_back(input);
+        batch->outputs.push_back(batched_input);
+        input->remove_consumer(op);
+        input->consumers.push_back(batch);
+        op->inputs[0] = batched_input;
+
+        Operator* unbatch = graph.new_operator_after("Tensor.reshape", op->name + "_unbatch", op);
+        Operand* batched_output = graph.new_operand(op->name + "_batched_output");
+        batched_output->type = 1;
+        batched_output->shape = {shape[0], 1, hidden_size};
+        batched_output->params["__batch_index"] = 1;
+        batched_output->producer = op;
+        batched_output->consumers.push_back(unbatch);
+        unbatch->params["shape"] = output->shape;
+        unbatch->inputs.push_back(batched_output);
+        unbatch->outputs.push_back(output);
+        output->producer = unbatch;
+        output->type = 1;
+        op->outputs[0] = batched_output;
+    }
     return 0;
 }
 
