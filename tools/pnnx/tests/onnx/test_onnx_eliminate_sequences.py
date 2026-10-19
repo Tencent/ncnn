@@ -141,6 +141,18 @@ def test():
                       [], 13, "unsupported_consumer", preserve_sequence="SequenceConstruct"):
         return False
 
+    constants = [numpy_helper.from_array(np.array([1], dtype=np.float32), "a"),
+                 numpy_helper.from_array(np.array([2], dtype=np.float32), "b"), make_integer_tensor("index", 0)]
+    nodes = [helper.make_node("Add", ["a", "b"], ["c0"]),
+             helper.make_node("Add", ["c0", "a"], ["c"]),
+             helper.make_node("Add", ["x", "y"], ["sum"]),
+             helper.make_node("Add", ["sum", "c"], ["out"]),
+             helper.make_node("SequenceConstruct", ["c", "x"], ["seq"]),
+             helper.make_node("SequenceAt", ["seq", "index"], ["selected"])]
+    if not test_model(nodes, [make_tensor_value_info("out", [2, 3]), make_tensor_value_info("selected", [1])],
+                      constants, 13, "constant_expression", preserve_sequence="SequenceConstruct"):
+        return False
+
     branch = helper.make_graph([helper.make_node("Add", ["x", "x"], ["pnnx_seq_0"])], "branch", [], [make_tensor_value_info("pnnx_seq_0", [2, 3])])
     nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"]),
              helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=0, new_axis=1),

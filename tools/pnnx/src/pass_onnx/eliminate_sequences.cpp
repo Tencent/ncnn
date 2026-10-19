@@ -301,29 +301,35 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
     return true;
 }
 
-static bool is_constant_data(const onnx::GraphProto& graph, const std::string& name)
+static std::set<std::string> collect_constant_data(const onnx::GraphProto& graph)
 {
+    std::set<std::string> constants;
     for (int i = 0; i < graph.initializer_size(); i++)
     {
-        if (graph.initializer(i).name() == name)
-            return true;
+        constants.insert(graph.initializer(i).name());
     }
     for (int i = 0; i < graph.sparse_initializer_size(); i++)
     {
-        if (graph.sparse_initializer(i).values().name() == name)
-            return true;
+        constants.insert(graph.sparse_initializer(i).values().name());
     }
     for (int i = 0; i < graph.node_size(); i++)
     {
         const onnx::NodeProto& node = graph.node(i);
-        if (is_native_node(node) && node.op_type() == "Constant" && std::find(node.output().begin(), node.output().end(), name) != node.output().end())
-            return true;
+        bool constant = true;
+        for (int j = 0; j < node.input_size(); j++)
+        {
+            if (!node.input(j).empty() && constants.find(node.input(j)) == constants.end())
+                constant = false;
+        }
+        if (constant)
+            constants.insert(node.output().begin(), node.output().end());
     }
-    return false;
+    return constants;
 }
 
 static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, bool allow_split)
 {
+    const std::set<std::string> constant_data = collect_constant_data(graph);
     SequenceNameGenerator names(graph);
     for (int producer_index = 0; producer_index < graph.node_size(); producer_index++)
     {
@@ -343,11 +349,12 @@ static void eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, boo
         }
         const std::string sequence_name = producer.output(0);
         bool safe = true;
-        // Keep constant tensor data out of rewrites that would rely on importer
-        // dtype and scalar-rank handling. This includes overridable initializers.
+        // Keep potentially constant tensor data, including constant expressions,
+        // out of rewrites that rely on importer dtype and scalar-rank handling.
+        // This also includes overridable initializers.
         for (int i = 0; i < producer.input_size() && (!is_split || i == 0); i++)
         {
-            if (is_constant_data(graph, producer.input(i)))
+            if (constant_data.find(producer.input(i)) != constant_data.end())
                 safe = false;
         }
         for (int i = 0; i < graph.output_size(); i++)
