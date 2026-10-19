@@ -782,6 +782,9 @@ if(PNNX_CAFFE2PNNX)
         pass_caffe/prepare_tile.cpp
         pass_caffe/prepare_yolo.cpp
         caffe_python.cpp
+    )
+
+    list(APPEND pnnx_pass_ncnn_SRCS
         pass_ncnn/caffe_PriorBox.cpp
         pass_ncnn/caffe_ArgMax.cpp
         pass_ncnn/caffe_Power.cpp
