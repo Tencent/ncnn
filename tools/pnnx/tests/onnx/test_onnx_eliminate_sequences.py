@@ -42,8 +42,8 @@ def test_model(nodes, outputs, initializers, opset, case_name, two_shapes=False,
             print(result.stderr)
             return False
         transformed = onnx.load(name + ".pnnxsim.onnx")
-        sequence_op = "SplitToSequence" if preserve_sequence is True else preserve_sequence
-        return sum(node.op_type == sequence_op for node in transformed.graph.node) == sum(node.op_type == sequence_op for node in nodes) and not any(node.op_type in ("Split", "Concat") for node in transformed.graph.node)
+        sequence_ops = ("SequenceConstruct", "SplitToSequence")
+        return all(sum(node.op_type == op for node in transformed.graph.node) == sum(node.op_type == op for node in nodes) for op in sequence_ops) and not any(node.op_type in ("Split", "Concat") for node in transformed.graph.node)
     if subprocess.call(command) != 0:
         return False
     with open(name + ".pnnx.param") as param_file:
@@ -108,7 +108,8 @@ def test():
         outputs.extend([make_tensor_value_info("first", [2, 3]), make_tensor_value_info("second", [2, 3])])
         constants.append(make_integer_tensor("index", -1))
         for case_name, sizes, keepdims, shape in (("unbind", None, 0, [2]), ("unit", None, 1, [2, 1]),
-                                                 ("chunk", 2, 1, [2, 1]), ("sizes", [1, 2], 1, [2, 2])):
+                                                 ("chunk", 2, 1, [2, 1]), ("sizes", [1, 2], 1, [2, 2]),
+                                                 ("single_chunk", 3, 1, [2, 3])):
             inputs = ["x"]
             if sizes is not None:
                 inputs.append("sizes_" + case_name)
@@ -119,45 +120,37 @@ def test():
             outputs.append(make_tensor_value_info(out, shape))
         if not test_model(nodes, outputs, constants, opset, "sequence_variants"):
             return False
-    nodes = [helper.make_node("SplitToSequence", ["x", "sizes"], ["seq"], axis=1),
-             helper.make_node("SequenceAt", ["seq", "index"], ["out"])]
-    if not test_model(nodes, [make_tensor_value_info("out", [2, 3])],
-                      [make_integer_tensor("sizes", 3), make_integer_tensor("index", 0)], 13, "single_chunk"):
-        return False
+    nodes = [helper.make_node("Add", ["x", "y"], ["intermediate"]),
+             helper.make_node("SequenceConstruct", ["x", "intermediate"], ["constructed"]),
+             helper.make_node("SequenceAt", ["constructed", "index"], ["selected"])]
+    outputs = [make_tensor_value_info("selected", [2, 3])]
     for keepdims in (0, 1):
-        axis = 0
-        nodes = [helper.make_node("Add", ["x", "y"], ["intermediate"]),
-                 helper.make_node("SplitToSequence", ["intermediate"], ["seq"], axis=axis, keepdims=keepdims),
-                 helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=axis, new_axis=1 - keepdims)]
-        # A stale concrete intermediate shape must not specialize the dynamic split.
-        if not test_model(nodes, [make_tensor_value_info("out", [2, 3])], [], 13, "inferred_%d" % keepdims, two_shapes=bool(keepdims),
-                          value_info=[make_tensor_value_info("intermediate", [2, 3])] if keepdims else (), preserve_sequence=bool(keepdims)):
-            return False
+        seq, out = "seq_%d" % keepdims, "out_%d" % keepdims
+        nodes.extend([helper.make_node("SplitToSequence", ["intermediate"], [seq], axis=0, keepdims=keepdims),
+                      helper.make_node("ConcatFromSequence", [seq], [out], axis=0, new_axis=1 - keepdims)])
+        outputs.append(make_tensor_value_info(out, [2, 3]))
+    # Intermediate data stays unsupported, even with a concrete inferred shape.
+    if not test_model(nodes, outputs, [make_integer_tensor("index", -1)], 13, "intermediate_data", two_shapes=True,
+                      value_info=[make_tensor_value_info("intermediate", [2, 3])], preserve_sequence=True):
+        return False
 
     nodes = [helper.make_node("SequenceConstruct", ["x", "y"], ["seq"]),
              helper.make_node("ConcatFromSequence", ["seq"], ["out"], axis=1),
              helper.make_node("SequenceLength", ["seq"], ["length"])]
     if not test_model(nodes, [make_tensor_value_info("out", [2, 6]), helper.make_tensor_value_info("length", TensorProto.INT64, [])],
-                      [], 13, "unsupported_consumer", preserve_sequence="SequenceConstruct"):
+                      [], 13, "unsupported_consumer", preserve_sequence=True):
         return False
 
-    constants = [numpy_helper.from_array(np.array([1], dtype=np.float32), "a"),
-                 numpy_helper.from_array(np.array([2], dtype=np.float32), "b"), make_integer_tensor("index", 0)]
-    nodes = [helper.make_node("Add", ["a", "b"], ["c0"]),
-             helper.make_node("Add", ["c0", "a"], ["c"]),
-             helper.make_node("Add", ["x", "y"], ["sum"]),
-             helper.make_node("Add", ["sum", "c"], ["out"]),
-             helper.make_node("SequenceConstruct", ["c", "x"], ["seq"]),
-             helper.make_node("SequenceAt", ["seq", "index"], ["selected"]),
-             helper.make_node("Reshape", ["x", "flat_shape"], ["flat"]),
-             helper.make_node("Shape", ["flat"], ["shape"]),
-             helper.make_node("Reshape", ["y", "shape"], ["reshaped"]),
-             helper.make_node("SequenceConstruct", ["shape", "shape"], ["shape_seq"]),
-             helper.make_node("SequenceAt", ["shape_seq", "index"], ["selected_shape"])]
-    constants.append(make_integer_tensor("flat_shape", [6]))
-    if not test_model(nodes, [make_tensor_value_info("out", [2, 3]), make_tensor_value_info("selected", [1]),
-                              make_tensor_value_info("reshaped", [6]), helper.make_tensor_value_info("selected_shape", TensorProto.INT64, [1])],
-                      constants, 13, "constant_expression", preserve_sequence="SequenceConstruct"):
+    constants = [numpy_helper.from_array(np.arange(6, dtype=np.float32).reshape(2, 3), "data"),
+                 make_integer_tensor("index", 0)]
+    nodes = [helper.make_node("Add", ["x", "y"], ["out"]),
+             helper.make_node("SequenceConstruct", ["x", "data"], ["constructed"]),
+             helper.make_node("SequenceAt", ["constructed", "index"], ["selected"]),
+             helper.make_node("SplitToSequence", ["data"], ["split"], axis=1),
+             helper.make_node("SequenceAt", ["split", "index"], ["column"])]
+    if not test_model(nodes, [make_tensor_value_info("out", [2, 3]), make_tensor_value_info("selected", [2, 3]),
+                              make_tensor_value_info("column", [2, 1])],
+                      constants, 13, "initializer_data", preserve_sequence=True):
         return False
 
     branch = helper.make_graph([helper.make_node("Add", ["x", "x"], ["pnnx_seq_0"])], "branch", [], [make_tensor_value_info("pnnx_seq_0", [2, 3])])

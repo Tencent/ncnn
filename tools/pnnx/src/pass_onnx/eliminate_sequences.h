@@ -7,9 +7,10 @@ namespace pnnx {
 
 namespace onnx2pnnx {
 
-// Lower static SequenceConstruct/SplitToSequence regions only when every consumer
-// is a constant-index SequenceAt or ConcatFromSequence. Constant tensor data and
-// external indices/sizes are unsupported. Disable splitting before shape inference.
+// Lower static SequenceConstruct/SplitToSequence regions with data taken only
+// from runtime graph inputs (excluding dense/sparse initializers). Every consumer
+// must be a constant-index SequenceAt or ConcatFromSequence. External indices/sizes
+// are unsupported. Disable splitting before shape inference.
 // Return whether the graph was changed.
 bool eliminate_sequences(onnx::ModelProto& model, bool allow_split = true);
 

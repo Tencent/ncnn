@@ -301,36 +301,29 @@ static bool get_static_shape(const onnx::GraphProto& graph, const std::string& n
     return true;
 }
 
-static std::set<std::string> collect_constant_data(const onnx::GraphProto& graph)
+static std::set<std::string> collect_runtime_inputs(const onnx::GraphProto& graph)
 {
-    std::set<std::string> constants;
+    std::set<std::string> inputs;
+    for (int i = 0; i < graph.input_size(); i++)
+    {
+        inputs.insert(graph.input(i).name());
+    }
+    // Initializers are not runtime data, even when exposed as graph inputs.
     for (int i = 0; i < graph.initializer_size(); i++)
     {
-        constants.insert(graph.initializer(i).name());
+        inputs.erase(graph.initializer(i).name());
     }
     for (int i = 0; i < graph.sparse_initializer_size(); i++)
     {
-        constants.insert(graph.sparse_initializer(i).values().name());
+        inputs.erase(graph.sparse_initializer(i).values().name());
     }
-    for (int i = 0; i < graph.node_size(); i++)
-    {
-        const onnx::NodeProto& node = graph.node(i);
-        bool constant = true;
-        for (int j = 0; j < node.input_size(); j++)
-        {
-            if (!node.input(j).empty() && constants.find(node.input(j)) == constants.end())
-                constant = false;
-        }
-        if (constant || (is_native_node(node) && node.op_type() == "Shape"))
-            constants.insert(node.output().begin(), node.output().end());
-    }
-    return constants;
+    return inputs;
 }
 
 static bool eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, bool allow_split)
 {
     bool changed = false;
-    const std::set<std::string> constant_data = collect_constant_data(graph);
+    const std::set<std::string> runtime_inputs = collect_runtime_inputs(graph);
     SequenceNameGenerator names(graph);
     for (int producer_index = 0; producer_index < graph.node_size(); producer_index++)
     {
@@ -350,12 +343,11 @@ static bool eliminate_sequences_in_graph(onnx::GraphProto& graph, int opset, boo
         }
         const std::string sequence_name = producer.output(0);
         bool safe = true;
-        // Keep potentially constant tensor data, including constant expressions,
-        // out of rewrites that rely on importer dtype and scalar-rank handling.
-        // This also includes overridable initializers.
+        // Only direct runtime graph inputs are supported as sequence data.
+        // Split sizes and SequenceAt indices retain their constant handling.
         for (int i = 0; i < producer.input_size() && (!is_split || i == 0); i++)
         {
-            if (constant_data.find(producer.input(i)) != constant_data.end())
+            if (runtime_inputs.find(producer.input(i)) == runtime_inputs.end())
                 safe = false;
         }
         for (int i = 0; i < graph.output_size(); i++)
