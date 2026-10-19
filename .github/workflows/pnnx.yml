@@ -6,6 +6,7 @@ on:
     - '.github/workflows/pnnx.yml'
     - 'src/layer/*'
     - 'tools/pnnx/**'
+    - 'tools/caffe/**'
     - '!tools/pnnx/README.md'
   pull_request:
     branches: [master]
@@ -13,6 +14,7 @@ on:
     - '.github/workflows/pnnx.yml'
     - 'src/layer/*'
     - 'tools/pnnx/**'
+    - 'tools/caffe/**'
     - '!tools/pnnx/README.md'
 concurrency:
   group: pnnx-${{ github.ref }}
@@ -52,11 +54,20 @@ jobs:
         pip3 install --user torch --index-url https://download.pytorch.org/whl/cpu
         pip3 install --user numpy packaging
 
+    - name: setup-protobuf
+      shell: bash
+      run: |
+        curl -L https://github.com/protocolbuffers/protobuf/archive/refs/tags/v21.12.tar.gz -o protobuf.tar.gz
+        tar -xf protobuf.tar.gz
+        cmake -S protobuf-21.12 -B protobuf-build -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/protobuf-install"
+        cmake --build protobuf-build --config Release -j 4
+        cmake --install protobuf-build --config Release
+
     - name: build-pnnx
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ github.workspace }}/protobuf-install" ..
         cmake --build . --config Release -j 4
 
     - name: quick-test
@@ -237,6 +248,22 @@ jobs:
         cmake --build . -j 8
         strip src/pnnx
 
+    - name: caffe2ncnn
+      run: |
+        cmake -S . -B build-caffe -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_VULKAN=OFF \
+            -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
+            -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf
+        cmake --build build-caffe --target caffe2ncnn -j 8
+        strip build-caffe/tools/caffe/caffe2ncnn
+
+    - name: upload-caffe2ncnn
+      uses: actions/upload-artifact@v7
+      with:
+        name: caffe2ncnn
+        path: build-caffe/tools/caffe/caffe2ncnn
+        compression-level: 9
+
     - name: upload-pnnx
       uses: actions/upload-artifact@v7
       with:
@@ -352,6 +379,7 @@ jobs:
     - name: python-ncnn
       run: |
         export CMAKE_BUILD_PARALLEL_LEVEL=8
+        export EXTRA_CMAKE_ARGS="-DWITH_LAYER_argmax=ON"
         pip3 install --user . --verbose
 
     - name: pnnx
@@ -359,6 +387,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release \
+            -DCAFFE2NCNN_EXECUTABLE=$GITHUB_WORKSPACE/tools/pnnx/build/src/caffe2ncnn \
             -DTorch_INSTALL_DIR=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
@@ -370,10 +399,16 @@ jobs:
         name: pnnx
         path: tools/pnnx/build/src
 
+    - name: download-caffe2ncnn
+      uses: actions/download-artifact@v8
+      with:
+        name: caffe2ncnn
+        path: tools/pnnx/build/src
+
     - name: test
       run: |
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
-        chmod +x tools/pnnx/build/src/pnnx
+        chmod +x tools/pnnx/build/src/pnnx tools/pnnx/build/src/caffe2ncnn
         export OMP_THREAD_LIMIT=1
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1

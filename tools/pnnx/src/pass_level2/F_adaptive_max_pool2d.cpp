@@ -136,4 +136,37 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_max_pool2d_tnn, 120)
 
+
+class F_adaptive_max_pool2d_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Pooling           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("op_0.global_pooling").b && captured_params.at("op_0.pool").i == 0;
+    }
+
+    const char* type_str() const
+    {
+        return "F.adaptive_max_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["output_size"] = std::vector<int> {1, 1};
+        op->params["return_indices"] = false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_adaptive_max_pool2d_caffe, 120)
+
 } // namespace pnnx

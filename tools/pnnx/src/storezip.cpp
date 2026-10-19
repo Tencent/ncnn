@@ -327,7 +327,8 @@ StoreZipWriter::~StoreZipWriter()
 
 int StoreZipWriter::open(const std::string& path)
 {
-    close();
+    if (close() != 0)
+        return -1;
 
     fp = fopen(path.c_str(), "wb");
     if (!fp)
@@ -341,7 +342,12 @@ int StoreZipWriter::open(const std::string& path)
 
 int StoreZipWriter::write_file(const std::string& name, const char* data, uint64_t size)
 {
+    if (!fp)
+        return -1;
+
     long offset = ftell(fp);
+    if (offset < 0)
+        return -1;
 
     uint32_t signature = 0x04034b50;
     fwrite((char*)&signature, sizeof(signature), 1, fp);
@@ -380,6 +386,9 @@ int StoreZipWriter::write_file(const std::string& name, const char* data, uint64
     fwrite((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
 
     fwrite(data, size, 1, fp);
+
+    if (ferror(fp))
+        return -1;
 
     StoreZipMeta szm;
     szm.name = name;
@@ -490,10 +499,13 @@ int StoreZipWriter::close()
         fwrite((char*)&eocdr, sizeof(eocdr), 1, fp);
     }
 
-    fclose(fp);
+    int ret = offset < 0 || offset2 < 0 || ferror(fp) ? -1 : 0;
+    if (fclose(fp) != 0)
+        ret = -1;
     fp = 0;
+    filemetas.clear();
 
-    return 0;
+    return ret;
 }
 
 } // namespace pnnx
