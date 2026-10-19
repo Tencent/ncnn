@@ -248,8 +248,8 @@ static int ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* out)
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
     static int probed = 0;
-    static cpu_set_t cached;      /* 已确认 vlenb==128 的核集合（只增不减） */
-    static cpu_set_t seen_union;  /* 已见过的团队掩码并集 */
+    static cpu_set_t cached;     /* 已确认 vlenb==128 的核集合（只增不减） */
+    static cpu_set_t seen_union; /* 已见过的团队掩码并集 */
 
     /* 快路径：缓存覆盖了调用者的掩码，且未强制重收集——直接用缓存。
      * （每个工人掩码 ⊆ 其启动时的进程掩码；调用者被覆盖时团队不可能见到
@@ -262,7 +262,11 @@ static int ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* out)
         {
             int covered = 1;
             for (int c = 0; c < CPU_SETSIZE; c++)
-                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &seen_union)) { covered = 0; break; }
+                if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &seen_union))
+                {
+                    covered = 0;
+                    break;
+                }
             if (covered)
             {
                 *out = cached;
