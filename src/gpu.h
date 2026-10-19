@@ -452,6 +452,11 @@ public:
     VkDevice vkdevice() const;
     bool is_valid() const;
 
+#if NCNN_COVERAGE
+    void bind_shader_coverage(VkCommandBuffer command_buffer, VkPipelineLayout pipeline_layout) const;
+    void record_shader_coverage_barrier(VkCommandBuffer command_buffer) const;
+#endif
+
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
     // with fixed workgroup size
@@ -467,6 +472,7 @@ public:
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_cached(uint32_t memory_type_index) const;
     bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;

@@ -3,7 +3,9 @@
 
 #include "testutil.h"
 
-static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
+#include "layer_type.h"
+
+static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -14,7 +16,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);
@@ -23,7 +25,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
     return ret;
 }
 
-static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_height, int output_width)
+static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_height, int output_width, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -35,7 +37,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, as);
+    int ret = test_layer("Interp", pd, weights, as, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_ref failed a.dims=%d a=(%d %d %d) resize_type=%d output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, output_height, output_width);
@@ -44,7 +46,7 @@ static int test_interp_ref(const ncnn::Mat& a, int resize_type, int output_heigh
     return ret;
 }
 
-static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int align_corner)
+static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width, int align_corner, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
@@ -56,7 +58,7 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float h
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Interp", pd, weights, a);
+    int ret = test_layer("Interp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d align_corner=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width, align_corner);
@@ -127,12 +129,13 @@ static int test_interp_align_corner(const ncnn::Mat& a, int resize_type, float w
     return ret;
 }
 
-static int test_interp_0()
+static int test_interp_nearest_3d()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
     ncnn::Mat c = RandomMat(13, 14, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 1, 2.f, 2.f, 0, 0)
            || test_interp(a, 1, 4.f, 0.5f, 0, 0)
@@ -145,35 +148,28 @@ static int test_interp_0()
            || test_interp_ref(a, 1, 2, 2)
            || test_interp_ref(a, 1, 15, 16)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 1, 2.f, 2.f, 0, 0)
-           || test_interp(b, 1, 4.f, 0.5f, 0, 0)
-           || test_interp(b, 1, 1.2f, 1.2f, 0, 0)
-           || test_interp(b, 1, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 1, 1.f, 1.f, 10, 12)
-           || test_interp(b, 1, 1.f, 1.f, 2, 2)
            || test_interp(b, 1, 1.f, 1.f, 14, 17)
            || test_interp_ref(b, 1, 10, 12)
-           || test_interp_ref(b, 1, 2, 2)
            || test_interp_ref(b, 1, 14, 17)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 1, 2.f, 2.f, 0, 0)
-           || test_interp(c, 1, 4.f, 0.5f, 0, 0)
-           || test_interp(c, 1, 1.2f, 1.2f, 0, 0)
-           || test_interp(c, 1, 0.8f, 0.8f, 0, 0)
            || test_interp(c, 1, 1.f, 1.f, 10, 12)
-           || test_interp(c, 1, 1.f, 1.f, 2, 2)
            || test_interp(c, 1, 1.f, 1.f, 14, 17)
            || test_interp_ref(c, 1, 10, 12)
-           || test_interp_ref(c, 1, 2, 2)
            || test_interp_ref(c, 1, 14, 17);
 }
 
-static int test_interp_1()
+static int test_interp_bilinear_3d()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
     ncnn::Mat c = RandomMat(13, 14, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 2, 2.f, 2.f, 0, 0)
            || test_interp(a, 2, 4.f, 0.5f, 0, 0)
@@ -193,49 +189,36 @@ static int test_interp_1()
            || test_interp_ref(a, 2, 2, 2)
            || test_interp_ref(a, 2, 15, 16)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 2, 2.f, 2.f, 0, 0)
-           || test_interp(b, 2, 4.f, 0.5f, 0, 0)
-           || test_interp(b, 2, 1.2f, 1.2f, 0, 0)
+           // fractional downscale retains two-column and scalar horizontal tails
            || test_interp(b, 2, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 2, 1.f, 1.f, 10, 12)
-           || test_interp(b, 2, 1.f, 1.f, 2, 2)
            || test_interp(b, 2, 1.f, 1.f, 14, 17)
            || test_interp_align_corner(b, 2, 2.f, 2.f, 0, 0, 1)
-           || test_interp_align_corner(b, 2, 4.f, 0.5f, 0, 0, 1)
-           || test_interp_align_corner(b, 2, 1.2f, 1.2f, 0, 0, 1)
-           || test_interp_align_corner(b, 2, 0.8f, 0.8f, 0, 0, 1)
            || test_interp_align_corner(b, 2, 1.f, 1.f, 10, 12, 1)
-           || test_interp_align_corner(b, 2, 1.f, 1.f, 2, 2, 1)
            || test_interp_align_corner(b, 2, 1.f, 1.f, 14, 17, 1)
            || test_interp_ref(b, 2, 10, 12)
-           || test_interp_ref(b, 2, 2, 2)
            || test_interp_ref(b, 2, 14, 17)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 2, 2.f, 2.f, 0, 0)
-           || test_interp(c, 2, 4.f, 0.5f, 0, 0)
-           || test_interp(c, 2, 1.2f, 1.2f, 0, 0)
-           || test_interp(c, 2, 0.8f, 0.8f, 0, 0)
            || test_interp(c, 2, 1.f, 1.f, 10, 12)
-           || test_interp(c, 2, 1.f, 1.f, 2, 2)
            || test_interp(c, 2, 1.f, 1.f, 14, 17)
            || test_interp_align_corner(c, 2, 2.f, 2.f, 0, 0, 1)
-           || test_interp_align_corner(c, 2, 4.f, 0.5f, 0, 0, 1)
-           || test_interp_align_corner(c, 2, 1.2f, 1.2f, 0, 0, 1)
-           || test_interp_align_corner(c, 2, 0.8f, 0.8f, 0, 0, 1)
            || test_interp_align_corner(c, 2, 1.f, 1.f, 10, 12, 1)
-           || test_interp_align_corner(c, 2, 1.f, 1.f, 2, 2, 1)
            || test_interp_align_corner(c, 2, 1.f, 1.f, 14, 17, 1)
            || test_interp_ref(c, 2, 10, 12)
-           || test_interp_ref(c, 2, 2, 2)
            || test_interp_ref(c, 2, 14, 17);
 }
 
-static int test_interp_2()
+static int test_interp_bicubic_3d()
 {
     ncnn::Mat a = RandomMat(16, 17, 13);
     ncnn::Mat b = RandomMat(18, 19, 12);
     ncnn::Mat c = RandomMat(13, 14, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 3, 2.f, 2.f, 0, 0)
            || test_interp(a, 3, 4.f, 0.5f, 0, 0)
@@ -257,53 +240,44 @@ static int test_interp_2()
            || test_interp_ref(a, 3, 6, 7)
            || test_interp_ref(a, 3, 16, 17)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 3, 2.f, 2.f, 0, 0)
-           || test_interp(b, 3, 4.f, 0.5f, 0, 0)
-           || test_interp(b, 3, 1.2f, 1.2f, 0, 0)
            || test_interp(b, 3, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 3, 1.f, 1.f, 10, 12)
            || test_interp(b, 3, 1.f, 1.f, 2, 2)
            || test_interp(b, 3, 1.f, 1.f, 6, 7)
            || test_interp(b, 3, 1.f, 1.f, 18, 19)
            || test_interp_align_corner(b, 3, 2.f, 2.f, 0, 0, 1)
-           || test_interp_align_corner(b, 3, 4.f, 0.5f, 0, 0, 1)
-           || test_interp_align_corner(b, 3, 1.2f, 1.2f, 0, 0, 1)
            || test_interp_align_corner(b, 3, 0.8f, 0.8f, 0, 0, 1)
-           || test_interp_align_corner(b, 3, 1.f, 1.f, 10, 12, 1)
            || test_interp_align_corner(b, 3, 1.f, 1.f, 2, 2, 1)
+           // the final two-row reuse includes an odd horizontal tail
            || test_interp_align_corner(b, 3, 1.f, 1.f, 6, 7, 1)
            || test_interp_align_corner(b, 3, 1.f, 1.f, 18, 19, 1)
            || test_interp_ref(b, 3, 2, 2)
-           || test_interp_ref(b, 3, 6, 7)
            || test_interp_ref(b, 3, 18, 19)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 3, 2.f, 2.f, 0, 0)
-           || test_interp(c, 3, 4.f, 0.5f, 0, 0)
-           || test_interp(c, 3, 1.2f, 1.2f, 0, 0)
            || test_interp(c, 3, 0.8f, 0.8f, 0, 0)
            || test_interp(c, 3, 1.f, 1.f, 10, 12)
            || test_interp(c, 3, 1.f, 1.f, 2, 2)
            || test_interp(c, 3, 1.f, 1.f, 6, 7)
            || test_interp(c, 3, 1.f, 1.f, 18, 19)
            || test_interp_align_corner(c, 3, 2.f, 2.f, 0, 0, 1)
-           || test_interp_align_corner(c, 3, 4.f, 0.5f, 0, 0, 1)
-           || test_interp_align_corner(c, 3, 1.2f, 1.2f, 0, 0, 1)
            || test_interp_align_corner(c, 3, 0.8f, 0.8f, 0, 0, 1)
-           || test_interp_align_corner(c, 3, 1.f, 1.f, 10, 12, 1)
            || test_interp_align_corner(c, 3, 1.f, 1.f, 2, 2, 1)
-           || test_interp_align_corner(c, 3, 1.f, 1.f, 6, 7, 1)
            || test_interp_align_corner(c, 3, 1.f, 1.f, 18, 19, 1)
            || test_interp_ref(c, 3, 2, 2)
-           || test_interp_ref(c, 3, 6, 7)
            || test_interp_ref(c, 3, 18, 19);
 }
 
-static int test_interp_3()
+static int test_interp_nearest_2d()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
     ncnn::Mat c = RandomMat(13, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 1, 2.f, 0)
            || test_interp(a, 1, 0.5f, 0)
@@ -316,35 +290,28 @@ static int test_interp_3()
            || test_interp_ref(a, 1, 2)
            || test_interp_ref(a, 1, 16)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 1, 2.f, 0)
-           || test_interp(b, 1, 0.5f, 0)
-           || test_interp(b, 1, 1.2f, 0)
-           || test_interp(b, 1, 0.8f, 0)
            || test_interp(b, 1, 1.f, 12)
-           || test_interp(b, 1, 1.f, 2)
            || test_interp(b, 1, 1.f, 17)
            || test_interp_ref(b, 1, 12)
-           || test_interp_ref(b, 1, 2)
            || test_interp_ref(b, 1, 17)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 1, 2.f, 0)
-           || test_interp(c, 1, 0.5f, 0)
-           || test_interp(c, 1, 1.2f, 0)
-           || test_interp(c, 1, 0.8f, 0)
            || test_interp(c, 1, 1.f, 12)
-           || test_interp(c, 1, 1.f, 2)
            || test_interp(c, 1, 1.f, 17)
            || test_interp_ref(c, 1, 12)
-           || test_interp_ref(c, 1, 2)
            || test_interp_ref(c, 1, 17);
 }
 
-static int test_interp_4()
+static int test_interp_bilinear_2d()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
     ncnn::Mat c = RandomMat(13, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 2, 2.f, 0)
            || test_interp(a, 2, 0.5f, 0)
@@ -364,49 +331,34 @@ static int test_interp_4()
            || test_interp_ref(a, 2, 2)
            || test_interp_ref(a, 2, 16)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 2, 2.f, 0)
-           || test_interp(b, 2, 0.5f, 0)
-           || test_interp(b, 2, 1.2f, 0)
-           || test_interp(b, 2, 0.8f, 0)
            || test_interp(b, 2, 1.f, 12)
-           || test_interp(b, 2, 1.f, 2)
            || test_interp(b, 2, 1.f, 17)
            || test_interp_align_corner(b, 2, 2.f, 0, 1)
-           || test_interp_align_corner(b, 2, 0.5f, 0, 1)
-           || test_interp_align_corner(b, 2, 1.2f, 0, 1)
-           || test_interp_align_corner(b, 2, 0.8f, 0, 1)
            || test_interp_align_corner(b, 2, 1.f, 12, 1)
-           || test_interp_align_corner(b, 2, 1.f, 2, 1)
            || test_interp_align_corner(b, 2, 1.f, 17, 1)
            || test_interp_ref(b, 2, 12)
-           || test_interp_ref(b, 2, 2)
            || test_interp_ref(b, 2, 17)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 2, 2.f, 0)
-           || test_interp(c, 2, 0.5f, 0)
-           || test_interp(c, 2, 1.2f, 0)
-           || test_interp(c, 2, 0.8f, 0)
            || test_interp(c, 2, 1.f, 12)
-           || test_interp(c, 2, 1.f, 2)
            || test_interp(c, 2, 1.f, 17)
            || test_interp_align_corner(c, 2, 2.f, 0, 1)
-           || test_interp_align_corner(c, 2, 0.5f, 0, 1)
-           || test_interp_align_corner(c, 2, 1.2f, 0, 1)
-           || test_interp_align_corner(c, 2, 0.8f, 0, 1)
            || test_interp_align_corner(c, 2, 1.f, 12, 1)
-           || test_interp_align_corner(c, 2, 1.f, 2, 1)
            || test_interp_align_corner(c, 2, 1.f, 17, 1)
            || test_interp_ref(c, 2, 12)
-           || test_interp_ref(c, 2, 2)
            || test_interp_ref(c, 2, 17);
 }
 
-static int test_interp_5()
+static int test_interp_bicubic_2d()
 {
     ncnn::Mat a = RandomMat(16, 13);
     ncnn::Mat b = RandomMat(18, 12);
     ncnn::Mat c = RandomMat(13, 32);
 
+    // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
            || test_interp(a, 3, 2.f, 0)
            || test_interp(a, 3, 0.5f, 0)
@@ -428,44 +380,32 @@ static int test_interp_5()
            || test_interp_ref(a, 3, 7)
            || test_interp_ref(a, 3, 17)
 
+           // pack4 retains resize, alignment and reference interface representatives
            || test_interp(b, 3, 2.f, 0)
-           || test_interp(b, 3, 0.5f, 0)
-           || test_interp(b, 3, 1.2f, 0)
            || test_interp(b, 3, 0.8f, 0)
            || test_interp(b, 3, 1.f, 12)
            || test_interp(b, 3, 1.f, 2)
            || test_interp(b, 3, 1.f, 7)
            || test_interp(b, 3, 1.f, 19)
            || test_interp_align_corner(b, 3, 2.f, 0, 1)
-           || test_interp_align_corner(b, 3, 0.5f, 0, 1)
-           || test_interp_align_corner(b, 3, 1.2f, 0, 1)
            || test_interp_align_corner(b, 3, 0.8f, 0, 1)
-           || test_interp_align_corner(b, 3, 1.f, 12, 1)
            || test_interp_align_corner(b, 3, 1.f, 2, 1)
-           || test_interp_align_corner(b, 3, 1.f, 7, 1)
            || test_interp_align_corner(b, 3, 1.f, 19, 1)
            || test_interp_ref(b, 3, 2)
-           || test_interp_ref(b, 3, 7)
            || test_interp_ref(b, 3, 19)
 
+           // pack16 retains resize, alignment and reference interface representatives
            || test_interp(c, 3, 2.f, 0)
-           || test_interp(c, 3, 0.5f, 0)
-           || test_interp(c, 3, 1.2f, 0)
            || test_interp(c, 3, 0.8f, 0)
            || test_interp(c, 3, 1.f, 12)
            || test_interp(c, 3, 1.f, 2)
            || test_interp(c, 3, 1.f, 7)
            || test_interp(c, 3, 1.f, 19)
            || test_interp_align_corner(c, 3, 2.f, 0, 1)
-           || test_interp_align_corner(c, 3, 0.5f, 0, 1)
-           || test_interp_align_corner(c, 3, 1.2f, 0, 1)
            || test_interp_align_corner(c, 3, 0.8f, 0, 1)
-           || test_interp_align_corner(c, 3, 1.f, 12, 1)
            || test_interp_align_corner(c, 3, 1.f, 2, 1)
-           || test_interp_align_corner(c, 3, 1.f, 7, 1)
            || test_interp_align_corner(c, 3, 1.f, 19, 1)
            || test_interp_ref(c, 3, 2)
-           || test_interp_ref(c, 3, 7)
            || test_interp_ref(c, 3, 19);
 }
 
@@ -513,12 +453,12 @@ static int test_interp_7()
            || test_interp_ref(a, 1, 10, 12)
            || test_interp_ref(a, 1, 15, 16)
 
-           || test_interp(b, 1, 2.f, 2.f, 0, 0)
+           || test_interp(b, 1, 2.f, 2.f, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_interp(b, 1, 0.5f, 0.5f, 0, 0)
-           || test_interp(b, 1, 1.f, 1.f, 10, 12)
-           || test_interp(b, 1, 1.f, 1.f, 14, 17)
-           || test_interp_ref(b, 1, 10, 12)
-           || test_interp_ref(b, 1, 14, 17)
+           || test_interp(b, 1, 1.f, 1.f, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp(b, 1, 1.f, 1.f, 14, 17, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 1, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 1, 14, 17, TEST_LAYER_DISABLE_GPU_TESTING)
 
            || test_interp(c, 1, 2.f, 2.f, 0, 0)
            || test_interp(c, 1, 0.5f, 0.5f, 0, 0)
@@ -546,11 +486,11 @@ static int test_interp_8()
            || test_interp_ref(a, 2, 10, 12)
            || test_interp_ref(a, 2, 15, 16)
 
-           || test_interp(b, 2, 2.f, 2.f, 0, 0)
+           || test_interp(b, 2, 2.f, 2.f, 0, 0, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_interp(b, 2, 0.5f, 0.5f, 0, 0)
-           || test_interp(b, 2, 1.f, 1.f, 10, 12)
-           || test_interp_align_corner(b, 2, 2.f, 2.f, 0, 0, 1)
-           || test_interp_ref(b, 2, 10, 12)
+           || test_interp(b, 2, 1.f, 1.f, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_align_corner(b, 2, 2.f, 2.f, 0, 0, 1, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_interp_ref(b, 2, 10, 12, TEST_LAYER_DISABLE_GPU_TESTING)
 
            || test_interp(c, 2, 2.f, 2.f, 0, 0)
            || test_interp(c, 2, 0.5f, 0.5f, 0, 0)
@@ -691,21 +631,35 @@ static int test_interp_11()
            || test_interp_ref(b, 1, 5, 5);
 }
 
+#if NCNN_VALIDATION
+static int test_interp_load_param()
+{
+    // reject unsupported interpolation modes before creating any pipeline
+    ncnn::ParamDict base;
+    return test_layer_param(ncnn::LayerType::Interp, base, 0, -1, -1)
+           || test_layer_param(ncnn::LayerType::Interp, base, 0, 4, -1);
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
 
     return 0
-           || test_interp_0()
-           || test_interp_1()
-           || test_interp_2()
-           || test_interp_3()
-           || test_interp_4()
-           || test_interp_5()
+           || test_interp_nearest_3d()
+           || test_interp_bilinear_3d()
+           || test_interp_bicubic_3d()
+           || test_interp_nearest_2d()
+           || test_interp_bilinear_2d()
+           || test_interp_bicubic_2d()
            || test_interp_6()
            || test_interp_7()
            || test_interp_8()
            || test_interp_9()
            || test_interp_10()
-           || test_interp_11();
+           || test_interp_11()
+#if NCNN_VALIDATION
+           || test_interp_load_param()
+#endif // NCNN_VALIDATION
+           ;
 }

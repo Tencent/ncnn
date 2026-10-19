@@ -355,6 +355,7 @@ VkAllocator::VkAllocator(const VulkanDevice* _vkdev)
     reserved_type_index = (uint32_t)-1;
     mappable = false;
     coherent = false;
+    cached = false;
 }
 
 VkAllocator::~VkAllocator()
@@ -779,6 +780,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
 
         mappable = vkdev->is_mappable(buffer_memory_type_index);
         coherent = vkdev->is_coherent(buffer_memory_type_index);
+        cached = vkdev->is_cached(buffer_memory_type_index);
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
@@ -1058,6 +1060,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
         mappable = vkdev->is_mappable(image_memory_type_index);
         coherent = vkdev->is_coherent(image_memory_type_index);
+        cached = vkdev->is_cached(image_memory_type_index);
     }
 
     // create new block
@@ -1443,6 +1446,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
                 mappable = vkdev->is_mappable(buffer_memory_type_index);
                 coherent = vkdev->is_coherent(buffer_memory_type_index);
+                cached = vkdev->is_cached(buffer_memory_type_index);
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
@@ -1514,6 +1518,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
                     mappable = vkdev->is_mappable(buffer_memory_type_index);
                     coherent = vkdev->is_coherent(buffer_memory_type_index);
+                    cached = vkdev->is_cached(buffer_memory_type_index);
                 }
 
                 block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
@@ -1544,6 +1549,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
                 mappable = vkdev->is_mappable(buffer_memory_type_index);
                 coherent = vkdev->is_coherent(buffer_memory_type_index);
+                cached = vkdev->is_cached(buffer_memory_type_index);
             }
 
             block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
@@ -1596,6 +1602,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
             mappable = vkdev->is_mappable(buffer_memory_type_index);
             coherent = vkdev->is_coherent(buffer_memory_type_index);
+            cached = vkdev->is_cached(buffer_memory_type_index);
         }
 
         block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
@@ -1769,6 +1776,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
                 mappable = vkdev->is_mappable(image_memory_type_index);
                 coherent = vkdev->is_coherent(image_memory_type_index);
+                cached = vkdev->is_cached(image_memory_type_index);
             }
 
             // bind memory
@@ -1887,6 +1895,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
                     mappable = vkdev->is_mappable(image_memory_type_index);
                     coherent = vkdev->is_coherent(image_memory_type_index);
+                    cached = vkdev->is_cached(image_memory_type_index);
                 }
 
                 ptr->memory = allocate_import_host_memory(new_block_size, image_memory_type_index, host_ptr);
@@ -1917,6 +1926,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
                 mappable = vkdev->is_mappable(image_memory_type_index);
                 coherent = vkdev->is_coherent(image_memory_type_index);
+                cached = vkdev->is_cached(image_memory_type_index);
             }
 
             // bind at memory offset
@@ -1970,6 +1980,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             mappable = vkdev->is_mappable(image_memory_type_index);
             coherent = vkdev->is_coherent(image_memory_type_index);
+            cached = vkdev->is_cached(image_memory_type_index);
         }
 
         // bind at memory offset

@@ -16,7 +16,7 @@ except ImportError:
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+requirements = ["numpy", "tqdm", "requests", "portalocker"]
 
 setup(
     name="ncnn",
@@ -39,6 +39,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: 3.15",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -49,5 +50,6 @@ setup(
     package_dir={"": "."},
     package_data={"ncnn": ["ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}"]},
     install_requires=requirements,
+    extras_require={"opencv": ["opencv-python"]},
     cmdclass={"bdist_wheel": bdist_wheel},
 )

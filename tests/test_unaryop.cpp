@@ -11,7 +11,7 @@
 
 static int op_type = 0;
 
-static int test_unaryop(const ncnn::Mat& _a)
+static int test_unaryop(const ncnn::Mat& _a, int flag = 0)
 {
     ncnn::Mat a = _a;
     if (op_type == 2 || op_type == 3)
@@ -66,6 +66,16 @@ static int test_unaryop(const ncnn::Mat& _a)
             a[i] = v;
         }
     }
+#else
+    if (op_type == 18)
+    {
+        // exact halfway values round to even
+        const float halfway[8] = {0.5f, 1.5f, 2.5f, 3.5f, -0.5f, -1.5f, -2.5f, -3.5f};
+        for (int i = 0; i < 8 && i < (int)a.total(); i++)
+        {
+            a[i] = halfway[i];
+        }
+    }
 #endif // __powerpc__
 
     ncnn::ParamDict pd;
@@ -73,7 +83,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("UnaryOp", pd, weights, a);
+    int ret = test_layer("UnaryOp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, op_type);
@@ -82,10 +92,12 @@ static int test_unaryop(const ncnn::Mat& _a)
     return ret;
 }
 
+// cpu pack8/pack16 cases reuse the Vulkan pack4 path covered by the pack4 cases
+// keep the 1d sizes for dispatch boundary coverage
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(11, 3, 2, 16))
+           || test_unaryop(RandomMat(11, 3, 2, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 2, 2, 12))
            || test_unaryop(RandomMat(6, 1, 5, 13));
 }
@@ -93,7 +105,7 @@ static int test_unaryop_0()
 static int test_unaryop_1()
 {
     return 0
-           || test_unaryop(RandomMat(11, 7, 16))
+           || test_unaryop(RandomMat(11, 7, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 4, 12))
            || test_unaryop(RandomMat(6, 5, 13));
 }
@@ -101,7 +113,7 @@ static int test_unaryop_1()
 static int test_unaryop_2()
 {
     return 0
-           || test_unaryop(RandomMat(12, 16))
+           || test_unaryop(RandomMat(12, 16), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_unaryop(RandomMat(10, 12))
            || test_unaryop(RandomMat(14, 15));
 }

@@ -11,16 +11,20 @@ class Model(nn.Module):
 
         self.ln_0 = nn.LocalResponseNorm(3)
         self.ln_1 = nn.LocalResponseNorm(size=5, alpha=0.001, beta=0.8, k=0.9)
+        self.ln_2 = nn.LocalResponseNorm(size=4, alpha=1, beta=0.5, k=1)
 
     def forward(self, x, y, z):
         x = self.ln_0(x)
         x = self.ln_1(x)
+        x = self.ln_2(x)
 
         y = self.ln_0(y)
         y = self.ln_1(y)
+        y = self.ln_2(y)
 
         z = self.ln_0(z)
         z = self.ln_1(z)
+        z = self.ln_2(z)
         return x, y, z
 
 def test():

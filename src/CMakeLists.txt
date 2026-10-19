@@ -182,6 +182,14 @@ endif()
 
 add_custom_target(ncnn-generate-spirv DEPENDS ${NCNN_SHADER_SPV_HEX_FILES})
 
+if(NCNN_COVERAGE AND NCNN_VULKAN)
+    list(APPEND ncnn_SRCS gpu_coverage.cpp)
+    string(SHA256 shader_coverage_source_hash "ncnn-shader-coverage-v1\n${shader_coverage_identity}")
+    string(REPLACE "\\" "\\\\" shader_coverage_source_root "${PROJECT_SOURCE_DIR}")
+    string(REPLACE "\"" "\\\"" shader_coverage_source_root "${shader_coverage_source_root}")
+    configure_file(shader_coverage_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/shader_coverage_data.h @ONLY)
+endif()
+
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
@@ -227,6 +235,12 @@ target_include_directories(ncnn
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND (NCNN_THREADS OR NCNN_OPENMP))
+    # propagate pthread support to applications linking ncnn
+    target_compile_options(ncnn PUBLIC -pthread)
+    target_link_libraries(ncnn PUBLIC -pthread)
+endif()
 
 if(NCNN_OPENMP)
     if(NOT NCNN_SIMPLEOMP)
@@ -698,6 +712,12 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
             if(NCNN_ZVFH)
                 set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
             endif()
+            if(NCNN_ZVFBFMIN)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfbfmin")
+                if(NCNN_ZVFBFWMA)
+                    set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfbfwma")
+                endif()
+            endif()
         elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
             set(RISCV_MARCH_FLAG "-march=rv64gc_xtheadvector")
             if(NCNN_ZFH)
@@ -715,6 +735,12 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
             endif()
             if(NCNN_ZVFH)
                 set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
+            endif()
+            if(NCNN_ZVFBFMIN)
+                set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfbfmin")
+                if(NCNN_ZVFBFWMA)
+                    set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfbfwma")
+                endif()
             endif()
         elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
             set(RISCV_MARCH_FLAG "-march=rv32gc_xtheadvector")

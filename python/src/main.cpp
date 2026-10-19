@@ -7,6 +7,8 @@
 #include <pybind11/functional.h>
 
 #include <string.h>
+#include <map>
+#include <memory>
 
 #include <cpu.h>
 #include <gpu.h>
@@ -14,6 +16,7 @@
 #include <option.h>
 #include <blob.h>
 #include <paramdict.h>
+#include <layer_type.h>
 
 #include "pybind11_mat.h"
 #include "pybind11_datareader.h"
@@ -40,84 +43,93 @@ public:
     }
 };
 
-struct LayerFactory
+struct LayerCallbacks
 {
-    std::string name;
-    int index;
     std::function<Layer*()> creator;
     std::function<void(Layer*)> destroyer;
-    layer_creator_func creator_func;
-    layer_destroyer_func destroyer_func;
 };
 
-#define LayerFactoryDeclear(n)                  \
-    static ncnn::Layer* LayerCreator##n(void*); \
-    static void LayerDestroyer##n(ncnn::Layer*, void*);
+struct LayerFactory
+{
+    int index;
+    bool custom;
+    std::string name;
+    std::shared_ptr<LayerCallbacks> callbacks;
+    std::map<Layer*, std::shared_ptr<LayerCallbacks> > layer_callbacks;
 
-LayerFactoryDeclear(0);
-LayerFactoryDeclear(1);
-LayerFactoryDeclear(2);
-LayerFactoryDeclear(3);
-LayerFactoryDeclear(4);
-LayerFactoryDeclear(5);
-LayerFactoryDeclear(6);
-LayerFactoryDeclear(7);
-LayerFactoryDeclear(8);
-LayerFactoryDeclear(9);
-
-std::vector<LayerFactory> g_layer_factroys = {
-    {"", -1, nullptr, nullptr, LayerCreator0, LayerDestroyer0},
-    {"", -1, nullptr, nullptr, LayerCreator1, LayerDestroyer1},
-    {"", -1, nullptr, nullptr, LayerCreator2, LayerDestroyer2},
-    {"", -1, nullptr, nullptr, LayerCreator3, LayerDestroyer3},
-    {"", -1, nullptr, nullptr, LayerCreator4, LayerDestroyer4},
-    {"", -1, nullptr, nullptr, LayerCreator5, LayerDestroyer5},
-    {"", -1, nullptr, nullptr, LayerCreator6, LayerDestroyer6},
-    {"", -1, nullptr, nullptr, LayerCreator7, LayerDestroyer7},
-    {"", -1, nullptr, nullptr, LayerCreator8, LayerDestroyer8},
-    {"", -1, nullptr, nullptr, LayerCreator9, LayerDestroyer9},
+    void replace_callbacks(const std::function<Layer*()>& creator, const std::function<void(Layer*)>& destroyer)
+    {
+        std::shared_ptr<LayerCallbacks> replacement(new LayerCallbacks);
+        replacement->creator = creator;
+        replacement->destroyer = destroyer;
+        callbacks = replacement;
+    }
 };
-int g_layer_factroy_index = 0;
 
-#define LayerFactoryDefine(n)                                  \
-    static ncnn::Layer* LayerCreator##n(void* p)               \
-    {                                                          \
-        if (g_layer_factroys[n].creator != nullptr)            \
-        {                                                      \
-            return g_layer_factroys[n].creator();              \
-        }                                                      \
-        return nullptr;                                        \
-    }                                                          \
-    static void LayerDestroyer##n(ncnn::Layer* layer, void* p) \
-    {                                                          \
-        if (g_layer_factroys[n].destroyer)                     \
-        {                                                      \
-            g_layer_factroys[n].destroyer(layer);              \
-        }                                                      \
+static Layer* LayerCreator(void* userdata)
+{
+    LayerFactory* factory = static_cast<LayerFactory*>(userdata);
+    std::shared_ptr<LayerCallbacks> callbacks = factory->callbacks;
+    Layer* layer = callbacks->creator ? callbacks->creator() : nullptr;
+    if (layer)
+        factory->layer_callbacks[layer] = callbacks;
+    return layer;
+}
+
+static void LayerDestroyer(Layer* layer, void* userdata)
+{
+    LayerFactory* factory = static_cast<LayerFactory*>(userdata);
+    std::shared_ptr<LayerCallbacks> callbacks = factory->callbacks;
+    std::shared_ptr<LayerCallbacks> original;
+    std::map<Layer*, std::shared_ptr<LayerCallbacks> >::iterator entry = factory->layer_callbacks.find(layer);
+    if (entry != factory->layer_callbacks.end())
+        original = entry->second;
+    // Match the native registry's current destroyer while keeping the creator's
+    // Python owner alive until its loaded layer has been destroyed.
+    if (callbacks->destroyer)
+        callbacks->destroyer(layer);
+    factory->layer_callbacks.erase(layer);
+}
+
+class PyNet : public Net
+{
+public:
+    PyNet()
+        : custom_layer_registry_size(0)
+    {
     }
 
-LayerFactoryDefine(0);
-LayerFactoryDefine(1);
-LayerFactoryDefine(2);
-LayerFactoryDefine(3);
-LayerFactoryDefine(4);
-LayerFactoryDefine(5);
-LayerFactoryDefine(6);
-LayerFactoryDefine(7);
-LayerFactoryDefine(8);
-LayerFactoryDefine(9);
+    ~PyNet()
+    {
+        // The layer destroyers need the factories while clearing the network.
+        clear();
+    }
+
+    LayerFactory* find_layer_factory(int index, bool custom)
+    {
+        for (size_t i = 0; i < layer_factories.size(); i++)
+        {
+            if (layer_factories[i]->index == index && layer_factories[i]->custom == custom)
+                return layer_factories[i].get();
+        }
+        return nullptr;
+    }
+
+    void record_custom_layer_index(int index)
+    {
+        if (custom_layer_registry_size <= index)
+            custom_layer_registry_size = index + 1;
+    }
+
+    // Net::clear() preserves registrations for subsequent model loads.
+    // Keep stable addresses for both userdata and registered type names.
+    std::vector<std::unique_ptr<LayerFactory> > layer_factories;
+    // Numeric registration can extend the native registry with empty slots.
+    int custom_layer_registry_size;
+};
 
 PYBIND11_MODULE(ncnn, m)
 {
-    auto atexit = py::module_::import("atexit");
-    atexit.attr("register")(py::cpp_function([]() {
-        for (int i = 0; i < g_layer_factroys.size(); i++)
-        {
-            g_layer_factroys[i].creator = nullptr;
-            g_layer_factroys[i].destroyer = nullptr;
-        }
-    }));
-
     py::class_<Allocator, PyAllocator<> >(m, "Allocator");
     py::class_<PoolAllocator, Allocator, PyAllocatorOther<PoolAllocator> >(m, "PoolAllocator")
     .def(py::init<>())
@@ -1027,8 +1039,8 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("bottom_shapes", &Layer::bottom_shapes)
     .def_readwrite("top_shapes", &Layer::top_shapes);
 
-    py::class_<Net>(m, "Net")
-    .def(py::init<>())
+    py::class_<Net, PyNet>(m, "Net")
+    .def(py::init_alias<>())
     .def_readwrite("opt", &Net::opt)
     .def("__enter__", [](Net& net) -> Net& { return net; })
     .def("__exit__", [](Net& net, pybind11::args) {
@@ -1044,33 +1056,72 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_STRING
     .def(
     "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
-        if (g_layer_factroy_index == g_layer_factroys.size())
+        PyNet& self = static_cast<PyNet&>(net);
+        int index = layer_to_index(type);
+        bool custom = index == -1;
+        if (custom)
+            index = net.custom_layer_to_index(type);
+        if (custom && index == -1 && (self.custom_layer_registry_size & LayerType::CustomBit))
+            return -1;
+        LayerFactory* existing = self.find_layer_factory(index, custom);
+        if (existing)
         {
-            std::stringstream ss;
-            ss << "python version only support " << g_layer_factroys.size() << " custom layers now";
-            pybind11::pybind11_fail(ss.str());
+            // Integer registration leaves the custom type name pointer intact.
+            // Reuse its storage as well as its userdata when replacing callbacks.
+            if (existing->name.empty())
+                existing->name = type;
+            int ret = net.register_custom_layer(existing->name.c_str(), LayerCreator, LayerDestroyer, existing);
+            if (ret == 0)
+            {
+                existing->replace_callbacks(creator, destroyer);
+            }
+            return ret;
         }
-        LayerFactory& lf = g_layer_factroys[g_layer_factroy_index++];
-        lf.name = type;
-        lf.creator = creator;
-        lf.destroyer = destroyer;
-        return net.register_custom_layer(lf.name.c_str(), lf.creator_func, lf.destroyer_func);
+        std::unique_ptr<LayerFactory> factory(new LayerFactory);
+        factory->index = index;
+        factory->custom = custom;
+        factory->name = type;
+        factory->replace_callbacks(creator, destroyer);
+        self.layer_factories.push_back(std::move(factory));
+        LayerFactory* lf = self.layer_factories.back().get();
+        int ret = net.register_custom_layer(lf->name.c_str(), LayerCreator, LayerDestroyer, lf);
+        if (ret == 0 && index == -1)
+            lf->index = net.custom_layer_to_index(type);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(lf->index);
+        if (ret != 0)
+            self.layer_factories.pop_back();
+        return ret;
     },
     py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
     .def(
     "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
-        if (g_layer_factroy_index == g_layer_factroys.size())
+        PyNet& self = static_cast<PyNet&>(net);
+        int custom_index = index & ~LayerType::CustomBit;
+        bool custom = index != custom_index;
+        LayerFactory* existing = self.find_layer_factory(custom ? custom_index : index, custom);
+        if (existing)
         {
-            std::stringstream ss;
-            ss << "python version only support " << g_layer_factroys.size() << " custom layers now";
-            pybind11::pybind11_fail(ss.str());
+            int ret = net.register_custom_layer(index, LayerCreator, LayerDestroyer, existing);
+            if (ret == 0)
+            {
+                existing->replace_callbacks(creator, destroyer);
+            }
+            return ret;
         }
-        LayerFactory& lf = g_layer_factroys[g_layer_factroy_index++];
-        lf.index = index;
-        lf.creator = creator;
-        lf.destroyer = destroyer;
-        return net.register_custom_layer(index, lf.creator_func, lf.destroyer_func);
+        std::unique_ptr<LayerFactory> factory(new LayerFactory);
+        factory->index = custom ? custom_index : index;
+        factory->custom = custom;
+        factory->replace_callbacks(creator, destroyer);
+        self.layer_factories.push_back(std::move(factory));
+        LayerFactory* lf = self.layer_factories.back().get();
+        int ret = net.register_custom_layer(index, LayerCreator, LayerDestroyer, lf);
+        if (ret == 0 && custom)
+            self.record_custom_layer_index(custom_index);
+        if (ret != 0)
+            self.layer_factories.pop_back();
+        return ret;
     },
     py::arg("index"), py::arg("creator"), py::arg("destroyer"))
 #if NCNN_STRING

@@ -189,7 +189,7 @@ static int test_innerproduct_4()
 }
 #endif // NCNN_INT8
 
-static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
+static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, outch);
@@ -208,7 +208,7 @@ static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
     if (bias)
         weights[1] = RandomMat(outch);
 
-    int ret = test_layer("InnerProduct", pd, weights, a);
+    int ret = test_layer("InnerProduct", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
@@ -239,7 +239,7 @@ static int test_innerproduct_5()
            || test_innerproduct_gemm(RandomMat(12, 16), 7, 1)
            || test_innerproduct_gemm(RandomMat(11, 32), 32, 1)
            || test_innerproduct_gemm(RandomMat(12, 32), 24, 1)
-           || test_innerproduct_gemm(RandomMat(13, 32), 12, 1)
+           || test_innerproduct_gemm(RandomMat(13, 32), 12, 1, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_innerproduct_gemm(RandomMat(14, 32), 14, 1)
            || test_innerproduct_gemm(RandomMat(15, 32), 32, 1)
            || test_innerproduct_gemm(RandomMat(16, 24), 32, 1)

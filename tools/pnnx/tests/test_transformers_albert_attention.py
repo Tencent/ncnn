@@ -10,7 +10,11 @@ if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
 from transformers import AlbertConfig
-from transformers.models.albert.modeling_albert import AlbertAttention, AlbertSdpaAttention
+from transformers.models.albert.modeling_albert import AlbertAttention
+
+import transformers
+if version.parse(transformers.__version__) < version.parse('5.0'):
+    from transformers.models.albert.modeling_albert import AlbertSdpaAttention
 
 class Model(nn.Module):
     def __init__(self):
@@ -20,7 +24,10 @@ class Model(nn.Module):
         self.attn0 = AlbertAttention(config0)
 
         config1 = AlbertConfig(hidden_size=66, num_attention_heads=3)
-        self.attn1 = AlbertSdpaAttention(config1)
+        if version.parse(transformers.__version__) < version.parse('5.0'):
+            self.attn1 = AlbertSdpaAttention(config1)
+        else:
+            self.attn1 = AlbertAttention(config1)
 
     def forward(self, x, y):
         out0, _ = self.attn0(x, attention_mask=None, head_mask=None, output_attentions=True)

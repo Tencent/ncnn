@@ -7,8 +7,16 @@
 
 #include "datareader.h"
 #include "layer_type.h"
+#include "modelbin.h"
 #include "net.h"
 #include "paramdict.h"
+#include "testutil.h"
+
+#include <errno.h>
+
+#if defined _WIN32
+#include <process.h>
+#endif
 
 struct LayerState
 {
@@ -604,6 +612,100 @@ static int test_shape_layout()
     return 0;
 }
 
+#if NCNN_BF16
+class StoragePackingLayer : public ncnn::Layer
+{
+public:
+    StoragePackingLayer()
+    {
+        one_blob_only = true;
+        support_packing = true;
+    }
+
+    virtual int forward(const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, const ncnn::Option&) const
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+};
+
+static ncnn::Layer* create_storage_packing_layer(void*)
+{
+    return new StoragePackingLayer;
+}
+
+static int test_storage_packing(int storage_type)
+{
+    if (storage_type == 2)
+    {
+        bool support_fp16 = false;
+#if NCNN_ARM82
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_asimdhp();
+#endif
+#if NCNN_VFPV4
+        support_fp16 = support_fp16 || ncnn::cpu_support_arm_vfpv4();
+#endif
+#if NCNN_ZFH
+        support_fp16 = support_fp16 || ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh());
+#endif
+        if (!support_fp16)
+            return 0;
+    }
+
+    ncnn::Net net;
+    net.opt.num_threads = 1;
+    net.opt.use_packing_layout = true;
+    net.opt.use_fp16_storage = storage_type == 2;
+    net.opt.use_bf16_storage = storage_type == 4;
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+    if (!ncnn::cpu_support_riscv_v() && !ncnn::cpu_support_riscv_xtheadvector())
+        net.opt.use_packing_layout = false;
+#endif
+    net.register_custom_layer("StoragePacking", create_storage_packing_layer);
+    const char* param = "7767517\n2 2\nInput in 0 1 in\nStoragePacking fp32 1 1 in out\n";
+    BoundedNetReader dr(0, 0);
+    if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+    {
+        fprintf(stderr, "test_net storage packing load failed storage_type=%d\n", storage_type);
+        return -1;
+    }
+
+    ncnn::Mat in(5, 3, 128);
+    for (int q = 0; q < in.c; q++)
+    {
+        float* p = in.channel(q);
+        for (int i = 0; i < in.w * in.h; i++)
+            p[i] = (i - 7) * 0.25f + (q % 8);
+    }
+
+    ncnn::Mat input;
+    if (storage_type == 2)
+        ncnn::cast_float32_to_float16(in, input, net.opt);
+    else
+        ncnn::cast_float32_to_bfloat16(in, input, net.opt);
+
+    ncnn::Extractor ref = net.create_extractor();
+    ncnn::Mat expected;
+    if (ref.input("in", in) != 0 || ref.extract("out", expected, 1) != 0)
+    {
+        fprintf(stderr, "test_net storage packing reference failed storage_type=%d\n", storage_type);
+        return -1;
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ncnn::Mat out;
+    int ret = ex.input("in", input);
+    if (ret == 0)
+        ret = ex.extract("out", out, 1);
+    if (ret != 0 || out.elembits() != 32 || out.elempack != expected.elempack || CompareMat(in, out, 0.f) != 0)
+    {
+        fprintf(stderr, "test_net storage packing failed storage_type=%d ret=%d elembits=%d elempack=%d expected=%d\n", storage_type, ret, out.elembits(), out.elempack, expected.elempack);
+        return -1;
+    }
+    return 0;
+}
+#endif // NCNN_BF16
+
 static int test_recreate_layer()
 {
     for (int binary = 0; binary < 2; binary++)
@@ -839,6 +941,252 @@ static int test_pipeline_lifecycle()
 
     return 0;
 }
+
+static int test_bounded_text()
+{
+    const unsigned char text[] = "7767517\n1 1\nInput input 0 1 out\n";
+    const unsigned char* mem = text;
+    ncnn::DataReaderFromMemory dr(mem, sizeof(text) - 1);
+    ncnn::Net net;
+    if (net.load_param(dr) != 0)
+    {
+        fprintf(stderr, "test_net bounded text failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+class TestModelLayer : public ncnn::Layer
+{
+public:
+    virtual int load_model(const ncnn::ModelBin& mb)
+    {
+        weights = mb.load(3, 1);
+        return weights.empty() ? -100 : 0;
+    }
+
+    virtual int forward(const std::vector<ncnn::Mat>&, std::vector<ncnn::Mat>& top_blobs, const ncnn::Option& opt) const
+    {
+        top_blobs[0] = weights.clone(opt.blob_allocator);
+        return top_blobs[0].empty() ? -100 : 0;
+    }
+
+private:
+    ncnn::Mat weights;
+};
+
+static ncnn::Layer* create_model_layer(void*)
+{
+    return new TestModelLayer;
+}
+
+static int check_model_file(const char* path, size_t size, bool mapped)
+{
+    const unsigned char model_data[] = {
+        0x00, 0x00, 0x80, 0x3f,
+        0x00, 0x00, 0x20, 0xc0,
+        0x00, 0x00, 0x00, 0x3f
+    };
+    const float weights[] = {1.f, -2.5f, 0.5f};
+    FILE* fp = fopen(path, "wb");
+    if (!fp)
+    {
+        fprintf(stderr, "test_net model fopen failed\n");
+        return -1;
+    }
+    const size_t nwrite = fwrite(model_data, 1, size, fp);
+    const int close_ret = fclose(fp);
+    if (nwrite != size || close_ret != 0)
+    {
+        fprintf(stderr, "test_net model fwrite failed\n");
+        return -1;
+    }
+
+    // mapped loading falls back to stdio when file mapping is unavailable
+    if (mapped && size != 0)
+    {
+        ncnn::MappedFile file;
+        if (file.open(path) != 0)
+        {
+            fprintf(stderr, "test_net model mapping unavailable size=%zu errno=%d, testing stdio fallback\n", size, errno);
+        }
+    }
+
+    ncnn::Net net;
+    net.opt.use_mapped_model_loading = mapped;
+    net.register_custom_layer("TestModel", create_model_layer);
+    if (net.load_param_mem("7767517\n1 1\nTestModel weights 0 1 out\n") != 0)
+    {
+        fprintf(stderr, "test_net model load_param failed\n");
+        return -1;
+    }
+
+    // a bounded short read consumes the entire file, so the load status must be checked
+    const int ret = net.load_model(path);
+    if ((ret != 0) != (size < sizeof(weights)))
+    {
+        fprintf(stderr, "test_net model load failed mapped=%d size=%zu ret=%d\n", mapped, size, ret);
+        return -1;
+    }
+
+#if _WIN32
+    wchar_t wide_path[128];
+    size_t i = 0;
+    for (; path[i]; i++)
+        wide_path[i] = (unsigned char)path[i];
+    wide_path[i] = 0;
+    ncnn::Net net2;
+    net2.opt.use_mapped_model_loading = mapped;
+    net2.register_custom_layer("TestModel", create_model_layer);
+    if (net2.load_param_mem("7767517\n1 1\nTestModel weights 0 1 out\n") != 0
+            || (net2.load_model(wide_path) != 0) != (size < sizeof(weights)))
+    {
+        fprintf(stderr, "test_net wide model load failed mapped=%d size=%zu\n", mapped, size);
+        return -1;
+    }
+#endif
+
+    if (ret == 0)
+    {
+        ncnn::Mat output;
+        ncnn::Extractor ex = net.create_extractor();
+        if (ex.extract("out", output) != 0 || output.w != 3 || memcmp(output.data, weights, sizeof(weights)))
+        {
+            fprintf(stderr, "test_net model output failed mapped=%d\n", mapped);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_model_file()
+{
+    char path[128];
+#if _WIN32
+    snprintf(path, sizeof(path), "test_net_model.%u.bin", (unsigned int)_getpid());
+#else
+    snprintf(path, sizeof(path), "test_net_model.%u.bin", (unsigned int)getpid());
+#endif
+    for (int mapped = 0; mapped < 2; mapped++)
+    {
+        for (size_t size = 0; size <= 3 * sizeof(float); size++)
+        {
+            const int ret = check_model_file(path, size, mapped != 0);
+            remove(path);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
+#if NCNN_VULKAN
+class OptionalInputLayer : public ncnn::Layer
+{
+public:
+    OptionalInputLayer(bool _support_vulkan)
+    {
+        one_blob_only = false;
+        support_vulkan = _support_vulkan;
+    }
+
+    virtual int forward(const std::vector<ncnn::Mat>& bottom_blobs, std::vector<ncnn::Mat>& top_blobs, const ncnn::Option&) const
+    {
+        top_blobs[0] = bottom_blobs.size() == 2 && !bottom_blobs[1].empty() ? bottom_blobs[1] : bottom_blobs[0];
+        return 0;
+    }
+
+    virtual int forward(const std::vector<ncnn::VkMat>& bottom_blobs, std::vector<ncnn::VkMat>& top_blobs, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
+    {
+        const ncnn::VkMat& a = bottom_blobs.size() == 2 && !bottom_blobs[1].empty() ? bottom_blobs[1] : bottom_blobs[0];
+        cmd.record_clone(a, top_blobs[0], opt);
+        return top_blobs[0].empty() ? -100 : 0;
+    }
+};
+
+static ncnn::Layer* create_optional_input_layer(void*)
+{
+    return new OptionalInputLayer(false);
+}
+
+static ncnn::Layer* create_optional_input_layer_vulkan(void*)
+{
+    return new OptionalInputLayer(true);
+}
+
+static int test_vulkan_optional_input(int vulkan, int lightmode, int empty_input)
+{
+    ncnn::Net net;
+    net.opt.use_vulkan_compute = true;
+    net.opt.lightmode = lightmode;
+    net.opt.num_threads = 1;
+    net.register_custom_layer("OptionalInput", create_optional_input_layer);
+    net.register_custom_layer("OptionalInputVulkan", create_optional_input_layer_vulkan);
+
+    const char* param_cpu = "7767517\n"
+                            "4 4\n"
+                            "Input in 0 1 in\n"
+                            "Input optional 0 1 optional\n"
+                            "OptionalInputVulkan pre 1 1 in data\n"
+                            "OptionalInput target 2 1 data optional out\n";
+    const char* param_vulkan = "7767517\n"
+                               "4 4\n"
+                               "Input in 0 1 in\n"
+                               "Input optional 0 1 optional\n"
+                               "OptionalInput pre 1 1 in data\n"
+                               "OptionalInputVulkan target 2 1 data optional out\n";
+    BoundedNetReader dr(0, 0);
+    if (net.load_param_mem(vulkan ? param_vulkan : param_cpu) != 0 || net.load_model(dr) != 0)
+    {
+        fprintf(stderr, "test_net vulkan optional input load failed vulkan=%d lightmode=%d\n", vulkan, lightmode);
+        return -1;
+    }
+
+    ncnn::Mat in(4);
+    ncnn::Mat optional(4);
+    for (int i = 0; i < 4; i++)
+    {
+        in[i] = i + 1.f;
+        optional[i] = i + 11.f;
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("in", in);
+    if (!empty_input)
+        ex.input("optional", optional);
+
+    ncnn::Mat out;
+    int ret = ex.extract("out", out);
+    const ncnn::Mat& expected = empty_input ? in : optional;
+    if (ret != 0 || CompareMat(expected, out, 0.f) != 0)
+    {
+        fprintf(stderr, "test_net vulkan optional input failed vulkan=%d lightmode=%d empty_input=%d ret=%d\n", vulkan, lightmode, empty_input, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_vulkan_optional_input()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    return test_vulkan_optional_input(0, 0, 1)
+           || test_vulkan_optional_input(0, 0, 0)
+           || test_vulkan_optional_input(0, 1, 1)
+           || test_vulkan_optional_input(0, 1, 0)
+           || test_vulkan_optional_input(1, 0, 1)
+           || test_vulkan_optional_input(1, 0, 0)
+           || test_vulkan_optional_input(1, 1, 1)
+           || test_vulkan_optional_input(1, 1, 0);
+}
+#endif // NCNN_VULKAN
 
 #if NCNN_VALIDATION
 static int test_text_errors()
@@ -1116,6 +1464,10 @@ int main()
            || test_builtin_without_override()
            || test_null_creators()
            || test_shape_layout()
+#if NCNN_BF16
+           || test_storage_packing(4)
+           || test_storage_packing(2)
+#endif
            || test_recreate_layer()
            || test_recreate_layer_null_creator()
            || test_external_input()
@@ -1123,6 +1475,13 @@ int main()
            || test_magic_mismatch()
            || test_feature_mask()
            || test_pipeline_lifecycle()
+           || test_bounded_text()
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+           || test_model_file()
+#endif
+#if NCNN_VULKAN
+           || test_vulkan_optional_input()
+#endif // NCNN_VULKAN
 #if NCNN_VALIDATION
            || test_text_errors()
            || test_binary_errors()

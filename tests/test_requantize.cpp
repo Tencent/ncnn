@@ -139,6 +139,9 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
     Randomize(weights[1], 10, 100);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    // ordinary cases cover dims=1/2/3; retain the packed dims=4 cases
+    if (a.dims != 4)
+        flag |= TEST_LAYER_DISABLE_GPU_TESTING;
 #if !__riscv
     flag |= TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
 #endif
@@ -165,6 +168,9 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
 static int test_requantize_0()
 {
     return 0
+           || test_requantize_pack1(RandomIntMat(3, 3, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(3, 3, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(3, 3, 128), 128, 1, 128)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 1)
            || test_requantize_pack1(RandomIntMat(7, 9, 12), 1, 1, 0)
@@ -194,6 +200,9 @@ static int test_requantize_0()
 static int test_requantize_1()
 {
     return 0
+           || test_requantize_pack1(RandomIntMat(9, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(9, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(9, 128), 128, 1, 128)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 1)
            || test_requantize_pack1(RandomIntMat(17, 12), 1, 1, 0)
@@ -296,12 +305,15 @@ static int test_requantize_3()
 static int test_requantize_4()
 {
     return 0
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 32), 32, 32, 0)
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 64), 1, 1, 64)
+           || test_requantize_pack1(RandomIntMat(3, 3, 1, 128), 128, 1, 128)
+           || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 1, 1, 24)
+           || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 24, 24, 0)
            || test_requantize_pack1(RandomIntMat(5, 3, 2, 12), 1, 1, 12)
            || test_requantize_pack1(RandomIntMat(5, 3, 2, 12), 12, 12, 0)
            || test_requantize_pack1(RandomIntMat(3, 5, 3, 13), 1, 13, 13)
-           || test_requantize_pack1(RandomIntMat(3, 5, 3, 13), 13, 1, 0)
-           || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 1, 1, 24)
-           || test_requantize_pack8(RandomIntMat(5, 3, 2, 24), 24, 24, 0);
+           || test_requantize_pack1(RandomIntMat(3, 5, 3, 13), 13, 1, 0);
 }
 
 static int test_requantize_activation_params_text()
