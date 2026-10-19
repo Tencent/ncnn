@@ -5,6 +5,9 @@
 
 namespace pnnx {
 
+// clang-format off
+// *INDENT-OFF*
+
 void export_caffe_python(const Graph& graph, FILE* pyfp)
 {
     bool priorbox = false;
@@ -30,29 +33,31 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
     fprintf(pyfp, "class caffe:\n");
     if (power)
     {
-        fputs(R "PY(    @staticmethod
-              def Power(input, power, scale, shift)
-              : return torch.pow(shift + scale * input, power)
+        fputs(R"PY(    @staticmethod
+    def Power(input, power, scale, shift):
+        return torch.pow(shift + scale * input, power)
 
-             ) PY ", pyfp);
+)PY", pyfp);
     }
     if (argmax)
     {
-        fputs(R "PY(    @staticmethod
-              def ArgMax(input, top_k, mode, shape)
-              : values = input.reshape(-1)
-#Caffe sorts(value, index) pairs descending, including index ties
-#stable sorting of the reversed input gives the same larger - index rule
-                         reversed_order
-                         = torch.argsort(values.flip(0), descending = True, stable = True) [:top_k] indices = values.numel() - 1 - reversed_order if mode == 0
-                                 : output = indices.to(input.dtype)
-                                            elif mode
-                                            == 1
-                                            : output = values[indices] else
-                                                        : output = torch.cat((indices.to(input.dtype), values[indices])) return output.reshape(shape)
+        fputs(R"PY(    @staticmethod
+    def ArgMax(input, top_k, mode, shape):
+        values = input.reshape(-1)
+        # Caffe sorts (value, index) pairs descending, including index ties
+        # stable sorting of the reversed input gives the same larger-index rule
+        reversed_order = torch.argsort(values.flip(0), descending=True, stable=True)[:top_k]
+        indices = values.numel() - 1 - reversed_order
+        if mode == 0:
+            output = indices.to(input.dtype)
+        elif mode == 1:
+            output = values[indices]
+        else:
+            output = torch.cat((indices.to(input.dtype), values[indices]))
+        return output.reshape(shape)
 
-                 ) PY ", pyfp);
-            }
+)PY", pyfp);
+    }
     if (priorbox)
     {
         fputs(R"PY(    @staticmethod
@@ -274,7 +279,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
                 net_shape = (head.new_tensor(anchors_scale[head_index]) * head.new_tensor((width, height))).trunc()
                 sizes = values[..., 2:4].exp() * anchors / net_shape
                 class_scores, labels = values[..., 5:].max(dim=-1)
-#preserve the historical ncnn / Caffe deployment - layer formula
+                # preserve the historical ncnn / Caffe deployment-layer formula
                 scores = 1 / (1 + torch.exp(-values[..., 4]) * (1 + torch.exp(-class_scores)))
             boxes = torch.cat((centers - sizes * 0.5, centers + sizes * 0.5), dim=-1)
             areas = sizes.prod(dim=-1) if mask is not None else (boxes[..., 2:] - boxes[..., :2]).prod(dim=-1)
@@ -295,7 +300,7 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
             upper = torch.minimum(boxes[index, 2:], boxes[rest, 2:])
             intersection = (upper - lower).clamp(min=0).prod(dim=-1)
             union = areas[index] + areas[rest] - intersection
-#these legacy layers suppress boxes across classes
+            # these legacy layers suppress boxes across classes
             suppress = intersection > nms_threshold * union if mask is not None else intersection / union > nms_threshold
             order = rest[~suppress]
         indices = torch.stack(kept) if kept else torch.empty(0, dtype=torch.long, device=boxes.device)
@@ -313,5 +318,8 @@ void export_caffe_python(const Graph& graph, FILE* pyfp)
     }
     fprintf(pyfp, "\n");
 }
+
+// *INDENT-ON*
+// clang-format on
 
 } // namespace pnnx

@@ -35,7 +35,7 @@ static int load_caffe_parameters(const google::protobuf::Message& message, const
     for (int i = 0; i < descriptor->field_count(); i++)
     {
         const google::protobuf::FieldDescriptor* field = descriptor->field(i);
-        const std::string key = prefix + field->name();
+        const std::string key = prefix + std::string(field->name());
         // interp uses field presence to distinguish explicit size from zoom/shrink
         if (descriptor == caffe::InterpParameter::descriptor() && !reflection->HasField(message, field))
             continue;
