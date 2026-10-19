@@ -3288,18 +3288,28 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
          * hwprobe 两个 bug 叠加让 fp16s 从未开启）。本层被 IME2 武装时必须
          * 自己接住裸 fp32 输入（ncnn_llm 的 LlmHead 模式）：转成 fp16 再进
          * 16 位分发，等价于 Net 里会自动发生的 cast。 */
+        /* 临时 cast 的张量用 workspace 分配器：递归的 forward 会从
+         * blob_allocator 分配输出，若临时量也占 blob_allocator，为大输入
+         * 定容的图分配器会双重占用而误报 -100。 */
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
         std::vector<Mat> in16(bottom_blobs.size());
         bool ok = true;
         for (size_t i = 0; i < bottom_blobs.size(); i++)
         {
             if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
             {
+<<<<<<< HEAD
                 cast_float32_to_float16(bottom_blobs[i], in16[i], opt);
                 if (in16[i].empty())
                 {
                     ok = false;
                     break;
                 }
+=======
+                cast_float32_to_float16(bottom_blobs[i], in16[i], opt_cast);
+                if (in16[i].empty()) { ok = false; break; }
+>>>>>>> 4c299e5c (riscv(ime2): allocate recursive input casts from the workspace allocator)
             }
             else
                 in16[i] = bottom_blobs[i];
