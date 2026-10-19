@@ -54,6 +54,10 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     /* 真下溢（x < -103.98，exp < 2^-149 的一半）才置零；(-103.98, -87.34)
      * 区间的值是可表示的次正规数，必须保留（软权重乘以大 V 有真实贡献），
      * 由下面的次正规分支构造。 */
+    /* NaN 保真：vfmin/vfmax 遇单 NaN 操作数返回数值操作数，会把 NaN 钳成
+     * ±127——exp 近似给出巨大有限权重，而上游 Softmax 的 expf(NaN)=NaN 传播。
+     * 先记 NaN lane，最后合回。 */
+    vbool32_t vnan = __riscv_vmfne_vv_f32m1_b32(x, x, vl);
     vbool32_t vund = __riscv_vmflt_vf_f32m1_b32(x, -103.98f, vl);
     t = __riscv_vfmin_vf_f32m1(t, 127.f, vl);
     /* 下钳到 -150（不是 -126）：次正规区 t ∈ (-150, -126) 也要走完流程 */
@@ -83,7 +87,8 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     vfloat32m1_t vsub = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(qi, vl), __riscv_vfmv_v_f_f32m1(0x1p-149f, vl), vl);
     vbool32_t issub = __riscv_vmslt_vx_i32m1_b32(ni, -126, vl);
     vfloat32m1_t y = __riscv_vmerge_vvm_f32m1(vnorm, vsub, issub, vl);
-    return __riscv_vfmerge_vfm_f32m1(y, 0.f, vund, vl);
+    y = __riscv_vfmerge_vfm_f32m1(y, 0.f, vund, vl);
+    return __riscv_vfmerge_vfm_f32m1(y, __builtin_nanf(""), vnan, vl);
 }
 #endif
 
