@@ -2315,6 +2315,8 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
     const bool use_int8_requantize = int8_scale_term > 100;
+    const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
+    const bool use_cooperative_matrix_padding = use_khr_cooperative_matrix && vkdev->info.vendor_id() != 0x5143;
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
@@ -2603,18 +2605,20 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
             // match the aligned packed int8 row strides in the cooperative matrix shaders
-            const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
-            const int Kd4p = use_khr_cooperative_matrix ? (((coopmat_K + 15) / 16) | 1) * 4 : coopmat_K / 4;
-            const int Nd4p = use_khr_cooperative_matrix ? (((coopmat_N + 15) / 16) | 1) * 4 : coopmat_N / 4;
+            const int Kd4p = use_cooperative_matrix_padding ? (((coopmat_K + 15) / 16) | 1) * 4 : coopmat_K / 4;
+            const int Nd4p = use_cooperative_matrix_padding ? (((coopmat_N + 15) / 16) | 1) * 4 : coopmat_N / 4;
             const size_t shared_a = 8 * coopmat_M * Kd4p;
             const size_t shared_b = 8 * coopmat_K * Nd4p;
             const size_t shared_o = 4 * coopmat_M * coopmat_N;
+            // adreno's int8 cooperative matrix lowering adds 2 KiB of shared scratch
+            const size_t shared_scratch = use_khr_cooperative_matrix && vkdev->info.vendor_id() == 0x5143 ? 2048 : 0;
 
             for (;;)
             {
                 const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
                                             + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
-                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N
+                                            + shared_scratch;
                 const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
                 if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
                         && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
@@ -2672,9 +2676,8 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
             // match the aligned packed int8 row strides in the cooperative matrix shaders
-            const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
-            const int Kd4p = use_khr_cooperative_matrix ? (((coopmat_K + 15) / 16) | 1) * 4 : coopmat_K / 4;
-            const int Nd4p = use_khr_cooperative_matrix ? (((coopmat_N + 15) / 16) | 1) * 4 : coopmat_N / 4;
+            const int Kd4p = use_cooperative_matrix_padding ? (((coopmat_K + 15) / 16) | 1) * 4 : coopmat_K / 4;
+            const int Nd4p = use_cooperative_matrix_padding ? (((coopmat_N + 15) / 16) | 1) * 4 : coopmat_N / 4;
             const size_t shared_a = 4 * coopmat_M * Kd4p;
             const size_t shared_b = 4 * coopmat_K * Nd4p;
             const size_t shared_o = 4 * coopmat_M * coopmat_N;
@@ -2721,7 +2724,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             const int kk = (num_input + coopmat_K - 1) / coopmat_K;
             const int kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
             const int coopmat_Nd4 = coopmat_N / 4;
-            const int coopmat_Nd4p = vkdev->info.support_VK_KHR_cooperative_matrix() ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
+            const int coopmat_Nd4p = use_cooperative_matrix_padding ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
 
             const int weight_data_int8_packed_size = coopmat_Nd4p * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk_padded;
             weight_data_int8_packed.create(weight_data_int8_packed_size, blocks_n, (size_t)4u, 4);
@@ -2809,7 +2812,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 const int kk = (K + coopmat_K - 1) / coopmat_K;
                 const int kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
                 const int coopmat_Nd4 = coopmat_N / 4;
-                const int coopmat_Nd4p = vkdev->info.support_VK_KHR_cooperative_matrix() ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
+                const int coopmat_Nd4p = use_cooperative_matrix_padding ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
 
                 const int weight_data_int8_packed_size = coopmat_Nd4p * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk_padded;
                 weight_data_int8_packed.create(weight_data_int8_packed_size, blocks_n, (size_t)4u, 4);
@@ -3060,7 +3063,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     const int kk = (num_input + coopmat_K - 1) / coopmat_K;
                     const int kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
                     const int coopmat_Nd4 = coopmat_N / 4;
-                    const int coopmat_Nd4p = vkdev->info.support_VK_KHR_cooperative_matrix() ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
+                    const int coopmat_Nd4p = use_cooperative_matrix_padding ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
 
                     const int weight_data_int8_packed_size = coopmat_Nd4p * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk_padded;
                     weight_winograd43_data_int8_packed_cm.create(weight_data_int8_packed_size, blocks_n, 36, (size_t)8u, 1);
@@ -3320,7 +3323,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     const int kk = (num_input + coopmat_K - 1) / coopmat_K;
                     const int kk_padded = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K * UNROLL_SG_K;
                     const int coopmat_Nd4 = coopmat_N / 4;
-                    const int coopmat_Nd4p = vkdev->info.support_VK_KHR_cooperative_matrix() ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
+                    const int coopmat_Nd4p = use_cooperative_matrix_padding ? (((coopmat_Nd4 + 3) / 4) | 1) * 4 : coopmat_Nd4;
 
                     const int weight_data_int8_packed_size = coopmat_Nd4p * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk_padded;
                     weight_winograd23_data_int8_packed_cm.create(weight_data_int8_packed_size, blocks_n, 16, (size_t)8u, 1);
