@@ -247,13 +247,12 @@ static int ime2_a100_set(int nthreads, cpu_set_t* out)
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
     static int probed = 0;
-    static cpu_set_t cached;
-    if (probed)
-    {
-        *out = cached;
-        return 1;
-    }
-    /* 1) 收集并集（区域内只做 sched_getaffinity，无特权指令，随处可跑） */
+    static cpu_set_t cached;      /* 已确认 vlenb==128 的核集合（只增不减） */
+    static cpu_set_t seen_union;  /* 已见过的团队掩码并集 */
+
+    /* 1) 每次调用都收集当前团队的并集（区域内只做 sched_getaffinity，无特权
+     *    指令，随处可跑）。缓存只对"已见过的核"有效：先探小团队再用大团队时，
+     *    后来者的合法 A100 核不在缓存里，team_ok 会误判——所以并集要累计。 */
     cpu_set_t uni;
     CPU_ZERO(&uni);
     #pragma omp parallel num_threads(nthreads)
@@ -270,31 +269,44 @@ static int ime2_a100_set(int nthreads, cpu_set_t* out)
         }
     }
     if (CPU_COUNT(&uni) == 0)
-        return 0;
-    /* 2) 调用线程逐核走一遍并集，记下 vlenb==128 的（走完恢复原绑定） */
-    cpu_set_t orig;
-    if (sched_getaffinity(0, sizeof(orig), &orig) != 0)
-        return 0;
-    CPU_ZERO(&cached);
+        return probed ? (*out = cached, 1) : 0;
+
+    /* 2) 只对没见过的核做分类（vlenb walk），见过的直接用缓存 */
+    cpu_set_t fresh;
+    CPU_ZERO(&fresh);
     for (int c = 0; c < CPU_SETSIZE; c++)
+        if (CPU_ISSET(c, &uni) && (!probed || !CPU_ISSET(c, &seen_union)))
+            CPU_SET(c, &fresh);
+
+    if (CPU_COUNT(&fresh) > 0)
     {
-        if (!CPU_ISSET(c, &uni))
-            continue;
-        cpu_set_t one;
-        CPU_ZERO(&one);
-        CPU_SET(c, &one);
-        if (sched_setaffinity(0, sizeof(one), &one) != 0)
-            continue;
-        unsigned long vlenb = 0;
-        __asm__ volatile("csrr %0, vlenb"
-                         : "=r"(vlenb));
-        if (vlenb == 128)
-            CPU_SET(c, &cached);
+        cpu_set_t orig;
+        if (sched_getaffinity(0, sizeof(orig), &orig) != 0)
+            return probed ? (*out = cached, 1) : 0;
+        for (int c = 0; c < CPU_SETSIZE; c++)
+        {
+            if (!CPU_ISSET(c, &fresh))
+                continue;
+            cpu_set_t one;
+            CPU_ZERO(&one);
+            CPU_SET(c, &one);
+            if (sched_setaffinity(0, sizeof(one), &one) != 0)
+                continue;
+            unsigned long vlenb = 0;
+            __asm__ volatile("csrr %0, vlenb"
+                             : "=r"(vlenb));
+            if (vlenb == 128)
+                CPU_SET(c, &cached);
+        }
+        sched_setaffinity(0, sizeof(orig), &orig);
+        for (int c = 0; c < CPU_SETSIZE; c++)
+            if (CPU_ISSET(c, &uni))
+                CPU_SET(c, &seen_union);
+        probed = 1;
     }
-    sched_setaffinity(0, sizeof(orig), &orig);
-    probed = 1;
+
     *out = cached;
-    return 1;
+    return probed;
 }
 #endif
 
