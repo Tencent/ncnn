@@ -243,7 +243,7 @@ pnnx.Attribute          mean        0 1 running_mean
 pnnx.Attribute          var         0 1 running_var
 pnnx.Attribute          weight      0 1 weight @data=%op_0.0
 pnnx.Attribute          bias        0 1 bias @data=%op_0.1
-F.batch_norm            bn          5 1 input running_mean running_var weight bias out eps=0.0
+F.batch_norm            bn          5 1 input running_mean running_var weight bias out eps=1.0
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -253,7 +253,8 @@ pnnx.Output             output      1 0 out
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
         const int channels = captured_params.at("num_features").i;
         ops.at("mean")->attrs["data"] = Attribute({channels}, std::vector<float>(channels, 0.f));
-        ops.at("var")->attrs["data"] = Attribute({channels}, std::vector<float>(channels, 1.f));
+        // Keep sqrt(running_var + eps) exactly one with a positive epsilon.
+        ops.at("var")->attrs["data"] = Attribute({channels}, std::vector<float>(channels, 0.f));
         ops.at("bn")->inputnames = {"input", "running_mean", "running_var", "weight", "bias"};
         for (const char* name : {"mean", "var", "weight", "bias"})
         {
