@@ -3,6 +3,11 @@
 
 #version 450
 
+#if NCNN_fp16_packed
+NCNN_DEFINE_PACK_HALF_PRESERVE_SPECIAL()
+#define packHalf2x16(v) pack_half_preserve_special(v)
+#endif
+
 layout(constant_id = 0) const int cast_type_from = 0;
 layout(constant_id = 1) const int cast_type_to = 1;
 
