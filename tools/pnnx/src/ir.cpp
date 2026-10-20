@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <stack>
+#include <utility>
 
 #include "storezip.h"
 #include "utils.h"
@@ -1001,28 +1002,28 @@ static std::string expand_expression(const Operator* op)
     }
 
     // scan and stack
-    std::stack<std::string> exprstack;
+    std::stack<std::pair<std::string, bool> > exprstack;
     for (int i = (int)tokens.size() - 1; i >= 0; i--)
     {
         const std::string& t = tokens[i];
 
         if (t == "size")
         {
-            std::string a = exprstack.top();
+            std::string a = exprstack.top().first;
             exprstack.pop();
 
             if (exprstack.empty())
             {
                 std::string r = a + ".shape";
-                exprstack.push(r);
+                exprstack.push(std::make_pair(r, false));
             }
             else
             {
-                std::string b = exprstack.top();
+                std::string b = exprstack.top().first;
                 exprstack.pop();
 
                 std::string r = a + ".size(" + b + ")";
-                exprstack.push(r);
+                exprstack.push(std::make_pair(r, false));
             }
         }
         else if (t == "int"
@@ -1091,11 +1092,12 @@ static std::string expand_expression(const Operator* op)
             if (t == "tanh") unaryop = "torch.tanh";
             if (t == "trunc") unaryop = "torch.trunc";
 
-            std::string a = exprstack.top();
+            std::string a = exprstack.top().first;
+            bool a_is_tensor = exprstack.top().second;
             exprstack.pop();
 
             std::string r = unaryop + "(" + a + ")";
-            exprstack.push(r);
+            exprstack.push(std::make_pair(r, t == "int" || t == "neg" ? a_is_tensor : true));
         }
         else if (t == "atan2"
                  || t == "fmod"
@@ -1116,9 +1118,9 @@ static std::string expand_expression(const Operator* op)
             if (t == "pow") binaryop = "torch.pow";
             if (t == "logaddexp") binaryop = "torch.logaddexp";
 
-            std::string a = exprstack.top();
+            std::string a = exprstack.top().first;
             exprstack.pop();
-            std::string b = exprstack.top();
+            std::string b = exprstack.top().first;
             exprstack.pop();
 
             if (t == "max" || t == "min")
@@ -1130,7 +1132,7 @@ static std::string expand_expression(const Operator* op)
             }
 
             std::string r = binaryop + "(" + a + ", " + b + ")";
-            exprstack.push(r);
+            exprstack.push(std::make_pair(r, true));
         }
         else if (t == "add"
                  || t == "sub"
@@ -1157,20 +1159,25 @@ static std::string expand_expression(const Operator* op)
             if (t == "lshift") binaryop = "<<";
             if (t == "rshift") binaryop = ">>";
 
-            std::string a = exprstack.top();
+            std::string a = exprstack.top().first;
+            bool a_is_tensor = exprstack.top().second;
             exprstack.pop();
-            std::string b = exprstack.top();
+            std::string b = exprstack.top().first;
+            bool b_is_tensor = exprstack.top().second;
             exprstack.pop();
 
-            std::string r = std::string("(") + a + " " + binaryop + " " + b + ")";
-            exprstack.push(r);
+            // Tensor.__rtruediv__ rounds the reciprocal before multiplying for float16.
+            std::string r = t == "div" && token_is_literal(a) && b_is_tensor
+                ? std::string("torch.div(") + a + ", " + b + ")"
+                : std::string("(") + a + " " + binaryop + " " + b + ")";
+            exprstack.push(std::make_pair(r, a_is_tensor || b_is_tensor));
         }
         else if (t == "[") // list
         {
             std::vector<std::string> elements;
             while (!exprstack.empty())
             {
-                std::string a = exprstack.top();
+                std::string a = exprstack.top().first;
                 exprstack.pop();
 
                 elements.push_back(a);
@@ -1189,13 +1196,13 @@ static std::string expand_expression(const Operator* op)
             }
             r += "]";
 
-            exprstack.push(r);
+            exprstack.push(std::make_pair(r, false));
         }
         else if (t[0] == '@')
         {
             int input_index = std::stoi(t.substr(1));
             std::string varid = std::string("v_") + sanitize_identifier(op->inputs[input_index]->name);
-            exprstack.push(varid);
+            exprstack.push(std::make_pair(varid, true));
         }
         else
         {
@@ -1204,16 +1211,16 @@ static std::string expand_expression(const Operator* op)
             {
                 // complex
                 std::string r = std::string("(") + t + ")";
-                exprstack.push(r);
+                exprstack.push(std::make_pair(r, false));
             }
             else
             {
-                exprstack.push(t);
+                exprstack.push(std::make_pair(t, false));
             }
         }
     }
 
-    std::string r = exprstack.top();
+    std::string r = exprstack.top().first;
     exprstack.pop();
 
     return r;
