@@ -981,11 +981,15 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen_hint"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
-    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
-        int ret = ex.extract(blob_name, feat, type);
+        int ret;
+        {
+            py::gil_scoped_release release;
+            ret = ex.extract(blob_name, feat, type);
+        }
         if (type == 1)
             return py::make_tuple(ret, ncnn::Mat(feat));
 
@@ -994,11 +998,15 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
     .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
-    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
-        int ret = ex.extract(blob_index, feat, type);
+        int ret;
+        {
+            py::gil_scoped_release release;
+            ret = ex.extract(blob_index, feat, type);
+        }
         if (type == 1)
             return py::make_tuple(ret, ncnn::Mat(feat));
 
