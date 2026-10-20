@@ -44,46 +44,65 @@ SDPA_riscv::SDPA_riscv()
 // 是长上下文解码的主要成本（每 token 约 10 ms）。这里换成向量版。
 static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
 {
-    const vfloat32m1_t vlog2e = __riscv_vfmv_v_f_f32m1(1.4426950408889634f, vl);
-    const vfloat32m1_t vhalf = __riscv_vfmv_v_f_f32m1(0.5f, vl);
-    vfloat32m1_t t = __riscv_vfmul_vv_f32m1(x, vlog2e, vl);
-    /* 先钳位 t 再算 f = t - n：硬掩码行（-INFINITY / -1e9）下 nf 被钳住而 t 仍是
-     * 天文数字，f 会远离多项式的合法域，Horner 链溢出成 +inf 而不是 0，后面的
-     * 归一化把整行污染成 NaN。钳位 t 到 [-126, 127] 后 f 落在 [-0.5, 0.5]。对
-     * 正常值（|x| <= 87，fp32 exp 的合法范围）没有影响。 */
-    /* 真下溢（x < -103.98，exp < 2^-149 的一半）才置零；(-103.98, -87.34)
-     * 区间的值是可表示的次正规数，必须保留（软权重乘以大 V 有真实贡献），
-     * 由下面的次正规分支构造。 */
-    vbool32_t vund = __riscv_vmflt_vf_f32m1_b32(x, -103.98f, vl);
-    t = __riscv_vfmin_vf_f32m1(t, 127.f, vl);
-    /* 下钳到 -150（不是 -126）：次正规区 t ∈ (-150, -126) 也要走完流程 */
-    t = __riscv_vfmax_vf_f32m1(t, -150.f, vl);
-    vfloat32m1_t nf = __riscv_vfadd_vv_f32m1(t, vhalf, vl);
-    nf = __riscv_vfmin_vf_f32m1(nf, 127.f, vl);
-    nf = __riscv_vfmax_vf_f32m1(nf, -150.f, vl);
-    vint32m1_t ni = __riscv_vfcvt_x_f_v_i32m1_rm(nf, __RISCV_FRM_RDN, vl);
-    vfloat32m1_t n = __riscv_vfcvt_f_x_v_f32m1(ni, vl);
-    vfloat32m1_t f = __riscv_vfsub_vv_f32m1(t, n, vl);
-    vfloat32m1_t p = __riscv_vfmv_v_f_f32m1(1.3392112e-4f, vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(1.3392112e-3f, vl), vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(9.6181291e-3f, vl), vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(5.5504109e-2f, vl), vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(2.4022651e-1f, vl), vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(6.9314718e-1f, vl), vl);
-    p = __riscv_vfmadd_vv_f32m1(p, f, __riscv_vfmv_v_f_f32m1(1.0f, vl), vl);
-    vint32m1_t bias = __riscv_vsll_vx_i32m1(ni, 23, vl);
-    vfloat32m1_t scale = __riscv_vreinterpret_v_i32m1_f32m1(__riscv_vadd_vx_i32m1(bias, 0x3f800000, vl));
-    vfloat32m1_t vnorm = __riscv_vfmul_vv_f32m1(p, scale, vl);
-    /* 次正规（ni <= -127，即 x·log2e 的指数低于正常下限）：fp32 次正规值
-     * = mantissa_int · 2^-149，mantissa_int = round(p · 2^(ni+149))——其整数
-     * 直接就是位模式（指数字段为 0）。ni ∈ [-150,-127] → ni+149 ∈ [-1,22]，
-     * 2^(ni+149) 用同一整数偏移技巧构造。 */
-    vfloat32m1_t scale2 = __riscv_vreinterpret_v_i32m1_f32m1(__riscv_vsll_vx_i32m1(__riscv_vadd_vx_i32m1(ni, 276, vl), 23, vl));
-    vint32m1_t qi = __riscv_vfcvt_x_f_v_i32m1(__riscv_vfmul_vv_f32m1(p, scale2, vl), vl); /* 默认 RNE */
-    vfloat32m1_t vsub = __riscv_vfmul_vv_f32m1(__riscv_vfcvt_f_x_v_f32m1(qi, vl), __riscv_vfmv_v_f_f32m1(0x1p-149f, vl), vl);
-    vbool32_t issub = __riscv_vmslt_vx_i32m1_b32(ni, -126, vl);
-    vfloat32m1_t y = __riscv_vmerge_vvm_f32m1(vnorm, vsub, issub, vl);
-    return __riscv_vfmerge_vfm_f32m1(y, 0.f, vund, vl);
+    /* 与上游 Softmax_riscv 使用的 exp_ps（rvv_mathfun.h）逐位一致的构造：
+     * 同一 cephes 多项式、同一钳位常数、同一 +0.5/floor 取整、同一 ldexp
+     * 位技巧。解码快路径的输出与组合回退路径逐位相同；低于 exp_lo 的值与
+     * 上游一样冲刷为 0（NaN 的钳位语义也与上游一致：vfmin/vfmax 遇单 NaN
+     * 取数值操作数）。 */
+    /* 常数名加 sdpa_ 前缀：rvv_mathfun.h 里这些是宏，同名局部声明会冲突。 */
+    const float sdpa_exp_hi = 88.3762626647949f;
+    const float sdpa_exp_lo = -88.3762626647949f;   /* 上游 exp_ps 的实际钳位下界 */
+    const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
+    const float sdpa_cephes_exp_C1 = 0.693359375f;
+    const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
+    const float sdpa_cephes_exp_p0 = 1.9875691500E-4f;
+    const float sdpa_cephes_exp_p1 = 1.3981999507E-3f;
+    const float sdpa_cephes_exp_p2 = 8.3334519073E-3f;
+    const float sdpa_cephes_exp_p3 = 4.1665795894E-2f;
+    const float sdpa_cephes_exp_p4 = 1.6666665459E-1f;
+    const float sdpa_cephes_exp_p5 = 5.0000001201E-1f;
+
+    vfloat32m1_t tmp, fx;
+
+    x = __riscv_vfmin_vf_f32m1(x, sdpa_exp_hi, vl);
+    x = __riscv_vfmax_vf_f32m1(x, sdpa_exp_lo, vl);
+
+    /* express exp(x) as exp(g + n*log(2)) */
+    fx = __riscv_vfmacc_vf_f32m1(__riscv_vfmv_v_f_f32m1(0.5f, vl), sdpa_cephes_LOG2EF, x, vl);
+
+    /* floorf：转整再转回，比 fx 大则减 1（与上游逐字相同的 floor 模拟） */
+    tmp = __riscv_vfcvt_f_x_v_f32m1(__riscv_vfcvt_x_f_v_i32m1(fx, vl), vl);
+    vbool32_t mask = __riscv_vmfgt_vv_f32m1_b32(tmp, fx, vl);
+    fx = __riscv_vfsub_vf_f32m1_mu(mask, tmp, tmp, 1.f, vl);
+
+    tmp = __riscv_vfmul_vf_f32m1(fx, sdpa_cephes_exp_C1, vl);
+    vfloat32m1_t z = __riscv_vfmul_vf_f32m1(fx, sdpa_cephes_exp_C2, vl);
+    x = __riscv_vfsub_vv_f32m1(x, tmp, vl);
+    x = __riscv_vfsub_vv_f32m1(x, z, vl);
+
+    vfloat32m1_t y = __riscv_vfmul_vf_f32m1(x, sdpa_cephes_exp_p0, vl);
+    z = __riscv_vfmul_vv_f32m1(x, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p1, vl);
+    y = __riscv_vfmul_vv_f32m1(y, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p2, vl);
+    y = __riscv_vfmul_vv_f32m1(y, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p3, vl);
+    y = __riscv_vfmul_vv_f32m1(y, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p4, vl);
+    y = __riscv_vfmul_vv_f32m1(y, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p5, vl);
+    /* 与上游一致：分开的乘加（两次舍入），不是 FMA——否则末位差 1 ulp。 */
+    y = __riscv_vfmul_vv_f32m1(y, z, vl);
+    y = __riscv_vfadd_vv_f32m1(y, x, vl);
+    y = __riscv_vfadd_vf_f32m1(y, 1.f, vl);
+
+    /* build 2^n */
+    vint32m1_t mm = __riscv_vfcvt_x_f_v_i32m1(fx, vl);
+    mm = __riscv_vadd_vx_i32m1(mm, 0x7f, vl);
+    mm = __riscv_vsll_vx_i32m1(mm, 23, vl);
+    vfloat32m1_t pow2n = __riscv_vreinterpret_v_i32m1_f32m1(mm);
+    y = __riscv_vfmul_vv_f32m1(y, pow2n, vl);
+    return y;
 }
 #endif
 
