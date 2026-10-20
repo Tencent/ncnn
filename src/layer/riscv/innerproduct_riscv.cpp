@@ -308,6 +308,33 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 float* outptr = top_blob.row(j);
 
+#if __riscv_vector
+                int p = 0;
+                while (p < num_output)
+                {
+                    const size_t vl = __riscv_vsetvl_e32m1(num_output - p);
+                    const float* kptr = (const float*)weight_data_tm + num_input * p;
+                    const float* m = bottom_blob.row(j);
+
+                    vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
+                    if (bias_term)
+                    {
+                        _sum = __riscv_vle32_v_f32m1((const float*)bias_data + p, vl);
+                    }
+
+                    for (int i = 0; i < num_input; i++)
+                    {
+                        vfloat32m1_t _w = __riscv_vlse32_v_f32m1(kptr, num_input * sizeof(float), vl);
+                        _sum = __riscv_vfmacc_vf_f32m1(_sum, m[i], _w, vl);
+                        kptr++;
+                    }
+
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
+                    __riscv_vse32_v_f32m1(outptr, _sum, vl);
+                    outptr += vl;
+                    p += vl;
+                }
+#else
                 for (int p = 0; p < num_output; p++)
                 {
                     const float* kptr = (const float*)weight_data_tm + num_input * p;
@@ -330,6 +357,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     outptr[0] = sum;
                     outptr += 1;
                 }
+#endif // __riscv_vector
             }
         }
 
