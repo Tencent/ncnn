@@ -162,6 +162,10 @@ public:
     // default threshold = 10
     void set_size_drop_threshold(size_t);
 
+    // zero the full block capacity and SIMD overread tail before allocation
+    // default = false; configure before concurrent allocations
+    void set_zero_on_allocate(bool enable);
+
     // release all budgets immediately
     void clear();
 
@@ -190,6 +194,10 @@ public:
     // budget drop threshold
     // default threshold = 10
     void set_size_drop_threshold(size_t);
+
+    // zero the full block capacity and SIMD overread tail before allocation
+    // default = false
+    void set_zero_on_allocate(bool enable);
 
     // release all budgets immediately
     void clear();
