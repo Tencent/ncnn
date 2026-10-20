@@ -1087,19 +1087,25 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
         static const int IME2_I8_STK = 8192;
         signed char a8stk[IME2_I8_STK];
         float ostk[IME2_I8_STK];
-        std::vector<signed char> a8heap;
-        std::vector<float> oheap;
+        /* 大暂存走 workspace 分配器（可检空、与调用方的内存预算一致），
+         * 不再用每 token 的进程堆 vector：bad_alloc 会穿透或在关异常构建里
+         * 直接终结，而 workspace 池其实有容量。返回 -100 语义不变。 */
+        ncnn::Mat a8ws, ows;
         signed char* a8p = a8stk;
         float* op = ostk;
         if (K > IME2_I8_STK)
         {
-            a8heap.resize(K);
-            a8p = a8heap.data();
+            a8ws.create(K, (size_t)1u, opt.workspace_allocator);
+            if (a8ws.empty())
+                return -100;
+            a8p = (signed char*)a8ws.data;
         }
         if (N > IME2_I8_STK)
         {
-            oheap.resize(N);
-            op = oheap.data();
+            ows.create(N, (size_t)4u, opt.workspace_allocator);
+            if (ows.empty())
+                return -100;
+            op = (float*)ows.data;
         }
 
         const bool iprof = (getenv("NCNN_IME2_I8_PROF") != nullptr);
