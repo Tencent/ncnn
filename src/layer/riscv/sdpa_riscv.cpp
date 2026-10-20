@@ -104,6 +104,70 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     y = __riscv_vfmul_vv_f32m1(y, pow2n, vl);
     return y;
 }
+
+
+static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
+{
+    /* 与上游 Softmax_riscv 使用的 exp_ps（rvv_mathfun.h）逐位一致的构造：
+     * 同一 cephes 多项式、同一钳位常数、同一 +0.5/floor 取整、同一 ldexp
+     * 位技巧。解码快路径的输出与组合回退路径逐位相同；低于 exp_lo 的值与
+     * 上游一样冲刷为 0（NaN 的钳位语义也与上游一致：vfmin/vfmax 遇单 NaN
+     * 取数值操作数）。 */
+    /* 常数名加 sdpa_ 前缀：rvv_mathfun.h 里这些是宏，同名局部声明会冲突。 */
+    const float sdpa_exp_hi = 88.3762626647949f;
+    const float sdpa_exp_lo = -88.3762626647949f;   /* 上游 exp_ps 的实际钳位下界 */
+    const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
+    const float sdpa_cephes_exp_C1 = 0.693359375f;
+    const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
+    const float sdpa_cephes_exp_p0 = 1.9875691500E-4f;
+    const float sdpa_cephes_exp_p1 = 1.3981999507E-3f;
+    const float sdpa_cephes_exp_p2 = 8.3334519073E-3f;
+    const float sdpa_cephes_exp_p3 = 4.1665795894E-2f;
+    const float sdpa_cephes_exp_p4 = 1.6666665459E-1f;
+    const float sdpa_cephes_exp_p5 = 5.0000001201E-1f;
+
+    vfloat32m8_t tmp, fx;
+
+    x = __riscv_vfmin_vf_f32m8(x, sdpa_exp_hi, vl);
+    x = __riscv_vfmax_vf_f32m8(x, sdpa_exp_lo, vl);
+
+    /* express exp(x) as exp(g + n*log(2)) */
+    fx = __riscv_vfmacc_vf_f32m8(__riscv_vfmv_v_f_f32m8(0.5f, vl), sdpa_cephes_LOG2EF, x, vl);
+
+    /* floorf：转整再转回，比 fx 大则减 1（与上游逐字相同的 floor 模拟） */
+    tmp = __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8(fx, vl), vl);
+    vbool4_t mask = __riscv_vmfgt_vv_f32m8_b4(tmp, fx, vl);
+    fx = __riscv_vfsub_vf_f32m8_mu(mask, tmp, tmp, 1.f, vl);
+
+    tmp = __riscv_vfmul_vf_f32m8(fx, sdpa_cephes_exp_C1, vl);
+    vfloat32m8_t z = __riscv_vfmul_vf_f32m8(fx, sdpa_cephes_exp_C2, vl);
+    x = __riscv_vfsub_vv_f32m8(x, tmp, vl);
+    x = __riscv_vfsub_vv_f32m8(x, z, vl);
+
+    vfloat32m8_t y = __riscv_vfmul_vf_f32m8(x, sdpa_cephes_exp_p0, vl);
+    z = __riscv_vfmul_vv_f32m8(x, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p1, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p2, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p3, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p4, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p5, vl);
+    /* 与上游一致：分开的乘加（两次舍入），不是 FMA——否则末位差 1 ulp。 */
+    y = __riscv_vfmul_vv_f32m8(y, z, vl);
+    y = __riscv_vfadd_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, 1.f, vl);
+
+    /* build 2^n */
+    vint32m8_t mm = __riscv_vfcvt_x_f_v_i32m8(fx, vl);
+    mm = __riscv_vadd_vx_i32m8(mm, 0x7f, vl);
+    mm = __riscv_vsll_vx_i32m8(mm, 23, vl);
+    vfloat32m8_t pow2n = __riscv_vreinterpret_v_i32m8_f32m8(mm);
+    y = __riscv_vfmul_vv_f32m8(y, pow2n, vl);
+    return y;
+}
 #endif
 
 #if __riscv_vector
@@ -262,23 +326,39 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
              * X100=16 条），lane 分组累加 + 无序归约会让 sum 跨簇不同。
              * 固定 8 lane 分组（任何支持的 VLEN 都有 VLMAX≥8），归约用
              * vfredosum（有序，顺序语义固定）——两簇逐字节一致。exp 本身是
-             * 逐元素运算，与 VLEN 无关；sum 不是热点，8 宽足够。 */
-            int j = 0;
-            const size_t vl8 = 8;
-            vfloat32m1_t vsum = __riscv_vfmv_v_f_f32m1(0.f, vl8);
-            while (j < dst_seqlen)
+             * 累加结构与上游 Softmax_riscv 逐字一致（e32m8 大组 + _tu 末组 +
+             * vfredusum 收尾）：小项如果都落到最大值所在的 lane 会被逐个舍掉
+             * （1 + 2.5e-8 == 1），大组跨步把小项分散到各 lane 的独立累加器里
+             * 才能留住聚合质量——与回退路径逐位一致的前提。 */
+            vfloat32m8_t vsum = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
             {
-                /* 固定 8 元素一组（末组可短）：组内组间顺序都固定 */
-                const size_t vl = __riscv_vsetvl_e32m1(dst_seqlen - j < 8 ? dst_seqlen - j : 8);
-                vfloat32m1_t v = __riscv_vle32_v_f32m1(scores + j, vl);
-                v = sdpa_vexp_f32m1(__riscv_vfsub_vf_f32m1(v, mx, vl), vl);
-                __riscv_vse32_v_f32m1(scores + j, v, vl);
-                /* _tu keeps vsum's tail: the final chunk may be shorter than 8 */
-                vsum = __riscv_vfadd_vv_f32m1_tu(vsum, vsum, v, vl);
-                j += (int)vl;
+                const size_t vlfull = __riscv_vsetvlmax_e32m8();
+                float* ptr = scores;
+                int n = dst_seqlen / (int)vlfull * (int)vlfull;
+                while (n > 0)
+                {
+                    vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlfull);
+                    v = __riscv_vfsub_vf_f32m8(v, mx, vlfull);
+                    /* m8 版解码 exp：与 exp_ps 相同构造的宽版（下方） */
+                    v = sdpa_vexp_f32m8(v, vlfull);
+                    __riscv_vse32_v_f32m8(ptr, v, vlfull);
+                    vsum = __riscv_vfadd_vv_f32m8(vsum, v, vlfull);
+                    ptr += vlfull;
+                    n -= (int)vlfull;
+                }
+                int remain = dst_seqlen % (int)vlfull;
+                if (remain > 0)
+                {
+                    const size_t vlr = __riscv_vsetvl_e32m8(remain);
+                    vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlr);
+                    v = __riscv_vfsub_vf_f32m8(v, mx, vlr);
+                    v = sdpa_vexp_f32m8(v, vlr);
+                    __riscv_vse32_v_f32m8(ptr, v, vlr);
+                    vsum = __riscv_vfadd_vv_f32m8_tu(vsum, vsum, v, vlr);
+                }
+                /* 与上游相同：vfredusum（无序但在同一实现上确定） */
+                sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m8_f32m1(vsum, __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m8()));
             }
-            /* vfredosum：有序归约（0..7 顺序固定），与实现无关 */
-            sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredosum_vs_f32m1_f32m1(vsum, __riscv_vfmv_v_f_f32m1(0.f, 1), vl8));
         }
 #else
         for (int j = 0; j < dst_seqlen; j++)
