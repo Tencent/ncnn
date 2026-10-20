@@ -75,4 +75,27 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_1, 20)
 
+// Output aliases from ONNX sequence indexing must remain executable even
+// when the no-op pass cannot remove their graph-output names.
+class torch_clone_onnx_identity : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Identity                op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.clone";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_onnx_identity, 20)
+
 } // namespace pnnx
