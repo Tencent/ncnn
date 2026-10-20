@@ -900,9 +900,6 @@ static void ime2_row_exp(float* s, int n, float mx)
         size_t vl = __riscv_vsetvl_e32m8(n - j);
         vfloat32m8_t x = __riscv_vle32_v_f32m8(s + j, vl);
         x = __riscv_vfsub_vf_f32m8(x, mx, vl);
-        /* NaN 保真：vfmin/vfmax 遇单 NaN 返回数值操作数，把 NaN 钳成有限值——
-         * 上游 Softmax 的 expf(NaN)=NaN 传播。先记 NaN lane，最后合回。 */
-        vbool4_t vnan = __riscv_vmfne_vv_f32m8_b4(x, x, vl);
         /* 欠载置零：x-mx < -87.34 时真值 exp < 2^-126（构造下限），钳位会抬成
          * 非零——硬掩码/深负 logit 乘上大 V 就泄漏。记录这些 lane，最后置零。 */
         vbool4_t vund = __riscv_vmflt_vf_f32m8_b4(x, -87.34f, vl);
@@ -921,7 +918,6 @@ static void ime2_row_exp(float* s, int n, float mx)
         vint32m8_t ei = __riscv_vsll_vx_i32m8(__riscv_vadd_vx_i32m8(ni, 127, vl), 23, vl);
         vfloat32m8_t y = __riscv_vfmul_vv_f32m8(p, __riscv_vreinterpret_v_i32m8_f32m8(ei), vl);
         y = __riscv_vfmerge_vfm_f32m8(y, 0.f, vund, vl);
-        y = __riscv_vfmerge_vfm_f32m8(y, __builtin_nanf(""), vnan, vl);
         __riscv_vse32_v_f32m8(s + j, y, vl);
         j += vl;
     }
