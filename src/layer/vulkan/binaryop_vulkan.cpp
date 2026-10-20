@@ -295,6 +295,11 @@ int BinaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_shape(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const VkMat& A = bottom_blobs[0];
     const VkMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);

@@ -472,6 +472,11 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_shape(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
 
 #if NCNN_ARM82
