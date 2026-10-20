@@ -150,6 +150,13 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     int causal = 1;
     if (use_flash)
     {
+        /* 截断判定的所有量都是循环不变量：margin/cutoff 在扫描前算一次。
+         * 原来 logf 在 j 内层循环里逐元素调用——L=4096 的三角区就是数百万次
+         * libm 调用，会吃掉长预填充的收益。 */
+        const float max_dot = (float)embed_dim * 65504.f * 65504.f;
+        const int omitted = cur_seqlen - IME2_FLASH_BM;
+        const float margin = 20.f + logf((float)(omitted > 1 ? omitted : 1));
+        const float cutoff = -2.f * fabsf(_scale) * max_dot - margin;
         const int nmask = attn_mask_blob.c > 1 ? attn_mask_blob.c : 1;
         for (int g = 0; g < nmask && causal; g++)
         {
@@ -181,14 +188,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                      * 未来 ≤ |scale|·max_dot + v，可见行内最大值 ≥ -|scale|·max_dot，
                      * 差值 ≤ 2·|scale|·max_dot + v；再留 20 的余量（exp(-20)≈2e-9，
                      * 质量无害）。 */
-                    const float max_dot = (float)embed_dim * 65504.f * 65504.f;
-                    /* 余量还要随被截断键的数量缩放：单键余量只限制单键质量，
-                     * 截断 n 个键的聚合质量是 n·e^-margin。首块截断键数 =
-                     * dst - nend = cur - BM——用 cur（追加键数），不是 src
-                     * （查询行数）：跨注意时两者可不同。 */
-                    const int omitted = cur_seqlen - IME2_FLASH_BM;
-                    const float margin = 20.f + logf((float)(omitted > 1 ? omitted : 1));
-                    if (v < -2.f * fabsf(_scale) * max_dot - margin)
+                    if (v < cutoff)
                         continue;
                     causal = 0;
                     break;
