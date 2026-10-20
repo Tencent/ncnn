@@ -50,15 +50,38 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if (tl_sdpa_ime2_armed)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：恢复旧处置后重发，交给内核完整交付。
-     * 直接 C 调用旧处理器会绕过内核的信号交付语义——SA_RESETHAND 的一次性
-     * 复位、SA_ONSTACK 的栈切换、sa_mask 的屏蔽集全都会被丢掉；而且
-     * SIG_DFL(0)/SIG_IGN(1) 与处理器指针共享存储，根本不能当函数调。
-     * 恢复+重发是唯一对所有处置都正确的做法。 */
-    (void)info;
-    (void)ucontext;
-    sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-    raise(sig);
+    /* 不是探测线程的 SIGILL：按旧处置转交，但**绝不能改动进程级处置**——
+     * 恢复+重发会把探针处理器永久卸掉：IGN 下探针自己的指令信号被静默吞掉
+     * （误判可用），自定义返回处理器下探针的 SIGILL 落到旧处置反复执行
+     * （循环/终止）。分项处理：
+     * - SIG_IGN：语义就是忽略，直接返回（处置一字不动）；
+     * - SIG_DFL：原语义就是终止，恢复 DFL 重发（进程按既定方式终结）；
+     * - 自定义处理器：直接以**原始** siginfo/ucontext 调用——raise 会合成
+     *   新信号丢掉 si_code/si_addr（模拟器类回调拿不到故障指令地址），
+     *   并手动补齐 SA_RESETHAND 复位与 sa_mask 屏蔽语义。
+     *   SA_ONSTACK 的栈切换无法在转交时补齐，记录在案（SIGILL 用它极罕见）。 */
+    if (g_sdpa_ime2_old.sa_handler == SIG_IGN)
+        return;
+    if (g_sdpa_ime2_old.sa_handler == SIG_DFL)
+    {
+        sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        raise(sig);
+        return;
+    }
+    if (g_sdpa_ime2_old.sa_flags & SA_RESETHAND)
+    {
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+    }
+    sigset_t oldmask;
+    pthread_sigmask(SIG_BLOCK, &g_sdpa_ime2_old.sa_mask, &oldmask);
+    if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
+        g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
+    else
+        g_sdpa_ime2_old.sa_handler(sig);
+    pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
 #if defined __linux__
@@ -165,7 +188,10 @@ static int sdpa_ime2_probe_locked(int nthreads)
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = sdpa_ime2_sigill;
     sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGILL, &sa, &g_sdpa_ime2_old);
+    /* 安装失败（seccomp/嵌入宿主禁 sigaction）：绝不能继续——探针指令的
+     * SIGILL 会按原处置送达（可能是终止）。不装探针就不跑指令，直接判定不可用。 */
+    if (sigaction(SIGILL, &sa, &g_sdpa_ime2_old) != 0)
+        return 0;
 
     int ok = 0;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
