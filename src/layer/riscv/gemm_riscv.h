@@ -34,12 +34,30 @@ protected:
     int create_pipeline_wq_int8(const Option& opt);
     int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+    // SpacemiT K3 A100 IME2 (smt.vfwmadot) 路径
+    int create_pipeline_ime2(const Option& opt);
+    int forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    /* 团队校验失败（队首或内核执行区域）时的 VLEN 无关朴素回落：
+     * 直接从固定布局的 BT_data_ime2 tile 做 fp32 累加。 */
+    int forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 
 public:
     int nT;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+    int use_ime2_path = 0;
+    /* fp32 面板是否真实构建：仅 full-takeover 分支在建管线时构建了 fp32 通用
+     * 回退管线（BT_data 为 fp32 4u）。非 takeover 分支建的是 fp16s 管线，
+     * BT_data 是 fp16（2u）——fp32 通用内核不能读它。 */
+    int ime2_fp32_fallback_ready = 0;
+    Mat BT_data_ime2;
+    Mat BT_i8c_ime2;    // int8 列主序权重面板（整数域设计，见 REPORT 7.41）
+    Mat BT_wscale_ime2; // 每列一个 fp16 scale
+#endif
 #if NCNN_WEIGHT_QUANT
     Mat BT_data_wq_int8;
     Mat BT_data_wq_int8_descales;

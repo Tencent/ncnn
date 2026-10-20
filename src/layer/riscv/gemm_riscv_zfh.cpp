@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_riscv.h"
+#include <cstdio>
+#include <cstdlib>
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -10,6 +12,7 @@
 #include "riscv_usability.h"
 
 #include "cpu.h"
+#include <stdlib.h>
 
 namespace ncnn {
 
@@ -1773,6 +1776,261 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     return ret;
+}
+#endif // NCNN_ZFH
+
+// ================== SpacemiT K3 A100 IME2 (smt.vfwmadot) ==================
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+#if __riscv_v
+#include "gemm_riscv_ime2.h"
+#endif
+
+int Gemm_riscv::create_pipeline_ime2(const Option& opt)
+{
+#if !__riscv_v
+    (void)opt;
+    return -99;
+#else
+    // 先探测：当前核能否执行 smt.vfwmadot（X100 上是 SIGILL）。
+    // 探测失败 -> 返回非 0，调用方回退到 fp16s 路径。
+    // 用与 forward 相同的团队大小探测工人：forward 的并行区都带
+    // num_threads(opt.num_threads)，更大的团队会增派未探测过的工人。
+    if (!ncnn_ime2::ime2_probe(opt.num_threads))
+        return -99;
+
+    /* 权重值域预检：|w| > 65504 的有限值打包成 ±inf 后整条 IME2 路径（含
+     * VLEN 无关回落，它也读 tile）失真。不武装 IME2，返回 -99 让调用方建
+     * 上游管线（fp16s/fp32 语义照旧）。 */
+    if (!ncnn_ime2::ime2_weights_fit_fp16(B_data))
+        return -99;
+
+    // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
+    // 线程数无关的布局：forward 阶段可以任意 num_threads。
+    const int N = constantN;
+    const int K = constantK;
+
+    int ret = ncnn_ime2::ime2_pack_B(B_data, BT_data_ime2, N, K);
+    if (ret != 0)
+        return ret;
+
+    /* int8 权重模式（可选精度模式，NCNN_IME2_INT8=1）：列主序 int8 面板 + 每列一个 fp16 scale，
+     * 直接从原始权重量化。解码走整数域点积（vwadd 加宽 + vwmacc 累加），实测解码 +28~31%。
+     * 第一版"tile 布局 int8 + 逐 8 元素转浮点"的实现已删除（微基准慢 600 倍，见 REPORT 7.40/7.41）。 */
+    if (getenv("NCNN_IME2_INT8"))
+    {
+        ncnn_ime2::ime2_quantize_B_int8_col(B_data, BT_i8c_ime2, BT_wscale_ime2, N, K);
+    }
+
+    use_ime2_path = 1;
+    nT = opt.num_threads;
+
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)A;
+    (void)M;
+    (void)N;
+    (void)K;
+    (void)alpha;
+    (void)out_elempack;
+    (void)top_blobs;
+    (void)opt;
+    return -1;
+#else
+
+    const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+    /* 此前非 takeover 在此返回 -99 让调度方落 fp16s——但那是错的场景恰恰
+     * 需要这个回落：团队已离开建管线时的簇（fp16s 面板按当时 vlenb 打包，
+     * 新 vlenb 下通用/fp16s 内核都会错位）。能走到这的调用都已确认无 C 项
+     * （派发处 has_C 已查），固定布局的朴素回落对它们同样正确。 */
+    (void)c_never_exists;
+
+    /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
+         * tile 布局，行距填充恒定）。朴素 fp32 累加直接从它算，任何核对上都
+         * 正确。这是降级模式：先求正确，再求快。 */
+    Option opt_tmp = opt;
+    opt_tmp.blob_allocator = opt.workspace_allocator;
+
+    Mat A32;
+    if (A.elembits() == 16)
+        cast_float16_to_float32(A, A32, opt_tmp);
+    else
+        A32 = A; /* fp32 共享，零拷贝 */
+    if (A32.empty())
+        return -100;
+    /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
+    if (A32.elempack != 1)
+    {
+        Mat A32_p1;
+        convert_packing(A32, A32_p1, 1, opt_tmp);
+        if (A32_p1.empty())
+            return -100;
+        A32 = A32_p1;
+    }
+
+    /* BT_data_ime2 布局：tile (i,j) 在 (size_t)i*ldt + j*64，元素 (r,c) 在
+         * t[r*8+c] = B[n=i*8+r][k=j*8+c]；ldt = kt*64 + IME2_TILE_PAD。 */
+    const int kt = (K + 7) / 8;
+    const size_t ldt = IME2_TILE_LD(kt);
+    const __fp16* bt = (const __fp16*)BT_data_ime2;
+
+    Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
+    if (C32.empty())
+        return -100;
+
+    /* 每线程一份 K 行缓冲（B 行从 tile 布局解出），然后 RVV fp32 点积。 */
+    Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
+    if (kbuf_mat.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int m = 0; m < M; m++)
+    {
+        const float* arow = A32.dims == 3 ? A32.channel(m).row(0) : (A32.dims == 2 ? A32.row(m) : (const float*)A32);
+        float* crow = C32.row(m);
+        float* kbuf = kbuf_mat.row(get_omp_thread_num());
+        for (int n = 0; n < N; n++)
+        {
+            const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
+            for (int k = 0; k < K; k++)
+                kbuf[k] = (float)btile[(k / 8) * 64 + (k % 8)];
+
+            float acc = 0.f;
+#if __riscv_vector
+            /* VLmax 全宽清零、VLmax 全宽归约（逐块 _tu 累加，末块余数 vl
+                 * 归约会丢高位 lane 的贡献） */
+            const size_t vlmax = __riscv_vsetvlmax_e32m1();
+            vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
+            int k = 0;
+            while (k < K)
+            {
+                const size_t vl = __riscv_vsetvl_e32m1(K - k);
+                vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
+                k += vl;
+            }
+            acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vlmax), vlmax));
+#else
+            for (int k = 0; k < K; k++)
+                acc += arow[k] * kbuf[k];
+#endif
+            crow[n] = alpha * acc;
+        }
+    }
+
+    Mat& top_blob = top_blobs[0];
+    if (A.elembits() == 16)
+    {
+        /* fp16 输入 → 转回 fp16 存储并重打包到本层正常布局 */
+        if (out_elempack == 1)
+        {
+            /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
+            cast_float32_to_float16(C32, top_blob, opt);
+            if (top_blob.empty())
+                return -100;
+            return 0;
+        }
+        /* 需要重打包时，pack1 的 fp16 中间量放 workspace（与最终输出同在
+             * blob 池会瞬时占两份同尺寸；blob 池按一个返回输出估算会 -100）。 */
+        Mat top16_tmp;
+        cast_float32_to_float16(C32, top16_tmp, opt_tmp);
+        if (top16_tmp.empty())
+            return -100;
+        convert_packing(top16_tmp, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
+    /* fp32 输入 → fp32 输出（通用路径的输出布局：按其自身的打包决策；
+         * C32 已是 pack1，重打包到 fp32 路径应有的 elempack）。 */
+    int out32_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 4;
+        out32_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    /* output_elempack 是**元素数**而非字节数，通用 fp32 路径原样采用
+         * （gemm_riscv.cpp 不折算）：此处同样保持，不能减半。 */
+    if (output_elempack)
+        out32_elempack = output_elempack;
+    if (out32_elempack != 1)
+    {
+        /* 最终输出必须用 blob 分配器（C32 是 workspace 临时量，赋给
+             * top_blob 会把工作区内存带出本层，后续层会覆写）。 */
+        convert_packing(C32, top_blob, out32_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
+    /* pack1：同上，拷到 blob 分配器再交出。 */
+    top_blob.create(N, M, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+    memcpy(top_blob.data, C32.data, (size_t)N * M * 4u);
+    return 0;
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)bottom_blobs;
+    (void)top_blobs;
+    (void)opt;
+    return -1;
+#else
+    const Mat& A = bottom_blobs[0];
+
+    const int M = (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+    const int K = constantK;
+
+    /* 内核实际以 _nT（建管线时存的 nT 优先）起团队：校验必须覆盖它，
+     * 而不是 forward 时的 opt.num_threads（调用方减线程后两者不同）。 */
+    int _nT = nT ? nT : opt.num_threads;
+
+    // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）。
+    // 在团队校验之前算好：fp16 回落分支与 IME2 主路径都用它。
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 2;
+        out_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    /* 团队校验对所有位宽生效：fp32 输入也不例外——通用 fp32 面板的 tile 是建
+     * 管线时按当时 vlenb 打包的，团队离开 A100 后通用路径会按新 vlenb 重算
+     * tile 去索引旧面板 → 错位。所以先验团队，再按位宽分流。 */
+    /* 队首校验：失败走 VLEN 无关回落（fp16/fp32 输入都接）。 */
+    if (!ncnn_ime2::ime2_team_ok(_nT))
+        return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
+
+    if (A.elembits() != 16)
+        /* 团队在 A100 上、输入 fp32：dispatch 不应把 fp32 送到这里；防御。 */
+        return -1;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(N, M / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    /* -99 = 内核执行区域内的队级校验失败（守卫与内核是两个 omp region，
+     * 运行时可换工人）：与队首失败走同一条回落。top_blob 已建，回落会重建。 */
+    const int ret = ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt, BT_i8c_ime2, BT_wscale_ime2);
+    if (ret == -99)
+        return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
+    return ret;
+#endif
 }
 #endif // NCNN_ZFH
 
