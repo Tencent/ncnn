@@ -47,7 +47,10 @@ static struct sigaction g_sdpa_ime2_old;
 
 static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
-    if (tl_sdpa_ime2_armed)
+    /* 只有同步指令故障（si_code > 0）才是探针的；异步 SIGILL（kill/
+     * pthread_kill/raise 的 SI_USER/SI_TKILL/SI_QUEUE ≤ 0）与探针无关，
+     * 武装着也不许吞。 */
+    if (tl_sdpa_ime2_armed && info->si_code > 0)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
     /* 不是探测线程的 SIGILL：按旧处置转交，但**绝不能改动进程级处置**——
