@@ -105,7 +105,6 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     return y;
 }
 
-
 static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
 {
     /* 与上游 Softmax_riscv 使用的 exp_ps（rvv_mathfun.h）逐位一致的构造：
@@ -115,7 +114,7 @@ static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
      * 取数值操作数）。 */
     /* 常数名加 sdpa_ 前缀：rvv_mathfun.h 里这些是宏，同名局部声明会冲突。 */
     const float sdpa_exp_hi = 88.3762626647949f;
-    const float sdpa_exp_lo = -88.3762626647949f;   /* 上游 exp_ps 的实际钳位下界 */
+    const float sdpa_exp_lo = -88.3762626647949f; /* 上游 exp_ps 的实际钳位下界 */
     const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
     const float sdpa_cephes_exp_C1 = 0.693359375f;
     const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
