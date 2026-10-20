@@ -49,7 +49,11 @@ static struct sigaction g_ime2_old;
 
 static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
-    if (tl_ime2_armed)
+    /* 只有同步指令故障（si_code > 0：ILL_ILLOPC 等硬件故障码）才是探针的；
+     * 异步 SIGILL（kill/pthread_kill/raise 的 SI_USER/SI_TKILL/SI_QUEUE ≤ 0）
+     * 与探针无关——探测线程武装着也会被它命中，吞掉它等于吃掉应用的信号。
+     * 区分后转交。 */
+    if (tl_ime2_armed && info->si_code > 0)
         siglongjmp(tl_ime2_jb, 1);
 
     /* 不是探测线程的 SIGILL：按旧处置转交。
