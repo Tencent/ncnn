@@ -192,12 +192,24 @@ static int ime2_probe_locked(int nthreads)
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = ime2_sigill;
     sa.sa_flags = SA_SIGINFO;
-    /* 竞态：安装调用在内核里"新处理器进程级可见"与"旧处置写回用户缓冲"
-     * 不是原子的——别的线程在此窗口收到 SIGILL 会读到未初始化的旧处置而
-     * 错误转交（把自定义处理器当成全零的 DFL → 误杀进程）。先单独读进稳定
-     * 存储（两次调用，第二次不依赖输出参数），再安装。 */
-    if (sigaction(SIGILL, NULL, &g_ime2_old) != 0)
+    /* 竞态与一致性：安装调用里"新处理器进程级可见"与"旧处置写回"非原子
+     * （窗口期他线程的 SIGILL 会读未初始化的旧处置而错误转交）；且一次性
+     * RESETHAND 可能被窗口期他线程的信号消费、或外部线程/库并发安装了自己
+     * 的处理器——任一情况下我们保存的旧处置都已失效，事后恢复会重新武装
+     * 一次性处理器/覆盖并发方的处置。对策：安装前双读比对（不一致=并发
+     * 变更，处置一字不动直接判不可用），一致才安装。读-装之间的微窗口
+     * 不可消，但已缩到几条指令；并发 sigaction 的用户本来就在自竞。 */
+    struct sigaction pre1, pre2;
+    memset(&pre1, 0, sizeof pre1);
+    memset(&pre2, 0, sizeof pre2);
+    if (sigaction(SIGILL, NULL, &pre1) != 0)
         return 0;
+    if (sigaction(SIGILL, NULL, &pre2) != 0)
+        return 0;
+    if (pre1.sa_handler != pre2.sa_handler || pre1.sa_flags != pre2.sa_flags
+            || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
+        return 0;
+    g_ime2_old = pre1;
     /* 安装失败（seccomp/嵌入宿主禁 sigaction）：绝不能继续——探针指令的
      * SIGILL 会按原处置送达（可能是终止）。不装探针就不跑指令，直接判定不可用。 */
     if (sigaction(SIGILL, &sa, NULL) != 0)
