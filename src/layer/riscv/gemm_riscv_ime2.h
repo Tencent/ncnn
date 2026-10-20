@@ -60,7 +60,13 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      *   交付前做同样的事）；sa_mask 里的信号在回调期间屏蔽（当前线程本就
      *   处于 SIGILL 上下文，SIGILL 自身已被内核阻塞，除非 SA_NODEFER）。
      *   SA_ONSTACK 的栈切换无法在转交时补齐，记录在案（SIGILL 用它极罕见）。 */
-    if (g_ime2_old.sa_handler == SIG_DFL || g_ime2_old.sa_handler == SIG_IGN)
+    /* SIG_IGN：语义就是忽略——直接返回即可，**绝不能**改进程级处置
+     * （改了就不会被装回来：probe 的指令信号随后落到 IGN 被静默吞掉，
+     * 在不受支持的机器上误判可用）。 */
+    if (g_ime2_old.sa_handler == SIG_IGN)
+        return;
+    /* SIG_DFL：原语义就是终止——恢复 DFL 重发，进程按既定方式终结。 */
+    if (g_ime2_old.sa_handler == SIG_DFL)
     {
         sigaction(SIGILL, &g_ime2_old, NULL);
         raise(sig);
@@ -186,7 +192,10 @@ static int ime2_probe_locked(int nthreads)
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = ime2_sigill;
     sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGILL, &sa, &g_ime2_old);
+    /* 安装失败（seccomp/嵌入宿主禁 sigaction）：绝不能继续——探针指令的
+     * SIGILL 会按原处置送达（可能是终止）。不装探针就不跑指令，直接判定不可用。 */
+    if (sigaction(SIGILL, &sa, &g_ime2_old) != 0)
+        return 0;
 
     int ok = 0;
     if (sigsetjmp(tl_ime2_jb, 1) == 0)
