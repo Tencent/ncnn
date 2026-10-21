@@ -242,6 +242,16 @@ static int ime2_probe_locked(int nthreads)
     if (sigaction(SIGILL, &sa, NULL) != 0)
         return 0;
 
+    /* If the caller blocked SIGILL, the faulting probe instruction cannot
+     * reach ime2_sigill: the synchronous fault takes the default action and
+     * terminates the process instead of returning false. Temporarily unblock
+     * it for the probe window and restore the caller's mask afterwards. */
+    sigset_t probe_mask, caller_mask;
+    sigemptyset(&probe_mask);
+    sigaddset(&probe_mask, SIGILL);
+    if (pthread_sigmask(SIG_UNBLOCK, &probe_mask, &caller_mask) != 0)
+        return 0;
+
     int ok = 0;
     if (sigsetjmp(tl_ime2_jb, 1) == 0)
     {
@@ -261,6 +271,8 @@ static int ime2_probe_locked(int nthreads)
     }
     /* Both return paths disarm here (a longjmp return skips the if body and lands here directly) */
     tl_ime2_armed = 0;
+    /* Restore the caller's mask (the SIGILL unblock above was temporary) */
+    pthread_sigmask(SIG_SETMASK, &caller_mask, NULL);
     /* Restore the old disposition only if the current handler is still ours: if a
      * forwarding happened inside the probe window (restore old disposition + re-raise),
      * the current one is already the old disposition (or has been reset to DFL by the
