@@ -15,9 +15,12 @@ namespace ncnn {
 
 Permute_riscv::Permute_riscv()
 {
-    /* 不声明 fp16 storage：本层只对 order_type==2 做快速行拷贝，其余 order 一律委托父类
-     * 实现（父类按 float* 处理）。让 ncnn 统一在层外做 fp16<->fp32 转换，
-     * 可以保证所有模型/所有 order 都正确（曾因只处理 order 2 而让 int8/2B 模型输出为空）。 */
+    /* do not advertise fp16 storage: this layer only does a fast row copy for
+     * order_type==2 and delegates every other order to the parent
+     * implementation (which treats the data as float*). Letting ncnn do the
+     * fp16<->fp32 conversion uniformly outside the layer keeps every
+     * model/every order correct (handling only order 2 once left int8/2-byte
+     * models with empty output). */
 }
 
 int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -29,10 +32,13 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     const int elempack = bottom_blob.elempack;
     const int dims = bottom_blob.dims;
 
-    // order_type == 2（w c h）：输出 [w, c, h]。注意这**不是**纯维度重标签——
-    // 通用实现把"通道 i"与"行 q"做了真正的转置：out(q, i, :) = in(i, q, :)。
-    // （最初误当成重标签直接 memcpy，被三腿闸门当场抓住。）
-    // 这里按行做向量化拷贝：每行 w 个元素连续，源行距 = w*h，目标行距 = w*channels。
+    // order_type == 2 (w c h): the output is [w, c, h]. Note this is **not** a
+    // pure dimension relabeling -- the generic implementation does a real
+    // transpose of "channel i" and "row q": out(q, i, :) = in(i, q, :).
+    // (It was first mistaken for a relabeling and memcpy'd directly; the
+    // three-legged gate caught it on the spot.)
+    // Here the copy is vectorized per row: each row has w contiguous elements,
+    // source row stride = w*h, destination row stride = w*channels.
     if (dims == 3 && order_type == 2)
     {
         top_blob.create(w, channels, h, elemsize, elempack, opt.blob_allocator);
@@ -50,9 +56,12 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         const size_t src_cstep = bottom_blob.cstep;
         const size_t dst_cstep = top_blob.cstep;
 
-        /* 每行 w 个元素连续（prefill 常见 128~256B），但行数很多（h*channels 达上千），
-                                                                                         * 逐行 memcpy 的调用开销就成了瓶颈（实测 115 token 时仅 1.75 GB/s，而流式墙是 15 GB/s）。
-                                                                                         * 改用显式 RVV 拷贝（vl 按实际 VLMAX 走，与 VLEN 无关），去掉每次调用的 memcpy 开销。 */
+        /* each row has w contiguous elements (commonly 128~256B at prefill), but
+         * there are many rows (h*channels reaches into the thousands), so the
+         * per-row memcpy call overhead becomes the bottleneck (measured only
+         * 1.75 GB/s at 115 tokens, against a 15 GB/s streaming wall). Switch to
+         * an explicit RVV copy (vl follows the actual VLMAX, VLEN-independent),
+         * removing the per-call memcpy overhead. */
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < h; q++)
         {
@@ -84,7 +93,7 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return 0;
     }
 
-    // 其余 order：全部交给父类（未声明 fp16 storage，父类拿到的必然是 fp32/pack1）
+    // all other orders: hand everything to the parent (fp16 storage is not advertised, so the parent always receives fp32/pack1)
     return Permute::forward(bottom_blob, top_blob, opt);
 }
 
