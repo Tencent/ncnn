@@ -29,8 +29,9 @@ RMSNorm_riscv::RMSNorm_riscv()
 
 #if __riscv_vector
 #if __riscv_xtheadvector
-/* XTheadVector（C906/C910）没有 tail-undisturbed 策略：把尾部先清零、再按整段
- * 宽度运算，使尾部对累加的贡献为 0。与 layernorm_riscv.cpp 的 reset_tails 同型。 */
+/* XTheadVector (C906/C910) has no tail-undisturbed policy: zero the tail first,
+ * then compute at full chunk width, so the tail contributes 0 to the
+ * accumulation. Same shape as reset_tails in layernorm_riscv.cpp. */
 __attribute__((noinline)) static vfloat32m2_t reset_tails_f32m2(vfloat32m2_t x, size_t vl, float v)
 {
     const size_t vlm2 = __riscv_vsetvlmax_e32m2();
@@ -39,12 +40,17 @@ __attribute__((noinline)) static vfloat32m2_t reset_tails_f32m2(vfloat32m2_t x, 
     return x;
 }
 #endif // __riscv_xtheadvector
-// 单行 RMSNorm（pack1、fp32）：平方和用 RVV 归约，缩放用向量乘。
-// 与通用实现的数学等价；浮点求和顺序不同（向量成对归约），同一二进制内结果确定。
+// Single-row RMSNorm (pack1, fp32): the sum of squares uses an RVV reduction,
+// the scaling uses vector multiplies.
+// Mathematically equivalent to the generic implementation; the float summation
+// order differs (vector pairwise reduction), results are deterministic within
+// the same binary.
 static void rmsnorm_rvv(float* ptr, const float* gamma_ptr, float eps, int size)
 {
-    /* 归约的 VL 固定为 8：向量求和的结合顺序与 VLEN 无关，保证 A100(VLEN=1024) 与
-     * X100(VLEN=256) 逐字节一致（这是本项目的硬门槛）。缩放段与 VL 无关，可用满 VL。 */
+    /* The reduction VL is fixed at 8: the association order of the vector sum
+     * is VLEN-independent, guaranteeing bit-identical results between
+     * A100 (VLEN=1024) and X100 (VLEN=256) (a hard requirement of this
+     * project). The scaling stage is VL-independent and may use full VL. */
     /* e32m2, not e32m1: at VLEN=128 e32m1 has only four lanes, so the hardware
      * clamps a requested vl of 8 to 4 while a constant advance of 8 would skip
      * four elements per iteration. e32m2 has exactly eight lanes at VLEN=128 and
@@ -74,8 +80,9 @@ static void rmsnorm_rvv(float* ptr, const float* gamma_ptr, float eps, int size)
         i += (int)vl;
     }
 
-    /* 归约的目的 LMUL 是 m1：vfredusum_vs_f32m2_f32m1 的种子参数必须是
-     * vfloat32m1_t，写成 m2 会找不到匹配的重载。 */
+    /* The reduction destination LMUL is m1: the seed argument of
+     * vfredusum_vs_f32m2_f32m1 must be vfloat32m1_t; writing m2 would find no
+     * matching overload. */
     vfloat32m1_t vzero = __riscv_vfmv_v_f_f32m1(0.f, 1);
     float sqsum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredosum_vs_f32m2_f32m1(vsum, vzero, REDCHUNK));
 

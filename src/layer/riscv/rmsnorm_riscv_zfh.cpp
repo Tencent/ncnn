@@ -20,12 +20,14 @@ __attribute__((noinline)) static vfloat32m2_t reset_tails_f32m2(vfloat32m2_t x, 
 namespace ncnn {
 
 #if NCNN_ZFH
-// 单行 RMSNorm（pack1、fp16）：向量内做 fp16<->fp32 转换，平方和用 RVV 归约。
-// 该函数在 _zfh.cpp（标量 zfh）与生成的 _zfh_rvv.cpp（RVV+zvfh）里各编译一次。
+// Single-row RMSNorm (pack1, fp16): fp16<->fp32 conversion happens inside
+// vectors, the sum of squares uses an RVV reduction.
+// This function is compiled once each in _zfh.cpp (scalar zfh) and the
+// generated _zfh_rvv.cpp (RVV+zvfh).
 static void rmsnorm_fp16s_rvv(__fp16* ptr, const float* gamma_ptr, float eps, int size)
 {
 #if !__riscv_zvfh
-    // 标量回退：与通用 fp32 实现同一数学路径
+    // scalar fallback: same mathematical path as the generic fp32 implementation
     float sqsum = 0.f;
     for (int i = 0; i < size; i++)
     {
@@ -69,8 +71,9 @@ static void rmsnorm_fp16s_rvv(__fp16* ptr, const float* gamma_ptr, float eps, in
         i += (int)vl;
     }
 
-    /* 归约的目的 LMUL 是 m1：vfredusum_vs_f32m2_f32m1 的种子参数必须是
-     * vfloat32m1_t，写成 m2 会找不到匹配的重载。 */
+    /* The reduction destination LMUL is m1: the seed argument of
+     * vfredusum_vs_f32m2_f32m1 must be vfloat32m1_t; writing m2 would find no
+     * matching overload. */
     vfloat32m1_t vzero = __riscv_vfmv_v_f_f32m1(0.f, 1);
     float sqsum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredosum_vs_f32m2_f32m1(vsum, vzero, REDCHUNK));
 
