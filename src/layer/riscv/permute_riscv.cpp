@@ -57,11 +57,11 @@ int Permute_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         const size_t dst_cstep = top_blob.cstep;
 
         /* each row has w contiguous elements (commonly 128~256B at prefill), but
-         * there are many rows (h*channels reaches into the thousands), so the
-         * per-row memcpy call overhead becomes the bottleneck (measured only
-         * 1.75 GB/s at 115 tokens, against a 15 GB/s streaming wall). Switch to
-         * an explicit RVV copy (vl follows the actual VLMAX, VLEN-independent),
-         * removing the per-call memcpy overhead. */
+                         * there are many rows (h*channels reaches into the thousands), so the
+                         * per-row memcpy call overhead becomes the bottleneck (measured only
+                         * 1.75 GB/s at 115 tokens, against a 15 GB/s streaming wall). Switch to
+                         * an explicit RVV copy (vl follows the actual VLMAX, VLEN-independent),
+                         * removing the per-call memcpy overhead. */
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < h; q++)
         {
