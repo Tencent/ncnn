@@ -1819,7 +1819,11 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
      * integer-domain dot product (vwadd widening + vwmacc accumulation), measured +28~31% on decode.
      * The first "tile-layout int8 + convert every 8 elements to float" implementation was removed
      * (600x slower in microbenchmarks, see REPORT 7.40/7.41). */
-    if (getenv("NCNN_IME2_INT8"))
+    /* Explicitly require "1": a deployment materializing the disabled boolean as
+     * NCNN_IME2_INT8=0 leaves getenv non-null, and the fp16 IME2 decode would
+     * silently switch to the lossy int8 path. */
+    const char* i8env = getenv("NCNN_IME2_INT8");
+    if (i8env && i8env[0] == '1' && i8env[1] == '\0')
     {
         ncnn_ime2::ime2_quantize_B_int8_col(B_data, BT_i8c_ime2, BT_wscale_ime2, N, K);
     }
