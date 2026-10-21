@@ -34,10 +34,13 @@ int RotaryEmbed_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (input_hc_swapped)
     {
 #if NCNN_ARM82
-        /* fp16 存储 + fp16 算术（ARMv8.2 默认）时，委托给通用实现会把计算升级
-         * 成 fp32，只在使用者要求的算术模式上打了折扣；pack1 且三者都是 16 位
-         * 时走原生 fp16sa 融合路径，保持请求的算术语义。其余情况（打包输入、
-         * 混合位宽、bf16、fp16s）的算术都与通用 fp32 转换路径一致，照旧委托。 */
+        /* with fp16 storage + fp16 arithmetic (the ARMv8.2 default), delegating
+         * to the generic implementation would upgrade the computation to fp32,
+         * shortchanging the arithmetic mode the user requested; with pack1 and
+         * all three blobs 16-bit, take the native fp16sa fused path and keep the
+         * requested arithmetic semantics. In all other cases (packed input,
+         * mixed bit widths, bf16, fp16s) the arithmetic matches the generic fp32
+         * conversion path, so delegate as before. */
         if (support_fp16_storage && opt.use_fp16_storage && opt.use_fp16_arithmetic
                 && bottom_blobs[0].elembits() == 16 && bottom_blobs[0].elempack == 1
                 && bottom_blobs[1].elembits() == 16 && bottom_blobs[1].elempack == 1

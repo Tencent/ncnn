@@ -127,8 +127,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         }
         else
             top_blob = t32;
-        /* cast/convert_packing 返回 void，分配失败时 top_blob 为空；
-         * 不把空输出当成功交出去。 */
+        /* cast/convert_packing return void; on allocation failure top_blob is
+         * empty -- do not hand out an empty output as success. */
         if (top_blob.empty())
             return -100;
         if (top_blob.elempack != bottom_blob.elempack)
@@ -146,16 +146,18 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
-    /* input_hc_swapped=1：输入是 [w, c, h]（吸收掉前面的 Permute(order_type=2)），
-     * 序列在 c 轴、头在 h 轴；输出仍写标准 [w, h, c]。 */
+    /* input_hc_swapped=1: the input is [w, c, h] (having absorbed the preceding
+     * Permute(order_type=2)); the sequence is on the c axis, heads on the h
+     * axis; the output is still written as standard [w, h, c]. */
     const int seqlen = input_hc_swapped ? bottom_blob.c : bottom_blob.h;
     const int num_heads = input_hc_swapped ? bottom_blob.h : bottom_blob.c;
 
     Mat& top_blob = top_blobs[0];
     if (input_hc_swapped)
     {
-        /* 融合模式下输入是 [w, c, h]，输出必须回到标准布局 [w, h, c]
-         * （原来的 Permute(order_type=2) 干的活由本层一并完成）。 */
+        /* in fusion mode the input is [w, c, h] and the output must return to
+         * the standard layout [w, h, c] (the work of the original
+         * Permute(order_type=2) is folded into this layer). */
         top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
     }
     else
@@ -168,9 +170,10 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
-        /* 交换布局下 num_heads = bottom_blob.h，可能大于 bottom_blob.c（解码时
-         * 序列只有 1 个 channel）：channel(q) 只对正常布局构造，避免为被忽略
-         * 的 head 视图做出越界指针运算。 */
+        /* in the swapped layout num_heads = bottom_blob.h, which may exceed
+         * bottom_blob.c (at decode time the sequence has only 1 channel):
+         * channel(q) is constructed only for the normal layout, avoiding
+         * out-of-bounds pointer arithmetic for ignored head views. */
         const Mat head = input_hc_swapped ? Mat() : bottom_blob.channel(q);
         Mat out_head = top_blob.channel(q);
 
@@ -178,7 +181,7 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             if (interleaved)
             {
-                /* 交换布局下 (头 q, 序列 i) 的元素在 channel(i).row(q) */
+                /* in the swapped layout, element (head q, sequence i) lives at channel(i).row(q) */
                 const float* ptr = input_hc_swapped ? bottom_blob.channel(i).row(q) : head.row(i);
                 const float* cos_ptr = cos_cache.row(i);
                 const float* sin_ptr = sin_cache.row(i);
@@ -204,7 +207,7 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 // the standard-rope form whose halves are identical, so the second half reuses the
                 // first. This keeps existing half-width callers bit-identical.
                 const int cw = cos_cache.w == embed_dim ? half : 0;
-                // 交换布局下 (头 q, 序列 i) 的元素在 channel(i).row(q)
+                // in the swapped layout, element (head q, sequence i) lives at channel(i).row(q)
                 const float* ptr0 = input_hc_swapped ? bottom_blob.channel(i).row(q) : head.row(i);
                 const float* ptr1 = ptr0 + half;
                 const float* cos_ptr0 = cos_cache.row(i);

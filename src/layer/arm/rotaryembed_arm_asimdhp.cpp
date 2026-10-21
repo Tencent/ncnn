@@ -299,10 +299,11 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
     return 0;
 }
 
-/* 融合布局（input_hc_swapped=1）的 fp16sa：输入 [w=embed_dim, h=num_heads,
- * c=seqlen]（吸收了 Permute(order_type=2)），输出标准 [embed_dim, seqlen,
- * num_heads]。索引关系与通用实现的融合路径一致，算术保持 fp16（mul/FMA 在
- * fp16 域），与正常路径的 forward_fp16sa 等价。 */
+/* fp16sa for the fused layout (input_hc_swapped=1): the input is [w=embed_dim,
+ * h=num_heads, c=seqlen] (having absorbed Permute(order_type=2)), the output is
+ * standard [embed_dim, seqlen, num_heads]. The indexing matches the generic
+ * implementation's fused path, the arithmetic stays in fp16 (mul/FMA in the
+ * fp16 domain), equivalent to forward_fp16sa on the normal path. */
 int RotaryEmbed_arm::forward_fp16sa_swapped(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -310,12 +311,12 @@ int RotaryEmbed_arm::forward_fp16sa_swapped(const std::vector<Mat>& bottom_blobs
     const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
-    const int seqlen = bottom_blob.c;    /* 融合布局：序列在 c 轴 */
-    const int num_heads = bottom_blob.h; /* 头在 h 轴 */
+    const int seqlen = bottom_blob.c;    /* fused layout: the sequence is on the c axis */
+    const int num_heads = bottom_blob.h; /* heads on the h axis */
     const int half = embed_dim / 2;
 
     Mat& top_blob = top_blobs[0];
-    /* 融合模式下输出回到标准布局（被吸收的 Permute 的工作由本层完成） */
+    /* in fusion mode the output returns to the standard layout (the absorbed Permute's work is done by this layer) */
     top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -327,7 +328,7 @@ int RotaryEmbed_arm::forward_fp16sa_swapped(const std::vector<Mat>& bottom_blobs
 
         for (int i = 0; i < seqlen; i++)
         {
-            /* 交换布局下 (头 q, 序列 i) 的元素在 channel(i).row(q) */
+            /* in the swapped layout, element (head q, sequence i) lives at channel(i).row(q) */
             const Mat seq_ch = bottom_blob.channel(i);
             const __fp16* cos_ptr = cos_cache.row<const __fp16>(i);
             const __fp16* sin_ptr = sin_cache.row<const __fp16>(i);

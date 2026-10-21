@@ -19,8 +19,10 @@ protected:
 #if NCNN_ARM82
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    /* 融合布局（input_hc_swapped）的 fp16 算术版：委托给通用实现会升级成
-     * fp32 计算，改变请求的算术模式与输出位；此版本保持 fp16sa 语义。 */
+    /* fp16 arithmetic version for the fused layout (input_hc_swapped):
+     * delegating to the generic implementation would upgrade to fp32 compute,
+     * changing the requested arithmetic mode and output bits; this version
+     * keeps fp16sa semantics. */
     int forward_fp16sa_swapped(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 #if NCNN_BF16
