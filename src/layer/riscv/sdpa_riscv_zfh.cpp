@@ -1,8 +1,9 @@
 // SpacemiT K3 IME2 SDPA acceleration
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// 本 TU 以 zfh(+xsmtvdotii) march 编译（见 cmake/ncnn_add_layer.cmake），
-// 包含 smt.vfwmadot 汇编内核；运行时探测失败（非 A100）时绝不会执行到这里。
+// This TU is compiled with the zfh(+xsmtvdotii) march (see cmake/ncnn_add_layer.cmake)
+// and contains the smt.vfwmadot assembly kernels; it is never executed when the
+// runtime probe fails (non-A100).
 
 #include "sdpa_riscv.h"
 
@@ -42,8 +43,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 #else
     using namespace ncnn_ime2_sdpa;
 
-    /* 建管线探测只覆盖当时上下文（绑定可改、团队可变大）。每次 forward 前校验
-     * 当前团队此刻都在 A100 上；不满足返回 -99，调度方回落上游 GEMM 路径。 */
+    /* The pipeline-time probe only covers the context of that moment (binding can
+     * change, the team can grow). Re-check before every forward that the current
+     * team is on A100 right now; if not, return -99 so the dispatching side
+     * falls back to the upstream GEMM path. */
     if (!ncnn_ime2_sdpa::ime2_team_ok(opt.num_threads))
         return -99;
 
@@ -71,24 +74,33 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     if (top_blob.empty())
         return -100;
 
-    /* 病态大 scale 退避：fp16 打包对 Q/K 的普通舍入误差（相对 2^-11）会被
-     * scale 放大到 logit 域显著（keys 的第 4 位小数的差别在 fp16 里本就不可
-     * 分辨——这与上游 fp16s 存储语义相同；但只有 scale 极大时才影响 softmax
-     * 选择）。真实注意力 scale ≈ 1/sqrt(E) ≤ 1，病态场景 ≥ 1e4：阈值 1024
-     * 两侧各留两个数量级以上余量。更精细的按值界限测过：真实模型 qwen3-0.6b
-     * 长预填充的最坏情况界限已达 ~150（mxq 最大 417、mxk 最大 199），而输出
-     * 与上游逐字节一致——基于值的界限无法区分真实与对抗输入，只有 scale 能。
-     * 越界/下溢的硬情形由下面的值域预检负责。 */
+    /* Back off on pathologically large scale: the ordinary fp16-packing rounding
+     * error of Q/K (relative 2^-11) is amplified by scale until it is
+     * significant in logit space (a difference in the 4th decimal of the keys
+     * is indistinguishable in fp16 anyway — same as upstream fp16s storage
+     * semantics; but only an extreme scale lets it affect the softmax
+     * selection). Real attention scale ≈ 1/sqrt(E) ≤ 1, pathological cases
+     * ≥ 1e4: threshold 1024 leaves over two orders of magnitude on both sides.
+     * A finer value-based bound was tested: the worst-case bound for the real
+     * model qwen3-0.6b on long prefill already reaches ~150 (mxq max 417, mxk
+     * max 199), while its output is byte-identical to upstream — a value-based
+     * bound cannot tell real inputs from adversarial ones; only scale can.
+     * Hard out-of-range/underflow cases are handled by the range pre-check
+     * below. */
     if (fabsf(_scale) > 1024.f)
         return -99;
 
-    /* fp16 打包值域预检：|v| > 65504 的输入打包成 ±inf，而上游 fp32 路径保持
-     * 有限。必须在**任何状态改动之前**（kv cache 追加不可回退）发现并让
-     * 调度方落上游——返回 -99 时 top_blobs[1]/[2] 尚未写入。
-     * V 的幅值也作闸门：Q/K 的 fp16 舍入合并（fp16 存储语义，与上游 fp16s
-     * 相同）造成的权重失真会乘 V 放大到输出——病态大 V（如 ±65504 的对消
-     * 构造）下"平均"与"选择"差异巨大。真实模型实测 mxv ≤ 63（qwen3-0.6b
-     * 长预填充 28 次调用），阈值 8192 留 130 倍余量。 */
+    /* fp16 packing range pre-check: inputs with |v| > 65504 pack to ±inf while
+     * the upstream fp32 path stays finite. This must be caught **before any
+     * state change** (the kv cache append cannot be undone) so the dispatching
+     * side can drop to upstream — when -99 is returned, top_blobs[1]/[2] have
+     * not been written yet.
+     * The magnitude of V is also a gate: the weight distortion caused by the
+     * fp16 rounding collapse of Q/K (fp16 storage semantics, same as upstream
+     * fp16s) is multiplied by V into the output — with pathologically large V
+     * (e.g. a ±65504 cancellation construction), "averaging" and "selecting"
+     * diverge hugely. Measured on the real model: mxv ≤ 63 (qwen3-0.6b, long
+     * prefill, 28 calls); threshold 8192 leaves 130x headroom. */
     float mxv = 0.f;
     if (!ncnn_ime2_sdpa::ime2_fits_fp16(query) || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_key)
             || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value, &mxv) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key)
@@ -97,7 +109,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     if (mxv > 8192.f)
         return -99;
 
-    // ---- kv cache 追加（与朴素路径完全相同的语义） ----
+    // ---- kv cache append (exactly the same semantics as the naive path) ----
     Mat key = cur_key;
     Mat value = cur_value;
     {
@@ -124,7 +136,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         value = cached_value;
     }
 
-    // ---- flash 开关（默认开；NCNN_SDPA_FLASH=0 回到全量矩阵旧路径，供 A/B 与兜底） ----
+    // ---- flash switch (on by default; NCNN_SDPA_FLASH=0 returns to the full-matrix old path, for A/B testing and as a fallback) ----
     int use_flash = 1;
     {
         const char* env = getenv("NCNN_SDPA_FLASH");
@@ -132,17 +144,20 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             use_flash = 0;
     }
 
-    /* mask 形状契约：与上游通用路径一致，attn_mask 必须是完整的
-     * [dst_seqlen, src_seqlen]（c=1 共享或逐头）；广播形状（1xN、Mx1、1-D）
-     * 在上游同样按 row(i) 全量索引，没有广播语义。flash 路径按行距
-     * ldm=dst_seqlen 逐行推进 mask 指针，causal 扫描也按 row(i) 取行——对
-     * 非完整形状两者都会越界。形状不完整时关掉 flash 走旧路径（其逐行语义与
-     * 上游逐字节一致），causal 扫描也随之跳过。 */
+    /* mask shape contract: consistent with the upstream generic path, attn_mask
+     * must be a full [dst_seqlen, src_seqlen] (c=1 shared or per head);
+     * broadcast shapes (1xN, Mx1, 1-D) are also indexed in full by row(i)
+     * upstream, with no broadcast semantics. The flash path advances the mask
+     * pointer row by row with stride ldm=dst_seqlen, and the causal scan also
+     * takes rows by row(i) — both go out of bounds on non-full shapes. On
+     * incomplete shapes, turn flash off and take the old path (whose row-wise
+     * semantics are byte-identical to upstream); the causal scan is skipped
+     * along with it. */
     if (use_flash
             && (attn_mask_blob.dims < 2 || attn_mask_blob.w < dst_seqlen || attn_mask_blob.h < src_seqlen))
         use_flash = 0;
 
-    // ---- causal 掩码检测（每层一次；非因果则 flash 不跳块、全量加 mask，语义不变） ----
+    // ---- causal mask detection (once per layer; if not causal, flash skips no blocks and adds the full mask, semantics unchanged) ----
     // 3-D masks are per head while this flag is applied to every head. Inspecting
     // only channel 0 means that if head 0 is triangular but some other head may
     // attend to a future position, the flash path truncates that head's KV scan
@@ -150,9 +165,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
     int causal = 1;
     if (use_flash)
     {
-        /* 截断判定的所有量都是循环不变量：margin/cutoff 在扫描前算一次。
-         * 原来 logf 在 j 内层循环里逐元素调用——L=4096 的三角区就是数百万次
-         * libm 调用，会吃掉长预填充的收益。 */
+        /* All quantities of the truncation test are loop invariants:
+         * margin/cutoff are computed once before the scan. Originally logf was
+         * called per element in the inner j loop — the triangular region at
+         * L=4096 means millions of libm calls, eating the long-prefill gain. */
         const float max_dot = (float)embed_dim * 65504.f * 65504.f;
         const int omitted = cur_seqlen - IME2_FLASH_BM;
         const float margin = 20.f + logf((float)(omitted > 1 ? omitted : 1));
@@ -173,21 +189,28 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                     }
                 for (int j = vis; j < dst_seqlen && causal; j++)
                 {
-                    /* 截断要求未来 logit 低于任何可见 logit，单侧"未来不为正"
-                     * 不够（可见 logit 可能更负：可见 K 与 Q 反号时点积为负，
-                     * scale·(-max_dot) + 0 可以比 scale·(+max_dot) + v 还小）。
-                     * 双侧证明：可见 logit ≥ -|scale|·max_dot（可见区掩码全 0
-                     * 已由前一段检查保证），未来 logit ≤ |scale|·max_dot + v，
-                     * 故 v < -2·|scale|·max_dot 时未来必不可见。max_dot 是
-                     * fp16 打包值域上界 E·65504²；乘积溢出 fp32 时变 inf，
-                     * 条件自然不成立（保守方向）。-inf 永远硬。 */
+                    /* Truncation requires every future logit to be below any
+                     * visible logit; the one-sided "future is not positive"
+                     * test is not enough (a visible logit can be more negative:
+                     * when a visible K has the opposite sign of Q, the dot is
+                     * negative, and scale·(-max_dot) + 0 can be even smaller
+                     * than scale·(+max_dot) + v). Two-sided proof: visible
+                     * logit ≥ -|scale|·max_dot (the visible region mask being
+                     * all 0 was already guaranteed by the check above), future
+                     * logit ≤ |scale|·max_dot + v; hence with
+                     * v < -2·|scale|·max_dot the future is necessarily
+                     * invisible. max_dot is the upper bound of the fp16 packing
+                     * range, E·65504²; if the product overflows fp32 it becomes
+                     * inf and the condition naturally fails (conservative
+                     * direction). -inf is always hard. */
                     const float v = r[j];
                     if (v == -__builtin_inff())
                         continue;
-                    /* 还要证明未来 logit 的 softmax **质量**可忽略，不只是顺序更低：
-                     * 未来 ≤ |scale|·max_dot + v，可见行内最大值 ≥ -|scale|·max_dot，
-                     * 差值 ≤ 2·|scale|·max_dot + v；再留 20 的余量（exp(-20)≈2e-9，
-                     * 质量无害）。 */
+                    /* One must also prove the softmax **mass** of future logits is
+                     * negligible, not merely ordered lower:
+                     * future ≤ |scale|·max_dot + v, visible row max ≥ -|scale|·max_dot,
+                     * so the gap ≤ 2·|scale|·max_dot + v; then leave a margin of 20
+                     * (exp(-20)≈2e-9, harmless mass). */
                     if (v < cutoff)
                         continue;
                     causal = 0;
@@ -199,18 +222,20 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
     if (use_flash)
     {
-        // ---- K/V 打包按 GQA 组共享（2:1 时省一半打包），Q 逐头预缩放打包 ----
+        // ---- K/V packing shared per GQA group (2:1 saves half the packing); Q packed per head, pre-scaled ----
         std::vector<Mat> KTg(num_group), VTg(num_group);
         int pack_fail = 0;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < num_group; g++)
         {
             if (ime2_pack_fp32(key.channel(g), embed_dim, KTg[g], dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
-                /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+                /* Workers write the same flag concurrently: an omp barrier cannot make
+                 * the concurrent writes race-free, so use an atomic write. */
                 #pragma omp atomic write
                 pack_fail = 1;
             if (ime2_pack_fp32_T(value.channel(g), out_embed_dim, VTg[g], out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
-                /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+                /* Workers write the same flag concurrently: an omp barrier cannot make
+                 * the concurrent writes race-free, so use an atomic write. */
                 #pragma omp atomic write
                 pack_fail = 1;
         }
@@ -230,21 +255,21 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             Mat QT, PT;
             PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64, (size_t)2u, 1, opt.workspace_allocator);
             if (PT.empty()
-                    /* Q 不预乘 scale：fp16 打包会把 Q·scale 溢出成 inf；scale 在
-                                                                                                                                                                                     * flash 内核里施加于 fp32 累加结果（见 ime2_flash_head_tiles）。 */
+                    /* Q is not pre-multiplied by scale: fp16 packing would overflow Q·scale to inf; scale is applied
+                                                                                                                                                                             * to the fp32 accumulation result inside the flash kernel (see ime2_flash_head_tiles). */
                     || ime2_pack_fp32(query_head, embed_dim, QT, src_seqlen, embed_dim, opt.workspace_allocator) != 0
-                    /* ldm 必须是 mask 的真实行宽 maskm.w，而不是 dst_seqlen：
-                                                                                                                                                                             * 守卫允许 w >= dst 的宽 mask（行尾有填充列），按 dst_seqlen
-                                                                                                                                                                             * 推进会让第 r 行读到前一行的值。 */
+                    /* ldm must be the mask's true row width maskm.w, not dst_seqlen:
+                                                                                                                                                                     * the guard allows wide masks with w >= dst (padded columns at row end); advancing
+                                                                                                                                                                     * by dst_seqlen would make row r read the previous row's values. */
                     || ime2_flash_head_tiles((const ime2_fp16*)QT, (const ime2_fp16*)KTg[g], (const ime2_fp16*)VTg[g],
                                              maskm, maskm.w, (float*)top_blob_head, out_embed_dim,
                                              src_seqlen, dst_seqlen, embed_dim, out_embed_dim, past_seqlen, causal, _scale,
                                              PT, opt.workspace_allocator)
                     != 0)
             {
-                /* 工人并发写同一标志：omp 屏障不能让并发写变成无竞争，用原子写。 */
+                /* Workers write the same flag concurrently: an omp barrier cannot make the concurrent writes race-free, so use an atomic write. */
                 #pragma omp atomic write
-                flash_fail = 1; // 调用方整体回退旧路径（omp 内不宜部分混跑两条路径的 workspace 分配）
+                flash_fail = 1; // caller falls back to the old path as a whole (mixing the workspace allocations of both paths inside omp is unwise)
             }
         }
 
@@ -252,10 +277,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         {
             return 0;
         }
-        // 有头失败：从头用旧路径整体重算（top_blob 会被覆盖写，语义安全）
+        // Some head failed: recompute from scratch with the old path as a whole (top_blob is overwritten, semantically safe)
     }
 
-    // ---- 旧路径：per-head 全量 QK^T -> mask -> softmax -> P·V ----
+    // ---- Old path: per-head full QK^T -> mask -> softmax -> P·V ----
     Mat qk_cross(dst_seqlen, src_seqlen, opt.num_threads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
         return -100;
@@ -273,14 +298,16 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         Mat AT, BT;
         if (ime2_pack_fp32(query_head, embed_dim, AT, src_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
-            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            /* Workers write the same flag concurrently: an omp barrier cannot make
+             * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
         }
         if (ime2_pack_fp32(key_head, embed_dim, BT, dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
-            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            /* Workers write the same flag concurrently: an omp barrier cannot make
+             * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
@@ -291,7 +318,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                           (float*)qk_cross_head, dst_seqlen,
                           src_seqlen, dst_seqlen, embed_dim, _scale);
 
-        // mask（加性，-1e38 因果掩码）
+        // mask (additive, -1e38 causal mask)
         {
             const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
             for (int i = 0; i < src_seqlen; i++)
@@ -303,7 +330,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             }
         }
 
-        // softmax（数值安全：行最大值减法）
+        // softmax (numerically safe: row-max subtraction)
         for (int i = 0; i < src_seqlen; i++)
         {
             float* ptr = qk_cross_head.row(i);
@@ -320,8 +347,9 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                 ptr[j] /= sum;
         }
 
-        // O = P·V（V 转置打包）。P 先放大 2^15 再打包：小概率直接打包会下溢成 0，
-        // 聚合质量被丢弃；gemm 的 alpha=1/32768 在 fp32 结果上补偿回来。
+        // O = P·V (V packed transposed). P is scaled up by 2^15 before packing: packing
+        // small probabilities directly would underflow them to 0 and the aggregation
+        // quality would be lost; gemm's alpha=1/32768 compensates on the fp32 result.
         {
             float* pp = (float*)qk_cross_head;
             const int nn = src_seqlen * dst_seqlen;
@@ -336,14 +364,16 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         Mat A2T, B2T;
         if (ime2_pack_fp32((const float*)qk_cross_head, dst_seqlen, A2T, src_seqlen, dst_seqlen, opt.workspace_allocator) != 0)
         {
-            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            /* Workers write the same flag concurrently: an omp barrier cannot make
+             * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
         }
         if (ime2_pack_fp32_T((const float*)value_head, out_embed_dim, B2T, out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
         {
-            /* 工人并发写同一个标志：omp 屏障不能让并发写变成无竞争的，用原子写。 */
+            /* Workers write the same flag concurrently: an omp barrier cannot make
+             * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;

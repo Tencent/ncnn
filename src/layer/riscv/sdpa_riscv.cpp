@@ -29,29 +29,34 @@ SDPA_riscv::SDPA_riscv()
 }
 
 #if __riscv_v
-// ---------------- RVV 解码辅助（M=1 注意力，f32） ----------------
-// 全部显式 vsetvl（VLEN=1024 下 e32m8 的 VL 上限 256，写死 zero 会越界）。
+// ---------------- RVV decode helpers (M=1 attention, f32) ----------------
+// All vsetvl calls are explicit (at VLEN=1024 the VL cap of e32m8 is 256; hard-coding zero would go out of bounds).
 
 #if __riscv_vector
-// 向量化 exp（与 swish_riscv.cpp 同一套实现）：exp(x) = 2^(x*log2e) = 2^n * 2^f
-// 逐元素运算，结果与 VLEN 无关。
-// 注意跨簇逐字节一致的边界：exp 与本层 softmax 求和（固定 8 lane + vfredosum）
-// 是 VLEN 无关的；但 rvv_dot_f32（QK）与 PV 累加仍是按 lane 分组（e32m8 宽度
-// 随 VLEN 变化），所以整条解码路径只在**同一簇**上保证逐字节可复现——K3 上
-// 进程注册后被限制在 A100 簇内，这一前提成立；与 ncnn 全局一致（打包 tile
-// 的求和顺序本来就随 VLEN 变，上游不承诺跨 VLEN 位一致）。
-// 解码 softmax 原本用标量 expf（实测 44.7 ns/元素），507 token 时每层 8112 次 ≈ 363 µs，
-// 是长上下文解码的主要成本（每 token 约 10 ms）。这里换成向量版。
+// Vectorized exp (same implementation as swish_riscv.cpp): exp(x) = 2^(x*log2e) = 2^n * 2^f
+// Element-wise arithmetic, result is VLEN-agnostic.
+// Note the boundary of cross-cluster byte-exactness: exp and this layer's softmax
+// summation (fixed 8 lanes + vfredosum) are VLEN-agnostic; but rvv_dot_f32 (QK)
+// and the PV accumulate are still grouped by lane (the e32m8 width varies with
+// VLEN), so the whole decode path is byte-reproducible only on the **same
+// cluster** — on K3 the process is pinned inside the A100 cluster after
+// registration, so this premise holds; consistent with ncnn globally (the
+// summation order of packing tiles varies with VLEN anyway, and upstream never
+// promises bit-identical results across VLEN).
+// The decode softmax originally used scalar expf (measured 44.7 ns/element);
+// at 507 tokens that is 8112 calls per layer ≈ 363 µs, the main cost of
+// long-context decode (about 10 ms per token). Here it is replaced with the vector version.
 static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
 {
-    /* 与上游 Softmax_riscv 使用的 exp_ps（rvv_mathfun.h）逐位一致的构造：
-     * 同一 cephes 多项式、同一钳位常数、同一 +0.5/floor 取整、同一 ldexp
-     * 位技巧。解码快路径的输出与组合回退路径逐位相同；低于 exp_lo 的值与
-     * 上游一样冲刷为 0（NaN 的钳位语义也与上游一致：vfmin/vfmax 遇单 NaN
-     * 取数值操作数）。 */
-    /* 常数名加 sdpa_ 前缀：rvv_mathfun.h 里这些是宏，同名局部声明会冲突。 */
+    /* Bit-exact replica of the exp_ps (rvv_mathfun.h) construction used by
+     * upstream Softmax_riscv: same cephes polynomial, same clamping constants,
+     * same +0.5/floor rounding, same ldexp bit trick. The decode fast-path
+     * output is bit-identical to the composed fallback path; values below
+     * exp_lo are flushed to 0 as upstream does (NaN clamping semantics also
+     * match upstream: vfmin/vfmax with a single NaN take the numeric operand). */
+    /* Constant names get an sdpa_ prefix: these are macros in rvv_mathfun.h, and same-named local declarations would clash. */
     const float sdpa_exp_hi = 88.3762626647949f;
-    const float sdpa_exp_lo = -88.3762626647949f; /* 上游 exp_ps 的实际钳位下界 */
+    const float sdpa_exp_lo = -88.3762626647949f; /* actual clamping lower bound of upstream exp_ps */
     const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
     const float sdpa_cephes_exp_C1 = 0.693359375f;
     const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
@@ -70,7 +75,7 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     /* express exp(x) as exp(g + n*log(2)) */
     fx = __riscv_vfmacc_vf_f32m1(__riscv_vfmv_v_f_f32m1(0.5f, vl), sdpa_cephes_LOG2EF, x, vl);
 
-    /* floorf：转整再转回，比 fx 大则减 1（与上游逐字相同的 floor 模拟） */
+    /* floorf: convert to int and back; subtract 1 if greater than fx (verbatim copy of the upstream floor emulation) */
     tmp = __riscv_vfcvt_f_x_v_f32m1(__riscv_vfcvt_x_f_v_i32m1(fx, vl), vl);
     vbool32_t mask = __riscv_vmfgt_vv_f32m1_b32(tmp, fx, vl);
     fx = __riscv_vfsub_vf_f32m1_mu(mask, tmp, tmp, 1.f, vl);
@@ -91,7 +96,7 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p4, vl);
     y = __riscv_vfmul_vv_f32m1(y, x, vl);
     y = __riscv_vfadd_vf_f32m1(y, sdpa_cephes_exp_p5, vl);
-    /* 与上游一致：分开的乘加（两次舍入），不是 FMA——否则末位差 1 ulp。 */
+    /* Match upstream: separate multiply-add (two roundings), not FMA — otherwise the last bit differs by 1 ulp. */
     y = __riscv_vfmul_vv_f32m1(y, z, vl);
     y = __riscv_vfadd_vv_f32m1(y, x, vl);
     y = __riscv_vfadd_vf_f32m1(y, 1.f, vl);
@@ -105,16 +110,18 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     return y;
 }
 
+
 static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
 {
-    /* 与上游 Softmax_riscv 使用的 exp_ps（rvv_mathfun.h）逐位一致的构造：
-     * 同一 cephes 多项式、同一钳位常数、同一 +0.5/floor 取整、同一 ldexp
-     * 位技巧。解码快路径的输出与组合回退路径逐位相同；低于 exp_lo 的值与
-     * 上游一样冲刷为 0（NaN 的钳位语义也与上游一致：vfmin/vfmax 遇单 NaN
-     * 取数值操作数）。 */
-    /* 常数名加 sdpa_ 前缀：rvv_mathfun.h 里这些是宏，同名局部声明会冲突。 */
+    /* Bit-exact replica of the exp_ps (rvv_mathfun.h) construction used by
+     * upstream Softmax_riscv: same cephes polynomial, same clamping constants,
+     * same +0.5/floor rounding, same ldexp bit trick. The decode fast-path
+     * output is bit-identical to the composed fallback path; values below
+     * exp_lo are flushed to 0 as upstream does (NaN clamping semantics also
+     * match upstream: vfmin/vfmax with a single NaN take the numeric operand). */
+    /* Constant names get an sdpa_ prefix: these are macros in rvv_mathfun.h, and same-named local declarations would clash. */
     const float sdpa_exp_hi = 88.3762626647949f;
-    const float sdpa_exp_lo = -88.3762626647949f; /* 上游 exp_ps 的实际钳位下界 */
+    const float sdpa_exp_lo = -88.3762626647949f;   /* actual clamping lower bound of upstream exp_ps */
     const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
     const float sdpa_cephes_exp_C1 = 0.693359375f;
     const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
@@ -133,7 +140,7 @@ static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
     /* express exp(x) as exp(g + n*log(2)) */
     fx = __riscv_vfmacc_vf_f32m8(__riscv_vfmv_v_f_f32m8(0.5f, vl), sdpa_cephes_LOG2EF, x, vl);
 
-    /* floorf：转整再转回，比 fx 大则减 1（与上游逐字相同的 floor 模拟） */
+    /* floorf: convert to int and back; subtract 1 if greater than fx (verbatim copy of the upstream floor emulation) */
     tmp = __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8(fx, vl), vl);
     vbool4_t mask = __riscv_vmfgt_vv_f32m8_b4(tmp, fx, vl);
     fx = __riscv_vfsub_vf_f32m8_mu(mask, tmp, tmp, 1.f, vl);
@@ -154,7 +161,7 @@ static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
     y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p4, vl);
     y = __riscv_vfmul_vv_f32m8(y, x, vl);
     y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p5, vl);
-    /* 与上游一致：分开的乘加（两次舍入），不是 FMA——否则末位差 1 ulp。 */
+    /* Match upstream: separate multiply-add (two roundings), not FMA — otherwise the last bit differs by 1 ulp. */
     y = __riscv_vfmul_vv_f32m8(y, z, vl);
     y = __riscv_vfadd_vv_f32m8(y, x, vl);
     y = __riscv_vfadd_vf_f32m8(y, 1.f, vl);
@@ -170,7 +177,7 @@ static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
 #endif
 
 #if __riscv_vector
-// 解码注意力分段计时的本地时钟（不依赖 IME2 侧 profiler，保证所有变体都能编译）
+// Local clock for decode-attention segment timing (does not depend on the IME2-side profiler, so all variants compile)
 #include <time.h>
 static inline double sdpa_dec_now()
 {
@@ -244,8 +251,8 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
     const int num_heads_per_group = num_heads / num_group;
 
-    // 每线程一份 scores scratch。必须在**改动 KV cache 之前**分配好：
-    // 一旦追加过 cache 就不能再回退朴素路径（会重复追加）。
+    // One scores scratch per thread. Must be allocated **before touching the KV cache**:
+    // once the cache has been appended, falling back to the naive path is no longer possible (it would append twice).
     const int nthreads = opt.num_threads > 0 ? opt.num_threads : 1;
     /* Mat with a null workspace_allocator falls back to the default allocator,
      * so a bare layer call (e.g. tests/test_sdpa_kvcache.cpp, which uses a
@@ -263,7 +270,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
         return -100;
     }
 
-    // ---- kv cache 追加（与朴素路径逐字节相同的语义） ----
+    // ---- kv cache append (byte-identical semantics to the naive path) ----
     Mat& cached_key = top_blobs[1];
     Mat& cached_value = top_blobs[2];
 
@@ -287,7 +294,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
         memcpy(value_head.row(past_seqlen), cur_value.channel(g), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
     }
 
-    // ---- 逐头注意力 ----
+    // ---- per-head attention ----
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
@@ -306,7 +313,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
         const bool dprof = (getenv("NCNN_SDPA_DECODE_PROF") != nullptr);
         const double dt0 = dprof ? sdpa_dec_now() : 0.0;
 
-        // QK^T：scores[j] = (q · k_j) * scale + mask[j]
+        // QK^T: scores[j] = (q · k_j) * scale + mask[j]
         for (int j = 0; j < dst_seqlen; j++)
         {
             const float* kptr = key_head.row(j);
@@ -315,20 +322,26 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
 
         const double dt1 = dprof ? sdpa_dec_now() : 0.0;
 
-        // softmax（与朴素路径同序：max → expf → sum → 乘倒数）
+        // softmax (same order as the naive path: max → expf → sum → multiply by reciprocal)
         const float mx = rvv_max_f32(scores, dst_seqlen);
         float sum = 0.f;
 #if __riscv_vector
-        /* 向量化 exp（原来逐元素调 expf，44.7 ns/元素 → 507 token 时每层约 363 µs） */
+        /* Vectorized exp (was per-element expf calls, 44.7 ns/element → ~363 µs per layer at 507 tokens) */
         {
-            /* 求和的分组必须与 VLEN 无关：lane 数跟随 VLEN（A100 e32m1=32 条，
-             * X100=16 条），lane 分组累加 + 无序归约会让 sum 跨簇不同。
-             * 固定 8 lane 分组（任何支持的 VLEN 都有 VLMAX≥8），归约用
-             * vfredosum（有序，顺序语义固定）——两簇逐字节一致。exp 本身是
-             * 累加结构与上游 Softmax_riscv 逐字一致（e32m8 大组 + _tu 末组 +
-             * vfredusum 收尾）：小项如果都落到最大值所在的 lane 会被逐个舍掉
-             * （1 + 2.5e-8 == 1），大组跨步把小项分散到各 lane 的独立累加器里
-             * 才能留住聚合质量——与回退路径逐位一致的前提。 */
+            /* The summation grouping must be VLEN-agnostic: the lane count
+             * follows VLEN (A100 e32m1 = 32 lanes, X100 = 16 lanes), so
+             * lane-grouped accumulate + unordered reduction would make sum
+             * differ across clusters. Fixed 8-lane grouping (every supported
+             * VLEN has VLMAX≥8), reduction via vfredosum (ordered, fixed
+             * sequential semantics) — byte-identical on both clusters. The
+             * accumulate structure of exp itself matches upstream
+             * Softmax_riscv verbatim (e32m8 bulk groups + _tu tail group +
+             * vfredusum finish): if the small terms all landed on the lane
+             * holding the maximum they would be dropped one by one
+             * (1 + 2.5e-8 == 1); bulk-group striding spreads the small terms
+             * across independent per-lane accumulators, which preserves the
+             * aggregation quality — the premise of bit-parity with the
+             * fallback path. */
             vfloat32m8_t vsum = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
             {
                 const size_t vlfull = __riscv_vsetvlmax_e32m8();
@@ -338,7 +351,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
                 {
                     vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlfull);
                     v = __riscv_vfsub_vf_f32m8(v, mx, vlfull);
-                    /* m8 版解码 exp：与 exp_ps 相同构造的宽版（下方） */
+                    /* m8 decode exp: the wide version with the same construction as exp_ps (below) */
                     v = sdpa_vexp_f32m8(v, vlfull);
                     __riscv_vse32_v_f32m8(ptr, v, vlfull);
                     vsum = __riscv_vfadd_vv_f32m8(vsum, v, vlfull);
@@ -355,7 +368,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
                     __riscv_vse32_v_f32m8(ptr, v, vlr);
                     vsum = __riscv_vfadd_vv_f32m8_tu(vsum, vsum, v, vlr);
                 }
-                /* 与上游相同：vfredusum（无序但在同一实现上确定） */
+                /* Same as upstream: vfredusum (unordered but deterministic on the same implementation) */
                 sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m8_f32m1(vsum, __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m8()));
             }
         }
@@ -372,10 +385,12 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
 
         const double dt2 = dprof ? sdpa_dec_now() : 0.0;
 
-        // P·V：out[e] += p_j * v_j[e]，输出行驻留寄存器。
-        // 注意：必须按 e32m8 的 **VLMAX**（随 VLEN 变化：VLEN=1024 → 256，VLEN=256 → 64）
-        // 判断能否一次写完，否则在 X100 这类小 VLEN 簇上只会写出前 vl 个元素，
-        // 其余保持未初始化 → 输出乱码（本 bug 曾被"X100 那一腿实际未生效"的闸门掩盖）。
+        // P·V: out[e] += p_j * v_j[e]; the output row stays resident in registers.
+        // Note: whether the whole row can be written in one pass must be judged by
+        // the **VLMAX** of e32m8 (varies with VLEN: VLEN=1024 → 256, VLEN=256 → 64);
+        // otherwise on small-VLEN clusters like X100 only the first vl elements get
+        // written and the rest stay uninitialized → garbage output (this bug was
+        // masked by the "the X100 leg never actually took effect" gate).
         if (out_embed_dim <= (int)__riscv_vsetvlmax_e32m8())
         {
             size_t vl = __riscv_vsetvl_e32m8(out_embed_dim);
@@ -427,8 +442,9 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
 int SDPA_riscv::create_pipeline(const Option& _opt)
 {
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
-    // 调试开关：NCNN_SDPA_IME2=0 强制关闭（定位问题用）。必须先于探测：
-    // 否则强制关闭也照样付一次逐核亲和性遍历 + 进程级 SIGILL 探针。
+    // Debug switch: NCNN_SDPA_IME2=0 forces it off (for problem triage). Must come
+    // before the probe: otherwise even the forced-off case still pays for one
+    // per-core affinity sweep plus the process-level SIGILL probe.
     const char* ime2env = getenv("NCNN_SDPA_IME2");
     if (ime2env && ime2env[0] == '0' && ime2env[1] == '\0')
     {
@@ -436,8 +452,8 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
     }
     else
     {
-        // IME2 探测在 zfh 变体 TU 里做（那里有 smt.vfwmadot 的汇编）
-        // 用与 forward 相同的团队大小探测：forward 的并行区都带 num_threads(opt.num_threads)
+        // The IME2 probe is done in the zfh variant TU (which has the smt.vfwmadot assembly)
+        // Probe with the same team size as forward: forward's parallel regions all use num_threads(opt.num_threads)
         use_ime2_sdpa = ime2_available(_opt.num_threads);
     }
 #endif
@@ -629,18 +645,20 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return -1;
 #endif // NCNN_BATCH
 
-    // ---- 本仓库新增的快速路径（不命中时继续走下面的上游 GEMM 实现）----
+    // ---- Fast paths added by this repo (fall through to the upstream GEMM implementation below when not taken) ----
     {
         const Mat& q0 = bottom_blobs[0];
         const char* denv = getenv("NCNN_SDPA_DECODE");
         const bool decode_enabled = !(denv && denv[0] == '0' && denv[1] == '\0');
-        // 解码（M=1）RVV 快速路径：fp32 + kv_cache + attn_mask + 单 token 查询
+        // Decode (M=1) RVV fast path: fp32 + kv_cache + attn_mask + single-token query
         if (decode_enabled && kv_cache && attn_mask && !int8_scale_term
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h == 1)
         {
-            /* 快速路径按 mptr[j]（j < dst_seqlen）逐键读 mask：标量或 w==1
-             * 的广播 mask 只有一个 float，会越界。GEMM 组合路径能识别这些
-             * 广播形状（broadcast_type_C），宽度不够就回落到那里。 */
+            /* The fast path reads the mask per key via mptr[j] (j < dst_seqlen):
+             * a scalar or w==1 broadcast mask holds only one float and would be
+             * read out of bounds. The GEMM composed path recognizes these
+             * broadcast shapes (broadcast_type_C); fall back to it when the
+             * width is insufficient. */
             const Mat& m0 = bottom_blobs[3];
             const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
             if (m0.w >= dst_sl)
@@ -650,18 +668,20 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     return 0;
                 if (ret == -100)
                     return -100;
-                // 其它返回值：回落上游实现
+                // Other return values: fall back to the upstream implementation
             }
         }
     }
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
     {
         const Mat& q0 = bottom_blobs[0];
-        // IME2 flash 预填充：只接管 fp32 / elempack=1 / 序列长度足够长。
-        // 短序列下 Q/K/V 打包与分块启动的固定开销超过 GEMM 收益：实测 pp=128 时
-        // 打开 IME2 flash 反而比上游 GEMM 路径慢约 30%（33.5 -> 22.9 tok/s），
-        // 而 pp=2048 快 1~2 倍。所以只在 L 足够大时才接管，否则回落上游路径。
-        // 阈值可用 NCNN_SDPA_IME2_MINL 覆盖（便于复测）。
+        // IME2 flash prefill: takes over only for fp32 / elempack=1 / sufficiently long sequences.
+        // On short sequences the fixed overhead of Q/K/V packing and tiled launch
+        // outweighs the GEMM gain: measured at pp=128, enabling IME2 flash is
+        // actually ~30% slower than the upstream GEMM path (33.5 -> 22.9 tok/s),
+        // while at pp=2048 it is 1~2x faster. So take over only when L is large
+        // enough, otherwise fall back to the upstream path.
+        // The threshold can be overridden with NCNN_SDPA_IME2_MINL (for re-testing).
         int ime2_minl = 1024;
         if (const char* ml = getenv("NCNN_SDPA_IME2_MINL"))
         {
@@ -672,27 +692,30 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (use_ime2_sdpa && kv_cache && attn_mask && !int8_scale_term
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h >= ime2_minl)
         {
-            /* mask 形状契约：IME2 预填充的两条路径（flash 与旧逐行）都按完整
-             * [dst_seqlen, src_seqlen] 索引 mask；而下面的上游 GEMM 组合路径对 C
-             * 有真正的广播支持（broadcast_type_C 运行时检测：标量/M/N/MxN），
-             * 1xN key-padding 之类的广播 mask 在那里才是正确语义。形状不完整时
-             * 不接管，让 GEMM 路径处理。
-             * 注意：bottom_blobs[3]/[4] 的访问必须在确认 kv_cache && attn_mask
-             * 之后——无 mask/无 cache 的调用只有 3~4 个输入 blob。 */
+            /* mask shape contract: both IME2 prefill paths (flash and the old
+             * row-wise one) index the mask as full [dst_seqlen, src_seqlen];
+             * the upstream GEMM composed path below has real broadcast support
+             * for C (broadcast_type_C runtime detection: scalar/M/N/MxN), where
+             * broadcast masks such as 1xN key-padding get their correct
+             * semantics. Do not take over on incomplete shapes; let the GEMM
+             * path handle them.
+             * Note: bottom_blobs[3]/[4] may only be accessed after confirming
+             * kv_cache && attn_mask — calls without mask/cache have just 3~4
+             * input blobs. */
             const Mat& m0 = bottom_blobs[3];
             const int dst_sl = bottom_blobs[1].h + bottom_blobs[4].h; // cur + past
             const bool mask_full = m0.dims >= 2 && m0.w >= dst_sl && m0.h >= q0.h;
             if (mask_full)
             {
                 const int ret = forward_ime2_prefill(bottom_blobs, top_blobs, _opt);
-                /* -99 = forward 团队此刻不满足 IME2 条件，回落上游 GEMM 路径 */
+                /* -99 = the forward team does not meet the IME2 conditions right now; fall back to the upstream GEMM path */
                 if (ret != -99)
                     return ret;
             }
         }
     }
 #endif
-    // ---- 快速路径结束；以下为上游 GEMM 实现 ----
+    // ---- End of fast paths; the upstream GEMM implementation follows ----
 
     Option opt = _opt;
     opt.use_fp16_packed = false;
