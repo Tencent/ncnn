@@ -110,7 +110,6 @@ static inline vfloat32m1_t sdpa_vexp_f32m1(vfloat32m1_t x, size_t vl)
     return y;
 }
 
-
 static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
 {
     /* Bit-exact replica of the exp_ps (rvv_mathfun.h) construction used by
@@ -121,7 +120,7 @@ static inline vfloat32m8_t sdpa_vexp_f32m8(vfloat32m8_t x, size_t vl)
      * match upstream: vfmin/vfmax with a single NaN take the numeric operand). */
     /* Constant names get an sdpa_ prefix: these are macros in rvv_mathfun.h, and same-named local declarations would clash. */
     const float sdpa_exp_hi = 88.3762626647949f;
-    const float sdpa_exp_lo = -88.3762626647949f;   /* actual clamping lower bound of upstream exp_ps */
+    const float sdpa_exp_lo = -88.3762626647949f; /* actual clamping lower bound of upstream exp_ps */
     const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
     const float sdpa_cephes_exp_C1 = 0.693359375f;
     const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
