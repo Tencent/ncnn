@@ -20,22 +20,23 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
     const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
-    /* input_hc_swapped=1：输入是 [w, c, h]（吸收前面的 Permute(order_type=2)） */
+    /* input_hc_swapped=1: the input is [w, c, h] (absorbing the preceding Permute(order_type=2)) */
     const int seqlen = input_hc_swapped ? bottom_blob.c : bottom_blob.h;
     const int num_heads = input_hc_swapped ? bottom_blob.h : bottom_blob.c;
 
 #if !__riscv_vector
     return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
 #else
-    // 只接管 fp32/pack1 常态；其余交给通用实现
+    // take over only the fp32/pack1 common case; leave the rest to the generic implementation
     if (bottom_blob.elembits() != 32 || bottom_blob.elempack != 1 || embed_dim % 2 != 0)
         return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
 
     Mat& top_blob = top_blobs[0];
     if (input_hc_swapped)
     {
-        /* 融合模式下输入是 [w, c, h]，输出必须回到标准布局 [w, h, c]
-         * （原来的 Permute(order_type=2) 干的活由本层一并完成）。 */
+        /* in fusion mode the input is [w, c, h] and the output must return to
+         * the standard layout [w, h, c] (the work of the original
+         * Permute(order_type=2) is folded into this layer). */
         top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
     }
     else
@@ -63,7 +64,7 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
             int j = 0;
             if (interleaved)
             {
-                /* 交错布局：x0/x1 各取偶数位/奇数位（跨步 8 字节） */
+                /* interleaved layout: x0/x1 take even/odd positions (stride 8 bytes) */
                 while (j < half)
                 {
                     const size_t vl = __riscv_vsetvl_e32m2(half - j);
@@ -80,10 +81,13 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
             }
             else
             {
-                /* 半分解（本条模型走这条）：前一半与后一半各连续，纯连续访存，最好向量化。
-                 * 全宽缓存（cos_cache.w == embed_dim）为两半携带各自独立的系数，常见于
-                 * 2D/vision RoPE；半宽缓存（embed_dim/2）两半共用同一系数。必须与通用实现
-                 * 的 cw 取法一致，否则全宽缓存下 o1 会用错系数。 */
+                /* half-split (the path this model takes): the first and second halves are
+                 * each contiguous -- pure contiguous access, the easiest to vectorize.
+                 * A full-width cache (cos_cache.w == embed_dim) carries independent
+                 * coefficients for the two halves, common in 2D/vision RoPE; a half-width
+                 * cache (embed_dim/2) shares one set of coefficients between the halves.
+                 * The cw selection must match the generic implementation, otherwise o1
+                 * would use the wrong coefficients under a full-width cache. */
                 const int cw = cos_cache.w == embed_dim ? half : 0;
                 const float* ptr0 = ptr;
                 const float* ptr1 = ptr + half;
