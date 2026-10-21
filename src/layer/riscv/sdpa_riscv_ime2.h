@@ -1,12 +1,12 @@
 // SpacemiT K3 A100 IME2 (smt.vfwmadot) kernels for SDPA prefill.
 //
-// 与 gemm_riscv_ime2.h 同源同约束：
-//   - 只能在 A100 簇 (VLEN=1024) 执行；X100 上 vfwmadot 是 SIGILL。
-//   - 进程须整体钉在 A100（ai-run / /proc/set_ai_thread）。
-// 差别：这里的输入是 fp32（SDPA 的 q/k/v 都是 fp32 Mat），打包时转 fp16；
-//       输出写 fp32（注意力分数/输出要接 softmax 和后续 fp32 图）。
+// Same origin and constraints as gemm_riscv_ime2.h:
+//   - Can only execute on A100 clusters (VLEN=1024); vfwmadot is SIGILL on X100.
+//   - The whole process must be pinned to A100 (ai-run / /proc/set_ai_thread).
+// Difference: inputs here are fp32 (SDPA q/k/v are all fp32 Mat), converted to fp16 at packing time;
+//       output is written as fp32 (attention scores/output feed softmax and the following fp32 graph).
 //
-// 本文件由 sdpa_riscv_zfh.cpp #include（zfh 变体 TU 带 xsmtvdotii 汇编支持）。
+// This file is #include'd by sdpa_riscv_zfh.cpp (the zfh variant TU carries xsmtvdotii assembly support).
 
 #ifndef SDPA_RISCV_IME2_H
 #define SDPA_RISCV_IME2_H
@@ -33,36 +33,43 @@ namespace ncnn_ime2_sdpa {
 
 typedef __fp16 ime2_fp16;
 
-/* ---------------- 运行时探测（A100?） ---------------- */
+/* ---------------- Runtime probe (A100?) ---------------- */
 
-/* 跳转上下文必须是**线程局部**的：SIGILL 处理器是进程级的，若在探测窗口内
- * 另一个线程因自己的原因收到 SIGILL，处理器会在那个线程上运行；若无条件
- * siglongjmp 到本线程保存的 jb，就是跨线程 longjmp（UB，会同时毁掉两个线程
- * 的栈）。非探测线程的信号要交还给此前的处置。g_sdpa_ime2_old 只在探测锁内
- * 安装/恢复，读取它的异线程处理器与安装之间不存在长时间窗口。 */
+/* The jump context must be **thread-local**: the SIGILL handler is process-wide; if
+ * another thread receives a SIGILL for its own reasons inside the probe window, the
+ * handler runs on that thread; unconditionally siglongjmp'ing to the jb saved by this
+ * thread would be a cross-thread longjmp (UB, destroying both threads' stacks at once).
+ * Signals of non-probing threads must be handed back to the previous disposition.
+ * g_sdpa_ime2_old is only installed/restored inside the probe lock; between a
+ * foreign-thread handler reading it and the installation there is no long window. */
 static __thread sigjmp_buf tl_sdpa_ime2_jb;
-/* 信号处理器读、探测写：必须是信号安全类型（volatile sig_atomic_t）。 */
+/* Read by the signal handler, written by the probe: must be a signal-safe type (volatile sig_atomic_t). */
 static __thread volatile sig_atomic_t tl_sdpa_ime2_armed = 0;
 static struct sigaction g_sdpa_ime2_old;
 
 static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
-    /* 只有同步指令故障（si_code > 0）才是探针的；异步 SIGILL（kill/
-     * pthread_kill/raise 的 SI_USER/SI_TKILL/SI_QUEUE ≤ 0）与探针无关，
-     * 武装着也不许吞。 */
+    /* Only synchronous instruction faults (si_code > 0) belong to the probe; asynchronous
+     * SIGILL (SI_USER/SI_TKILL/SI_QUEUE ≤ 0 from kill/pthread_kill/raise) is unrelated
+     * to the probe and must not be swallowed even while armed. */
     if (tl_sdpa_ime2_armed && info->si_code > 0)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
-    /* 不是探测线程的 SIGILL：按旧处置转交，但**绝不能改动进程级处置**——
-     * 恢复+重发会把探针处理器永久卸掉：IGN 下探针自己的指令信号被静默吞掉
-     * （误判可用），自定义返回处理器下探针的 SIGILL 落到旧处置反复执行
-     * （循环/终止）。分项处理：
-     * - SIG_IGN：语义就是忽略，直接返回（处置一字不动）；
-     * - SIG_DFL：原语义就是终止，恢复 DFL 重发（进程按既定方式终结）；
-     * - 自定义处理器：直接以**原始** siginfo/ucontext 调用——raise 会合成
-     *   新信号丢掉 si_code/si_addr（模拟器类回调拿不到故障指令地址），
-     *   并手动补齐 SA_RESETHAND 复位与 sa_mask 屏蔽语义。
-     *   SA_ONSTACK 的栈切换无法在转交时补齐，记录在案（SIGILL 用它极罕见）。 */
+    /* SIGILL not from the probing thread: forward it per the old disposition, but
+     * **never touch the process-wide disposition** — restore+resend would permanently
+     * uninstall the probe handler: under IGN the probe's own instruction signal would be
+     * silently swallowed (misjudged as usable); under a custom returning handler the
+     * probe's SIGILL would land on the old disposition and run repeatedly
+     * (loop/terminate). Per-case handling:
+     * - SIG_IGN: the semantics are to ignore; return directly (disposition untouched);
+     * - SIG_DFL: the original semantics are termination; restore DFL and resend (the
+     *   process terminates in the established way);
+     * - custom handler: call it directly with the **original** siginfo/ucontext — raise
+     *   would synthesize a new signal and lose si_code/si_addr (emulator-style callbacks
+     *   would not get the faulting instruction address), and manually replicate the
+     *   SA_RESETHAND reset and sa_mask masking semantics.
+     *   SA_ONSTACK's stack switch cannot be replicated during forwarding; noted for the
+     *   record (SIGILL using it is extremely rare). */
     if (g_sdpa_ime2_old.sa_handler == SIG_IGN)
         return;
     if (g_sdpa_ime2_old.sa_handler == SIG_DFL)
@@ -88,15 +95,17 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 }
 
 #if defined __linux__
-/* 异构双簇（K3：A100 的 VLEN=1024，X100 的 VLEN=512）下，"探测时所在的核对"与
- * "前向时 OpenMP 工人实际落到的核对"可能不同：前者恰好是 A100 就把 true 缓存
- * 下来，后者落到 X100 就吃 SIGILL。所以探测要覆盖 affinity mask 里的**每一个**
- * 核对：逐个把调用线程移过去读 vlenb，128B（1024bit）才算数。 */
+/* On the heterogeneous dual-cluster (K3: A100 has VLEN=1024, X100 has VLEN=512), the
+ * "core the probe runs on" and the "core the OpenMP workers actually land on during
+ * forward" may differ: if the former happens to be A100, true gets cached, and the
+ * latter landing on X100 gets SIGILL. So the probe must cover **every** core in the
+ * affinity mask: move the calling thread to each in turn and read vlenb; only 128B
+ * (1024bit) counts. */
 static int sdpa_ime2_probe_affinity(int nthreads)
 {
     cpu_set_t cs;
     if (sched_getaffinity(0, sizeof(cs), &cs) != 0)
-        return 0; /* 无法确认亲和性：保守关闭 */
+        return 0; /* cannot confirm affinity: conservatively disable */
     const cpu_set_t orig = cs;
     int all_ok = 1;
     for (int c = 0; c < CPU_SETSIZE && all_ok; c++)
@@ -108,7 +117,7 @@ static int sdpa_ime2_probe_affinity(int nthreads)
         CPU_SET(c, &one);
         if (sched_setaffinity(0, sizeof(one), &one) != 0)
         {
-            all_ok = 0; /* 移不过去就无法确认那个核对 */
+            all_ok = 0; /* if we cannot move there, that core cannot be confirmed */
             break;
         }
         unsigned long vlenb = 0;
@@ -117,17 +126,19 @@ static int sdpa_ime2_probe_affinity(int nthreads)
         if (vlenb != 128)
             all_ok = 0;
     }
-    sched_setaffinity(0, sizeof(orig), &orig); /* 恢复 */
+    sched_setaffinity(0, sizeof(orig), &orig); /* restore */
 
-    /* (a2) OpenMP 工人可能有**逐线程**绑定（OMP_PROC_BIND / GOMP_CPU_AFFINITY /
-     * 宿主运行时），上面的掩码遍历只看调用线程，看不到它们。而且 forward 的
-     * 并行区都带 num_threads(opt.num_threads)：若它大于默认团队，运行时会给
-     * forward 增派**从未被探测过**的工人。所以这里用与 forward 完全相同的
-     * 团队大小开区域。
-     * 单读一次 vlenb 也不够：工人的掩码若同时覆盖两簇，探测时恰好落在 A100
-     * 会通过，forward 时调度器却可能把它挪到 X100。所以每个工人要遍历**自己**
-     * 的 affinity mask 里的每一个核对，逐核确认 vlenb==128（探测完恢复工人
-     * 原绑定）。任一工人的掩码里混有 X100 核对就保守关闭 IME2。 */
+    /* (a2) OpenMP workers may have **per-thread** bindings (OMP_PROC_BIND /
+     * GOMP_CPU_AFFINITY / host runtime); the mask walk above only looks at the calling
+     * thread and cannot see them. Also, forward's parallel regions all carry
+     * num_threads(opt.num_threads): if it exceeds the default team, the runtime assigns
+     * forward extra workers that have **never been probed**. So open the region here
+     * with exactly the same team size as forward.
+     * Reading vlenb once is not enough either: if a worker's mask covers both clusters,
+     * the probe may happen to land on A100 and pass, while the scheduler may move it to
+     * X100 during forward. So each worker must walk **its own** affinity mask core by
+     * core, confirming vlenb==128 on each (restoring the worker's original binding
+     * afterwards). If any worker's mask mixes in X100 cores, conservatively disable IME2. */
     if (all_ok)
     {
         int workers_ok = 1;
@@ -164,7 +175,7 @@ static int sdpa_ime2_probe_affinity(int nthreads)
                         workers_ok = 0;
                     }
                 }
-                sched_setaffinity(0, sizeof(worig), &worig); /* 恢复工人原绑定 */
+                sched_setaffinity(0, sizeof(worig), &worig); /* restore the worker's original binding */
             }
         }
         all_ok = workers_ok;
@@ -180,24 +191,30 @@ static int sdpa_ime2_probe_affinity(int /*nthreads*/)
 
 static int sdpa_ime2_probe_locked(int nthreads)
 {
-    /* (a) 亲和性：本进程所有允许核对 + forward 团队的每个工人的 vlenb 都必须是 1024bit */
+    /* (a) Affinity: every core allowed for this process + every worker of the forward team must have vlenb == 1024bit */
     if (!sdpa_ime2_probe_affinity(nthreads))
         return 0;
 
-    /* (b) 指令本身：SIGILL 保护下执行一条零向量 vfwmadot。
-     * 处理器是进程级的，但跳转上下文是**本线程**的 tl_sdpa_ime2_jb：别的线程
-     * 在此窗口内收到 SIGILL 会被 sdpa_ime2_sigill 转交给原处置，不会跨线程跳转。 */
+    /* (b) The instruction itself: execute one zero-vector vfwmadot under SIGILL guard.
+     * The handler is process-wide, but the jump context is **this thread's**
+     * tl_sdpa_ime2_jb: another thread receiving SIGILL inside this window is forwarded
+     * by sdpa_ime2_sigill to the original disposition; no cross-thread jump happens. */
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = sdpa_ime2_sigill;
     sa.sa_flags = SA_SIGINFO;
-    /* 竞态与一致性：安装调用里"新处理器进程级可见"与"旧处置写回"非原子
-     * （窗口期他线程的 SIGILL 会读未初始化的旧处置）；且一次性 RESETHAND
-     * 可能被窗口期他线程的信号消费、或外部线程/库并发安装了自己的处理器
-     * ——任一情况下我们保存的旧处置都已失效，事后恢复会重新武装一次性
-     * 处理器/覆盖并发方的处置。对策：安装前双读比对（不一致=并发变更，
-     * 处置一字不动直接判不可用），一致才安装。读-装之间的微窗口不可消，
-     * 但已缩到几条指令；并发 sigaction 的用户本来就在自竞。 */
+    /* Race and consistency: within the install call, "new handler visible process-wide"
+     * and "old disposition written back" are non-atomic (another thread's SIGILL in the
+     * window would read an uninitialized old disposition); and a one-shot RESETHAND may
+     * be consumed by another thread's signal in the window, or an external
+     * thread/library may concurrently install its own handler — in either case our saved
+     * old disposition is already stale, and restoring it afterwards would re-arm a
+     * one-shot handler / overwrite the concurrent party's disposition. Countermeasure:
+     * double-read and compare before installing (mismatch = concurrent change; leave
+     * the disposition untouched and judge unusable directly); install only when
+     * consistent. The micro-window between read and install cannot be eliminated, but
+     * is shrunk to a few instructions; users doing concurrent sigaction are racing
+     * themselves anyway. */
     struct sigaction pre1, pre2;
     memset(&pre1, 0, sizeof pre1);
     memset(&pre2, 0, sizeof pre2);
@@ -209,20 +226,22 @@ static int sdpa_ime2_probe_locked(int nthreads)
             || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
         return 0;
     g_sdpa_ime2_old = pre1;
-    /* 安装失败（seccomp/嵌入宿主禁 sigaction）：绝不能继续——探针指令的
-     * SIGILL 会按原处置送达（可能是终止）。不装探针就不跑指令，直接判定不可用。 */
+    /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
+     * the probe instruction's SIGILL would be delivered per the original disposition
+     * (possibly termination). If the probe handler is not installed, do not run the
+     * instruction; judge unusable directly. */
     if (sigaction(SIGILL, &sa, NULL) != 0)
         return 0;
 
     int ok = 0;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
     {
-        /* 上下文就绪后才武装：异步 SIGILL 先于武装到来会走转交路径 */
+        /* Arm only after the context is ready: an asynchronous SIGILL arriving before arming takes the forwarding path */
         tl_sdpa_ime2_armed = 1;
         __asm__ volatile(
-            "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* e32m2 下清零累加器 v16:v17 */
+            "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* zero accumulators v16:v17 under e32m2 */
             "vmv.v.i v16, 0\n\t"
-            "vsetvli t0, zero, e16, m1, tu, mu\n\t" /* 回到 LMUL=1 再执行 vfwmadot */
+            "vsetvli t0, zero, e16, m1, tu, mu\n\t" /* return to LMUL=1 before executing vfwmadot */
             "vmv.v.i v0, 0\n\t"
             "vmv.v.i v1, 0\n\t"
             "smt.vfwmadot v16, v0, v1\n\t"
@@ -231,11 +250,12 @@ static int sdpa_ime2_probe_locked(int nthreads)
             : "t0", "v0", "v1", "v16", "v17", "memory");
         ok = 1;
     }
-    /* 两条返回路径都在这里解除武装（longjmp 回来时跳过 if 体直接到这） */
+    /* Both return paths disarm here (longjmp comes back here skipping the if body) */
     tl_sdpa_ime2_armed = 0;
-    /* 仅当当前处理器仍是我们的时才恢复旧处置：若探测窗口内发生过转发，
-     * 当前已是旧处置（或已被内核按 RESETHAND 复位成 DFL）——再装回去会把
-     * 一次性处理器错误地重新武装。 */
+    /* Restore the old disposition only when the current handler is still ours: if a
+     * forwarding happened inside the probe window, the current disposition is already
+     * the old one (or has been reset to DFL by the kernel per RESETHAND) — installing
+     * it back would wrongly re-arm a one-shot handler. */
     {
         struct sigaction cur;
         memset(&cur, 0, sizeof cur);
@@ -246,14 +266,20 @@ static int sdpa_ime2_probe_locked(int nthreads)
     return ok;
 }
 
-/* 返回 1 = 当前 affinity 上下文的所有允许核对都能执行 smt.vfwmadot；0 = 不可。
- * 探测会临时替换进程级 SIGILL 处理器，两个线程并发进入会互相覆盖安装/恢复，
- * 因此整个探测用互斥锁串行化（跳转上下文本身是线程局部的，见上）。
- * 注意不做进程级缓存：affinity 是逐线程的，探测结果只对本次调用时的 affinity
- * 上下文有效。若进程先把某线程绑到 A100 簇建了管线、再绑到 X100 簇建第二个
- * 管线，缓存会把只对前者成立的答案错误地复用到后者（X100 上 forward 即 SIGILL）。
- * nthreads 必须与 forward 的 num_threads 一致：探测的团队就是执行内核的团队。
- * 探测只在建管线时调用一次，重新探测的开销可忽略。 */
+/* Returns 1 = every core allowed in the current affinity context can execute
+ * smt.vfwmadot; 0 = cannot.
+ * The probe temporarily replaces the process-wide SIGILL handler; two threads entering
+ * concurrently would overwrite each other's install/restore, so the whole probe is
+ * serialized with a mutex (the jump context itself is thread-local, see above).
+ * Note: no process-wide caching: affinity is per-thread; the probe result is only valid
+ * for the affinity context of this call. If a process first binds a thread to the A100
+ * cluster to build a pipeline, then binds to the X100 cluster to build a second
+ * pipeline, caching would wrongly reuse on the latter an answer that only holds for the
+ * former (forward on X100 = SIGILL).
+ * nthreads must match forward's num_threads: the probed team is the team that executes
+ * the kernels.
+ * The probe is called only once at pipeline build time; re-probing overhead is
+ * negligible. */
 static int ime2_probe(int nthreads)
 {
     static ncnn::Mutex lock;
@@ -261,21 +287,24 @@ static int ime2_probe(int nthreads)
     return sdpa_ime2_probe_locked(nthreads);
 }
 
-/* 一次性测定本进程当前允许的核对里哪些是 A100（vlenb==128）。硬件属性，
- * 进程级缓存；若测定时 mask 只覆盖部分核对，得到的集合是真实 A100 集合的
- * 子集——偏差方向保守（只会误关 IME2，不会误放）。 */
+/* One-shot determination of which cores among those currently allowed for this process
+ * are A100 (vlenb==128). A hardware property, cached process-wide; if the mask at
+ * determination time covers only part of the cores, the resulting set is a subset of
+ * the true A100 set — the bias direction is conservative (can only wrongly disable
+ * IME2, never wrongly enable it). */
 #if defined __linux__
-/* force_collect=1：team_ok 发现缓存不全时的强制重收集（绕过调用者掩码快路径） */
+/* force_collect=1: forced re-collection when team_ok finds the cache incomplete (bypasses the caller-mask fast path) */
 static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* out)
 {
     static ncnn::Mutex lock;
     ncnn::MutexLockGuard g(lock);
     static int probed = 0;
-    static cpu_set_t cached;     /* 已确认 vlenb==128 的核集合（只增不减） */
-    static cpu_set_t seen_union; /* 已见过的团队掩码并集 */
+    static cpu_set_t cached;     /* set of cores confirmed vlenb==128 (grows only) */
+    static cpu_set_t seen_union; /* union of team masks seen so far */
 
-    /* 快路径：缓存覆盖了调用者的掩码，且未强制重收集——直接用缓存（一次
-     * 系统调用，无 omp 区域；解码每 token 多层，开销必须可控）。 */
+    /* Fast path: the cache covers the caller's mask and re-collection is not forced —
+     * use the cache directly (one syscall, no omp region; decoding has many layers per
+     * token, so overhead must stay bounded). */
     if (probed && !force_collect)
     {
         cpu_set_t wcs;
@@ -296,9 +325,11 @@ static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* o
         }
     }
 
-    /* 1) 每次调用都收集当前团队的并集（区域内只做 sched_getaffinity，无特权
-     *    指令，随处可跑）。缓存只对"已见过的核"有效：先探小团队再用大团队时，
-     *    后来者的合法 A100 核不在缓存里，team_ok 会误判——所以并集要累计。 */
+    /* 1) Collect the union of the current team on every call (inside the region only
+     *    sched_getaffinity is done; no privileged instructions, runs anywhere). The
+     *    cache is only valid for "cores already seen": if a small team is probed first
+     *    and a larger team is used later, the newcomer's legitimate A100 cores are not
+     *    in the cache and team_ok would misjudge — so the union must accumulate. */
     cpu_set_t uni;
     CPU_ZERO(&uni);
     #pragma omp parallel num_threads(nthreads)
@@ -317,7 +348,7 @@ static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* o
     if (CPU_COUNT(&uni) == 0)
         return probed ? (*out = cached, 1) : 0;
 
-    /* 2) 只对没见过的核做分类（vlenb walk），见过的直接用缓存 */
+    /* 2) Classify only cores not seen before (vlenb walk); seen ones use the cache directly */
     cpu_set_t fresh;
     CPU_ZERO(&fresh);
     for (int c = 0; c < CPU_SETSIZE; c++)
@@ -361,14 +392,17 @@ static int sdpa_ime2_a100_set(int nthreads, cpu_set_t* out)
 }
 #endif
 
-/* forward 入口的轻量校验：本次 forward 的团队**不可能**落到非 A100 核上。
- * 建管线探测（ime2_probe）只覆盖建管线那一刻的上下文：调用方之后可能用
- * set_cpu_thread_affinity() 改了绑定，或用更大的 num_threads 调 forward
- * （运行时增派未探测的工人）。而且只看工人"此刻"的 vlenb 也不够：掩码跨簇
- * 的工人可能采样时在 A100、内核运行中被迁到 X100。所以这里逐工人检查其
- * affinity mask 是否为 A100 集合的子集（子集则调度器无处可迁）。每个工人
- * 一次 sched_getaffinity + 位测试，µs 级，相对每层 SDPA 可忽略。
- * 返回 0 时调用方回落非 IME2 路径，结果语义不变。 */
+/* Lightweight validation at forward entry: this forward's team **cannot possibly**
+ * land on non-A100 cores.
+ * The pipeline-build probe (ime2_probe) only covers the context at the pipeline-build
+ * moment: the caller may later change bindings with set_cpu_thread_affinity(), or call
+ * forward with a larger num_threads (the runtime assigns unprobed workers). And looking
+ * only at a worker's "current" vlenb is not enough either: a worker whose mask spans
+ * clusters may be on A100 at sampling time but migrated to X100 mid-kernel. So here we
+ * check per worker whether its affinity mask is a subset of the A100 set (if a subset,
+ * the scheduler has nowhere to migrate it). One sched_getaffinity + bit test per
+ * worker, µs-level, negligible relative to each SDPA layer.
+ * On return 0 the caller falls back to the non-IME2 path; result semantics unchanged. */
 static int ime2_team_ok(int nthreads)
 {
 #if defined __linux__
@@ -399,8 +433,9 @@ static int ime2_team_ok(int nthreads)
     }
     if (ok)
         return 1;
-    /* 失败：可能是缓存不含团队新见的核（逐工人绑定扩展了掩码）。强制重收集
-     * 一次并重验；仍失败才算真失败。 */
+    /* Failure: possibly the cache lacks cores newly seen by the team (per-worker
+     * binding expanded the mask). Force one re-collection and re-verify; only a
+     * still-failing result counts as a real failure. */
     if (!sdpa_ime2_a100_set_impl(nthreads, 1, &a100))
         return 0;
     ok = 1;
@@ -432,11 +467,13 @@ static int ime2_team_ok(int nthreads)
 #endif
 }
 
-/* fp16 打包值域检查：|v| > 65504 的有限值打包成 ±inf，而上游 fp32 路径保持
- * 有限。IME2 预填充在打包前对所有输入扫一遍（在任何状态改动之前），越界则
- * 调用方整体回落上游 GEMM 组合路径。逐 channel 只扫有效元素（cstep 填充区是
- * 未初始化垃圾，不能误伤）。max 是精确运算，顺序无关，可用无序归约。 */
-/* out_mx 非空时回写有效元素的最大绝对值（供值域放大相关的闸门用） */
+/* fp16 packing range check: finite values with |v| > 65504 pack into ±inf, while the
+ * upstream fp32 path stays finite. IME2 prefill scans all inputs once before packing
+ * (before any state change); out of range means the caller falls back wholesale to the
+ * upstream GEMM combination path. Per channel, scan only valid elements (the cstep
+ * padding area is uninitialized garbage and must not be hit). max is an exact
+ * operation, order-independent, so an unordered reduction is fine. */
+/* When out_mx is non-null, write back the maximum absolute value of valid elements (for range-scaling related gates) */
 static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
 {
     if (m.empty())
@@ -456,8 +493,9 @@ static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
             vfloat32m1_t v = __riscv_vle32_v_f32m1(p + i, vl);
             vfloat32m1_t vabs = __riscv_vfabs_v_f32m1(v, vl);
             vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, vabs, vl);
-            /* 非零值才参与下限：0 是合法内容，不算下溢。零 lane 置 FLT_MAX
-             * （vfmerge：零 lane 选后者），再普通 _tu min。 */
+            /* Only nonzero values participate in the lower bound: 0 is legitimate
+             * content, not underflow. Zero lanes are set to FLT_MAX (vfmerge: zero
+             * lanes pick the latter), then a plain _tu min. */
             vbool32_t iszero = __riscv_vmfeq_vf_f32m1_b32(v, 0.f, vl);
             vfloat32m1_t vsel = __riscv_vfmerge_vfm_f32m1(vabs, FLT_MAX, iszero, vl);
             vmin = __riscv_vfmin_vv_f32m1_tu(vmin, vmin, vsel, vl);
@@ -468,10 +506,12 @@ static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
             *out_mx = mx;
         if (mx > 65504.f)
             return 0;
-        /* 下溢到零：|v| <= 2^-25 的有限值打包成 +0（RNE 下恰为 2^-25 的值
-         * 平分给偶数侧 = 0；十进制字面量 2.98e-8f 比精确边界小，会漏掉
-         * (2.98e-8, 2^-25] 区间）。用精确十六进制边界且含边界。
-         * Q/K 里的这种值会被 scale 放大成不可忽略的点积损失，同溢出一样回落。 */
+        /* Underflow to zero: finite values with |v| <= 2^-25 pack into +0 (under RNE a
+         * value exactly 2^-25 ties to the even side = 0; the decimal literal 2.98e-8f
+         * is smaller than the exact boundary and would miss the (2.98e-8, 2^-25]
+         * interval). Use the exact hexadecimal boundary, inclusive.
+         * Such values in Q/K get magnified by scale into non-negligible dot-product
+         * loss; fall back just as for overflow. */
         const float mn = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmin_vs_f32m1_f32m1(vmin, __riscv_vfmv_v_f_f32m1(FLT_MAX, 1), vlmax));
         if (mn <= 0x1p-25f)
             return 0;
@@ -479,9 +519,9 @@ static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
     return 1;
 }
 
-/* ---------------- 打包：fp32 -> 8x8 fp16 tile 连续布局 ---------------- */
+/* ---------------- Packing: fp32 -> 8x8 fp16 tile contiguous layout ---------------- */
 
-/* src: [R, K] fp32 行主序（行距 ld 元素）-> tiles [rt][kt][64] fp16 */
+/* src: [R, K] fp32 row-major (row stride ld elements) -> tiles [rt][kt][64] fp16 */
 static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int K, ncnn::Allocator* alloc)
 {
     const int rt = (R + 7) / 8, kt = (K + 7) / 8;
@@ -503,7 +543,7 @@ static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int 
             const int gk0 = j * 8;
             if (gr0 + 8 <= R && gk0 + 8 <= K)
             {
-                // 快路径：整块在界内，显式 RVV（vl=8：f32m2 取 8 个 -> vfncvt -> f16m1 存 16B）
+                // Fast path: whole tile in bounds, explicit RVV (vl=8: f32m2 loads 8 -> vfncvt -> f16m1 stores 16B)
                 const float* s0 = src + (size_t)gr0 * ld + gk0;
                 for (int r = 0; r < 8; r++)
                 {
@@ -530,8 +570,8 @@ static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int 
     return 0;
 }
 
-/* 转置打包：src 是 [K, R] fp32 行主序（行距 ld），产出 B[R,K] 的 tiles，
- * 即 tile 元素 B[r][k] = src[k*ld + r]。用于 P·V 里的 V^T。 */
+/* Transposed packing: src is [K, R] fp32 row-major (row stride ld); produces tiles of
+ * B[R,K], i.e. tile element B[r][k] = src[k*ld + r]. Used for V^T in P·V. */
 static int ime2_pack_fp32_T(const float* src, size_t ld, ncnn::Mat& T, int R, int K, ncnn::Allocator* alloc)
 {
     const int rt = (R + 7) / 8, kt = (K + 7) / 8;
@@ -553,7 +593,7 @@ static int ime2_pack_fp32_T(const float* src, size_t ld, ncnn::Mat& T, int R, in
             const int gk0 = j * 8;
             if (gr0 + 8 <= R && gk0 + 8 <= K)
             {
-                // 转置快路径：源按列跨步（步长 ld），用 vlse32 一条指令取 8 个
+                // Transposed fast path: source strides by column (stride ld); one vlse32 instruction fetches 8
                 for (int r = 0; r < 8; r++)
                 {
                     const float* s = src + (size_t)gk0 * ld + (gr0 + r);
@@ -579,7 +619,7 @@ static int ime2_pack_fp32_T(const float* src, size_t ld, ncnn::Mat& T, int R, in
     return 0;
 }
 
-/* ---------------- 内层内核（与 gemm 版相同的 vfwmadot tile） ---------------- */
+/* ---------------- Inner kernels (same vfwmadot tile as the gemm version) ---------------- */
 
 static void ime2_tile_8x8(const ime2_fp16* At, const ime2_fp16* Bt, float* Ctmp, int kt)
 {
@@ -642,9 +682,9 @@ static void ime2_tile_16x16(const ime2_fp16* At, const ime2_fp16* Bt,
         "memory", "cc");
 }
 
-/* ---------------- fp32 输出 GEMM（单线程，供 per-head 调用） ---------------- */
+/* ---------------- fp32-output GEMM (single-threaded, for per-head calls) ---------------- */
 
-/* C[M,N] fp32（行距 ldc）= alpha * (A[M,K] · B[N,K]^T)。AT/BT 为打包好的 tiles。 */
+/* C[M,N] fp32 (row stride ldc) = alpha * (A[M,K] · B[N,K]^T). AT/BT are packed tiles. */
 static void ime2_gemm_fp32out(const ime2_fp16* at, const ime2_fp16* bt,
                               float* C, size_t ldc, int M, int N, int K, float alpha)
 {
@@ -697,12 +737,12 @@ static void ime2_gemm_fp32out(const ime2_fp16* at, const ime2_fp16* bt,
 }
 
 /* ==================================================================
- * Flash 式 SDPA（官方 spine-triton ops/08 的 online-softmax  recipe 移植）
- * 流式扫 K/V 块：QK^T(IME2) → 行 max/exp/sum → rescale acc → P·V(IME2 累加)
- * 全程 f32 状态（m_i / l_i / acc），仅 P 转 fp16 喂第二个 GEMM。
+ * Flash-style SDPA (port of the official spine-triton ops/08 online-softmax recipe)
+ * Streams K/V blocks: QK^T (IME2) → row max/exp/sum → rescale acc → P·V (IME2 accumulate)
+ * All state stays f32 (m_i / l_i / acc); only P is converted to fp16 to feed the second GEMM.
  * ================================================================== */
 
-/* ---- k+1 软件流水 tile 内核（与 gemm_riscv_ime2.h 同款，显式指针以便跨步） ---- */
+/* ---- k+1 software-pipelined tile kernel (same as gemm_riscv_ime2.h, explicit pointers to allow striding) ---- */
 
 static void ime2_tile_8x8p(const ime2_fp16* At, const ime2_fp16* Bt, float* Ctmp, int kt)
 {
@@ -715,7 +755,7 @@ static void ime2_tile_8x8p(const ime2_fp16* At, const ime2_fp16* Bt, float* Ctmp
         "vle16.v v8, (%[B])\n\t"
         "addi %[A], %[A], 128\n\t"
         "addi %[B], %[B], 128\n\t"
-        "beqz %[k], 2f\n\t" /* kt==1 时零次循环，直接进尾声（否则 do-while 会越界读） */
+        "beqz %[k], 2f\n\t" /* zero iterations when kt==1, go straight to the epilogue (else do-while over-reads) */
         "1:\n\t"
         "vle16.v v12, (%[A])\n\t"
         "smt.vfwmadot v16, v2, v8\n\t"
@@ -735,13 +775,14 @@ static void ime2_tile_8x8p(const ime2_fp16* At, const ime2_fp16* Bt, float* Ctmp
         : "t0", "v2", "v8", "v12", "v13", "v16", "v17", "memory", "cc");
 }
 
-/* 16x16（2x2 个 8x8 tile）流水版；A0/A1/B0/B1 显式传入（支持 B 跨步取 k 块） */
+/* 16x16 (2x2 of 8x8 tiles) pipelined version; A0/A1/B0/B1 passed explicitly (supports B striding over k blocks) */
 static void ime2_tile_16x16p(const ime2_fp16* A0, const ime2_fp16* A1,
                              const ime2_fp16* B0, const ime2_fp16* B1,
                              float* C00, float* C10, float* C01, float* C11, int kt)
 {
-    /* K 方向展开 2 步 + 寄存器轮转：去掉旧版每步 4 条 vmv（它们在 MAC 的依赖关键路径上）。
-     * 微基准流式取数：210 -> 373 GFLOP/s/核（+77%，见 REPORT 7.17/7.18）。 */
+    /* Unroll 2 steps in the K direction + register rotation: removes the old version's
+     * 4 vmv per step (they were on the MAC dependency critical path).
+     * Microbenchmark streaming fetch: 210 -> 373 GFLOP/s/core (+77%, see REPORT 7.17/7.18). */
     int k = kt >> 1;
     const int odd = kt & 1;
     __asm__ volatile(
@@ -792,8 +833,9 @@ static void ime2_tile_16x16p(const ime2_fp16* A0, const ime2_fp16* A1,
         "memory", "cc");
 }
 
-/* 流水 GEMM 驱动：kt 维可跨步（at_stride/bt_stride = 各自 tile 行距，单位元素）。
- * beta==0: C = alpha·A·B^T；beta==1: C += A·B^T（alpha 视为 1）。 */
+/* Pipelined GEMM driver: the kt dimension can stride (at_stride/bt_stride = the
+ * respective tile row strides, in elements).
+ * beta==0: C = alpha·A·B^T; beta==1: C += A·B^T (alpha treated as 1). */
 static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
                                 float* C, size_t ldc, int M, int N, int K,
                                 float alpha, int beta,
@@ -847,8 +889,8 @@ static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
                     const int gn0 = j * 8 + dn[q];
                     if (gn0 + 8 <= N)
                     {
-                        /* 快路径：整行 8 列都在界内 —— 显式 RVV（vl=8，e32m1）
-                         * flash 分块下 GEMM 很小，写回占比高，必须走定长向量存取。 */
+                        /* Fast path: all 8 columns of the row in bounds — explicit RVV (vl=8, e32m1)
+                         * With flash tiling the GEMM is small and write-back share is high; must use fixed-length vector load/store. */
                         if (__riscv_vsetvlmax_e32m1() >= 8)
                         {
                             if (beta)
@@ -895,21 +937,24 @@ static void ime2_gemm_fp32out_p(const ime2_fp16* at, const ime2_fp16* bt,
     }
 }
 
-/* flash 分块尺寸：BM=64 行 Q / BN=128 列 KV（官方建议 tile ≤8192 元素；
- * S=64×128×4B=32KB、acc=64×256×4B=64KB 栈上驻留，L1/L2 友好） */
+/* flash tiling sizes: BM=64 rows of Q / BN=128 columns of KV (official recommendation
+ * tile ≤ 8192 elements; S=64×128×4B=32KB, acc=64×256×4B=64KB resident on stack,
+ * L1/L2 friendly) */
 #define IME2_FLASH_BM    32
-#define IME2_FLASH_BN    256 /* 扫描实测最优（见下）：1024/2048/4096 分别比 512 快
-                              * 7.2%/3.9%/3.0%（K3 A100，E=64/H=16/G=8，causal）。
-                              * 方法学参考 spine-triton 的 FlashAttention 分块扫描。 */
+#define IME2_FLASH_BN    256 /* scan-measured optimum (see below): 1024/2048/4096 are
+                              * 7.2%/3.9%/3.0% faster than 512 respectively (K3 A100,
+                              * E=64/H=16/G=8, causal).
+                              * Methodology references spine-triton's FlashAttention tiling scan. */
 #define IME2_FLASH_MAXEV 256
 
-/* ---------------- RVV 向量辅助（VLEN=1024；显式 vsetvl，杜绝 VL 越界） ---------------- */
+/* ---------------- RVV vector helpers (VLEN=1024; explicit vsetvl, no VL overrun) ---------------- */
 
 #include <riscv_vector.h>
 
-/* s[j] = exp(s[j] - mx)，j < n。x≤0 恒成立（mx 是行 max）。
- * 2^k 整数位构造 + [-ln2/2, ln2/2] 上 5 阶 Taylor（最大相对误差 ~2e-6，
- * 远低于 fp16 打包舍入 5e-4）；x < -87 钳位（exp 对 fp32 已下溢为 0）。 */
+/* s[j] = exp(s[j] - mx), j < n. x≤0 always holds (mx is the row max).
+ * 2^k integer-bit construction + 5th-order Taylor on [-ln2/2, ln2/2] (max relative
+ * error ~2e-6, far below the fp16 packing rounding of 5e-4); clamped at x < -87 (exp
+ * has already underflowed to 0 for fp32). */
 static void ime2_row_exp(float* s, int n, float mx)
 {
     const float log2e = 1.4426950408889634f;
@@ -921,11 +966,13 @@ static void ime2_row_exp(float* s, int n, float mx)
         size_t vl = __riscv_vsetvl_e32m8(n - j);
         vfloat32m8_t x = __riscv_vle32_v_f32m8(s + j, vl);
         x = __riscv_vfsub_vf_f32m8(x, mx, vl);
-        /* 欠载置零：x-mx < -87.34 时真值 exp < 2^-126（构造下限），钳位会抬成
-         * 非零——硬掩码/深负 logit 乘上大 V 就泄漏。记录这些 lane，最后置零。 */
+        /* Zero on underflow: when x-mx < -87.34 the true exp < 2^-126 (construction
+         * lower bound); clamping would lift it to nonzero — a hard mask / deeply
+         * negative logit multiplied by a large V would leak. Record these lanes and
+         * zero them at the end. */
         vbool4_t vund = __riscv_vmflt_vf_f32m8_b4(x, -87.34f, vl);
         x = __riscv_vfmax_vf_f32m8(x, -87.0f, vl);
-        vint32m8_t ni = __riscv_vfcvt_x_f_v_i32m8(__riscv_vfmul_vf_f32m8(x, log2e, vl), vl); /* 默认 RNE */
+        vint32m8_t ni = __riscv_vfcvt_x_f_v_i32m8(__riscv_vfmul_vf_f32m8(x, log2e, vl), vl); /* default RNE */
         vfloat32m8_t nf = __riscv_vfcvt_f_x_v_f32m8(ni, vl);
         vfloat32m8_t r = __riscv_vfsub_vv_f32m8(x, __riscv_vfmul_vf_f32m8(nf, ln2_hi, vl), vl);
         r = __riscv_vfsub_vv_f32m8(r, __riscv_vfmul_vf_f32m8(nf, ln2_lo, vl), vl);
@@ -944,7 +991,7 @@ static void ime2_row_exp(float* s, int n, float mx)
     }
 }
 
-/* 行 max（含已加 mask 的分数） */
+/* Row max (over scores with mask already added) */
 static float ime2_row_max(const float* s, int n)
 {
     vfloat32m1_t vm = __riscv_vfmv_v_f_f32m1(-FLT_MAX, 1);
@@ -958,7 +1005,7 @@ static float ime2_row_max(const float* s, int n)
     return __riscv_vfmv_f_s_f32m1_f32(vm);
 }
 
-/* 行求和（无序归约；只进 l_i 归一化，不进逐元素结果） */
+/* Row sum (unordered reduction; only feeds l_i normalization, not per-element results) */
 static float ime2_row_sum(const float* s, int n)
 {
     vfloat32m1_t vs = __riscv_vfmv_v_f_f32m1(0.f, 1);
@@ -972,7 +1019,7 @@ static float ime2_row_sum(const float* s, int n)
     return __riscv_vfmv_f_s_f32m1_f32(vs);
 }
 
-/* acc 行 *= alpha */
+/* acc row *= alpha */
 static void ime2_row_scale(float* a, int n, float alpha)
 {
     int j = 0;
@@ -984,7 +1031,7 @@ static void ime2_row_scale(float* a, int n, float alpha)
     }
 }
 
-/* 行加（mask）：a[j] += b[j] */
+/* Row add (mask): a[j] += b[j] */
 static void ime2_row_add(float* a, const float* b, int n)
 {
     int j = 0;
@@ -996,8 +1043,10 @@ static void ime2_row_add(float* a, const float* b, int n)
     }
 }
 
-/* 单头 flash 前向：QT/KT/VT 为打包 tiles（Q 已预缩放），mask 可为 0（非 causal 时必传）。
- * Out: [L, Ev] fp32 行距 ldo。返回 0 成功；-1 表示 Ev 超栈上预算（调用方走旧路径）。 */
+/* Single-head flash forward: QT/KT/VT are packed tiles (Q already pre-scaled); mask
+ * may be 0 (must be passed when non-causal).
+ * Out: [L, Ev] fp32 with row stride ldo. Returns 0 on success; -1 means Ev exceeds the
+ * on-stack budget (caller takes the old path). */
 static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const ime2_fp16* VT,
                                  const float* mask, size_t ldm, float* Out, size_t ldo,
                                  int L, int dst, int E, int Ev, int past, int causal, float scale,
@@ -1008,9 +1057,11 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
 
     const int ktE = (E + 7) / 8;
     const int ktD = (dst + 7) / 8;
-    /* 形状感知分块：BN=512 是为长序列（≥512）选的；序列很短时，softmax/P 打包/写回
-     * 会按 512 列做大量无用功（115 token 时 QK 只有 13.5 MFLOP，却仍按 512 列处理）。
-     * 按实际长度选块大小，保持连续（供 PT 的 tile 布局使用）。 */
+    /* Shape-aware tiling: BN=512 is chosen for long sequences (≥512); for very short
+     * sequences, softmax/P packing/write-back would do plenty of wasted work at 512
+     * columns (at 115 tokens QK is only 13.5 MFLOP, yet still processed as 512
+     * columns). Choose the block size by actual length, keeping it contiguous (for
+     * PT's tile layout). */
     int BN = IME2_FLASH_BN;
     while (BN > 64 && BN / 2 >= dst) BN /= 2;
 
@@ -1028,58 +1079,62 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
             li[r] = 0.f;
         }
 
-        /* causal：第 m0..m0+rows-1 行的可见右端 = past+m0+rows-1（含），块只需扫到这里 */
+        /* causal: the visible right end of rows m0..m0+rows-1 = past+m0+rows-1 (inclusive); blocks only need to scan up to here */
         const int nend = causal ? (past + m0 + rows < dst ? past + m0 + rows : dst) : dst;
 
         for (int n0 = 0; n0 < nend; n0 += BN)
         {
             const int cols = BN < nend - n0 ? BN : nend - n0;
 
-            /* S = scale · Q_blk · K_blk^T：QT **不**预乘 scale（fp16 打包前乘
-             * scale 会把本来可表示的 Q 值溢出成 inf），改在 fp32 累加结果的
-             * 写回上乘 alpha=scale —— 与非 flash 的 IME2 路径及上游回退一致。 */
+            /* S = scale · Q_blk · K_blk^T: QT is **not** pre-multiplied by scale
+             * (multiplying by scale before fp16 packing would overflow otherwise
+             * representable Q values into inf); instead multiply alpha=scale onto the
+             * write-back of the fp32 accumulated result — consistent with the
+             * non-flash IME2 path and the upstream fallback. */
             ime2_gemm_fp32out_p(QT + (size_t)(m0 / 8) * ktE * 64,
                                 KT + (size_t)(n0 / 8) * ktE * 64,
                                 S, BN, rows, cols, E, scale, 0,
                                 (size_t)ktE * 64, (size_t)ktE * 64);
 
-            /* 仅对角区域（或任意 mask 的兜底）需要加 mask */
+            /* Only the diagonal region (or the catch-all for arbitrary masks) needs the mask added */
             if (!causal || n0 + cols > past + m0)
             {
                 for (int r = 0; r < rows; r++)
                     ime2_row_add(S + r * BN, mask + (size_t)(m0 + r) * ldm + n0, cols);
             }
 
-            /* online softmax：行 max → exp → 行 sum → rescale 系数（RVV 向量化） */
+            /* online softmax: row max → exp → row sum → rescale factor (RVV vectorized) */
             for (int r = 0; r < rows; r++)
             {
                 float* s = S + r * BN;
                 const float bmax = ime2_row_max(s, cols);
                 const float mx = mi[r] > bmax ? mi[r] : bmax;
-                const float alpha = expf(mi[r] - mx); /* 首块 mi=-FLT_MAX → alpha=0 */
+                const float alpha = expf(mi[r] - mx); /* first block mi=-FLT_MAX → alpha=0 */
                 ime2_row_scale(acc + r * Ev, Ev, alpha);
                 ime2_row_exp(s, cols, mx);
                 li[r] = li[r] * alpha + ime2_row_sum(s, cols);
                 mi[r] = mx;
             }
 
-            /* P 块转 fp16 tiles（零填充到 8 的倍数；多填的 K 列对应 P=0，PV 无贡献）。
-             * 先放大 2^15 再打包：小概率（如 2.5e-8）直接打包会下溢成 0，聚合
-             * 质量（li 按 fp32 求和）被丢弃；放大后 fp16 常规精度保住它们。
-             * 归一处以 li·2^15 补偿。上限 p≤1 → ×32768 ≤ 32768 < 65504 不溢出。 */
+            /* Convert the P block to fp16 tiles (zero-padded to a multiple of 8; the
+             * extra padded K columns correspond to P=0 and contribute nothing to PV).
+             * Scale up by 2^15 before packing: tiny probabilities (e.g. 2.5e-8) packed
+             * directly would underflow to 0 and the aggregate mass (li sums in fp32)
+             * would be lost; after scaling, normal fp16 precision preserves them.
+             * Compensate with li·2^15 at normalization. Upper bound p≤1 → ×32768 ≤ 32768 < 65504, no overflow. */
             for (int r = 0; r < rows; r++)
                 ime2_row_scale(S + r * BN, cols, 32768.f);
             if (ime2_pack_fp32(S, BN, PT, rows, cols, alloc) != 0)
                 return -100;
 
-            /* acc += P · V_blk（V^T tiles 的 k 块偏移 n0/8，行距 ktD） */
+            /* acc += P · V_blk (k-block offset n0/8 into the V^T tiles, row stride ktD) */
             const int ktP = (cols + 7) / 8;
             ime2_gemm_fp32out_p((const ime2_fp16*)PT, VT + (size_t)(n0 / 8) * 64,
                                 acc, Ev, rows, Ev, ktP * 8, 1.f, 1,
                                 (size_t)ktP * 64, (size_t)ktD * 64);
         }
 
-        /* 扫完才归一化（一次乘法）；li·32768 补偿 P 打包前的放大 */
+        /* Normalize only after the scan completes (one multiply); li·32768 compensates the pre-packing scale-up of P */
         for (int r = 0; r < rows; r++)
         {
             const float inv = 1.f / (li[r] * 32768.f);

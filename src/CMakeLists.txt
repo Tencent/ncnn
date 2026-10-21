@@ -707,7 +707,7 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
                 set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zvfh")
             endif()
             if(NCNN_RISCV_SPACEMIT_IME2)
-                # zicbop 必须带上：缺了它 clang 把 __builtin_prefetch 降成空操作
+                # zicbop must be kept: without it clang lowers __builtin_prefetch to a no-op
                 set(RISCV_MARCH_FLAG "${RISCV_MARCH_FLAG}_zicbop_xsmtvdotii")
             endif()
         elseif(NOT NCNN_RUNTIME_CPU AND NCNN_XTHEADVECTOR)
