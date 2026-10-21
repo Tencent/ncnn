@@ -1353,7 +1353,7 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     const int nti = (nt + 1) / 2;
     const int nib = (mti + IB - 1) / IB;
     const int njb = (nti + JB - 1) / JB;
-/* Heterogeneous dual-cluster work split (A100 IME2 + X100 RVV) was experimented with and rejected — a platform limitation, not a code problem:
+    /* Heterogeneous dual-cluster work split (A100 IME2 + X100 RVV) was experimented with and rejected — a platform limitation, not a code problem:
                                                                                                                                                                                      *  (1) the two clusters do run concurrently without interference (two processes pinned separately: A100 374 + X100 120 = 490 t/s, potential +31%);
                                                                                                                                                                                      *  (2) but /proc/set_ai_thread registration (the prerequisite for getting VLEN=1024 on A100) **confines the process to the A100 cluster**:
                                                                                                                                                                                      *      measured: with a mixed run all threads land on cpu8-15; taskset to 8-15 directly without registration fails outright.
