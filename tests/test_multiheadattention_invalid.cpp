@@ -160,6 +160,49 @@ static int test_multiheadattention_kv_cache_cross(int naive)
     return 0;
 }
 
+static int test_multiheadattention_kv_cache_shape(int naive, const ncnn::Mat& past_k, const ncnn::Mat& past_v, int expected_ret)
+{
+    const int embed_dim = 16;
+    const int num_heads = 2;
+    const int qdim = 16;
+    const int kdim = 16;
+    const int vdim = 16;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * qdim);
+    pd.set(3, kdim);
+    pd.set(4, vdim);
+    pd.set(7, 1);
+
+    std::vector<ncnn::Mat> weights(8);
+    weights[0] = RandomMat(embed_dim * qdim);
+    weights[1] = RandomMat(embed_dim);
+    weights[2] = RandomMat(embed_dim * kdim);
+    weights[3] = RandomMat(embed_dim);
+    weights[4] = RandomMat(embed_dim * vdim);
+    weights[5] = RandomMat(embed_dim);
+    weights[6] = RandomMat(qdim * embed_dim);
+    weights[7] = RandomMat(qdim);
+
+    std::vector<ncnn::Mat> inputs(5);
+    inputs[0] = RandomMat(qdim, 2);
+    inputs[1] = RandomMat(kdim, 3);
+    inputs[2] = RandomMat(vdim, 3);
+    inputs[3] = past_k;
+    inputs[4] = past_v;
+
+    int ret = run_layer(naive, "MultiHeadAttention", pd, weights, inputs, 3);
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_multiheadattention_kv_cache_shape failed naive=%d ret=%d expected=%d\n", naive, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
 #if NCNN_INT8
 // the int8 weight scales are read by forward, so a model without them must not load
 static int test_multiheadattention_int8_scales(int naive, int with_scales, int expected_ret)
@@ -201,6 +244,10 @@ static int test_multiheadattention_int8_scales(int naive, int with_scales, int e
 
 static int test_multiheadattention_invalid_0(int naive)
 {
+    const int head_dim = 8;
+    const int num_heads = 2;
+    const ncnn::Mat valid_past = RandomMat(head_dim, 2, num_heads);
+
     return 0
            || test_multiheadattention_shape(naive, 16, 16, 16, 5, 5, 0)
            || test_multiheadattention_shape(naive, 1, 16, 16, 5, 5, -1)
@@ -208,7 +255,16 @@ static int test_multiheadattention_invalid_0(int naive)
            || test_multiheadattention_shape(naive, 16, 1, 16, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 16, 1, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 16, 16, 64, 1, -1)
-           || test_multiheadattention_kv_cache_cross(naive);
+           || test_multiheadattention_kv_cache_cross(naive)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, valid_past, 0)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, ncnn::Mat(), -1)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, RandomMat(head_dim, 3, num_heads), -1)
+           || test_multiheadattention_kv_cache_shape(naive, RandomMat(1, 2, num_heads), valid_past, -1)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, RandomMat(1, 2, num_heads), -1)
+           || test_multiheadattention_kv_cache_shape(naive, RandomMat(head_dim, 2, 1), valid_past, -1)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, RandomMat(head_dim, 2, 1), -1)
+           || test_multiheadattention_kv_cache_shape(naive, RandomMat(head_dim, 2), valid_past, -1)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, RandomMat(head_dim, 2), -1);
 }
 
 int main()

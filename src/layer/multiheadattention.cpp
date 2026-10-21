@@ -1763,8 +1763,15 @@ int MultiHeadAttention::check_input_shapes(const std::vector<Mat>& bottom_blobs)
         if (past_xk_blob.empty() != past_xv_blob.empty())
             return -1;
 
-        if (!past_xk_blob.empty() && past_xk_blob.h * past_xk_blob.elempack != past_xv_blob.h * past_xv_blob.elempack)
-            return -1;
+        if (!past_xk_blob.empty())
+        {
+            const int embed_dim_per_head = embed_dim / num_heads;
+            if (past_xk_blob.dims != 3 || past_xv_blob.dims != 3 || past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head)
+                return -1;
+
+            if (past_xk_blob.h != past_xv_blob.h || past_xk_blob.c * past_xk_blob.elempack != num_heads || past_xv_blob.c * past_xv_blob.elempack != num_heads)
+                return -1;
+        }
     }
 
     const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
