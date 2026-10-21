@@ -78,13 +78,13 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
         raise(sig);
         return;
     }
-    if (g_sdpa_ime2_old.sa_flags & SA_RESETHAND)
-    {
-        struct sigaction dfl;
-        memset(&dfl, 0, sizeof dfl);
-        dfl.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &dfl, NULL);
-    }
+    /* Do NOT reset to DFL before invoking a one-shot (SA_RESETHAND) callback:
+     * that reset replaces the probe handler process-wide, and the probing
+     * thread's own instruction SIGILL would then terminate instead of
+     * long-jumping. Keep the probe handler installed; call the one-shot
+     * directly with the original siginfo/ucontext (the kernel's reset is
+     * emulated only insofar as a handler fired during the probe may be
+     * re-armed by the probe-end restore). */
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_sdpa_ime2_old.sa_mask, &oldmask);
     if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
