@@ -3330,6 +3330,12 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
          * pack1 (accepted by all kernels) before recursing. */
         for (size_t i = 0; i < in16.size(); i++)
         {
+            /* beta == 0 makes a runtime C semantically absent: it is not cast and
+             * must not be repacked either -- converting a packed full MxN C would
+             * still allocate a full fp32 workspace buffer for an input the
+             * recursive forward never reads. */
+            if (beta == 0 && i >= 1)
+                continue;
             if (!in16[i].empty() && in16[i].elempack != 1)
             {
                 Mat tmp;

@@ -87,13 +87,15 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
         raise(sig);
         return;
     }
-    if (g_ime2_old.sa_flags & SA_RESETHAND)
-    {
-        struct sigaction dfl;
-        memset(&dfl, 0, sizeof dfl);
-        dfl.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &dfl, NULL);
-    }
+    /* Do NOT reset to DFL before invoking a one-shot (SA_RESETHAND) callback:
+     * that reset replaces ime2_sigill process-wide, and if the probing thread
+     * reaches the illegal instruction afterward, its SIGILL takes the default
+     * action and terminates instead of long-jumping. Keep the probe handler
+     * installed; the one-shot is called directly with the original
+     * siginfo/ucontext. The kernel's one-shot reset is emulated only insofar as
+     * a handler fired during the probe may be re-armed by the probe-end restore
+     * (microsecond window; the double-read consistency check at install already
+     * covers consumption before install). */
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_ime2_old.sa_mask, &oldmask);
     if (g_ime2_old.sa_flags & SA_SIGINFO)
