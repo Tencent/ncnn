@@ -3,6 +3,8 @@
 
 #include "expression.h"
 
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>  // sscanf
 #include <string.h> // memcpy
 
@@ -192,6 +194,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
         }
         else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "max" || t == "min")
         {
+            if (exprstack.size() < 2)
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
             typed_value tb = exprstack.top();
@@ -224,7 +228,12 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                     }
                     else
                     {
-                        r = a / b;
+                        const int64_t quotient = (int64_t)a / b;
+                        const int remainder = (int)((int64_t)a % b);
+                        const int64_t result = quotient - (remainder != 0 && ((remainder < 0) != (b < 0)));
+                        if (result < INT_MIN || result > INT_MAX)
+                            return -1;
+                        r = (int)result;
                     }
                 }
                 else if (t == "max")
@@ -272,6 +281,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
         }
         else if (t == "abs" || t == "neg" || t == "sign" || t == "square")
         {
+            if (exprstack.empty())
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
 
@@ -324,6 +335,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
         }
         else if (t == "trunc" || t == "ceil" || t == "floor" || t == "round")
         {
+            if (exprstack.empty())
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
 
@@ -376,6 +389,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                  || t == "tan"
                  || t == "tanh")
         {
+            if (exprstack.empty())
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
 
@@ -467,6 +482,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                  || t == "remainder"
                  || t == "logaddexp")
         {
+            if (exprstack.size() < 2)
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
             typed_value tb = exprstack.top();
@@ -517,6 +534,8 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
         }
         else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
+            if (exprstack.size() < 2)
+                return -1;
             typed_value ta = exprstack.top();
             exprstack.pop();
             typed_value tb = exprstack.top();
@@ -572,6 +591,9 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
             }
         }
     }
+
+    if (exprstack.empty())
+        return -1;
 
     int size = exprstack.top().to_int();
     exprstack.pop();

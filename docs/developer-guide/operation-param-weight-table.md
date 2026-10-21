@@ -291,6 +291,14 @@
 |Split|||
 |SPP|0|pooling_type|0|
 ||1|pyramid_height|1|
+|StridedSlice|0|begin_mask|0|
+||1|end_mask|0|
+||9|starts|[ ]|
+||10|ends|[ ]|
+||11|axes|[ ]|
+||12|steps|[ ]|
+||19|starts_expr|empty|
+||20|ends_expr|empty|
 |Squeeze|0|squeeze_w|0|
 ||1|squeeze_h|0|
 ||2|squeeze_c|0|

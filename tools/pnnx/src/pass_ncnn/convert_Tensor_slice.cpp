@@ -49,7 +49,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("start"))
             {
-                starts = std::vector<int> {op->params.at("start").i};
+                starts = std::vector<int> {op->params.at("start").type == 0 ? 0 : op->params.at("start").i};
             }
             else
             {
@@ -63,7 +63,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("end"))
             {
-                ends = std::vector<int> {op->params.at("end").i};
+                ends = std::vector<int> {op->params.at("end").type == 0 ? INT_MAX : op->params.at("end").i};
             }
             else
             {
@@ -104,6 +104,12 @@ void convert_Tensor_slice(Graph& graph)
             }
 
             const int axes_rank = axes.size();
+            if (starts.size() != axes.size() || ends.size() != axes.size() || steps.size() != axes.size())
+                continue;
+
+            bool strided = false;
+            for (int step : steps)
+                strided |= step > 1;
 
             int select_count = 0;
             bool unsupported = false;
@@ -112,13 +118,19 @@ void convert_Tensor_slice(Graph& graph)
             {
                 if (steps[i] == 0)
                 {
+                    if (selects.size() != axes.size() || selects[i] == INT_MAX || (strided && selects[i] < 0))
+                    {
+                        fprintf(stderr, "slice select index is invalid or unsupported\n");
+                        unsupported = true;
+                        break;
+                    }
                     // simulate select as slice
                     starts[i] = selects[i];
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
                     select_axis_indices.push_back(i);
                 }
-                else if (steps[i] != 1)
+                else if (steps[i] < 0)
                 {
                     fprintf(stderr, "slice with step %d is not supported\n", steps[i]);
                     unsupported = true;
@@ -142,13 +154,17 @@ void convert_Tensor_slice(Graph& graph)
                 if (input_rank > 4)
                 {
                     fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
+                    continue;
                 }
+                if (strided && input_rank < 1)
+                    continue;
             }
 
             int input_rank0 = op->inputs[0]->shape.size();
             if (input_rank0 == 0 && !op->outputs.empty())
                 input_rank0 = op->outputs[0]->shape.size() + select_axis_indices.size();
             std::vector<int> select_logical_axes;
+            std::vector<int> slice_logical_axes;
             for (int i = 0; i < axes_rank; i++)
             {
                 if (axes[i] < 0 && input_rank0 > 0)
@@ -156,10 +172,28 @@ void convert_Tensor_slice(Graph& graph)
                     axes[i] = input_rank0 + axes[i];
                 }
 
+                if (strided && (axes[i] < 0 || axes[i] >= input_rank0))
+                {
+                    unsupported = true;
+                    break;
+                }
+                if (strided && std::find(slice_logical_axes.begin(), slice_logical_axes.end(), axes[i]) != slice_logical_axes.end())
+                {
+                    unsupported = true;
+                    break;
+                }
+                slice_logical_axes.push_back(axes[i]);
+
                 if (axes[i] == ncnn_batch_axis)
                 {
-                    if (starts[i] != 0 || ends[i] != INT_MAX)
+                    const bool singleton_batch = (int)op->inputs[0]->shape.size() > ncnn_batch_axis
+                                                 && op->inputs[0]->shape[ncnn_batch_axis] == 1
+                                                 && starts[i] == 0 && ends[i] == 1 && steps[i] == 1;
+                    if (!singleton_batch && (starts[i] != 0 || ends[i] != INT_MAX || steps[i] != 1))
+                    {
                         fprintf(stderr, "slice along batch axis is not supported\n");
+                        unsupported = true;
+                    }
                     axes[i] = -233;
                     continue;
                 }
@@ -173,9 +207,11 @@ void convert_Tensor_slice(Graph& graph)
                 if (ncnn_batch_axis != 233 && axes[i] > ncnn_batch_axis)
                     axes[i] -= 1;
 
-                if (ends[i] == INT_MAX)
+                if (!strided && ends[i] == INT_MAX)
                     ends[i] = -233;
             }
+            if (unsupported)
+                continue;
             std::vector<int> reshape_input_shape = op->outputs[0]->shape;
             std::map<std::string, Parameter> reshape_params;
             if (select_count > 0)
@@ -196,13 +232,14 @@ void convert_Tensor_slice(Graph& graph)
 
             matched = true;
 
-            op->type = "Crop";
+            op->type = strided ? "StridedSlice" : "Crop";
             op->name = std::string("slice_") + std::to_string(op_index++);
 
             {
                 std::vector<int> axes2;
                 std::vector<int> starts2;
                 std::vector<int> ends2;
+                std::vector<int> steps2;
                 for (int i = 0; i < axes_rank; i++)
                 {
                     if (axes[i] == -233)
@@ -211,10 +248,12 @@ void convert_Tensor_slice(Graph& graph)
                     axes2.push_back(axes[i]);
                     starts2.push_back(starts[i]);
                     ends2.push_back(ends[i]);
+                    steps2.push_back(steps[i]);
                 }
                 axes = axes2;
                 starts = starts2;
                 ends = ends2;
+                steps = steps2;
             }
 
             if (axes.empty())
@@ -227,6 +266,15 @@ void convert_Tensor_slice(Graph& graph)
             op->params["9"] = starts;
             op->params["10"] = ends;
             op->params["11"] = axes;
+            if (strided)
+            {
+                int end_mask = 0;
+                for (size_t i = 0; i < ends.size(); i++)
+                    if (ends[i] == INT_MAX)
+                        end_mask |= 1 << i;
+                op->params["1"] = end_mask;
+                op->params["12"] = steps;
+            }
 
             op->params.erase("dim");
             op->params.erase("dims");

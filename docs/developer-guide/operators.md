@@ -94,6 +94,7 @@
 * [ShuffleChannel](#shufflechannel)
 * [Sigmoid](#sigmoid)
 * [Slice](#slice)
+* [StridedSlice](#stridedslice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
 * [Spectrogram](#spectrogram)
@@ -2396,6 +2397,33 @@ y = mean(x) or concat(mean(x), stddev(x))
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | include_stddev| int   | 0         |                   |
+
+# StridedSlice
+```
+y = x[start:end:step] along each selected axis
+```
+
+* input mat dims: 1d, 2d, 3d, 4d
+* output mat dims: same as input
+* CPU implementation; Vulkan graphs use CPU fallback
+* one_blob_only unless boundary expressions reference additional inputs
+
+| param id | name | type | default | description |
+| -------- | ---- | ---- | ------- | ----------- |
+| 0 | begin_mask | int | 0 | bit i selects the default start for axes[i] |
+| 1 | end_mask | int | 0 | bit i selects the default end for axes[i] |
+| 9 | starts | array | [ ] | start indices |
+| 10 | ends | array | [ ] | exclusive end indices |
+| 11 | axes | array | [ ] | distinct logical axes; negative axes are supported |
+| 12 | steps | array | [ ] | positive integer steps |
+| 19 | starts_expr | string | empty | shape expression list overriding starts |
+| 20 | ends_expr | string | empty | shape expression list overriding ends |
+
+Axes and steps must have the same length, from 1 to 4. Each boundary list must have this length too. Masks apply after expression evaluation. No integer boundary value is reserved as a sentinel. Parameters and shape-expression arithmetic use signed 32-bit integers; expression intermediates must remain in range.
+
+For an axis of length L, the default start is 0 and the default end is L. Explicit negative indices are relative to L; both bounds are clipped to [0, L]. For a nonempty interval [a, b), the output length is 1 + (b - a - 1) / step. Bounds and output sizes are recomputed for every input shape. Empty outputs return an error; zero-element tensor propagation and negative steps are not supported.
+
+pnnx emits this layer for basic slices with a static positive step greater than one, known rank, and static or supported integer shape-expression boundaries (`+`, `-`, `*`, `//`, `min`, `max`, and `neg`). Step-one slices retain the Crop path. Slicing the omitted native batch axis, data-dependent indices, dynamic steps, and slice assignment are not supported. Additional expression inputs supply shapes, not index tensor contents. See [expression.md](expression.md).
 
 # Squeeze
 

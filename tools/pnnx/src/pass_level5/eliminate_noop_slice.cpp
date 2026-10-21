@@ -25,11 +25,6 @@ void eliminate_noop_slice(Graph& graph)
             if (op->inputs.size() != 1)
                 continue;
 
-            if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
-            {
-                matched = true;
-            }
-
             if (op->has_param("start") && op->has_param("end") && op->has_param("step"))
             {
                 int start = op->params.at("start").i;
