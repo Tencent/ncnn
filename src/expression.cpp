@@ -4,7 +4,6 @@
 #include "expression.h"
 
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>  // sscanf
 #include <string.h> // memcpy
 
@@ -228,12 +227,12 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                     }
                     else
                     {
-                        const int64_t quotient = (int64_t)a / b;
-                        const int remainder = (int)((int64_t)a % b);
-                        const int64_t result = quotient - (remainder != 0 && ((remainder < 0) != (b < 0)));
-                        if (result < INT_MIN || result > INT_MAX)
+                        if (a == INT_MIN && b == -1)
                             return -1;
-                        r = (int)result;
+
+                        r = a / b;
+                        if (a % b != 0 && ((a < 0) != (b < 0)))
+                            r -= 1;
                     }
                 }
                 else if (t == "max")
