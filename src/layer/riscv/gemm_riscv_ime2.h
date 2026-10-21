@@ -49,6 +49,10 @@ static __thread sigjmp_buf tl_ime2_jb;
  * build may never observe the probe side's disarm. */
 static __thread volatile sig_atomic_t tl_ime2_armed = 0;
 static struct sigaction g_ime2_old;
+/* Whether a one-shot (SA_RESETHAND) saved action was already invoked during
+ * the current probe: after the first invocation the kernel makes the
+ * disposition SIG_DFL, so it must not run again and must not be restored. */
+static volatile sig_atomic_t g_ime2_oneshot_consumed = 0;
 
 static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
@@ -96,12 +100,25 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      * a handler fired during the probe may be re-armed by the probe-end restore
      * (microsecond window; the double-read consistency check at install already
      * covers consumption before install). */
+    /* A one-shot that already ran: the kernel has since made the disposition
+     * DFL — this signal terminates, as it would without our probe. */
+    if ((g_ime2_old.sa_flags & SA_RESETHAND) && g_ime2_oneshot_consumed)
+    {
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+        raise(sig);
+        return;
+    }
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_ime2_old.sa_mask, &oldmask);
     if (g_ime2_old.sa_flags & SA_SIGINFO)
         g_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_ime2_old.sa_handler(sig);
+    if (g_ime2_old.sa_flags & SA_RESETHAND)
+        g_ime2_oneshot_consumed = 1;
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
@@ -238,6 +255,7 @@ static int ime2_probe_locked(int nthreads)
             || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
         return 0;
     g_ime2_old = pre1;
+    g_ime2_oneshot_consumed = 0;
     /* Install failure (seccomp / an embedding host forbids sigaction): never continue
      * — the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). No probe handler, no instruction run: judge unavailable. */
@@ -285,7 +303,20 @@ static int ime2_probe_locked(int nthreads)
         memset(&cur, 0, sizeof cur);
         sigaction(SIGILL, NULL, &cur);
         if (cur.sa_sigaction == ime2_sigill)
-            sigaction(SIGILL, &g_ime2_old, NULL);
+        {
+            /* A one-shot consumed during the probe: the kernel would have made
+             * the disposition SIG_DFL after its first run — restore DFL, not
+             * the saved action (restoring it would permanently re-arm it). */
+            if (g_ime2_oneshot_consumed)
+            {
+                struct sigaction dfl;
+                memset(&dfl, 0, sizeof dfl);
+                dfl.sa_handler = SIG_DFL;
+                sigaction(SIGILL, &dfl, NULL);
+            }
+            else
+                sigaction(SIGILL, &g_ime2_old, NULL);
+        }
     }
     return ok;
 }
