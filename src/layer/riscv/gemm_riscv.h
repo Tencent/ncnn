@@ -35,11 +35,11 @@ protected:
     int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
-    // SpacemiT K3 A100 IME2 (smt.vfwmadot) 路径
+    // SpacemiT K3 A100 IME2 (smt.vfwmadot) path
     int create_pipeline_ime2(const Option& opt);
     int forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    /* 团队校验失败（队首或内核执行区域）时的 VLEN 无关朴素回落：
-     * 直接从固定布局的 BT_data_ime2 tile 做 fp32 累加。 */
+    /* VLEN-agnostic naive fallback when the team check fails (at the team head or inside the
+     * kernel execution region): accumulate in fp32 directly from the fixed-layout BT_data_ime2 tiles. */
     int forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 
@@ -50,13 +50,14 @@ public:
     Mat CT_data;
 #if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
     int use_ime2_path = 0;
-    /* fp32 面板是否真实构建：仅 full-takeover 分支在建管线时构建了 fp32 通用
-     * 回退管线（BT_data 为 fp32 4u）。非 takeover 分支建的是 fp16s 管线，
-     * BT_data 是 fp16（2u）——fp32 通用内核不能读它。 */
+    /* whether the fp32 panel is really built: only the full-takeover branch builds the fp32
+     * generic fallback pipeline at pipeline-build time (BT_data is fp32 4u). The non-takeover
+     * branch builds the fp16s pipeline, whose BT_data is fp16 (2u) — the fp32 generic kernel
+     * cannot read it. */
     int ime2_fp32_fallback_ready = 0;
     Mat BT_data_ime2;
-    Mat BT_i8c_ime2;    // int8 列主序权重面板（整数域设计，见 REPORT 7.41）
-    Mat BT_wscale_ime2; // 每列一个 fp16 scale
+    Mat BT_i8c_ime2;    // int8 column-major weight panel (integer-domain design, see REPORT 7.41)
+    Mat BT_wscale_ime2; // one fp16 scale per column
 #endif
 #if NCNN_WEIGHT_QUANT
     Mat BT_data_wq_int8;

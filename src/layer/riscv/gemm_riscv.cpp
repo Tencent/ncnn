@@ -3038,11 +3038,13 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 #endif
 
 #if NCNN_ZFH
-    // 修正「静态初始化顺序」缺陷：support_fp16_storage 在构造函数里赋值，但某些
-    // 编译器（实测 clang 24）下层对象构造时 ncnn 的 CPU 特性全局量尚未初始化，
-    // 导致该成员被永久写成 0，整个 fp16 路径（含 IME2）被静默跳过。
-    // 在使用点实时刷新。谓词必须与构造函数【完全一致】（RVV 变体看 zvfh，
-    // 基础变体看 zfh），否则在只有 ZFH 的机器上会把 RVV 变体的 fp16 错误打开。
+    // Fix the "static initialization order" defect: support_fp16_storage is assigned in the
+    // constructor, but with some compilers (observed: clang 24) ncnn's CPU-feature globals are
+    // not yet initialized when the layer object is constructed, so the member stays permanently
+    // 0 and the whole fp16 path (including IME2) is silently skipped. Refresh it live at the
+    // point of use. The predicate must match the constructor exactly (the RVV variant checks
+    // zvfh, the base variant checks zfh), otherwise on a ZFH-only machine the RVV variant's
+    // fp16 would be wrongly enabled.
     {
 #if __riscv_vector
         support_fp16_storage = cpu_support_riscv_zvfh();
@@ -3053,10 +3055,10 @@ int Gemm_riscv::create_pipeline(const Option& opt)
     if (support_fp16_storage && opt.use_fp16_storage)
     {
 #if NCNN_RISCV_SPACEMIT_IME2
-        // SpacemiT IME2（smt.vfwmadot）只覆盖「无 C 项」的纯 A*B^T（transB=1）。
-        // 条件不满足时不建 IME2 打包，直接走上游 fp16s 管线。
-        // 注意：必须放在 fp16_arithmetic 判断之前 —— IME2 是 fp16 存储 + fp32 累加，
-        // 与 use_fp16_arithmetic 无关，若先判 arithmetic 会走 fp16sa 而绕过 IME2。
+        // SpacemiT IME2 (smt.vfwmadot) only covers the pure A*B^T case with no C term (transB=1).
+        // When the conditions are not met, do not build the IME2 packing; take the upstream fp16s pipeline.
+        // Note: this must come before the fp16_arithmetic check — IME2 is fp16 storage + fp32
+        // accumulation, unrelated to use_fp16_arithmetic; checking arithmetic first would take fp16sa and bypass IME2.
         bool ime2_full_takeover = false;
         if (!constantA && constantB && transB && !transA
                 && !output_transpose && !output_N1M
@@ -3065,29 +3067,30 @@ int Gemm_riscv::create_pipeline(const Option& opt)
             const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
             if (c_never_exists)
             {
-                // IME2 接管 fp16 前向。但不能因此省掉下面的通用 fp32 管线：
-                // 裸建的 Gemm 层（不在 Net 里、没有自动 cast，例如 ncnn_llm 的
-                // LlmHead）可能收到 fp32 输入，必须仍能落到 fp32 前向，
-                // 否则 BT_data 为空，fp32 内核会读空指针。
+                // IME2 takes over the fp16 forward. But that does not mean the generic fp32
+                // pipeline below can be dropped: a bare Gemm layer (not inside a Net, so no
+                // automatic cast, e.g. ncnn_llm's LlmHead) may receive fp32 input and must still
+                // be able to fall to the fp32 forward, otherwise BT_data is empty and the fp32
+                // kernel would dereference a null pointer.
                 ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
                 if (ime2_full_takeover)
-                    ime2_fp32_fallback_ready = 1; /* 下面会继续构建 fp32 回退管线 */
+                    ime2_fp32_fallback_ready = 1; /* the fp32 fallback pipeline is still built below */
             }
             else
             {
-                // 可能有 runtime C：额外建 IME2 打包，同时继续建 fp16s 管线
+                // runtime C may exist: build the IME2 packing as well, and keep building the fp16s pipeline
                 create_pipeline_ime2(opt);
             }
         }
         if (!ime2_full_takeover)
         {
-            // IME2 不接管时，保持上游原有的 fp16 管线选择（fp16 算术可用则走 fp16sa）
+            // when IME2 does not take over, keep the upstream fp16 pipeline choice (fp16sa if fp16 arithmetic is available)
             if (opt.use_fp16_arithmetic)
                 return create_pipeline_fp16sa(opt);
 
             return create_pipeline_fp16s(opt);
         }
-        // ime2_full_takeover：fp16 输入走 IME2，继续向下构建 fp32 回退管线
+        // ime2_full_takeover: fp16 input goes through IME2; continue below to build the fp32 fallback pipeline
 #else
         if (opt.use_fp16_arithmetic)
             return create_pipeline_fp16sa(opt);
@@ -3249,23 +3252,23 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_RISCV_SPACEMIT_IME2
     if (use_ime2_path && elembits == 16)
     {
-        // IME2 路径只处理「无 C 项」的纯 A*B^T。
-        // constantB 时 C 只可能来自 bottom_blobs[1]（runtime 传入）；constantC 且
-        // broadcast=-1 时 CT_data 为空（等价于无 C）。有非空 C 且 beta!=0 则回退。
+        // The IME2 path only handles the pure A*B^T case with no C term.
+        // With constantB, C can only come from bottom_blobs[1] (passed at runtime); with constantC
+        // and broadcast=-1, CT_data is empty (equivalent to no C). Fall back if C is non-empty and beta!=0.
         bool has_C = false;
         if (constantC)
             has_C = !CT_data.empty() && beta != 0.f;
         else if (bottom_blobs.size() == 2)
             has_C = !bottom_blobs[1].empty() && beta != 0.f;
         else if (bottom_blobs.size() >= 3)
-            has_C = true; // 保守起见，多输入一律回退
+            has_C = true; // conservative: fall back on any extra inputs
 
         if (!has_C)
         {
             const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
-            /* -99 = 团队校验失败且本层建有 fp16s 管线（非 full-takeover）：
-             * 落进下面的 16 位分发。full-takeover 时 forward_ime2 内部已走
-             * fp32 转换回落，不会返回 -99。 */
+            /* -99 = team check failed and this layer has an fp16s pipeline (not full-takeover):
+             * fall into the 16-bit dispatch below. With full-takeover, forward_ime2 has already
+             * taken the fp32-conversion fallback internally and never returns -99. */
             if (ret != -99)
                 return ret;
         }
@@ -3282,15 +3285,16 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_RISCV_SPACEMIT_IME2
     if (use_ime2_path && elembits == 32 && !ime2_fp32_fallback_ready)
     {
-        /* 非 takeover：建的是 fp16s 管线，BT_data 是 fp16 面板，fp32 通用内核
-         * 不能读它（这是上游的潜在洞：fp16s 面板 + 裸 fp32 输入在任何 fp16s
-         * 真正可用的机器上都会错——K3 上它一直潜伏是因为静态初始化顺序与
-         * hwprobe 两个 bug 叠加让 fp16s 从未开启）。本层被 IME2 武装时必须
-         * 自己接住裸 fp32 输入（ncnn_llm 的 LlmHead 模式）：转成 fp16 再进
-         * 16 位分发，等价于 Net 里会自动发生的 cast。 */
-        /* 临时 cast 的张量用 workspace 分配器：递归的 forward 会从
-         * blob_allocator 分配输出，若临时量也占 blob_allocator，为大输入
-         * 定容的图分配器会双重占用而误报 -100。 */
+        /* non-takeover: the fp16s pipeline was built, BT_data is an fp16 panel, and the fp32
+         * generic kernel cannot read it (this is a latent upstream hole: an fp16s panel plus a
+         * bare fp32 input breaks on any machine where fp16s truly works — on K3 it stayed latent
+         * only because the static-initialization-order and hwprobe bugs together kept fp16s
+         * disabled). When this layer is armed with IME2 it must catch bare fp32 input itself
+         * (ncnn_llm's LlmHead mode): cast it to fp16 and re-enter the 16-bit dispatch, which is
+         * equivalent to the cast that would happen automatically inside a Net. */
+        /* the temporary cast tensor uses the workspace allocator: the recursive forward allocates
+         * its output from blob_allocator, and if the temporary also occupied blob_allocator, the
+         * graph allocator sized for the large input would double-count it and falsely report -100. */
         Option opt_cast = opt;
         opt_cast.blob_allocator = opt.workspace_allocator;
         std::vector<Mat> in16(bottom_blobs.size());
@@ -3311,9 +3315,10 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         if (!ok)
             return -100;
-        /* cast 保留输入的 elempack：打包的 fp32（A100 上 packn=32）转成 fp16
-         * 仍是 pack32，而 fp16s 管线按本机 fp16 packn（A100 上 64）索引——
-         * 位宽变了打包数没变就是错位。统一重打包到 pack1（所有内核都能接）再递归。 */
+        /* cast preserves the input elempack: packed fp32 (packn=32 on A100) cast to fp16 is
+         * still pack32, while the fp16s pipeline indexes by the native fp16 packn (64 on A100) —
+         * same packing count with a different bit width is a mismatch. Repack everything to
+         * pack1 (accepted by all kernels) before recursing. */
         for (size_t i = 0; i < in16.size(); i++)
         {
             if (!in16[i].empty() && in16[i].elempack != 1)
@@ -3330,15 +3335,18 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (use_ime2_path && elembits == 32 && ime2_fp32_fallback_ready)
     {
-        /* 此入口只在 full-takeover（fp32 回退面板真实存在）时有效。
-         * 非 takeover 分支建的是 fp16s 管线：BT_data 是 fp16 面板，fp32 通用
-         * 内核按 fp32 步长读它会越界（实测 M>=320 即崩）。那种情况下让正常
-         * 流程走 forward_fp16s（它内部会把 fp32 输入转成 fp16——上游对
-         * "fp16s 层 + fp32 裸输入"的既有行为）。
-         * 团队校验对 fp32 输入同样必要：BT_data 面板按建管线时的 vlenb 打包，
-         * 团队离开 A100 后下面的通用路径会按新 vlenb 重算 tile 去索引旧面板。
-         * forward_ime2 里：团队 OK → 返回 -1（继续通用路径，面板同源有效）；
-         * 团队离开 + full-takeover → VLEN 无关回落直接算出（返回 0/-100）。 */
+        /* this entry is only valid under full-takeover (the fp32 fallback panel really exists).
+         * The non-takeover branch built the fp16s pipeline: BT_data is an fp16 panel, and the
+         * fp32 generic kernel reading it at fp32 stride would go out of bounds (observed to
+         * crash at M>=320). In that case let the normal flow go through forward_fp16s (which
+         * internally casts fp32 input to fp16 — the existing upstream behavior for an "fp16s
+         * layer + bare fp32 input").
+         * The team check is just as necessary for fp32 input: the BT_data panel was packed with
+         * the vlenb of pipeline-build time, and after the team leaves the A100 the generic path
+         * below would recompute tiles with the new vlenb to index the old panel.
+         * Inside forward_ime2: team OK -> return -1 (continue the generic path; the panel comes
+         * from the same source and stays valid); team left + full-takeover -> the VLEN-agnostic
+         * fallback computes the result directly (returns 0/-100). */
         const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
         if (ret != -1 && ret != -99)
             return ret;

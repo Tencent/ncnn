@@ -1791,21 +1791,22 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
     (void)opt;
     return -99;
 #else
-    // 先探测：当前核能否执行 smt.vfwmadot（X100 上是 SIGILL）。
-    // 探测失败 -> 返回非 0，调用方回退到 fp16s 路径。
-    // 用与 forward 相同的团队大小探测工人：forward 的并行区都带
-    // num_threads(opt.num_threads)，更大的团队会增派未探测过的工人。
+    // Probe first: can the current core execute smt.vfwmadot (SIGILL on the X100).
+    // Probe failure -> return non-zero; the caller falls back to the fp16s path.
+    // Probe the workers with the same team size as forward: forward's parallel regions all carry
+    // num_threads(opt.num_threads); a larger team would dispatch unprobed workers.
     if (!ncnn_ime2::ime2_probe(opt.num_threads))
         return -99;
 
-    /* 权重值域预检：|w| > 65504 的有限值打包成 ±inf 后整条 IME2 路径（含
-     * VLEN 无关回落，它也读 tile）失真。不武装 IME2，返回 -99 让调用方建
-     * 上游管线（fp16s/fp32 语义照旧）。 */
+    /* weight range pre-check: a finite |w| > 65504 would be packed to ±inf, distorting the
+     * whole IME2 path (including the VLEN-agnostic fallback, which also reads the tiles). Do not
+     * arm IME2; return -99 so the caller builds the upstream pipeline (fp16s/fp32 semantics
+     * unchanged). */
     if (!ncnn_ime2::ime2_weights_fit_fp16(B_data))
         return -99;
 
-    // 把常量 B（[N,K] 权重）打包为 IME2 的 8x8 连续 tile 布局。
-    // 线程数无关的布局：forward 阶段可以任意 num_threads。
+    // Pack constant B (the [N,K] weights) into IME2's 8x8 contiguous tile layout.
+    // A thread-count-agnostic layout: forward may use any num_threads.
     const int N = constantN;
     const int K = constantK;
 
@@ -1813,9 +1814,11 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
     if (ret != 0)
         return ret;
 
-    /* int8 权重模式（可选精度模式，NCNN_IME2_INT8=1）：列主序 int8 面板 + 每列一个 fp16 scale，
-     * 直接从原始权重量化。解码走整数域点积（vwadd 加宽 + vwmacc 累加），实测解码 +28~31%。
-     * 第一版"tile 布局 int8 + 逐 8 元素转浮点"的实现已删除（微基准慢 600 倍，见 REPORT 7.40/7.41）。 */
+    /* int8 weight mode (optional precision mode, NCNN_IME2_INT8=1): a column-major int8 panel plus
+     * one fp16 scale per column, quantized directly from the original weights. Decoding uses an
+     * integer-domain dot product (vwadd widening + vwmacc accumulation), measured +28~31% on decode.
+     * The first "tile-layout int8 + convert every 8 elements to float" implementation was removed
+     * (600x slower in microbenchmarks, see REPORT 7.40/7.41). */
     if (getenv("NCNN_IME2_INT8"))
     {
         ncnn_ime2::ime2_quantize_B_int8_col(B_data, BT_i8c_ime2, BT_wscale_ime2, N, K);
@@ -1843,15 +1846,18 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
 #else
 
     const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
-    /* 此前非 takeover 在此返回 -99 让调度方落 fp16s——但那是错的场景恰恰
-     * 需要这个回落：团队已离开建管线时的簇（fp16s 面板按当时 vlenb 打包，
-     * 新 vlenb 下通用/fp16s 内核都会错位）。能走到这的调用都已确认无 C 项
-     * （派发处 has_C 已查），固定布局的朴素回落对它们同样正确。 */
+    /* Previously the non-takeover case returned -99 here to let the dispatcher drop to fp16s —
+     * but that was wrong: precisely the case that needs this fallback is when the team has left
+     * the cluster it was on at pipeline-build time (the fp16s panel was packed with the vlenb of
+     * that moment, and under a new vlenb both the generic and fp16s kernels would misindex).
+     * Every call that reaches here has already been confirmed to have no C term (has_C checked at
+     * dispatch), so the fixed-layout naive fallback is correct for them too. */
     (void)c_never_exists;
 
-    /* full-takeover：唯一与 VLEN 无关的权重表示是 BT_data_ime2（固定 8x8
-         * tile 布局，行距填充恒定）。朴素 fp32 累加直接从它算，任何核对上都
-         * 正确。这是降级模式：先求正确，再求快。 */
+    /* full-takeover: the only VLEN-agnostic weight representation is BT_data_ime2 (fixed 8x8
+         * tile layout with constant row padding). The naive fp32 accumulation computes directly
+         * from it and is correct on any core. This is degraded mode: correctness first, speed
+         * second. */
     Option opt_tmp = opt;
     opt_tmp.blob_allocator = opt.workspace_allocator;
 
@@ -1859,10 +1865,10 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
     if (A.elembits() == 16)
         cast_float16_to_float32(A, A32, opt_tmp);
     else
-        A32 = A; /* fp32 共享，零拷贝 */
+        A32 = A; /* fp32 shared, zero copy */
     if (A32.empty())
         return -100;
-    /* 任何打包（fp16 packn 或 fp32 packn）对这里的逐行索引都非法：解到 pack1 */
+    /* any packing (fp16 packn or fp32 packn) is invalid for the per-row indexing here: unpack to pack1 */
     if (A32.elempack != 1)
     {
         Mat A32_p1;
@@ -1872,8 +1878,8 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
         A32 = A32_p1;
     }
 
-    /* BT_data_ime2 布局：tile (i,j) 在 (size_t)i*ldt + j*64，元素 (r,c) 在
-         * t[r*8+c] = B[n=i*8+r][k=j*8+c]；ldt = kt*64 + IME2_TILE_PAD。 */
+    /* BT_data_ime2 layout: tile (i,j) at (size_t)i*ldt + j*64, element (r,c) at
+         * t[r*8+c] = B[n=i*8+r][k=j*8+c]; ldt = kt*64 + IME2_TILE_PAD. */
     const int kt = (K + 7) / 8;
     const size_t ldt = IME2_TILE_LD(kt);
     const __fp16* bt = (const __fp16*)BT_data_ime2;
@@ -1882,7 +1888,7 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
     if (C32.empty())
         return -100;
 
-    /* 每线程一份 K 行缓冲（B 行从 tile 布局解出），然后 RVV fp32 点积。 */
+    /* one K row buffer per thread (the B row is unpacked from the tile layout), then an RVV fp32 dot product. */
     Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
     if (kbuf_mat.empty())
         return -100;
@@ -1901,8 +1907,9 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
 
             float acc = 0.f;
 #if __riscv_vector
-            /* VLmax 全宽清零、VLmax 全宽归约（逐块 _tu 累加，末块余数 vl
-                 * 归约会丢高位 lane 的贡献） */
+            /* zero across the full VLmax width, reduce across the full VLmax width (accumulate
+                 * per block with _tu; reducing the last block's remainder vl would drop the high
+                 * lanes' contributions) */
             const size_t vlmax = __riscv_vsetvlmax_e32m1();
             vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
             int k = 0;
@@ -1924,17 +1931,18 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
     Mat& top_blob = top_blobs[0];
     if (A.elembits() == 16)
     {
-        /* fp16 输入 → 转回 fp16 存储并重打包到本层正常布局 */
+        /* fp16 input -> cast back to fp16 storage and repack to this layer's normal layout */
         if (out_elempack == 1)
         {
-            /* pack1：无需重打包，直接转出（blob 分配器），任何时刻只有一份。 */
+            /* pack1: no repacking needed, write it out directly (blob allocator); only one copy exists at any time. */
             cast_float32_to_float16(C32, top_blob, opt);
             if (top_blob.empty())
                 return -100;
             return 0;
         }
-        /* 需要重打包时，pack1 的 fp16 中间量放 workspace（与最终输出同在
-             * blob 池会瞬时占两份同尺寸；blob 池按一个返回输出估算会 -100）。 */
+        /* when repacking is needed, keep the pack1 fp16 intermediate in workspace (sharing the
+             * blob pool with the final output would momentarily hold two copies of the same size;
+             * the blob pool is sized for one returned output and would report -100). */
         Mat top16_tmp;
         cast_float32_to_float16(C32, top16_tmp, opt_tmp);
         if (top16_tmp.empty())
@@ -1944,8 +1952,8 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
             return -100;
         return 0;
     }
-    /* fp32 输入 → fp32 输出（通用路径的输出布局：按其自身的打包决策；
-         * C32 已是 pack1，重打包到 fp32 路径应有的 elempack）。 */
+    /* fp32 input -> fp32 output (the generic path's output layout: follow its own packing
+         * decision; C32 is already pack1, repack to the elempack the fp32 path should have). */
     int out32_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
@@ -1954,20 +1962,21 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
         out32_elempack = (M % packn == 0) ? packn : 1;
     }
 #endif
-    /* output_elempack 是**元素数**而非字节数，通用 fp32 路径原样采用
-         * （gemm_riscv.cpp 不折算）：此处同样保持，不能减半。 */
+    /* output_elempack is an **element count**, not a byte count; the generic fp32 path uses it
+         * as-is (gemm_riscv.cpp does not scale it): keep it the same here, do not halve it. */
     if (output_elempack)
         out32_elempack = output_elempack;
     if (out32_elempack != 1)
     {
-        /* 最终输出必须用 blob 分配器（C32 是 workspace 临时量，赋给
-             * top_blob 会把工作区内存带出本层，后续层会覆写）。 */
+        /* the final output must use the blob allocator (C32 is a workspace temporary; assigning
+             * it to top_blob would carry workspace memory out of this layer, and later layers
+             * would overwrite it). */
         convert_packing(C32, top_blob, out32_elempack, opt);
         if (top_blob.empty())
             return -100;
         return 0;
     }
-    /* pack1：同上，拷到 blob 分配器再交出。 */
+    /* pack1: same as above, copy to the blob allocator before handing it out. */
     top_blob.create(N, M, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -1991,12 +2000,13 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     const int N = constantN;
     const int K = constantK;
 
-    /* 内核实际以 _nT（建管线时存的 nT 优先）起团队：校验必须覆盖它，
-     * 而不是 forward 时的 opt.num_threads（调用方减线程后两者不同）。 */
+    /* the kernel actually starts the team with _nT (the nT saved at pipeline-build time takes
+     * priority): the check must cover it, not forward's opt.num_threads (the two differ once the
+     * caller reduces the thread count). */
     int _nT = nT ? nT : opt.num_threads;
 
-    // 与 forward_fp16s 相同的输出打包决策（fp16: packn = vlenb/2）。
-    // 在团队校验之前算好：fp16 回落分支与 IME2 主路径都用它。
+    // Same output packing decision as forward_fp16s (fp16: packn = vlenb/2).
+    // Compute it before the team check: both the fp16 fallback branch and the IME2 main path use it.
     int out_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
@@ -2008,15 +2018,16 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (output_elempack)
         out_elempack = output_elempack;
 
-    /* 团队校验对所有位宽生效：fp32 输入也不例外——通用 fp32 面板的 tile 是建
-     * 管线时按当时 vlenb 打包的，团队离开 A100 后通用路径会按新 vlenb 重算
-     * tile 去索引旧面板 → 错位。所以先验团队，再按位宽分流。 */
-    /* 队首校验：失败走 VLEN 无关回落（fp16/fp32 输入都接）。 */
+    /* the team check applies to all bit widths, fp32 input included — the generic fp32 panel's
+     * tiles were packed with the vlenb of pipeline-build time, and after the team leaves the A100
+     * the generic path would recompute tiles with the new vlenb to index the old panel ->
+     * mismatch. So check the team first, then split by bit width. */
+    /* team-head check: on failure take the VLEN-agnostic fallback (accepts both fp16 and fp32 input). */
     if (!ncnn_ime2::ime2_team_ok(_nT))
         return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
 
     if (A.elembits() != 16)
-        /* 团队在 A100 上、输入 fp32：dispatch 不应把 fp32 送到这里；防御。 */
+        /* team on the A100 with fp32 input: dispatch should not send fp32 here; defensive. */
         return -1;
 
     Mat& top_blob = top_blobs[0];
@@ -2024,8 +2035,9 @@ int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (top_blob.empty())
         return -100;
 
-    /* -99 = 内核执行区域内的队级校验失败（守卫与内核是两个 omp region，
-     * 运行时可换工人）：与队首失败走同一条回落。top_blob 已建，回落会重建。 */
+    /* -99 = team-level check failed inside the kernel execution region (the guard and the kernel
+     * are two omp regions and the runtime may swap workers between them): take the same fallback
+     * as a team-head failure. top_blob is already created; the fallback recreates it. */
     const int ret = ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt, BT_i8c_ime2, BT_wscale_ime2);
     if (ret == -99)
         return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
