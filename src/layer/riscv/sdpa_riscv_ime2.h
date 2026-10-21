@@ -100,14 +100,26 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
         raise(sig);
         return;
     }
+    /* Atomically claim a one-shot BEFORE invoking its callback (same as the
+     * gemm probe): assigning after the return lets simultaneous deliveries or
+     * cleanup overlap both pass the check. */
+    if ((g_sdpa_ime2_old.sa_flags & SA_RESETHAND)
+            && __atomic_exchange_n(&g_sdpa_ime2_oneshot_consumed, 1, __ATOMIC_SEQ_CST) != 0)
+    {
+        /* Already claimed: the disposition is DFL per kernel semantics */
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+        raise(sig);
+        return;
+    }
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_sdpa_ime2_old.sa_mask, &oldmask);
     if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
         g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_sdpa_ime2_old.sa_handler(sig);
-    if (g_sdpa_ime2_old.sa_flags & SA_RESETHAND)
-        g_sdpa_ime2_oneshot_consumed = 1;
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
