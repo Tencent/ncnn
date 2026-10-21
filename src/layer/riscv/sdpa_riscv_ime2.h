@@ -263,6 +263,17 @@ static int sdpa_ime2_probe_locked(int nthreads)
     if (sigaction(SIGILL, &sa, NULL) != 0)
         return 0;
 
+    /* If the caller blocked SIGILL, the faulting probe instruction cannot reach
+     * sdpa_ime2_sigill: the synchronous fault takes the default action and
+     * terminates the process instead of returning false through the longjmp.
+     * Temporarily unblock it for the probe window and restore the caller's mask
+     * afterwards (same as the gemm probe). */
+    sigset_t probe_mask, caller_mask;
+    sigemptyset(&probe_mask);
+    sigaddset(&probe_mask, SIGILL);
+    if (pthread_sigmask(SIG_UNBLOCK, &probe_mask, &caller_mask) != 0)
+        return 0;
+
     int ok = 0;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
     {
@@ -282,6 +293,8 @@ static int sdpa_ime2_probe_locked(int nthreads)
     }
     /* Both return paths disarm here (longjmp comes back here skipping the if body) */
     tl_sdpa_ime2_armed = 0;
+    /* Restore the caller's mask (the SIGILL unblock above was temporary) */
+    pthread_sigmask(SIG_SETMASK, &caller_mask, NULL);
     /* Restore the old disposition only when the current handler is still ours: if a
      * forwarding happened inside the probe window, the current disposition is already
      * the old one (or has been reset to DFL by the kernel per RESETHAND) — installing
