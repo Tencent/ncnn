@@ -559,9 +559,18 @@ static int ime2_pack_fp32(const float* src, size_t ld, ncnn::Mat& T, int R, int 
      * ime2_tile_16x16p prefetches the next tile pair, and with an even kt the
      * final prefetch reads 128 bytes past the last tile row. The data is never
      * consumed, but the read has to stay inside the allocation. */
-    T.create((size_t)rt * kt * 64 + IME2_TILE_SLACK, (size_t)2u, 1, alloc);
-    if (T.empty())
-        return -100;
+    /* Reuse a sufficient existing buffer: with causal long prefill (nend advances
+     * per 32-row block) or non-multiple KV lengths, the exact-size create would
+     * release and reallocate on every block — hundreds of alloc/free pairs per
+     * head per layer. Only recreate when the capacity is insufficient. */
+    const size_t need = (size_t)rt * kt * 64 + IME2_TILE_SLACK;
+    if (T.dims != 1 || T.elemsize != (size_t)2u || T.total() < need)
+    {
+        T.release();
+        T.create(need, (size_t)2u, 1, alloc);
+        if (T.empty())
+            return -100;
+    }
     ime2_fp16* dst = (ime2_fp16*)T;
 
     for (int i = 0; i < rt; i++)

@@ -157,6 +157,14 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             && (attn_mask_blob.dims < 2 || attn_mask_blob.w < dst_seqlen || attn_mask_blob.h < src_seqlen))
         use_flash = 0;
 
+    /* Reject oversized value heads BEFORE any flash packing: with
+     * out_embed_dim > IME2_FLASH_MAXEV, ime2_flash_head_tiles returns -1
+     * deterministically — but only after this branch has packed all shared
+     * K/V and Q for every head, and the old path then packs them again.
+     * Large-value-head models would pay both packing passes on every call. */
+    if (use_flash && out_embed_dim > IME2_FLASH_MAXEV)
+        use_flash = 0;
+
     // ---- causal mask detection (once per layer; if not causal, flash skips no blocks and adds the full mask, semantics unchanged) ----
     // 3-D masks are per head while this flag is applied to every head. Inspecting
     // only channel 0 means that if head 0 is triangular but some other head may
@@ -253,7 +261,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
 
             Mat QT, PT;
-            PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64, (size_t)2u, 1, opt.workspace_allocator);
+            /* Allocate once at the maximum capacity (incl. the tile slack): the per-block
+             * pack need never exceeds BM/8 x BN/8 x 64 + slack, so ime2_pack_fp32
+             * reuses this buffer instead of reallocating on every block. */
+            PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64 + IME2_TILE_SLACK, (size_t)2u, 1, opt.workspace_allocator);
             if (PT.empty()
                     /* Q is not pre-multiplied by scale: fp16 packing would overflow Q·scale to inf; scale is applied
                                                                                                                                                                                                      * to the fp32 accumulation result inside the flash kernel (see ime2_flash_head_tiles). */
