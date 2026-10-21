@@ -272,7 +272,19 @@ static int sdpa_ime2_probe_locked(int nthreads)
     sigemptyset(&probe_mask);
     sigaddset(&probe_mask, SIGILL);
     if (pthread_sigmask(SIG_UNBLOCK, &probe_mask, &caller_mask) != 0)
+    {
+        /* The handler is already installed process-wide at this point; leaving it
+         * behind would replace the application's disposition even though probing
+         * reports failure (and a later pipeline could then save OUR handler as the
+         * "old" disposition, recursing through forwarding on an unrelated fault).
+         * Restore the saved disposition before returning. */
+        struct sigaction cur;
+        memset(&cur, 0, sizeof cur);
+        sigaction(SIGILL, NULL, &cur);
+        if (cur.sa_sigaction == sdpa_ime2_sigill)
+            sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
         return 0;
+    }
 
     int ok = 0;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
