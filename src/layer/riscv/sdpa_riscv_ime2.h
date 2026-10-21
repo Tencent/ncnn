@@ -46,6 +46,10 @@ static __thread sigjmp_buf tl_sdpa_ime2_jb;
 /* Read by the signal handler, written by the probe: must be a signal-safe type (volatile sig_atomic_t). */
 static __thread volatile sig_atomic_t tl_sdpa_ime2_armed = 0;
 static struct sigaction g_sdpa_ime2_old;
+/* Whether a one-shot (SA_RESETHAND) saved action was already invoked during
+ * the current probe: after the first invocation the kernel makes the
+ * disposition SIG_DFL, so it must not run again and must not be restored. */
+static volatile sig_atomic_t g_sdpa_ime2_oneshot_consumed = 0;
 
 static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
@@ -85,12 +89,25 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      * directly with the original siginfo/ucontext (the kernel's reset is
      * emulated only insofar as a handler fired during the probe may be
      * re-armed by the probe-end restore). */
+    /* A one-shot that already ran: the kernel has since made the disposition
+     * DFL — this signal terminates, as it would without our probe. */
+    if ((g_sdpa_ime2_old.sa_flags & SA_RESETHAND) && g_sdpa_ime2_oneshot_consumed)
+    {
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+        raise(sig);
+        return;
+    }
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_sdpa_ime2_old.sa_mask, &oldmask);
     if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
         g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_sdpa_ime2_old.sa_handler(sig);
+    if (g_sdpa_ime2_old.sa_flags & SA_RESETHAND)
+        g_sdpa_ime2_oneshot_consumed = 1;
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
@@ -226,6 +243,7 @@ static int sdpa_ime2_probe_locked(int nthreads)
             || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
         return 0;
     g_sdpa_ime2_old = pre1;
+    g_sdpa_ime2_oneshot_consumed = 0;
     /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
      * the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). If the probe handler is not installed, do not run the
@@ -261,7 +279,19 @@ static int sdpa_ime2_probe_locked(int nthreads)
         memset(&cur, 0, sizeof cur);
         sigaction(SIGILL, NULL, &cur);
         if (cur.sa_sigaction == sdpa_ime2_sigill)
-            sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        {
+            /* A one-shot consumed during the probe: restore DFL, not the saved
+             * action (restoring it would permanently re-arm it). */
+            if (g_sdpa_ime2_oneshot_consumed)
+            {
+                struct sigaction dfl;
+                memset(&dfl, 0, sizeof dfl);
+                dfl.sa_handler = SIG_DFL;
+                sigaction(SIGILL, &dfl, NULL);
+            }
+            else
+                sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        }
     }
     return ok;
 }
