@@ -100,7 +100,7 @@ static int test_gemm_int8_scale(int naive, int with_scale, int expected_ret)
     std::vector<ncnn::Mat> inputs;
 
     int ret = run_layer(naive, "Gemm", pd, weights, inputs, 1);
-    if ((ret == 0) != (expected_ret == 0))
+    if (ret != expected_ret)
     {
         fprintf(stderr, "test_gemm_int8_scale failed naive=%d with_scale=%d ret=%d expected=%d\n", naive, with_scale, ret, expected_ret);
         return -1;

@@ -1747,15 +1747,38 @@ int MultiHeadAttention::check_input_shapes(const std::vector<Mat>& bottom_blobs)
     if (q_blob_i >= bottom_blob_count || k_blob_i >= bottom_blob_count || v_blob_i >= bottom_blob_count)
         return -1;
 
-    const Mat& q_blob = bottom_blobs[q_blob_i];
-    const Mat& k_blob = bottom_blobs[k_blob_i];
-    const Mat& v_blob = bottom_blobs[v_blob_i];
-    const int qdim = weight_data_size / embed_dim;
-    if (q_blob.w != qdim || k_blob.w != kdim || v_blob.w != vdim)
+    if (kv_cache && (cached_xk_i >= bottom_blob_count || cached_xv_i >= bottom_blob_count))
         return -1;
 
-    if (k_blob.h * k_blob.elempack != v_blob.h * v_blob.elempack)
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const int qdim = weight_data_size / embed_dim;
+    if (q_blob.w != qdim)
         return -1;
+
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    if (kv_cache)
+    {
+        if (past_xk_blob.empty() != past_xv_blob.empty())
+            return -1;
+
+        if (!past_xk_blob.empty() && past_xk_blob.h * past_xk_blob.elempack != past_xv_blob.h * past_xv_blob.elempack)
+            return -1;
+    }
+
+    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
+    if (append_kv)
+    {
+        const Mat& k_blob = bottom_blobs[k_blob_i];
+        const Mat& v_blob = bottom_blobs[v_blob_i];
+        if (k_blob.w != kdim || v_blob.w != vdim)
+            return -1;
+
+        if (k_blob.h * k_blob.elempack != v_blob.h * v_blob.elempack)
+            return -1;
+    }
 
     return 0;
 }

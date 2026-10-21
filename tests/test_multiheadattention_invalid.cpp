@@ -80,6 +80,86 @@ static int test_multiheadattention_shape(int naive, int q_w, int k_w, int v_w, i
     return 0;
 }
 
+static int test_multiheadattention_kv_cache_cross(int naive)
+{
+    const int embed_dim = 16;
+    const int num_heads = 2;
+    const int qdim = 16;
+    const int kdim = 16;
+    const int vdim = 16;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * qdim);
+    pd.set(3, kdim);
+    pd.set(4, vdim);
+    pd.set(7, 1);
+
+    std::vector<ncnn::Mat> weights(8);
+    weights[0] = RandomMat(embed_dim * qdim);
+    weights[1] = RandomMat(embed_dim);
+    weights[2] = RandomMat(embed_dim * kdim);
+    weights[3] = RandomMat(embed_dim);
+    weights[4] = RandomMat(embed_dim * vdim);
+    weights[5] = RandomMat(embed_dim);
+    weights[6] = RandomMat(qdim * embed_dim);
+    weights[7] = RandomMat(qdim);
+
+    ncnn::Layer* op = naive ? ncnn::create_layer_naive("MultiHeadAttention") : ncnn::create_layer_cpu("MultiHeadAttention");
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_storage = false;
+
+    int ret = op->load_param(pd);
+    if (ret == 0)
+    {
+        ncnn::ModelBinFromMatArray mb(weights.data());
+        ret = op->load_model(mb);
+    }
+
+    if (ret == 0)
+        ret = op->create_pipeline(opt);
+
+    if (ret == 0)
+    {
+        std::vector<ncnn::Mat> prefill_inputs(5);
+        prefill_inputs[0] = RandomMat(qdim, 2);
+        prefill_inputs[1] = RandomMat(kdim, 5);
+        prefill_inputs[2] = RandomMat(vdim, 5);
+
+        std::vector<ncnn::Mat> prefill_tops(3);
+        ret = op->forward(prefill_inputs, prefill_tops, opt);
+        if (ret == 0)
+        {
+            // cross-attention can reuse kvcache without passing live k and v
+            std::vector<ncnn::Mat> decode_inputs(5);
+            decode_inputs[0] = RandomMat(qdim, 1);
+            decode_inputs[3] = prefill_tops[1];
+            decode_inputs[4] = prefill_tops[2];
+
+            std::vector<ncnn::Mat> decode_tops(3);
+            ret = op->forward(decode_inputs, decode_tops, opt);
+        }
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention_kv_cache_cross failed naive=%d ret=%d\n", naive, ret);
+        return -1;
+    }
+
+    return 0;
+}
+
 #if NCNN_INT8
 // the int8 weight scales are read by forward, so a model without them must not load
 static int test_multiheadattention_int8_scales(int naive, int with_scales, int expected_ret)
@@ -109,7 +189,7 @@ static int test_multiheadattention_int8_scales(int naive, int with_scales, int e
     std::vector<ncnn::Mat> inputs;
 
     int ret = run_layer(naive, "MultiHeadAttention", pd, weights, inputs, 1);
-    if ((ret == 0) != (expected_ret == 0))
+    if (ret != expected_ret)
     {
         fprintf(stderr, "test_multiheadattention_int8_scales failed naive=%d with_scales=%d ret=%d expected=%d\n", naive, with_scales, ret, expected_ret);
         return -1;
@@ -127,7 +207,8 @@ static int test_multiheadattention_invalid_0(int naive)
            || test_multiheadattention_shape(naive, 4096, 16, 16, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 1, 16, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 16, 1, 5, 5, -1)
-           || test_multiheadattention_shape(naive, 16, 16, 16, 64, 1, -1);
+           || test_multiheadattention_shape(naive, 16, 16, 16, 64, 1, -1)
+           || test_multiheadattention_kv_cache_cross(naive);
 }
 
 int main()

@@ -100,7 +100,7 @@ static int test_gru_int8_scales(int naive, int with_scales, int expected_ret)
     std::vector<ncnn::Mat> inputs;
 
     int ret = run_layer(naive, "GRU", pd, weights, inputs, 1);
-    if ((ret == 0) != (expected_ret == 0))
+    if (ret != expected_ret)
     {
         fprintf(stderr, "test_gru_int8_scales failed naive=%d with_scales=%d ret=%d expected=%d\n", naive, with_scales, ret, expected_ret);
         return -1;
