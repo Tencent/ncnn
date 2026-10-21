@@ -111,14 +111,28 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
         raise(sig);
         return;
     }
+    /* Atomically claim a one-shot BEFORE invoking its callback: assigning the
+     * flag after the callback returns lets two simultaneous deliveries (or an
+     * in-flight callback overlapping probe cleanup) both pass the consumed
+     * check — the one-shot would run twice, and cleanup could restore/re-arm
+     * the saved action mid-callback. */
+    if ((g_ime2_old.sa_flags & SA_RESETHAND)
+            && __atomic_exchange_n(&g_ime2_oneshot_consumed, 1, __ATOMIC_SEQ_CST) != 0)
+    {
+        /* Already claimed: the disposition is DFL per kernel semantics */
+        struct sigaction dfl;
+        memset(&dfl, 0, sizeof dfl);
+        dfl.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &dfl, NULL);
+        raise(sig);
+        return;
+    }
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_ime2_old.sa_mask, &oldmask);
     if (g_ime2_old.sa_flags & SA_SIGINFO)
         g_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_ime2_old.sa_handler(sig);
-    if (g_ime2_old.sa_flags & SA_RESETHAND)
-        g_ime2_oneshot_consumed = 1;
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
