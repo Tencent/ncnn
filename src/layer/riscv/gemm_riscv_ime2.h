@@ -1251,7 +1251,11 @@ static int gemm_ime2_fp16(const ncnn::Mat& A, const ncnn::Mat& BT, ncnn::Mat& to
     {
         const signed char* w8c = (const signed char*)BT_i8c;
         const float* wsc = (const float*)BT_wscale;
-        static const int IME2_I8_STK = 8192;
+        /* Keep the on-stack scratch small: a caller thread with a small configured
+         * stack (e.g. a 32 KiB embedded pthread) must not hit its guard page from
+         * our frame before the workspace checks run. 1 KiB int8 + 4 KiB fp32 is
+         * comfortably small; anything larger uses the checked workspace buffer. */
+        static const int IME2_I8_STK = 1024;
         signed char a8stk[IME2_I8_STK];
         float ostk[IME2_I8_STK];
         /* Large scratch goes through the workspace allocator (null-checkable, consistent
