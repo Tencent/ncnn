@@ -3301,6 +3301,15 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         bool ok = true;
         for (size_t i = 0; i < bottom_blobs.size(); i++)
         {
+            /* beta == 0 makes a runtime C semantically absent (has_C above): it is
+             * never read by the calculation, so do not cast it either -- a full MxN
+             * C would needlessly consume a half-sized workspace buffer and could
+             * make the call fail with -100 even though C is ignored. */
+            if (beta == 0 && i >= 1)
+            {
+                in16[i] = bottom_blobs[i];
+                continue;
+            }
             if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
             {
                 cast_float32_to_float16(bottom_blobs[i], in16[i], opt_cast);
