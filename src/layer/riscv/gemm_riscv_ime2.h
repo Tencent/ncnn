@@ -136,13 +136,16 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     sigset_t sigill_only;
     sigemptyset(&sigill_only);
     sigaddset(&sigill_only, SIGILL);
-    if (g_ime2_old.sa_flags & SA_NODEFER)
+    /* SA_NODEFER suppresses only the kernel's AUTOMATIC masking; an explicit
+     * SIGILL in sa_mask must still block during the callback — only unblock
+     * when the saved mask does not already cover it. */
+    if ((g_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_ime2_old.sa_mask, SIGILL))
         pthread_sigmask(SIG_UNBLOCK, &sigill_only, NULL);
     if (g_ime2_old.sa_flags & SA_SIGINFO)
         g_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_ime2_old.sa_handler(sig);
-    if (g_ime2_old.sa_flags & SA_NODEFER)
+    if ((g_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_ime2_old.sa_mask, SIGILL))
         pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
@@ -256,7 +259,7 @@ static int ime2_probe_locked(int nthreads)
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = ime2_sigill;
-    sa.sa_flags = SA_SIGINFO;
+    /* sa_flags set after the saved action is read (below). */
     /* Race and consistency: within the install call, "the new handler becomes visible
      * process-wide" and "the old disposition is written back" are not atomic (another
      * thread's SIGILL in the window would read an uninitialized old disposition and be
@@ -281,6 +284,11 @@ static int ime2_probe_locked(int nthreads)
         return 0;
     g_ime2_old = pre1;
     g_ime2_oneshot_consumed = 0;
+    /* Propagate SA_RESTART from the saved action: our replacement is what the
+     * kernel sees while probing, and a thread blocked in a restartable syscall
+     * that receives an async SIGILL must restart as it would under the saved
+     * action, not return EINTR. */
+    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
     /* Install failure (seccomp / an embedding host forbids sigaction): never continue
      * — the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). No probe handler, no instruction run: judge unavailable. */
@@ -291,6 +299,17 @@ static int ime2_probe_locked(int nthreads)
      * reach ime2_sigill: the synchronous fault takes the default action and
      * terminates the process instead of returning false. Temporarily unblock
      * it for the probe window and restore the caller's mask afterwards. */
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
+     * have an already-pending SIGILL delivered by our temporary unblock through
+     * the probe handler. Check for a pending signal first: if one exists, do
+     * not probe (conservative: report IME2 unavailable) and leave everything
+     * as it was. */
+    {
+        sigset_t pend;
+        sigemptyset(&pend);
+        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+            return 0;
+    }
     sigset_t probe_mask, caller_mask;
     sigemptyset(&probe_mask);
     sigaddset(&probe_mask, SIGILL);
