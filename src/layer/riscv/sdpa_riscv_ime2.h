@@ -1248,6 +1248,16 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
              * directly would underflow to 0 and the aggregate mass (li sums in fp32)
              * would be lost; after scaling, normal fp16 precision preserves them.
              * Compensate with li·2^15 at normalization. Upper bound p≤1 → ×32768 ≤ 32768 < 65504, no overflow. */
+            /* A clamped NaN score maps to ~exp(88.376) ~ 2.4e38 (the upper endpoint,
+             * matching the fallback exp_ps): multiplying it by 32768 for the fp16
+             * pack overflows fp32 to +inf (and li*32768 at normalization
+             * likewise), producing NaN where the fallback gives a finite output.
+             * Bail this head to the old path instead (the caller recomputes the
+             * layer). li < FLT_MAX/32768 is required for the final scaling to
+             * stay finite; normal rows (P <= 1, cols small) never approach it. */
+            for (int r = 0; r < rows; r++)
+                if (!(li[r] * 32768.f < 3.4028234663852886e+38f))
+                    return -1;
             for (int r = 0; r < rows; r++)
                 ime2_row_scale(S + r * BN, cols, 32768.f);
             if (ime2_pack_fp32(S, BN, PT, rows, cols, alloc) != 0)

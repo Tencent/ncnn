@@ -207,7 +207,12 @@ static inline float rvv_dot_f32(const float* a, const float* b, int n)
         acc = __riscv_vfmacc_vv_f32m8_tu(acc, __riscv_vle32_v_f32m8(a + k, vl), __riscv_vle32_v_f32m8(b + k, vl), vl);
         k += (int)vl;
     }
-    vfloat32m1_t s = __riscv_vfredusum_vs_f32m8_f32m1(acc, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax);
+    /* Ordered reduction (vfredosum): the per-element accumulation order then
+     * matches the fallback gemm_transB_packed_tile's sequential kk loop exactly
+     * (products p[k] = a[k]*b[k] exact, summed left-to-right). An unordered
+     * tree reduction diverges on cancellation-sensitive patterns even for
+     * one-vector heads: [1e20, 1, -1e20, 1] gives 0 with a tree but 1 in order. */
+    vfloat32m1_t s = __riscv_vfredosum_vs_f32m8_f32m1(acc, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax);
     return __riscv_vfmv_f_s_f32m1_f32(s);
 }
 
