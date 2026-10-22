@@ -120,13 +120,16 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     sigset_t sigill_only;
     sigemptyset(&sigill_only);
     sigaddset(&sigill_only, SIGILL);
-    if (g_sdpa_ime2_old.sa_flags & SA_NODEFER)
+    /* SA_NODEFER suppresses only the kernel's AUTOMATIC masking; an explicit
+     * SIGILL in sa_mask must still block during the callback — only unblock
+     * when the saved mask does not already cover it. */
+    if ((g_sdpa_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_sdpa_ime2_old.sa_mask, SIGILL))
         pthread_sigmask(SIG_UNBLOCK, &sigill_only, NULL);
     if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
         g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_sdpa_ime2_old.sa_handler(sig);
-    if (g_sdpa_ime2_old.sa_flags & SA_NODEFER)
+    if ((g_sdpa_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_sdpa_ime2_old.sa_mask, SIGILL))
         pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
@@ -239,7 +242,11 @@ static int sdpa_ime2_probe_locked(int nthreads)
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = sdpa_ime2_sigill;
-    sa.sa_flags = SA_SIGINFO;
+    /* Propagate SA_RESTART from the saved action: our replacement is what the
+     * kernel sees while probing, and a thread blocked in a restartable syscall
+     * that receives an async SIGILL must restart as it would under the saved
+     * action, not return EINTR. */
+    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
     /* Race and consistency: within the install call, "new handler visible process-wide"
      * and "old disposition written back" are non-atomic (another thread's SIGILL in the
      * window would read an uninitialized old disposition); and a one-shot RESETHAND may
@@ -276,6 +283,17 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * terminates the process instead of returning false through the longjmp.
      * Temporarily unblock it for the probe window and restore the caller's mask
      * afterwards (same as the gemm probe). */
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
+     * have an already-pending SIGILL delivered by our temporary unblock through
+     * the probe handler. Check for a pending signal first: if one exists, do
+     * not probe (conservative: report IME2 unavailable) and leave everything
+     * as it was. */
+    {
+        sigset_t pend;
+        sigemptyset(&pend);
+        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+            return 0;
+    }
     sigset_t probe_mask, caller_mask;
     sigemptyset(&probe_mask);
     sigaddset(&probe_mask, SIGILL);
@@ -1067,6 +1085,12 @@ static void ime2_row_exp(float* s, int n, float mx)
          * negative logit multiplied by a large V would leak. Record these lanes and
          * zero them at the end. */
         vbool4_t vund = __riscv_vmflt_vf_f32m8_b4(x, -87.34f, vl);
+        /* Clamp upper first, matching the fallback exp_ps (rvv_mathfun.h): RVV
+         * vfmin/vfmax return the numeric operand when one is NaN, so a NaN score
+         * maps to the upper endpoint (+huge exponential) exactly as upstream —
+         * without this, vfmax(NaN, -87) mapped it to the opposite endpoint and
+         * the lane packed to fp16 zero. */
+        x = __riscv_vfmin_vf_f32m8(x, 88.3762626647949f, vl);
         x = __riscv_vfmax_vf_f32m8(x, -87.0f, vl);
         vint32m8_t ni = __riscv_vfcvt_x_f_v_i32m8(__riscv_vfmul_vf_f32m8(x, log2e, vl), vl); /* default RNE */
         vfloat32m8_t nf = __riscv_vfcvt_f_x_v_f32m8(ni, vl);
