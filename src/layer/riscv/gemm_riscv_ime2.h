@@ -258,15 +258,17 @@ static int ime2_probe_locked(int nthreads)
      * forwarded by ime2_sigill to the original disposition, with no cross-thread jump. */
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
-    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
-     * have an already-pending SIGILL delivered by our temporary unblock through
-     * the probe handler. Check BEFORE installing the handler: if one is pending,
-     * do not probe (conservative: report IME2 unavailable) and leave everything
-     * as it was — including the disposition, which we have not touched yet. */
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not get
+     * it delivered through our probe handler. The pending check plus temporary
+     * unblock was racy: a signal queued between the check and the unblock would
+     * be delivered by our handler instead of remaining pending. Simplest correct
+     * rule: if the caller has SIGILL blocked at all, do not probe (conservative
+     * IME2 unavailable). When SIGILL is not blocked, no SIGILL can be pending —
+     * it would already have been delivered. */
     {
-        sigset_t pend;
-        sigemptyset(&pend);
-        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+        sigset_t cur_mask;
+        sigemptyset(&cur_mask);
+        if (pthread_sigmask(SIG_BLOCK, NULL, &cur_mask) == 0 && sigismember(&cur_mask, SIGILL) == 1)
             return 0;
     }
 
@@ -299,48 +301,19 @@ static int ime2_probe_locked(int nthreads)
     /* Propagate SA_RESTART from the saved action: our replacement is what the
      * kernel sees while probing, and a thread blocked in a restartable syscall
      * that receives an async SIGILL must restart as it would under the saved
-     * action, not return EINTR. */
+     * action, not return EINTR. Also carry the saved action's mask: a signal
+     * masked in the saved action (e.g. SIGUSR1) must be blocked atomically on
+     * entry to our handler, as it would be under the saved one — an empty mask
+     * here would let the nested handler run before our manual mask applies. */
     sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
+    sa.sa_mask = pre1.sa_mask;
     /* Install failure (seccomp / an embedding host forbids sigaction): never continue
      * — the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). No probe handler, no instruction run: judge unavailable. */
     if (sigaction(SIGILL, &sa, NULL) != 0)
         return 0;
 
-    /* If the caller blocked SIGILL, the faulting probe instruction cannot
-     * reach ime2_sigill: the synchronous fault takes the default action and
-     * terminates the process instead of returning false. Temporarily unblock
-     * it for the probe window and restore the caller's mask afterwards. */
-    sigset_t probe_mask, caller_mask;
-    sigemptyset(&probe_mask);
-    sigaddset(&probe_mask, SIGILL);
-    if (pthread_sigmask(SIG_UNBLOCK, &probe_mask, &caller_mask) != 0)
-    {
-        /* The handler is already installed process-wide at this point; leaving it
-         * behind would replace the application's disposition even though probing
-         * reports failure (and a later pipeline could then save OUR handler as the
-         * "old" disposition, recursing through forwarding on an unrelated fault).
-         * Restore the saved disposition before returning. */
-        struct sigaction cur;
-        memset(&cur, 0, sizeof cur);
-        sigaction(SIGILL, NULL, &cur);
-        if (cur.sa_sigaction == ime2_sigill)
-        {
-            /* Mirror the probe-end cleanup's consumed-state handling: a one-shot
-             * already consumed during the window must restore as SIG_DFL, not the
-             * saved action. */
-            if (g_ime2_oneshot_consumed)
-            {
-                struct sigaction dfl;
-                memset(&dfl, 0, sizeof dfl);
-                dfl.sa_handler = SIG_DFL;
-                sigaction(SIGILL, &dfl, NULL);
-            }
-            else
-                sigaction(SIGILL, &g_ime2_old, NULL);
-        }
-        return 0;
-    }
+    /* (no unblock needed: the caller never has SIGILL blocked here — checked above) */
 
     int ok = 0;
     if (sigsetjmp(tl_ime2_jb, 1) == 0)
@@ -361,8 +334,7 @@ static int ime2_probe_locked(int nthreads)
     }
     /* Both return paths disarm here (a longjmp return skips the if body and lands here directly) */
     tl_ime2_armed = 0;
-    /* Restore the caller's mask (the SIGILL unblock above was temporary) */
-    pthread_sigmask(SIG_SETMASK, &caller_mask, NULL);
+
     /* Restore the old disposition only if the current handler is still ours: if a
      * forwarding happened inside the probe window (restore old disposition + re-raise),
      * the current one is already the old disposition (or has been reset to DFL by the
