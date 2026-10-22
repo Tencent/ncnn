@@ -19,6 +19,8 @@ class Model(nn.Module):
             self.up_exact_1d = nn.Upsample(size=3, mode='nearest-exact')
             self.up_exact_2d = nn.Upsample(scale_factor=(1.14, 2.3), mode='nearest-exact')
             self.up_exact_recompute = nn.Upsample(scale_factor=(1.3, 0.7), mode='nearest-exact', recompute_scale_factor=True)
+            self.up_exact_near_one = nn.Upsample(scale_factor=0.99999999, mode='nearest-exact')
+            self.up_exact_near_one_2d = nn.Upsample(scale_factor=(1.0, 0.99999999), mode='nearest-exact')
 
     def forward(self, x, y, z):
         outputs = [
@@ -55,10 +57,14 @@ class Model(nn.Module):
             outputs.append(self.up_recompute_nearest(y))
         if version.parse(torch.__version__) >= version.parse('1.11') and platform.machine().lower() in ['x86_64', 'amd64', 'i386', 'i686']:
             outputs += [self.up_exact_1d(x), self.up_exact_2d(y), self.up_exact_recompute(y)]
+            outputs += [self.up_exact_near_one(x), self.up_exact_near_one_2d(y)]
+            outputs.append(F.interpolate(y, scale_factor=(0.99999999, 1.0), mode='nearest-exact'))
             for data in [x, y, z]:
                 outputs += [
                     F.interpolate(data, size=1, mode='nearest-exact'),
                     F.interpolate(data, size=3, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.0, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=0.99999999, mode='nearest-exact'),
                     F.interpolate(data, scale_factor=1.5, mode='nearest-exact'),
                     F.interpolate(data, scale_factor=1.1, mode='nearest-exact'),
                     F.interpolate(data, scale_factor=1.7, mode='nearest-exact'),
