@@ -258,6 +258,18 @@ static int ime2_probe_locked(int nthreads)
      * forwarded by ime2_sigill to the original disposition, with no cross-thread jump. */
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
+     * have an already-pending SIGILL delivered by our temporary unblock through
+     * the probe handler. Check BEFORE installing the handler: if one is pending,
+     * do not probe (conservative: report IME2 unavailable) and leave everything
+     * as it was — including the disposition, which we have not touched yet. */
+    {
+        sigset_t pend;
+        sigemptyset(&pend);
+        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+            return 0;
+    }
+
     sa.sa_sigaction = ime2_sigill;
     /* sa_flags set after the saved action is read (below). */
     /* Race and consistency: within the install call, "the new handler becomes visible
@@ -299,17 +311,6 @@ static int ime2_probe_locked(int nthreads)
      * reach ime2_sigill: the synchronous fault takes the default action and
      * terminates the process instead of returning false. Temporarily unblock
      * it for the probe window and restore the caller's mask afterwards. */
-    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
-     * have an already-pending SIGILL delivered by our temporary unblock through
-     * the probe handler. Check for a pending signal first: if one exists, do
-     * not probe (conservative: report IME2 unavailable) and leave everything
-     * as it was. */
-    {
-        sigset_t pend;
-        sigemptyset(&pend);
-        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
-            return 0;
-    }
     sigset_t probe_mask, caller_mask;
     sigemptyset(&probe_mask);
     sigaddset(&probe_mask, SIGILL);
