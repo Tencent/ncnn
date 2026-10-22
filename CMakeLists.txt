@@ -440,6 +440,12 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh_zvfh -D__fp16=_Float16")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
 
+        set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zvfbfmin")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvuint16m2_t test(vfloat32m4_t x, size_t vl) { return __riscv_vreinterpret_v_bf16m2_u16m2(__riscv_vfncvtbf16_f_f_w_bf16m2_rm(x, __RISCV_FRM_RNE, vl)); }\nvfloat32m4_t test2(vuint16m2_t x, size_t vl) { return __riscv_vfwcvtbf16_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_bf16m2(x), vl); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFBFMIN)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zvfbfwma")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat32m2_t test(vfloat32m2_t s, const __bf16* w, __bf16 v, size_t vl) { vbfloat16m1_t x = __riscv_vle16_v_bf16m1(w, vl); return __riscv_vfwmaccbf16_vf_f32m2(s, v, x, vl); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFBFWMA)
+
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gc_zfh_xtheadvector -D__fp16=_Float16")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }\nint test3() { return __riscv_xtheadvector; }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
 
@@ -449,6 +455,21 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
             option(NCNN_RVV "optimize risc-v platform with v extension" ON)
         else()
             message(WARNING "The compiler does not support risc-v v or xtheadvector extension. NCNN_RVV will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_RISCV_ZVFBFMIN)
+            if(NCNN_RVV)
+                option(NCNN_ZVFBFMIN "optimize risc-v platform with zvfbfmin extension" ${NCNN_RUNTIME_CPU})
+            endif()
+            if(NCNN_COMPILER_SUPPORT_RISCV_ZVFBFWMA)
+                if(NCNN_RVV AND NCNN_ZVFBFMIN)
+                    option(NCNN_ZVFBFWMA "optimize risc-v platform with zvfbfwma extension" ${NCNN_RUNTIME_CPU})
+                endif()
+            else()
+                message(WARNING "The compiler does not support zvfbfwma extension. NCNN_ZVFBFWMA will be OFF.")
+            endif()
+        else()
+            message(WARNING "The compiler does not support zvfbfmin extension. NCNN_ZVFBFMIN will be OFF.")
         endif()
 
         if(NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
@@ -480,6 +501,12 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         set(CMAKE_REQUIRED_FLAGS "-march=rv32gcv_zfh_zvfh -D__fp16=_Float16")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
 
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gcv_zvfbfmin")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvuint16m2_t test(vfloat32m4_t x, size_t vl) { return __riscv_vreinterpret_v_bf16m2_u16m2(__riscv_vfncvtbf16_f_f_w_bf16m2_rm(x, __RISCV_FRM_RNE, vl)); }\nvfloat32m4_t test2(vuint16m2_t x, size_t vl) { return __riscv_vfwcvtbf16_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_bf16m2(x), vl); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFBFMIN)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=rv32gcv_zvfbfwma")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat32m2_t test(vfloat32m2_t s, const __bf16* w, __bf16 v, size_t vl) { vbfloat16m1_t x = __riscv_vle16_v_bf16m1(w, vl); return __riscv_vfwmaccbf16_vf_f32m2(s, v, x, vl); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFBFWMA)
+
         set(CMAKE_REQUIRED_FLAGS "-march=rv32gc_zfh_xtheadvector -D__fp16=_Float16")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }\nint test3() { return __riscv_xtheadvector; }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
 
@@ -489,6 +516,21 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
             option(NCNN_RVV "optimize risc-v platform with v extension" ON)
         else()
             message(WARNING "The compiler does not support risc-v v or xtheadvector extension. NCNN_RVV will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_RISCV_ZVFBFMIN)
+            if(NCNN_RVV)
+                option(NCNN_ZVFBFMIN "optimize risc-v platform with zvfbfmin extension" ${NCNN_RUNTIME_CPU})
+            endif()
+            if(NCNN_COMPILER_SUPPORT_RISCV_ZVFBFWMA)
+                if(NCNN_RVV AND NCNN_ZVFBFMIN)
+                    option(NCNN_ZVFBFWMA "optimize risc-v platform with zvfbfwma extension" ${NCNN_RUNTIME_CPU})
+                endif()
+            else()
+                message(WARNING "The compiler does not support zvfbfwma extension. NCNN_ZVFBFWMA will be OFF.")
+            endif()
+        else()
+            message(WARNING "The compiler does not support zvfbfmin extension. NCNN_ZVFBFMIN will be OFF.")
         endif()
 
         if(NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
@@ -809,12 +851,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=256MB -s EXIT_RUNTIME=1")
 
-    if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
-        # TODO better flags for emscripten
-        # node --experimental-wasm-threads xxx.js
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
+    if(NCNN_THREADS OR NCNN_OPENMP)
+        # enable pthreads for ncnn and its dependencies
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+        # allow applications to override the default worker pool
+        set(CMAKE_EXE_LINKER_FLAGS "-pthread -sPTHREAD_POOL_SIZE=15 ${CMAKE_EXE_LINKER_FLAGS}")
     endif()
 endif()
 

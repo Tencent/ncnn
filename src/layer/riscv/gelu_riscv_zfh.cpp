@@ -49,8 +49,8 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
 
                 vfloat16m4_t _one = __riscv_vfmv_v_f_f16m4((__fp16)1.f, vl);
                 _tanharg = __riscv_vfadd_vv_f16m4(_tanharg, _one, vl);
+                _tanharg = __riscv_vfmul_vf_f16m4(_tanharg, (__fp16)0.5f, vl);
                 _p = __riscv_vfmul_vv_f16m4(_p, _tanharg, vl);
-                _p = __riscv_vfmul_vf_f16m4(_p, (__fp16)0.5f, vl);
 
                 __riscv_vse16_v_f16m4(ptr, _p, vl);
                 n -= vl;

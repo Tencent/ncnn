@@ -303,6 +303,28 @@ void main()
             mi4 += gz * psc(mask_cstep);
         }
 
+#if ncnn_vendorID == 0x5143 && NCNN_fp16_packed
+        const uvec4 mi4_1 = mi4 + 1;
+        const uvec4 mi4_2 = mi4 + 2;
+        const uvec4 mi4_3 = mi4 + 3;
+
+        sum0.r += buffer_ld1(mask_blob_data, mi4.r);
+        sum0.g += buffer_ld1(mask_blob_data, mi4_1.r);
+        sum0.b += buffer_ld1(mask_blob_data, mi4_2.r);
+        sum0.a += buffer_ld1(mask_blob_data, mi4_3.r);
+        sum1.r += buffer_ld1(mask_blob_data, mi4.g);
+        sum1.g += buffer_ld1(mask_blob_data, mi4_1.g);
+        sum1.b += buffer_ld1(mask_blob_data, mi4_2.g);
+        sum1.a += buffer_ld1(mask_blob_data, mi4_3.g);
+        sum2.r += buffer_ld1(mask_blob_data, mi4.b);
+        sum2.g += buffer_ld1(mask_blob_data, mi4_1.b);
+        sum2.b += buffer_ld1(mask_blob_data, mi4_2.b);
+        sum2.a += buffer_ld1(mask_blob_data, mi4_3.b);
+        sum3.r += buffer_ld1(mask_blob_data, mi4.a);
+        sum3.g += buffer_ld1(mask_blob_data, mi4_1.a);
+        sum3.b += buffer_ld1(mask_blob_data, mi4_2.a);
+        sum3.a += buffer_ld1(mask_blob_data, mi4_3.a);
+#else
         sum0.r += buffer_ld1(mask_blob_data, mi4.r + 0);
         sum0.g += buffer_ld1(mask_blob_data, mi4.r + 1);
         sum0.b += buffer_ld1(mask_blob_data, mi4.r + 2);
@@ -319,6 +341,7 @@ void main()
         sum3.g += buffer_ld1(mask_blob_data, mi4.a + 1);
         sum3.b += buffer_ld1(mask_blob_data, mi4.a + 2);
         sum3.a += buffer_ld1(mask_blob_data, mi4.a + 3);
+#endif
     }
 
     {

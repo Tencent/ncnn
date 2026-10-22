@@ -241,7 +241,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
         if (layer->support_vulkan)
         {
-            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+            if (blob_mats_gpu[bottom_blob_index].dims == 0 && blob_mats[bottom_blob_index].dims != 0)
             {
                 // host to buffer
                 cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
@@ -255,7 +255,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
         else
         {
-            if (blob_mats[bottom_blob_index].dims == 0)
+            if (blob_mats[bottom_blob_index].dims == 0 && blob_mats_gpu[bottom_blob_index].dims != 0)
             {
                 Option opt_download = opt;
                 opt_download.use_packing_layout = layer->support_packing;
@@ -442,6 +442,48 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             return -100;
     }
 
+    bool cast_fp16_to_fp32 = false;
+    bool cast_bf16_to_fp32 = false;
+    if (bottom_blob.elembits() == 16)
+    {
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_ARM82
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_VFPV4
+#if NCNN_ZFH
+        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
+        {
+            cast_fp16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_ZFH
+#if NCNN_BF16
+        if (opt.use_bf16_storage && !layer->support_bf16_storage)
+        {
+            cast_bf16_to_fp32 = true;
+        }
+        else
+#endif // NCNN_BF16
+        {
+        }
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+
     int dst_elempack = 1;
     if (opt.use_packing_layout)
     {
@@ -452,7 +494,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
         if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
 
-        int elembits = bottom_blob.elembits();
+        int elembits = cast_fp16_to_fp32 || cast_bf16_to_fp32 ? 32 : bottom_blob.elembits();
 
         if (layer->support_packing)
         {
@@ -559,56 +601,26 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             return -100;
     }
 
-    if (bottom_blob.elembits() == 16)
+    if (cast_fp16_to_fp32)
     {
-        // clang-format off
-        // *INDENT-OFF*
-
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_ARM82
-#if NCNN_VFPV4
-        if (opt.use_fp16_storage && !opt.use_bf16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_VFPV4
-#if NCNN_ZFH
-        if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_ZFH
-#if NCNN_BF16
-        if (opt.use_bf16_storage && !layer->support_bf16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-        else
-#endif // NCNN_BF16
-        {
-        }
-
-        // *INDENT-ON*
-        // clang-format on
+        Mat bottom_blob_fp32;
+        cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+        bottom_blob = bottom_blob_fp32;
 
         if (bottom_blob.empty())
             return -100;
     }
+#if NCNN_BF16
+    if (cast_bf16_to_fp32)
+    {
+        Mat bottom_blob_fp32;
+        cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+        bottom_blob = bottom_blob_fp32;
+
+        if (bottom_blob.empty())
+            return -100;
+    }
+#endif
 
     return 0;
 }
@@ -2564,9 +2576,18 @@ int Net::load_model(const char* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* ptr = (const unsigned char*)d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = ptr;
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
+            {
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            const size_t consumed = (size_t)(mem - ptr);
             if (consumed != size)
             {
                 NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
@@ -2602,9 +2623,18 @@ int Net::load_model(const wchar_t* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret == 0)
         {
-            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const unsigned char* ptr = (const unsigned char*)d->mapped_model_file.mapped_ptr();
+            const unsigned char* mem = ptr;
             const size_t size = d->mapped_model_file.size();
-            size_t consumed = load_model((const unsigned char*)ptr);
+            DataReaderFromMemory dr(mem, size);
+            ret = load_model(dr);
+            if (ret != 0)
+            {
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            const size_t consumed = (size_t)(mem - ptr);
             if (consumed != size)
             {
                 NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);

@@ -61,9 +61,12 @@ const uint Md4 = M / 4;
 const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 
+#if ncnn_vendorID == 0x5143
+const uint Kd4p = Kd4;
+const uint Nd4p = Nd4;
+#elif ncnn_VK_KHR_cooperative_matrix
 // keep packed int8 row strides aligned to 16 bytes
 // odd multiples of 16 bytes spread successive rows across shared memory banks
-#if ncnn_VK_KHR_cooperative_matrix
 const uint Kd4p = (((Kd4 + 3) / 4) | 1) * 4;
 const uint Nd4p = (((Nd4 + 3) / 4) | 1) * 4;
 #elif ncnn_VK_NV_cooperative_matrix

@@ -168,10 +168,62 @@ static int test_modelbin_int8()
            || test_modelbin_int8_short_read();
 }
 
+static int test_modelbin_bounded()
+{
+    const unsigned char model_data[][16] = {
+        {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x3f},
+        {0x47, 0x6b, 0x30, 0x01, 0x00, 0x3c, 0x00, 0xc1, 0x00, 0x38, 0x00, 0x00},
+        {0x83, 0x8b, 0x34, 0x01, 0x80, 0x3f, 0x20, 0xc0, 0x00, 0x3f, 0x00, 0x00},
+        {0x38, 0x4b, 0x0d, 0x00, 0x00, 0x01, 0x80, 0x00},
+        {0x00, 0x01, 0x80, 0x00},
+        {0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x3f}
+    };
+    const size_t sizes[] = {16, 12, 12, 8, 4, 12};
+    const int types[] = {0, 0, 0, 0, 3, 1};
+
+    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++)
+    {
+        // truncate at every byte, including format tags and alignment padding
+        for (size_t size = 0; size <= sizes[i]; size++)
+        {
+            const unsigned char* mem = model_data[i];
+            ncnn::DataReaderFromMemory dr(mem, size);
+            ncnn::ModelBinFromDataReader mb(dr);
+            ncnn::Mat m = mb.load(3, types[i]);
+            if (m.empty() != (size < sizes[i]) || mem != model_data[i] + size)
+            {
+                fprintf(stderr, "test_modelbin_bounded failed format=%zu size=%zu\n", i, size);
+                return -1;
+            }
+
+            if (size == sizes[i])
+            {
+                if (i == 3 || i == 4)
+                {
+                    const signed char* p = m;
+                    if (m.elemsize != 1u || p[0] != 0 || p[1] != 1 || p[2] != -128)
+                    {
+                        fprintf(stderr, "test_modelbin_bounded int8 values failed\n");
+                        return -1;
+                    }
+                }
+                else if (m.elemsize != 4u || m[0] != 1.f || m[1] != -2.5f || m[2] != 0.5f)
+                {
+                    fprintf(stderr, "test_modelbin_bounded float values failed format=%zu\n", i);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     return 0
            || test_mat_from_bfloat16()
            || test_modelbin_bfloat16()
-           || test_modelbin_int8();
+           || test_modelbin_int8()
+           || test_modelbin_bounded();
 }

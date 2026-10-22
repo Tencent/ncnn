@@ -27,10 +27,22 @@ InstanceNorm_vulkan::InstanceNorm_vulkan()
     pipeline_instancenorm_sub_mean_square_pack4 = 0;
     pipeline_instancenorm_coeffs_pack4 = 0;
     pipeline_instancenorm_norm_pack4 = 0;
+
+    pipeline_instancenorm_reduce_subgroup = 0;
+    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
 }
 
 int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int _channels = channels;
@@ -53,82 +65,6 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     Mat workspace_shape;
     if (_channels != 0) workspace_shape = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
-    {
-        Mat local_size_xyz;
-        {
-            local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-            if (workspace_shape.dims != 0)
-            {
-                local_size_xyz.w = 16;
-                local_size_xyz.h = 1;
-                local_size_xyz.c = std::min(4, workspace_shape.c);
-            }
-        }
-
-        // pack1
-        if (elempack == 1 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
-
-            pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
-            pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
-        }
-
-        // pack4
-        if (elempack == 4 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
-
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
-        }
-    }
-
-    {
-        std::vector<vk_specialization_type> specializations(0 + 4);
-        specializations[0].i = 0; // TODO resolve workspace_shape.w;
-        specializations[1].i = 0; // TODO resolve workspace_shape.h;
-        specializations[2].i = workspace_shape.c;
-        specializations[3].i = 0; // TODO resolve workspace_shape.cstep;
-
-        Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
-        if (workspace_shape.dims != 0)
-        {
-            local_size_xyz.w = std::min(64, workspace_shape.c);
-            local_size_xyz.h = 1;
-            local_size_xyz.c = 1;
-        }
-
-        if (elempack == 1 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
-        }
-
-        if (elempack == 4 || _channels == 0)
-        {
-            pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
-        }
-    }
-
-    Mat square_workspace;
-    if (shape.dims == 3 || shape.dims == 4) square_workspace = Mat(shape.w, shape.h * shape.d, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
-
     int shape_dims = std::min(3, shape.dims);
     int shape_w = shape.w;
     int shape_h = shape.h * shape.d;
@@ -143,39 +79,130 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         shape_cstep = 0;
     }
 
+    if (use_subgroup_ops)
     {
-        std::vector<vk_specialization_type> specializations(0 + 10);
-        specializations[0 + 0].i = shape_dims;
-        specializations[0 + 1].i = shape_w;
-        specializations[0 + 2].i = shape_h;
-        specializations[0 + 3].i = shape_c;
-        specializations[0 + 4].i = shape_cstep;
-        specializations[0 + 5].i = square_workspace.dims;
-        specializations[0 + 6].i = square_workspace.w;
-        specializations[0 + 7].i = square_workspace.h;
-        specializations[0 + 8].i = square_workspace.c;
-        specializations[0 + 9].i = square_workspace.cstep;
+        pipeline_instancenorm_reduce_subgroup = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_instancenorm_reduce_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_instancenorm_reduce_subgroup->create(LayerShaderType::instancenorm_reduce_subgroup, opt, std::vector<vk_specialization_type>());
 
-        Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-        if (square_workspace.dims != 0)
+        pipeline_instancenorm_reduce_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_instancenorm_reduce_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_instancenorm_reduce_subgroup_pack4->create(LayerShaderType::instancenorm_reduce_subgroup_pack4, opt, std::vector<vk_specialization_type>());
+    }
+    else
+    {
         {
-            local_size_xyz.w = std::min(4, square_workspace.w);
-            local_size_xyz.h = std::min(4, square_workspace.h);
-            local_size_xyz.c = std::min(4, square_workspace.c);
+            Mat local_size_xyz;
+            {
+                local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
+                if (workspace_shape.dims != 0)
+                {
+                    local_size_xyz.w = 16;
+                    local_size_xyz.h = 1;
+                    local_size_xyz.c = std::min(4, workspace_shape.c);
+                }
+            }
+
+            // pack1
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
+
+                pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+                pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
+            }
+
+            // pack4
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
+
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
+            }
         }
 
-        if (elempack == 1 || _channels == 0)
         {
-            pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
+            std::vector<vk_specialization_type> specializations(0 + 4);
+            specializations[0].i = 0; // TODO resolve workspace_shape.w;
+            specializations[1].i = 0; // TODO resolve workspace_shape.h;
+            specializations[2].i = workspace_shape.c;
+            specializations[3].i = 0; // TODO resolve workspace_shape.cstep;
+
+            Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
+            if (workspace_shape.dims != 0)
+            {
+                local_size_xyz.w = std::min(64, workspace_shape.c);
+                local_size_xyz.h = 1;
+                local_size_xyz.c = 1;
+            }
+
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
+            }
+
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
+            }
         }
 
-        if (elempack == 4 || _channels == 0)
+        Mat square_workspace;
+        if (shape.dims == 3 || shape.dims == 4) square_workspace = Mat(shape.w, shape.h * shape.d, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
+
         {
-            pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
+            std::vector<vk_specialization_type> specializations(0 + 10);
+            specializations[0 + 0].i = shape_dims;
+            specializations[0 + 1].i = shape_w;
+            specializations[0 + 2].i = shape_h;
+            specializations[0 + 3].i = shape_c;
+            specializations[0 + 4].i = shape_cstep;
+            specializations[0 + 5].i = square_workspace.dims;
+            specializations[0 + 6].i = square_workspace.w;
+            specializations[0 + 7].i = square_workspace.h;
+            specializations[0 + 8].i = square_workspace.c;
+            specializations[0 + 9].i = square_workspace.cstep;
+
+            Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
+            if (square_workspace.dims != 0)
+            {
+                local_size_xyz.w = std::min(4, square_workspace.w);
+                local_size_xyz.h = std::min(4, square_workspace.h);
+                local_size_xyz.c = std::min(4, square_workspace.c);
+            }
+
+            if (elempack == 1 || _channels == 0)
+            {
+                pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
+                pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
+            }
+
+            if (elempack == 4 || _channels == 0)
+            {
+                pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
+                pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
+            }
         }
     }
 
@@ -284,6 +311,11 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_instancenorm_norm_pack4;
     pipeline_instancenorm_norm_pack4 = 0;
 
+    delete pipeline_instancenorm_reduce_subgroup;
+    pipeline_instancenorm_reduce_subgroup = 0;
+    delete pipeline_instancenorm_reduce_subgroup_pack4;
+    pipeline_instancenorm_reduce_subgroup_pack4 = 0;
+
     return 0;
 }
 
@@ -308,200 +340,229 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
-    // mean
+    // mean and var
     VkMat mean_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
+    VkMat var_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+    const Pipeline* pipeline_reduce_subgroup = elempack == 4 ? pipeline_instancenorm_reduce_subgroup_pack4 : pipeline_instancenorm_reduce_subgroup;
+    if (pipeline_reduce_subgroup)
     {
-        // reduce sum
-        VkMat sum_workspace;
-        {
-            int reduced_w = (size + 3) / 4;
-            int reduced_h = 1;
-            int reduced_c = bottom_top_blob.c;
+        std::vector<VkMat> bindings(3);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = mean_workspace;
+        bindings[2] = var_workspace;
 
-            sum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+        std::vector<vk_constant_type> constants(3);
+        constants[0].i = bottom_top_blob.cstep;
+        constants[1].i = size;
+        constants[2].i = c;
+
+        // split channels across x and y to stay within the dispatch limits
+        const int group_count_x = (c - 1) / vkdev->info.max_workgroup_count_y() + 1;
+        const int group_count_y = (c - 1) / group_count_x + 1;
+
+        VkMat dispatcher;
+        dispatcher.w = group_count_x * pipeline_reduce_subgroup->local_size_x();
+        dispatcher.h = group_count_y;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);
+    }
+    else
+    {
+        // mean
+        {
+            // reduce sum
+            VkMat sum_workspace;
             {
-                std::vector<VkMat> bindings(2);
-                bindings[0] = bottom_top_blob;
-                bindings[1] = sum_workspace;
+                int reduced_w = (size + 3) / 4;
+                int reduced_h = 1;
+                int reduced_c = bottom_top_blob.c;
 
-                std::vector<vk_constant_type> constants(8);
-                constants[0].i = size;
-                constants[1].i = 1;
-                constants[2].i = bottom_top_blob.c;
-                constants[3].i = bottom_top_blob.cstep;
-                constants[4].i = sum_workspace.w;
-                constants[5].i = 1;
-                constants[6].i = sum_workspace.c;
-                constants[7].i = sum_workspace.cstep;
+                sum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = bottom_top_blob;
+                    bindings[1] = sum_workspace;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = size;
+                    constants[1].i = 1;
+                    constants[2].i = bottom_top_blob.c;
+                    constants[3].i = bottom_top_blob.cstep;
+                    constants[4].i = sum_workspace.w;
+                    constants[5].i = 1;
+                    constants[6].i = sum_workspace.c;
+                    constants[7].i = sum_workspace.cstep;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+                }
             }
-        }
 
-        int pb = 0;
-        while (sum_workspace.w > 4)
-        {
-            int reduced_w = (sum_workspace.w + 3) / 4;
-            int reduced_h = 1;
-            int reduced_c = sum_workspace.c;
+            int pb = 0;
+            while (sum_workspace.w > 4)
+            {
+                int reduced_w = (sum_workspace.w + 3) / 4;
+                int reduced_h = 1;
+                int reduced_c = sum_workspace.c;
 
-            VkMat sum_workspace_reduced;
-            sum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+                VkMat sum_workspace_reduced;
+                sum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = sum_workspace;
+                    bindings[1] = sum_workspace_reduced;
+
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = sum_workspace.w;
+                    constants[1].i = 1;
+                    constants[2].i = sum_workspace.c;
+                    constants[3].i = sum_workspace.cstep;
+                    constants[4].i = sum_workspace_reduced.w;
+                    constants[5].i = 1;
+                    constants[6].i = sum_workspace_reduced.c;
+                    constants[7].i = sum_workspace_reduced.cstep;
+
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
+
+                    pb++;
+                }
+
+                sum_workspace = sum_workspace_reduced;
+            }
 
             {
                 std::vector<VkMat> bindings(2);
                 bindings[0] = sum_workspace;
-                bindings[1] = sum_workspace_reduced;
+                bindings[1] = mean_workspace;
 
-                std::vector<vk_constant_type> constants(8);
+                std::vector<vk_constant_type> constants(5);
                 constants[0].i = sum_workspace.w;
                 constants[1].i = 1;
                 constants[2].i = sum_workspace.c;
                 constants[3].i = sum_workspace.cstep;
-                constants[4].i = sum_workspace_reduced.w;
-                constants[5].i = 1;
-                constants[6].i = sum_workspace_reduced.c;
-                constants[7].i = sum_workspace_reduced.cstep;
+                constants[4].f = size;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
+                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4 : pipeline_instancenorm_reduce_mean;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
-
-                pb++;
+                cmd.record_pipeline(pipeline, bindings, constants, mean_workspace);
             }
-
-            sum_workspace = sum_workspace_reduced;
         }
 
+        // var
         {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = sum_workspace;
-            bindings[1] = mean_workspace;
-
-            std::vector<vk_constant_type> constants(5);
-            constants[0].i = sum_workspace.w;
-            constants[1].i = 1;
-            constants[2].i = sum_workspace.c;
-            constants[3].i = sum_workspace.cstep;
-            constants[4].f = size;
-
-            const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4 : pipeline_instancenorm_reduce_mean;
-
-            cmd.record_pipeline(pipeline, bindings, constants, mean_workspace);
-        }
-    }
-
-    // var
-    VkMat var_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
-    {
-        // sub mean and square
-        VkMat square_workspace;
-        square_workspace.create(w, h, c, 4u * elempack, elempack, opt.workspace_vkallocator);
-        {
-            std::vector<VkMat> bindings(3);
-            bindings[0] = bottom_top_blob;
-            bindings[1] = mean_workspace;
-            bindings[2] = square_workspace;
-
-            std::vector<vk_constant_type> constants(10);
-            constants[0].i = std::min(3, bottom_top_blob.dims);
-            constants[1].i = bottom_top_blob.w;
-            constants[2].i = h;
-            constants[3].i = bottom_top_blob.c;
-            constants[4].i = bottom_top_blob.cstep;
-            constants[5].i = square_workspace.dims;
-            constants[6].i = square_workspace.w;
-            constants[7].i = square_workspace.h;
-            constants[8].i = square_workspace.c;
-            constants[9].i = square_workspace.cstep;
-
-            const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_sub_mean_square_pack4 : pipeline_instancenorm_sub_mean_square;
-
-            cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
-        }
-
-        // reduce square
-        VkMat sqsum_workspace;
-        {
-            int reduced_w = (size + 3) / 4;
-            int reduced_h = 1;
-            int reduced_c = square_workspace.c;
-
-            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
-
+            // sub mean and square
+            VkMat square_workspace;
+            square_workspace.create(w, h, c, 4u * elempack, elempack, opt.workspace_vkallocator);
             {
-                std::vector<VkMat> bindings(2);
-                bindings[0] = square_workspace;
-                bindings[1] = sqsum_workspace;
+                std::vector<VkMat> bindings(3);
+                bindings[0] = bottom_top_blob;
+                bindings[1] = mean_workspace;
+                bindings[2] = square_workspace;
 
-                std::vector<vk_constant_type> constants(8);
-                constants[0].i = size;
-                constants[1].i = 1;
-                constants[2].i = square_workspace.c;
-                constants[3].i = square_workspace.cstep;
-                constants[4].i = sqsum_workspace.w;
-                constants[5].i = 1;
-                constants[6].i = sqsum_workspace.c;
-                constants[7].i = sqsum_workspace.cstep;
+                std::vector<vk_constant_type> constants(10);
+                constants[0].i = std::min(3, bottom_top_blob.dims);
+                constants[1].i = bottom_top_blob.w;
+                constants[2].i = h;
+                constants[3].i = bottom_top_blob.c;
+                constants[4].i = bottom_top_blob.cstep;
+                constants[5].i = square_workspace.dims;
+                constants[6].i = square_workspace.w;
+                constants[7].i = square_workspace.h;
+                constants[8].i = square_workspace.c;
+                constants[9].i = square_workspace.cstep;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[0] : pipeline_instancenorm_reduce_sum4_fp32[0];
+                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_sub_mean_square_pack4 : pipeline_instancenorm_sub_mean_square;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+                cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
             }
-        }
 
-        int pb = 1;
-        while (sqsum_workspace.w > 4)
-        {
-            int reduced_w = (sqsum_workspace.w + 3) / 4;
-            int reduced_h = 1;
-            int reduced_c = sqsum_workspace.c;
+            // reduce square
+            VkMat sqsum_workspace;
+            {
+                int reduced_w = (size + 3) / 4;
+                int reduced_h = 1;
+                int reduced_c = square_workspace.c;
 
-            VkMat sqsum_workspace_reduced;
-            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+                sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = square_workspace;
+                    bindings[1] = sqsum_workspace;
+
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = size;
+                    constants[1].i = 1;
+                    constants[2].i = square_workspace.c;
+                    constants[3].i = square_workspace.cstep;
+                    constants[4].i = sqsum_workspace.w;
+                    constants[5].i = 1;
+                    constants[6].i = sqsum_workspace.c;
+                    constants[7].i = sqsum_workspace.cstep;
+
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[0] : pipeline_instancenorm_reduce_sum4_fp32[0];
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+                }
+            }
+
+            int pb = 1;
+            while (sqsum_workspace.w > 4)
+            {
+                int reduced_w = (sqsum_workspace.w + 3) / 4;
+                int reduced_h = 1;
+                int reduced_c = sqsum_workspace.c;
+
+                VkMat sqsum_workspace_reduced;
+                sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+                {
+                    std::vector<VkMat> bindings(2);
+                    bindings[0] = sqsum_workspace;
+                    bindings[1] = sqsum_workspace_reduced;
+
+                    std::vector<vk_constant_type> constants(8);
+                    constants[0].i = sqsum_workspace.w;
+                    constants[1].i = 1;
+                    constants[2].i = sqsum_workspace.c;
+                    constants[3].i = sqsum_workspace.cstep;
+                    constants[4].i = sqsum_workspace_reduced.w;
+                    constants[5].i = 1;
+                    constants[6].i = sqsum_workspace_reduced.c;
+                    constants[7].i = sqsum_workspace_reduced.cstep;
+
+                    const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
+
+                    cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+
+                    pb++;
+                }
+
+                sqsum_workspace = sqsum_workspace_reduced;
+            }
 
             {
                 std::vector<VkMat> bindings(2);
                 bindings[0] = sqsum_workspace;
-                bindings[1] = sqsum_workspace_reduced;
+                bindings[1] = var_workspace;
 
-                std::vector<vk_constant_type> constants(8);
+                std::vector<vk_constant_type> constants(5);
                 constants[0].i = sqsum_workspace.w;
                 constants[1].i = 1;
                 constants[2].i = sqsum_workspace.c;
                 constants[3].i = sqsum_workspace.cstep;
-                constants[4].i = sqsum_workspace_reduced.w;
-                constants[5].i = 1;
-                constants[6].i = sqsum_workspace_reduced.c;
-                constants[7].i = sqsum_workspace_reduced.cstep;
+                constants[4].f = size;
 
-                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_instancenorm_reduce_sum4_fp32[pb % 2];
+                const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4 : pipeline_instancenorm_reduce_mean;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
-
-                pb++;
+                cmd.record_pipeline(pipeline, bindings, constants, var_workspace);
             }
-
-            sqsum_workspace = sqsum_workspace_reduced;
-        }
-
-        {
-            std::vector<VkMat> bindings(2);
-            bindings[0] = sqsum_workspace;
-            bindings[1] = var_workspace;
-
-            std::vector<vk_constant_type> constants(5);
-            constants[0].i = sqsum_workspace.w;
-            constants[1].i = 1;
-            constants[2].i = sqsum_workspace.c;
-            constants[3].i = sqsum_workspace.cstep;
-            constants[4].f = size;
-
-            const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_mean_pack4 : pipeline_instancenorm_reduce_mean;
-
-            cmd.record_pipeline(pipeline, bindings, constants, var_workspace);
         }
     }
 

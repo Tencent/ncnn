@@ -57,37 +57,40 @@ void main()
         coeffs.a = afp(1.f) - coeffs.r - coeffs.g - coeffs.b;
     }
 
-    if (sx <= -1)
+    if (psc(w) >= 4)
     {
-        sx = 1;
-        coeffs.r = afp(1.f) - coeffs.a;
-        coeffs.g = coeffs.a;
-        coeffs.b = afp(0.f);
-        coeffs.a = afp(0.f);
-    }
-    if (sx == 0)
-    {
-        sx = 1;
-        coeffs.r = coeffs.r + coeffs.g;
-        coeffs.g = coeffs.b;
-        coeffs.b = coeffs.a;
-        coeffs.a = afp(0.f);
-    }
-    if (sx == psc(w) - 2)
-    {
-        sx = psc(w) - 3;
-        coeffs.a = coeffs.b + coeffs.a;
-        coeffs.b = coeffs.g;
-        coeffs.g = coeffs.r;
-        coeffs.r = afp(0.f);
-    }
-    if (sx >= psc(w) - 1)
-    {
-        sx = psc(w) - 3;
-        coeffs.a = afp(1.f) - coeffs.r;
-        coeffs.b = coeffs.r;
-        coeffs.g = afp(0.f);
-        coeffs.r = afp(0.f);
+        if (sx <= -1)
+        {
+            sx = 1;
+            coeffs.r = afp(1.f) - coeffs.a;
+            coeffs.g = coeffs.a;
+            coeffs.b = afp(0.f);
+            coeffs.a = afp(0.f);
+        }
+        if (sx == 0)
+        {
+            sx = 1;
+            coeffs.r = coeffs.r + coeffs.g;
+            coeffs.g = coeffs.b;
+            coeffs.b = coeffs.a;
+            coeffs.a = afp(0.f);
+        }
+        if (sx == psc(w) - 2)
+        {
+            sx = psc(w) - 3;
+            coeffs.a = coeffs.b + coeffs.a;
+            coeffs.b = coeffs.g;
+            coeffs.g = coeffs.r;
+            coeffs.r = afp(0.f);
+        }
+        if (sx >= psc(w) - 1)
+        {
+            sx = psc(w) - 3;
+            coeffs.a = afp(1.f) - coeffs.r;
+            coeffs.b = coeffs.r;
+            coeffs.g = afp(0.f);
+            coeffs.r = afp(0.f);
+        }
     }
 
     buffer_st4(alpha_blob_data, gx, coeffs);
