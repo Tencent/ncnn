@@ -240,13 +240,6 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * tl_sdpa_ime2_jb: another thread receiving SIGILL inside this window is forwarded
      * by sdpa_ime2_sigill to the original disposition; no cross-thread jump happens. */
     struct sigaction sa;
-    memset(&sa, 0, sizeof sa);
-    sa.sa_sigaction = sdpa_ime2_sigill;
-    /* Propagate SA_RESTART from the saved action: our replacement is what the
-     * kernel sees while probing, and a thread blocked in a restartable syscall
-     * that receives an async SIGILL must restart as it would under the saved
-     * action, not return EINTR. */
-    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
     /* Race and consistency: within the install call, "new handler visible process-wide"
      * and "old disposition written back" are non-atomic (another thread's SIGILL in the
      * window would read an uninitialized old disposition); and a one-shot RESETHAND may
@@ -271,6 +264,13 @@ static int sdpa_ime2_probe_locked(int nthreads)
         return 0;
     g_sdpa_ime2_old = pre1;
     g_sdpa_ime2_oneshot_consumed = 0;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_sigaction = sdpa_ime2_sigill;
+    /* Propagate SA_RESTART from the saved action: our replacement is what the
+     * kernel sees while probing, and a thread blocked in a restartable syscall
+     * that receives an async SIGILL must restart as it would under the saved
+     * action, not return EINTR. */
+    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
     /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
      * the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). If the probe handler is not installed, do not run the
