@@ -116,10 +116,18 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     }
     sigset_t oldmask;
     pthread_sigmask(SIG_BLOCK, &g_sdpa_ime2_old.sa_mask, &oldmask);
+    /* Honor SA_NODEFER: unblock SIGILL around the callback, re-block after. */
+    sigset_t sigill_only;
+    sigemptyset(&sigill_only);
+    sigaddset(&sigill_only, SIGILL);
+    if (g_sdpa_ime2_old.sa_flags & SA_NODEFER)
+        pthread_sigmask(SIG_UNBLOCK, &sigill_only, NULL);
     if (g_sdpa_ime2_old.sa_flags & SA_SIGINFO)
         g_sdpa_ime2_old.sa_sigaction(sig, info, ucontext);
     else
         g_sdpa_ime2_old.sa_handler(sig);
+    if (g_sdpa_ime2_old.sa_flags & SA_NODEFER)
+        pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
@@ -282,7 +290,19 @@ static int sdpa_ime2_probe_locked(int nthreads)
         memset(&cur, 0, sizeof cur);
         sigaction(SIGILL, NULL, &cur);
         if (cur.sa_sigaction == sdpa_ime2_sigill)
-            sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        {
+            /* Mirror the probe-end cleanup: a consumed one-shot restores as
+             * SIG_DFL, not the saved action. */
+            if (g_sdpa_ime2_oneshot_consumed)
+            {
+                struct sigaction dfl;
+                memset(&dfl, 0, sizeof dfl);
+                dfl.sa_handler = SIG_DFL;
+                sigaction(SIGILL, &dfl, NULL);
+            }
+            else
+                sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
+        }
         return 0;
     }
 
