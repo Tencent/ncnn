@@ -192,18 +192,23 @@ static inline float rvv_dot_f32(const float* a, const float* b, int n)
      * head_dim=128 needs two chunks. Reducing only the final chunk's vl would
      * discard the lanes last_vl..VLMAX-1 that earlier chunks accumulated into,
      * so each chunk is reduced to a scalar and the scalars are added. */
-    float total = 0.f;
+    /* One accumulator vector across chunks, in k order: per-lane partial sums
+     * cancel large opposing terms that collide in the same lane (e.g. 1e20 at k=0
+     * and -1e20 at k=VLMAX both land in lane 0 and cancel exactly), matching the
+     * fallback gemm_transB_packed_tile's in-order per-element accumulation. The
+     * previous per-chunk scalar reduction rounded each chunk separately and lost
+     * such cancellations. _tu keeps earlier chunks' lanes on the tail chunk. */
+    const size_t vlmax = __riscv_vsetvlmax_e32m8();
+    vfloat32m8_t acc = __riscv_vfmv_v_f_f32m8(0.f, vlmax);
     int k = 0;
     while (k < n)
     {
         const size_t vl = __riscv_vsetvl_e32m8(n - k);
-        vfloat32m8_t p = __riscv_vfmul_vv_f32m8(__riscv_vle32_v_f32m8(a + k, vl), __riscv_vle32_v_f32m8(b + k, vl), vl);
-        /* vfredusum only reduces the first vl lanes, so the tail is not read */
-        vfloat32m1_t s = __riscv_vfredusum_vs_f32m8_f32m1(p, __riscv_vfmv_v_f_f32m1(0.f, 1), vl);
-        total += __riscv_vfmv_f_s_f32m1_f32(s);
+        acc = __riscv_vfmacc_vv_f32m8_tu(acc, __riscv_vle32_v_f32m8(a + k, vl), __riscv_vle32_v_f32m8(b + k, vl), vl);
         k += (int)vl;
     }
-    return total;
+    vfloat32m1_t s = __riscv_vfredusum_vs_f32m8_f32m1(acc, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax);
+    return __riscv_vfmv_f_s_f32m1_f32(s);
 }
 
 static inline float rvv_max_f32(const float* a, int n)
