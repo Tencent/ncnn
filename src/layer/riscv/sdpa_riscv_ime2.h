@@ -270,10 +270,15 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * the probe handler. Check BEFORE installing the handler: if one is pending,
      * do not probe (conservative: report IME2 unavailable) and leave everything
      * as it was — including the disposition, which we have not touched yet. */
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not get
+     * it delivered through our probe handler. Simplest correct rule: if the
+     * caller has SIGILL blocked at all, do not probe (conservative unavailable).
+     * When it is not blocked, no SIGILL can be pending -- it would already have
+     * been delivered. */
     {
-        sigset_t pend;
-        sigemptyset(&pend);
-        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+        sigset_t cur_mask;
+        sigemptyset(&cur_mask);
+        if (pthread_sigmask(SIG_BLOCK, NULL, &cur_mask) == 0 && sigismember(&cur_mask, SIGILL) == 1)
             return 0;
     }
 
@@ -283,6 +288,7 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * that receives an async SIGILL must restart as it would under the saved
      * action, not return EINTR. */
     sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
+    sa.sa_mask = pre1.sa_mask;
     /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
      * the probe instruction's SIGILL would be delivered per the original disposition
      * (possibly termination). If the probe handler is not installed, do not run the
@@ -300,35 +306,7 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * the probe handler. Check for a pending signal first: if one exists, do
      * not probe (conservative: report IME2 unavailable) and leave everything
      * as it was. */
-    sigset_t probe_mask, caller_mask;
-    sigemptyset(&probe_mask);
-    sigaddset(&probe_mask, SIGILL);
-    if (pthread_sigmask(SIG_UNBLOCK, &probe_mask, &caller_mask) != 0)
-    {
-        /* The handler is already installed process-wide at this point; leaving it
-         * behind would replace the application's disposition even though probing
-         * reports failure (and a later pipeline could then save OUR handler as the
-         * "old" disposition, recursing through forwarding on an unrelated fault).
-         * Restore the saved disposition before returning. */
-        struct sigaction cur;
-        memset(&cur, 0, sizeof cur);
-        sigaction(SIGILL, NULL, &cur);
-        if (cur.sa_sigaction == sdpa_ime2_sigill)
-        {
-            /* Mirror the probe-end cleanup: a consumed one-shot restores as
-             * SIG_DFL, not the saved action. */
-            if (g_sdpa_ime2_oneshot_consumed)
-            {
-                struct sigaction dfl;
-                memset(&dfl, 0, sizeof dfl);
-                dfl.sa_handler = SIG_DFL;
-                sigaction(SIGILL, &dfl, NULL);
-            }
-            else
-                sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-        }
-        return 0;
-    }
+    /* (no unblock needed: the caller never has SIGILL blocked here — checked above) */
 
     int ok = 0;
     if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
@@ -349,8 +327,6 @@ static int sdpa_ime2_probe_locked(int nthreads)
     }
     /* Both return paths disarm here (longjmp comes back here skipping the if body) */
     tl_sdpa_ime2_armed = 0;
-    /* Restore the caller's mask (the SIGILL unblock above was temporary) */
-    pthread_sigmask(SIG_SETMASK, &caller_mask, NULL);
     /* Restore the old disposition only when the current handler is still ours: if a
      * forwarding happened inside the probe window, the current disposition is already
      * the old one (or has been reset to DFL by the kernel per RESETHAND) — installing
