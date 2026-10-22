@@ -265,6 +265,18 @@ static int sdpa_ime2_probe_locked(int nthreads)
     g_sdpa_ime2_old = pre1;
     g_sdpa_ime2_oneshot_consumed = 0;
     memset(&sa, 0, sizeof sa);
+    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
+     * have an already-pending SIGILL delivered by our temporary unblock through
+     * the probe handler. Check BEFORE installing the handler: if one is pending,
+     * do not probe (conservative: report IME2 unavailable) and leave everything
+     * as it was — including the disposition, which we have not touched yet. */
+    {
+        sigset_t pend;
+        sigemptyset(&pend);
+        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
+            return 0;
+    }
+
     sa.sa_sigaction = sdpa_ime2_sigill;
     /* Propagate SA_RESTART from the saved action: our replacement is what the
      * kernel sees while probing, and a thread blocked in a restartable syscall
@@ -288,12 +300,6 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * the probe handler. Check for a pending signal first: if one exists, do
      * not probe (conservative: report IME2 unavailable) and leave everything
      * as it was. */
-    {
-        sigset_t pend;
-        sigemptyset(&pend);
-        if (sigpending(&pend) == 0 && sigismember(&pend, SIGILL) == 1)
-            return 0;
-    }
     sigset_t probe_mask, caller_mask;
     sigemptyset(&probe_mask);
     sigaddset(&probe_mask, SIGILL);
