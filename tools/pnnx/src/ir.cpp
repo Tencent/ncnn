@@ -1461,6 +1461,26 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
+static std::string interpolate_scale_factor_to_string(const Operator* op)
+{
+    if (op->type != "nn.Upsample" && op->type != "F.interpolate")
+        return std::string();
+
+    auto it = op->attrs.find("scale_factor");
+    if (it == op->attrs.end() || it->second.type != 2)
+        return std::string();
+
+    const Attribute& attr = it->second;
+    std::string value = "(";
+    for (int i = 0; i < attr.elemcount(); i++)
+    {
+        double scale;
+        memcpy(&scale, attr.data.data() + i * sizeof(double), sizeof(double));
+        value += double_to_string(scale) + ",";
+    }
+    return value + ")";
+}
+
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
@@ -1525,6 +1545,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
 
                 fprintf(pyfp, "%s=", it.first.c_str());
+
+                if (it.first == "scale_factor")
+                {
+                    const std::string value = interpolate_scale_factor_to_string(op);
+                    if (!value.empty())
+                    {
+                        fprintf(pyfp, "%s", value.c_str());
+                        param_index++;
+                        if (param_index != param_count)
+                            fprintf(pyfp, ", ");
+                        continue;
+                    }
+                }
 
                 const Parameter& param = it.second;
                 if (param.type == 0)
@@ -1666,6 +1699,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             for (const auto& it : op->attrs)
             {
+                if (op->type == "nn.Upsample" && it.first == "scale_factor")
+                    continue;
+
                 if (it.first == "running_mean" || it.first == "running_var")
                 {
                     fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
@@ -2331,6 +2367,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                             || (op->type == "torch.where" && it.first == "other"))
                     {
                         scalar_as_tensor = true;
+                    }
+
+                    if (it.first == "scale_factor")
+                    {
+                        const std::string value = interpolate_scale_factor_to_string(op);
+                        if (!value.empty())
+                        {
+                            fprintf(pyfp, "%s", value.c_str());
+                            continue;
+                        }
                     }
 
                     const Parameter& param = it.second;

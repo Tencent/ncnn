@@ -30,7 +30,7 @@ pnnx.Output             output      1 0 out
         return "upsample";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         const std::vector<float>& scale_factor = captured_params.at("scale_factor").af;
@@ -39,10 +39,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -74,6 +71,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = captured_params.at("align_corners").b ? 1 : 0;
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -102,7 +100,7 @@ pnnx.Output             output      1 0 out
         return "upsample";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         const std::vector<int>& size = captured_params.at("size").ai;
@@ -110,10 +108,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -135,6 +130,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = captured_params.at("align_corners").b ? 1 : 0;
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -163,7 +159,7 @@ pnnx.Output             output      1 0 out
         return "upsample";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         const std::vector<float>& scale_factor = captured_params.at("scale_factor").af;
@@ -172,10 +168,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -207,6 +200,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = 0; // align_corner
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -235,7 +229,7 @@ pnnx.Output             output      1 0 out
         return "upsample";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         const std::vector<int>& size = captured_params.at("size").ai;
@@ -243,10 +237,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -268,6 +259,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = 0; // align_corner
+        write_interp_scale(op, captured_attrs);
     }
 };
 
