@@ -314,9 +314,25 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         return -100;
 
     int head_fail = 0;
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_heads; q++)
+    /* Validate INSIDE this region too: the preflight validated its own region's
+     * workers, but this region may select a worker re-bound to X100 in between,
+     * which would SIGILL on the unguarded smt.vfwmadot in ime2_gemm_fp32out.
+     * team_bad -> return -99: the dispatching side recomputes the layer with the
+     * upstream composed path (no IME2 at all). */
+    int team_bad = 0;
+    #pragma omp parallel num_threads(opt.num_threads)
     {
+        if (!ncnn_ime2_sdpa::sdpa_ime2_worker_in_set_now())
+        {
+            #pragma omp atomic write
+            team_bad = 1;
+        }
+        #pragma omp barrier
+        if (!team_bad)
+        {
+            #pragma omp for
+            for (int q = 0; q < num_heads; q++)
+            {
         const Mat query_head = query.channel(q);                       // [L, E] fp32
         const Mat key_head = key.channel(q / num_heads_per_group);     // [dst, E]
         const Mat value_head = value.channel(q / num_heads_per_group); // [dst, Ev]
@@ -411,7 +427,11 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                           (float*)top_blob_head, out_embed_dim,
                           src_seqlen, out_embed_dim, dst_seqlen, 1.f / 32768.f);
     }
+        }   // omp for
+        }   // omp parallel (validation + work in the same region)
 
+    if (team_bad)
+        return -99;
     if (head_fail)
         return -100;
 
