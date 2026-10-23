@@ -6,6 +6,9 @@ endif()
 
 add_library(ncnntestutil STATIC testutil.cpp)
 target_link_libraries(ncnntestutil PUBLIC ncnn)
+if(NCNN_VULKAN AND NOT NCNN_SHARED_LIB)
+    target_compile_definitions(ncnntestutil PUBLIC NCNN_WEIGHT_TEST_INTERNAL)
+endif()
 
 macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
@@ -73,6 +76,11 @@ if(NCNN_VULKAN)
     ncnn_add_test(gpu)
     ncnn_add_test(command)
     ncnn_add_test(pipeline_cache)
+
+    ncnn_add_test(weight_execution)
+    if(NOT NCNN_SHARED_LIB)
+        ncnn_add_test(weight_storage)
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")

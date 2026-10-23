@@ -1,6 +1,13 @@
 // Copyright 2018 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+// file mappings must use 64-bit offsets on 32-bit posix builds too
+#ifndef _WIN32
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+#endif
+
 #include "allocator.h"
 
 #include "gpu.h"
@@ -9,6 +16,26 @@
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
+
+#if NCNN_VULKAN
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#if defined(_WIN32)
+#include <io.h>
+#include <windows.h>
+#else
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+#if NCNN_BENCHMARK
+#include "benchmark.h"
+#if defined(__linux__) && !defined(__ANDROID__)
+#include <fcntl.h>
+#endif
+#endif
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -377,17 +404,14 @@ static inline size_t round_down(size_t n, size_t multiple)
     return n / multiple * multiple;
 }
 
-int VkAllocator::flush(VkBufferMemory* ptr)
+static int flush_buffer_memory(const VulkanDevice* vkdev, const VkBufferMemory* ptr, size_t offset, size_t size)
 {
-    if (coherent)
-        return 0;
-
     VkMappedMemoryRange mappedMemoryRange;
     mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     mappedMemoryRange.pNext = 0;
     mappedMemoryRange.memory = ptr->memory;
-    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size());
-    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
+    mappedMemoryRange.offset = round_down(ptr->offset + offset, vkdev->info.non_coherent_atom_size());
+    mappedMemoryRange.size = round_up(ptr->offset + offset + size, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
 
     VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
@@ -397,6 +421,14 @@ int VkAllocator::flush(VkBufferMemory* ptr)
     }
 
     return 0;
+}
+
+int VkAllocator::flush(VkBufferMemory* ptr)
+{
+    if (coherent)
+        return 0;
+
+    return flush_buffer_memory(vkdev, ptr, 0, ptr->capacity);
 }
 
 int VkAllocator::invalidate(VkBufferMemory* ptr)
@@ -421,7 +453,7 @@ int VkAllocator::invalidate(VkBufferMemory* ptr)
     return 0;
 }
 
-VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
+static VkBuffer create_buffer(const VulkanDevice* vkdev, size_t size, VkBufferUsageFlags usage, VkExternalMemoryHandleTypeFlags handle_types, bool concurrent)
 {
     VkBufferCreateInfo bufferCreateInfo;
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -432,6 +464,22 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
+    const uint32_t families[2] = {vkdev->info.compute_queue_family_index(), vkdev->info.transfer_queue_family_index()};
+    if (concurrent && families[0] != families[1])
+    {
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        bufferCreateInfo.queueFamilyIndexCount = 2;
+        bufferCreateInfo.pQueueFamilyIndices = families;
+    }
+
+    VkExternalMemoryBufferCreateInfo external_info;
+    if (handle_types)
+    {
+        external_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
+        external_info.pNext = 0;
+        external_info.handleTypes = handle_types;
+        bufferCreateInfo.pNext = &external_info;
+    }
 
     VkBuffer buffer = 0;
     VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
@@ -444,7 +492,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     return buffer;
 }
 
-VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_index)
+static VkDeviceMemory allocate_memory(const VulkanDevice* vkdev, size_t size, uint32_t memory_type_index)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -463,7 +511,17 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
     return memory;
 }
 
-VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer)
+VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
+{
+    return ncnn::create_buffer(vkdev, size, usage, 0, false);
+}
+
+VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_index)
+{
+    return ncnn::allocate_memory(vkdev, size, memory_type_index);
+}
+
+static VkDeviceMemory allocate_dedicated_memory(const VulkanDevice* vkdev, size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -489,7 +547,12 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
-VkDeviceMemory VkAllocator::allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr)
+VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer)
+{
+    return ncnn::allocate_dedicated_memory(vkdev, size, memory_type_index, image, buffer);
+}
+
+static VkDeviceMemory allocate_import_host_memory(const VulkanDevice* vkdev, size_t size, uint32_t memory_type_index, void* host_ptr)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -513,6 +576,11 @@ VkDeviceMemory VkAllocator::allocate_import_host_memory(size_t size, uint32_t me
     }
 
     return memory;
+}
+
+VkDeviceMemory VkAllocator::allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr)
+{
+    return ncnn::allocate_import_host_memory(vkdev, size, memory_type_index, host_ptr);
 }
 
 VkImage VkAllocator::create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
@@ -721,6 +789,8 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
+            ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+            ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -801,6 +871,8 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory_type_index = buffer_memory_type_index;
+    block->storage_type = vkdev->is_device_local(block->memory_type_index) ? 0 : 1;
+    block->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     d->buffer_blocks.push_back(block);
 
@@ -813,6 +885,8 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->memory_type_index = block->memory_type_index;
+    ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+    ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1195,9 +1269,439 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     }
 }
 
+int upload_weight_buffers(const VulkanDevice* vkdev, const std::vector<VkBufferMemory>& buffers, size_t host_budget);
+
+size_t weight_buffer_alignment(const VulkanDevice* vkdev);
+int weight_buffer_memory_size(const VulkanDevice* vkdev, size_t size, size_t& allocation_size, bool concurrent = false);
+int create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t budget, VkBufferMemory*& buffer, size_t& allocation_size, bool allocate = true);
+void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
+int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size);
+
+size_t weight_buffer_alignment(const VulkanDevice* vkdev)
+{
+    size_t alignment = std::max((size_t)4, vkdev->info.buffer_offset_alignment());
+    alignment = std::max(alignment, vkdev->info.non_coherent_atom_size());
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+        alignment = std::max(alignment, (size_t)vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment);
+    return alignment;
+}
+
+static bool unified_weight_memory(const VulkanDevice* vkdev)
+{
+    // validate mapped device-local memory against the actual buffer requirements when allocating
+    return vkdev->info.type() == 1 || vkdev->info.type() == 3;
+}
+
+static int create_weight_buffer_handle(const VulkanDevice* vkdev, size_t size, bool concurrent, VkBuffer& buffer, VkMemoryRequirements& requirements)
+{
+    const size_t alignment = weight_buffer_alignment(vkdev);
+    if (!size || size > (size_t)-1 - alignment)
+        return -1;
+    const VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer = create_buffer(vkdev, alignSize(size, alignment), usage, 0, concurrent);
+    if (!buffer)
+        return -100;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), buffer, &requirements);
+    if (requirements.size > (size_t)-1)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), buffer, 0);
+        buffer = VK_NULL_HANDLE;
+        return -1;
+    }
+    return 0;
+}
+
+int weight_buffer_memory_size(const VulkanDevice* vkdev, size_t size, size_t& allocation_size, bool concurrent)
+{
+    allocation_size = 0;
+    if (!size)
+        return 0;
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkMemoryRequirements requirements;
+    const int ret = create_weight_buffer_handle(vkdev, size, concurrent, buffer, requirements);
+    if (ret)
+        return ret;
+    allocation_size = (size_t)requirements.size;
+    vkDestroyBuffer(vkdev->vkdevice(), buffer, 0);
+    return 0;
+}
+
+void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer)
+{
+    if (!buffer)
+        return;
+    if (buffer->mapped_ptr)
+        vkUnmapMemory(vkdev->vkdevice(), buffer->memory);
+    vkDestroyBuffer(vkdev->vkdevice(), buffer->buffer, 0);
+    vkFreeMemory(vkdev->vkdevice(), buffer->memory, 0);
+    delete buffer;
+}
+
+static int allocate_weight_buffer_memory(const VulkanDevice* vkdev, VkBufferMemory* buffer)
+{
+    VkMemoryRequirements requirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), buffer->buffer, &requirements);
+    VkDeviceMemory memory = allocate_memory(vkdev, (size_t)requirements.size, buffer->memory_type_index);
+    if (!memory)
+        return -100;
+    buffer->memory = memory;
+    VkResult ret = vkBindBufferMemory(vkdev->vkdevice(), buffer->buffer, memory, 0);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("bind weight memory failed %d", ret);
+        return -100;
+    }
+    if (vkdev->is_mappable(buffer->memory_type_index))
+    {
+        void* mapped_ptr = 0;
+        ret = vkMapMemory(vkdev->vkdevice(), buffer->memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("map weight memory failed %d", ret);
+            return -100;
+        }
+        buffer->mapped_ptr = mapped_ptr;
+    }
+    return 0;
+}
+
+int create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t budget, VkBufferMemory*& buffer, size_t& allocation_size, bool allocate)
+{
+    buffer = 0;
+    allocation_size = 0;
+    VkBufferMemory* ptr = new VkBufferMemory;
+    ptr->buffer = VK_NULL_HANDLE;
+    ptr->memory = VK_NULL_HANDLE;
+    ptr->mapped_ptr = 0;
+    VkMemoryRequirements requirements;
+    int ret = create_weight_buffer_handle(vkdev, size, !unified && storage_type == 1, ptr->buffer, requirements);
+    if (ret)
+    {
+        delete ptr;
+        return ret;
+    }
+    if (budget && requirements.size > budget)
+    {
+        NCNN_LOGE("weight allocation exceeds budget: needs %llu, available %llu", (unsigned long long)requirements.size, (unsigned long long)budget);
+        destroy_weight_buffer(vkdev, ptr);
+        return -100;
+    }
+    VkMemoryPropertyFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkMemoryPropertyFlags preferred = 0;
+    VkMemoryPropertyFlags avoided = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    if (unified)
+    {
+        required |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        preferred = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        avoided = 0;
+    }
+    else if (storage_type == 1)
+    {
+        required = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        preferred = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        avoided = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+    const uint32_t memory_type = vkdev->find_memory_index(requirements.memoryTypeBits, required, preferred, avoided);
+    const VkPhysicalDeviceMemoryProperties& properties = vkdev->info.physicalDeviceMemoryProperties();
+    if (memory_type == (uint32_t)-1 || (!unified && (budget || vkdev->info.type() == 0) && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
+    {
+        NCNN_LOGE("no suitable weight memory type for storage %d", storage_type);
+        destroy_weight_buffer(vkdev, ptr);
+        return -1;
+    }
+    ptr->offset = 0;
+    ptr->capacity = alignSize(size, weight_buffer_alignment(vkdev));
+    ptr->memory_type_index = memory_type;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->refcount = 0;
+    ptr->storage_type = unified ? 0 : storage_type;
+    ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (allocate && allocate_weight_buffer_memory(vkdev, ptr))
+    {
+        destroy_weight_buffer(vkdev, ptr);
+        return -100;
+    }
+    buffer = ptr;
+    allocation_size = (size_t)requirements.size;
+    return 0;
+}
+
+int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size)
+{
+    if (!buffer || !buffer->mapped_ptr || offset > buffer->capacity || size > buffer->capacity - offset)
+        return -1;
+    if (!size || vkdev->is_coherent(buffer->memory_type_index))
+        return 0;
+    return flush_buffer_memory(vkdev, buffer, offset, size);
+}
+
+class WeightFile
+{
+public:
+    WeightFile();
+    ~WeightFile();
+
+    int open();
+    void clear();
+    int reserve(size_t size, size_t alignment, void*& data);
+    int finalize();
+#if NCNN_BENCHMARK
+    int discard_page_cache() const;
+#endif
+
+private:
+    WeightFile(const WeightFile&);
+    WeightFile& operator=(const WeightFile&);
+
+    struct Mapping
+    {
+        void* base;
+        size_t mapped_size;
+    };
+
+    FILE* file;
+    uint64_t file_size;
+    std::vector<Mapping> mappings;
+    bool readonly;
+    int error;
+};
+
+WeightFile::WeightFile()
+    : file(0), file_size(0), readonly(false), error(0)
+{
+}
+
+WeightFile::~WeightFile()
+{
+    clear();
+}
+
+int WeightFile::open()
+{
+    if (file)
+        return error;
+
+#ifndef _WIN32
+    const char* temporary_directory = getenv("TMPDIR");
+    if (temporary_directory && temporary_directory[0])
+    {
+        std::string path = temporary_directory;
+        path += "/ncnn-weights-XXXXXX";
+        const int fd = mkstemp(&path[0]);
+        if (fd >= 0)
+        {
+            // unlink immediately so interruption cannot leave prepared files behind
+            if (unlink(path.c_str()) == 0)
+                file = fdopen(fd, "w+b");
+            if (!file)
+                close(fd);
+        }
+    }
+    else
+#endif
+    {
+        file = tmpfile();
+    }
+    if (!file)
+    {
+        NCNN_LOGE("create prepared weight backing file failed %d", errno);
+        return -1;
+    }
+    return 0;
+}
+
+void WeightFile::clear()
+{
+    for (size_t i = 0; i < mappings.size(); i++)
+    {
+#if defined(_WIN32)
+        UnmapViewOfFile(mappings[i].base);
+#else
+        munmap(mappings[i].base, mappings[i].mapped_size);
+#endif
+    }
+    mappings.clear();
+    if (file)
+        fclose(file);
+    file = 0;
+    file_size = 0;
+    readonly = false;
+    error = 0;
+}
+
+int WeightFile::reserve(size_t size, size_t alignment, void*& data)
+{
+    data = 0;
+    if (!file || error || readonly || !size || !alignment)
+        return -1;
+
+    const uint64_t padding = (alignment - file_size % alignment) % alignment;
+    if (padding > (uint64_t)INT64_MAX - file_size || size > (uint64_t)INT64_MAX - file_size - padding)
+    {
+        NCNN_LOGE("prepared weight backing file range overflow");
+        return -1;
+    }
+    const uint64_t offset = file_size + padding;
+    const uint64_t end = offset + size;
+#if defined(_WIN32)
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    const size_t granularity = info.dwAllocationGranularity;
+#else
+    const long page_size = sysconf(_SC_PAGESIZE);
+    if (page_size <= 0)
+        return -1;
+    const size_t granularity = (size_t)page_size;
+    if ((sizeof(off_t) < 8 && end > INT32_MAX) || ftruncate(fileno(file), (off_t)end))
+    {
+        NCNN_LOGE("extend prepared weight backing file failed %d", errno);
+        error = -1;
+        return error;
+    }
+#endif
+    const uint64_t map_offset = offset / granularity * granularity;
+    const size_t prefix = (size_t)(offset - map_offset);
+    if (size > (size_t)-1 - prefix)
+    {
+        error = -100;
+        return error;
+    }
+    Mapping m;
+    m.mapped_size = prefix + size;
+#if defined(_WIN32)
+    HANDLE handle = CreateFileMapping((HANDLE)_get_osfhandle(_fileno(file)), 0, PAGE_READWRITE, (DWORD)(end >> 32), (DWORD)end, 0);
+    if (!handle)
+    {
+        NCNN_LOGE("create prepared weight mapping failed %lu", GetLastError());
+        error = -100;
+        return error;
+    }
+    m.base = MapViewOfFile(handle, FILE_MAP_READ | FILE_MAP_WRITE, (DWORD)(map_offset >> 32), (DWORD)map_offset, m.mapped_size);
+    const DWORD map_error = m.base ? 0 : GetLastError();
+    CloseHandle(handle);
+    if (!m.base)
+    {
+        NCNN_LOGE("map prepared weight file failed %lu", map_error);
+        error = -100;
+        return error;
+    }
+#else
+    m.base = mmap(0, m.mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off_t)map_offset);
+    if (m.base == MAP_FAILED)
+    {
+        NCNN_LOGE("map prepared weight file failed %d", errno);
+        error = -100;
+        return error;
+    }
+#endif
+    // each view remains at the same address while later allocations grow the file
+    mappings.push_back(m);
+    file_size = end;
+    data = (unsigned char*)m.base + prefix;
+    return 0;
+}
+
+int WeightFile::finalize()
+{
+    if (error || readonly)
+        return error;
+    for (size_t i = 0; i < mappings.size(); i++)
+    {
+        const Mapping& m = mappings[i];
+#if defined(_WIN32)
+        DWORD old_protect;
+        if (!FlushViewOfFile(m.base, m.mapped_size) || !VirtualProtect(m.base, m.mapped_size, PAGE_READONLY, &old_protect))
+#else
+        if (msync(m.base, m.mapped_size, MS_SYNC) || mprotect(m.base, m.mapped_size, PROT_READ))
+#endif
+        {
+            NCNN_LOGE("finalize prepared weight mapping failed");
+            error = -1;
+            break;
+        }
+    }
+    readonly = true;
+    return error;
+}
+
+#if NCNN_BENCHMARK
+int WeightFile::discard_page_cache() const
+{
+#if defined(__linux__)
+    if (!file || error || !readonly || fdatasync(fileno(file)) != 0)
+        return -1;
+    for (size_t i = 0; i < mappings.size(); i++)
+        if (madvise(mappings[i].base, mappings[i].mapped_size, MADV_DONTNEED))
+            return -1;
+    return posix_fadvise(fileno(file), 0, 0, POSIX_FADV_DONTNEED);
+#else
+    return -1;
+#endif
+}
+
+#endif
+
+struct VkWeightRecord
+{
+    size_t data_size;
+    size_t allocation_size;
+    const void* source;
+    const VkBufferMemory* memory;
+};
+
+class VkWeightStore
+{
+public:
+    explicit VkWeightStore(const VulkanDevice* _vkdev);
+    void clear();
+    int set_weights_in_host_disk(bool enable, bool prefer_host_memory);
+    int set_weight_budgets(size_t device_budget, size_t host_budget);
+    int prepare_residency(bool& prepared);
+    int allocate_residents(int storage_type);
+
+    const VulkanDevice* vkdev;
+    bool prefer_host_disk;
+    WeightFile file;
+    std::vector<VkWeightRecord> weights;
+    size_t managed_weight_count;
+    size_t max_source_size;
+    size_t max_external_size;
+    size_t group_size;
+    size_t max_group_size;
+    bool unified;
+    bool finalized;
+    int finalization_error;
+    size_t weight_budgets[2];
+    size_t cache_sizes[2];
+    size_t resident_sizes[2];
+    uint32_t weight_group;
+    std::vector<uint32_t> weight_groups;
+    std::vector<VkBufferMemory*> resident_blocks;
+    std::vector<int> resident_block_for_weight;
+    std::vector<size_t> resident_offsets;
+
+private:
+    int weight_layout_size(const std::vector<uint32_t>& ids, uint64_t& total, bool concurrent = false) const;
+    int place_resident_weights(const std::vector<uint32_t>& ids, int storage_type, size_t budget);
+    int plan_weights();
+};
+
 class VkWeightAllocatorPrivate
 {
 public:
+    explicit VkWeightAllocatorPrivate(const VulkanDevice* vkdev)
+        : store(vkdev)
+    {
+    }
+
+    static VkWeightStore& store_for(const VkWeightAllocator* allocator)
+    {
+        return allocator->d->store;
+    }
+
+    VkBufferMemory* fastMalloc_resident(VkWeightAllocator* allocator, size_t size);
+
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -1209,13 +1713,35 @@ public:
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 
     bool prefer_host_memory;
+    VkWeightStore store;
 #if !defined(_WIN32)
     std::vector<void*> host_ptrs;
 #endif
 };
 
+VkWeightStore::VkWeightStore(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
+{
+    prefer_host_disk = false;
+    managed_weight_count = 0;
+    max_source_size = 0;
+    max_external_size = 0;
+    group_size = 0;
+    max_group_size = 0;
+    unified = unified_weight_memory(vkdev);
+    finalized = false;
+    finalization_error = 0;
+    weight_group = 0;
+    for (int i = 0; i < 2; i++)
+    {
+        weight_budgets[i] = 0;
+        cache_sizes[i] = 0;
+        resident_sizes[i] = 0;
+    }
+}
+
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_host_memory, size_t preferred_block_size)
-    : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate)
+    : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate(_vkdev))
 {
     d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
     d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
@@ -1264,8 +1790,33 @@ VkWeightAllocator& VkWeightAllocator::operator=(const VkWeightAllocator&)
     return *this;
 }
 
+void VkWeightStore::clear()
+{
+    file.clear();
+    managed_weight_count = 0;
+    max_source_size = 0;
+    max_external_size = 0;
+    group_size = 0;
+    max_group_size = 0;
+    finalized = false;
+    finalization_error = 0;
+    weights.clear();
+    weight_groups.clear();
+    weight_group = 0;
+
+    for (size_t i = 0; i < resident_blocks.size(); i++)
+        destroy_weight_buffer(vkdev, resident_blocks[i]);
+    resident_blocks.clear();
+    resident_block_for_weight.clear();
+    resident_offsets.clear();
+    resident_sizes[0] = 0;
+    resident_sizes[1] = 0;
+}
+
 void VkWeightAllocator::clear()
 {
+    d->store.clear();
+
     //     NCNN_LOGE("VkWeightAllocator %lu %lu", d->buffer_blocks.size(), d->dedicated_buffer_blocks.size());
 
     d->buffer_block_free_spaces.clear();
@@ -1349,49 +1900,538 @@ static void* fastMalloc_with_alignment(size_t size, size_t alignment)
 #endif
 }
 
+int VkWeightStore::set_weights_in_host_disk(bool enable, bool prefer_host_memory)
+{
+    if (!enable && weight_budgets[0])
+    {
+        NCNN_LOGE("cannot disable the backing file while weight residency budgets are active");
+        return -1;
+    }
+    if (enable && file.open() != 0)
+    {
+        NCNN_LOGE("disk weight storage unavailable, falling back to %s", prefer_host_memory ? "host memory" : "device memory");
+        prefer_host_disk = false;
+        return -1;
+    }
+    prefer_host_disk = enable;
+    return 0;
+}
+
+int VkWeightAllocator::set_weights_in_host_disk(bool enable)
+{
+    return d->store.set_weights_in_host_disk(enable, d->prefer_host_memory);
+}
+
+int VkWeightStore::set_weight_budgets(size_t device_budget, size_t host_budget)
+{
+    for (size_t i = 0; i < weights.size(); i++)
+        if (weights[i].memory)
+            return -1;
+    if (unified)
+    {
+        device_budget = device_budget && host_budget ? std::min(device_budget, host_budget) : std::max(device_budget, host_budget);
+        host_budget = 0;
+    }
+    else if ((device_budget == 0) != (host_budget == 0))
+    {
+        NCNN_LOGE("disk weight residency requires both host and device budgets");
+        return -1;
+    }
+    weight_budgets[0] = device_budget;
+    weight_budgets[1] = host_budget;
+    cache_sizes[0] = 0;
+    cache_sizes[1] = 0;
+    return 0;
+}
+
+int VkWeightAllocator::set_weight_budgets(size_t device_budget, size_t host_budget)
+{
+    if (!d->buffer_blocks.empty() || !d->dedicated_buffer_blocks.empty()
+            || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty())
+    {
+        NCNN_LOGE("weight residency budgets must be configured before allocating native weights");
+        return -1;
+    }
+    return d->store.set_weight_budgets(device_budget, host_budget);
+}
+
+// Loading boundaries and cache limits are internal to Net and command execution.
+void begin_weight_upload(VkWeightAllocator* allocator)
+{
+    VkWeightStore& store = VkWeightAllocatorPrivate::store_for(allocator);
+    store.weight_group++;
+    store.group_size = 0;
+}
+
+int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_budget, size_t& host_budget, size_t& device_size, size_t& host_size)
+{
+    const VkWeightStore& store = VkWeightAllocatorPrivate::store_for(allocator);
+    device_budget = host_budget = device_size = host_size = 0;
+    if (store.finalization_error || ((store.prefer_host_disk || !store.weights.empty()) && !store.finalized))
+        return -1;
+    if (!store.managed_weight_count)
+        return 0;
+    const size_t alignment = weight_buffer_alignment(allocator->vkdev);
+    const size_t source_size = alignSize(store.max_source_size, alignment);
+    const size_t external_size = alignSize(store.max_external_size, alignment);
+    device_budget = store.weight_budgets[0] - store.resident_sizes[0];
+    host_budget = store.weight_budgets[1] - store.resident_sizes[1];
+    device_size = store.weight_budgets[0] ? store.cache_sizes[0] : (source_size > (size_t)-1 / 2 ? source_size : source_size * 2);
+    if (!store.weight_budgets[0] && store.weight_group)
+        device_size = std::max(device_size, store.max_group_size);
+    host_size = store.weight_budgets[0] ? store.cache_sizes[1] : (external_size > (size_t)-1 / 2 ? external_size : external_size * 2);
+    if (store.unified || !store.max_external_size)
+        host_size = 0;
+    return 1;
+}
+
+#if NCNN_BENCHMARK
+int discard_weight_file_cache(const VkWeightAllocator* allocator)
+{
+    return VkWeightAllocatorPrivate::store_for(allocator).file.discard_page_cache();
+}
+#endif
+
+struct WeightSizeCompare
+{
+    explicit WeightSizeCompare(const std::vector<VkWeightRecord>& _weights)
+        : weights(_weights)
+    {
+    }
+    bool operator()(uint32_t a, uint32_t b) const
+    {
+        return weights[a].data_size != weights[b].data_size ? weights[a].data_size < weights[b].data_size : a < b;
+    }
+    const std::vector<VkWeightRecord>& weights;
+};
+
+static int weight_candidate_size(const std::vector<VkWeightRecord>& weights, const std::vector<uint32_t>& ids, size_t alignment, uint64_t& total)
+{
+    total = 0;
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        const size_t size = weights[ids[i]].data_size;
+        if (size > (size_t)-1 - alignment)
+            return -1;
+        const size_t aligned_size = alignSize(size, alignment);
+        if (aligned_size > (uint64_t)-1 - total)
+            return -1;
+        total += aligned_size;
+    }
+    return 0;
+}
+
+int VkWeightStore::weight_layout_size(const std::vector<uint32_t>& ids, uint64_t& total, bool concurrent) const
+{
+    const size_t alignment = weight_buffer_alignment(vkdev);
+    uint64_t remaining;
+    if (weight_candidate_size(weights, ids, alignment, remaining))
+        return -1;
+    total = 0;
+    size_t free_size = 0;
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        const size_t size = alignSize(weights[ids[i]].data_size, alignment);
+        if (size > free_size)
+        {
+            const size_t block_size = std::max(size, (size_t)std::min(remaining, (uint64_t)8 * 1024 * 1024));
+            size_t allocation_size;
+            if (weight_buffer_memory_size(vkdev, block_size, allocation_size, concurrent) || allocation_size > (uint64_t)-1 - total)
+                return -1;
+            total += allocation_size;
+            free_size = block_size;
+        }
+        free_size -= size;
+        remaining -= size;
+    }
+    return 0;
+}
+
+int VkWeightStore::place_resident_weights(const std::vector<uint32_t>& ids, int storage_type, size_t budget)
+{
+    const size_t alignment = weight_buffer_alignment(vkdev);
+    uint64_t remaining;
+    if (weight_candidate_size(weights, ids, alignment, remaining))
+        return -1;
+    int block = -1;
+    size_t offset = 0;
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        const uint32_t id = ids[i];
+        const size_t size = alignSize(weights[id].data_size, alignment);
+        const size_t available = budget - resident_sizes[storage_type];
+        if (block < 0 || size > resident_blocks[block]->capacity - offset)
+        {
+            if (size > available)
+            {
+                remaining -= size;
+                continue;
+            }
+            size_t block_size = std::max(size, (size_t)std::min(remaining, (uint64_t)8 * 1024 * 1024));
+            block_size = std::min(block_size, available / alignment * alignment);
+            size_t allocation_size;
+            if (weight_buffer_memory_size(vkdev, block_size, allocation_size, !unified && storage_type == 1))
+                return -1;
+            if (allocation_size > available)
+            {
+                block_size = size;
+                if (weight_buffer_memory_size(vkdev, block_size, allocation_size, !unified && storage_type == 1))
+                    return -1;
+                if (allocation_size > available)
+                {
+                    remaining -= size;
+                    continue;
+                }
+            }
+            VkBufferMemory* backing = 0;
+            // fill device weights before committing the host resident allocation
+            if (create_weight_buffer(vkdev, block_size, storage_type, unified, available, backing, allocation_size, storage_type != 1))
+                return -100;
+            resident_sizes[storage_type] += allocation_size;
+            block = (int)resident_blocks.size();
+            resident_blocks.push_back(backing);
+            offset = 0;
+        }
+        resident_block_for_weight[id] = block;
+        resident_offsets[id] = offset;
+        weights[id].allocation_size = size;
+        offset += size;
+        remaining -= size;
+    }
+    return 0;
+}
+
+int VkWeightStore::plan_weights()
+{
+    const size_t alignment = weight_buffer_alignment(vkdev);
+    const size_t device_budget = weight_budgets[0];
+    const size_t host_budget = weight_budgets[1];
+    std::vector<uint32_t> ids;
+    std::vector<size_t> group_sizes((size_t)weight_group + 1, 0);
+    size_t max_size = 0;
+    size_t max_group_size = 0;
+    for (size_t i = 0; i < weights.size(); i++)
+    {
+        const VkWeightRecord& record = weights[i];
+        if (!record.memory)
+            continue;
+        if (record.memory->storage_type != 2 || record.data_size > (size_t)-1 - alignment)
+            return -1;
+        const size_t size = alignSize(record.data_size, alignment);
+        max_size = std::max(max_size, size);
+        size_t& group = group_sizes[weight_groups[i]];
+        group = size > (size_t)-1 - group ? (size_t)-1 : group + size;
+        max_group_size = std::max(max_group_size, group);
+        ids.push_back((uint32_t)i);
+    }
+#if NCNN_SIMPLESTL
+    std::partial_sort(ids.begin(), ids.end(), ids.end(), WeightSizeCompare(weights));
+#else
+    std::sort(ids.begin(), ids.end(), WeightSizeCompare(weights));
+#endif
+    resident_block_for_weight.resize(weights.size(), -1);
+    resident_offsets.resize(weights.size(), 0);
+    uint64_t total;
+    if (weight_layout_size(ids, total))
+        return -1;
+    size_t device_cache = cache_sizes[0];
+    if (total <= device_budget)
+        device_cache = 0;
+    else if (!device_cache)
+    {
+        const size_t doubled = max_size > (size_t)-1 / 2 ? (size_t)-1 : max_size * 2;
+        device_cache = std::min(device_budget, std::max(doubled, max_group_size)) / alignment * alignment;
+    }
+    size_t device_exchange_allocation;
+    if (weight_buffer_memory_size(vkdev, device_cache, device_exchange_allocation)
+            || device_exchange_allocation > device_budget || (total > device_budget && device_cache < max_size))
+    {
+        NCNN_LOGE("weight device budget %llu cannot hold exchange %llu (allocation %llu, largest weight %llu)", (unsigned long long)device_budget, (unsigned long long)device_cache, (unsigned long long)device_exchange_allocation, (unsigned long long)max_size);
+        return -1;
+    }
+    cache_sizes[0] = device_cache;
+    if (place_resident_weights(ids, 0, device_budget - device_exchange_allocation))
+        return -100;
+
+    std::vector<uint32_t> remaining;
+    max_size = 0;
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        if (resident_block_for_weight[ids[i]] >= 0)
+            continue;
+        remaining.push_back(ids[i]);
+        max_size = std::max(max_size, alignSize(weights[ids[i]].data_size, alignment));
+    }
+    if (remaining.empty())
+    {
+        cache_sizes[0] = 0;
+        cache_sizes[1] = 0;
+        return 0;
+    }
+    if (!device_cache)
+        return -1;
+    if (unified)
+        return 0;
+
+    if (weight_layout_size(remaining, total, true))
+        return -1;
+    size_t host_cache = cache_sizes[1];
+    if (total <= host_budget)
+        host_cache = 0;
+    else if (!host_cache)
+    {
+        const size_t doubled = max_size > (size_t)-1 / 2 ? (size_t)-1 : max_size * 2;
+        host_cache = std::min(doubled, std::max(alignment, host_budget / 4 / alignment * alignment));
+    }
+    size_t host_exchange_allocation;
+    if (weight_buffer_memory_size(vkdev, host_cache, host_exchange_allocation, true) || host_exchange_allocation > host_budget)
+    {
+        NCNN_LOGE("weight host budget %llu cannot hold exchange %llu (allocation %llu)", (unsigned long long)host_budget, (unsigned long long)host_cache, (unsigned long long)host_exchange_allocation);
+        return -1;
+    }
+    cache_sizes[1] = host_cache;
+    if (place_resident_weights(remaining, 1, host_budget - host_exchange_allocation))
+        return -100;
+    bool has_file_weights = false;
+    for (size_t i = 0; i < remaining.size(); i++)
+        has_file_weights |= resident_block_for_weight[remaining[i]] < 0;
+    if (!has_file_weights)
+        cache_sizes[1] = 0;
+    else if (!host_cache)
+        return -1;
+    return 0;
+}
+
+int VkWeightStore::prepare_residency(bool& prepared)
+{
+    prepared = false;
+    if (finalization_error)
+        return finalization_error;
+    int ret = file.finalize();
+    for (size_t i = 0; i < weights.size(); i++)
+    {
+        if (!weights[i].memory || weights[i].memory->storage_type != 2)
+            continue;
+        weights[i].memory->access_flags = VK_ACCESS_HOST_READ_BIT;
+        weights[i].memory->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+    }
+    if (ret || finalized || !weight_budgets[0])
+        return ret;
+    if (!prefer_host_disk)
+    {
+        NCNN_LOGE("disk weight residency requires a prepared backing file");
+        return -1;
+    }
+    prepared = true;
+    return plan_weights();
+}
+
+int VkWeightStore::allocate_residents(int storage_type)
+{
+    for (size_t i = 0; i < resident_blocks.size(); i++)
+    {
+        VkBufferMemory* backing = resident_blocks[i];
+        if (backing->storage_type == storage_type && !backing->memory && allocate_weight_buffer_memory(vkdev, backing))
+            return -100;
+    }
+    for (size_t i = 0; i < weights.size(); i++)
+    {
+        const int block = resident_block_for_weight[i];
+        if (block < 0)
+            continue;
+        const VkBufferMemory* backing = resident_blocks[block];
+        if (backing->storage_type != storage_type)
+            continue;
+        VkWeightRecord& record = weights[i];
+        // preserve the logical object and its mat references
+        VkBufferMemory* memory = const_cast<VkBufferMemory*>(record.memory);
+        memory->buffer = backing->buffer;
+        memory->memory = backing->memory;
+        memory->offset = resident_offsets[i];
+        memory->capacity = record.allocation_size;
+        memory->mapped_ptr = backing->mapped_ptr;
+        memory->memory_type_index = backing->memory_type_index;
+        memory->buffer_usage = backing->buffer_usage;
+        memory->access_flags = backing->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_TRANSFER_WRITE_BIT;
+        memory->stage_flags = backing->mapped_ptr ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT;
+        memory->storage_type = storage_type;
+        memory->external_ptr = storage_type == 1 ? (unsigned char*)backing->mapped_ptr + memory->offset : 0;
+        memory->external_size = storage_type == 1 ? record.data_size : 0;
+        if (storage_type == 0)
+            managed_weight_count--;
+    }
+    return 0;
+}
+
+int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_cache_size)
+{
+    if (!d->store.finalized && !d->store.finalization_error)
+    {
+        d->store.cache_sizes[0] = device_cache_size;
+        d->store.cache_sizes[1] = d->store.unified ? 0 : host_cache_size;
+    }
+    if (d->store.weights.empty() && !d->store.prefer_host_disk)
+        return 0;
+    bool prepared;
+    int ret = d->store.prepare_residency(prepared);
+    for (int storage_type = 0; prepared && !ret && storage_type <= 1; storage_type++)
+    {
+        ret = d->store.allocate_residents(storage_type);
+        if (ret)
+            break;
+        std::vector<VkBufferMemory> uploads;
+        for (size_t i = 0; i < d->store.weights.size(); i++)
+        {
+            const VkWeightRecord& record = d->store.weights[i];
+            if (!record.memory || record.memory->storage_type != storage_type)
+                continue;
+            VkBufferMemory buffer = *record.memory;
+            buffer.external_ptr = const_cast<void*>(record.source);
+            buffer.external_size = record.data_size;
+            uploads.push_back(buffer);
+        }
+        // loading device staging is released before committing host resident buffers
+        ret = upload_weight_buffers(vkdev, uploads, d->store.weight_budgets[1]);
+    }
+    if (!ret)
+        d->store.finalized = true;
+    d->store.finalization_error = ret;
+    return ret;
+}
+
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 {
+    if (d->store.finalized || d->store.finalization_error)
+    {
+        NCNN_LOGE("cannot allocate weights after residency finalization");
+        return 0;
+    }
+    if (d->store.weight_budgets[0] && !d->store.prefer_host_disk)
+    {
+        NCNN_LOGE("weight residency budgets require a prepared backing file");
+        return 0;
+    }
+    if (d->store.weights.size() >= 0xffffffffu || size > (size_t)-1 - d->buffer_offset_alignment)
+    {
+        NCNN_LOGE("prepared weight allocation overflow");
+        return 0;
+    }
+
+    VkWeightRecord record;
+    record.source = 0;
+    record.data_size = size;
+    record.allocation_size = alignSize(size, d->buffer_offset_alignment);
+
+    VkBufferMemory* ptr;
+    if (d->store.prefer_host_disk)
+    {
+        void* external_ptr = 0;
+        if (d->store.file.open() != 0 || d->store.file.reserve(record.data_size, d->buffer_offset_alignment, external_ptr) != 0)
+            return 0;
+
+        ptr = new VkBufferMemory;
+        ptr->external_ptr = external_ptr;
+        record.source = external_ptr;
+        ptr->buffer = VK_NULL_HANDLE;
+        ptr->offset = 0;
+        ptr->capacity = record.allocation_size;
+        ptr->memory = VK_NULL_HANDLE;
+        ptr->mapped_ptr = 0;
+        ptr->memory_type_index = (uint32_t)-1;
+        ptr->access_flags = VK_ACCESS_HOST_WRITE_BIT;
+        ptr->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+        ptr->storage_type = 2;
+    }
+    else
+    {
+        ptr = d->fastMalloc_resident(this, size);
+        if (!ptr)
+            return 0;
+    }
+
+    if (ptr->storage_type != 0)
+    {
+        if (ptr->storage_type == 1 && ptr->mapped_ptr)
+            ptr->external_ptr = (unsigned char*)ptr->mapped_ptr + ptr->offset;
+        ptr->external_size = record.data_size;
+    }
+    // native weights need no prepared directory or pointer lookup at release
+    if (d->store.prefer_host_disk)
+    {
+        record.memory = ptr;
+        d->store.weights.push_back(record);
+        d->store.weight_groups.push_back(d->store.weight_group);
+        d->store.max_external_size = std::max(d->store.max_external_size, size);
+    }
+    if (ptr->storage_type != 0)
+    {
+        d->store.managed_weight_count++;
+        d->store.max_source_size = std::max(d->store.max_source_size, size);
+        const size_t aligned_size = alignSize(size, weight_buffer_alignment(vkdev));
+        d->store.group_size = aligned_size > (size_t)-1 - d->store.group_size ? (size_t)-1 : d->store.group_size + aligned_size;
+        d->store.max_group_size = std::max(d->store.max_group_size, d->store.group_size);
+    }
+    return ptr;
+}
+
+VkBufferMemory* VkWeightAllocatorPrivate::fastMalloc_resident(VkWeightAllocator* allocator, size_t size)
+{
+    const VulkanDevice* vkdev = allocator->vkdev;
+
     //     NCNN_LOGE("VkWeightAllocator fastMalloc %lu", size);
 
-    size_t aligned_size = alignSize(size, d->buffer_offset_alignment);
+    size_t aligned_size = alignSize(size, buffer_offset_alignment);
 
-    const int buffer_block_count = d->buffer_blocks.size();
+    const int buffer_block_count = buffer_blocks.size();
 
     // find first spare space in buffer_blocks
     for (int i = 0; i < buffer_block_count; i++)
     {
-        size_t free_size = d->buffer_block_free_spaces[i];
+        size_t free_size = buffer_block_free_spaces[i];
         if (free_size >= aligned_size)
         {
-            size_t block_offset = d->block_size - free_size;
+            size_t block_offset = block_size - free_size;
 
             // return sub buffer
             VkBufferMemory* ptr = new VkBufferMemory;
 
-            ptr->buffer = d->buffer_blocks[i]->buffer;
+            ptr->buffer = buffer_blocks[i]->buffer;
             ptr->offset = block_offset;
-            ptr->memory = d->buffer_blocks[i]->memory;
+            ptr->memory = buffer_blocks[i]->memory;
             ptr->capacity = aligned_size;
-            ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
-            ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
+            ptr->mapped_ptr = buffer_blocks[i]->mapped_ptr;
+            ptr->memory_type_index = buffer_blocks[i]->memory_type_index;
+            ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+            ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-            d->buffer_block_free_spaces[i] -= aligned_size;
+            buffer_block_free_spaces[i] -= aligned_size;
 
             return ptr;
         }
     }
 
-    size_t new_block_size = std::max(d->block_size, aligned_size);
+    size_t new_block_size = std::max(block_size, aligned_size);
 
     // create new block
     VkBufferMemory* block = new VkBufferMemory;
 
-    block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    VkExternalMemoryHandleTypeFlags handle_types = 0;
+#if !defined(_WIN32)
+    if (prefer_host_memory && vkdev->info.support_VK_EXT_external_memory_host())
+        handle_types = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+#endif
+    // host weights may be initialized on compute and read by transfer in several contexts
+    block->buffer = ncnn::create_buffer(vkdev, new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, handle_types, prefer_host_memory);
+    if (!block->buffer)
+    {
+        delete block;
+        return 0;
+    }
     block->offset = 0;
 
-    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation() && !d->prefer_host_memory)
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation() && !prefer_host_memory)
     {
         VkBufferMemoryRequirementsInfo2KHR bufferMemoryRequirementsInfo2;
         bufferMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
@@ -1414,21 +2454,21 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (dedicatedAllocation)
         {
             // setup memory type and alignment
-            if (buffer_memory_type_index == (uint32_t)-1)
+            if (allocator->buffer_memory_type_index == (uint32_t)-1)
             {
                 if (vkdev->info.type() == 1)
                 {
                     // integrated gpu, prefer unified memory
-                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+                    allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
 
                     // on amd integrated gpu, there is a faster and larger device-only heap
                     uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                     const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
-                    uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+                    uint32_t buffer_heap_index = memory_properties.memoryTypes[allocator->buffer_memory_type_index].heapIndex;
                     uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
                     if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
                     {
-                        buffer_memory_type_index = device_local_memory_type_index;
+                        allocator->buffer_memory_type_index = device_local_memory_type_index;
                     }
                 }
                 else
@@ -1436,20 +2476,20 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                     // discrete gpu, device local
                     if (vkdev->info.resizable_bar_enabled())
                     {
-                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                        allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                     }
                     else
                     {
-                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                        allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                     }
                 }
 
-                mappable = vkdev->is_mappable(buffer_memory_type_index);
-                coherent = vkdev->is_coherent(buffer_memory_type_index);
-                cached = vkdev->is_cached(buffer_memory_type_index);
+                allocator->mappable = vkdev->is_mappable(allocator->buffer_memory_type_index);
+                allocator->coherent = vkdev->is_coherent(allocator->buffer_memory_type_index);
+                allocator->cached = vkdev->is_cached(allocator->buffer_memory_type_index);
             }
 
-            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
+            block->memory = ncnn::allocate_dedicated_memory(vkdev, memoryRequirements2.memoryRequirements.size, allocator->buffer_memory_type_index, 0, block->buffer);
             if (!block->memory)
             {
                 vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
@@ -1461,14 +2501,18 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
             block->mapped_ptr = 0;
-            if (mappable)
+            if (allocator->mappable)
             {
                 vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
             }
 
-            block->memory_type_index = buffer_memory_type_index;
+            block->memory_type_index = allocator->buffer_memory_type_index;
 
-            d->dedicated_buffer_blocks.push_back(block);
+            block->storage_type = vkdev->is_device_local(block->memory_type_index) ? 0 : 1;
+
+            block->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+            dedicated_buffer_blocks.push_back(block);
 
             // return sub buffer
             VkBufferMemory* ptr = new VkBufferMemory;
@@ -1479,6 +2523,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->capacity = new_block_size;
             ptr->mapped_ptr = block->mapped_ptr;
             ptr->memory_type_index = block->memory_type_index;
+            ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+            ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1489,12 +2535,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
-    if (d->prefer_host_memory)
+    if (prefer_host_memory)
     {
 #if !defined(_WIN32)
         if (vkdev->info.support_VK_EXT_external_memory_host())
         {
-            void* host_ptr = fastMalloc_with_alignment(memoryRequirements.size, d->buffer_offset_alignment);
+            void* host_ptr = fastMalloc_with_alignment(memoryRequirements.size, buffer_offset_alignment);
 
             if (host_ptr)
             {
@@ -1512,79 +2558,79 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 }
 
                 // setup memory type and alignment
-                if (buffer_memory_type_index == (uint32_t)-1)
+                if (allocator->buffer_memory_type_index == (uint32_t)-1)
                 {
-                    buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                    allocator->buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits & memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-                    mappable = vkdev->is_mappable(buffer_memory_type_index);
-                    coherent = vkdev->is_coherent(buffer_memory_type_index);
-                    cached = vkdev->is_cached(buffer_memory_type_index);
+                    allocator->mappable = vkdev->is_mappable(allocator->buffer_memory_type_index);
+                    allocator->coherent = vkdev->is_coherent(allocator->buffer_memory_type_index);
+                    allocator->cached = vkdev->is_cached(allocator->buffer_memory_type_index);
                 }
 
-                block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
+                block->memory = ncnn::allocate_import_host_memory(vkdev, memoryRequirements.size, allocator->buffer_memory_type_index, host_ptr);
                 if (!block->memory)
                 {
                     // oom
                     ncnn::fastFree(host_ptr);
-                    d->prefer_host_memory = false;
+                    prefer_host_memory = false;
                 }
                 else
                 {
-                    d->host_ptrs.push_back(host_ptr);
+                    host_ptrs.push_back(host_ptr);
                 }
             }
             else
             {
                 // oom
-                d->prefer_host_memory = false;
+                prefer_host_memory = false;
             }
         }
         else
 #endif // !defined(_WIN32)
         {
             // setup memory type and alignment
-            if (buffer_memory_type_index == (uint32_t)-1)
+            if (allocator->buffer_memory_type_index == (uint32_t)-1)
             {
-                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-                mappable = vkdev->is_mappable(buffer_memory_type_index);
-                coherent = vkdev->is_coherent(buffer_memory_type_index);
-                cached = vkdev->is_cached(buffer_memory_type_index);
+                allocator->mappable = vkdev->is_mappable(allocator->buffer_memory_type_index);
+                allocator->coherent = vkdev->is_coherent(allocator->buffer_memory_type_index);
+                allocator->cached = vkdev->is_cached(allocator->buffer_memory_type_index);
             }
 
-            block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+            block->memory = ncnn::allocate_memory(vkdev, memoryRequirements.size, allocator->buffer_memory_type_index);
             if (!block->memory)
             {
                 // oom
-                d->prefer_host_memory = false;
+                prefer_host_memory = false;
             }
         }
 
-        if (!d->prefer_host_memory)
+        if (!prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
-            buffer_memory_type_index = (uint32_t)-1;
-            image_memory_type_index = (uint32_t)-1;
+            allocator->buffer_memory_type_index = (uint32_t)-1;
+            allocator->image_memory_type_index = (uint32_t)-1;
         }
     }
-    if (!d->prefer_host_memory)
+    if (!prefer_host_memory)
     {
         // setup memory type and alignment
-        if (buffer_memory_type_index == (uint32_t)-1)
+        if (allocator->buffer_memory_type_index == (uint32_t)-1)
         {
             if (vkdev->info.type() == 1)
             {
                 // integrated gpu, prefer unified memory
-                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+                allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
 
                 // on amd integrated gpu, there is a faster and larger device-only heap
                 uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                 const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
-                uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+                uint32_t buffer_heap_index = memory_properties.memoryTypes[allocator->buffer_memory_type_index].heapIndex;
                 uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
                 if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
                 {
-                    buffer_memory_type_index = device_local_memory_type_index;
+                    allocator->buffer_memory_type_index = device_local_memory_type_index;
                 }
             }
             else
@@ -1592,20 +2638,20 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 // discrete gpu, device local
                 if (vkdev->info.resizable_bar_enabled())
                 {
-                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                    allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                 }
                 else
                 {
-                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    allocator->buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                 }
             }
 
-            mappable = vkdev->is_mappable(buffer_memory_type_index);
-            coherent = vkdev->is_coherent(buffer_memory_type_index);
-            cached = vkdev->is_cached(buffer_memory_type_index);
+            allocator->mappable = vkdev->is_mappable(allocator->buffer_memory_type_index);
+            allocator->coherent = vkdev->is_coherent(allocator->buffer_memory_type_index);
+            allocator->cached = vkdev->is_cached(allocator->buffer_memory_type_index);
         }
 
-        block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+        block->memory = ncnn::allocate_memory(vkdev, memoryRequirements.size, allocator->buffer_memory_type_index);
     }
     if (!block->memory)
     {
@@ -1620,16 +2666,18 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     //     NCNN_LOGE("VkWeightAllocator M %p", block->buffer);
 
     block->mapped_ptr = 0;
-    if (mappable)
+    if (allocator->mappable)
     {
         vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
 
-    block->memory_type_index = buffer_memory_type_index;
+    block->memory_type_index = allocator->buffer_memory_type_index;
+    block->storage_type = vkdev->is_device_local(block->memory_type_index) ? 0 : 1;
+    block->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-    d->buffer_blocks.push_back(block);
+    buffer_blocks.push_back(block);
 
-    d->buffer_block_free_spaces.push_back(new_block_size - aligned_size);
+    buffer_block_free_spaces.push_back(new_block_size - aligned_size);
 
     // return sub buffer
     VkBufferMemory* ptr = new VkBufferMemory;
@@ -1640,6 +2688,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->memory_type_index = block->memory_type_index;
+    ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+    ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1650,11 +2700,54 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 {
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
+    if (ptr->storage_type == 2 || !d->store.resident_blocks.empty())
+    {
+        for (size_t i = 0; i < d->store.weights.size(); i++)
+        {
+            if (d->store.weights[i].memory != ptr)
+                continue;
+            d->store.weights[i].memory = 0;
+            break;
+        }
+    }
+    if (ptr->external_size && ptr->storage_type != 0)
+        d->store.managed_weight_count--;
     delete ptr;
+}
+
+int VkWeightAllocator::flush(VkBufferMemory* ptr)
+{
+    return flush_weight_buffer(vkdev, ptr, 0, ptr->capacity);
+}
+
+int VkWeightAllocator::invalidate(VkBufferMemory* ptr)
+{
+    if (!ptr->mapped_ptr || ptr->memory_type_index >= vkdev->info.physicalDeviceMemoryProperties().memoryTypeCount)
+        return -1;
+    if (vkdev->is_coherent(ptr->memory_type_index))
+        return 0;
+    VkMappedMemoryRange range = {};
+    range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    range.memory = ptr->memory;
+    const size_t atom = vkdev->info.non_coherent_atom_size();
+    range.offset = round_down(ptr->offset, atom);
+    range.size = round_up(ptr->offset + ptr->capacity, atom) - range.offset;
+    VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &range);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkInvalidateMappedMemoryRanges failed %d", ret);
+        return -1;
+    }
+    return 0;
 }
 
 VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int elempack)
 {
+    if (d->store.weight_budgets[0])
+    {
+        NCNN_LOGE("image weights are not supported with a disk residency budget");
+        return 0;
+    }
     if (elempack != 1 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
     {
         NCNN_LOGE("elempack must be 1 4 8 16 32 64");
@@ -2115,6 +3208,11 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     VkBufferMemory* ptr = new VkBufferMemory;
 
     ptr->buffer = create_buffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    if (!ptr->buffer)
+    {
+        delete ptr;
+        return 0;
+    }
     ptr->offset = 0;
 
     VkMemoryRequirements memoryRequirements;
@@ -2126,6 +3224,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
         buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
+    if (buffer_memory_type_index == (uint32_t)-1)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
     if (!ptr->memory)
     {
@@ -2135,13 +3239,32 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
-    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
-
+    ptr->mapped_ptr = 0;
+    VkResult ret = vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkBindBufferMemory failed %d", ret);
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+        delete ptr;
+        return 0;
+    }
+    ret = vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkMapMemory failed %d", ret);
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->capacity = size;
 
-    vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
-
     ptr->memory_type_index = buffer_memory_type_index;
+
+    ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+
+    ptr->buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -2260,6 +3383,10 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
     ptr->memory_type_index = buffer_memory_type_index;
+
+    ptr->storage_type = vkdev->is_device_local(ptr->memory_type_index) ? 0 : 1;
+
+    ptr->buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

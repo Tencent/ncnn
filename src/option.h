@@ -158,6 +158,25 @@ public:
     bool use_int16_packed;
     bool use_int16_storage;
     bool use_reserved_11;
+
+    // keep prepared vulkan weights in a temporary backing file
+    bool use_weights_in_host_disk;
+
+#if NCNN_VULKAN
+    // per-extractor weight working set allocators
+    VkAllocator* weight_host_vkallocator;
+    VkAllocator* weight_device_vkallocator;
+
+    // zero selects an automatic exchange capacity based on prepared weight sizes
+    size_t weight_host_cache_size;
+    size_t weight_device_cache_size;
+
+    // cap resident and exchange allocations in the disk weight mode
+    // both zero keep the existing exchange-only policy
+    // discrete gpus require both budgets, unified memory uses the smaller positive budget
+    size_t weight_host_budget;
+    size_t weight_device_budget;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn
