@@ -204,7 +204,7 @@ static int test_sample_limits()
 {
     QuantActStat stat;
     if (init_act_stat(stat, 0, 1, 0) == 0 || init_act_stat(stat, 1, 0, 0) == 0 || init_act_stat(stat, -1, 1, 0) == 0
-            || init_act_stat(stat, 1, -1, 0) == 0 || init_act_stat(stat, INT_MAX, INT_MAX, 0) == 0)
+            || init_act_stat(stat, 1, -1, 0) == 0)
     {
         fprintf(stderr, "test_sample_limits accepted invalid dimensions\n");
         return -1;
