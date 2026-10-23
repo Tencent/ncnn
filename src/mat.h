@@ -2272,7 +2272,7 @@ NCNN_FORCEINLINE VkMat& VkMat::operator=(const VkMat& m)
 
 NCNN_FORCEINLINE Mat VkMat::mapped() const
 {
-    if (!allocator->mappable)
+    if (!data || !data->mapped_ptr)
         return Mat();
 
     Mat m;
@@ -2293,7 +2293,7 @@ NCNN_FORCEINLINE Mat VkMat::mapped() const
 
 NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
 {
-    if (!allocator->mappable)
+    if (!data || !data->mapped_ptr)
         return 0;
 
     return (unsigned char*)data->mapped_ptr + data->offset + offset;

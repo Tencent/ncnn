@@ -23,6 +23,10 @@ class NCNN_EXPORT VkCompute
 {
 public:
     explicit VkCompute(const VulkanDevice* vkdev);
+    // queue mode: 0 = automatic, 1 = compute family, 2 = single queue
+    VkCompute(const VulkanDevice* vkdev, const Option& opt, int queue_mode = 0);
+    // use the finalized weight layout and its remaining budgets
+    VkCompute(const VkWeightAllocator& weights, const Option& opt, int queue_mode = 0);
     virtual ~VkCompute();
 
 public:
@@ -67,6 +71,8 @@ public:
     int submit_and_wait();
 
     int reset();
+    // keep cached sources immutable until the retained cache is released
+    int reset(bool keep_weight_cache);
 
     uint64_t pending_dispatch_total() const;
 
@@ -84,6 +90,7 @@ protected:
     void barrier_readonly(const VkImageMat& binding);
 
 private:
+    friend class VkComputePrivate;
     VkComputePrivate* const d;
 };
 
@@ -102,6 +109,8 @@ public:
     int reset();
 
     uint64_t pending_upload_total() const;
+
+    int error() const;
 
 protected:
     const VulkanDevice* vkdev;

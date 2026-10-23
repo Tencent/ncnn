@@ -206,6 +206,12 @@ public:
     void set_staging_vkallocator(VkAllocator* allocator);
 
     void set_kvcache_vkallocator(VkAllocator* allocator);
+
+    // configure weight working sets before the first extraction
+    void set_weight_host_vkallocator(VkAllocator* allocator);
+    void set_weight_device_vkallocator(VkAllocator* allocator);
+    void set_weight_host_cache_size(size_t size);
+    void set_weight_device_cache_size(size_t size);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -255,6 +261,11 @@ protected:
     Extractor(const Net* net, size_t blob_count);
 
 private:
+#if NCNN_VULKAN
+    void create_weight_cache();
+    int extract_gpu(int blob_index, VkCompute& cmd);
+#endif
+
     ExtractorPrivate* const d;
 };
 

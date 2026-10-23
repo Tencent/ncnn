@@ -76,6 +76,16 @@ Option::Option()
     use_int16_packed = true;
     use_int16_storage = true;
     use_reserved_11 = false;
+
+    use_weights_in_host_disk = false;
+#if NCNN_VULKAN
+    weight_host_vkallocator = 0;
+    weight_device_vkallocator = 0;
+    weight_host_cache_size = 0;
+    weight_device_cache_size = 0;
+    weight_host_budget = 0;
+    weight_device_budget = 0;
+#endif // NCNN_VULKAN
 }
 
 } // namespace ncnn
