@@ -275,7 +275,8 @@ public:
 
     struct Compute
     {
-        Compute() : command(0), fence(0), serial(0), pending(false)
+        Compute()
+            : command(0), fence(0), serial(0), pending(false)
         {
         }
         VkCommandBuffer command;
@@ -795,16 +796,35 @@ void VkComputePrivate::clear_records()
         const record& r = delayed_records[i];
         switch (r.type)
         {
-        case record::TYPE_copy_buffer: delete[] r.copy_buffer.regions; break;
-        case record::TYPE_copy_image: delete[] r.copy_image.regions; break;
-        case record::TYPE_copy_buffer_to_image: delete[] r.copy_buffer_to_image.regions; break;
-        case record::TYPE_copy_image_to_buffer: delete[] r.copy_image_to_buffer.regions; break;
-        case record::TYPE_push_descriptors: delete[] r.push_descriptors.data; break;
-        case record::TYPE_push_constants: delete[] (const unsigned char*)r.push_constants.values; break;
-        case record::TYPE_memory_barrers: delete[] r.memory_barrers.barriers; break;
-        case record::TYPE_buffer_barrers: delete[] r.buffer_barrers.barriers; break;
-        case record::TYPE_image_barrers: delete[] r.image_barrers.barriers; break;
-        default: break;
+        case record::TYPE_copy_buffer:
+            delete[] r.copy_buffer.regions;
+            break;
+        case record::TYPE_copy_image:
+            delete[] r.copy_image.regions;
+            break;
+        case record::TYPE_copy_buffer_to_image:
+            delete[] r.copy_buffer_to_image.regions;
+            break;
+        case record::TYPE_copy_image_to_buffer:
+            delete[] r.copy_image_to_buffer.regions;
+            break;
+        case record::TYPE_push_descriptors:
+            delete[] r.push_descriptors.data;
+            break;
+        case record::TYPE_push_constants:
+            delete[](const unsigned char*) r.push_constants.values;
+            break;
+        case record::TYPE_memory_barrers:
+            delete[] r.memory_barrers.barriers;
+            break;
+        case record::TYPE_buffer_barrers:
+            delete[] r.buffer_barrers.barriers;
+            break;
+        case record::TYPE_image_barrers:
+            delete[] r.image_barrers.barriers;
+            break;
+        default:
+            break;
         }
     }
     delayed_records.clear();
@@ -1063,8 +1083,8 @@ int VkComputePrivate::submit_managed()
             sources.push_back(source);
         }
         if (!batch.weights.empty() && !sources.empty()
-            && (batch_size > capacity / 2 || added_size > capacity / 2 - batch_size
-                || batch.weights.size() + sources.size() > (size_t)weight_transfer_slots / 2))
+                && (batch_size > capacity / 2 || added_size > capacity / 2 - batch_size
+                    || batch.weights.size() + sources.size() > (size_t)weight_transfer_slots / 2))
         {
             batch.end = i;
             batches.push_back(batch);
@@ -3286,9 +3306,9 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
     size_t device_allocation;
     size_t host_allocation;
     if (weight_buffer_memory_size(vkdev, weight_cache->device_size, device_allocation)
-        || weight_buffer_memory_size(vkdev, weight_cache->host_size, host_allocation, true)
-        || (device_budget && device_allocation > device_budget)
-        || (host_budget && host_allocation > host_budget))
+            || weight_buffer_memory_size(vkdev, weight_cache->host_size, host_allocation, true)
+            || (device_budget && device_allocation > device_budget)
+            || (host_budget && host_allocation > host_budget))
     {
         NCNN_LOGE("weight exchange allocation exceeds the remaining residency budget");
         return -1;
@@ -3301,11 +3321,11 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
     const size_t allocation_alignment = std::max(weight_cache->alignment, vkdev->info.memory_map_alignment());
     const VkBufferUsageFlags device_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     if (!weight_cache->device_arena || !weight_cache->device_arena->buffer || !weight_cache->device_arena->memory || weight_cache->device_arena->capacity < weight_cache->device_size
-        || weight_cache->device_arena->capacity - weight_cache->device_size >= allocation_alignment || weight_cache->device_arena->offset % weight_cache->alignment != 0
-        || weight_cache->device_arena->storage_type != 0
-        || weight_cache->device_arena->memory_type_index >= vkdev->info.physicalDeviceMemoryProperties().memoryTypeCount
-        || !vkdev->is_device_local(weight_cache->device_arena->memory_type_index) || (weight_cache->device_arena->buffer_usage & device_usage) != device_usage
-        || (weight_cache->unified && (!weight_cache->device_arena->mapped_ptr || !vkdev->is_mappable(weight_cache->device_arena->memory_type_index))))
+            || weight_cache->device_arena->capacity - weight_cache->device_size >= allocation_alignment || weight_cache->device_arena->offset % weight_cache->alignment != 0
+            || weight_cache->device_arena->storage_type != 0
+            || weight_cache->device_arena->memory_type_index >= vkdev->info.physicalDeviceMemoryProperties().memoryTypeCount
+            || !vkdev->is_device_local(weight_cache->device_arena->memory_type_index) || (weight_cache->device_arena->buffer_usage & device_usage) != device_usage
+            || (weight_cache->unified && (!weight_cache->device_arena->mapped_ptr || !vkdev->is_mappable(weight_cache->device_arena->memory_type_index))))
     {
         NCNN_LOGE("weight device allocator must provide a compatible device-local buffer");
         return -100;
@@ -3318,10 +3338,10 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
         else if (create_weight_buffer(vkdev, weight_cache->host_size, 1, false, host_budget, weight_cache->host_arena, host_allocation))
             return -100;
         if (!weight_cache->host_arena || !weight_cache->host_arena->buffer || !weight_cache->host_arena->memory || !weight_cache->host_arena->mapped_ptr
-            || weight_cache->host_arena->memory_type_index >= vkdev->info.physicalDeviceMemoryProperties().memoryTypeCount
-            || !vkdev->is_mappable(weight_cache->host_arena->memory_type_index) || weight_cache->host_arena->capacity < weight_cache->host_size
-            || weight_cache->host_arena->capacity - weight_cache->host_size >= allocation_alignment || weight_cache->host_arena->offset % weight_cache->alignment != 0
-            || !(weight_cache->host_arena->buffer_usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
+                || weight_cache->host_arena->memory_type_index >= vkdev->info.physicalDeviceMemoryProperties().memoryTypeCount
+                || !vkdev->is_mappable(weight_cache->host_arena->memory_type_index) || weight_cache->host_arena->capacity < weight_cache->host_size
+                || weight_cache->host_arena->capacity - weight_cache->host_size >= allocation_alignment || weight_cache->host_arena->offset % weight_cache->alignment != 0
+                || !(weight_cache->host_arena->buffer_usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
         {
             NCNN_LOGE("weight host allocator must provide a mappable transfer buffer");
             return -100;
@@ -3342,8 +3362,8 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
     VkMemoryRequirements requirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), weight_cache->device_arena->buffer, &requirements);
     if (weight_cache->device_arena->offset > requirements.size || weight_cache->device_size > requirements.size - weight_cache->device_arena->offset
-        || !(requirements.memoryTypeBits & ((uint32_t)1 << weight_cache->device_arena->memory_type_index))
-        || (device_budget && requirements.size > device_budget))
+            || !(requirements.memoryTypeBits & ((uint32_t)1 << weight_cache->device_arena->memory_type_index))
+            || (device_budget && requirements.size > device_budget))
     {
         NCNN_LOGE("weight device backing does not satisfy the arena range or budget");
         return -100;
@@ -3358,8 +3378,8 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
         weight_cache->stats.host_allocation_size = (size_t)requirements.size;
 #endif
         if (weight_cache->host_arena->offset > requirements.size || weight_cache->host_size > requirements.size - weight_cache->host_arena->offset
-            || !(requirements.memoryTypeBits & ((uint32_t)1 << weight_cache->host_arena->memory_type_index))
-            || (host_budget && requirements.size > host_budget))
+                || !(requirements.memoryTypeBits & ((uint32_t)1 << weight_cache->host_arena->memory_type_index))
+                || (host_budget && requirements.size > host_budget))
         {
             NCNN_LOGE("weight host backing does not satisfy the arena range or budget");
             return -100;
@@ -3410,11 +3430,11 @@ int VkComputePrivate::weight_binding_source(const VkBufferBinding& binding, cons
     if (!source)
         return 0;
     if (!is_deferred_buffer(source) || binding.view_offset > source->external_size
-        || binding.descriptor.range > source->external_size - binding.view_offset
-        || source->external_size > (size_t)-1 - weight_cache->alignment
-        || (source->storage_type != 2 && source->storage_type != 1)
-        || (needs_external_copy(source) && !source->external_ptr)
-        || (!needs_external_copy(source) && alignSize(source->external_size, 4) > source->capacity))
+            || binding.descriptor.range > source->external_size - binding.view_offset
+            || source->external_size > (size_t)-1 - weight_cache->alignment
+            || (source->storage_type != 2 && source->storage_type != 1)
+            || (needs_external_copy(source) && !source->external_ptr)
+            || (!needs_external_copy(source) && alignSize(source->external_size, 4) > source->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;
@@ -3442,7 +3462,6 @@ int VkComputePrivate::weight_host_entry(const VkBufferMemory* source) const
             return (int)i;
     return -1;
 }
-
 
 static bool weight_is_pinned(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned)
 {
@@ -4906,7 +4925,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     {
         const size_t destination_offset = dst.offset;
         if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.data->external_ptr || destination_offset > dst.data->external_size
-            || dst.buffer_capacity() > dst.data->external_size - destination_offset)
+                || dst.buffer_capacity() > dst.data->external_size - destination_offset)
         {
             NCNN_LOGE("file buffer requires a writable external range during upload");
             d->upload_error = -1;

@@ -18,7 +18,7 @@ int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_b
 static int write_weight(ncnn::VkBufferMemory* memory, size_t offset, const void* data, size_t size)
 {
     if (!memory || !memory->external_ptr || !(memory->access_flags & VK_ACCESS_HOST_WRITE_BIT)
-        || offset > memory->external_size || size > memory->external_size - offset)
+            || offset > memory->external_size || size > memory->external_size - offset)
         return -1;
     memcpy((unsigned char*)memory->external_ptr + offset, data, size);
     return 0;
@@ -40,7 +40,7 @@ static size_t weight_resident_size(const ncnn::VkMat* weights, int count, int st
     {
         const ncnn::VkBufferMemory* memory = weights[i].data;
         if (!memory || memory->storage_type != storage_type || !memory->buffer
-            || std::find(allocations.begin(), allocations.end(), memory->memory) != allocations.end())
+                || std::find(allocations.begin(), allocations.end(), memory->memory) != allocations.end())
             continue;
         VkMemoryRequirements requirements;
         ncnn::vkGetBufferMemoryRequirements(weights[i].allocator->vkdev->vkdevice(), memory->buffer, &requirements);
@@ -66,7 +66,8 @@ static int test_native_allocation_budget()
         WeightAllocationAudit::FAIL_ALLOCATE,
         WeightAllocationAudit::FAIL_BIND,
         WeightAllocationAudit::FAIL_MAP,
-        WeightAllocationAudit::FAIL_SUBMIT};
+        WeightAllocationAudit::FAIL_SUBMIT
+    };
     for (size_t i = 0; i < sizeof(failures) / sizeof(failures[0]); i++)
     {
         const WeightAllocationAudit::Failure failure = failures[i];
@@ -281,7 +282,7 @@ static int test_external_sources()
     const unsigned char src[16] = {4, 9, 2, 1, 3, 7, 0, 5, 6, 8, 10, 11, 12, 13, 14, 15};
     unsigned char dst[16];
     if (write_weight(last, 0, src, sizeof(src)) || allocator.finalize_weights()
-        || read_weight(last, 0, dst, sizeof(dst)) || memcmp(src, dst, sizeof(src)))
+            || read_weight(last, 0, dst, sizeof(dst)) || memcmp(src, dst, sizeof(src)))
         return -1;
     allocator.fastFree(first);
     allocator.fastFree(large);
@@ -449,7 +450,7 @@ static int test_resident_layout(bool prefer_host)
     {
         const int expected = i < 2 ? 0 : (!unified && i < 4 ? 1 : 2);
         if (weights[i].data != memories[i]
-            || memories[i]->refcount != refcounts[i] || memories[i]->storage_type != expected)
+                || memories[i]->refcount != refcounts[i] || memories[i]->storage_type != expected)
         {
             fprintf(stderr, "resident layout mismatch weight=%d type=%d expected=%d\n", i, memories[i]->storage_type, expected);
             return -1;
@@ -458,8 +459,8 @@ static int test_resident_layout(bool prefer_host)
             return -1;
     }
     if (!weight_resident_size(weights, 6, 0)
-        || weight_resident_size(weights, 6, 0) > 4 * unit
-        || weight_resident_size(weights, 6, 1) > (unified ? 0 : 16 * unit))
+            || weight_resident_size(weights, 6, 0) > 4 * unit
+            || weight_resident_size(weights, 6, 1) > (unified ? 0 : 16 * unit))
         return -1;
 
     ncnn::VkBlobAllocator blobs(vkdev);
@@ -496,7 +497,7 @@ static int test_resident_layout(bool prefer_host)
 #if NCNN_BENCHMARK
     std::map<std::string, uint64_t>& stats = weight_benchmark_counts();
     if (weight_benchmark_counts()["device_allocation_size"] + weight_resident_size(weights, 6, 0) > device_budget
-        || weight_benchmark_counts()["host_allocation_size"] + weight_resident_size(weights, 6, 1) > host_budget)
+            || weight_benchmark_counts()["host_allocation_size"] + weight_resident_size(weights, 6, 1) > host_budget)
         return -1;
     if (unified)
     {
@@ -576,7 +577,7 @@ static int test_budget_boundaries()
         return -1;
     size_t remaining_device, remaining_host, preferred_device, preferred_host;
     if (store.set_weights_in_host_disk(true) || store.set_weight_budgets(4096, 4096) || store.finalize_weights()
-        || ncnn::get_weight_cache_limits(&store, remaining_device, remaining_host, preferred_device, preferred_host))
+            || ncnn::get_weight_cache_limits(&store, remaining_device, remaining_host, preferred_device, preferred_host))
         return -1;
     store.clear();
     if (store.set_weight_budgets(4096, 4096))
@@ -586,11 +587,9 @@ static int test_budget_boundaries()
     for (int mode = 0; mode < 6; mode++)
     {
         store.clear();
-        const size_t device_budget = mode == 0 ? 1 : mode == 1 ? 4095
-                                                               : 4096;
-        const size_t device_cache = mode >= 2 && mode <= 4 ? (mode == 2 ? 8192 : mode == 3 ? 4096
-                                                                                           : 2048)
-                                                           : 0;
+        const size_t device_budget = mode == 0 ? 1 : mode == 1 ? 4095 : 4096;
+        const size_t device_cache = mode >= 2 && mode <= 4 ? (mode == 2 ? 8192 : mode == 3 ? 4096 : 2048)
+                                    : 0;
         const size_t host_cache = mode == 3 ? 8192 : 0;
         if (store.set_weight_budgets(device_budget, 4096))
             return -1;

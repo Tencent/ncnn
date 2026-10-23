@@ -1690,7 +1690,8 @@ private:
 class VkWeightAllocatorPrivate
 {
 public:
-    explicit VkWeightAllocatorPrivate(const VulkanDevice* vkdev) : store(vkdev)
+    explicit VkWeightAllocatorPrivate(const VulkanDevice* vkdev)
+        : store(vkdev)
     {
     }
 
@@ -1946,7 +1947,7 @@ int VkWeightStore::set_weight_budgets(size_t device_budget, size_t host_budget)
 int VkWeightAllocator::set_weight_budgets(size_t device_budget, size_t host_budget)
 {
     if (!d->buffer_blocks.empty() || !d->dedicated_buffer_blocks.empty()
-        || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty())
+            || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty())
     {
         NCNN_LOGE("weight residency budgets must be configured before allocating native weights");
         return -1;
@@ -1993,7 +1994,8 @@ int discard_weight_file_cache(const VkWeightAllocator* allocator)
 
 struct WeightSizeCompare
 {
-    explicit WeightSizeCompare(const std::vector<VkWeightRecord>& _weights) : weights(_weights)
+    explicit WeightSizeCompare(const std::vector<VkWeightRecord>& _weights)
+        : weights(_weights)
     {
     }
     bool operator()(uint32_t a, uint32_t b) const
@@ -2142,7 +2144,7 @@ int VkWeightStore::plan_weights()
     }
     size_t device_exchange_allocation;
     if (weight_buffer_memory_size(vkdev, device_cache, device_exchange_allocation)
-        || device_exchange_allocation > device_budget || (total > device_budget && device_cache < max_size))
+            || device_exchange_allocation > device_budget || (total > device_budget && device_cache < max_size))
     {
         NCNN_LOGE("weight device budget %llu cannot hold exchange %llu (allocation %llu, largest weight %llu)", (unsigned long long)device_budget, (unsigned long long)device_cache, (unsigned long long)device_exchange_allocation, (unsigned long long)max_size);
         return -1;

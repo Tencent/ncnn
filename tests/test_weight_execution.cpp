@@ -222,8 +222,7 @@ static int test_network()
         for (int j = 0; j < 12; j++)
             v *= 1.f + (j % 3 - 1) * 0.125f;
     }
-    if (CompareMat(expected, disk, precision == 2 ? 0.03f : precision == 1 ? 0.003f
-                                                                           : 0.0001f))
+    if (CompareMat(expected, disk, precision == 2 ? 0.03f : precision == 1 ? 0.003f : 0.0001f))
         return -1;
     return run_net(2, input, disk, true);
 }
@@ -739,7 +738,7 @@ static int test_host_queue_modes(bool resident)
             return -1;
     }
     if (weights[3].data->storage_type != 1
-        || (resident && weights[4].data->storage_type != 2))
+            || (resident && weights[4].data->storage_type != 2))
         return -1;
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
@@ -768,7 +767,7 @@ static int test_host_queue_modes(bool resident)
         std::map<std::string, uint64_t>& stats = weight_benchmark_counts();
         const bool separate_family = queue_modes[mode] == 0 && vkdev->info.compute_queue_family_index() != vkdev->info.transfer_queue_family_index();
         if (weight_benchmark_counts()["separate_transfer_family"] != separate_family || !stats["host_resident_bytes_uploaded"]
-            || (separate_family && !stats["ownership_transfers"]))
+                || (separate_family && !stats["ownership_transfers"]))
             return -1;
 #endif
     }
@@ -841,7 +840,7 @@ static int test_execution_failures()
     ncnn::VkMat unused(2048, (size_t)4u, &store);
     ncnn::Mat source = RandomMat(256);
     if (written.empty() || !written.data->external_ptr || written.data->external_size < 1024
-        || !(written.data->access_flags & VK_ACCESS_HOST_WRITE_BIT))
+            || !(written.data->access_flags & VK_ACCESS_HOST_WRITE_BIT))
         return -1;
     memcpy(written.data->external_ptr, source.data, 1024);
     if (store.finalize_weights())
@@ -978,7 +977,8 @@ public:
 
 struct WeightTestLayer
 {
-    WeightTestLayer() : layer(0)
+    WeightTestLayer()
+        : layer(0)
     {
     }
     ~WeightTestLayer()
@@ -1051,7 +1051,7 @@ static int test_mixed_bindings(bool host, bool small_cache = false)
     cmd.record_download(top[0], output, opt);
     const int ret = cmd.submit_and_wait();
     if (small_cache && weights.buffers[1]->external_size
-        && weights.buffers[1]->storage_type != 0)
+            && weights.buffers[1]->storage_type != 0)
     {
         return ret ? 0 : -1;
     }

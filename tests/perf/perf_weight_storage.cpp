@@ -19,7 +19,8 @@ int discard_weight_file_cache(const VkWeightAllocator* allocator);
 
 struct WeightBenchmarkModel
 {
-    explicit WeightBenchmarkModel(const ncnn::Option& _opt) : opt(_opt)
+    explicit WeightBenchmarkModel(const ncnn::Option& _opt)
+        : opt(_opt)
     {
     }
     ~WeightBenchmarkModel()

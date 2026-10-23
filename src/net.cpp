@@ -2373,8 +2373,8 @@ int Net::load_model(const DataReader& dr)
             d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
             const int wret = d->weight_vkallocator->set_weights_in_host_disk(opt.use_weights_in_host_disk);
             if (opt.use_weights_in_host_disk
-                && ((wret && (opt.weight_device_budget || opt.weight_host_budget))
-                    || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
+                    && ((wret && (opt.weight_device_budget || opt.weight_host_budget))
+                        || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
             {
                 NCNN_LOGE("cannot configure disk weight residency within the explicit budgets");
                 delete d->weight_vkallocator;
