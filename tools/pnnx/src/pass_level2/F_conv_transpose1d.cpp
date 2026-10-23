@@ -43,6 +43,34 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose1d, 140)
 
+class F_conv_transpose1d_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+pnnx.Input              input_3     0 1 stride
+pnnx.Input              input_4     0 1 padding
+pnnx.Input              input_5     0 1 output_padding
+pnnx.Input              input_6     0 1 groups
+pnnx.Input              input_7     0 1 dilation
+aten::conv_transpose1d  op_0        8 1 input weight bias stride padding output_padding groups dilation out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv_transpose1d";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose1d_1, 140)
+
 class F_conv_transpose1d_bias : public GraphRewriterPass
 {
 public:

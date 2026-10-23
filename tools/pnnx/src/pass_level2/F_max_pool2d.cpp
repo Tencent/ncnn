@@ -34,6 +34,9 @@ pnnx.Output             output      1 0 out
     {
         GraphRewriterPass::write(op, captured_params);
 
+        if (op->params["stride"].type == 5 && op->params["stride"].ai.empty())
+            op->params["stride"] = Parameter();
+
         op->params["return_indices"] = false;
     }
 };
@@ -64,6 +67,9 @@ pnnx.Output             output      2 0 out indices
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         GraphRewriterPass::write(op, captured_params);
+
+        if (op->params["stride"].type == 5 && op->params["stride"].ai.empty())
+            op->params["stride"] = Parameter();
 
         op->params["return_indices"] = true;
     }

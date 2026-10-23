@@ -384,6 +384,26 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 }
             }
 
+            const char* unsupported_type = 0;
+            if (r->type == 2) unsupported_type = "double";
+            if (r->type == 6) unsupported_type = "int16";
+            if (r->type == 7) unsupported_type = "int8";
+            if (r->type == 8) unsupported_type = "uint8";
+            if (r->type == 9) unsupported_type = "bool";
+            if (r->type == 13) unsupported_type = "bfloat16";
+            if (r->type == 10 || r->type == 11 || r->type == 12) unsupported_type = "complex";
+            if (unsupported_type)
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support %s input %s\")\n", unsupported_type, input_name.c_str());
+                continue;
+            }
+
+            if (input_shape.empty())
+            {
+                fprintf(pyfp, "    raise RuntimeError(\"ncnn inference does not support scalar input %s\")\n", input_name.c_str());
+                continue;
+            }
+
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());

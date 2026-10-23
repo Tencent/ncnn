@@ -5,6 +5,6 @@
 
 namespace pnnx {
 
-void fuse_op1ton_unpack(Graph& graph);
+void fuse_op1ton_unpack(Graph& graph, bool fuse_single_output = false);
 
 } // namespace pnnx
