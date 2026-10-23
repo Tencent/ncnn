@@ -14,20 +14,24 @@ static float cubic_weight(float x)
     return 0.f;
 }
 
-static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int target = 0, int align_corner = 0)
+static int test_interp_scale(const ncnn::Mat& a, int resize_type, double height_scale, double width_scale, int target = 0, int align_corner = 0)
 {
+#if !defined(__i386__) && !defined(__x86_64__) && !defined(_M_IX86) && !defined(_M_X64)
+    if (resize_type == 4)
+        return 0;
+#endif
     const int h = a.dims == 2 ? 1 : a.h;
     const int channels = a.dims == 2 ? a.h : a.c;
-    const int outw = (int)(a.w * width_scale);
-    const int outh = (int)(h * height_scale);
+    const int outw = target == 4 ? (int)(a.w * width_scale) : (int)(a.w * (float)width_scale);
+    const int outh = target == 4 ? (int)(h * height_scale) : (int)(h * (float)height_scale);
 
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
     pd.set(6, align_corner);
     if (target == 0)
     {
-        pd.set(1, height_scale);
-        pd.set(2, width_scale);
+        pd.set(1, (float)height_scale);
+        pd.set(2, (float)width_scale);
     }
     if (target == 1)
     {
@@ -36,6 +40,15 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     }
     if (target == 2)
         pd.set(5, 1);
+    if (target == 4)
+    {
+        char expr[256];
+        if (a.dims == 2)
+            snprintf(expr, sizeof(expr), "scale(%.17e)", width_scale);
+        else
+            snprintf(expr, sizeof(expr), "scale(%.17e,%.17e)", width_scale, height_scale);
+        pd.set(9, expr);
+    }
     if (target == 3)
     {
         char expr[256];
@@ -52,13 +65,13 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     else
         expected.create(outw, outh, channels);
 
-    double ws = target == 0 ? 1.0 / width_scale : (double)a.w / outw;
-    double hs = target == 0 ? 1.0 / height_scale : (double)h / outh;
+    double ws = (target == 0 || target == 4) ? 1.0 / width_scale : (double)a.w / outw;
+    double hs = (target == 0 || target == 4) ? 1.0 / height_scale : (double)h / outh;
     if (resize_type == 2 && a.w == outw)
         ws = 1.0;
     if (resize_type == 2 && h == outh)
         hs = 1.0;
-    if (align_corner)
+    if (align_corner && resize_type != 4)
     {
         ws = outw > 1 ? (double)(a.w - 1) / (outw - 1) : 0.0;
         hs = outh > 1 ? (double)(h - 1) / (outh - 1) : 0.0;
@@ -74,6 +87,13 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
             float* ptr = dst.row(y);
             for (int x = 0; x < outw; x++)
             {
+                if (resize_type == 4)
+                {
+                    const int ix = (int)floor((x + 0.5f) * (float)ws);
+                    const int iy = a.dims == 2 ? 0 : (int)floor((y + 0.5f) * (float)hs);
+                    ptr[x] = src.row(std::min(iy, h - 1))[std::min(ix, a.w - 1)];
+                    continue;
+                }
                 if (resize_type == 1)
                 {
                     const int ix = std::min((int)(x * (float)ws), a.w - 1);
@@ -116,7 +136,7 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     opt.use_fp16_storage = false;
     opt.use_bf16_storage = false;
     std::vector<ncnn::Mat> bs(1);
-    ncnn::Layer* op = ncnn::create_layer_naive("Interp");
+    ncnn::Layer* op = resize_type == 4 ? ncnn::create_layer_cpu("Interp") : ncnn::create_layer_naive("Interp");
     int ret = op->load_param(pd);
     if (ret == 0)
         ret = op->create_pipeline(opt);
@@ -131,7 +151,7 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     delete op;
 
     if (ret == 0)
-        ret = CompareMat(expected, bs[0], 0.0001f);
+        ret = CompareMat(expected, bs[0], resize_type == 4 ? 0.f : 0.0001f);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp_scale reference failed a=(%d %d %d) dims=%d type=%d scale=(%f %f) target=%d align_corner=%d\n", a.w, a.h, a.c, a.dims, resize_type, height_scale, width_scale, target, align_corner);
@@ -139,10 +159,39 @@ static int test_interp_scale(const ncnn::Mat& a, int resize_type, float height_s
     }
 
     std::vector<ncnn::Mat> weights(0);
+    if (resize_type == 4)
+    {
+        // Compare x86 directly with the independent reference; other backends reject type 4.
+        for (int packing = 0; packing < 2; packing++)
+        {
+            for (int bf16 = 0; bf16 < 2; bf16++)
+            {
+                opt.use_packing_layout = packing != 0;
+                opt.use_bf16_storage = bf16 != 0;
+                ncnn::Mat reference = expected.clone();
+                if (bf16)
+                {
+                    ncnn::Mat tmp;
+                    ncnn::cast_float32_to_bfloat16(expected, tmp, opt);
+                    ncnn::cast_bfloat16_to_float32(tmp, reference, opt);
+                }
+                for (int hint = 0; hint < 2; hint++)
+                {
+                    if (target == 2)
+                        ret = test_layer_cpu(ncnn::layer_to_index("Interp"), pd, weights, opt, as, 1, bs, hint ? std::vector<ncnn::Mat>(1, expected) : std::vector<ncnn::Mat>(), 0);
+                    else
+                        ret = test_layer_cpu(ncnn::layer_to_index("Interp"), pd, weights, opt, a, bs[0], hint ? expected : ncnn::Mat(), 0);
+                    if (ret != 233 && (ret != 0 || CompareMat(reference, bs[0], 0.f) != 0))
+                        return -1;
+                }
+            }
+        }
+        return 0;
+    }
     if (target == 2)
-        ret = test_layer("Interp", pd, weights, as);
+        ret = test_layer("Interp", pd, weights, as, 1, resize_type == 4 ? 0.f : 0.001f);
     else
-        ret = test_layer("Interp", pd, weights, a);
+        ret = test_layer("Interp", pd, weights, a, resize_type == 4 ? 0.f : 0.001f);
     if (ret != 0)
         fprintf(stderr, "test_interp_scale backend failed a=(%d %d %d) dims=%d type=%d scale=(%f %f) target=%d align_corner=%d\n", a.w, a.h, a.c, a.dims, resize_type, height_scale, width_scale, target, align_corner);
     return ret;
@@ -153,24 +202,26 @@ static int test_interp_scale_0()
     ncnn::Mat a = RandomMat(7, 7, 3);
     ncnn::Mat b = RandomMat(7, 7, 8);
     ncnn::Mat c = RandomMat(7, 8);
-    for (int type = 1; type <= 3; type++)
+    ncnn::Mat d = RandomMat(5, 3, 32);
+    for (int type = 1; type <= 4; type++)
     {
         for (int target = 0; target < 4; target++)
         {
             if (test_interp_scale(a, type, 1.5f, 1.5f, target)
                     || test_interp_scale(b, type, 0.8f, 0.8f, target)
-                    || test_interp_scale(c, type, 1.f, 1.5f, target))
+                    || test_interp_scale(c, type, 1.f, 1.5f, target)
+                    || (type == 4 && test_interp_scale(d, type, 1.3f, 0.7f, target)))
                 return -1;
         }
     }
-    return 0;
+    return test_interp_scale(RandomMat(4097, 8), 4, 1.f, 0.7f);
 }
 
 static int test_interp_scale_1()
 {
     ncnn::Mat a = RandomMat(7, 7, 8);
     ncnn::Mat b = RandomMat(7, 8);
-    for (int type = 2; type <= 3; type++)
+    for (int type = 2; type <= 4; type++)
     {
         if (test_interp_scale(a, type, 1.1f, 1.1f)
                 || test_interp_scale(a, type, 1.1f, 1.5f)
@@ -194,7 +245,7 @@ static int test_interp_scale_2()
     ncnn::Mat f = RandomMat(7, 1, 3);
     ncnn::Mat g = RandomMat(3, 2, 3);
     ncnn::Mat h = RandomMat(3, 3);
-    for (int type = 2; type <= 3; type++)
+    for (int type = 2; type <= 4; type++)
     {
         for (int target = 0; target < 4; target++)
         {
@@ -244,6 +295,41 @@ static int test_interp_scale_3()
            || test_interp_scale(d, 3, 1.f, 1.1f);
 }
 
+static int test_interp_scale_precision()
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 4);
+    ncnn::Layer* naive = ncnn::create_layer_naive("Interp");
+    const int naive_ret = naive->load_param(pd);
+    delete naive;
+    if (naive_ret == 0)
+        return -1;
+#if NCNN_VULKAN
+    ncnn::Layer* vulkan = ncnn::create_layer_vulkan("Interp");
+    if (vulkan)
+    {
+        const int vulkan_ret = vulkan->load_param(pd);
+        delete vulkan;
+        if (vulkan_ret == 0)
+            return -1;
+    }
+#endif
+
+    const double scales[] = {1.1, 1.7, 2.3, 1.14};
+    const int widths[] = {50, 101, 4097};
+    for (int i = 0; i < 3; i++)
+    {
+        ncnn::Mat a = RandomMat(widths[i], 8);
+        for (int j = 0; j < 4; j++)
+        {
+            if (test_interp_scale(a, 4, 1.0, scales[j], 4)
+                    || (i == 0 && test_interp_scale(a, 4, 1.0, scales[j], 3)))
+                return -1;
+        }
+    }
+    return test_interp_scale(RandomMat(50, 50, 8), 4, 1.14, 2.3, 4);
+}
+
 static int test_interp_scale_identity()
 {
     ncnn::Mat a = RandomMat(7, 1, 8);
@@ -291,5 +377,6 @@ int main()
            || test_interp_scale_1()
            || test_interp_scale_2()
            || test_interp_scale_3()
-           || test_interp_scale_identity();
+           || test_interp_scale_identity()
+           || test_interp_scale_precision();
 }

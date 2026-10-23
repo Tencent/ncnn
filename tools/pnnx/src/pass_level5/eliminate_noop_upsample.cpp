@@ -4,6 +4,7 @@
 #include "eliminate_noop_upsample.h"
 
 #include <algorithm>
+#include <string.h>
 #include "pass_level2.h"
 
 namespace pnnx {
@@ -66,6 +67,24 @@ void eliminate_noop_upsample(Graph& graph)
                     {
                         matched = false;
                         break;
+                    }
+                }
+            }
+
+            // The narrowed parameter may hide a non-unit nearest-exact source scale.
+            if (matched && op->has_param("mode") && op->params.at("mode").s == "nearest-exact")
+            {
+                auto it = op->attrs.find("scale_factor");
+                if (it != op->attrs.end())
+                {
+                    const Attribute& attr = it->second;
+                    const int count = attr.elemcount();
+                    matched = attr.type == 2 && (count == 1 || count == 2) && attr.data.size() == (size_t)count * sizeof(double);
+                    for (int j = 0; matched && j < count; j++)
+                    {
+                        double scale;
+                        memcpy(&scale, attr.data.data() + j * sizeof(double), sizeof(double));
+                        matched = scale == 1.0;
                     }
                 }
             }
