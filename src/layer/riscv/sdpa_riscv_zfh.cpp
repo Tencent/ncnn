@@ -238,12 +238,12 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         {
             if (ime2_pack_fp32(key.channel(g), embed_dim, KTg[g], dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
                 /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                                                                                                                 * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                                                                                                                 * the concurrent writes race-free, so use an atomic write. */
                 #pragma omp atomic write
                 pack_fail = 1;
             if (ime2_pack_fp32_T(value.channel(g), out_embed_dim, VTg[g], out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
                 /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                                                                                                                 * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                                                                                                                 * the concurrent writes race-free, so use an atomic write. */
                 #pragma omp atomic write
                 pack_fail = 1;
         }
@@ -253,10 +253,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
 
         int flash_fail = 0;
         /* Validate INSIDE the execution region: OpenMP may select a different team
-         * for successive regions on a heterogeneous chip (e.g. per-worker affinity
-         * changed between the preflight and this region) — a worker validated as
-         * A100-bound earlier could now be X100-bound and would SIGILL on
-         * smt.vfwmadot. Same parallel region + barrier before any head runs. */
+                         * for successive regions on a heterogeneous chip (e.g. per-worker affinity
+                         * changed between the preflight and this region) — a worker validated as
+                         * A100-bound earlier could now be X100-bound and would SIGILL on
+                         * smt.vfwmadot. Same parallel region + barrier before any head runs. */
         #pragma omp parallel num_threads(opt.num_threads)
         {
             if (!ncnn_ime2_sdpa::sdpa_ime2_worker_in_set_now())
@@ -269,37 +269,37 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             {
                 #pragma omp for
                 for (int q = 0; q < num_heads; q++)
-        {
-            const Mat query_head = query.channel(q); // [L, E] fp32
-            Mat top_blob_head = top_blob.channel(q); // [L, Ev]
-            const int g = q / num_heads_per_group;
-            const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
+                {
+                    const Mat query_head = query.channel(q); // [L, E] fp32
+                    Mat top_blob_head = top_blob.channel(q); // [L, Ev]
+                    const int g = q / num_heads_per_group;
+                    const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
 
-            Mat QT, PT;
-            /* Allocate once at the maximum capacity (incl. the tile slack): the per-block
-             * pack need never exceeds BM/8 x BN/8 x 64 + slack, so ime2_pack_fp32
-             * reuses this buffer instead of reallocating on every block. */
-            PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64 + IME2_TILE_SLACK, (size_t)2u, 1, opt.workspace_allocator);
-            if (PT.empty()
-                    /* Q is not pre-multiplied by scale: fp16 packing would overflow Q·scale to inf; scale is applied
-                                                                                                                                                                                                                                                             * to the fp32 accumulation result inside the flash kernel (see ime2_flash_head_tiles). */
-                    || ime2_pack_fp32(query_head, embed_dim, QT, src_seqlen, embed_dim, opt.workspace_allocator) != 0
-                    /* ldm must be the mask's true row width maskm.w, not dst_seqlen:
-                                                                                                                                                                                                                                                     * the guard allows wide masks with w >= dst (padded columns at row end); advancing
-                                                                                                                                                                                                                                                     * by dst_seqlen would make row r read the previous row's values. */
-                    || ime2_flash_head_tiles((const ime2_fp16*)QT, (const ime2_fp16*)KTg[g], (const ime2_fp16*)VTg[g],
-                                             maskm, maskm.w, (float*)top_blob_head, out_embed_dim,
-                                             src_seqlen, dst_seqlen, embed_dim, out_embed_dim, past_seqlen, causal, _scale,
-                                             PT, opt.workspace_allocator)
-                    != 0)
-            {
-                /* Workers write the same flag concurrently: an omp barrier cannot make the concurrent writes race-free, so use an atomic write. */
-                #pragma omp atomic write
-                flash_fail = 1; // caller falls back to the old path as a whole (mixing the workspace allocations of both paths inside omp is unwise)
-            }
-        }   // omp for
-            }   // if (!flash_fail) wrapper
-        }   // omp parallel (validation + work in the same region)
+                    Mat QT, PT;
+                    /* Allocate once at the maximum capacity (incl. the tile slack): the per-block
+                    * pack need never exceeds BM/8 x BN/8 x 64 + slack, so ime2_pack_fp32
+                    * reuses this buffer instead of reallocating on every block. */
+                    PT.create((size_t)(IME2_FLASH_BM / 8) * (IME2_FLASH_BN / 8) * 64 + IME2_TILE_SLACK, (size_t)2u, 1, opt.workspace_allocator);
+                    if (PT.empty()
+                            /* Q is not pre-multiplied by scale: fp16 packing would overflow Q·scale to inf; scale is applied
+                                                                                                                                                                                                                                                                     * to the fp32 accumulation result inside the flash kernel (see ime2_flash_head_tiles). */
+                            || ime2_pack_fp32(query_head, embed_dim, QT, src_seqlen, embed_dim, opt.workspace_allocator) != 0
+                            /* ldm must be the mask's true row width maskm.w, not dst_seqlen:
+                                                                                                                                                                                                                                                             * the guard allows wide masks with w >= dst (padded columns at row end); advancing
+                                                                                                                                                                                                                                                             * by dst_seqlen would make row r read the previous row's values. */
+                            || ime2_flash_head_tiles((const ime2_fp16*)QT, (const ime2_fp16*)KTg[g], (const ime2_fp16*)VTg[g],
+                                                     maskm, maskm.w, (float*)top_blob_head, out_embed_dim,
+                                                     src_seqlen, dst_seqlen, embed_dim, out_embed_dim, past_seqlen, causal, _scale,
+                                                     PT, opt.workspace_allocator)
+                            != 0)
+                    {
+                        /* Workers write the same flag concurrently: an omp barrier cannot make the concurrent writes race-free, so use an atomic write. */
+                        #pragma omp atomic write
+                        flash_fail = 1; // caller falls back to the old path as a whole (mixing the workspace allocations of both paths inside omp is unwise)
+                    }
+                } // omp for
+            }     // if (!flash_fail) wrapper
+        }         // omp parallel (validation + work in the same region)
 
         if (!flash_fail)
         {
@@ -327,7 +327,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         if (ime2_pack_fp32(query_head, embed_dim, AT, src_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
             /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                             * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                     * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
@@ -335,7 +335,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         if (ime2_pack_fp32(key_head, embed_dim, BT, dst_seqlen, embed_dim, opt.workspace_allocator) != 0)
         {
             /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                             * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                     * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
@@ -393,7 +393,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         if (ime2_pack_fp32((const float*)qk_cross_head, dst_seqlen, A2T, src_seqlen, dst_seqlen, opt.workspace_allocator) != 0)
         {
             /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                             * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                     * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
@@ -401,7 +401,7 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         if (ime2_pack_fp32_T((const float*)value_head, out_embed_dim, B2T, out_embed_dim, dst_seqlen, opt.workspace_allocator) != 0)
         {
             /* Workers write the same flag concurrently: an omp barrier cannot make
-                                                                                                                                                                                                                                                             * the concurrent writes race-free, so use an atomic write. */
+                                                                                                                                                                                                                                                                                     * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             head_fail = 1;
             continue;
