@@ -305,7 +305,10 @@ static int ime2_probe_locked(int nthreads)
      * masked in the saved action (e.g. SIGUSR1) must be blocked atomically on
      * entry to our handler, as it would be under the saved one — an empty mask
      * here would let the nested handler run before our manual mask applies. */
-    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
+    /* Carry SA_ONSTACK too: an emulation or crash handler relying on
+     * sigaltstack must run on the configured alternate stack under our wrapper
+     * as under the saved action. */
+    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & (SA_RESTART | SA_ONSTACK));
     sa.sa_mask = pre1.sa_mask;
     /* Install failure (seccomp / an embedding host forbids sigaction): never continue
      * — the probe instruction's SIGILL would be delivered per the original disposition
