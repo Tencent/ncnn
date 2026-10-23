@@ -54,6 +54,23 @@ static struct sigaction g_ime2_old;
  * disposition SIG_DFL, so it must not run again and must not be restored. */
 static volatile sig_atomic_t g_ime2_oneshot_consumed = 0;
 
+/* The probe instruction sequence in its own tiny noinline function, so the
+ * handler can tell whether a synchronous SIGILL originated HERE (si_addr in
+ * this small address window) or in a nested handler that interrupted us. */
+__attribute__((noinline)) static void ime2_probe_instruction()
+{
+    __asm__ volatile(
+        "vsetvli t0, zero, e32, m2, tu, mu\n\t"
+        "vmv.v.i v16, 0\n\t"
+        "vsetvli t0, zero, e16, m1, tu, mu\n\t"
+        "vmv.v.i v0, 0\n\t"
+        "vmv.v.i v1, 0\n\t"
+        "smt.vfwmadot v16, v0, v1\n\t"
+        :
+        :
+        : "t0", "v0", "v1", "v16", "v17", "memory");
+}
+
 static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
     /* Only synchronous instruction faults (si_code > 0: hardware fault codes such as
@@ -61,7 +78,13 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      * ≤ 0 from kill/pthread_kill/raise) is unrelated to the probe — an armed probing
      * thread can be hit by it too, and swallowing it would eat the application's
      * signal. Distinguish, then forward. */
-    if (tl_ime2_armed && info->si_code > 0)
+    /* Only the probe's own instruction fault may longjmp: a nested handler that
+     * interrupted the probing thread and itself executed an illegal instruction
+     * also has si_code > 0, and long-jumping would swallow the application's
+     * fault handling. Restrict to si_addr inside the probe sequence. */
+    if (tl_ime2_armed && info->si_code > 0
+            && (char*)info->si_addr >= (char*)ime2_probe_instruction
+            && (char*)info->si_addr < (char*)ime2_probe_instruction + 64)
         siglongjmp(tl_ime2_jb, 1);
 
     /* A SIGILL that is not the probing thread's: forward it per the old disposition.
@@ -323,16 +346,7 @@ static int ime2_probe_locked(int nthreads)
     {
         /* Arm only after the context is ready: an asynchronous SIGILL arriving before arming takes the forwarding path */
         tl_ime2_armed = 1;
-        __asm__ volatile(
-            "vsetvli t0, zero, e32, m2, tu, mu\n\t" /* zero accumulators v16:v17 under e32m2 */
-            "vmv.v.i v16, 0\n\t"
-            "vsetvli t0, zero, e16, m1, tu, mu\n\t" /* return to LMUL=1 before executing vfwmadot */
-            "vmv.v.i v0, 0\n\t"
-            "vmv.v.i v1, 0\n\t"
-            "smt.vfwmadot v16, v0, v1\n\t"
-            :
-            :
-            : "t0", "v0", "v1", "v16", "v17", "memory");
+        ime2_probe_instruction();
         ok = 1;
     }
     /* Both return paths disarm here (a longjmp return skips the if body and lands here directly) */
