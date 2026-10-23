@@ -287,7 +287,10 @@ static int sdpa_ime2_probe_locked(int nthreads)
      * kernel sees while probing, and a thread blocked in a restartable syscall
      * that receives an async SIGILL must restart as it would under the saved
      * action, not return EINTR. */
-    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & SA_RESTART);
+    /* Carry SA_ONSTACK too: an instruction-emulation or crash handler that relies
+     * on sigaltstack (the normal stack may be exhausted) must run on the
+     * configured alternate stack under our wrapper as under the saved action. */
+    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & (SA_RESTART | SA_ONSTACK));
     sa.sa_mask = pre1.sa_mask;
     /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
      * the probe instruction's SIGILL would be delivered per the original disposition
@@ -476,6 +479,27 @@ static int sdpa_ime2_a100_set_impl(int nthreads, int force_collect, cpu_set_t* o
 static int sdpa_ime2_a100_set(int nthreads, cpu_set_t* out)
 {
     return sdpa_ime2_a100_set_impl(nthreads, 0, out);
+}
+
+/* In-place check of the CURRENT worker against the cached A100 set — no region
+ * spawn, for in-region validation (validate inside the same parallel region that
+ * runs the smt instructions). */
+static int sdpa_ime2_worker_in_set_now()
+{
+#if defined __linux__
+    cpu_set_t a100;
+    if (!sdpa_ime2_a100_set(1, &a100))
+        return 0;
+    cpu_set_t wcs;
+    if (sched_getaffinity(0, sizeof(wcs), &wcs) != 0)
+        return 0;
+    for (int c = 0; c < CPU_SETSIZE; c++)
+        if (CPU_ISSET(c, &wcs) && !CPU_ISSET(c, &a100))
+            return 0;
+    return 1;
+#else
+    return 0;
+#endif
 }
 #endif
 

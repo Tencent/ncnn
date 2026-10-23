@@ -252,8 +252,23 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             return -100;
 
         int flash_fail = 0;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_heads; q++)
+        /* Validate INSIDE the execution region: OpenMP may select a different team
+         * for successive regions on a heterogeneous chip (e.g. per-worker affinity
+         * changed between the preflight and this region) — a worker validated as
+         * A100-bound earlier could now be X100-bound and would SIGILL on
+         * smt.vfwmadot. Same parallel region + barrier before any head runs. */
+        #pragma omp parallel num_threads(opt.num_threads)
+        {
+            if (!ncnn_ime2_sdpa::sdpa_ime2_worker_in_set_now())
+            {
+                #pragma omp atomic write
+                flash_fail = 1;
+            }
+            #pragma omp barrier
+            if (!flash_fail)
+            {
+                #pragma omp for
+                for (int q = 0; q < num_heads; q++)
         {
             const Mat query_head = query.channel(q); // [L, E] fp32
             Mat top_blob_head = top_blob.channel(q); // [L, Ev]
@@ -282,7 +297,9 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                 #pragma omp atomic write
                 flash_fail = 1; // caller falls back to the old path as a whole (mixing the workspace allocations of both paths inside omp is unwise)
             }
-        }
+        }   // omp for
+            }   // if (!flash_fail) wrapper
+        }   // omp parallel (validation + work in the same region)
 
         if (!flash_fail)
         {
