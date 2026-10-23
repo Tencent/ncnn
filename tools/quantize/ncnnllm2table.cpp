@@ -11,6 +11,7 @@
 #include <cstring>
 #include <exception>
 #include <float.h>
+#include <limits.h>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@
 // ncnn private header
 #include "../modelwriter.h"
 #include "ncnnllm_quant.h"
+#include "ncnnllm_calibration.h"
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -39,24 +41,6 @@ public:
         memset(buf, 0, size);
         return size;
     }
-};
-
-class QuantActStat
-{
-public:
-    QuantActStat()
-    {
-        width = 0;
-        count = 0;
-        max_sample_count = 0;
-    }
-
-public:
-    int width;
-    int count;
-    int max_sample_count;
-    ncnn::Mat sum_abs;
-    std::vector<float> samples;
 };
 
 class QuantNet : public ModelWriter
@@ -77,6 +61,7 @@ public:
     int awq_inner_method;
     float awq_max_scale;
     int gptq_samples;
+    uint64_t sample_seed;
     float gptq_damp;
     bool use_calibration_dataset;
 
@@ -96,6 +81,7 @@ QuantNet::QuantNet()
     awq_inner_method = LLM_QUANT_METHOD_MINMAX;
     awq_max_scale = 16.f;
     gptq_samples = 128;
+    sample_seed = 7767517;
     gptq_damp = 0.01f;
     use_calibration_dataset = false;
 }
@@ -110,10 +96,35 @@ static void show_usage(const char* argv0)
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  type=1\n");
     fprintf(stderr, "  shape=[w,h,...]\n");
+    fprintf(stderr, "  awq_samples=128 (activation rows per statistic, not texts or files)\n");
+    fprintf(stderr, "  gptq_samples=128 (activation rows per statistic, not texts or files)\n");
+    fprintf(stderr, "  sample_seed=7767517 (deterministic reservoir sampling)\n");
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  %s model.param model.bin model.llm.table method=mseclip bits=4 block=64\n", argv0);
     fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=awq bits=4 block=64 shape=[4096]\n", argv0);
     fprintf(stderr, "  %s model.param model.bin calib.list model.llm.table method=gptq bits=4 block=64 shape=[4096]\n", argv0);
+}
+
+static int parse_sample_uint64(const char* s, uint64_t& value)
+{
+    if (!s[0])
+        return -1;
+
+    uint64_t v = 0;
+    for (const char* p = s; *p; p++)
+    {
+        if (*p < '0' || *p > '9')
+            return -1;
+
+        const unsigned int digit = *p - '0';
+        if (v > (UINT64_MAX - digit) / 10)
+            return -1;
+
+        v = v * 10 + digit;
+    }
+
+    value = v;
+    return 0;
 }
 
 static ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npypath)
@@ -283,89 +294,6 @@ static int write_raw_mat_file(const char* path, const ncnn::Mat& m)
     return 0;
 }
 
-static int init_act_stat(QuantActStat& stat, int width, int max_sample_count)
-{
-    stat.width = width;
-    stat.count = 0;
-    stat.max_sample_count = max_sample_count;
-
-    stat.sum_abs.create(width);
-    if (stat.sum_abs.empty())
-        return -100;
-
-    stat.sum_abs.fill(0.f);
-    stat.samples.clear();
-    stat.samples.reserve((size_t)width * max_sample_count);
-
-    return 0;
-}
-
-static void collect_act_row(QuantActStat& stat, const float* ptr)
-{
-    const int width = stat.width;
-    float* sum_abs_ptr = stat.sum_abs;
-
-    for (int k = 0; k < width; k++)
-    {
-        const float v = (float)fabs(ptr[k]);
-        sum_abs_ptr[k] += v;
-    }
-
-    if ((int)(stat.samples.size() / width) < stat.max_sample_count)
-    {
-        for (int k = 0; k < width; k++)
-            stat.samples.push_back(ptr[k]);
-    }
-
-    stat.count++;
-}
-
-static void collect_act_rows(QuantActStat& stat, const ncnn::Mat& m)
-{
-    if (m.dims == 1)
-    {
-        collect_act_row(stat, (const float*)m);
-        return;
-    }
-
-    if (m.dims == 2)
-    {
-        for (int y = 0; y < m.h; y++)
-            collect_act_row(stat, m.row(y));
-        return;
-    }
-
-    if (m.dims == 3)
-    {
-        for (int q = 0; q < m.c; q++)
-        {
-            const ncnn::Mat m0 = m.channel(q);
-            for (int y = 0; y < m.h; y++)
-            {
-                collect_act_row(stat, m0.row(y));
-            }
-        }
-        return;
-    }
-
-    if (m.dims == 4)
-    {
-        for (int q = 0; q < m.c; q++)
-        {
-            const ncnn::Mat m0 = m.channel(q);
-            for (int z = 0; z < m.d; z++)
-            {
-                const ncnn::Mat m1 = m0.depth(z);
-                for (int y = 0; y < m.h; y++)
-                {
-                    collect_act_row(stat, m1.row(y));
-                }
-            }
-        }
-        return;
-    }
-}
-
 static void resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i)
 {
     if (mha->kv_cache)
@@ -482,7 +410,7 @@ static void resolve_mha_bottom_blob_index(const ncnn::MultiHeadAttention* mha, i
     }
 }
 
-static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, int num_threads)
+static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const ncnn::Mat& q_blob, const ncnn::Mat& k_blob, const ncnn::Mat& v_blob, const ncnn::Mat& attn_mask_blob, const ncnn::Mat& cached_xk_blob, const ncnn::Mat& cached_xv_blob, int q_blob_i, int k_blob_i, int v_blob_i, QuantActStat& stat, int source_id, int num_threads)
 {
     const int embed_dim = mha->embed_dim;
     const int num_heads = mha->num_heads;
@@ -694,7 +622,7 @@ static int collect_mha_out_act_rows(const ncnn::MultiHeadAttention* mha, const n
         for (int k = 0; k < embed_dim; k++)
             row[k] = qkv_cross.row(k)[i];
 
-        collect_act_row(stat, row.data());
+        collect_act_row(stat, row.data(), source_id);
     }
 
     return 0;
@@ -1051,13 +979,21 @@ int QuantNet::init(int method)
     if (method != LLM_QUANT_METHOD_AWQ && method != LLM_QUANT_METHOD_GPTQ)
         return 0;
 
+    size_t gemm_count = 0;
+    size_t mha_count = 0;
     for (size_t i = 0; i < layers.size(); i++)
     {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "Input")
             input_blobs.push_back(layer->tops[0]);
+        else if (layer->type == "Gemm" && is_supported_llm_gemm((const ncnn::Gemm*)layer))
+            gemm_count++;
+        else if (layer->type == "MultiHeadAttention" && is_supported_llm_multiheadattention((const ncnn::MultiHeadAttention*)layer))
+            mha_count++;
     }
 
+    gemm_act_stats.reserve(gemm_count);
+    mha_act_stats.reserve(mha_count * 4);
     const int max_sample_count = method == LLM_QUANT_METHOD_AWQ ? awq_samples : gptq_samples;
 
     for (size_t i = 0; i < layers.size(); i++)
@@ -1069,12 +1005,13 @@ int QuantNet::init(int method)
             if (!is_supported_llm_gemm(gemm))
                 continue;
 
-            QuantActStat stat;
-            int ret = init_act_stat(stat, gemm->constantK, max_sample_count);
+            gemm_act_stats.resize(gemm_act_stats.size() + 1);
+            QuantActStat& stat = gemm_act_stats.back();
+            uint64_t seed = sample_seed + (uint64_t)i * 4;
+            seed = next_sample_random(seed);
+            int ret = init_act_stat(stat, gemm->constantK, max_sample_count, seed);
             if (ret != 0)
                 return ret;
-
-            gemm_act_stats.push_back(stat);
         }
         else if (layers[i]->type == "MultiHeadAttention")
         {
@@ -1091,7 +1028,9 @@ int QuantNet::init(int method)
 
             for (int j = 0; j < 4; j++)
             {
-                int ret = init_act_stat(mha_act_stats[mha_act_offset + j], Ks[j], max_sample_count);
+                uint64_t seed = sample_seed + (uint64_t)i * 4 + j;
+                seed = next_sample_random(seed);
+                int ret = init_act_stat(mha_act_stats[mha_act_offset + j], Ks[j], max_sample_count, seed);
                 if (ret != 0)
                     return ret;
             }
@@ -1147,6 +1086,12 @@ static int check_calibration_input(const QuantNet& table)
     return 0;
 }
 
+static void print_act_stat(const QuantActStat& stat, const char* layer_name, const char* role)
+{
+    fprintf(stderr, "sampling layer=%s role=%s width=%d seen_rows=%llu kept_rows=%d capacity_rows=%d seen_sources=%d retained_sources=%d\n",
+            layer_name, role, stat.width, (unsigned long long)stat.count, (int)stat.sample_source_ids.size(), stat.max_sample_count, stat.source_count, count_sample_sources(stat));
+}
+
 int QuantNet::collect_activation_stats()
 {
     if (check_calibration_input(*this) != 0)
@@ -1154,6 +1099,8 @@ int QuantNet::collect_activation_stats()
 
     const int input_blob_count = (int)input_blobs.size();
     const int file_count = (int)listspaths[0].size();
+
+    fprintf(stderr, "sampling method=reservoir version=1 seed=%llu (sources are aligned calibration list entries)\n", (unsigned long long)sample_seed);
 
     for (int i = 0; i < file_count; i++)
     {
@@ -1187,7 +1134,7 @@ int QuantNet::collect_activation_stats()
                 ncnn::Mat bottom_blob;
                 ex.extract(gemm->bottoms[0], bottom_blob);
 
-                collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob);
+                collect_act_rows(gemm_act_stats[gemm_act_index], bottom_blob, i);
 
                 gemm_act_index++;
             }
@@ -1225,11 +1172,11 @@ int QuantNet::collect_activation_stats()
                 }
 
                 const size_t mha_act_offset = mha_act_index * 4;
-                collect_act_rows(mha_act_stats[mha_act_offset], q_blob);
-                collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob);
-                collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob);
+                collect_act_rows(mha_act_stats[mha_act_offset], q_blob, i);
+                collect_act_rows(mha_act_stats[mha_act_offset + 1], k_blob, i);
+                collect_act_rows(mha_act_stats[mha_act_offset + 2], v_blob, i);
 
-                int ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], quantize_num_threads);
+                int ret = collect_mha_out_act_rows(mha, q_blob, k_blob, v_blob, attn_mask_blob, cached_xk_blob, cached_xv_blob, q_blob_i, k_blob_i, v_blob_i, mha_act_stats[mha_act_offset + 3], i, quantize_num_threads);
                 if (ret != 0)
                     return ret;
 
@@ -1239,6 +1186,23 @@ int QuantNet::collect_activation_stats()
     }
 
     fprintf(stderr, "collect_activation_stats 100.00%% [ %d / %d ]\n", file_count, file_count);
+
+    size_t gemm_act_index = 0;
+    size_t mha_act_index = 0;
+    const char* mha_roles[4] = {"q", "k", "v", "out"};
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type == "Gemm" && is_supported_llm_gemm((const ncnn::Gemm*)layers[i]))
+        {
+            print_act_stat(gemm_act_stats[gemm_act_index++], layers[i]->name.c_str(), "input");
+        }
+        else if (layers[i]->type == "MultiHeadAttention" && is_supported_llm_multiheadattention((const ncnn::MultiHeadAttention*)layers[i]))
+        {
+            for (int j = 0; j < 4; j++)
+                print_act_stat(mha_act_stats[mha_act_index * 4 + j], layers[i]->name.c_str(), mha_roles[j]);
+            mha_act_index++;
+        }
+    }
 
     return 0;
 }
@@ -1510,14 +1474,31 @@ int main(int argc, char** argv)
             table.shapes = parse_comma_int_array_list(value);
         else if (strcmp(key, "awq_steps") == 0)
             table.awq_steps = atoi(value);
-        else if (strcmp(key, "awq_samples") == 0)
-            table.awq_samples = atoi(value);
+        else if (strcmp(key, "awq_samples") == 0 || strcmp(key, "gptq_samples") == 0)
+        {
+            uint64_t sample_count;
+            if (parse_sample_uint64(value, sample_count) != 0 || sample_count < 1 || sample_count > INT_MAX)
+            {
+                fprintf(stderr, "malformed %s %s\n", key, value);
+                return -1;
+            }
+            if (strcmp(key, "awq_samples") == 0)
+                table.awq_samples = (int)sample_count;
+            else
+                table.gptq_samples = (int)sample_count;
+        }
+        else if (strcmp(key, "sample_seed") == 0)
+        {
+            if (parse_sample_uint64(value, table.sample_seed) != 0)
+            {
+                fprintf(stderr, "malformed sample_seed %s\n", value);
+                return -1;
+            }
+        }
         else if (strcmp(key, "awq_max_scale") == 0)
             table.awq_max_scale = (float)atof(value);
         else if (strcmp(key, "awq_inner") == 0)
             awq_inner = value;
-        else if (strcmp(key, "gptq_samples") == 0)
-            table.gptq_samples = atoi(value);
         else if (strcmp(key, "gptq_damp") == 0)
             table.gptq_damp = (float)atof(value);
         else
