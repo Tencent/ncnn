@@ -696,6 +696,11 @@ int MultiHeadAttention_loongarch::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_BATCH
     if (kv_cache && bottom_blobs[0].n > 1)
         return -1;

@@ -190,6 +190,11 @@ int DeformableConv2D_loongarch::destroy_pipeline(const Option& opt)
 
 int DeformableConv2D_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& offset = bottom_blobs[1];
     const bool has_mask = (bottom_blobs.size() == 3);

@@ -24,6 +24,8 @@ public:
 protected:
     int get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const;
 
+    int check_input_shapes(const std::vector<Mat>& bottom_blobs) const;
+
 #if NCNN_WEIGHT_QUANT
     int forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif

@@ -7531,6 +7531,11 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 
 int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     if (weight_block_quantize)
     {
 #if NCNN_WEIGHT_QUANT
