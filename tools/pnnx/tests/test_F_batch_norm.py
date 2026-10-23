@@ -26,14 +26,17 @@ class Model(nn.Module):
         x = F.batch_norm(x, m0, v0, w0, b0)
         x = F.batch_norm(x, m0, v0, None, None)
         x = F.batch_norm(x, self.m3, self.v3, self.w3, self.b3)
+        x = F.batch_norm(x, self.m3, self.v3, None, None)
 
         y = F.batch_norm(y, m1, v1, w1, b1, eps=1e-3)
         y = F.batch_norm(y, m1, v1, None, None)
         y = F.batch_norm(y, self.m4, self.v4, self.w4, self.b4)
+        y = F.batch_norm(y, self.m4, self.v4, None, None)
 
         z = F.batch_norm(z, m2, v2, w2, b2)
         z = F.batch_norm(z, m2, v2, None, None, eps=1e-2)
         z = F.batch_norm(z, self.m5, self.v5, self.w5, self.b5)
+        z = F.batch_norm(z, self.m5, self.v5, None, None)
         return x, y, z
 
 def test():
@@ -66,6 +69,9 @@ def test():
     # torchscript to pnnx
     import os
     os.system("../src/pnnx test_F_batch_norm.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[16],[16],[16],[16],[2],[2],[2],[2],[3],[3],[3],[3]")
+
+    with open("test_F_batch_norm.pnnx.param") as f:
+        assert f.read().count("affine=False") >= 3
 
     # pnnx inference
     import test_F_batch_norm_pnnx

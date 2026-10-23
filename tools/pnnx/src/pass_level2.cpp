@@ -1011,6 +1011,9 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
 
+            // A later match may consume an operator inserted by this pass
+            new_ops.erase(std::remove(new_ops.begin(), new_ops.end(), x), new_ops.end());
+
             delete _x.second;
         }
 

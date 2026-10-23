@@ -477,4 +477,99 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_tnn, 120)
 
+class F_avg_pool2d_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Pooling           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return !captured_params.at("op_0.global_pooling").b && captured_params.at("op_0.pool").i == 1 && !captured_params.at("op_0.explicit_padding").b;
+    }
+
+    const char* type_str() const
+    {
+        return "F.avg_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["kernel_size"] = captured_params.at("op_0.kernel_size");
+        op->params["stride"] = captured_params.at("op_0.stride");
+        op->params["padding"] = captured_params.at("op_0.pad");
+        op->params["ceil_mode"] = true;
+        op->params["count_include_pad"] = true;
+        op->params["divisor_override"] = Parameter();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_caffe, 120)
+
+class F_avg_pool2d_caffe_pad : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Pooling           op_0        1 1 input out %*=%* @correction
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return !captured_params.at("op_0.global_pooling").b && captured_params.at("op_0.pool").i == 1 && captured_params.at("op_0.explicit_padding").b;
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+F.pad                   pad         1 1 input padded pad=%op_0.padding mode=constant value=0.0
+F.avg_pool2d            pool        1 1 padded pooled kernel_size=%op_0.kernel_size stride=%op_0.stride padding=(0,0) ceil_mode=False count_include_pad=True divisor_override=None
+pnnx.Attribute          correction  0 1 correction @data=%op_0.correction
+pnnx.Expression         multiply    2 1 pooled correction out expr=mul(@0,@1)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* pad = ops.at("pad");
+        const std::vector<int>& padding = captured_params.at("op_0.padding").ai;
+        Operand* padded = pad->outputs[0];
+        padded->shape = pad->inputs[0]->shape;
+        padded->shape[2] += padding[2] + padding[3];
+        padded->shape[3] += padding[0] + padding[1];
+        padded->type = pad->inputs[0]->type;
+        if (pad->inputs[0]->params.find("__batch_index") != pad->inputs[0]->params.end())
+            padded->params["__batch_index"] = pad->inputs[0]->params.at("__batch_index");
+
+        Operand* pooled = ops.at("pool")->outputs[0];
+        pooled->shape = ops.at("multiply")->outputs[0]->shape;
+        pooled->type = padded->type;
+        if (padded->params.find("__batch_index") != padded->params.end())
+            pooled->params["__batch_index"] = padded->params.at("__batch_index");
+        Operator* correction = ops.at("correction");
+        correction->outputs[0]->shape = correction->attrs.at("data").shape;
+        correction->outputs[0]->type = correction->attrs.at("data").type;
+        correction->outputs[0]->params["__batch_index"] = 0;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_caffe_pad, 120)
+
 } // namespace pnnx
