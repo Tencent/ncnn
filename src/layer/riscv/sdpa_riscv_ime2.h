@@ -612,10 +612,19 @@ static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
         size_t i = 0;
         vfloat32m1_t vmax = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
         vfloat32m1_t vmin = __riscv_vfmv_v_f_f32m1(FLT_MAX, vlmax);
+        int has_nan = 0;
         while (i < n)
         {
             const size_t vl = __riscv_vsetvl_e32m1(n - i);
             vfloat32m1_t v = __riscv_vle32_v_f32m1(p + i, vl);
+            /* NaN slips through every comparison: |NaN| > 65504 is false, and
+             * vfmin/vfmax absorb a single NaN (numeric operand wins), so mx/vmin
+             * stay finite. Causal block skipping then diverges from the fallback:
+             * the fallback still multiplies P by NaN V (0*NaN = NaN) while the
+             * flash path omits the block entirely. Reject non-finite content. */
+            vbool32_t isnan = __riscv_vmfne_vv_f32m1_b32(v, v, vl);
+            if (__riscv_vfirst_m_b32(isnan, vl) != -1)
+                has_nan = 1;
             vfloat32m1_t vabs = __riscv_vfabs_v_f32m1(v, vl);
             vmax = __riscv_vfmax_vv_f32m1_tu(vmax, vmax, vabs, vl);
             /* Only nonzero values participate in the lower bound: 0 is legitimate
@@ -626,6 +635,8 @@ static int ime2_fits_fp16(const ncnn::Mat& m, float* out_mx = 0)
             vmin = __riscv_vfmin_vv_f32m1_tu(vmin, vmin, vsel, vl);
             i += vl;
         }
+        if (has_nan)
+            return 0;
         const float mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax, __riscv_vfmv_v_f_f32m1(0.f, 1), vlmax));
         if (out_mx && mx > *out_mx)
             *out_mx = mx;
