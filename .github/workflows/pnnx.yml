@@ -363,6 +363,7 @@ jobs:
             -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ env.TORCHVISION_VERSION }}-install \
             -Donnxruntime_INSTALL_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
+        cmake --build . --target test_pnnx_ir -j 8
 
     - name: download-pnnx
       uses: actions/download-artifact@v8
