@@ -329,6 +329,75 @@ static int test_slice_load_param_axis()
 }
 #endif // NCNN_VALIDATION
 
+#if NCNN_VALIDATION
+static ncnn::Mat slice_int_array(int n, const int* v)
+{
+    ncnn::Mat m(n);
+    int* p = m;
+    for (int i = 0; i < n; i++)
+        p[i] = v[i];
+    return m;
+}
+
+// forward() reads slices[i] for every top blob, or indices[i] for all but the last one
+static int test_slice_short(int naive, int slices_count, int indices_count, int top_count, int expected_ret)
+{
+    const int slices_v[] = {4, 4, -233, 4};
+    const int indices_v[] = {4, 8, 12};
+
+    ncnn::ParamDict pd;
+    if (slices_count)
+        pd.set(0, slice_int_array(slices_count, slices_v));
+    if (indices_count)
+        pd.set(2, slice_int_array(indices_count, indices_v));
+    pd.set(1, 0);
+
+    ncnn::Layer* op = naive ? ncnn::create_layer_naive("Slice") : ncnn::create_layer_cpu("Slice");
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+
+    int ret = op->load_param(pd);
+    if (ret == 0)
+    {
+        op->create_pipeline(opt);
+
+        std::vector<ncnn::Mat> bottom_blobs(1);
+        bottom_blobs[0] = RandomMat(12);
+        std::vector<ncnn::Mat> top_blobs(top_count);
+        ret = op->forward(bottom_blobs, top_blobs, opt);
+
+        op->destroy_pipeline(opt);
+    }
+    delete op;
+
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_slice_short failed naive=%d slices=%d indices=%d tops=%d ret=%d expected=%d\n", naive, slices_count, indices_count, top_count, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_slice_short()
+{
+    for (int naive = 0; naive < 2; naive++)
+    {
+        if (test_slice_short(naive, 3, 0, 3, 0)
+                || test_slice_short(naive, 0, 2, 3, 0)
+                || test_slice_short(naive, 0, 0, 3, -1)
+                || test_slice_short(naive, 1, 0, 3, -1)
+                || test_slice_short(naive, 2, 0, 3, -1)
+                || test_slice_short(naive, 0, 1, 3, -1))
+            return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -342,6 +411,7 @@ int main()
 #if NCNN_VALIDATION
            || test_slice_load_param()
            || test_slice_load_param_axis()
+           || test_slice_short()
 #endif // NCNN_VALIDATION
            ;
 }

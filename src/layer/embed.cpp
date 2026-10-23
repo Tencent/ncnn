@@ -21,6 +21,20 @@ int Embed::load_param(const ParamDict& pd)
     weight_data_size = pd.get(3, 0);
     int8_scale_term = pd.get(18, 0);
 
+#if NCNN_VALIDATION
+    // forward() reads weight_data + num_output * word_index for word_index < input_dim
+    if (num_output <= 0 || input_dim <= 0 || weight_data_size <= 0 || (long long)num_output * input_dim > weight_data_size)
+        return -1;
+#endif // NCNN_VALIDATION
+
+    if (int8_scale_term)
+    {
+#if !NCNN_INT8
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
+    }
+
     return 0;
 }
 
@@ -29,6 +43,17 @@ int Embed::load_model(const ModelBin& mb)
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
+
+#if NCNN_VALIDATION
+#if NCNN_INT8
+    // embed_int8() reads signed char, embed() reads float
+    if (weight_data.elemsize != (int8_scale_term ? (size_t)1u : (size_t)4u))
+        return -1;
+#else
+    if (int8_scale_term != 0 || weight_data.elemsize != (size_t)4u)
+        return -1;
+#endif // NCNN_INT8
+#endif // NCNN_VALIDATION
 
     if (bias_term)
     {
@@ -40,7 +65,11 @@ int Embed::load_model(const ModelBin& mb)
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        weight_data_int8_scale = mb.load(1, 1)[0];
+        Mat weight_data_int8_scales = mb.load(1, 1);
+        if (weight_data_int8_scales.empty())
+            return -100;
+
+        weight_data_int8_scale = weight_data_int8_scales[0];
     }
 #endif // NCNN_INT8
 

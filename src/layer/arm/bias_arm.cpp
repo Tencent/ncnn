@@ -11,6 +11,12 @@ namespace ncnn {
 
 int Bias_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    // bias_ptr[q] is read for every channel q
+    if (bias_data.w < bottom_top_blob.c)
+        return -1;
+#endif // NCNN_VALIDATION
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
