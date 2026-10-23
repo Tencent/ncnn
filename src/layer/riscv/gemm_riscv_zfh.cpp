@@ -1883,7 +1883,13 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
     }
 
     /* BT_data_ime2 layout: tile (i,j) at (size_t)i*ldt + j*64, element (r,c) at
-         * t[r*8+c] = B[n=i*8+r][k=j*8+c]; ldt = kt*64 + IME2_TILE_PAD. */
+     * t[r*8+c] = B[n=i*8+r][k=j*8+c]; ldt = kt*64 + IME2_TILE_PAD. */
+    /* fp32 input deserves fp32 weights: the fp16-packed BT_data_ime2 rounds any
+     * weight not exactly representable in fp16, so merely entering this fallback
+     * would change the result. For bare fp32 A, read the original fp32 B_data
+     * (row-major [w=K, h=N], VLEN-agnostic) instead of the packed fp16 tiles. */
+    const int wfp32 = (A.elembits() == 32 && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1);
+    const float* Bp = wfp32 ? (const float*)B_data.data : 0;
     const int kt = (K + 7) / 8;
     const size_t ldt = IME2_TILE_LD(kt);
     const __fp16* bt = (const __fp16*)BT_data_ime2;
@@ -1907,7 +1913,7 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
         {
             const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
             for (int k = 0; k < K; k++)
-                kbuf[k] = (float)btile[(k / 8) * 64 + (k % 8)];
+                kbuf[k] = wfp32 ? (float)Bp[(size_t)n * K + k] : (float)btile[(k / 8) * 64 + (k % 8)];
 
             float acc = 0.f;
 #if __riscv_vector
