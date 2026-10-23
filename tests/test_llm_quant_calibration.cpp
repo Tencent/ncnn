@@ -23,9 +23,9 @@ static int test_sample_count(int rows, int capacity)
     const int expected_count = std::min(rows, capacity);
     const float* sum_abs = stat.sum_abs;
     if (stat.count != (uint64_t)rows || stat.samples.size() != (size_t)expected_count * 3 || stat.sample_source_ids.size() != (size_t)expected_count
-        || sum_abs[0] != (float)(rows * (rows - 1) / 2) || sum_abs[1] != sum_abs[0] || sum_abs[2] != (float)(rows * (rows + 1) / 2)
-        || stat.samples.capacity() != sample_capacity || stat.sample_source_ids.capacity() != source_capacity
-        || stat.source_count != (rows + 15) / 16)
+            || sum_abs[0] != (float)(rows * (rows - 1) / 2) || sum_abs[1] != sum_abs[0] || sum_abs[2] != (float)(rows * (rows + 1) / 2)
+            || stat.samples.capacity() != sample_capacity || stat.sample_source_ids.capacity() != source_capacity
+            || stat.source_count != (rows + 15) / 16)
     {
         fprintf(stderr, "test_sample_count failed rows=%d capacity=%d\n", rows, capacity);
         return -1;
@@ -38,7 +38,7 @@ static int test_sample_count(int rows, int capacity)
         const float* row = &stat.samples[(size_t)i * 3];
         const int row_id = (int)row[0];
         if (row_id < 0 || row_id >= rows || selected[row_id] || row[1] != -row[0] || row[2] != row[0] + 1
-            || stat.sample_source_ids[i] != row_id / 16 || (rows <= capacity && row_id != i))
+                || stat.sample_source_ids[i] != row_id / 16 || (rows <= capacity && row_id != i))
         {
             fprintf(stderr, "test_sample_count invalid row rows=%d capacity=%d slot=%d\n", rows, capacity, i);
             return -1;
@@ -191,8 +191,8 @@ static int test_sample_rows(int dims)
     const float* actual_sum = actual.sum_abs;
     const float* expected_sum = expected.sum_abs;
     if (actual.count != expected.count || actual.samples != expected.samples || actual.sample_source_ids != expected.sample_source_ids
-        || actual_sum[0] != expected_sum[0] || actual_sum[1] != expected_sum[1] || actual_sum[2] != expected_sum[2]
-        || actual.source_count != 1 || count_sample_sources(actual) != 1)
+            || actual_sum[0] != expected_sum[0] || actual_sum[1] != expected_sum[1] || actual_sum[2] != expected_sum[2]
+            || actual.source_count != 1 || count_sample_sources(actual) != 1)
     {
         fprintf(stderr, "test_sample_rows failed dims=%d\n", dims);
         return -1;
@@ -204,7 +204,7 @@ static int test_sample_limits()
 {
     QuantActStat stat;
     if (init_act_stat(stat, 0, 1, 0) == 0 || init_act_stat(stat, 1, 0, 0) == 0 || init_act_stat(stat, -1, 1, 0) == 0
-        || init_act_stat(stat, 1, -1, 0) == 0 || init_act_stat(stat, INT_MAX, INT_MAX, 0) == 0)
+            || init_act_stat(stat, 1, -1, 0) == 0 || init_act_stat(stat, INT_MAX, INT_MAX, 0) == 0)
     {
         fprintf(stderr, "test_sample_limits accepted invalid dimensions\n");
         return -1;
