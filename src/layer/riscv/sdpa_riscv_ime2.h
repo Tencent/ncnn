@@ -14,9 +14,13 @@
 #include "platform.h"
 #include <float.h>
 #include <math.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
+#if defined __linux__
+#include <unistd.h>
+#include <sys/wait.h>
+#include <errno.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #if defined __linux__
@@ -35,32 +39,6 @@ typedef __fp16 ime2_fp16;
 
 /* ---------------- Runtime probe (A100?) ---------------- */
 
-/* The jump context must be **thread-local**: the SIGILL handler is process-wide; if
- * another thread receives a SIGILL for its own reasons inside the probe window, the
- * handler runs on that thread; unconditionally siglongjmp'ing to the jb saved by this
- * thread would be a cross-thread longjmp (UB, destroying both threads' stacks at once).
- * Signals of non-probing threads must be handed back to the previous disposition.
- * g_sdpa_ime2_old is only installed/restored inside the probe lock; between a
- * foreign-thread handler reading it and the installation there is no long window. */
-static __thread sigjmp_buf tl_sdpa_ime2_jb;
-/* Read by the signal handler, written by the probe: must be a signal-safe type (volatile sig_atomic_t). */
-static __thread volatile sig_atomic_t tl_sdpa_ime2_armed = 0;
-static struct sigaction g_sdpa_ime2_old;
-/* Whether a one-shot (SA_RESETHAND) saved action was already invoked during
- * the current probe: after the first invocation the kernel makes the
- * disposition SIG_DFL, so it must not run again and must not be restored. */
-static volatile sig_atomic_t g_sdpa_ime2_oneshot_consumed = 0;
-/* In-flight forwarders: a handler that passed the longjmp check and is about
- * to read the saved action. The probing side must not overwrite
- * g_sdpa_ime2_old (or reset the one-shot flag) while any forwarder is still
- * running -- it would read a torn/new disposition or invoke an action that
- * was not the one installed when its signal was delivered. Plain atomics
- * only; the handler itself never waits. */
-static volatile int g_sdpa_ime2_fwd = 0;
-
-/* The probe instruction sequence in its own tiny noinline function, so the
- * handler can tell whether a synchronous SIGILL originated HERE (si_addr in
- * this small address window) or in a nested handler that interrupted us. */
 __attribute__((noinline)) static void sdpa_ime2_probe_instruction()
 {
     __asm__ volatile(
@@ -73,93 +51,6 @@ __attribute__((noinline)) static void sdpa_ime2_probe_instruction()
         :
         :
         : "t0", "v0", "v1", "v16", "v17", "memory");
-}
-
-static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
-{
-    /* Only synchronous instruction faults (si_code > 0) belong to the probe;
-     * asynchronous SIGILL (SI_USER/SI_TKILL/SI_QUEUE <= 0) is unrelated, and the
-     * probing thread can be hit by it too -- distinguish, then forward. */
-    /* Only the probe's own instruction fault may longjmp: a nested handler that
-     * interrupted the probing thread and itself executed an illegal instruction
-     * also has si_code > 0, and long-jumping would swallow the application's
-     * fault handling. Restrict to si_addr inside the probe sequence. */
-    if (tl_sdpa_ime2_armed && info->si_code > 0
-            && (char*)info->si_addr >= (char*)sdpa_ime2_probe_instruction
-            && (char*)info->si_addr < (char*)sdpa_ime2_probe_instruction + 64)
-        siglongjmp(tl_sdpa_ime2_jb, 1);
-
-    /* A SIGILL that is not the probing thread's: forward it per the saved
-     * disposition.
-     * Counted window: everything the forwarding needs from g_sdpa_ime2_old is
-     * snapshotted here, and the count is released BEFORE delegating -- a saved
-     * handler that recovers with siglongjmp (a normal pattern for
-     * synchronous-fault recovery) never returns to us, and a post-callback
-     * decrement would leak the count and hang every later probe. The probing
-     * side drains the count before overwriting the saved state (probe start)
-     * and before the one-shot-aware restore (probe end), so no forwarder is
-     * reading or claiming while either happens. */
-    __atomic_fetch_add(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
-    const struct sigaction saved = g_sdpa_ime2_old;
-    if (saved.sa_flags & SA_RESETHAND)
-    {
-        /* Atomically claim BEFORE delegating: two simultaneous deliveries (or
-         * one overlapping probe cleanup) must not both invoke the one-shot.
-         * An already-claimed one-shot is DFL per kernel semantics. */
-        if (__atomic_exchange_n(&g_sdpa_ime2_oneshot_consumed, 1, __ATOMIC_SEQ_CST) != 0)
-        {
-            __atomic_fetch_sub(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
-            struct sigaction dfl;
-            memset(&dfl, 0, sizeof dfl);
-            dfl.sa_handler = SIG_DFL;
-            sigaction(SIGILL, &dfl, NULL);
-            raise(sig); /* terminates under DFL */
-            return;
-        }
-    }
-    __atomic_fetch_sub(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
-
-    /* SIG_IGN: the semantics is to ignore -- just return; **never** change the
-     * process-wide disposition (it would not be put back: the probe's instruction
-     * signal would then land on IGN and be silently swallowed, misjudging the
-     * instruction as usable on unsupported machines). */
-    if (saved.sa_handler == SIG_IGN)
-        return;
-    /* SIG_DFL: the original semantics is to terminate -- restore DFL and
-     * re-raise; the process ends in the established way. */
-    if (saved.sa_handler == SIG_DFL)
-    {
-        sigaction(SIGILL, &saved, NULL);
-        raise(sig);
-        return;
-    }
-    /* Do NOT reset to DFL before invoking a one-shot (SA_RESETHAND) callback:
-     * that reset replaces the probe handler process-wide, and the probing
-     * thread's own instruction fault would then terminate instead of
-     * long-jumping. Keep the probe handler installed; the one-shot is called
-     * directly with the original siginfo/ucontext (the probe end drains
-     * forwarders first, so the claim is visible there). */
-    sigset_t oldmask;
-    pthread_sigmask(SIG_BLOCK, &saved.sa_mask, &oldmask);
-    /* Honor SA_NODEFER: with it, the kernel would NOT block SIGILL during the
-     * callback -- an instruction-emulation handler may expect a nested SIGILL to
-     * arrive immediately. The probe action itself lacks SA_NODEFER, so the kernel
-     * already blocked it on entry; unblock it for the callback, re-block after.
-     * SA_NODEFER suppresses only the kernel's AUTOMATIC masking; an explicit
-     * SIGILL in sa_mask must still block during the callback -- only unblock
-     * when the saved mask does not already cover it. */
-    sigset_t sigill_only;
-    sigemptyset(&sigill_only);
-    sigaddset(&sigill_only, SIGILL);
-    if ((saved.sa_flags & SA_NODEFER) && !sigismember(&saved.sa_mask, SIGILL))
-        pthread_sigmask(SIG_UNBLOCK, &sigill_only, NULL);
-    if (saved.sa_flags & SA_SIGINFO)
-        saved.sa_sigaction(sig, info, ucontext);
-    else
-        saved.sa_handler(sig);
-    if ((saved.sa_flags & SA_NODEFER) && !sigismember(&saved.sa_mask, SIGILL))
-        pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
-    pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
 }
 
 #if defined __linux__
@@ -257,141 +148,101 @@ static int sdpa_ime2_probe_affinity(int /*nthreads*/)
 }
 #endif // __linux__
 
+/* Hardware support probe, by construction free of every signal-state race:
+ * run the instruction in a FORKED CHILD (same design as the gemm probe).
+ * If the CPU lacks xsmtvdotii, only the child dies of SIGILL and the parent
+ * observes a non-zero exit. No process-wide handler, no saved disposition,
+ * no forwarding, no mask manipulation, nothing to restore -- a custom
+ * handler, a one-shot action, sigaltstack, or a blocked SIGILL in the
+ * parent are all irrelevant because the child resets its own disposition
+ * and unblocks SIGILL before executing the instruction. The child pins
+ * itself to an A100 CPU (vlenb==128); the result is a hardware property,
+ * cached process-wide (one fork per process, under the probe mutex). */
+static int ime2_hw_supported()
+{
+#if defined __linux__
+    static int cached = -1;
+    if (cached != -1)
+        return cached;
+
+    int cpu = -1;
+    cpu_set_t cs;
+    if (sched_getaffinity(0, sizeof(cs), &cs) == 0)
+    {
+        const cpu_set_t orig = cs;
+        for (int c = 0; c < CPU_SETSIZE; c++)
+        {
+            if (!CPU_ISSET(c, &cs))
+                continue;
+            cpu_set_t one;
+            CPU_ZERO(&one);
+            CPU_SET(c, &one);
+            if (sched_setaffinity(0, sizeof(one), &one) != 0)
+                continue;
+            unsigned long vlenb = 0;
+            __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+            if (vlenb == 128)
+            {
+                cpu = c;
+                break;
+            }
+        }
+        sched_setaffinity(0, sizeof(orig), &orig);
+    }
+    if (cpu < 0)
+    {
+        cached = 0;
+        return 0;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        cached = 0;
+        return 0;
+    }
+    if (pid == 0)
+    {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof sa);
+        sa.sa_handler = SIG_DFL;
+        sigaction(SIGILL, &sa, NULL);
+        sigset_t m;
+        sigemptyset(&m);
+        sigaddset(&m, SIGILL);
+        sigprocmask(SIG_UNBLOCK, &m, NULL);
+        cpu_set_t one;
+        CPU_ZERO(&one);
+        CPU_SET(cpu, &one);
+        sched_setaffinity(0, sizeof(one), &one);
+        sdpa_ime2_probe_instruction();
+        _exit(0);
+    }
+    int st = 0;
+    while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
+    {
+    }
+    cached = (WIFEXITED(st) && WEXITSTATUS(st) == 0) ? 1 : 0;
+    return cached;
+#else
+    return 0;
+#endif
+}
+
 static int sdpa_ime2_probe_locked(int nthreads)
 {
     /* (a) Affinity: every core allowed for this process + every worker of the forward team must have vlenb == 1024bit */
     if (!sdpa_ime2_probe_affinity(nthreads))
         return 0;
 
-    /* (b) The instruction itself: execute one zero-vector vfwmadot under SIGILL guard.
-     * The handler is process-wide, but the jump context is **this thread's**
-     * tl_sdpa_ime2_jb: another thread receiving SIGILL inside this window is forwarded
-     * by sdpa_ime2_sigill to the original disposition; no cross-thread jump happens. */
-    struct sigaction sa;
-    /* Race and consistency: within the install call, "new handler visible process-wide"
-     * and "old disposition written back" are non-atomic (another thread's SIGILL in the
-     * window would read an uninitialized old disposition); and a one-shot RESETHAND may
-     * be consumed by another thread's signal in the window, or an external
-     * thread/library may concurrently install its own handler — in either case our saved
-     * old disposition is already stale, and restoring it afterwards would re-arm a
-     * one-shot handler / overwrite the concurrent party's disposition. Countermeasure:
-     * double-read and compare before installing (mismatch = concurrent change; leave
-     * the disposition untouched and judge unusable directly); install only when
-     * consistent. The micro-window between read and install cannot be eliminated, but
-     * is shrunk to a few instructions; users doing concurrent sigaction are racing
-     * themselves anyway. */
-    /* Drain in-flight forwarders from a previous probe BEFORE snapshotting: a
-     * forwarded callback may still be running and may itself call sigaction;
-     * snapshotting after the drain keeps pre1/pre2 current. The handler never
-     * takes the probe mutex, so this cannot deadlock. */
-    while (__atomic_load_n(&g_sdpa_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
-        sched_yield();
-    struct sigaction pre1, pre2;
-    memset(&pre1, 0, sizeof pre1);
-    memset(&pre2, 0, sizeof pre2);
-    if (sigaction(SIGILL, NULL, &pre1) != 0)
-        return 0;
-    if (sigaction(SIGILL, NULL, &pre2) != 0)
-        return 0;
-    if (pre1.sa_handler != pre2.sa_handler || pre1.sa_flags != pre2.sa_flags
-            || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
-        return 0;
-    g_sdpa_ime2_old = pre1;
-    g_sdpa_ime2_oneshot_consumed = 0;
-    memset(&sa, 0, sizeof sa);
-    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
-     * have an already-pending SIGILL delivered by our temporary unblock through
-     * the probe handler. Check BEFORE installing the handler: if one is pending,
-     * do not probe (conservative: report IME2 unavailable) and leave everything
-     * as it was — including the disposition, which we have not touched yet. */
-    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not get
-     * it delivered through our probe handler. Simplest correct rule: if the
-     * caller has SIGILL blocked at all, do not probe (conservative unavailable).
-     * When it is not blocked, no SIGILL can be pending -- it would already have
-     * been delivered. */
-    {
-        sigset_t cur_mask;
-        sigemptyset(&cur_mask);
-        if (pthread_sigmask(SIG_BLOCK, NULL, &cur_mask) == 0 && sigismember(&cur_mask, SIGILL) == 1)
-            return 0;
-    }
-
-    sa.sa_sigaction = sdpa_ime2_sigill;
-    /* Propagate SA_RESTART from the saved action: our replacement is what the
-     * kernel sees while probing, and a thread blocked in a restartable syscall
-     * that receives an async SIGILL must restart as it would under the saved
-     * action, not return EINTR. */
-    /* Carry SA_ONSTACK too: an instruction-emulation or crash handler that relies
-     * on sigaltstack (the normal stack may be exhausted) must run on the
-     * configured alternate stack under our wrapper as under the saved action. */
-    sa.sa_flags = SA_SIGINFO | (pre1.sa_flags & (SA_RESTART | SA_ONSTACK));
-    sa.sa_mask = pre1.sa_mask;
-    /* Install failure (seccomp / embedded host forbids sigaction): must not continue —
-     * the probe instruction's SIGILL would be delivered per the original disposition
-     * (possibly termination). If the probe handler is not installed, do not run the
-     * instruction; judge unusable directly. */
-    if (sigaction(SIGILL, &sa, NULL) != 0)
-        return 0;
-
-    /* If the caller blocked SIGILL, the faulting probe instruction cannot reach
-     * sdpa_ime2_sigill: the synchronous fault takes the default action and
-     * terminates the process instead of returning false through the longjmp.
-     * Temporarily unblock it for the probe window and restore the caller's mask
-     * afterwards (same as the gemm probe). */
-    /* A caller that deliberately blocks SIGILL (e.g. uses sigwait) must not
-     * have an already-pending SIGILL delivered by our temporary unblock through
-     * the probe handler. Check for a pending signal first: if one exists, do
-     * not probe (conservative: report IME2 unavailable) and leave everything
-     * as it was. */
-    /* (no unblock needed: the caller never has SIGILL blocked here — checked above) */
-
-    int ok = 0;
-    if (sigsetjmp(tl_sdpa_ime2_jb, 1) == 0)
-    {
-        /* Arm only after the context is ready: an asynchronous SIGILL arriving before arming takes the forwarding path */
-        tl_sdpa_ime2_armed = 1;
-        sdpa_ime2_probe_instruction();
-        ok = 1;
-    }
-    /* Both return paths disarm here (longjmp comes back here skipping the if body) */
-    tl_sdpa_ime2_armed = 0;
-    /* Restore the old disposition only when the current handler is still ours: if a
-     * forwarding happened inside the probe window, the current disposition is already
-     * the old one (or has been reset to DFL by the kernel per RESETHAND) — installing
-     * it back would wrongly re-arm a one-shot handler. */
-    {
-        /* Drain before the one-shot-aware restore: a forwarder preempted after
-         * incrementing but before claiming the one-shot would otherwise let us
-         * restore with the flag still clear. The claim is inside the counted
-         * window, so after the drain the flag is final. */
-        while (__atomic_load_n(&g_sdpa_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
-            sched_yield();
-        struct sigaction cur;
-        memset(&cur, 0, sizeof cur);
-        sigaction(SIGILL, NULL, &cur);
-        if (cur.sa_sigaction == sdpa_ime2_sigill)
-        {
-            /* A one-shot consumed during the probe: restore DFL, not the saved
-             * action (restoring it would permanently re-arm it). */
-            if (g_sdpa_ime2_oneshot_consumed)
-            {
-                struct sigaction dfl;
-                memset(&dfl, 0, sizeof dfl);
-                dfl.sa_handler = SIG_DFL;
-                sigaction(SIGILL, &dfl, NULL);
-            }
-            else
-                sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-        }
-    }
-    return ok;
+    return ime2_hw_supported();
 }
 
 /* Returns 1 = every core allowed in the current affinity context can execute
  * smt.vfwmadot; 0 = cannot.
- * The probe temporarily replaces the process-wide SIGILL handler; two threads entering
- * concurrently would overwrite each other's install/restore, so the whole probe is
- * serialized with a mutex (the jump context itself is thread-local, see above).
+ * The instruction itself is probed in a forked child (ime2_hw_supported), so no
+ * process-wide signal state is touched at all; the mutex only serializes the
+ * affinity walk and the cached result.
  * Note: no process-wide caching: affinity is per-thread; the probe result is only valid
  * for the affinity context of this call. If a process first binds a thread to the A100
  * cluster to build a pipeline, then binds to the X100 cluster to build a second
