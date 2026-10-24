@@ -81,7 +81,7 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
 {
     /* Only synchronous instruction faults (si_code > 0: hardware fault codes such as
      * ILL_ILLOPC) belong to the probe; asynchronous SIGILL (SI_USER/SI_TKILL/SI_QUEUE
-     * ≤ 0 from kill/pthread_kill/raise) is unrelated to the probe — an armed probing
+     * <= 0 from kill/pthread_kill/raise) is unrelated to the probe -- an armed probing
      * thread can be hit by it too, and swallowing it would eat the application's
      * signal. Distinguish, then forward. */
     /* Only the probe's own instruction fault may longjmp: a nested handler that
@@ -93,37 +93,50 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
             && (char*)info->si_addr < (char*)ime2_probe_instruction + 64)
         siglongjmp(tl_ime2_jb, 1);
 
-    /* Everything below reads g_ime2_old: count this forwarder so the probing
-     * side waits before overwriting the shared state. */
+    /* A SIGILL that is not the probing thread's: forward it per the saved
+     * disposition.
+     * Counted window: everything the forwarding needs from g_ime2_old is
+     * snapshotted here, and the count is released BEFORE delegating -- a saved
+     * handler that recovers with siglongjmp (a normal pattern for
+     * synchronous-fault recovery) never returns to us, and a post-callback
+     * decrement would leak the count and hang every later probe. The probing
+     * side drains the count before overwriting the saved state (probe start)
+     * and before the one-shot-aware restore (probe end), so no forwarder is
+     * reading or claiming while either happens. */
     __atomic_fetch_add(&g_ime2_fwd, 1, __ATOMIC_SEQ_CST);
+    const struct sigaction saved = g_ime2_old;
+    int claimed_oneshot = 0;
+    if (saved.sa_flags & SA_RESETHAND)
+    {
+        /* Atomically claim BEFORE delegating: two simultaneous deliveries (or
+         * one overlapping probe cleanup) must not both invoke the one-shot.
+         * An already-claimed one-shot is DFL per kernel semantics. */
+        if (__atomic_exchange_n(&g_ime2_oneshot_consumed, 1, __ATOMIC_SEQ_CST) != 0)
+        {
+            __atomic_fetch_sub(&g_ime2_fwd, 1, __ATOMIC_SEQ_CST);
+            struct sigaction dfl;
+            memset(&dfl, 0, sizeof dfl);
+            dfl.sa_handler = SIG_DFL;
+            sigaction(SIGILL, &dfl, NULL);
+            raise(sig); /* terminates under DFL */
+            return;
+        }
+        claimed_oneshot = 1;
+    }
+    __atomic_fetch_sub(&g_ime2_fwd, 1, __ATOMIC_SEQ_CST);
+    (void)claimed_oneshot;
 
-    /* A SIGILL that is not the probing thread's: forward it per the old disposition.
-     * - SIG_DFL/SIG_IGN: restore then re-raise (they don't read siginfo, so a
-     *   synthesized signal loses nothing);
-     * - custom handler: call it directly with the **original** siginfo/ucontext —
-     *   raise would synthesize a new signal, dropping si_code/si_addr, so
-     *   emulator-style callbacks would not get the faulting instruction address.
-     *   Also replicate kernel semantics manually: SA_RESETHAND first resets the
-     *   disposition to DFL (the kernel does the same before delivery); signals in
-     *   sa_mask are blocked during the callback (the current thread is already in a
-     *   SIGILL context, so SIGILL itself is already blocked by the kernel, unless
-     *   SA_NODEFER).
-     *   SA_ONSTACK's stack switch cannot be replicated during forwarding; recorded
-     *   here (SIGILL with it is extremely rare). */
-    /* SIG_IGN: the semantics is to ignore — just return; **never** change the
+    /* SIG_IGN: the semantics is to ignore -- just return; **never** change the
      * process-wide disposition (it would not be put back: the probe's instruction
      * signal would then land on IGN and be silently swallowed, misjudging the
      * instruction as usable on unsupported machines). */
-    if (g_ime2_old.sa_handler == SIG_IGN)
-    {
-        __atomic_fetch_sub(&g_ime2_fwd, 1, __ATOMIC_SEQ_CST);
+    if (saved.sa_handler == SIG_IGN)
         return;
-    }
-    /* SIG_DFL: the original semantics is to terminate — restore DFL and re-raise;
+    /* SIG_DFL: the original semantics is to terminate -- restore DFL and re-raise;
      * the process ends in the established way. */
-    if (g_ime2_old.sa_handler == SIG_DFL)
+    if (saved.sa_handler == SIG_DFL)
     {
-        sigaction(SIGILL, &g_ime2_old, NULL);
+        sigaction(SIGILL, &saved, NULL);
         raise(sig);
         return;
     }
@@ -134,57 +147,28 @@ static void ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      * installed; the one-shot is called directly with the original
      * siginfo/ucontext. The kernel's one-shot reset is emulated only insofar as
      * a handler fired during the probe may be re-armed by the probe-end restore
-     * (microsecond window; the double-read consistency check at install already
-     * covers consumption before install). */
-    /* A one-shot that already ran: the kernel has since made the disposition
-     * DFL — this signal terminates, as it would without our probe. */
-    if ((g_ime2_old.sa_flags & SA_RESETHAND) && g_ime2_oneshot_consumed)
-    {
-        struct sigaction dfl;
-        memset(&dfl, 0, sizeof dfl);
-        dfl.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &dfl, NULL);
-        raise(sig);
-        return;
-    }
-    /* Atomically claim a one-shot BEFORE invoking its callback: assigning the
-     * flag after the callback returns lets two simultaneous deliveries (or an
-     * in-flight callback overlapping probe cleanup) both pass the consumed
-     * check — the one-shot would run twice, and cleanup could restore/re-arm
-     * the saved action mid-callback. */
-    if ((g_ime2_old.sa_flags & SA_RESETHAND)
-            && __atomic_exchange_n(&g_ime2_oneshot_consumed, 1, __ATOMIC_SEQ_CST) != 0)
-    {
-        /* Already claimed: the disposition is DFL per kernel semantics */
-        struct sigaction dfl;
-        memset(&dfl, 0, sizeof dfl);
-        dfl.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &dfl, NULL);
-        raise(sig);
-        return;
-    }
+     * (the probe end drains forwarders first, so the claim is visible there). */
     sigset_t oldmask;
-    pthread_sigmask(SIG_BLOCK, &g_ime2_old.sa_mask, &oldmask);
+    pthread_sigmask(SIG_BLOCK, &saved.sa_mask, &oldmask);
     /* Honor SA_NODEFER: with it, the kernel would NOT block SIGILL during the
-     * callback — an instruction-emulation handler may expect a nested SIGILL to
+     * callback -- an instruction-emulation handler may expect a nested SIGILL to
      * arrive immediately. The probe action itself lacks SA_NODEFER, so the kernel
-     * already blocked it on entry; unblock it for the callback, re-block after. */
+     * already blocked it on entry; unblock it for the callback, re-block after.
+     * SA_NODEFER suppresses only the kernel's AUTOMATIC masking; an explicit
+     * SIGILL in sa_mask must still block during the callback -- only unblock
+     * when the saved mask does not already cover it. */
     sigset_t sigill_only;
     sigemptyset(&sigill_only);
     sigaddset(&sigill_only, SIGILL);
-    /* SA_NODEFER suppresses only the kernel's AUTOMATIC masking; an explicit
-     * SIGILL in sa_mask must still block during the callback — only unblock
-     * when the saved mask does not already cover it. */
-    if ((g_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_ime2_old.sa_mask, SIGILL))
+    if ((saved.sa_flags & SA_NODEFER) && !sigismember(&saved.sa_mask, SIGILL))
         pthread_sigmask(SIG_UNBLOCK, &sigill_only, NULL);
-    if (g_ime2_old.sa_flags & SA_SIGINFO)
-        g_ime2_old.sa_sigaction(sig, info, ucontext);
+    if (saved.sa_flags & SA_SIGINFO)
+        saved.sa_sigaction(sig, info, ucontext);
     else
-        g_ime2_old.sa_handler(sig);
-    if ((g_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_ime2_old.sa_mask, SIGILL))
+        saved.sa_handler(sig);
+    if ((saved.sa_flags & SA_NODEFER) && !sigismember(&saved.sa_mask, SIGILL))
         pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
-    __atomic_fetch_sub(&g_ime2_fwd, 1, __ATOMIC_SEQ_CST);
 }
 
 #if defined __linux__
@@ -323,6 +307,14 @@ static int ime2_probe_locked(int nthreads)
      * and judge unavailable); install only when they match. The micro-window between
      * read and install cannot be eliminated, but is shrunk to a few instructions; a
      * user doing concurrent sigaction is already racing itself. */
+    /* Drain in-flight forwarders from a previous probe BEFORE snapshotting: a
+     * forwarded callback may still be running and may itself call sigaction;
+     * snapshotting after the drain keeps pre1/pre2 current (a callback changing
+     * the disposition CONCURRENTLY with a probe is an application-level race
+     * with no kernel-guaranteed order; here we only guarantee our reads are
+     * not torn by in-flight forwarders). */
+    while (__atomic_load_n(&g_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
+        sched_yield();
     struct sigaction pre1, pre2;
     memset(&pre1, 0, sizeof pre1);
     memset(&pre2, 0, sizeof pre2);
@@ -333,10 +325,6 @@ static int ime2_probe_locked(int nthreads)
     if (pre1.sa_handler != pre2.sa_handler || pre1.sa_flags != pre2.sa_flags
             || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
         return 0;
-    /* Wait for in-flight forwarders from a previous probe before overwriting
-     * the shared saved state (same as the sdpa probe). */
-    while (__atomic_load_n(&g_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
-        sched_yield();
     g_ime2_old = pre1;
     g_ime2_oneshot_consumed = 0;
     /* Propagate SA_RESTART from the saved action: our replacement is what the
@@ -376,6 +364,14 @@ static int ime2_probe_locked(int nthreads)
      * kernel per RESETHAND) — installing it back now would wrongly re-arm a one-shot
      * handler. */
     {
+        /* Drain before the one-shot-aware restore: a forwarder preempted after
+         * incrementing the count but before claiming the one-shot would otherwise
+         * let us restore g_ime2_old with the flag still clear, after which the
+         * forwarder invokes a one-shot that remains armed (running it twice).
+         * The claim happens inside the counted window, so after the drain the
+         * flag is final. */
+        while (__atomic_load_n(&g_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
+            sched_yield();
         struct sigaction cur;
         memset(&cur, 0, sizeof cur);
         sigaction(SIGILL, NULL, &cur);
