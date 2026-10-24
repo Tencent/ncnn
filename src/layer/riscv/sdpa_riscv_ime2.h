@@ -180,7 +180,8 @@ static int ime2_hw_supported()
             if (sched_setaffinity(0, sizeof(one), &one) != 0)
                 continue;
             unsigned long vlenb = 0;
-            __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+            __asm__ volatile("csrr %0, vlenb"
+                             : "=r"(vlenb));
             if (vlenb == 128)
             {
                 cpu = c;
