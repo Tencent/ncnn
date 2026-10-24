@@ -73,6 +73,26 @@ static int32_t safe_int64_to_int32(int64_t value)
 
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
+    for (const Operator* op : g.ops)
+    {
+        if (op->type == "Tensor.slice")
+        {
+            fprintf(stderr, "cannot save ncnn model with unsupported Tensor.slice %s\n", op->name.c_str());
+            return -1;
+        }
+        if (op->type == "StridedSlice")
+        {
+            for (int size : op->outputs[0]->shape)
+            {
+                if (size == 0)
+                {
+                    fprintf(stderr, "cannot save StridedSlice %s with empty output\n", op->name.c_str());
+                    return -1;
+                }
+            }
+        }
+    }
+
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
     {
