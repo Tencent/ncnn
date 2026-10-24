@@ -19,6 +19,7 @@
 #if defined __linux__
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/resource.h>
 #include <errno.h>
 #endif
 #include <stdlib.h>
@@ -196,14 +197,32 @@ static int ime2_hw_supported()
         return 0;
     }
 
+    /* The child reports success over a pipe (same as the gemm probe): with
+     * SIGCHLD ignored, SA_NOCLDWAIT, or a reaping handler, waitpid can fail
+     * with ECHILD and a zero-initialized status would read as 'supported'.
+     * Only an explicit byte from the child is accepted as success. */
+    int fds[2];
+    if (pipe(fds) != 0)
+    {
+        cached = 0;
+        return 0;
+    }
     pid_t pid = fork();
     if (pid < 0)
     {
+        close(fds[0]);
+        close(fds[1]);
         cached = 0;
         return 0;
     }
     if (pid == 0)
     {
+        close(fds[0]);
+        /* No model-sized core dump for the intentional SIGILL. */
+        struct rlimit rl;
+        rl.rlim_cur = 0;
+        rl.rlim_max = 0;
+        setrlimit(RLIMIT_CORE, &rl);
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
         sa.sa_handler = SIG_DFL;
@@ -217,13 +236,18 @@ static int ime2_hw_supported()
         CPU_SET(cpu, &one);
         sched_setaffinity(0, sizeof(one), &one);
         sdpa_ime2_probe_instruction();
+        (void)!write(fds[1], "1", 1);
         _exit(0);
     }
+    close(fds[1]);
+    char b = 0;
+    const ssize_t n = read(fds[0], &b, 1);
+    close(fds[0]);
     int st = 0;
     while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
     {
     }
-    cached = (WIFEXITED(st) && WEXITSTATUS(st) == 0) ? 1 : 0;
+    cached = (n == 1 && b == '1') ? 1 : 0;
     return cached;
 #else
     return 0;
