@@ -14,7 +14,12 @@ class Model(nn.Module):
         out0 = x + 3
         out1 = x - 4j
         out2 = x * (1.2-0.9j - out0)
-        return out0, out1, out2
+        c = complex(1.2345678806304932, 0.8765432238578796)
+        out3 = x + c
+        out4 = x - c
+        out5 = x * c
+        out6 = x / c
+        return out0, out1, out2, out3, out4, out5, out6
 
 def test():
     if version.parse(torch.__version__) < version.parse('1.9'):
