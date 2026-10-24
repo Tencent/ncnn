@@ -50,6 +50,13 @@ static struct sigaction g_sdpa_ime2_old;
  * the current probe: after the first invocation the kernel makes the
  * disposition SIG_DFL, so it must not run again and must not be restored. */
 static volatile sig_atomic_t g_sdpa_ime2_oneshot_consumed = 0;
+/* In-flight forwarders: a handler that passed the longjmp check and is about
+ * to read the saved action. The probing side must not overwrite
+ * g_sdpa_ime2_old (or reset the one-shot flag) while any forwarder is still
+ * running -- it would read a torn/new disposition or invoke an action that
+ * was not the one installed when its signal was delivered. Plain atomics
+ * only; the handler itself never waits. */
+static volatile int g_sdpa_ime2_fwd = 0;
 
 /* The probe instruction sequence in its own tiny noinline function, so the
  * handler can tell whether a synchronous SIGILL originated HERE (si_addr in
@@ -82,6 +89,10 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
             && (char*)info->si_addr < (char*)sdpa_ime2_probe_instruction + 64)
         siglongjmp(tl_sdpa_ime2_jb, 1);
 
+    /* Everything below reads g_sdpa_ime2_old: count this forwarder so the
+     * probing side waits before overwriting the shared state. */
+    __atomic_fetch_add(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
+
     /* SIGILL not from the probing thread: forward it per the old disposition, but
      * **never touch the process-wide disposition** — restore+resend would permanently
      * uninstall the probe handler: under IGN the probe's own instruction signal would be
@@ -98,11 +109,14 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
      *   SA_ONSTACK's stack switch cannot be replicated during forwarding; noted for the
      *   record (SIGILL using it is extremely rare). */
     if (g_sdpa_ime2_old.sa_handler == SIG_IGN)
+    {
+        __atomic_fetch_sub(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
         return;
+    }
     if (g_sdpa_ime2_old.sa_handler == SIG_DFL)
     {
         sigaction(SIGILL, &g_sdpa_ime2_old, NULL);
-        raise(sig);
+        raise(sig); /* terminates under DFL */
         return;
     }
     /* Do NOT reset to DFL before invoking a one-shot (SA_RESETHAND) callback:
@@ -120,7 +134,7 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
         memset(&dfl, 0, sizeof dfl);
         dfl.sa_handler = SIG_DFL;
         sigaction(SIGILL, &dfl, NULL);
-        raise(sig);
+        raise(sig); /* terminates under DFL */
         return;
     }
     /* Atomically claim a one-shot BEFORE invoking its callback (same as the
@@ -155,6 +169,7 @@ static void sdpa_ime2_sigill(int sig, siginfo_t* info, void* ucontext)
     if ((g_sdpa_ime2_old.sa_flags & SA_NODEFER) && !sigismember(&g_sdpa_ime2_old.sa_mask, SIGILL))
         pthread_sigmask(SIG_BLOCK, &sigill_only, NULL);
     pthread_sigmask(SIG_SETMASK, &oldmask, NULL);
+    __atomic_fetch_sub(&g_sdpa_ime2_fwd, 1, __ATOMIC_SEQ_CST);
 }
 
 #if defined __linux__
@@ -285,6 +300,12 @@ static int sdpa_ime2_probe_locked(int nthreads)
     if (pre1.sa_handler != pre2.sa_handler || pre1.sa_flags != pre2.sa_flags
             || memcmp(&pre1.sa_mask, &pre2.sa_mask, sizeof(pre1.sa_mask)) != 0)
         return 0;
+    /* Wait for in-flight forwarders from a previous probe before overwriting
+     * the shared saved state: a forwarder still running would read a torn/new
+     * disposition or act on a reset one-shot flag. The handler never takes
+     * the probe mutex, so this cannot deadlock. */
+    while (__atomic_load_n(&g_sdpa_ime2_fwd, __ATOMIC_SEQ_CST) != 0)
+        sched_yield();
     g_sdpa_ime2_old = pre1;
     g_sdpa_ime2_oneshot_consumed = 0;
     memset(&sa, 0, sizeof sa);

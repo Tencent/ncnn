@@ -154,9 +154,9 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
      * (e.g. a ±65504 cancellation construction), "averaging" and "selecting"
      * diverge hugely. Measured on the real model: mxv ≤ 63 (qwen3-0.6b, long
      * prefill, 28 calls); threshold 8192 leaves 130x headroom. */
-    float mxv = 0.f;
-    if (!ncnn_ime2_sdpa::ime2_fits_fp16(query) || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_key)
-            || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value, &mxv) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key)
+    float mxv = 0.f, mxq = 0.f, mxk = 0.f;
+    if (!ncnn_ime2_sdpa::ime2_fits_fp16(query, &mxq) || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_key, &mxk)
+            || !ncnn_ime2_sdpa::ime2_fits_fp16(cur_value, &mxv) || !ncnn_ime2_sdpa::ime2_fits_fp16(past_key, &mxk)
             || !ncnn_ime2_sdpa::ime2_fits_fp16(past_value, &mxv))
         return -99;
     if (mxv > 8192.f)
@@ -230,7 +230,15 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
          * margin/cutoff are computed once before the scan. Originally logf was
          * called per element in the inner j loop — the triangular region at
          * L=4096 means millions of libm calls, eating the long-prefill gain. */
-        const float max_dot = (float)embed_dim * 65504.f * 65504.f;
+        /* Bound |Q*K| by the ACTUAL scanned maxima (E*max|Q|*max|K|) instead of
+         * the fp16 packing ceiling (E*65504^2): with the ceiling, a documented-
+         * compliant finite causal mask such as -1e9 fails the cutoff (E=64,
+         * scale=1/8 gives about -6.87e10) and the triangular scan never engages
+         * -- measured 440 -> 761 ms at L=4096 causal, and the serving pipeline
+         * fills exactly -1e9. The 0.1% slack covers the fp16 round-up of the
+         * packed values (at most half an ulp); an overflow to inf still fails
+         * the comparison in the conservative direction. */
+        const float max_dot = (float)embed_dim * (mxq * 1.001f) * (mxk * 1.001f);
         const int omitted = cur_seqlen - IME2_FLASH_BM;
         const float margin = 20.f + logf((float)(omitted > 1 ? omitted : 1));
         const float cutoff = -2.f * fabsf(_scale) * max_dot - margin;
