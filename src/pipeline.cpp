@@ -41,6 +41,10 @@ Pipeline::Pipeline(const VulkanDevice* _vkdev)
     d->pipeline = 0;
     d->descriptor_update_template = 0;
 
+    d->shader_info.specialization_count = 0;
+    d->shader_info.binding_count = 0;
+    d->shader_info.push_constant_count = 0;
+
     d->local_size_x = 1;
     d->local_size_y = 1;
     d->local_size_z = 1;
