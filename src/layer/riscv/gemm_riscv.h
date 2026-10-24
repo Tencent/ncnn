@@ -55,6 +55,11 @@ public:
      * branch builds the fp16s pipeline, whose BT_data is fp16 (2u) — the fp32 generic kernel
      * cannot read it. */
     int ime2_fp32_fallback_ready = 0;
+    /* Retained reference to the original fp32 weights for the affinity fallback:
+     * the generic pipeline releases B_data under lightmode, but the fallback
+     * must not compute fp32 results from the fp16-rounded IME2 panel. Mat is
+     * refcounted, so this costs no copy -- it only keeps the buffer alive. */
+    Mat B_data_fp32_fallback;
     Mat BT_data_ime2;
     Mat BT_i8c_ime2;    // int8 column-major weight panel (integer-domain design, see REPORT 7.41)
     Mat BT_wscale_ime2; // one fp16 scale per column

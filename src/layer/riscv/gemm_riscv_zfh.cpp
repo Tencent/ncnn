@@ -1831,6 +1831,12 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
     use_ime2_path = 1;
     nT = opt.num_threads;
 
+    /* The generic pipeline releases B_data under lightmode; keep a reference so
+     * the affinity fallback can still compute from the ORIGINAL fp32 weights
+     * (the fp16-rounded panel would change fp32 results). Refcounted, no copy. */
+    if (opt.lightmode && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1)
+        B_data_fp32_fallback = B_data;
+
     return 0;
 #endif
 }
@@ -1888,8 +1894,10 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
      * weight not exactly representable in fp16, so merely entering this fallback
      * would change the result. For bare fp32 A, read the original fp32 B_data
      * (row-major [w=K, h=N], VLEN-agnostic) instead of the packed fp16 tiles. */
-    const int wfp32 = (A.elembits() == 32 && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1);
-    const float* Bp = wfp32 ? (const float*)B_data.data : 0;
+    /* lightmode released B_data: use the retained fp32 reference when present */
+    const Mat& Borig = !B_data_fp32_fallback.empty() ? B_data_fp32_fallback : B_data;
+    const int wfp32 = (A.elembits() == 32 && !Borig.empty() && Borig.elembits() == 32 && Borig.elempack == 1);
+    const float* Bp = wfp32 ? (const float*)Borig.data : 0;
     const int kt = (K + 7) / 8;
     const size_t ldt = IME2_TILE_LD(kt);
     const __fp16* bt = (const __fp16*)BT_data_ime2;
