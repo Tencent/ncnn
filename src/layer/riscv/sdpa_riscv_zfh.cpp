@@ -13,6 +13,59 @@
 
 #if __riscv_v
 #include "sdpa_riscv_ime2.h"
+
+#if __riscv_vector
+/* Bit-identical replica of upstream rvv_mathfun.h exp_ps (e32m8): clamps first
+ * (vfmin then vfmax, so a single NaN takes the numeric operand), cephes
+ * coefficients, floor emulation, separate mul+add (not FMA). Duplicated here
+ * because the copy in sdpa_riscv.cpp is static to that TU. */
+static inline vfloat32m8_t sdpa_zfh_vexp_f32m8(vfloat32m8_t x, size_t vl)
+{
+    const float sdpa_exp_hi = 88.3762626647949f;
+    const float sdpa_exp_lo = -88.3762626647949f;
+    const float sdpa_cephes_LOG2EF = 1.44269504088896341f;
+    const float sdpa_cephes_exp_C1 = 0.693359375f;
+    const float sdpa_cephes_exp_C2 = -2.12194440e-4f;
+    const float sdpa_cephes_exp_p0 = 1.9875691500E-4f;
+    const float sdpa_cephes_exp_p1 = 1.3981999507E-3f;
+    const float sdpa_cephes_exp_p2 = 8.3334519073E-3f;
+    const float sdpa_cephes_exp_p3 = 4.1665795894E-2f;
+    const float sdpa_cephes_exp_p4 = 1.6666665459E-1f;
+    const float sdpa_cephes_exp_p5 = 5.0000001201E-1f;
+
+    vfloat32m8_t tmp, fx;
+    x = __riscv_vfmin_vf_f32m8(x, sdpa_exp_hi, vl);
+    x = __riscv_vfmax_vf_f32m8(x, sdpa_exp_lo, vl);
+    fx = __riscv_vfmacc_vf_f32m8(__riscv_vfmv_v_f_f32m8(0.5f, vl), sdpa_cephes_LOG2EF, x, vl);
+    tmp = __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8(fx, vl), vl);
+    vbool4_t mask = __riscv_vmfgt_vv_f32m8_b4(tmp, fx, vl);
+    fx = __riscv_vfsub_vf_f32m8_mu(mask, tmp, tmp, 1.f, vl);
+    tmp = __riscv_vfmul_vf_f32m8(fx, sdpa_cephes_exp_C1, vl);
+    vfloat32m8_t z = __riscv_vfmul_vf_f32m8(fx, sdpa_cephes_exp_C2, vl);
+    x = __riscv_vfsub_vv_f32m8(x, tmp, vl);
+    x = __riscv_vfsub_vv_f32m8(x, z, vl);
+    vfloat32m8_t y = __riscv_vfmul_vf_f32m8(x, sdpa_cephes_exp_p0, vl);
+    z = __riscv_vfmul_vv_f32m8(x, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p1, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p2, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p3, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p4, vl);
+    y = __riscv_vfmul_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, sdpa_cephes_exp_p5, vl);
+    y = __riscv_vfmul_vv_f32m8(y, z, vl);
+    y = __riscv_vfadd_vv_f32m8(y, x, vl);
+    y = __riscv_vfadd_vf_f32m8(y, 1.f, vl);
+    vint32m8_t mm = __riscv_vfcvt_x_f_v_i32m8(fx, vl);
+    mm = __riscv_vadd_vx_i32m8(mm, 0x7f, vl);
+    mm = __riscv_vsll_vx_i32m8(mm, 23, vl);
+    vfloat32m8_t pow2n = __riscv_vreinterpret_v_i32m8_f32m8(mm);
+    y = __riscv_vfmul_vv_f32m8(y, pow2n, vl);
+    return y;
+}
+#endif // __riscv_vector
 #endif
 
 #include <algorithm>
@@ -377,18 +430,62 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                 // softmax (numerically safe: row-max subtraction)
                 for (int i = 0; i < src_seqlen; i++)
                 {
+                    /* Vectorized softmax, upstream-parity structure (this path is reached
+                     * for out_embed_dim > 256 heads: at L=4096 the scalar expf loop was
+                     * ~16.8M calls per head and erased the IME2 gain). Same construction
+                     * as Softmax_riscv / the decode path: bulk e32m8 groups + _tu tail,
+                     * vfredusum finish. */
                     float* ptr = qk_cross_head.row(i);
                     float max = -FLT_MAX;
-                    for (int j = 0; j < dst_seqlen; j++)
-                        max = std::max(max, ptr[j]);
-                    float sum = 0.f;
-                    for (int j = 0; j < dst_seqlen; j++)
                     {
-                        ptr[j] = (float)expf(ptr[j] - max);
-                        sum += ptr[j];
+                        vfloat32m1_t vmax1 = __riscv_vfmv_v_f_f32m1(-FLT_MAX, __riscv_vsetvlmax_e32m1());
+                        int j = 0;
+                        while (j < dst_seqlen)
+                        {
+                            const size_t vl = __riscv_vsetvl_e32m1(dst_seqlen - j);
+                            vmax1 = __riscv_vfmax_vv_f32m1_tu(vmax1, vmax1, __riscv_vle32_v_f32m1(ptr + j, vl), vl);
+                            j += (int)vl;
+                        }
+                        max = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(vmax1, __riscv_vfmv_v_f_f32m1(-FLT_MAX, 1), __riscv_vsetvlmax_e32m1()));
                     }
-                    for (int j = 0; j < dst_seqlen; j++)
-                        ptr[j] /= sum;
+                    float sum = 0.f;
+                    {
+                        vfloat32m8_t vsum = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
+                        const size_t vlfull = __riscv_vsetvlmax_e32m8();
+                        int n = dst_seqlen / (int)vlfull * (int)vlfull;
+                        int j = 0;
+                        while (n > 0)
+                        {
+                            vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr + j, vlfull);
+                            v = __riscv_vfsub_vf_f32m8(v, max, vlfull);
+                            v = sdpa_zfh_vexp_f32m8(v, vlfull);
+                            __riscv_vse32_v_f32m8(ptr + j, v, vlfull);
+                            vsum = __riscv_vfadd_vv_f32m8(vsum, v, vlfull);
+                            j += (int)vlfull;
+                            n -= (int)vlfull;
+                        }
+                        int remain = dst_seqlen - j;
+                        if (remain > 0)
+                        {
+                            const size_t vlr = __riscv_vsetvl_e32m8(remain);
+                            vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr + j, vlr);
+                            v = __riscv_vfsub_vf_f32m8(v, max, vlr);
+                            v = sdpa_zfh_vexp_f32m8(v, vlr);
+                            __riscv_vse32_v_f32m8(ptr + j, v, vlr);
+                            vsum = __riscv_vfadd_vv_f32m8_tu(vsum, vsum, v, vlr);
+                        }
+                        sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m8_f32m1(vsum, __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m8()));
+                    }
+                    {
+                        const float inv_sum = 1.f / sum;
+                        int j = 0;
+                        while (j < dst_seqlen)
+                        {
+                            const size_t vl = __riscv_vsetvl_e32m8(dst_seqlen - j);
+                            __riscv_vse32_v_f32m8(ptr + j, __riscv_vfmul_vf_f32m8(__riscv_vle32_v_f32m8(ptr + j, vl), inv_sum, vl), vl);
+                            j += (int)vl;
+                        }
+                    }
                 }
 
                 // O = P·V (V packed transposed). P is scaled up by 2^15 before packing: packing
