@@ -30,8 +30,6 @@
 
 #include "mips_usability.h"
 
-#include <msa.h>
-
 _MIPS_FLOAT_CONST(c_0, 0.0f);
 _MIPS_FLOAT_CONST(c_1, 1.0f);
 _MIPS_FLOAT_CONST(c_2, 2.0f);
