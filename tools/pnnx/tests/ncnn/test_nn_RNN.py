@@ -112,8 +112,46 @@ def test_batch():
             return False
     return True
 
+class UnsupportedModel(nn.Module):
+    def __init__(self, with_hidden, return_hidden):
+        super(UnsupportedModel, self).__init__()
+        self.rnn = nn.RNN(3, 2, nonlinearity='relu')
+        self.with_hidden = with_hidden
+        self.return_hidden = return_hidden
+
+    def forward(self, x, h):
+        if self.with_hidden:
+            out, hidden = self.rnn(x, h)
+        else:
+            out, hidden = self.rnn(x)
+        if self.return_hidden:
+            return out, hidden
+        return out
+
+def test_unsupported_nonlinearity():
+    import os
+    import ncnn
+
+    torch.set_grad_enabled(False)
+    torch.manual_seed(0)
+    x = torch.rand(4, 1, 3)
+    h = torch.rand(1, 1, 2)
+
+    for with_hidden in [False, True]:
+        for return_hidden in [False, True]:
+            net = UnsupportedModel(with_hidden, return_hidden).eval()
+            mod = torch.jit.trace(net, (x, h), check_trace=False)
+            name = "test_nn_RNN_relu_%d_%d" % (with_hidden, return_hidden)
+            mod.save(name + ".pt")
+            if os.system("../../src/pnnx " + name + ".pt inputshape=[4,1,3],[1,1,2]") != 0:
+                return False
+            with ncnn.Net() as ncnn_net:
+                if ncnn_net.load_param(name + ".ncnn.param") != -1:
+                    return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_unsupported_nonlinearity():
         exit(0)
     else:
         exit(1)
