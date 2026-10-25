@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <torch/script.h>
+#include <torch/csrc/jit/ir/constants.h>
 #include <torch/csrc/jit/api/module.h>
 #include <torch/csrc/api/include/torch/version.h>
 #include <torch/csrc/jit/passes/quantization/helper.h>
@@ -60,6 +61,48 @@ static void fuse_moduleop_unpack(Graph& graph, const std::vector<std::string>& m
         if (!matched)
             break;
     }
+}
+
+static void preserve_interpolate_scale(Operator* op, const torch::jit::Node* n)
+{
+    const std::string kind = n->kind().toDisplayString();
+    if (kind != "aten::_upsample_nearest_exact1d" && kind != "aten::_upsample_nearest_exact2d")
+        return;
+
+    std::vector<double> scales;
+    for (size_t i = 2; i < n->inputs().size(); i++)
+    {
+        const torch::jit::Value* input = n->input(i);
+        auto value = torch::jit::toIValue(input);
+        if (value && value->isDouble())
+        {
+            scales.push_back(value->toDouble());
+        }
+        else if (value && value->isDoubleList())
+        {
+            scales = value->toDoubleVector();
+        }
+        else if (input->node()->kind() == c10::prim::ListConstruct)
+        {
+            for (const auto& v : input->node()->inputs())
+            {
+                auto element = torch::jit::toIValue(v);
+                if (!element || !element->isDouble())
+                    return;
+                scales.push_back(element->toDouble());
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    if (scales.size() != 1 && scales.size() != 2)
+        return;
+
+    // Retain source scalars until the target sampling scales are computed.
+    op->attrs["scale_factor"] = torch::tensor(scales, torch::TensorOptions().dtype(torch::kFloat64));
 }
 
 void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, const std::vector<std::string>& module_operators, Graph& pg)
@@ -361,12 +404,19 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     op->name = wrapped_name;
 
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
-                    TorchGraphProxy graph_proxy(toGraphFunction(function).graph());
+                    const auto module_graph = toGraphFunction(function).graph();
+                    TorchGraphProxy graph_proxy(module_graph);
 #else
-                    TorchGraphProxy graph_proxy(function.graph());
+                    const auto module_graph = function.graph();
+                    TorchGraphProxy graph_proxy(module_graph);
 #endif
                     TorchModuleProxy sub_mod_proxy(sub_mod);
                     ow->write(op, graph_proxy, sub_mod_proxy);
+                    if (op->type == "nn.Upsample" && op->has_param("mode") && op->params.at("mode").s == "nearest-exact")
+                    {
+                        for (const auto& mn : module_graph->nodes())
+                            preserve_interpolate_scale(op, mn);
+                    }
 
                     break;
                 }
@@ -398,6 +448,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
             snprintf(name, 32, "pnnx_%d", pnnx_unknown_index++);
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
+            preserve_interpolate_scale(op, n);
 
             for (int i = 0; i < (int)n->inputs().size(); i++)
             {

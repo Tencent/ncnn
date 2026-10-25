@@ -2,12 +2,40 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "utils.h"
 
 #include <stdio.h>
+#include <string.h>
 
 namespace pnnx {
 
 namespace ncnn {
+
+void write_interp_scale(Operator* op, const std::map<std::string, Attribute>& captured_attrs)
+{
+    auto mode = op->params.find("0");
+    if (mode == op->params.end() || mode->second.i != 4)
+        return;
+
+    auto it = captured_attrs.find("op_0.scale_factor");
+    if (it == captured_attrs.end())
+        return;
+
+    const Attribute& attr = it->second;
+    const int count = attr.elemcount();
+    if (attr.type != 2 || (count != 1 && count != 2))
+        return;
+
+    double scales[2];
+    memcpy(scales, attr.data.data(), count * sizeof(double));
+    const double ws = scales[count - 1];
+    const double hs = count == 2 ? scales[0] : 1.0;
+    std::string expr = "scale(" + double_to_string(ws);
+    if (count == 2)
+        expr += "," + double_to_string(hs);
+    expr += ")";
+    op->params["9"] = expr;
+}
 
 class F_interpolate : public GraphRewriterPass
 {
@@ -32,7 +60,7 @@ pnnx.Output             output      1 0 out
         return "interpolate";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         std::vector<float> scale_factor;
@@ -48,10 +76,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -87,6 +112,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = 0; // align_corners
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -115,7 +141,7 @@ pnnx.Output             output      1 0 out
         return "interpolate";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         std::vector<float> scale_factor;
@@ -131,10 +157,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -170,6 +193,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = captured_params.at("align_corners").b ? 1 : 0;
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -198,7 +222,7 @@ pnnx.Output             output      1 0 out
         return "interpolate";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         std::vector<int> output_size;
@@ -214,10 +238,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -225,7 +246,7 @@ pnnx.Output             output      1 0 out
 
         if (output_size.size() == 1)
         {
-            op->params["3"] = 1.f;
+            op->params["3"] = mode == "nearest-exact" ? Parameter(1) : Parameter(1.f);
             op->params["4"] = output_size[0];
         }
         else if (output_size.size() == 2)
@@ -239,6 +260,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = captured_params.at("align_corners").b ? 1 : 0;
+        write_interp_scale(op, captured_attrs);
     }
 };
 
@@ -267,7 +289,7 @@ pnnx.Output             output      1 0 out
         return "interpolate";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string& mode = captured_params.at("mode").s;
         std::vector<int> output_size;
@@ -283,10 +305,7 @@ pnnx.Output             output      1 0 out
         if (mode == "nearest")
             op->params["0"] = 1;
         if (mode == "nearest-exact")
-        {
-            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
-            op->params["0"] = 1;
-        }
+            op->params["0"] = 4;
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -294,7 +313,7 @@ pnnx.Output             output      1 0 out
 
         if (output_size.size() == 1)
         {
-            op->params["3"] = 1.f;
+            op->params["3"] = mode == "nearest-exact" ? Parameter(1) : Parameter(1.f);
             op->params["4"] = output_size[0];
         }
         else if (output_size.size() == 2)
@@ -308,6 +327,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["6"] = 0; // align_corners
+        write_interp_scale(op, captured_attrs);
     }
 };
 

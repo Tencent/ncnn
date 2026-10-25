@@ -1389,6 +1389,15 @@ Resize type:
 - 1 = Nearest
 - 2 = Bilinear
 - 3 = Bicubic
+- 4 = Nearest-exact
+
+Nearest-exact samples `min(floor((dst + 0.5) * scale), input_size - 1)` on each spatial axis.
+The scale is `input_size / output_size` for explicit or dynamic output sizes, and `1 / scale_factor` otherwise.
+For type 4 on x86, `size_expr=scale(s_w)` or `scale(s_w,s_h)` preserves original scale factors.
+The x86 implementation computes output sizes in double precision and rounds each reciprocal once to float32 for sampling.
+Other expressions use the standard evaluator unchanged. This syntax is specific to nearest-exact, not an extension of the general expression language.
+Only the x86 CPU implementation accepts type 4. Generic CPU, other architectures and Vulkan retain their existing behavior and reject it; use CPU inference for these models.
+Models using nearest-exact require a runtime supporting resize type 4; nearest (type 1) is unchanged.
 
 # InverseSpectrogram
 ```
