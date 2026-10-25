@@ -168,10 +168,15 @@ static int test_packing_cpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     op->create_pipeline(opt);
 
     ncnn::Mat a8;
-    if (a.dims == 1) a8 = RandomS8Mat(a.w);
-    if (a.dims == 2) a8 = RandomS8Mat(a.w, a.h);
-    if (a.dims == 3) a8 = RandomS8Mat(a.w, a.h, a.c);
-    if (a.dims == 4) a8 = RandomS8Mat(a.w, a.h, a.d, a.c);
+    if (a.dims == 1) a8.create(a.w, (size_t)1u, 1, a.n);
+    if (a.dims == 2) a8.create(a.w, a.h, (size_t)1u, 1, a.n);
+    if (a.dims == 3) a8.create(a.w, a.h, a.c, (size_t)1u, 1, a.n);
+    if (a.dims == 4) a8.create(a.w, a.h, a.d, a.c, (size_t)1u, 1, a.n);
+    for (int b = 0; b < a.n; b++)
+    {
+        ncnn::Mat m = a8.batch(b);
+        RandomizeS8(m);
+    }
 
     ncnn::Mat ap;
     ncnn::convert_packing(a8, ap, in_elempack, opt);
@@ -493,6 +498,38 @@ static int test_packing_3()
            ;
 }
 
+static int test_packing_int8()
+{
+    const int packs[] = {16, 32, 64, 128};
+    for (size_t i = 0; i < sizeof(packs) / sizeof(packs[0]); i++)
+    {
+        const int pack = packs[i];
+        const ncnn::Mat shapes[] =
+        {
+            ncnn::Mat(pack * 2),
+            ncnn::Mat(17, pack * 2),
+            ncnn::Mat(9, 7, pack * 2),
+            ncnn::Mat(3, 5, 7, pack * 2),
+            ncnn::Mat(pack * 2 - 1),
+            ncnn::Mat(17, pack * 2 - 1),
+            ncnn::Mat(3, 5, pack * 2 - 1),
+            ncnn::Mat(3, 5, 7, pack * 2 - 1),
+            ncnn::Mat(pack * 2, (size_t)4u, 1, 2),
+            ncnn::Mat(17, pack * 2, (size_t)4u, 1, 2),
+            ncnn::Mat(9, 7, pack * 2, (size_t)4u, 1, 2),
+            ncnn::Mat(3, 5, 7, pack * 2, (size_t)4u, 1, 2)
+        };
+        for (size_t j = 0; j < sizeof(shapes) / sizeof(shapes[0]); j++)
+        {
+            if (test_packing_cpu_int8(shapes[j], 1, pack) != 0
+                || test_packing_cpu_int8(shapes[j], pack, 1) != 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
 #if NCNN_VALIDATION
 static int test_packing_load_param()
 {
@@ -526,6 +563,7 @@ int main()
            || test_packing_1()
            || test_packing_2()
            || test_packing_3()
+           || test_packing_int8()
 #if NCNN_VALIDATION
            || test_packing_load_param()
 #endif // NCNN_VALIDATION

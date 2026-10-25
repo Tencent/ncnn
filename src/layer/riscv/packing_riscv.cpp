@@ -1603,7 +1603,15 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
 
-    if (!pack1to8 && !pack8to1)
+    bool pack1ton = false;
+    bool packnto1 = false;
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+    pack1ton = elempack == 1 && out_elempack == packn;
+    packnto1 = elempack == packn && out_elempack == 1;
+#endif // __riscv_vector
+
+    if (!pack1to8 && !pack8to1 && !pack1ton && !packnto1)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -1656,6 +1664,63 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         top_blob.create(w, outh, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+#if __riscv_vector
+        if (pack1ton)
+        {
+            const size_t vl = __riscv_vsetvl_e8m1(packn);
+            const int total_bi = batch * outh;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / outh;
+                int i = bi % outh;
+                const signed char* ptr = bottom_blob.batch(b).row<const signed char>(i * packn);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i);
+
+                for (int j = 0; j < w; j++)
+                {
+                    vint8m1_t _p = __riscv_vlse8_v_i8m1(ptr + j, w, vl);
+                    __riscv_vse8_v_i8m1(outptr, _p, vl);
+                    outptr += packn;
+                }
+            }
+        }
+
+        if (packnto1)
+        {
+            const int total_bi = batch * h;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bi = 0; bi < total_bi; bi++)
+            {
+                int b = bi / h;
+                int i = bi % h;
+                const signed char* ptr = bottom_blob.batch(b).row<const signed char>(i);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i * packn);
+
+                int n = w;
+                while (n > 0)
+                {
+                    size_t vl = __riscv_vsetvl_e8m1(n);
+                    for (int k = 0; k < packn; k += 8)
+                    {
+                        vint8m1x8_t _p = __riscv_vlsseg8e8_v_i8m1x8(ptr + k, packn, vl);
+                        __riscv_vse8_v_i8m1(outptr + k * w, __riscv_vget_v_i8m1x8_i8m1(_p, 0), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 1) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 1), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 2) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 2), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 3) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 3), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 4) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 4), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 5) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 5), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 6) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 6), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 7) * w, __riscv_vget_v_i8m1x8_i8m1(_p, 7), vl);
+                    }
+                    ptr += vl * packn;
+                    outptr += vl;
+                    n -= vl;
+                }
+            }
+        }
+#endif // __riscv_vector
 
         if (pack1to8)
         {
@@ -1743,6 +1808,63 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             top_blob.create(w, h, d, outc, out_elemsize, out_elempack, batch, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+#if __riscv_vector
+        if (pack1ton)
+        {
+            const size_t vl = __riscv_vsetvl_e8m1(packn);
+            const int total_bq = batch * outc;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / outc;
+                int q = bq % outc;
+                const signed char* ptr = bottom_blob.batch(b).channel(q * packn);
+                signed char* outptr = top_blob.batch(b).channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    vint8m1_t _p = __riscv_vlse8_v_i8m1(ptr + i, bottom_blob.cstep, vl);
+                    __riscv_vse8_v_i8m1(outptr, _p, vl);
+                    outptr += packn;
+                }
+            }
+        }
+
+        if (packnto1)
+        {
+            const int total_bq = batch * channels;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int bq = 0; bq < total_bq; bq++)
+            {
+                int b = bq / channels;
+                int q = bq % channels;
+                const signed char* ptr = bottom_blob.batch(b).channel(q);
+                signed char* outptr = top_blob.batch(b).channel(q * packn);
+
+                int n = size;
+                while (n > 0)
+                {
+                    size_t vl = __riscv_vsetvl_e8m1(n);
+                    for (int k = 0; k < packn; k += 8)
+                    {
+                        vint8m1x8_t _p = __riscv_vlsseg8e8_v_i8m1x8(ptr + k, packn, vl);
+                        __riscv_vse8_v_i8m1(outptr + k * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 0), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 1) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 1), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 2) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 2), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 3) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 3), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 4) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 4), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 5) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 5), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 6) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 6), vl);
+                        __riscv_vse8_v_i8m1(outptr + (k + 7) * top_blob.cstep, __riscv_vget_v_i8m1x8_i8m1(_p, 7), vl);
+                    }
+                    ptr += vl * packn;
+                    outptr += vl;
+                    n -= vl;
+                }
+            }
+        }
+#endif // __riscv_vector
 
         if (pack1to8)
         {
