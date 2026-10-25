@@ -286,10 +286,16 @@ static int test_convolutiondepthwise_1()
         {15, 15, 15, 1},
         {16, 8, 2, 0},
         {16, 16, 16, 1},
+        {31, 31, 31, 0},
+        {32, 32, 32, 0},
+        {32, 32, 32, 1},
+        {33, 33, 33, 1},
+        {64, 64, 64, 0},
+        {128, 128, 128, 1},
     };
     for (int requant = 0; requant < 2; requant++)
     {
-        for (int i = 0; i < 13; i++)
+        for (size_t i = 0; i < sizeof(packing) / sizeof(packing[0]); i++)
         {
             for (int stride = 1; stride <= 2; stride++)
             {
@@ -614,29 +620,37 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
 {
     // zero weight scales disable a group contribution while preserving its bias
     // channels, output channels and groups cover depthwise and grouped descales
-    static const int cases[][3] = {{8, 8, 8}, {4, 4, 2}};
+    static const int cases[][4] =
+    {
+        {8, 8, 8, 1},
+        {4, 4, 2, 1},
+        {32, 32, 32, 3},
+        {64, 64, 64, 3},
+        {128, 128, 128, 3}
+    };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         const int c = cases[i][0];
         const int outch = cases[i][1];
         const int group = cases[i][2];
+        const int kernel = cases[i][3];
         ncnn::Mat a(1, 1, c);
         a.fill(1.f);
 
         ncnn::ParamDict pd;
         pd.set(0, outch);
-        pd.set(1, 1);
+        pd.set(1, kernel);
         pd.set(2, 1);
         pd.set(3, 1);
-        pd.set(4, 0);
+        pd.set(4, kernel / 2);
         pd.set(5, 1);
-        pd.set(6, outch * c / group);
+        pd.set(6, outch * c / group * kernel * kernel);
         pd.set(7, group);
         pd.set(8, 1);
         pd.set(9, 0);
 
         std::vector<ncnn::Mat> weights(5);
-        weights[0].create(outch * c / group);
+        weights[0].create(outch * c / group * kernel * kernel);
         weights[0].fill(3.f);
         weights[1].create(outch);
         for (int q = 0; q < outch; q++)
@@ -677,6 +691,32 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
     return 0;
 }
 
+static int test_convolutiondepthwise_int8_packing()
+{
+    const int channels[] = {32, 64, 128};
+    for (size_t i = 0; i < sizeof(channels) / sizeof(channels[0]); i++)
+    {
+        const int c = channels[i];
+        for (int requant = 0; requant < 2; requant++)
+        {
+            for (int stride = 1; stride <= 2; stride++)
+            {
+                for (int bias = 0; bias <= 1; bias++)
+                {
+                    for (int act = 0; act <= 6; act++)
+                    {
+                        if (test_convolutiondepthwise_int8(11, 9, c, c, 3, 1, stride, 0, bias, c, requant != 0, requant ? 102 : 2, true, act) != 0
+                            || test_convolutiondepthwise_int8(8, 7, c, c, 3, 1, stride, -233, bias, c, requant != 0, 0, false, act) != 0)
+                            return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 #endif // NCNN_INT8
 
 int main()
@@ -694,7 +734,8 @@ int main()
            || test_convolutiondepthwise_dynamic_postprocessing_boundaries()
            || test_convolutiondepthwise_dynamic_scalar_pack4_activation_tails()
            || test_convolutiondepthwise_int8_input_tile_tails()
-           || test_convolutiondepthwise_int8_zero_weight_scales();
+           || test_convolutiondepthwise_int8_zero_weight_scales()
+           || test_convolutiondepthwise_int8_packing();
 #else
     return test_convolutiondepthwise_2()
            || test_convolutiondepthwise_dynamic_activation_tails()
