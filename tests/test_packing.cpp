@@ -504,8 +504,7 @@ static int test_packing_int8()
     for (size_t i = 0; i < sizeof(packs) / sizeof(packs[0]); i++)
     {
         const int pack = packs[i];
-        const ncnn::Mat shapes[] =
-        {
+        const ncnn::Mat shapes[] = {
             ncnn::Mat(pack * 2),
             ncnn::Mat(17, pack * 2),
             ncnn::Mat(9, 7, pack * 2),
@@ -522,7 +521,7 @@ static int test_packing_int8()
         for (size_t j = 0; j < sizeof(shapes) / sizeof(shapes[0]); j++)
         {
             if (test_packing_cpu_int8(shapes[j], 1, pack) != 0
-                || test_packing_cpu_int8(shapes[j], pack, 1) != 0)
+                    || test_packing_cpu_int8(shapes[j], pack, 1) != 0)
                 return -1;
         }
     }
