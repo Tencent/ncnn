@@ -620,8 +620,7 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
 {
     // zero weight scales disable a group contribution while preserving its bias
     // channels, output channels and groups cover depthwise and grouped descales
-    static const int cases[][4] =
-    {
+    static const int cases[][4] = {
         {8, 8, 8, 1},
         {4, 4, 2, 1},
         {32, 32, 32, 3},
@@ -706,7 +705,7 @@ static int test_convolutiondepthwise_int8_packing()
                     for (int act = 0; act <= 6; act++)
                     {
                         if (test_convolutiondepthwise_int8(11, 9, c, c, 3, 1, stride, 0, bias, c, requant != 0, requant ? 102 : 2, true, act) != 0
-                            || test_convolutiondepthwise_int8(8, 7, c, c, 3, 1, stride, -233, bias, c, requant != 0, 0, false, act) != 0)
+                                || test_convolutiondepthwise_int8(8, 7, c, c, 3, 1, stride, -233, bias, c, requant != 0, 0, false, act) != 0)
                             return -1;
                     }
                 }

@@ -543,8 +543,8 @@ int ConvolutionDepthWise_riscv::create_pipeline_int8_rvv(const Option& opt)
 
     // depth-wise
     if (channels == group && group == num_output && opt.use_packing_layout && channels % packn == 0
-        && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
-        && stride_w == stride_h && (stride_w == 1 || stride_w == 2))
+            && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
+            && stride_w == stride_h && (stride_w == 1 || stride_w == 2))
     {
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
         convert_packing(weight_data_r2, weight_data_tm, packn, opt);
@@ -584,9 +584,9 @@ int ConvolutionDepthWise_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& to
 
     // depth-wise
     if (channels == group && group == num_output && opt.use_packing_layout && channels % packn_s8 == 0
-        && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
-        && stride_w == stride_h && (stride_w == 1 || stride_w == 2)
-        && (elembits != 8 || elempack == packn_s8))
+            && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
+            && stride_w == stride_h && (stride_w == 1 || stride_w == 2)
+            && (elembits != 8 || elempack == packn_s8))
     {
         Mat bottom_blob_int8 = bottom_blob;
         if (elembits != 8)
