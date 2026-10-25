@@ -24,6 +24,50 @@ class ModelBatch(nn.Module):
         x1 = torch.sum(x, dim=(1,3), keepdim=True)
         return x0, x1
 
+
+class ModelEmptyDims(nn.Module):
+    def forward(self, x):
+        return (
+            torch.sum(x, dim=[], keepdim=True),
+            torch.sum(x, dim=(), keepdim=True),
+            torch.sum(x, dim=[], keepdim=False),
+            torch.sum(x, dim=(), keepdim=False),
+            torch.sum(x, dim=(0, 1), keepdim=True),
+            torch.sum(x, dim=(0, 1), keepdim=False),
+        )
+
+def test_empty_dims():
+    net = ModelEmptyDims()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3)
+    a = net(x)
+
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_sum_empty_dims.pt")
+
+    import os
+    os.system("../../src/pnnx test_torch_sum_empty_dims.pt inputshape=[2,3]")
+
+    import test_torch_sum_empty_dims_ncnn
+    b = test_torch_sum_empty_dims_ncnn.test_inference()
+
+    if len(b) != len(a):
+        return False
+
+    for i, (a0, b0) in enumerate(zip(a, b)):
+        if i < 4:
+            control = b[4] if i < 2 else b[5]
+            if b0.shape != control.shape:
+                return False
+            if i < 2 and b0.shape != a0.shape:
+                return False
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
+
+
 def test():
     net = Model()
     net.eval()
@@ -50,7 +94,7 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return test_batch()
+    return test_empty_dims() and test_batch()
 
 def test_batch():
     net = ModelBatch()
