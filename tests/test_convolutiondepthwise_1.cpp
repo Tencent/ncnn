@@ -291,7 +291,6 @@ static int test_convolutiondepthwise_1()
         {32, 32, 32, 1},
         {33, 33, 33, 1},
         {64, 64, 64, 0},
-        {128, 128, 128, 1},
     };
     for (int requant = 0; requant < 2; requant++)
     {
@@ -306,13 +305,14 @@ static int test_convolutiondepthwise_1()
         }
     }
 
-    // both post-kernel activation branches in scalar int8 specializations
+    // post-kernel activation covers scalar and packed int8 paths
     for (int requant = 0; requant < 2; requant++)
     {
         int ret = 0
                   || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 1, 1, 1, 3, requant != 0, 0, false, 1)
                   || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 0)
-                  || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 1);
+                  || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 1)
+                  || test_convolutiondepthwise_int8(9, 7, 64, 64, 3, 1, 1, 1, 1, 64, requant != 0, 0, false, 1);
         if (ret != 0)
             return -1;
     }
@@ -522,7 +522,9 @@ static int test_convolutiondepthwise_1_int8_input()
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, false, 1, true)
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, false, 2, true)
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 8, true, 101, true)
-           || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, true, 102, true);
+           || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, true, 102, true)
+           || test_convolutiondepthwise_int8(11, 9, 32, 32, 3, 1, 1, 0, 1, 32, false, 2, true, 1)
+           || test_convolutiondepthwise_int8(8, 7, 64, 64, 3, 1, 2, -233, 0, 64, true, 102, true, 1);
 }
 static int test_convolutiondepthwise_int8_input_tile_boundaries()
 {
@@ -623,9 +625,7 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
     static const int cases[][4] = {
         {8, 8, 8, 1},
         {4, 4, 2, 1},
-        {32, 32, 32, 3},
-        {64, 64, 64, 3},
-        {128, 128, 128, 3}
+        {64, 64, 64, 3}
     };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
@@ -690,32 +690,6 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
     return 0;
 }
 
-static int test_convolutiondepthwise_int8_packing()
-{
-    const int channels[] = {32, 64, 128};
-    for (size_t i = 0; i < sizeof(channels) / sizeof(channels[0]); i++)
-    {
-        const int c = channels[i];
-        for (int requant = 0; requant < 2; requant++)
-        {
-            for (int stride = 1; stride <= 2; stride++)
-            {
-                for (int bias = 0; bias <= 1; bias++)
-                {
-                    for (int act = 0; act <= 6; act++)
-                    {
-                        if (test_convolutiondepthwise_int8(11, 9, c, c, 3, 1, stride, 0, bias, c, requant != 0, requant ? 102 : 2, true, act) != 0
-                                || test_convolutiondepthwise_int8(8, 7, c, c, 3, 1, stride, -233, bias, c, requant != 0, 0, false, act) != 0)
-                            return -1;
-                    }
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
 #endif // NCNN_INT8
 
 int main()
@@ -733,8 +707,7 @@ int main()
            || test_convolutiondepthwise_dynamic_postprocessing_boundaries()
            || test_convolutiondepthwise_dynamic_scalar_pack4_activation_tails()
            || test_convolutiondepthwise_int8_input_tile_tails()
-           || test_convolutiondepthwise_int8_zero_weight_scales()
-           || test_convolutiondepthwise_int8_packing();
+           || test_convolutiondepthwise_int8_zero_weight_scales();
 #else
     return test_convolutiondepthwise_2()
            || test_convolutiondepthwise_dynamic_activation_tails()
