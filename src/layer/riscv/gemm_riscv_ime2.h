@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
+#include <fcntl.h>
 #include <errno.h>
 #endif
 
@@ -209,8 +210,13 @@ static int ime2_hw_supported()
      * zero-initialized status would read as "supported" -- exactly backwards on
      * hardware that lacks the instruction. The pipe byte is the only accepted
      * positive result; a dead child writes nothing and the read hits EOF. */
+    /* O_CLOEXEC on both ends: another thread's fork+exec'd subprocess must not
+     * inherit fds[1] -- if it did and the probe child died without writing, this
+     * read would wait for EOF until that unrelated process exits (pipeline
+     * creation could hang indefinitely). Our own probe child does not exec, so
+     * the flag does not affect its write end. */
     int fds[2];
-    if (pipe(fds) != 0)
+    if (pipe2(fds, O_CLOEXEC) != 0)
     {
         cached = 0;
         return 0;
@@ -236,7 +242,14 @@ static int ime2_hw_supported()
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
         sa.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &sa, NULL);
+        if (sigaction(SIGILL, &sa, NULL) != 0)
+        {
+            /* Could not reset (seccomp): the inherited custom handler could trap
+             * this child forever (the parent would block on the pipe) or emulate
+             * the instruction (false success). Exit without writing -- the parent
+             * judges unsupported and no one hangs. */
+            _exit(1);
+        }
         sigset_t m;
         sigemptyset(&m);
         sigaddset(&m, SIGILL);
@@ -251,7 +264,14 @@ static int ime2_hw_supported()
     }
     close(fds[1]);
     char b = 0;
-    const ssize_t n = read(fds[0], &b, 1);
+    ssize_t n;
+    do
+    {
+        /* A handled signal without SA_RESTART makes read() return EINTR; treating
+         * that as failure would permanently disable IME2 on supported hardware
+         * (and could give the child SIGPIPE). Retry, like waitpid. */
+        n = read(fds[0], &b, 1);
+    } while (n < 0 && errno == EINTR);
     close(fds[0]);
     int st = 0;
     while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
