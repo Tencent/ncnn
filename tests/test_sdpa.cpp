@@ -120,13 +120,137 @@ static int test_sdpa_1()
 }
 #endif
 
+#if NCNN_VULKAN
+// flash attention reduces each row of the score matrix on one subgroup when the device supports
+// subgroup ops and they are enabled, the shader picks between that and its barrier tree itself,
+// so compare both of them against the generic path, which fp32 storage takes
+static int test_sdpa_gpu_flash_attention(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, bool with_mask)
+{
+    const int src_seqlen = q.h;
+    const int dst_seqlen = k.h;
+
+    ncnn::ParamDict pd;
+    pd.set(5, with_mask ? 1 : 0);
+    pd.set(6, 0.f);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    std::vector<ncnn::Mat> as(3);
+    as[0] = q;
+    as[1] = k;
+    as[2] = v;
+
+    if (with_mask)
+    {
+        as.push_back(RandomMat(dst_seqlen, src_seqlen));
+    }
+
+    const ncnn::GpuInfo& info = ncnn::get_gpu_device()->info;
+
+    // fp16 and bf16 storage take the flash attention path, the fp32 run is the reference
+    const bool fp16[2] = {true, false};
+    const bool bf16[2] = {false, true};
+    const char* names[2] = {"fp16ps", "bf16ps"};
+
+    ncnn::Option opt_ref;
+    opt_ref.num_threads = 1;
+    opt_ref.use_vulkan_compute = true;
+    opt_ref.use_fp16_packed = false;
+    opt_ref.use_fp16_storage = false;
+    opt_ref.use_fp16_arithmetic = false;
+    opt_ref.use_bf16_packed = false;
+    opt_ref.use_bf16_storage = false;
+
+    std::vector<ncnn::Mat> d0;
+    int ret = test_layer_gpu(ncnn::layer_to_index("SDPA"), pd, weights, opt_ref, as, 1, d0, std::vector<ncnn::Mat>(), 0);
+    if (ret == 233)
+        return 0;
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_sdpa_gpu_flash_attention generic failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask=%d ret=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, with_mask, ret);
+        return -1;
+    }
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (fp16[i] && !info.support_fp16_storage())
+            continue;
+        if (bf16[i] && !info.support_bf16_storage())
+            continue;
+
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_vulkan_compute = true;
+        opt.use_fp16_packed = fp16[i];
+        opt.use_fp16_storage = fp16[i];
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = bf16[i];
+        opt.use_bf16_storage = bf16[i];
+
+        std::vector<ncnn::Mat> d1;
+        ret = test_layer_gpu(ncnn::layer_to_index("SDPA"), pd, weights, opt, as, 1, d1, std::vector<ncnn::Mat>(), 0);
+        if (ret == 233)
+            continue;
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_sdpa_gpu_flash_attention failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask=%d %s ret=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, with_mask, names[i], ret);
+            return -1;
+        }
+
+        if (CompareMat(d0, d1, 0.01f) != 0)
+        {
+            fprintf(stderr, "test_sdpa_gpu_flash_attention mismatch q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask=%d %s\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, with_mask, names[i]);
+            return -1;
+        }
+
+        // with subgroup ops switched off the row reduction falls back to the barrier tree
+        opt.use_subgroup_ops = false;
+        std::vector<ncnn::Mat> d2;
+        ret = test_layer_gpu(ncnn::layer_to_index("SDPA"), pd, weights, opt, as, 1, d2, std::vector<ncnn::Mat>(), 0);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_sdpa_gpu_flash_attention barrier tree failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask=%d %s ret=%d\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, with_mask, names[i], ret);
+            return -1;
+        }
+
+        if (CompareMat(d0, d2, 0.01f) != 0 || CompareMat(d1, d2, 0.01f) != 0)
+        {
+            fprintf(stderr, "test_sdpa_gpu_flash_attention barrier tree mismatch q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) mask=%d %s\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, with_mask, names[i]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_sdpa_subgroup()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    // several query rows per workgroup, and a key length that is not a multiple of the tile
+    return 0
+           || test_sdpa_gpu_flash_attention(RandomMat(64, 8, 4), RandomMat(64, 64, 2), RandomMat(64, 64, 2), false)
+           || test_sdpa_gpu_flash_attention(RandomMat(128, 5, 8), RandomMat(128, 37, 8), RandomMat(128, 37, 8), false)
+           || test_sdpa_gpu_flash_attention(RandomMat(64, 4, 4), RandomMat(64, 32, 4), RandomMat(48, 32, 4), true);
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
 
 #if NCNN_INT8
-    return test_sdpa_0() || test_sdpa_1();
+    return test_sdpa_0() || test_sdpa_1()
+#if NCNN_VULKAN
+           || test_sdpa_subgroup()
+#endif
+           ;
 #else
-    return test_sdpa_0();
+    return test_sdpa_0()
+#if NCNN_VULKAN
+           || test_sdpa_subgroup()
+#endif
+           ;
 #endif
 }
