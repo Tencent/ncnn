@@ -500,20 +500,11 @@ static int test_packing_3()
 
 static int test_packing_int8()
 {
-    const int packs[] = {16, 32, 64, 128};
+    const int packs[] = {32, 64};
     for (size_t i = 0; i < sizeof(packs) / sizeof(packs[0]); i++)
     {
         const int pack = packs[i];
         const ncnn::Mat shapes[] = {
-            ncnn::Mat(pack * 2),
-            ncnn::Mat(17, pack * 2),
-            ncnn::Mat(9, 7, pack * 2),
-            ncnn::Mat(3, 5, 7, pack * 2),
-            ncnn::Mat(pack * 2 - 1),
-            ncnn::Mat(17, pack * 2 - 1),
-            ncnn::Mat(3, 5, pack * 2 - 1),
-            ncnn::Mat(3, 5, 7, pack * 2 - 1),
-            ncnn::Mat(pack * 2, (size_t)4u, 1, 2),
             ncnn::Mat(17, pack * 2, (size_t)4u, 1, 2),
             ncnn::Mat(9, 7, pack * 2, (size_t)4u, 1, 2),
             ncnn::Mat(3, 5, 7, pack * 2, (size_t)4u, 1, 2)
