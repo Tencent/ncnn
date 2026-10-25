@@ -3,6 +3,8 @@
 
 #include "utils.h"
 
+#include "../../fileio.h"
+
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -321,27 +323,27 @@ static bool fread_exact(FILE* fp, void* data, size_t size, const char* path, con
 
 static bool get_remaining_file_size(FILE* fp, const char* path, size_t& remaining_size)
 {
-    const long pos = ftell(fp);
+    const int64_t pos = ncnn_file_tell(fp);
     if (pos < 0)
     {
         fprintf(stderr, "npy load failed %s: ftell failed\n", path);
         return false;
     }
 
-    if (fseek(fp, 0, SEEK_END) != 0)
+    if (ncnn_file_seek(fp, 0, SEEK_END) != 0)
     {
         fprintf(stderr, "npy load failed %s: fseek failed\n", path);
         return false;
     }
 
-    const long end = ftell(fp);
+    const int64_t end = ncnn_file_tell(fp);
     if (end < 0)
     {
         fprintf(stderr, "npy load failed %s: ftell failed\n", path);
         return false;
     }
 
-    if (fseek(fp, pos, SEEK_SET) != 0)
+    if (ncnn_file_seek(fp, pos, SEEK_SET) != 0)
     {
         fprintf(stderr, "npy load failed %s: fseek failed\n", path);
         return false;
