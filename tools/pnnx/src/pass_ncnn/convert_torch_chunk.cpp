@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_torch_chunk.h"
+#include "reshape_shape.h"
+#include "split_shape.h"
 
 namespace pnnx {
 
@@ -11,7 +13,8 @@ void convert_torch_chunk(Graph& graph)
 {
     int op_index = 0;
 
-    for (Operator* op : graph.ops)
+    const std::vector<Operator*> ops = graph.ops;
+    for (Operator* op : ops)
     {
         if (op->type != "torch.chunk")
             continue;
@@ -55,20 +58,31 @@ void convert_torch_chunk(Graph& graph)
             continue;
         }
 
-        if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
+        const int size = axis >= 0 && axis < (int)op->inputs[0]->shape.size() ? op->inputs[0]->shape[axis] : -1;
+        const std::string extent = get_logical_dim_expr(op->inputs[0], 0, axis);
+        if (size < 0 && !extent.empty())
         {
-            int size = op->inputs[0]->shape[axis];
-            if (size % chunks != 0)
-            {
-                fprintf(stderr, "chunk with non-perfect divided size %d / %d is not supported\n", size, chunks);
-            }
+            // Chunk uses ceil(size / chunks), and can return fewer than chunks outputs.
+            const std::string step = "+(1,//(-(" + extent + ",1)," + std::to_string(chunks) + "))";
+            std::vector<std::string> boundaries;
+            for (size_t i = 0; i <= op->outputs.size(); i++)
+                boundaries.push_back("min(" + extent + ",*(" + std::to_string(i) + "," + step + "))");
+            const int physical_axis = ncnn_batch_axis != 233 && axis > ncnn_batch_axis ? axis - 1 : axis;
+            split_with_dynamic_crops(graph, op, physical_axis, boundaries);
+            continue;
         }
 
         if (ncnn_batch_axis != 233 && axis > ncnn_batch_axis)
             axis -= 1;
 
         op->params["0"].type = 5;
-        op->params["0"].ai.resize(chunks, -233);
+        op->params["0"].ai.resize(op->outputs.size(), -233);
+        if (size > 0 && size % chunks != 0)
+        {
+            const int step = 1 + (size - 1) / chunks;
+            for (size_t i = 0; i + 1 < op->outputs.size(); i++)
+                op->params["0"].ai[i] = step;
+        }
 
         op->params["1"] = axis;
 
