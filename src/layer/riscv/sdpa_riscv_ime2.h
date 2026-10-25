@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
+#include <fcntl.h>
 #include <errno.h>
 #endif
 #include <stdlib.h>
@@ -201,8 +202,11 @@ static int ime2_hw_supported()
      * SIGCHLD ignored, SA_NOCLDWAIT, or a reaping handler, waitpid can fail
      * with ECHILD and a zero-initialized status would read as 'supported'.
      * Only an explicit byte from the child is accepted as success. */
+    /* O_CLOEXEC on both ends (same as the gemm probe): another thread's
+     * fork+exec'd subprocess must not inherit fds[1] and delay this read's
+     * EOF; our own probe child never execs, so its write end is unaffected. */
     int fds[2];
-    if (pipe(fds) != 0)
+    if (pipe2(fds, O_CLOEXEC) != 0)
     {
         cached = 0;
         return 0;
@@ -226,7 +230,12 @@ static int ime2_hw_supported()
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
         sa.sa_handler = SIG_DFL;
-        sigaction(SIGILL, &sa, NULL);
+        if (sigaction(SIGILL, &sa, NULL) != 0)
+        {
+            /* Could not reset (seccomp): exit without writing so the parent
+             * judges unsupported and nothing hangs or reports a false success. */
+            _exit(1);
+        }
         sigset_t m;
         sigemptyset(&m);
         sigaddset(&m, SIGILL);
@@ -241,7 +250,11 @@ static int ime2_hw_supported()
     }
     close(fds[1]);
     char b = 0;
-    const ssize_t n = read(fds[0], &b, 1);
+    ssize_t n;
+    do
+    {
+        n = read(fds[0], &b, 1);
+    } while (n < 0 && errno == EINTR);
     close(fds[0]);
     int st = 0;
     while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
