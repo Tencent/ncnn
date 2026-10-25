@@ -495,24 +495,19 @@ static int test_packing_3()
 
 static int test_packing_int8()
 {
-    const int packs[] = {32, 64};
-    for (size_t i = 0; i < sizeof(packs) / sizeof(packs[0]); i++)
-    {
-        const int pack = packs[i];
-        const ncnn::Mat shapes[] = {
-            ncnn::Mat(17, pack * 2),
-            ncnn::Mat(9, 7, pack * 2),
-            ncnn::Mat(3, 5, 7, pack * 2)
-        };
-        for (size_t j = 0; j < sizeof(shapes) / sizeof(shapes[0]); j++)
-        {
-            if (test_packing_cpu_int8(shapes[j], 1, pack) != 0
-                    || test_packing_cpu_int8(shapes[j], pack, 1) != 0)
-                return -1;
-        }
-    }
-
-    return 0;
+    return 0
+           || test_packing_cpu_int8(ncnn::Mat(17, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(17, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(17, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(17, 128), 64, 1)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 128), 64, 1)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 128), 64, 1);
 }
 
 #if NCNN_VALIDATION
