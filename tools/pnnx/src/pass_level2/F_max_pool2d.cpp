@@ -530,4 +530,88 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_tnn, 120)
 
+class F_max_pool2d_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Pooling           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return !captured_params.at("op_0.global_pooling").b && captured_params.at("op_0.pool").i == 0 && !captured_params.at("op_0.explicit_padding").b;
+    }
+
+    const char* type_str() const
+    {
+        return "F.max_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["kernel_size"] = captured_params.at("op_0.kernel_size");
+        op->params["stride"] = captured_params.at("op_0.stride");
+        op->params["padding"] = captured_params.at("op_0.pad");
+        op->params["ceil_mode"] = true;
+        op->params["dilation"] = std::vector<int>{1, 1};
+        op->params["return_indices"] = false;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_caffe, 120)
+
+class F_max_pool2d_caffe_pad : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Pooling           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return !captured_params.at("op_0.global_pooling").b && captured_params.at("op_0.pool").i == 0 && captured_params.at("op_0.explicit_padding").b;
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+F.pad                   pad         1 1 input padded pad=%op_0.padding mode=constant value=0.0
+F.max_pool2d            pool        1 1 padded out kernel_size=%op_0.kernel_size stride=%op_0.stride padding=(0,0) ceil_mode=False dilation=(1,1) return_indices=False
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* pad = ops.at("pad");
+        pad->params["value"] = -FLT_MAX;
+        const std::vector<int>& padding = captured_params.at("op_0.padding").ai;
+        Operand* padded = pad->outputs[0];
+        padded->shape = pad->inputs[0]->shape;
+        padded->shape[2] += padding[2] + padding[3];
+        padded->shape[3] += padding[0] + padding[1];
+        padded->type = pad->inputs[0]->type;
+        if (pad->inputs[0]->params.find("__batch_index") != pad->inputs[0]->params.end())
+            padded->params["__batch_index"] = pad->inputs[0]->params.at("__batch_index");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_caffe_pad, 120)
+
 } // namespace pnnx

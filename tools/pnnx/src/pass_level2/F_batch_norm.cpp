@@ -181,4 +181,106 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_tnn, 130)
 
+class F_batch_norm_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.BatchNorm         op_0        1 1 input out eps=%eps @0 @1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          mean        0 1 running_mean @data=%op_0.0
+pnnx.Attribute          var         0 1 running_var @data=%op_0.1
+F.batch_norm            bn          3 1 input running_mean running_var out eps=%eps weight=None bias=None
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+        ops.at("bn")->inputnames = {"input", "running_mean", "running_var"};
+        for (const char* name : {"mean", "var"})
+        {
+            Operator* attr = ops.at(name);
+            attr->outputs[0]->shape = attr->attrs.at("data").shape;
+            attr->outputs[0]->type = attr->attrs.at("data").type;
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_caffe, 130)
+
+class F_batch_norm_caffe_scale : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Scale             op_0        1 1 input out num_features=%num_features @0 @1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+pnnx.Attribute          mean        0 1 running_mean
+pnnx.Attribute          var         0 1 running_var
+pnnx.Attribute          weight      0 1 weight @data=%op_0.0
+pnnx.Attribute          bias        0 1 bias @data=%op_0.1
+F.batch_norm            bn          5 1 input running_mean running_var weight bias out eps=1.0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+        const int channels = captured_params.at("num_features").i;
+        ops.at("mean")->attrs["data"] = Attribute({channels}, std::vector<float>(channels, 0.f));
+        // Keep sqrt(running_var + eps) exactly one with a positive epsilon.
+        ops.at("var")->attrs["data"] = Attribute({channels}, std::vector<float>(channels, 0.f));
+        ops.at("bn")->inputnames = {"input", "running_mean", "running_var", "weight", "bias"};
+        for (const char* name : {"mean", "var", "weight", "bias"})
+        {
+            Operator* attr = ops.at(name);
+            attr->outputs[0]->shape = attr->attrs.at("data").shape;
+            attr->outputs[0]->type = attr->attrs.at("data").type;
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_caffe_scale, 130)
+
+class F_batch_norm_caffe_bn : public F_batch_norm_caffe_scale
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.BN                op_0        1 1 input out num_features=%num_features @0 @1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_caffe_bn, 130)
+
 } // namespace pnnx

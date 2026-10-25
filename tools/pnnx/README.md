@@ -34,9 +34,26 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 # Build TorchScript to PNNX converter
 
 1. Install PyTorch and TorchVision c++ library
-2. Build PNNX with cmake
+2. Install protobuf headers, library and protoc for the Caffe frontend (enabled by default). Use `-DPNNX_CAFFE2PNNX=OFF` to build without Caffe support.
+3. Build PNNX with cmake
 
 # Usage
+
+## Caffe models
+
+Place the Caffe network and weights together as `model.prototxt` and `model.caffemodel`, then run:
+
+```shell
+pnnx model.prototxt
+```
+
+PNNX loads the weights with the same basename automatically. The existing output options apply, including the generated PyTorch model and ncnn files. Use `fp16=0` when comparing FP32 results. Caffe itself is not needed to convert or run the generated PyTorch model.
+
+See [Caffe support and regression tests](CAFFE.md) for supported operators, parameter limitations and validation commands.
+
+The Caffe frontend uses the existing ncnn runtime contract; it does not require new native layer parameters or runtime patches. Unsupported graph structures are rejected, and data-dependent legacy limitations are warned about explicitly. Diagnostic coverage is separate from numerical equivalence validation.
+
+## TorchScript models
 
 1. Export your model to TorchScript
 

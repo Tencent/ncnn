@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "pass_ncnn/convert_caffe_yolo.h"
 
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_batch_layout.h"
@@ -74,7 +75,7 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
     delete pass;
 }
 
-void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
+void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators, bool preserve_output_set)
 {
     unroll_rnn_op(g);
 
@@ -91,6 +92,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     // solve torch batch axis first, then legalize how ncnn carries it
     ncnn::solve_batch_index(g);
     ncnn::convert_batch_layout(g);
+    ncnn::convert_caffe_yolo(g);
 
     ncnn::convert_half_to_float(g);
 
@@ -161,7 +163,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     ncnn::convert_input(g);
 
-    ncnn::eliminate_output(g);
+    ncnn::eliminate_output(g, preserve_output_set);
 }
 
 } // namespace pnnx
