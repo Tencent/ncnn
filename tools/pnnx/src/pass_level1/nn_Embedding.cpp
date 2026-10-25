@@ -31,6 +31,13 @@ public:
         // op->params["scale_grad_by_freq"] = embedding->namedInput("scale_grad_by_freq");
         op->params["sparse"] = embedding->namedInput("sparse");
 
+        const TorchNodeProxy* renorm = graph.find_node_by_kind("aten::embedding_renorm_");
+        if (renorm)
+        {
+            op->params["max_norm"] = renorm->namedInput("max_norm");
+            op->params["norm_type"] = renorm->namedInput("norm_type");
+        }
+
         op->attrs["weight"] = weight;
     }
 };
