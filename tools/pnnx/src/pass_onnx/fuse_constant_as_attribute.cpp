@@ -44,6 +44,7 @@ static constant_as_attribute caas[] = {
     {"Slice", 2, "ends"},
     {"Slice", 3, "axes"},
     {"Slice", 4, "steps"},
+    {"Split", 1, "split"},
     {"Squeeze", 1, "axes"},
     {"Tile", 1, "repeats"},
     {"Unsqueeze", 1, "axes"},
@@ -104,6 +105,8 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
             // fprintf(stderr, "fuse_constant_as_attribute  %s %d -> %s\n", op_type.c_str(), j, attr_name);
 
             const onnx::TensorProto& tensor = graph->initializer(initializers.at(input));
+            if (op_type == "Split" && (tensor.data_location() == onnx::TensorProto::EXTERNAL || tensor.external_data_size()))
+                continue;
 
             int64_t numel = 1;
             for (int k = 0; k < tensor.dims_size(); k++)
@@ -111,7 +114,7 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                 numel *= tensor.dims(k);
             }
 
-            if (numel == 1)
+            if (numel == 1 && op_type != "Split")
             {
                 // int or float scalar
                 if (tensor.data_type() == onnx::TensorProto::INT32)
