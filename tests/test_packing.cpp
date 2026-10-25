@@ -168,15 +168,10 @@ static int test_packing_cpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     op->create_pipeline(opt);
 
     ncnn::Mat a8;
-    if (a.dims == 1) a8.create(a.w, (size_t)1u, 1, a.n);
-    if (a.dims == 2) a8.create(a.w, a.h, (size_t)1u, 1, a.n);
-    if (a.dims == 3) a8.create(a.w, a.h, a.c, (size_t)1u, 1, a.n);
-    if (a.dims == 4) a8.create(a.w, a.h, a.d, a.c, (size_t)1u, 1, a.n);
-    for (int b = 0; b < a.n; b++)
-    {
-        ncnn::Mat m = a8.batch(b);
-        RandomizeS8(m);
-    }
+    if (a.dims == 1) a8 = RandomS8Mat(a.w);
+    if (a.dims == 2) a8 = RandomS8Mat(a.w, a.h);
+    if (a.dims == 3) a8 = RandomS8Mat(a.w, a.h, a.c);
+    if (a.dims == 4) a8 = RandomS8Mat(a.w, a.h, a.d, a.c);
 
     ncnn::Mat ap;
     ncnn::convert_packing(a8, ap, in_elempack, opt);
@@ -505,9 +500,9 @@ static int test_packing_int8()
     {
         const int pack = packs[i];
         const ncnn::Mat shapes[] = {
-            ncnn::Mat(17, pack * 2, (size_t)4u, 1, 2),
-            ncnn::Mat(9, 7, pack * 2, (size_t)4u, 1, 2),
-            ncnn::Mat(3, 5, 7, pack * 2, (size_t)4u, 1, 2)
+            ncnn::Mat(17, pack * 2),
+            ncnn::Mat(9, 7, pack * 2),
+            ncnn::Mat(3, 5, 7, pack * 2)
         };
         for (size_t j = 0; j < sizeof(shapes) / sizeof(shapes[0]); j++)
         {
