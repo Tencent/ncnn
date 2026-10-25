@@ -1,0 +1,122 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "rotaryembed_riscv.h"
+
+#if __riscv_vector
+#include <riscv_vector.h>
+#endif // __riscv_vector
+
+namespace ncnn {
+
+RotaryEmbed_riscv::RotaryEmbed_riscv()
+{
+}
+
+int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    const int embed_dim = bottom_blob.w;
+    /* input_hc_swapped=1: the input is [w, c, h] (absorbing the preceding Permute(order_type=2)) */
+    const int seqlen = input_hc_swapped ? bottom_blob.c : bottom_blob.h;
+    const int num_heads = input_hc_swapped ? bottom_blob.h : bottom_blob.c;
+
+#if !__riscv_vector
+    return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
+#else
+    // take over only the fp32/pack1 common case; leave the rest to the generic implementation
+    if (bottom_blob.elembits() != 32 || bottom_blob.elempack != 1 || embed_dim % 2 != 0)
+        return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
+
+    Mat& top_blob = top_blobs[0];
+    if (input_hc_swapped)
+    {
+        /* in fusion mode the input is [w, c, h] and the output must return to
+         * the standard layout [w, h, c] (the work of the original
+         * Permute(order_type=2) is folded into this layer). */
+        top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
+    }
+    else
+    {
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    const int half = embed_dim / 2;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const Mat head = bottom_blob.channel(q);
+        Mat out_head = top_blob.channel(q);
+
+        for (int i = 0; i < seqlen; i++)
+        {
+            const float* ptr = input_hc_swapped ? bottom_blob.channel(i).row(q) : head.row(i);
+            const float* cos_ptr = cos_cache.row(i);
+            const float* sin_ptr = sin_cache.row(i);
+            float* outptr = out_head.row(i);
+
+            int j = 0;
+            if (interleaved)
+            {
+                /* interleaved layout: x0/x1 take even/odd positions (stride 8 bytes) */
+                while (j < half)
+                {
+                    const size_t vl = __riscv_vsetvl_e32m2(half - j);
+                    vfloat32m2_t x0 = __riscv_vlse32_v_f32m2(ptr + (size_t)j * 2, 8, vl);
+                    vfloat32m2_t x1 = __riscv_vlse32_v_f32m2(ptr + (size_t)j * 2 + 1, 8, vl);
+                    vfloat32m2_t c = __riscv_vle32_v_f32m2(cos_ptr + j, vl);
+                    vfloat32m2_t s = __riscv_vle32_v_f32m2(sin_ptr + j, vl);
+                    vfloat32m2_t o0 = __riscv_vfsub_vv_f32m2(__riscv_vfmul_vv_f32m2(x0, c, vl), __riscv_vfmul_vv_f32m2(x1, s, vl), vl);
+                    vfloat32m2_t o1 = __riscv_vfadd_vv_f32m2(__riscv_vfmul_vv_f32m2(x0, s, vl), __riscv_vfmul_vv_f32m2(x1, c, vl), vl);
+                    __riscv_vsse32_v_f32m2(outptr + (size_t)j * 2, 8, o0, vl);
+                    __riscv_vsse32_v_f32m2(outptr + (size_t)j * 2 + 1, 8, o1, vl);
+                    j += (int)vl;
+                }
+            }
+            else
+            {
+                /* half-split (the path this model takes): the first and second halves are
+                 * each contiguous -- pure contiguous access, the easiest to vectorize.
+                 * A full-width cache (cos_cache.w == embed_dim) carries independent
+                 * coefficients for the two halves, common in 2D/vision RoPE; a half-width
+                 * cache (embed_dim/2) shares one set of coefficients between the halves.
+                 * The cw selection must match the generic implementation, otherwise o1
+                 * would use the wrong coefficients under a full-width cache. */
+                const int cw = cos_cache.w == embed_dim ? half : 0;
+                const float* ptr0 = ptr;
+                const float* ptr1 = ptr + half;
+                const float* cos_ptr0 = cos_ptr;
+                const float* sin_ptr0 = sin_ptr;
+                const float* cos_ptr1 = cos_ptr + cw;
+                const float* sin_ptr1 = sin_ptr + cw;
+                float* outptr0 = outptr;
+                float* outptr1 = outptr + half;
+                while (j < half)
+                {
+                    const size_t vl = __riscv_vsetvl_e32m4(half - j);
+                    vfloat32m4_t x0 = __riscv_vle32_v_f32m4(ptr0 + j, vl);
+                    vfloat32m4_t x1 = __riscv_vle32_v_f32m4(ptr1 + j, vl);
+                    vfloat32m4_t c0 = __riscv_vle32_v_f32m4(cos_ptr0 + j, vl);
+                    vfloat32m4_t s0 = __riscv_vle32_v_f32m4(sin_ptr0 + j, vl);
+                    vfloat32m4_t c1 = __riscv_vle32_v_f32m4(cos_ptr1 + j, vl);
+                    vfloat32m4_t s1 = __riscv_vle32_v_f32m4(sin_ptr1 + j, vl);
+                    vfloat32m4_t o0 = __riscv_vfsub_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, c0, vl), __riscv_vfmul_vv_f32m4(x1, s0, vl), vl);
+                    vfloat32m4_t o1 = __riscv_vfadd_vv_f32m4(__riscv_vfmul_vv_f32m4(x0, s1, vl), __riscv_vfmul_vv_f32m4(x1, c1, vl), vl);
+                    __riscv_vse32_v_f32m4(outptr0 + j, o0, vl);
+                    __riscv_vse32_v_f32m4(outptr1 + j, o1, vl);
+                    j += (int)vl;
+                }
+            }
+        }
+    }
+    return 0;
+#endif // __riscv_vector
+}
+
+} // namespace ncnn
