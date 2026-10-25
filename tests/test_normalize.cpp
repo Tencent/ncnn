@@ -174,6 +174,102 @@ static int test_normalize_6()
            || test_normalize(RandomMat(7, 5, 12), 0, 0, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
+#if NCNN_VULKAN
+
+// NOTE fp16 arithmetic is not covered: test_layer_gpu turns it off (testutil.cpp) and this
+// layer output scale 1/sqrt(sum(x^2)+eps) makes a hand driven comparison meaningless.
+
+static int test_normalize_gpu_subgroup(const ncnn::Mat& a, int across_spatial, int across_channel, float eps, int eps_mode)
+{
+    const int scale_data_size = a.c;
+
+    ncnn::ParamDict pd;
+    pd.set(0, across_spatial);
+    pd.set(4, across_channel);
+    pd.set(1, 0);
+    pd.set(2, eps);
+    pd.set(3, scale_data_size);
+    pd.set(9, eps_mode);
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0] = RandomMat(scale_data_size);
+
+    const ncnn::GpuInfo& info = ncnn::get_gpu_device()->info;
+
+    const bool fp16_ps[4] = {false, true, true, false};
+    const bool fp16_arith[4] = {false, false, true, false};
+    const bool bf16[4] = {false, false, false, true};
+    const char* names[4] = {"fp32", "fp16ps", "fp16psa", "bf16ps"};
+    const float epsilons[4] = {0.001f, 0.002f, 0.002f, 0.01f};
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (fp16_ps[i] && !info.support_fp16_storage())
+            continue;
+        if (bf16[i] && !info.support_bf16_storage())
+            continue;
+
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_vulkan_compute = true;
+        opt.use_fp16_packed = fp16_ps[i];
+        opt.use_fp16_storage = fp16_ps[i];
+        opt.use_fp16_arithmetic = fp16_arith[i];
+        opt.use_bf16_packed = bf16[i];
+        opt.use_bf16_storage = bf16[i];
+
+        opt.use_subgroup_ops = false;
+        ncnn::Mat b0;
+        int ret = test_layer_gpu(ncnn::layer_to_index("Normalize"), pd, weights, opt, a, b0, a, 0);
+        if (ret == 233)
+        {
+            // test_layer_gpu turns fp16 arithmetic off, that configuration is covered below
+            continue;
+        }
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_normalize_gpu_subgroup fallback failed a.dims=%d a=(%d %d %d %d) spatial=%d channel=%d %s ret=%d\n", a.dims, a.w, a.h, a.d, a.c, across_spatial, across_channel, names[i], ret);
+            return -1;
+        }
+
+        opt.use_subgroup_ops = true;
+        ncnn::Mat b1;
+        ret = test_layer_gpu(ncnn::layer_to_index("Normalize"), pd, weights, opt, a, b1, a, 0);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_normalize_gpu_subgroup subgroup failed a.dims=%d a=(%d %d %d %d) spatial=%d channel=%d %s ret=%d\n", a.dims, a.w, a.h, a.d, a.c, across_spatial, across_channel, names[i], ret);
+            return -1;
+        }
+
+        if (CompareMat(b0, b1, epsilons[i]) != 0)
+        {
+            fprintf(stderr, "test_normalize_gpu_subgroup mismatch a.dims=%d a=(%d %d %d %d) spatial=%d channel=%d %s\n", a.dims, a.w, a.h, a.d, a.c, across_spatial, across_channel, names[i]);
+            return -1;
+        }
+    }
+
+
+    return 0;
+}
+
+static int test_normalize_subgroup()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    // shapes large enough for the single pass subgroup reduce to take over
+    return 0
+           || test_normalize_gpu_subgroup(RandomMat(64, 16, 8), 1, 0, 0.0001f, 0)
+           || test_normalize_gpu_subgroup(RandomMat(56, 56, 64), 1, 0, 0.0001f, 1)
+           || test_normalize_gpu_subgroup(RandomMat(128, 3, 24), 1, 0, 0.0001f, 2)
+           || test_normalize_gpu_subgroup(RandomMat(33, 5, 12), 1, 0, 0.0001f, 0)
+           || test_normalize_gpu_subgroup(RandomMat(8, 8, 16), 0, 1, 0.0001f, 0)
+           || test_normalize_gpu_subgroup(RandomMat(32, 32, 64), 0, 1, 0.0001f, 1)
+           || test_normalize_gpu_subgroup(RandomMat(7, 5, 3, 24), 0, 1, 0.0001f, 2)
+           || test_normalize_gpu_subgroup(RandomMat(16, 4, 8, 32), 0, 1, 0.0001f, 0);
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
@@ -185,5 +281,9 @@ int main()
            || test_normalize_3()
            || test_normalize_4()
            || test_normalize_5()
-           || test_normalize_6();
+           || test_normalize_6()
+#if NCNN_VULKAN
+           || test_normalize_subgroup()
+#endif
+           ;
 }
