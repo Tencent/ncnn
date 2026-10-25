@@ -1586,6 +1586,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
 int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_vector
     if (use_padding)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
@@ -1600,18 +1601,11 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         return 0;
     }
 
-    bool pack1to8 = elempack == 1 && out_elempack == 8;
-    bool pack8to1 = elempack == 8 && out_elempack == 1;
-
-    bool pack1ton = false;
-    bool packnto1 = false;
-#if __riscv_vector
     const int packn = csrr_vlenb();
-    pack1ton = elempack == 1 && out_elempack == packn;
-    packnto1 = elempack == packn && out_elempack == 1;
-#endif // __riscv_vector
+    bool pack1ton = elempack == 1 && out_elempack == packn;
+    bool packnto1 = elempack == packn && out_elempack == 1;
 
-    if (!pack1to8 && !pack8to1 && !pack1ton && !packnto1)
+    if (!pack1ton && !packnto1)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -1665,10 +1659,8 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#if __riscv_vector
         if (pack1ton)
         {
-            const size_t vl = __riscv_vsetvl_e8m1(packn);
             const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int bi = 0; bi < total_bi; bi++)
@@ -1678,11 +1670,25 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 const signed char* ptr = bottom_blob.batch(b).row<const signed char>(i * packn);
                 signed char* outptr = top_blob.batch(b).row<signed char>(i);
 
-                for (int j = 0; j < w; j++)
+                int n = w;
+                while (n > 0)
                 {
-                    vint8m1_t _p = __riscv_vlse8_v_i8m1(ptr + j, w, vl);
-                    __riscv_vse8_v_i8m1(outptr, _p, vl);
-                    outptr += packn;
+                    size_t vl = __riscv_vsetvl_e8m1(n);
+                    for (int k = 0; k < packn; k += 8)
+                    {
+                        vint8m1_t _p0 = __riscv_vle8_v_i8m1(ptr + k * w, vl);
+                        vint8m1_t _p1 = __riscv_vle8_v_i8m1(ptr + (k + 1) * w, vl);
+                        vint8m1_t _p2 = __riscv_vle8_v_i8m1(ptr + (k + 2) * w, vl);
+                        vint8m1_t _p3 = __riscv_vle8_v_i8m1(ptr + (k + 3) * w, vl);
+                        vint8m1_t _p4 = __riscv_vle8_v_i8m1(ptr + (k + 4) * w, vl);
+                        vint8m1_t _p5 = __riscv_vle8_v_i8m1(ptr + (k + 5) * w, vl);
+                        vint8m1_t _p6 = __riscv_vle8_v_i8m1(ptr + (k + 6) * w, vl);
+                        vint8m1_t _p7 = __riscv_vle8_v_i8m1(ptr + (k + 7) * w, vl);
+                        __riscv_vssseg8e8_v_i8m1x8(outptr + k, packn, __riscv_vcreate_v_i8m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
+                    }
+                    ptr += vl;
+                    outptr += vl * packn;
+                    n -= vl;
                 }
             }
         }
@@ -1720,78 +1726,6 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
             }
         }
-#endif // __riscv_vector
-
-        if (pack1to8)
-        {
-            const int total_bi = batch * outh;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int bi = 0; bi < total_bi; bi++)
-            {
-                int b = bi / outh;
-                int i = bi % outh;
-                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i * 8);
-                const signed char* r1 = bottom_blob.batch(b).row<const signed char>(i * 8 + 1);
-                const signed char* r2 = bottom_blob.batch(b).row<const signed char>(i * 8 + 2);
-                const signed char* r3 = bottom_blob.batch(b).row<const signed char>(i * 8 + 3);
-                const signed char* r4 = bottom_blob.batch(b).row<const signed char>(i * 8 + 4);
-                const signed char* r5 = bottom_blob.batch(b).row<const signed char>(i * 8 + 5);
-                const signed char* r6 = bottom_blob.batch(b).row<const signed char>(i * 8 + 6);
-                const signed char* r7 = bottom_blob.batch(b).row<const signed char>(i * 8 + 7);
-
-                signed char* outptr = top_blob.batch(b).row<signed char>(i);
-
-                int j = 0;
-                for (; j < w; j++)
-                {
-                    outptr[0] = *r0++;
-                    outptr[1] = *r1++;
-                    outptr[2] = *r2++;
-                    outptr[3] = *r3++;
-                    outptr[4] = *r4++;
-                    outptr[5] = *r5++;
-                    outptr[6] = *r6++;
-                    outptr[7] = *r7++;
-
-                    outptr += 8;
-                }
-            }
-        }
-        if (pack8to1)
-        {
-            const int total_bi = batch * h;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int bi = 0; bi < total_bi; bi++)
-            {
-                int b = bi / h;
-                int i = bi % h;
-                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i);
-
-                signed char* outptr0 = top_blob.batch(b).row<signed char>(i * 8);
-                signed char* outptr1 = top_blob.batch(b).row<signed char>(i * 8 + 1);
-                signed char* outptr2 = top_blob.batch(b).row<signed char>(i * 8 + 2);
-                signed char* outptr3 = top_blob.batch(b).row<signed char>(i * 8 + 3);
-                signed char* outptr4 = top_blob.batch(b).row<signed char>(i * 8 + 4);
-                signed char* outptr5 = top_blob.batch(b).row<signed char>(i * 8 + 5);
-                signed char* outptr6 = top_blob.batch(b).row<signed char>(i * 8 + 6);
-                signed char* outptr7 = top_blob.batch(b).row<signed char>(i * 8 + 7);
-
-                int j = 0;
-                for (; j < w; j++)
-                {
-                    *outptr0++ = r0[0];
-                    *outptr1++ = r0[1];
-                    *outptr2++ = r0[2];
-                    *outptr3++ = r0[3];
-                    *outptr4++ = r0[4];
-                    *outptr5++ = r0[5];
-                    *outptr6++ = r0[6];
-                    *outptr7++ = r0[7];
-
-                    r0 += 8;
-                }
-            }
-        }
 
         return 0;
     }
@@ -1809,10 +1743,8 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#if __riscv_vector
         if (pack1ton)
         {
-            const size_t vl = __riscv_vsetvl_e8m1(packn);
             const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int bq = 0; bq < total_bq; bq++)
@@ -1822,11 +1754,25 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 const signed char* ptr = bottom_blob.batch(b).channel(q * packn);
                 signed char* outptr = top_blob.batch(b).channel(q);
 
-                for (int i = 0; i < size; i++)
+                int n = size;
+                while (n > 0)
                 {
-                    vint8m1_t _p = __riscv_vlse8_v_i8m1(ptr + i, bottom_blob.cstep, vl);
-                    __riscv_vse8_v_i8m1(outptr, _p, vl);
-                    outptr += packn;
+                    size_t vl = __riscv_vsetvl_e8m1(n);
+                    for (int k = 0; k < packn; k += 8)
+                    {
+                        vint8m1_t _p0 = __riscv_vle8_v_i8m1(ptr + k * bottom_blob.cstep, vl);
+                        vint8m1_t _p1 = __riscv_vle8_v_i8m1(ptr + (k + 1) * bottom_blob.cstep, vl);
+                        vint8m1_t _p2 = __riscv_vle8_v_i8m1(ptr + (k + 2) * bottom_blob.cstep, vl);
+                        vint8m1_t _p3 = __riscv_vle8_v_i8m1(ptr + (k + 3) * bottom_blob.cstep, vl);
+                        vint8m1_t _p4 = __riscv_vle8_v_i8m1(ptr + (k + 4) * bottom_blob.cstep, vl);
+                        vint8m1_t _p5 = __riscv_vle8_v_i8m1(ptr + (k + 5) * bottom_blob.cstep, vl);
+                        vint8m1_t _p6 = __riscv_vle8_v_i8m1(ptr + (k + 6) * bottom_blob.cstep, vl);
+                        vint8m1_t _p7 = __riscv_vle8_v_i8m1(ptr + (k + 7) * bottom_blob.cstep, vl);
+                        __riscv_vssseg8e8_v_i8m1x8(outptr + k, packn, __riscv_vcreate_v_i8m1x8(_p0, _p1, _p2, _p3, _p4, _p5, _p6, _p7), vl);
+                    }
+                    ptr += vl;
+                    outptr += vl * packn;
+                    n -= vl;
                 }
             }
         }
@@ -1864,83 +1810,14 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
             }
         }
-#endif // __riscv_vector
-
-        if (pack1to8)
-        {
-            const int total_bq = batch * outc;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int bq = 0; bq < total_bq; bq++)
-            {
-                int b = bq / outc;
-                int q = bq % outc;
-                const signed char* r0 = bottom_blob.batch(b).channel(q * 8);
-                const signed char* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
-                const signed char* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
-                const signed char* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
-                const signed char* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
-                const signed char* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
-                const signed char* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
-                const signed char* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
-
-                signed char* outptr = top_blob.batch(b).channel(q);
-
-                int i = 0;
-                for (; i < size; i++)
-                {
-                    outptr[0] = *r0++;
-                    outptr[1] = *r1++;
-                    outptr[2] = *r2++;
-                    outptr[3] = *r3++;
-                    outptr[4] = *r4++;
-                    outptr[5] = *r5++;
-                    outptr[6] = *r6++;
-                    outptr[7] = *r7++;
-
-                    outptr += 8;
-                }
-            }
-        }
-        if (pack8to1)
-        {
-            const int total_bq = batch * channels;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int bq = 0; bq < total_bq; bq++)
-            {
-                int b = bq / channels;
-                int q = bq % channels;
-                const signed char* r0 = bottom_blob.batch(b).channel(q);
-
-                signed char* outptr0 = top_blob.batch(b).channel(q * 8);
-                signed char* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
-                signed char* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
-                signed char* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
-                signed char* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
-                signed char* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
-                signed char* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
-                signed char* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
-
-                int i = 0;
-                for (; i < size; i++)
-                {
-                    *outptr0++ = r0[0];
-                    *outptr1++ = r0[1];
-                    *outptr2++ = r0[2];
-                    *outptr3++ = r0[3];
-                    *outptr4++ = r0[4];
-                    *outptr5++ = r0[5];
-                    *outptr6++ = r0[6];
-                    *outptr7++ = r0[7];
-
-                    r0 += 8;
-                }
-            }
-        }
 
         return 0;
     }
 
     return 0;
+#else  // __riscv_vector
+    return Packing::forward(bottom_blob, top_blob, opt);
+#endif // __riscv_vector
 }
 
 } // namespace ncnn
