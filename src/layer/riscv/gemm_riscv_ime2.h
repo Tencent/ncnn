@@ -31,6 +31,7 @@
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 #endif
 
@@ -263,20 +264,32 @@ static int ime2_hw_supported()
         _exit(0);
     }
     close(fds[1]);
-    char b = 0;
-    ssize_t n;
-    do
-    {
-        /* A handled signal without SA_RESTART makes read() return EINTR; treating
-         * that as failure would permanently disable IME2 on supported hardware
-         * (and could give the child SIGPIPE). Retry, like waitpid. */
-        n = read(fds[0], &b, 1);
-    } while (n < 0 && errno == EINTR);
-    close(fds[0]);
+    /* Reap FIRST: once waitpid returns (or fails with ECHILD on a SIGCHLD-
+     * ignoring host, meaning the child was auto-reaped = already exited),
+     * anything the child wrote is already in the pipe buffer. Then read with
+     * a BOUNDED poll instead of blocking on EOF: O_CLOEXEC only closes on a
+     * successful exec, so an unrelated thread's fork WITHOUT exec during the
+     * window still inherits fds[1] and a blocking read could wait for that
+     * process's exit (pipeline creation would hang). */
     int st = 0;
     while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
     {
     }
+    struct pollfd pfd;
+    memset(&pfd, 0, sizeof pfd);
+    pfd.fd = fds[0];
+    pfd.events = POLLIN;
+    char b = 0;
+    ssize_t n = -1;
+    if (poll(&pfd, 1, 100) > 0)
+    {
+        do
+        {
+            /* EINTR (handled signal without SA_RESTART) must not read as failure */
+            n = read(fds[0], &b, 1);
+        } while (n < 0 && errno == EINTR);
+    }
+    close(fds[0]);
     cached = (n == 1 && b == '1') ? 1 : 0;
     return cached;
 #else
