@@ -1094,6 +1094,11 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+        bool use_conv3x3 = false;
+#if NCNN_GNU_INLINE_ASM
+        use_conv3x3 = kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == stride_h && (stride_w == 1 || stride_w == 2) && (activation_type == 0 || activation_type == 1);
+#endif
+
         int out_elempack = 1;
 #if __ARM_NEON
         if (opt.use_packing_layout)
@@ -1101,23 +1106,24 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             out_elempack = num_output % 8 == 0 ? 8 : 1;
         }
 #endif // __ARM_NEON
+        if (use_conv3x3)
+            out_elempack = elempack;
+
         bool use_int8_requantize = int8_scale_term > 100;
         size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+        // fp16 / bf16 output is supported by the 3x3 dequantize paths
 #if NCNN_ARM82
-        if (support_fp16_storage && opt.use_fp16_storage)
+        if (use_conv3x3 && support_fp16_storage && opt.use_fp16_storage)
         {
             out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
         }
 #endif
-        if (opt.use_bf16_storage)
+#if NCNN_BF16
+        if (use_conv3x3 && opt.use_bf16_storage)
             out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
-        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        // TODO use fp16 / bf16
-        out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -1126,7 +1132,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         if (elempack == 8)
         {
 #if NCNN_GNU_INLINE_ASM
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
+            if (use_conv3x3 && stride_w == 1)
             {
                 Mat top_blob_int32;
                 top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
@@ -1162,7 +1168,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (activation_type == 0 || activation_type == 1))
+            else if (use_conv3x3 && stride_w == 2)
             {
                 Mat top_blob_int32;
                 top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
@@ -1304,7 +1310,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         if (elempack == 1)
         {
 #if NCNN_GNU_INLINE_ASM
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
+            if (use_conv3x3 && stride_w == 1)
             {
                 if (use_int8_requantize)
                 {
@@ -1356,7 +1362,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     activation->forward_inplace(top_blob, opt);
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (activation_type == 0 || activation_type == 1))
+            else if (use_conv3x3 && stride_w == 2)
             {
                 if (use_int8_requantize)
                 {

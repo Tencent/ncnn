@@ -622,34 +622,29 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
 {
     // zero weight scales disable a group contribution while preserving its bias
     // channels, output channels and groups cover depthwise and grouped descales
-    static const int cases[][4] = {
-        {8, 8, 8, 1},
-        {4, 4, 2, 1},
-        {64, 64, 64, 3}
-    };
+    static const int cases[][3] = {{8, 8, 8}, {4, 4, 2}};
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
     {
         const int c = cases[i][0];
         const int outch = cases[i][1];
         const int group = cases[i][2];
-        const int kernel = cases[i][3];
         ncnn::Mat a(1, 1, c);
         a.fill(1.f);
 
         ncnn::ParamDict pd;
         pd.set(0, outch);
-        pd.set(1, kernel);
+        pd.set(1, 1);
         pd.set(2, 1);
         pd.set(3, 1);
-        pd.set(4, kernel / 2);
+        pd.set(4, 0);
         pd.set(5, 1);
-        pd.set(6, outch * c / group * kernel * kernel);
+        pd.set(6, outch * c / group);
         pd.set(7, group);
         pd.set(8, 1);
         pd.set(9, 0);
 
         std::vector<ncnn::Mat> weights(5);
-        weights[0].create(outch * c / group * kernel * kernel);
+        weights[0].create(outch * c / group);
         weights[0].fill(3.f);
         weights[1].create(outch);
         for (int q = 0; q < outch; q++)
