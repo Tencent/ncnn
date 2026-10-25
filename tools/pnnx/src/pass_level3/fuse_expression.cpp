@@ -725,8 +725,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     else if (op->type == "aten::rsub")
     {
         expr += "sub(";
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
+        expr += ",";
+
         std::string expr1;
-        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
+        fuse_expression(graph, op->inputs[0], expr1, inputs, foldable_constants, zip);
 
         if (op->inputs.size() == 2)
         {
@@ -743,7 +746,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else
             {
-                expr += ",";
                 expr += "mul(";
                 expr += expr1;
                 expr += ",";
@@ -752,8 +754,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
         }
 
-        expr += ",";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::div")
