@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 #endif
 #include <stdlib.h>
@@ -249,17 +250,28 @@ static int ime2_hw_supported()
         _exit(0);
     }
     close(fds[1]);
-    char b = 0;
-    ssize_t n;
-    do
-    {
-        n = read(fds[0], &b, 1);
-    } while (n < 0 && errno == EINTR);
-    close(fds[0]);
+    /* Reap first, then read with a bounded poll (same as the gemm probe):
+     * a fork-without-exec sibling can still hold fds[1], so a blocking EOF
+     * read could hang; after the child is reaped (or auto-reaped, ECHILD),
+     * anything it wrote is already buffered. */
     int st = 0;
     while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
     {
     }
+    struct pollfd pfd;
+    memset(&pfd, 0, sizeof pfd);
+    pfd.fd = fds[0];
+    pfd.events = POLLIN;
+    char b = 0;
+    ssize_t n = -1;
+    if (poll(&pfd, 1, 100) > 0)
+    {
+        do
+        {
+            n = read(fds[0], &b, 1);
+        } while (n < 0 && errno == EINTR);
+    }
+    close(fds[0]);
     cached = (n == 1 && b == '1') ? 1 : 0;
     return cached;
 #else
