@@ -351,6 +351,9 @@ public:
     }
     virtual ~VkWeightAllocator();
 
+    // copy the UTF-8 directory before enabling disk storage; null or empty uses the system default
+    int set_weight_file_directory(const char* path);
+
     // configure before allocating weights, failure keeps the resident policy
     int set_weights_in_host_disk(bool enable);
     int set_weight_budgets(size_t device_budget, size_t host_budget);

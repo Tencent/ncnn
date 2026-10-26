@@ -1225,6 +1225,14 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     // NCNN_LOGE("record_upload buffer");
 
     Mat src_fp16;
@@ -1249,6 +1257,12 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
+    if (src_fp16.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     // vkdev->convert_packing only handles elempack=1/4
     if (src_fp16.elempack > 4)
     {
@@ -1260,8 +1274,11 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     // upload
     VkMat dst_staging;
     dst_staging.create_like(src_fp16, opt.staging_vkallocator);
-    if (dst_staging.empty())
+    if (dst_staging.empty() || !dst_staging.mapped_ptr())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // stash staging
     d->upload_staging_buffers.push_back(dst_staging);
@@ -1275,7 +1292,11 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         VkMat staging_b = dst_staging.batch(b);
         memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
-    dst_staging.allocator->flush(dst_staging.data);
+    if (dst_staging.allocator->flush(dst_staging.data))
+    {
+        d->record_error = -1;
+        return;
+    }
 
     // mark device host-write @ null
     dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
@@ -1302,10 +1323,23 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
             cast_type_to = 1;
     }
     vkdev->convert_packing(dst_staging, dst, dst_elempack, cast_type_to, *this, opt);
+    if (dst.empty())
+        d->record_error = -100;
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
+    if (d->ensure_weight_cache(src, &opt))
+        return;
+
     // NCNN_LOGE("record_download buffer");
 
     // resolve dst_elempack
@@ -1346,62 +1380,10 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     VkMat dst_staging;
     vkdev->convert_packing(src, dst_staging, dst_elempack, cast_type_to, *this, opt_staging);
 
-    // barrier device any @ compute to host-read @ compute
-    if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
-    {
-        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = dst_staging.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = dst_staging.buffer();
-        barriers[0].offset = dst_staging.data->offset;
-        barriers[0].size = dst_staging.data->capacity;
-
-        VkPipelineStageFlags src_stage = dst_staging.data->stage_flags;
-        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_HOST_BIT;
-
-        if (!d->delayed())
-        {
-            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-            delete[] barriers;
-        }
-        else
-        {
-            VkComputePrivate::record r;
-            r.type = VkComputePrivate::record::TYPE_buffer_barrers;
-            r.buffer_barrers.src_stage = src_stage;
-            r.buffer_barrers.dst_stage = dst_stage;
-            r.buffer_barrers.barrier_count = 1;
-            r.buffer_barrers.barriers = barriers;
-            d->delayed_records.push_back(r);
-        }
-
-        // mark device host-read @ any
-        dst_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
-        dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
-    }
-
-    // create dst
     Mat dst_fp16;
-    dst_fp16.create_like(dst_staging, opt.blob_allocator);
-    if (dst_fp16.empty())
+    record_clone(dst_staging, dst_fp16, opt);
+    if (d->record_error)
         return;
-
-    // download
-    d->download_post_buffers.push_back(dst_staging);
-    d->download_post_mats_fp16.push_back(dst_fp16);
-
-    // post memcpy device to dst
-    {
-        VkComputePrivate::record r;
-        r.type = VkComputePrivate::record::TYPE_post_download;
-        r.post_download.download_post_buffer_mat_offset = d->download_post_buffers.size() - 1;
-        r.post_download.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
-        d->delayed_records.push_back(r);
-    }
 
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
@@ -1417,6 +1399,12 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
+
+            if (dst.empty())
+            {
+                d->record_error = -100;
+                return;
+            }
 
             d->download_post_mats.push_back(dst);
 
@@ -1438,6 +1426,12 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
+
+            if (dst.empty())
+            {
+                d->record_error = -100;
+                return;
+            }
 
             d->download_post_mats.push_back(dst);
 
@@ -1461,13 +1455,24 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     //     NCNN_LOGE("record_clone host to buffer");
 
     // host to staging
     VkMat dst_staging;
     dst_staging.create_like(src, opt.staging_vkallocator);
-    if (dst_staging.empty())
+    if (dst_staging.empty() || !dst_staging.mapped_ptr())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // memcpy src to device
     for (int b = 0; b < src.n; b++)
@@ -1476,7 +1481,11 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
         VkMat staging_b = dst_staging.batch(b);
         memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
-    dst_staging.allocator->flush(dst_staging.data);
+    if (dst_staging.allocator->flush(dst_staging.data))
+    {
+        d->record_error = -1;
+        return;
+    }
 
     // mark device host-write @ null
     dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
@@ -1491,6 +1500,14 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     //     NCNN_LOGE("record_clone host to image");
 
     // host to staging
@@ -1508,45 +1525,61 @@ void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     if (d->ensure_weight_cache(src, &opt))
         return;
 
     //     NCNN_LOGE("record_clone buffer to host");
 
+    VkMat src_staging;
     if (!src.mapped_ptr() || is_deferred_buffer(src.data))
     {
-        // device to staging
-        VkMat src_staging;
         Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         record_clone(src, src_staging, opt_staging);
-
-        // staging to host
-        record_clone(src_staging, dst, opt);
-
+        if (d->record_error)
+            return;
+    }
+    else
+    {
+        src_staging = src;
+    }
+    if (!src_staging.mapped_ptr())
+    {
+        d->record_error = -100;
         return;
     }
 
     // create dst
-    dst.create_like(src, opt.blob_allocator);
+    dst.create_like(src_staging, opt.blob_allocator);
     if (dst.empty())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // barrier device any @ compute to host-read @ compute
-    if (src.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
+    if (src_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || src_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
     {
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = src.data->access_flags;
+        barriers[0].srcAccessMask = src_staging.data->access_flags;
         barriers[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
         barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = src.buffer();
-        barriers[0].offset = src.data->offset;
-        barriers[0].size = src.data->capacity;
+        barriers[0].buffer = src_staging.buffer();
+        barriers[0].offset = src_staging.data->offset;
+        barriers[0].size = src_staging.data->capacity;
 
-        VkPipelineStageFlags src_stage = src.data->stage_flags;
+        VkPipelineStageFlags src_stage = src_staging.data->stage_flags;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_HOST_BIT;
 
         if (!d->delayed())
@@ -1566,12 +1599,12 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
         }
 
         // mark device host-read @ any
-        src.data->access_flags = VK_ACCESS_HOST_READ_BIT;
-        src.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+        src_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
+        src_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     }
 
     // stash download post buffer and mat
-    d->download_post_buffers.push_back(src);
+    d->download_post_buffers.push_back(src_staging);
     d->download_post_mats_fp16.push_back(dst);
 
     // post memcpy device to dst
@@ -1586,6 +1619,14 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     //     NCNN_LOGE("record_clone image to host");
 
     // image to staging
@@ -1600,6 +1641,14 @@ void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     if (d->ensure_weight_cache(src, &opt))
         return;
 
@@ -1608,7 +1657,10 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
+    {
+        d->record_error = -100;
         return;
+    }
 
     if (!is_deferred_buffer(src.data) && (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT))
     {
@@ -1684,12 +1736,23 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     //     NCNN_LOGE("record_clone image to image");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // image layout transform any @ any to transfer-src-optimal @ compute
     if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
@@ -1827,6 +1890,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
 void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     if (d->ensure_weight_cache(src, &opt))
         return;
 
@@ -1835,7 +1906,10 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // barrier device any @ any to transfer-read @ compute
     if (!is_deferred_buffer(src.data) && (src.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
@@ -1988,12 +2062,23 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
 void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& opt)
 {
+    if (d->record_error)
+        return;
+    if (src.empty())
+    {
+        d->record_error = -100;
+        return;
+    }
+
     //     NCNN_LOGE("record_clone image to buffer");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
+    {
+        d->record_error = -100;
         return;
+    }
 
     // image layout transform any @ any to transfer-src-optimal @ compute
     if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
@@ -2834,7 +2919,8 @@ int VkCompute::submit_and_wait()
 
             // NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
-            src.allocator->invalidate(src.data);
+            if (src.allocator->invalidate(src.data))
+                return -1;
             for (int b = 0; b < dst.n; b++)
             {
                 const VkMat src_b = src.batch(b);

@@ -96,6 +96,7 @@ public:
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
 
+    std::vector<char> weight_file_directory;
     VkWeightAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
@@ -2438,12 +2439,13 @@ int Net::load_model(const DataReader& dr)
         if (!d->weight_vkallocator)
         {
             d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
+            d->weight_vkallocator->set_weight_file_directory(d->weight_file_directory.empty() ? 0 : d->weight_file_directory.data());
             const int wret = d->weight_vkallocator->set_weights_in_host_disk(opt.use_weights_in_host_disk);
             if (opt.use_weights_in_host_disk
-                    && ((wret && (opt.weight_device_budget || opt.weight_host_budget))
-                        || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
+                && ((wret && (!d->weight_file_directory.empty() || opt.weight_device_budget || opt.weight_host_budget))
+                    || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
             {
-                NCNN_LOGE("cannot configure disk weight residency within the explicit budgets");
+                NCNN_LOGE("cannot configure disk weight storage");
                 delete d->weight_vkallocator;
                 d->weight_vkallocator = 0;
                 delete cmd_upload;
@@ -2530,7 +2532,12 @@ int Net::load_model(const DataReader& dr)
                     break;
                 }
 
-                cmd_upload->reset();
+                uret = cmd_upload->reset();
+                if (uret != 0)
+                {
+                    ret = -1;
+                    break;
+                }
             }
         }
 #endif // NCNN_VULKAN
@@ -3012,6 +3019,23 @@ void Net::set_vulkan_device(const VulkanDevice* _vkdev)
 {
     opt.vulkan_device_index = _vkdev->info.device_index();
     d->vkdev = _vkdev;
+}
+
+int Net::set_weight_file_directory(const char* path)
+{
+    if (d->weight_vkallocator)
+    {
+        NCNN_LOGE("weight file directory must be configured before loading weights");
+        return -1;
+    }
+    d->weight_file_directory.clear();
+    if (path && path[0])
+    {
+        const size_t length = strlen(path) + 1;
+        d->weight_file_directory.resize(length);
+        memcpy(d->weight_file_directory.data(), path, length);
+    }
+    return 0;
 }
 
 const VulkanDevice* Net::vulkan_device() const

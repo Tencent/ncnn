@@ -288,6 +288,12 @@ static int test_standalone_sources()
     if (cmd.submit_and_wait() || CompareMat(original, output, 0.0001f) || cmd.reset())
         return -1;
 
+    // Packing can alias a FILE source; downloading it still requires real staging.
+    opt.use_packing_layout = false;
+    cmd.record_download(file, output, opt);
+    if (cmd.submit_and_wait() || CompareMat(original, output, 0.0001f) || cmd.reset())
+        return -1;
+
     // A borrowed HOST source has no Vulkan buffer and needs no weight allocator.
     ncnn::VkBufferMemory source;
     source.buffer = 0;
@@ -1233,6 +1239,62 @@ static int load_scale_net(ncnn::Net& net, int storage, float scale)
     return net.load_model(reader);
 }
 
+class FailingOutputAllocator : public ncnn::Allocator
+{
+public:
+    virtual void* fastMalloc(size_t) { return 0; }
+    virtual void fastFree(void*) {}
+};
+
+static int test_net_load_failure()
+{
+    ncnn::Net net;
+#if defined(__linux__)
+    // Explicit directories are strict even without residency budgets, and survive clear/load_param.
+    char invalid[] = "/dev/null/ncnn-weights";
+    if (net.set_weight_file_directory(invalid))
+        return -1;
+    invalid[0] = 0;
+    if (load_scale_net(net, 2, 1.f) == 0)
+        return -1;
+    net.clear();
+    if (load_scale_net(net, 2, 1.f) == 0 || net.set_weight_file_directory("/tmp"))
+        return -1;
+#endif
+    if (load_scale_net(net, 2, 1.f) || net.set_weight_file_directory(0) == 0)
+        return -1;
+    {
+        FailingOutputAllocator allocator;
+        ncnn::Extractor ex = net.create_extractor();
+        ex.set_blob_allocator(&allocator);
+        ncnn::Mat output;
+        if (ex.input("input", RandomMat(16, 16)) || ex.extract("output", output) == 0)
+            return -1;
+    }
+    net.clear();
+    if (net.set_weight_file_directory(0))
+        return -1;
+
+    // The first layer uploads successfully before a later layer rejects truncated weights.
+    const char param[] = "7767517\n3 3\nInput input 0 1 input\nGemm first 1 1 input hidden 5=1 6=1 8=16 9=16 10=-1\nGemm second 1 1 hidden output 5=1 6=1 8=16 9=16 10=-1\n";
+    std::vector<unsigned char> model(4 + 16 * 16 * 4, 0);
+    for (int storage = 0; storage < 3; storage++)
+    {
+        net.opt.use_weights_in_host_memory = storage == 1;
+        net.opt.use_weights_in_host_disk = storage == 2;
+        if (net.load_param_mem(param))
+            return -1;
+        const unsigned char* ptr = model.data();
+        ncnn::DataReaderFromMemory reader(ptr, model.size());
+        if (net.load_model(reader) == 0)
+            return -1;
+        net.clear();
+        if (load_scale_net(net, storage, 1.f))
+            return -1;
+    }
+    return 0;
+}
+
 static ncnn::Mat scaled_input(const ncnn::Mat& input, float scale)
 {
     ncnn::Mat expected = input.clone();
@@ -1537,7 +1599,7 @@ static int test_weight_execution(int argc, char** argv)
     gpu_index = argc > 1 ? atoi(argv[1]) : ncnn::get_default_gpu_index();
     if (gpu_index < 0 || gpu_index >= ncnn::get_gpu_count())
         return -1;
-    if (test_network() || test_empty_upload() || test_standalone_sources() || test_existing_model())
+    if (test_network() || test_net_load_failure() || test_empty_upload() || test_standalone_sources() || test_existing_model())
         return -1;
     for (int host = 0; host < 2; host++)
         for (int small_cache = 0; small_cache < 2; small_cache++)

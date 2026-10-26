@@ -162,6 +162,144 @@ static int test_command_transfer(const ncnn::Mat& a)
     return 0;
 }
 
+class FailingAllocator : public ncnn::Allocator
+{
+public:
+    virtual void* fastMalloc(size_t) { return 0; }
+    virtual void fastFree(void*) {}
+};
+
+class FailingStagingAllocator : public ncnn::VkStagingAllocator
+{
+public:
+    FailingStagingAllocator(const ncnn::VulkanDevice* vkdev, bool unmapped)
+        : ncnn::VkStagingAllocator(vkdev), unmapped(unmapped), allocations(0), mapping(0) {}
+
+    virtual ncnn::VkBufferMemory* fastMalloc(size_t size)
+    {
+        allocations++;
+        if (!unmapped)
+            return 0;
+        ncnn::VkBufferMemory* memory = ncnn::VkStagingAllocator::fastMalloc(size);
+        if (memory)
+        {
+            mapping = memory->mapped_ptr;
+            memory->mapped_ptr = 0;
+        }
+        return memory;
+    }
+    virtual void fastFree(ncnn::VkBufferMemory* memory)
+    {
+        memory->mapped_ptr = mapping;
+        ncnn::VkStagingAllocator::fastFree(memory);
+    }
+
+    bool unmapped;
+    int allocations;
+    void* mapping;
+};
+
+static int test_command_allocation_failure()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    FailingAllocator cpu;
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_packing_layout = false;
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    const ncnn::Mat input = RandomMat(127);
+    ncnn::VkMat native;
+    {
+        ncnn::VkCompute upload(vkdev);
+        upload.record_clone(input, native, opt);
+        if (upload.submit_and_wait())
+            return -1;
+    }
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkWeightStagingAllocator weight_staging(vkdev);
+    ncnn::VkMat file;
+    if (weights.set_weights_in_host_disk(true))
+        return -1;
+    {
+        ncnn::Option upload_opt = opt;
+        upload_opt.blob_vkallocator = &weights;
+        upload_opt.staging_vkallocator = &weight_staging;
+        ncnn::VkTransfer upload(vkdev);
+        upload.record_upload(input, file, upload_opt);
+        if (upload.submit_and_wait() || weights.finalize_weights())
+            return -1;
+    }
+    // Empty sources, failed CPU allocations, failed/missing staging mappings,
+    // and packing allocations all report failure through the command boundary.
+    for (int storage = 0; storage < 2; storage++)
+    {
+        const ncnn::VkMat& source = storage == 0 ? native : file;
+        for (int mode = 0; mode < 10; mode++)
+        {
+            FailingStagingAllocator failing(vkdev, mode == 5 || mode == 6);
+            ncnn::Option bad = opt;
+            ncnn::VkCompute cmd(vkdev);
+            ncnn::Mat output;
+            ncnn::VkMat device_output;
+            if (mode == 0)
+                cmd.record_clone(ncnn::VkMat(), output, bad);
+            else if (mode == 1)
+                cmd.record_download(ncnn::VkMat(), output, bad);
+            else if (mode == 2 || mode == 3)
+            {
+                bad.blob_allocator = &cpu;
+                if (mode == 2)
+                    cmd.record_clone(source, output, bad);
+                else
+                    cmd.record_download(source, output, bad);
+            }
+            else if (mode == 4 || mode == 5)
+            {
+                bad.staging_vkallocator = &failing;
+                cmd.record_upload(input, device_output, bad);
+            }
+            else if (mode == 6 || mode == 7)
+            {
+                // Hide only the source mapping to exercise the device-to-host path.
+                void* mapping = source.data->mapped_ptr;
+                source.data->mapped_ptr = 0;
+                bad.staging_vkallocator = &failing;
+                cmd.record_clone(source, output, bad);
+                source.data->mapped_ptr = mapping;
+            }
+            else if (mode == 8)
+            {
+                bad.blob_vkallocator = &failing;
+                cmd.record_clone(source, device_output, bad);
+            }
+            else
+            {
+                bad.blob_vkallocator = &failing;
+                bad.staging_vkallocator = &failing;
+                bad.use_packing_layout = true;
+                ncnn::VkMat packable(128, (size_t)4u, &blobs);
+                cmd.record_download(packable, output, bad);
+            }
+            if (cmd.submit_and_wait() == 0 || failing.allocations > 1)
+            {
+                fprintf(stderr, "command allocation failure storage %d mode %d was not propagated\n", storage, mode);
+                return -1;
+            }
+            if (cmd.reset())
+                return -1;
+            cmd.record_clone(source, output, opt);
+            if (cmd.submit_and_wait() || CompareMat(input, output, 0.001f))
+                return -1;
+        }
+    }
+    return 0;
+}
+
 static int test_command_0()
 {
     return 0
@@ -208,7 +346,7 @@ int main()
 {
     SRAND(7767517);
 
-    const int ret = test_command_0() || test_command_1() || test_command_2();
+    const int ret = test_command_0() || test_command_1() || test_command_2() || test_command_allocation_failure();
     ncnn::destroy_gpu_instance();
     return ret;
 }

@@ -19,6 +19,7 @@
 
 #if NCNN_VULKAN
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #if defined(_WIN32)
@@ -31,9 +32,6 @@
 #endif
 #if NCNN_BENCHMARK
 #include "benchmark.h"
-#if defined(__linux__) && !defined(__ANDROID__)
-#include <fcntl.h>
-#endif
 #endif
 #endif // NCNN_VULKAN
 
@@ -1442,6 +1440,7 @@ public:
     WeightFile();
     ~WeightFile();
 
+    int set_directory(const char* path);
     int open();
     void clear();
     int reserve(size_t size, size_t alignment, void*& data);
@@ -1460,6 +1459,7 @@ private:
         size_t mapped_size;
     };
 
+    std::vector<char> directory;
     FILE* file;
     uint64_t file_size;
     std::vector<Mapping> mappings;
@@ -1477,13 +1477,74 @@ WeightFile::~WeightFile()
     clear();
 }
 
+int WeightFile::set_directory(const char* path)
+{
+    if (file)
+    {
+        NCNN_LOGE("weight file directory must be configured before opening the backing file");
+        return -1;
+    }
+    directory.clear();
+    if (path && path[0])
+    {
+        const size_t length = strlen(path) + 1;
+        directory.resize(length);
+        memcpy(directory.data(), path, length);
+    }
+    return 0;
+}
+
 int WeightFile::open()
 {
     if (file)
         return error;
 
-#ifndef _WIN32
-    const char* temporary_directory = getenv("TMPDIR");
+#if defined(_WIN32)
+    std::vector<wchar_t> path;
+    if (directory.empty())
+    {
+        const DWORD length = GetTempPathW(0, 0);
+        if (!length)
+            return -1;
+        path.resize(length + 64);
+        if (!GetTempPathW(length, path.data()))
+            return -1;
+    }
+    else
+    {
+        const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, directory.data(), -1, 0, 0);
+        if (!length)
+            return -1;
+        path.resize(length + 64);
+        if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, directory.data(), -1, path.data(), length))
+            return -1;
+    }
+    const size_t prefix = wcslen(path.data());
+    static volatile LONG sequence = 0;
+    HANDLE handle = INVALID_HANDLE_VALUE;
+    for (int i = 0; i < 64; i++)
+    {
+        swprintf(path.data() + prefix, 64, L"/ncnn-weights-%lu-%lu.tmp", GetCurrentProcessId(), (unsigned long)InterlockedIncrement(&sequence));
+        handle = CreateFileW(path.data(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, 0);
+        if (handle != INVALID_HANDLE_VALUE || (GetLastError() != ERROR_FILE_EXISTS && GetLastError() != ERROR_ALREADY_EXISTS))
+            break;
+    }
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+        NCNN_LOGE("create prepared weight backing file failed %lu", GetLastError());
+        return -1;
+    }
+    const int fd = _open_osfhandle((intptr_t)handle, _O_RDWR | _O_BINARY);
+    if (fd < 0)
+        CloseHandle(handle);
+    else
+    {
+        file = _fdopen(fd, "w+b");
+        if (!file)
+            _close(fd);
+    }
+#else
+    const char* temporary_directory = directory.empty() ? getenv("TMPDIR") : directory.data();
     if (temporary_directory && temporary_directory[0])
     {
         std::string path = temporary_directory;
@@ -1499,10 +1560,10 @@ int WeightFile::open()
         }
     }
     else
-#endif
     {
         file = tmpfile();
     }
+#endif
     if (!file)
     {
         NCNN_LOGE("create prepared weight backing file failed %d", errno);
@@ -1548,14 +1609,46 @@ int WeightFile::reserve(size_t size, size_t alignment, void*& data)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     const size_t granularity = info.dwAllocationGranularity;
+    FILE_ALLOCATION_INFO allocation;
+    allocation.AllocationSize.QuadPart = end;
+    HANDLE file_handle = (HANDLE)_get_osfhandle(_fileno(file));
+    if (!SetFileInformationByHandle(file_handle, FileAllocationInfo, &allocation, sizeof(allocation)))
+    {
+        NCNN_LOGE("reserve prepared weight file space failed %lu", GetLastError());
+        error = -1;
+        return error;
+    }
 #else
     const long page_size = sysconf(_SC_PAGESIZE);
     if (page_size <= 0)
         return -1;
     const size_t granularity = (size_t)page_size;
-    if ((sizeof(off_t) < 8 && end > INT32_MAX) || ftruncate(fileno(file), (off_t)end))
+    if (sizeof(off_t) < 8 && end > INT32_MAX)
+        return -1;
+    // Extending a sparse file alone does not reserve space for mapped writes.
+    int ret;
+#if defined(__APPLE__)
+    fstore_t allocation = {};
+    allocation.fst_flags = F_ALLOCATEALL;
+    allocation.fst_posmode = F_PEOFPOSMODE;
+    allocation.fst_length = (off_t)end;
+    do
     {
-        NCNN_LOGE("extend prepared weight backing file failed %d", errno);
+        ret = fcntl(fileno(file), F_PREALLOCATE, &allocation);
+    } while (ret && errno == EINTR);
+    if (!ret)
+        ret = ftruncate(fileno(file), (off_t)end);
+    if (ret)
+        ret = errno;
+#else
+    do
+    {
+        ret = posix_fallocate(fileno(file), (off_t)file_size, (off_t)(end - file_size));
+    } while (ret == EINTR);
+#endif
+    if (ret)
+    {
+        NCNN_LOGE("reserve prepared weight file space failed %d", ret);
         error = -1;
         return error;
     }
@@ -1945,6 +2038,18 @@ int VkWeightStore::set_weights_in_host_disk(bool enable, bool prefer_host_memory
     }
     prefer_host_disk = enable;
     return 0;
+}
+
+int VkWeightAllocator::set_weight_file_directory(const char* path)
+{
+    if (!d->buffer_blocks.empty() || !d->dedicated_buffer_blocks.empty()
+        || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty()
+        || !d->store.weights.empty())
+    {
+        NCNN_LOGE("weight file directory must be configured before allocating weights");
+        return -1;
+    }
+    return d->store.file.set_directory(path);
 }
 
 int VkWeightAllocator::set_weights_in_host_disk(bool enable)

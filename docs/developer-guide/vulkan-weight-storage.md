@@ -209,15 +209,24 @@ the prepared bytes into stable mapped views. Each allocation has its own view;
 later file growth does not invalidate earlier pointers. Finalization flushes
 those views and makes them read-only before model loading succeeds.
 
-On POSIX, `TMPDIR` selects the backing directory when set; files created there
-are immediately unlinked. Otherwise, and on Windows, `tmpfile()` supplies the
-location. The allocator closes the file and unmaps its views when cleared or
-destroyed. Choose a disk filesystem if the temporary directory is a tmpfs.
+Set `Net::set_weight_file_directory(path)` before `load_model`, or
+`VkWeightAllocator::set_weight_file_directory(path)` before enabling disk storage,
+to use an application-owned writable directory (for example, Android's cache
+directory). Both APIs copy the UTF-8 path; `Net::clear()` retains it. Null or empty
+selects the system default. POSIX uses `TMPDIR` when set, otherwise `tmpfile()`;
+Windows uses `GetTempPathW`. Files are immediately unlinked on POSIX and marked
+for deletion on close on Windows. The allocator closes the file and unmaps its
+views when cleared or destroyed. Choose a disk filesystem if the temporary
+directory is a tmpfs.
 
-File creation failure may fall back to the existing HOST/DEVICE policy when
-total budgets are zero. Explicit-budget loading reports failure. Extension,
-mapping, flush, and protection errors return errors. Faults during mapped memory
-access, such as backing-store I/O failures, follow OS signal/exception behavior.
+File creation failure may fall back to the existing HOST/DEVICE policy only when
+neither a directory nor total budgets were explicitly configured for the Net.
+The allocator's `set_weights_in_host_disk` reports creation failure to its caller.
+Preparation reserves file space before exposing each writable mapping, so a
+space reservation failure returns an error instead of faulting on a mapped write.
+Reservation, mapping, flush, and protection errors fail loading. Other faults
+during mapped memory access, such as backing-store I/O failures, follow OS
+signal/exception behavior.
 All live mappings need virtual address space, which can limit large models in
 32-bit or otherwise constrained processes. Failed finalization requires clearing
 the allocator before reuse.

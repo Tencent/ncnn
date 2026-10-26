@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/resource.h>
+#include <unistd.h>
 #endif
 
 namespace ncnn {
@@ -361,6 +362,36 @@ static int test_file_creation_fallback()
     return valid ? 0 : -1;
 }
 
+static int test_file_directory()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    char path[] = "/tmp/ncnn-weight-directory-XXXXXX";
+    if (!mkdtemp(path))
+        return -1;
+    ncnn::VkWeightAllocator first(vkdev);
+    ncnn::VkWeightAllocator second(vkdev);
+    int ret = first.set_weight_file_directory(path) || second.set_weight_file_directory("/dev/null/ncnn-weights");
+    // The caller can release or change its string after configuration.
+    std::string directory = path;
+    path[0] = 0;
+    if (!ret)
+        ret = first.set_weights_in_host_disk(true);
+    // An open backing file is already unlinked, and does not block removing its directory.
+    if (rmdir(directory.c_str()))
+        ret = -1;
+    if (!second.set_weights_in_host_disk(true) || !first.set_weight_file_directory("/tmp"))
+        ret = -1;
+    ncnn::VkMat weights(1024, (size_t)4u, &first);
+    unsigned char data[4096] = {};
+    if (weights.empty() || write_weight(weights.data, 0, data, sizeof(data)) || first.finalize_weights())
+        ret = -1;
+    weights.release();
+    first.clear();
+    if (first.set_weight_file_directory(0) || first.set_weights_in_host_disk(true))
+        ret = -1;
+    return ret;
+}
+
 static int test_file_write_failure()
 {
     // keep the process-wide file limit scoped to this synchronous upload
@@ -631,7 +662,7 @@ static int test_weight_storage(int argc, char** argv)
     if (test_external_sources() || test_concurrent_reads() || test_upload_error() || test_resident_layout(false) || test_resident_layout(true) || test_host_cache() || test_budget_boundaries() || test_native_allocation_budget())
         return -1;
 #if defined(__linux__)
-    if (test_file_creation_fallback() || test_file_write_failure())
+    if (test_file_creation_fallback() || test_file_directory() || test_file_write_failure())
         return -1;
 #endif
     for (int mode = 0; mode < 3; mode++)
