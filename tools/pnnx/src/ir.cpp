@@ -2478,7 +2478,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                 }
 
-                fprintf(pyfp, ")\n");
+                if (op->type == "F.gelu" && op->has_param("approximate") && op->params.at("approximate").s == "tanh")
+                {
+                    const std::string input_name = sanitize_identifier(op->inputs[0]->name);
+                    fprintf(pyfp, ") if tuple(map(int, torch.__version__.split('.')[:2])) >= (1, 12) else "
+                            "(0.5 * v_%s * (1.0 + torch.tanh(0.7978845608028654 * (v_%s + 0.044715 * torch.pow(v_%s, 3)))))\n",
+                            input_name.c_str(), input_name.c_str(), input_name.c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, ")\n");
+                }
             }
         }
     }
