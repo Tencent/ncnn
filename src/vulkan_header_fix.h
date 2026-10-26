@@ -882,6 +882,8 @@ typedef PFN_vkGetDescriptorSetLayoutSupport PFN_vkGetDescriptorSetLayoutSupportK
 #define VK_KHR_maintenance4                                          1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES     (VkStructureType)1000413000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES (VkStructureType)1000413001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES
 typedef struct VkPhysicalDeviceMaintenance4Features
 {
     VkStructureType sType;
@@ -889,6 +891,13 @@ typedef struct VkPhysicalDeviceMaintenance4Features
     VkBool32 maintenance4;
 } VkPhysicalDeviceMaintenance4Features;
 typedef VkPhysicalDeviceMaintenance4Features VkPhysicalDeviceMaintenance4FeaturesKHR;
+typedef struct VkPhysicalDeviceMaintenance4Properties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize maxBufferSize;
+} VkPhysicalDeviceMaintenance4Properties;
+typedef VkPhysicalDeviceMaintenance4Properties VkPhysicalDeviceMaintenance4PropertiesKHR;
 #endif // VK_KHR_maintenance4
 
 #ifndef VK_KHR_8bit_storage

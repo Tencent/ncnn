@@ -2702,7 +2702,8 @@ void reset_weight_benchmark()
 static WeightAllocationAudit* g_weight_allocation_audit = 0;
 
 WeightAllocationAudit::WeightAllocationAudit(const ncnn::VulkanDevice* _vkdev, Failure _failure)
-    : failed(false), vkdev(_vkdev), failure(_failure), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit)
+    : failed(false), queue_held_while_waiting(false), submissions(0), waited_submissions(0), vkdev(_vkdev), failure(_failure), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory),
+      bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), status(ncnn::vkGetFenceStatus)
 {
     if (g_weight_allocation_audit)
     {
@@ -2716,6 +2717,8 @@ WeightAllocationAudit::WeightAllocationAudit(const ncnn::VulkanDevice* _vkdev, F
     ncnn::vkBindBufferMemory = bind_memory;
     ncnn::vkMapMemory = map_memory;
     ncnn::vkQueueSubmit = submit_queue;
+    ncnn::vkWaitForFences = wait_fences;
+    ncnn::vkGetFenceStatus = fence_status;
 }
 
 WeightAllocationAudit::~WeightAllocationAudit()
@@ -2725,6 +2728,8 @@ WeightAllocationAudit::~WeightAllocationAudit()
     ncnn::vkBindBufferMemory = bind;
     ncnn::vkMapMemory = map;
     ncnn::vkQueueSubmit = submit;
+    ncnn::vkWaitForFences = wait;
+    ncnn::vkGetFenceStatus = status;
     g_weight_allocation_audit = 0;
 }
 
@@ -2792,11 +2797,55 @@ VKAPI_ATTR VkResult VKAPI_CALL WeightAllocationAudit::map_memory(VkDevice device
 VKAPI_ATTR VkResult VKAPI_CALL WeightAllocationAudit::submit_queue(VkQueue queue, uint32_t count, const VkSubmitInfo* submits, VkFence fence)
 {
     WeightAllocationAudit* audit = g_weight_allocation_audit;
-    if (audit->failure == FAIL_SUBMIT)
+    audit->submissions++;
+    if (audit->failure == FAIL_SUBMIT || (audit->failure == FAIL_SECOND_SUBMIT && audit->submissions == 2))
     {
         audit->failed = true;
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
-    return audit->submit(queue, count, submits, fence);
+    const VkResult ret = audit->submit(queue, count, submits, fence);
+    if (ret == VK_SUCCESS && fence)
+        audit->submitted_fences.push_back(fence);
+    return ret;
+}
+
+void WeightAllocationAudit::check_queue_leases()
+{
+    const uint32_t families[] = {vkdev->info.compute_queue_family_index(), vkdev->info.transfer_queue_family_index()};
+    for (int i = 0; i < 2; i++)
+    {
+        VkQueue queue = vkdev->try_acquire_queue(families[i]);
+        if (queue)
+            vkdev->reclaim_queue(families[i], queue);
+        else
+            queue_held_while_waiting = true;
+    }
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL WeightAllocationAudit::wait_fences(VkDevice device, uint32_t count, const VkFence* fences, VkBool32 all, uint64_t timeout)
+{
+    WeightAllocationAudit* audit = g_weight_allocation_audit;
+    audit->check_queue_leases();
+    const VkResult ret = audit->wait(device, count, fences, all, timeout);
+    if (ret == VK_SUCCESS)
+    {
+        for (uint32_t i = 0; i < count; i++)
+        {
+            for (size_t j = 0; j < audit->submitted_fences.size(); j++)
+            {
+                if (audit->submitted_fences[j] != fences[i])
+                    continue;
+                audit->submitted_fences[j] = VK_NULL_HANDLE;
+                audit->waited_submissions++;
+            }
+        }
+    }
+    return ret;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL WeightAllocationAudit::fence_status(VkDevice device, VkFence fence)
+{
+    g_weight_allocation_audit->check_queue_leases();
+    return g_weight_allocation_audit->status(device, fence);
 }
 #endif // NCNN_VULKAN && NCNN_WEIGHT_TEST_INTERNAL

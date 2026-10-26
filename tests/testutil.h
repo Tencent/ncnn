@@ -153,13 +153,17 @@ public:
         FAIL_ALLOCATE,
         FAIL_BIND,
         FAIL_MAP,
-        FAIL_SUBMIT
+        FAIL_SUBMIT,
+        FAIL_SECOND_SUBMIT
     };
 
     WeightAllocationAudit(const ncnn::VulkanDevice* vkdev, Failure failure = FAIL_NONE);
     ~WeightAllocationAudit();
 
     bool failed;
+    bool queue_held_while_waiting;
+    uint32_t submissions;
+    uint32_t waited_submissions;
     size_t current[2];
     size_t peak[2];
 
@@ -180,14 +184,21 @@ private:
     static VKAPI_ATTR VkResult VKAPI_CALL map_memory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** data);
     static VKAPI_ATTR VkResult VKAPI_CALL submit_queue(VkQueue queue, uint32_t count, const VkSubmitInfo* submits, VkFence fence);
 
+    static VKAPI_ATTR VkResult VKAPI_CALL wait_fences(VkDevice device, uint32_t count, const VkFence* fences, VkBool32 all, uint64_t timeout);
+    static VKAPI_ATTR VkResult VKAPI_CALL fence_status(VkDevice device, VkFence fence);
+    void check_queue_leases();
+
     const ncnn::VulkanDevice* vkdev;
     Failure failure;
+    std::vector<VkFence> submitted_fences;
     std::vector<Allocation> allocations;
     PFN_vkAllocateMemory allocate;
     PFN_vkFreeMemory free;
     PFN_vkBindBufferMemory bind;
     PFN_vkMapMemory map;
     PFN_vkQueueSubmit submit;
+    PFN_vkWaitForFences wait;
+    PFN_vkGetFenceStatus status;
 };
 #endif // NCNN_VULKAN && NCNN_WEIGHT_TEST_INTERNAL
 

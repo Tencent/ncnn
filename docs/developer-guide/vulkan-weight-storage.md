@@ -43,8 +43,8 @@ Net's loading budgets count native Vulkan backing requirements, including
 alignment, unused resident block capacity, and loading staging. Finalization
 reserves space for one planned exchange working set. Internal commands and
 `VkCompute(weights, opt)` use the remaining budgets. `VkCompute(vkdev, opt)` owns
-an independent exchange budget; zero selects automatic, uncapped capacity. This
-allows one external command to serve models with different resident layouts
+an independent exchange budget; zero selects automatic capacity within device
+limits. This allows one external command to serve models with different resident layouts
 without silently adopting an Extractor's allocator or shrinking to another Net's
 budget.
 
@@ -144,14 +144,21 @@ Net owns prepared mappings and immutable HOST/DEVICE resident storage. Every
 state and weight references; they can record a GPU tensor chain from several
 Nets into one command without intermediate downloads or cache rebinding.
 Different commands execute independently and share only immutable model weights.
+Commands returned after `Net::clear()` are discarded instead of entering the new
+model's idle pool. An old Extractor must release its tensors before the Net is
+cleared and cannot continue inference against the reloaded model.
+`VkWeightAllocator::clear()` invalidates its weights immediately. Old weight
+handles can still release their metadata while the allocator remains alive;
+they do not affect allocations made after the clear.
 A single Extractor or command must not be used concurrently by multiple threads.
 All models and commands in a GPU chain must use the same Vulkan device.
 
 Command constructors save configuration without creating exchange resources.
 The first HOST/FILE binding enables deferred weight recording. Retaining an old
 working set does not force a later pure-DEVICE recording through replay. The
-device-only constructor uses automatic capacities; clone operations can supply
-initial exchange settings through their `Option`. For a working set bounded by
+device-only constructor uses automatic capacities. Clone and download options do
+not change the command's weight allocators or budgets. Pass these settings to
+`VkCompute(vkdev, opt)` explicitly. For a working set bounded by
 one model's planned headroom, construct from its finalized allocator:
 
 ```cpp
@@ -234,25 +241,35 @@ the allocator before reuse.
 The resident planner visits live prepared allocations in size order, breaking
 ties by loading order. Fitting smaller weights go to DEVICE, then HOST, with the
 rest remaining FILE. Unified memory omits separate HOST placement. Resident
-blocks target 8 MiB or a dedicated larger weight and shrink to available capacity.
-Every proposed allocation is checked against Vulkan memory requirements.
+blocks group weights up to 8 MiB or hold a dedicated larger weight. Their sizes
+match the weights actually placed in each block. Every proposed allocation is
+checked against Vulkan memory requirements, compatible heap sizes, and the
+reported `maxMemoryAllocationSize` and `maxBufferSize` limits when available.
 
 If the full layout fits DEVICE, no exchange space is needed. Otherwise automatic
-DEVICE exchange targets the larger of twice the largest weight and the largest
-upload group, bounded by the total budget. Net supplies layer groups internally;
-manual loads without groups use a conservative combined group for budgeted
-placement. Actual commands still validate simultaneous dependencies. Automatic HOST
-exchange targets twice the largest remaining weight, capped at one quarter of
+DEVICE planning first reserves the largest upload group, then places small
+weights in the remaining resident space. It sizes the final exchange from the
+nonresident weights and remaining allocation budget, targeting the larger of
+twice the largest remaining weight and the largest remaining upload group.
+Net supplies layer groups internally; manual loads without groups use a
+conservative combined group for budgeted placement. Actual commands still
+validate simultaneous dependencies. Automatic HOST exchange targets twice the
+largest remaining weight, capped at one quarter of
 the HOST budget and requiring at least one aligned transfer block. Explicit
-capacities in the command's `Option` are not enlarged. With automatic command
-capacities, an unbudgeted manual load starts from the largest weight and actual
-dependencies rather than allocating space for the whole model. Later submissions
+capacities in the command's `Option` are not enlarged or silently reduced.
+Automatic capacities shrink to fit actual allocation requirements and hardware
+limits. The DEVICE arena must still fit a complete weight and each simultaneous
+binding set. With automatic command capacities, an unbudgeted manual load starts
+from the largest weight and actual dependencies rather than allocating space for
+the whole model. Later submissions
 can grow the cache within the remaining budget. Growth releases the old arenas
 before allocating their replacements and invalidates their cached entries.
 
 DEVICE filling uses mapped memory where possible, otherwise bounded HOST staging
-of at most 32 MiB, further limited by budget and the largest fill. HOST residents
-are filled through their native mappings. ReBAR device heaps do not count as
+of at most 32 MiB, further limited by budget, device limits, and the largest fill.
+Two staging regions overlap host copies with loading transfers when space permits;
+only a region being reused needs to wait. HOST residents are filled through their
+native mappings. ReBAR device heaps do not count as
 independent host memory. VkImage weight paging is unsupported; explicit residency
 budgets reject weight images whose allocation cannot be accounted for here.
 
@@ -265,20 +282,28 @@ evicted independently. Unified FILE exchange copies directly into mapped DEVICE
 memory, with no additional HOST payload or weight H2D copy.
 
 The scheduler preserves record order and normally uses half the DEVICE arena
-per batch. Actual upload/compute overlap depends on queue topology and region
-reuse dependencies; ownership returns currently wait behind earlier compute
-submissions. A single command can use the
-full arena when required. Each command reuses 32 upload slots and 4 compute slots,
-with command buffers, fences, and binary semaphores. It uses a dedicated transfer
+per batch. It plans region reuse before submission and records each ownership
+release at the last batch that reads that region. An upload waits for that
+reader's fence before submitting the matching acquire; unrelated later compute
+can continue. Actual overlap depends on hardware queues, workloads, and host
+read speed. A single command can use the full arena when required. Each command
+reuses 32 upload slots and 4 compute slots, with command buffers, fences, and
+binary semaphores. It uses a dedicated transfer
 family or a second same-family queue when available, and supports a single queue.
-Acquiring a second same-family queue is nonblocking.
+Acquiring a second same-family queue is nonblocking. Queue identities remain
+fixed during a run to preserve submission order, but leases cover only queue
+submission calls. File reads, command recording, and fence waits leave queues
+available to other threads. Resident loading uses the same brief leases.
 
 Cross-family reuse has matching transfer-to-compute and compute-to-transfer
-release/acquire ranges. Ownership waits use `ALL_COMMANDS`. Same-family paths
-use barriers and semaphore ordering without ownership transfers. Host staging
-reuse waits for transfer completion; DEVICE reuse waits for the required compute-to-transfer dependency.
-The final chunk signals readiness for the complete weight. These synchronization
-rules also apply when cache entries are evicted or an operation fails.
+release/acquire ranges. Transfer-to-compute semaphore waits use `ALL_COMMANDS`
+across families. Compute-to-transfer reuse uses the last reader's fence followed
+by queue submission to order the release and acquire. Same-family overwrite
+waits need only the last reader's execution to finish. Host staging reuse waits
+for transfer completion. Large FILE weights rotate through staging regions and
+upload slots; only the final chunk signals readiness for the complete weight.
+These synchronization rules also apply when cache entries are evicted or an
+operation fails.
 
 ## Tests and measurement
 

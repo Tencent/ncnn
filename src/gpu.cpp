@@ -451,6 +451,8 @@ public:
 
     // extension properties
     void* queryExtensionProperties;
+    VkPhysicalDeviceMaintenance3PropertiesKHR queryMaintenance3Properties;
+    VkPhysicalDeviceMaintenance4PropertiesKHR queryMaintenance4Properties;
     VkPhysicalDeviceFloatControlsPropertiesKHR queryFloatControlsProperties;
     VkPhysicalDeviceRobustness2PropertiesKHR queryRobustness2Properties;
     VkPhysicalDeviceShaderIntegerDotProductProperties queryShaderIntegerDotProductProperties;
@@ -1411,6 +1413,25 @@ void GpuInfoPrivate::query_extension_properties()
 {
     queryExtensionProperties = 0;
 
+    memset(&queryMaintenance3Properties, 0, sizeof(queryMaintenance3Properties));
+    queryMaintenance3Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+    if (support_VK_KHR_maintenance3 || (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 1, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)))
+    {
+        queryMaintenance3Properties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryMaintenance3Properties;
+    }
+
+    bool maintenance4_properties = g_instance.instance_api_version >= VK_MAKE_VERSION(1, 3, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0);
+    for (size_t i = 0; i < deviceExtensionProperties.size(); i++)
+        maintenance4_properties |= strcmp(deviceExtensionProperties[i].extensionName, "VK_KHR_maintenance4") == 0;
+    memset(&queryMaintenance4Properties, 0, sizeof(queryMaintenance4Properties));
+    queryMaintenance4Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES_KHR;
+    if (maintenance4_properties)
+    {
+        queryMaintenance4Properties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryMaintenance4Properties;
+    }
+
     // query float controls
     memset(&queryFloatControlsProperties, 0, sizeof(queryFloatControlsProperties));
     queryFloatControlsProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
@@ -1952,6 +1973,16 @@ uint32_t GpuInfo::max_workgroup_size_y() const
 uint32_t GpuInfo::max_workgroup_size_z() const
 {
     return d->physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
+}
+
+VkDeviceSize GpuInfo::max_memory_allocation_size() const
+{
+    return d->queryMaintenance3Properties.maxMemoryAllocationSize;
+}
+
+VkDeviceSize GpuInfo::max_buffer_size() const
+{
+    return d->queryMaintenance4Properties.maxBufferSize;
 }
 
 size_t GpuInfo::memory_map_alignment() const
@@ -4953,6 +4984,11 @@ bool VulkanDevice::is_device_local(uint32_t memory_type_index) const
 
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
+    return acquire_queue(queue_family_index, VK_NULL_HANDLE);
+}
+
+VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index, VkQueue requested_queue) const
+{
     if (queue_family_index != info.compute_queue_family_index() && queue_family_index != info.transfer_queue_family_index())
     {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
@@ -4960,44 +4996,25 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
     }
 
     Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock : d->transfer_queue_lock;
-
-    queue_lock.lock();
-
+    MutexLockGuard lock(queue_lock);
     ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition : d->transfer_queue_condition;
-
     int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count : d->free_transfer_queue_count;
-
-    while (free_queue_count == 0)
-    {
-        // no free queues, wait for recleams from other threads
-        queue_condition.wait(queue_lock);
-    }
-
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues : d->transfer_queues;
 
-    VkQueue queue = 0;
-    for (size_t i = 0; i < queues.size(); i++)
+    for (;;)
     {
-        if (queues[i])
+        for (size_t i = 0; i < queues.size(); i++)
         {
-            queue = queues[i];
-            queues[i] = 0;
-            break;
+            if (queues[i] && (!requested_queue || queues[i] == requested_queue))
+            {
+                VkQueue queue = queues[i];
+                queues[i] = 0;
+                free_queue_count--;
+                return queue;
+            }
         }
+        queue_condition.wait(queue_lock);
     }
-
-    if (!queue)
-    {
-        NCNN_LOGE("FATAL ERROR! out of hardware queue %u", queue_family_index);
-    }
-
-    free_queue_count -= 1;
-
-    queue_lock.unlock();
-
-    queue_condition.signal();
-
-    return queue;
 }
 
 VkQueue VulkanDevice::try_acquire_queue(uint32_t queue_family_index) const
@@ -5062,7 +5079,7 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
     queue_lock.unlock();
 
-    queue_condition.signal();
+    queue_condition.broadcast();
 }
 
 VkAllocator* VulkanDevice::acquire_blob_allocator() const

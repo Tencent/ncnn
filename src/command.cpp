@@ -15,6 +15,7 @@
 namespace ncnn {
 
 size_t weight_buffer_alignment(const VulkanDevice* vkdev);
+int fit_weight_capacity(const VulkanDevice* vkdev, size_t budget, bool automatic, bool concurrent, size_t& capacity);
 int weight_buffer_memory_size(const VulkanDevice* vkdev, size_t size, size_t& allocation_size, bool concurrent = false);
 int create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t budget, VkBufferMemory*& buffer, size_t& allocation_size, bool allocate = true);
 void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
@@ -50,7 +51,7 @@ struct VkWeightCache
         uint64_t generation;
         size_t offset;
         size_t size;
-        uint64_t compute_serial;
+        size_t last_batch;
         bool valid;
     };
 
@@ -232,7 +233,7 @@ public:
     {
         return weight_recording || !vkdev->info.support_VK_KHR_push_descriptor();
     }
-    int ensure_weight_cache(const VkMat& mat, const Option* opt = 0);
+    int ensure_weight_cache(const VkMat& mat);
     int submit_managed();
     void clear_records();
 
@@ -242,18 +243,31 @@ public:
         size_t size;
     };
 
+    struct WeightBatch
+    {
+        WeightBatch()
+            : begin(0), end(0), wait_batch(0)
+        {
+        }
+        size_t begin;
+        size_t end;
+        std::vector<const VkBufferMemory*> weights;
+        std::vector<size_t> offsets;
+        std::vector<bool> missing;
+        std::vector<Range> releases;
+        std::vector<Range> acquires;
+        size_t wait_batch;
+    };
+
     struct Upload
     {
         Upload()
         {
             command = 0;
-            release_command = 0;
             fence = 0;
-            release_fence = 0;
             ready = 0;
-            returned = 0;
             pending = false;
-            release_pending = false;
+            ready_pending = false;
             host_active = false;
             consumer_serial = 0;
             host_offset = 0;
@@ -262,13 +276,10 @@ public:
             size = 0;
         }
         VkCommandBuffer command;
-        VkCommandBuffer release_command;
         VkFence fence;
-        VkFence release_fence;
         VkSemaphore ready;
-        VkSemaphore returned;
         bool pending;
-        bool release_pending;
+        bool ready_pending;
         bool host_active;
         uint64_t consumer_serial;
         size_t host_offset;
@@ -294,24 +305,26 @@ public:
     size_t weight_source_size(const VkBufferMemory* source) const;
     int begin_weight_commands();
     int submit_weight_prefix(VkCommandBuffer command, VkFence fence);
-    int prepare_weights(const std::vector<const VkBufferMemory*>& weights);
+    VkResult submit_weight_command(bool transfer, const VkSubmitInfo& info, VkFence fence);
+    int plan_weight_batches(std::vector<WeightBatch>& batches, std::vector<Range>& initial_releases);
+    int prepare_weights(const WeightBatch& batch, uint64_t serial_base);
+    int release_weight_ranges(const std::vector<Range>& ranges);
     int begin_weight_compute(VkCommandBuffer& command);
     int submit_weight_compute();
     int finish_weight_commands(int result = 0);
     int resolve_weight_binding(const VkBufferBinding& binding, VkDescriptorBufferInfo& descriptor) const;
-    int weight_device_entry(const VkBufferMemory* source) const;
+    int weight_device_entry(const std::vector<VkWeightCache::Entry>& entries, const VkBufferMemory* source) const;
     int weight_host_entry(const VkBufferMemory* source) const;
-    int allocate_weight_cache(size_t minimum_device_size, size_t max_source_size, size_t max_external_size);
+    int allocate_weight_cache();
     int create_weight_commands();
     void destroy_weight_commands();
     void release_weight_cache();
     int upload_weight(const VkBufferMemory* source, size_t offset);
     int upload_weight_chunk(Upload& u, const VkBufferMemory* source, size_t source_offset, size_t offset, size_t size, const Range& range, bool last);
-    int place_weight(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned);
-    void evict_weight(size_t slot);
-    int evict_weights();
+    int place_weight(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned, std::vector<VkWeightCache::Entry>& entries, size_t& head, std::vector<VkWeightCache::Entry>& evicted);
     int wait_weight_fence(VkFence fence, bool transfer);
     int wait_weight_compute(uint64_t serial);
+    int acquire_weight_upload();
     int retire_weight_upload(Upload& u);
     int weight_host_range(size_t size, size_t& offset);
     int cache_host_weight(const VkBufferMemory* source, size_t& offset);
@@ -328,18 +341,20 @@ public:
     VkWeightCache* weight_cache;
     bool weight_recording;
     Option weight_opt;
-    bool weight_options_set;
     bool weight_automatic_device_size;
     bool weight_automatic_host_size;
     int weight_config_error;
-    std::vector<Range> pending_releases;
+    std::vector<Range> pending_acquires;
     std::vector<int> pending_uploads;
-    std::vector<const VkBufferMemory*> current_sources;
+    const WeightBatch* current_batch;
     VkCommandPool transfer_pool;
     VkQueue compute_queue;
     VkQueue transfer_queue;
     VkFence prefix_fence;
     VkFence handoff_fence;
+    VkCommandBuffer release_command;
+    VkFence release_fence;
+    bool release_pending;
     int weight_queue_mode;
     uint32_t weight_transfer_family;
     Upload uploads[weight_transfer_slots];
@@ -559,11 +574,18 @@ public:
 VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt, int queue_mode, const VkWeightAllocator* weights)
     : weight_opt(opt ? *opt : Option()), vkdev(_vkdev)
 {
-    weight_options_set = opt != 0;
     weight_automatic_device_size = !weight_opt.weight_device_cache_size;
     weight_automatic_host_size = !weight_opt.weight_host_cache_size;
     const int ret = weights ? resolve_weight_cache_options(weights, weight_opt) : 0;
     weight_config_error = ret < 0 ? ret : 0;
+    if (ret < 0)
+        NCNN_LOGE("weight command requires finalized weights and valid budgets");
+    if (queue_mode < 0 || queue_mode > 2)
+    {
+        NCNN_LOGE("invalid weight queue mode %d", queue_mode);
+        weight_config_error = -1;
+        queue_mode = 0;
+    }
     weight_cache = 0;
     weight_recording = false;
     transfer_pool = 0;
@@ -571,11 +593,15 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt
     transfer_queue = 0;
     prefix_fence = 0;
     handoff_fence = 0;
+    release_command = 0;
+    release_fence = 0;
+    release_pending = false;
     weight_queue_mode = queue_mode;
     weight_transfer_family = queue_mode ? vkdev->info.compute_queue_family_index() : vkdev->info.transfer_queue_family_index();
     next_upload = 0;
     next_compute = 0;
     current_compute = -1;
+    current_batch = 0;
     compute_serial = 0;
     completed_compute_serial = 0;
     weight_commands_initialized = false;
@@ -748,7 +774,7 @@ int VkComputePrivate::end_command_buffer()
     return 0;
 }
 
-int VkComputePrivate::ensure_weight_cache(const VkMat& mat, const Option* opt)
+int VkComputePrivate::ensure_weight_cache(const VkMat& mat)
 {
     if (record_error)
         return record_error;
@@ -762,13 +788,6 @@ int VkComputePrivate::ensure_weight_cache(const VkMat& mat, const Option* opt)
     }
     if (!weight_cache)
     {
-        if (opt && !weight_options_set)
-        {
-            weight_opt = *opt;
-            weight_options_set = true;
-            weight_automatic_device_size = !weight_opt.weight_device_cache_size;
-            weight_automatic_host_size = !weight_opt.weight_host_cache_size;
-        }
         weight_cache = new VkWeightCache(vkdev, weight_opt, weight_automatic_device_size);
     }
     weight_recording = true;
@@ -804,9 +823,9 @@ int VkComputePrivate::ensure_weight_cache(const VkMat& mat, const Option* opt)
     // retains the queue ownership handoff needed before reusing a DEVICE range.
     for (size_t i = 0; i < weight_cache->entries.size(); i++)
     {
-        const VkWeightCache::Entry& entry = weight_cache->entries[i];
+        VkWeightCache::Entry& entry = weight_cache->entries[i];
         if (entry.source == mat.data && (entry.allocator != source.allocator || entry.generation != source.generation))
-            evict_weight(i);
+            entry.source = 0;
     }
     for (size_t i = 0; i < weight_cache->host_entries.size(); i++)
     {
@@ -1093,8 +1112,13 @@ int VkComputePrivate::submit_managed()
     for (size_t i = 0; i < delayed_records.size(); i++)
     {
         sources.clear();
-        if (record_sources(delayed_records[i], sources) || sources.size() > (size_t)weight_transfer_slots)
+        if (record_sources(delayed_records[i], sources))
             return -1;
+        if (sources.size() > (size_t)weight_transfer_slots)
+        {
+            NCNN_LOGE("too many simultaneous weight bindings: %llu", (unsigned long long)sources.size());
+            return -1;
+        }
         size_t total = 0;
         for (size_t j = 0; j < sources.size(); j++)
         {
@@ -1112,22 +1136,11 @@ int VkComputePrivate::submit_managed()
     }
     if (initialize_weight_cache(minimum_device_size, max_source_size, max_external_size))
         return -1;
-    struct Batch
-    {
-        size_t begin;
-        size_t end;
-        std::vector<const VkBufferMemory*> weights;
-    };
-    std::vector<Batch> batches;
-    Batch batch;
+    std::vector<WeightBatch> batches;
+    WeightBatch batch;
     batch.begin = 0;
     size_t batch_size = 0;
     const size_t capacity = weight_cache->device_size;
-    if (minimum_device_size > capacity)
-    {
-        NCNN_LOGE("simultaneous weight bindings exceed device cache budget");
-        return -1;
-    }
     for (size_t i = 0; i < delayed_records.size(); i++)
     {
         sources.clear();
@@ -1171,11 +1184,18 @@ int VkComputePrivate::submit_managed()
     batch.end = delayed_records.size();
     batches.push_back(batch);
 
-    if (begin_weight_commands())
+    std::vector<Range> initial_releases;
+    if (plan_weight_batches(batches, initial_releases))
         return -1;
-    int ret = 0;
+    if (begin_weight_commands())
+    {
+        weight_cache->error = -1;
+        return -1;
+    }
+    const uint64_t serial_base = compute_serial;
+    int ret = release_weight_ranges(initial_releases);
     // an external command may have recorded an ordinary prefix before attaching
-    if (vkdev->info.support_VK_KHR_push_descriptor())
+    if (!ret && vkdev->info.support_VK_KHR_push_descriptor())
     {
         ret = end_command_buffer();
         if (!ret)
@@ -1183,7 +1203,7 @@ int VkComputePrivate::submit_managed()
     }
     for (size_t i = 0; i < batches.size() && !ret; i++)
     {
-        ret = prepare_weights(batches[i].weights);
+        ret = prepare_weights(batches[i], serial_base);
         if (ret)
             break;
         VkCommandBuffer command;
@@ -1197,7 +1217,12 @@ int VkComputePrivate::submit_managed()
         for (size_t j = batches[i].begin; j < batches[i].end && !ret; j++)
             ret = replay_record(delayed_records[j], command);
         if (!ret)
+        {
+            if (!weight_cache->unified && weight_transfer_family != vkdev->info.compute_queue_family_index())
+                for (size_t j = 0; j < batches[i].releases.size(); j++)
+                    weight_ownership_barrier(command, batches[i].releases[j], false, true);
             ret = submit_weight_compute();
+        }
     }
     ret = finish_weight_commands(ret);
     return ret;
@@ -1337,7 +1362,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         return;
     }
 
-    if (d->ensure_weight_cache(src, &opt))
+    if (d->ensure_weight_cache(src))
         return;
 
     // NCNN_LOGE("record_download buffer");
@@ -1533,7 +1558,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
         return;
     }
 
-    if (d->ensure_weight_cache(src, &opt))
+    if (d->ensure_weight_cache(src))
         return;
 
     //     NCNN_LOGE("record_clone buffer to host");
@@ -1649,7 +1674,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         return;
     }
 
-    if (d->ensure_weight_cache(src, &opt))
+    if (d->ensure_weight_cache(src))
         return;
 
     //     NCNN_LOGE("record_clone buffer to buffer");
@@ -1898,7 +1923,7 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
         return;
     }
 
-    if (d->ensure_weight_cache(src, &opt))
+    if (d->ensure_weight_cache(src))
         return;
 
     //     NCNN_LOGE("record_clone buffer to image");
@@ -2693,20 +2718,16 @@ int VkComputePrivate::replay_record(const record& r, VkCommandBuffer command)
             vkCmdCopyBuffer(command, r.copy_buffer.src, r.copy_buffer.dst, r.copy_buffer.region_count, r.copy_buffer.regions);
             break;
         }
-        VkBuffer src = r.copy_buffer.src;
+        VkDescriptorBufferInfo descriptor;
+        if (resolve_weight_binding(r.buffer_binding, descriptor))
+            return -1;
         std::vector<VkBufferCopy> regions(r.copy_buffer.region_count);
         for (uint32_t i = 0; i < r.copy_buffer.region_count; i++)
-            regions[i] = r.copy_buffer.regions[i];
-        if (weight_cache && r.buffer_binding.source)
         {
-            VkDescriptorBufferInfo descriptor;
-            if (resolve_weight_binding(r.buffer_binding, descriptor))
-                return -1;
-            src = descriptor.buffer;
-            for (uint32_t i = 0; i < r.copy_buffer.region_count; i++)
-                regions[i].srcOffset = descriptor.offset + regions[i].srcOffset - r.buffer_binding.descriptor.offset;
+            regions[i] = r.copy_buffer.regions[i];
+            regions[i].srcOffset = descriptor.offset + regions[i].srcOffset - r.buffer_binding.descriptor.offset;
         }
-        vkCmdCopyBuffer(command, src, r.copy_buffer.dst, r.copy_buffer.region_count, regions.data());
+        vkCmdCopyBuffer(command, descriptor.buffer, r.copy_buffer.dst, r.copy_buffer.region_count, regions.data());
         break;
     }
     case VkComputePrivate::record::TYPE_copy_image:
@@ -2721,20 +2742,16 @@ int VkComputePrivate::replay_record(const record& r, VkCommandBuffer command)
             vkCmdCopyBufferToImage(command, r.copy_buffer_to_image.src, r.copy_buffer_to_image.dst, r.copy_buffer_to_image.layout, r.copy_buffer_to_image.region_count, r.copy_buffer_to_image.regions);
             break;
         }
-        VkBuffer src = r.copy_buffer_to_image.src;
+        VkDescriptorBufferInfo descriptor;
+        if (resolve_weight_binding(r.buffer_binding, descriptor))
+            return -1;
         std::vector<VkBufferImageCopy> regions(r.copy_buffer_to_image.region_count);
         for (uint32_t i = 0; i < r.copy_buffer_to_image.region_count; i++)
-            regions[i] = r.copy_buffer_to_image.regions[i];
-        if (weight_cache && r.buffer_binding.source)
         {
-            VkDescriptorBufferInfo descriptor;
-            if (resolve_weight_binding(r.buffer_binding, descriptor))
-                return -1;
-            src = descriptor.buffer;
-            for (uint32_t i = 0; i < r.copy_buffer_to_image.region_count; i++)
-                regions[i].bufferOffset = descriptor.offset + regions[i].bufferOffset - r.buffer_binding.descriptor.offset;
+            regions[i] = r.copy_buffer_to_image.regions[i];
+            regions[i].bufferOffset = descriptor.offset + regions[i].bufferOffset - r.buffer_binding.descriptor.offset;
         }
-        vkCmdCopyBufferToImage(command, src, r.copy_buffer_to_image.dst, r.copy_buffer_to_image.layout, r.copy_buffer_to_image.region_count, regions.data());
+        vkCmdCopyBufferToImage(command, descriptor.buffer, r.copy_buffer_to_image.dst, r.copy_buffer_to_image.layout, r.copy_buffer_to_image.region_count, regions.data());
         break;
     }
     case VkComputePrivate::record::TYPE_copy_image_to_buffer:
@@ -3281,11 +3298,7 @@ void VkComputePrivate::destroy_weight_commands()
     {
         Upload& u = uploads[i];
         vkDestroyFence(vkdev->vkdevice(), u.fence, 0);
-        vkDestroyFence(vkdev->vkdevice(), u.release_fence, 0);
         vkDestroySemaphore(vkdev->vkdevice(), u.ready, 0);
-        vkDestroySemaphore(vkdev->vkdevice(), u.returned, 0);
-        if (u.release_command)
-            vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &u.release_command);
         u = Upload();
     }
     for (int i = 0; i < weight_compute_slots; i++)
@@ -3296,6 +3309,12 @@ void VkComputePrivate::destroy_weight_commands()
             vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &c.command);
         c = Compute();
     }
+    vkDestroyFence(vkdev->vkdevice(), release_fence, 0);
+    release_fence = 0;
+    if (release_command)
+        vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &release_command);
+    release_command = 0;
+    release_pending = false;
     vkDestroyFence(vkdev->vkdevice(), handoff_fence, 0);
     handoff_fence = 0;
     if (transfer_pool)
@@ -3306,9 +3325,9 @@ void VkComputePrivate::destroy_weight_commands()
     current_compute = -1;
     compute_serial = completed_compute_serial = 0;
     weight_commands_initialized = false;
-    pending_releases.clear();
+    pending_acquires.clear();
     pending_uploads.clear();
-    current_sources.clear();
+    current_batch = 0;
 }
 
 static int weight_command(VkDevice device, VkCommandPool pool, VkCommandBuffer& command)
@@ -3360,20 +3379,23 @@ int VkComputePrivate::create_weight_commands()
         NCNN_LOGE("vkCreateFence failed %d", ret);
         return -1;
     }
-    for (int i = 0; i < weight_transfer_slots; i++)
+    if (!weight_cache->unified && weight_transfer_family != vkdev->info.compute_queue_family_index())
     {
-        Upload& u = uploads[i];
-        if (weight_command(vkdev->vkdevice(), transfer_pool, u.command))
+        if (weight_command(vkdev->vkdevice(), compute_command_pool, release_command))
             return -1;
-        if (weight_command(vkdev->vkdevice(), compute_command_pool, u.release_command))
-            return -1;
-        ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &u.fence);
+        ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &release_fence);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateFence failed %d", ret);
             return -1;
         }
-        ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &u.release_fence);
+    }
+    for (int i = 0; i < weight_transfer_slots; i++)
+    {
+        Upload& u = uploads[i];
+        if (weight_command(vkdev->vkdevice(), transfer_pool, u.command))
+            return -1;
+        ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &u.fence);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateFence failed %d", ret);
@@ -3385,12 +3407,7 @@ int VkComputePrivate::create_weight_commands()
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
             return -1;
         }
-        ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphore_info, 0, &u.returned);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            return -1;
-        }
+
     }
     for (int i = 0; i < weight_compute_slots; i++)
     {
@@ -3432,56 +3449,14 @@ int VkComputePrivate::create_weight_commands()
     return 0;
 }
 
-int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t max_source_size, size_t max_external_size)
+int VkComputePrivate::allocate_weight_cache()
 {
-    weight_cache->unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
-    const size_t max_size = max_source_size;
-    const size_t max_file_size = max_external_size;
-    if (weight_cache->unified)
-    {
-        // unified weights are filled by the host and consumed directly by compute
-        weight_transfer_family = vkdev->info.compute_queue_family_index();
-        weight_queue_mode = 2;
-    }
-    if (max_size > (size_t)-1 / 2)
-        return -1;
+    if (!weight_cache->device_size)
+        return 0;
     const size_t device_budget = weight_cache->opt.weight_device_budget;
     const size_t host_budget = weight_cache->opt.weight_host_budget;
-    if (!weight_cache->device_size)
-        weight_cache->device_size = std::max(max_size * 2, minimum_device_size);
-    else if (weight_cache->automatic_device_size)
-        weight_cache->device_size = std::max(weight_cache->device_size, minimum_device_size);
-    if (max_file_size && !weight_cache->unified)
-    {
-        if (!weight_cache->host_size)
-            weight_cache->host_size = max_file_size * 2;
-    }
-    else
-    {
-        weight_cache->host_size = 0;
-    }
-    if (weight_cache->device_size < minimum_device_size || (max_file_size && !weight_cache->unified && weight_cache->host_size < weight_cache->alignment))
-    {
-        NCNN_LOGE("weight exchange too small: host %llu, device %llu needs %llu", (unsigned long long)weight_cache->host_size, (unsigned long long)weight_cache->device_size, (unsigned long long)minimum_device_size);
-        return -1;
-    }
-    if (weight_cache->host_size > (size_t)-1 - weight_cache->alignment || weight_cache->device_size > (size_t)-1 - weight_cache->alignment)
-        return -1;
-    weight_cache->host_size = alignSize(weight_cache->host_size, weight_cache->alignment);
-    weight_cache->device_size = alignSize(weight_cache->device_size, weight_cache->alignment);
-    if (!max_size)
-        return 0;
-
-    size_t device_allocation;
-    size_t host_allocation;
-    if (weight_buffer_memory_size(vkdev, weight_cache->device_size, device_allocation)
-            || weight_buffer_memory_size(vkdev, weight_cache->host_size, host_allocation, true)
-            || (device_budget && device_allocation > device_budget)
-            || (host_budget && host_allocation > host_budget))
-    {
-        NCNN_LOGE("weight exchange allocation exceeds the remaining residency budget");
-        return -1;
-    }
+    size_t device_allocation = 0;
+    size_t host_allocation = 0;
     weight_cache->device_allocator = weight_cache->opt.weight_device_vkallocator;
     if (weight_cache->device_allocator)
         weight_cache->device_arena = weight_cache->device_allocator->fastMalloc(weight_cache->device_size);
@@ -3557,30 +3532,6 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
     return 0;
 }
 
-static int fit_weight_capacity(const VulkanDevice* vkdev, size_t budget, bool automatic, bool concurrent, size_t& capacity)
-{
-    if (!budget || !capacity)
-        return 0;
-    const size_t alignment = weight_buffer_alignment(vkdev);
-    for (;;)
-    {
-        size_t allocation;
-        if (weight_buffer_memory_size(vkdev, capacity, allocation, concurrent))
-            return -1;
-        if (allocation <= budget)
-            return 0;
-        if (!automatic)
-            return -1;
-        const size_t excess = allocation - budget;
-        if (excess > (size_t)-1 - alignment)
-            return -1;
-        const size_t shrink = alignSize(excess, alignment);
-        if (shrink >= capacity)
-            return -1;
-        capacity -= shrink;
-    }
-}
-
 int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t max_source_size, size_t max_external_size)
 {
     if (weight_cache->error || executing || max_source_size > (size_t)-1 / 2 || max_external_size > (size_t)-1 / 2)
@@ -3592,6 +3543,7 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
     size_t device_budget = weight_opt.weight_device_budget;
     size_t host_budget = weight_opt.weight_host_budget;
     const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
+    weight_cache->unified = unified;
     if (unified)
     {
         device_budget = device_budget && host_budget ? std::min(device_budget, host_budget) : std::max(device_budget, host_budget);
@@ -3611,16 +3563,15 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
         return -1;
     device_size = alignSize(device_size, weight_cache->alignment);
     host_size = alignSize(host_size, weight_cache->alignment);
-    if (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size)
-            || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)
-            || device_size < minimum_device_size
-            || (max_external_size && !unified && host_size < weight_cache->alignment))
+    const bool validate_capacity = !weight_cache->initialized || device_size != weight_cache->device_size || host_size != weight_cache->host_size;
+    if ((validate_capacity && (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size)
+                               || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)))
+        || device_size < minimum_device_size
+        || (max_external_size && !unified && host_size < weight_cache->alignment))
     {
         NCNN_LOGE("weight working set exceeds command capacity or budget");
         return -1;
     }
-    device_size = alignSize(device_size, weight_cache->alignment);
-    host_size = alignSize(host_size, weight_cache->alignment);
     const bool resize = device_size != weight_cache->device_size || host_size != weight_cache->host_size;
     if (weight_cache->initialized && resize)
     {
@@ -3635,7 +3586,7 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
     weight_cache->host_size = host_size;
     if (!weight_cache->initialized)
     {
-        weight_cache->error = allocate_weight_cache(minimum_device_size, max_source_size, max_external_size);
+        weight_cache->error = allocate_weight_cache();
         weight_cache->initialized = true;
     }
     if (weight_cache->error)
@@ -3643,8 +3594,6 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
     if (weight_cache->unified)
         weight_queue_mode = 2;
     weight_transfer_family = weight_queue_mode ? vkdev->info.compute_queue_family_index() : vkdev->info.transfer_queue_family_index();
-    if (max_external_size && !weight_cache->unified && !weight_cache->host_size)
-        return -1;
     if (!weight_commands_initialized)
     {
         weight_cache->error = create_weight_commands();
@@ -3673,13 +3622,13 @@ int VkComputePrivate::weight_binding_source(const VkBufferBinding& binding, cons
 
 size_t VkComputePrivate::weight_source_size(const VkBufferMemory* source) const
 {
-    return source && source->external_size <= (size_t)-1 - weight_cache->alignment ? alignSize(source->external_size, weight_cache->alignment) : (size_t)-1;
+    return alignSize(source->external_size, weight_cache->alignment);
 }
 
-int VkComputePrivate::weight_device_entry(const VkBufferMemory* source) const
+int VkComputePrivate::weight_device_entry(const std::vector<VkWeightCache::Entry>& entries, const VkBufferMemory* source) const
 {
-    for (size_t i = 0; i < weight_cache->entries.size(); i++)
-        if (weight_cache->entries[i].source == source)
+    for (size_t i = 0; i < entries.size(); i++)
+        if (entries[i].source == source)
             return (int)i;
     return -1;
 }
@@ -3700,24 +3649,25 @@ static bool weight_is_pinned(const VkBufferMemory* source, const std::vector<con
     return false;
 }
 
-int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned)
+int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned, std::vector<VkWeightCache::Entry>& entries, size_t& head,
+                                   std::vector<VkWeightCache::Entry>& evicted)
 {
     const VkWeightCache::source_entry* recorded = weight_cache->find_source(source);
     if (!recorded)
         return -1;
     const size_t size = alignSize(source->external_size, weight_cache->alignment);
-    size_t offset = weight_cache->device_head;
+    size_t offset = head;
     bool found = false;
     for (int pass = 0; pass < 2 && !found; pass++)
     {
-        for (size_t attempt = 0; attempt <= weight_cache->entries.size(); attempt++)
+        for (size_t attempt = 0; attempt <= entries.size(); attempt++)
         {
             if (offset > weight_cache->device_size || size > weight_cache->device_size - offset)
                 break;
             size_t next_offset = offset;
-            for (size_t i = 0; i < weight_cache->entries.size(); i++)
+            for (size_t i = 0; i < entries.size(); i++)
             {
-                const VkWeightCache::Entry& e = weight_cache->entries[i];
+                const VkWeightCache::Entry& e = entries[i];
                 if (!e.source || !weight_is_pinned(e.source, pinned))
                     continue;
                 if (offset < e.offset + e.size && e.offset < offset + size)
@@ -3737,16 +3687,17 @@ int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vect
         return -1;
 
     int slot = -1;
-    for (size_t i = 0; i < weight_cache->entries.size(); i++)
+    for (size_t i = 0; i < entries.size(); i++)
     {
-        VkWeightCache::Entry& e = weight_cache->entries[i];
-        if (e.source && offset < e.offset + e.size && e.offset < offset + size)
+        VkWeightCache::Entry& e = entries[i];
+        if ((e.source || e.valid) && offset < e.offset + e.size && e.offset < offset + size)
         {
-            if (weight_cache->unified && wait_weight_compute(e.compute_serial))
-                return -1;
-            evict_weight(i);
+            if (e.valid)
+                evicted.push_back(e);
+            e.source = 0;
+            e.valid = false;
         }
-        if (!e.source)
+        if (!e.source && !e.valid)
             slot = (int)i;
     }
     VkWeightCache::Entry entry;
@@ -3755,46 +3706,73 @@ int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vect
     entry.generation = recorded->generation;
     entry.offset = offset;
     entry.size = size;
-    entry.compute_serial = 0;
+    entry.last_batch = 0;
     entry.valid = false;
     if (slot == -1)
     {
-        slot = (int)weight_cache->entries.size();
-        weight_cache->entries.push_back(entry);
+        slot = (int)entries.size();
+        entries.push_back(entry);
     }
     else
     {
-        weight_cache->entries[slot] = entry;
+        entries[slot] = entry;
     }
-    weight_cache->device_head = offset + size;
-    return 0;
+    head = offset + size;
+    return slot;
 }
 
-void VkComputePrivate::evict_weight(size_t slot)
+int VkComputePrivate::plan_weight_batches(std::vector<WeightBatch>& batches, std::vector<Range>& initial_releases)
 {
-    VkWeightCache::Entry& entry = weight_cache->entries[slot];
-    if (!entry.source)
-        return;
-    if (entry.valid && !weight_cache->unified)
+    std::vector<VkWeightCache::Entry> entries = weight_cache->entries;
+    for (size_t i = 0; i < entries.size(); i++)
+        entries[i].last_batch = 0;
+    size_t head = weight_cache->device_head;
+    for (size_t i = 0; i < batches.size(); i++)
     {
-        Range range;
-        range.offset = entry.offset;
-        range.size = entry.size;
-        pending_releases.push_back(range);
+        WeightBatch& batch = batches[i];
+        std::vector<VkWeightCache::Entry> evicted;
+        for (size_t j = 0; j < batch.weights.size(); j++)
+        {
+            if (weight_device_entry(entries, batch.weights[j]) >= 0)
+                continue;
+            if (place_weight(batch.weights[j], batch.weights, entries, head, evicted) >= 0)
+                continue;
+            // Compact a fragmented working set before any of its uploads start.
+            for (size_t k = 0; k < entries.size(); k++)
+                if (entries[k].valid)
+                    evicted.push_back(entries[k]);
+            entries.clear();
+            head = 0;
+            for (size_t k = 0; k < batch.weights.size(); k++)
+                if (place_weight(batch.weights[k], batch.weights, entries, head, evicted) < 0)
+                    return -1;
+            break;
+        }
+        batch.wait_batch = 0;
+        for (size_t j = 0; j < evicted.size(); j++)
+        {
+            const VkWeightCache::Entry& entry = evicted[j];
+            Range range;
+            range.offset = entry.offset;
+            range.size = entry.size;
+            if (entry.last_batch)
+                batches[entry.last_batch - 1].releases.push_back(range);
+            else
+                initial_releases.push_back(range);
+            batch.acquires.push_back(range);
+            batch.wait_batch = std::max(batch.wait_batch, entry.last_batch);
+        }
+        for (size_t j = 0; j < batch.weights.size(); j++)
+        {
+            VkWeightCache::Entry& entry = entries[weight_device_entry(entries, batch.weights[j])];
+            batch.offsets.push_back(entry.offset);
+            batch.missing.push_back(!entry.valid);
+            entry.valid = true;
+            entry.last_batch = i + 1;
+        }
     }
-    entry.source = 0;
-}
-
-int VkComputePrivate::evict_weights()
-{
-    for (size_t i = 0; i < weight_cache->entries.size(); i++)
-    {
-        if (weight_cache->unified && wait_weight_compute(weight_cache->entries[i].compute_serial))
-            return -1;
-        evict_weight(i);
-    }
-    weight_cache->entries.clear();
-    weight_cache->device_head = 0;
+    std::swap(weight_cache->entries, entries);
+    weight_cache->device_head = head;
     return 0;
 }
 
@@ -3863,21 +3841,32 @@ int VkComputePrivate::wait_weight_compute(uint64_t serial)
     return -1;
 }
 
+int VkComputePrivate::acquire_weight_upload()
+{
+    for (int i = 0; i < weight_transfer_slots; i++)
+    {
+        Upload& u = uploads[next_upload];
+        // Ready semaphores for the current batch must reach its compute submit.
+        if (!u.ready_pending || u.consumer_serial)
+            return retire_weight_upload(u);
+        next_upload = (next_upload + 1) % weight_transfer_slots;
+    }
+    return -1;
+}
+
 int VkComputePrivate::retire_weight_upload(Upload& u)
 {
     if (u.pending)
     {
-        if (!u.consumer_serial || wait_weight_compute(u.consumer_serial) || wait_weight_fence(u.fence, true))
+        if ((u.ready_pending && (!u.consumer_serial || wait_weight_compute(u.consumer_serial))) || wait_weight_fence(u.fence, true))
             return -1;
     }
-    if (u.release_pending && wait_weight_fence(u.release_fence, false))
-        return -1;
 #if NCNN_BENCHMARK
     if (u.pending && transfer_timestamp_bits && collect_weight_time((uint32_t)(&u - uploads) * 2, transfer_timestamp_bits, weight_cache->stats.upload_time))
         return -1;
 #endif
     u.pending = false;
-    u.release_pending = false;
+    u.ready_pending = false;
     u.host_active = false;
     u.consumer_serial = 0;
     return 0;
@@ -4028,15 +4017,15 @@ int VkComputePrivate::begin_weight_commands()
     if (!compute_queue)
         return -1;
     executing = true;
-    // Earlier submissions have finished before this command reuses its regions.
-    for (size_t i = 0; i < weight_cache->entries.size(); i++)
-        weight_cache->entries[i].compute_serial = 0;
     if (weight_transfer_family != compute_family)
         transfer_queue = vkdev->acquire_queue(weight_transfer_family);
     else if (weight_queue_mode != 2)
         transfer_queue = vkdev->try_acquire_queue(compute_family);
     if (!transfer_queue && weight_transfer_family == compute_family)
         transfer_queue = compute_queue;
+    if (transfer_queue && transfer_queue != compute_queue)
+        vkdev->reclaim_queue(weight_transfer_family, transfer_queue);
+    vkdev->reclaim_queue(compute_family, compute_queue);
     if (!transfer_queue)
         return finish_weight_commands(-1);
 #if NCNN_BENCHMARK
@@ -4059,7 +4048,7 @@ int VkComputePrivate::begin_weight_commands()
             NCNN_LOGE("vkResetFences failed %d", ret);
             return finish_weight_commands(-1);
         }
-        ret = vkQueueSubmit(compute_queue, 1, &info, handoff_fence);
+        ret = submit_weight_command(false, info, handoff_fence);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkQueueSubmit failed %d", ret);
@@ -4075,6 +4064,17 @@ int VkComputePrivate::begin_weight_commands()
     return 0;
 }
 
+VkResult VkComputePrivate::submit_weight_command(bool transfer, const VkSubmitInfo& info, VkFence fence)
+{
+    const uint32_t family = transfer ? weight_transfer_family : vkdev->info.compute_queue_family_index();
+    VkQueue queue = vkdev->acquire_queue(family, transfer ? transfer_queue : compute_queue);
+    if (!queue)
+        return VK_ERROR_INITIALIZATION_FAILED;
+    const VkResult ret = vkQueueSubmit(queue, 1, &info, fence);
+    vkdev->reclaim_queue(family, queue);
+    return ret;
+}
+
 int VkComputePrivate::submit_weight_prefix(VkCommandBuffer command, VkFence fence)
 {
     VkResult ret;
@@ -4084,7 +4084,7 @@ int VkComputePrivate::submit_weight_prefix(VkCommandBuffer command, VkFence fenc
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     info.commandBufferCount = 1;
     info.pCommandBuffers = &command;
-    ret = vkQueueSubmit(compute_queue, 1, &info, fence);
+    ret = submit_weight_command(false, info, fence);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkQueueSubmit failed %d", ret);
@@ -4102,48 +4102,6 @@ int VkComputePrivate::upload_weight_chunk(Upload& u, const VkBufferMemory* sourc
     VkResult ret;
     if (!(source->buffer_usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
         return -1;
-    if (u.release_pending)
-    {
-        if (wait_weight_fence(u.release_fence, false))
-            return -1;
-        u.release_pending = false;
-    }
-    const bool returning = !pending_releases.empty();
-    if (returning)
-    {
-        if (weight_begin(u.release_command))
-            return -1;
-        ret = vkResetFences(vkdev->vkdevice(), 1, &u.release_fence);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkResetFences failed %d", ret);
-            return -1;
-        }
-        for (size_t i = 0; i < pending_releases.size(); i++)
-            weight_ownership_barrier(u.release_command, pending_releases[i], false, true);
-        ret = vkEndCommandBuffer(u.release_command);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
-            return -1;
-        }
-        VkSubmitInfo info = {};
-        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        info.commandBufferCount = 1;
-        info.pCommandBuffers = &u.release_command;
-        info.signalSemaphoreCount = 1;
-        info.pSignalSemaphores = &u.returned;
-        ret = vkQueueSubmit(compute_queue, 1, &info, u.release_fence);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkQueueSubmit failed %d", ret);
-            return -1;
-        }
-        u.release_pending = true;
-#if NCNN_BENCHMARK
-        weight_cache->stats.compute_submissions++;
-#endif
-    }
     if (weight_begin(u.command))
         return -1;
     ret = vkResetFences(vkdev->vkdevice(), 1, &u.fence);
@@ -4152,8 +4110,8 @@ int VkComputePrivate::upload_weight_chunk(Upload& u, const VkBufferMemory* sourc
         NCNN_LOGE("vkResetFences failed %d", ret);
         return -1;
     }
-    for (size_t i = 0; i < pending_releases.size(); i++)
-        weight_ownership_barrier(u.command, pending_releases[i], false, false);
+    for (size_t i = 0; i < pending_acquires.size(); i++)
+        weight_ownership_barrier(u.command, pending_acquires[i], false, false);
     VkBufferMemoryBarrier host_barrier = {};
     host_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     host_barrier.srcAccessMask = source->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
@@ -4188,29 +4146,26 @@ int VkComputePrivate::upload_weight_chunk(Upload& u, const VkBufferMemory* sourc
         NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
         return -1;
     }
-    VkPipelineStageFlags stage = weight_transfer_family != vkdev->info.compute_queue_family_index() ? VK_PIPELINE_STAGE_ALL_COMMANDS_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    info.waitSemaphoreCount = returning ? 1 : 0;
-    info.pWaitSemaphores = &u.returned;
-    info.pWaitDstStageMask = &stage;
     info.commandBufferCount = 1;
     info.pCommandBuffers = &u.command;
     info.signalSemaphoreCount = last ? 1 : 0;
     info.pSignalSemaphores = &u.ready;
-    ret = vkQueueSubmit(transfer_queue, 1, &info, u.fence);
+    ret = submit_weight_command(true, info, u.fence);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkQueueSubmit failed %d", ret);
         return -1;
     }
     u.pending = true;
+    u.ready_pending = last;
     u.host_active = source == weight_cache->host_arena;
     u.host_offset = u.host_active ? source_offset - weight_cache->host_arena->offset : 0;
     u.host_size = u.host_active ? alignSize(size, weight_cache->alignment) : 0;
     u.offset = range.offset;
     u.size = range.size;
-    pending_releases.clear();
+    pending_acquires.clear();
 #if NCNN_BENCHMARK
     weight_cache->stats.transfer_submissions++;
     weight_cache->stats.upload_chunks++;
@@ -4218,22 +4173,8 @@ int VkComputePrivate::upload_weight_chunk(Upload& u, const VkBufferMemory* sourc
 #endif
     update_weight_peaks();
     if (last)
-    {
         pending_uploads.push_back(next_upload);
-        next_upload = (next_upload + 1) % weight_transfer_slots;
-    }
-    else
-    {
-        // intermediate chunks reuse this slot without signaling its ready semaphore
-        if (wait_weight_fence(u.fence, true))
-            return -1;
-#if NCNN_BENCHMARK
-        if (transfer_timestamp_bits && collect_weight_time(next_upload * 2, transfer_timestamp_bits, weight_cache->stats.upload_time))
-            return -1;
-#endif
-        u.pending = false;
-        u.host_active = false;
-    }
+    next_upload = (next_upload + 1) % weight_transfer_slots;
     return 0;
 }
 
@@ -4272,15 +4213,14 @@ int VkComputePrivate::upload_weight(const VkBufferMemory* source, size_t offset)
 #endif
         return 0;
     }
-    Upload& u = uploads[next_upload];
-    if (retire_weight_upload(u))
-        return -1;
     Range range;
     range.offset = offset;
     range.size = size;
     if (!needs_external_copy(source))
     {
-        const int ret = upload_weight_chunk(u, source, source->offset, offset, alignSize(source->external_size, 4), range, true);
+        if (acquire_weight_upload())
+            return -1;
+        const int ret = upload_weight_chunk(uploads[next_upload], source, source->offset, offset, alignSize(source->external_size, 4), range, true);
 #if NCNN_BENCHMARK
         if (!ret)
             weight_cache->stats.host_resident_bytes_uploaded += alignSize(source->external_size, 4);
@@ -4290,16 +4230,17 @@ int VkComputePrivate::upload_weight(const VkBufferMemory* source, size_t offset)
     if (size <= weight_cache->host_size)
     {
         size_t host_offset;
-        if (cache_host_weight(source, host_offset))
+        if (cache_host_weight(source, host_offset) || acquire_weight_upload())
             return -1;
-        return upload_weight_chunk(u, weight_cache->host_arena, weight_cache->host_arena->offset + host_offset, offset, alignSize(source->external_size, 4), range, true);
+        return upload_weight_chunk(uploads[next_upload], weight_cache->host_arena, weight_cache->host_arena->offset + host_offset, offset, alignSize(source->external_size, 4), range, true);
     }
+    const size_t chunk_capacity = std::max(weight_cache->alignment, weight_cache->host_size / 2 / weight_cache->alignment * weight_cache->alignment);
     for (size_t file_offset = 0; file_offset < source->external_size;)
     {
-        const size_t chunk_size = std::min(weight_cache->host_size, source->external_size - file_offset);
+        const size_t chunk_size = std::min(chunk_capacity, source->external_size - file_offset);
         const size_t host_range_size = alignSize(chunk_size, weight_cache->alignment);
         size_t host_offset;
-        if (!chunk_size || weight_host_range(host_range_size, host_offset))
+        if (!chunk_size || weight_host_range(host_range_size, host_offset) || acquire_weight_upload())
             return -1;
         unsigned char* destination = (unsigned char*)weight_cache->host_arena->mapped_ptr + weight_cache->host_arena->offset + host_offset;
 #if NCNN_BENCHMARK
@@ -4322,67 +4263,79 @@ int VkComputePrivate::upload_weight(const VkBufferMemory* source, size_t offset)
         weight_cache->stats.host_bytes_staged += chunk_size;
 #endif
         const bool last = chunk_size == source->external_size - file_offset;
-        if (upload_weight_chunk(u, weight_cache->host_arena, weight_cache->host_arena->offset + host_offset, offset + file_offset, alignSize(chunk_size, 4), range, last))
+        if (upload_weight_chunk(uploads[next_upload], weight_cache->host_arena, weight_cache->host_arena->offset + host_offset, offset + file_offset, alignSize(chunk_size, 4), range, last))
             return -1;
         file_offset += chunk_size;
     }
     return 0;
 }
 
-int VkComputePrivate::prepare_weights(const std::vector<const VkBufferMemory*>& weights)
+int VkComputePrivate::release_weight_ranges(const std::vector<Range>& ranges)
 {
-    if (!executing || !pending_uploads.empty() || current_compute >= 0 || weights.size() > (size_t)weight_transfer_slots)
+    if (ranges.empty() || weight_cache->unified || weight_transfer_family == vkdev->info.compute_queue_family_index())
+        return 0;
+    if (weight_begin(release_command))
         return -1;
-    size_t total = 0;
-    for (size_t i = 0; i < weights.size(); i++)
+    VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &release_fence);
+    if (ret != VK_SUCCESS)
     {
-        const size_t size = weight_source_size(weights[i]);
-        if (size > weight_cache->device_size - total)
-        {
-            NCNN_LOGE("simultaneous weight bindings exceed device cache budget");
-            return -1;
-        }
-        total += size;
+        NCNN_LOGE("vkResetFences failed %d", ret);
+        return -1;
     }
-    std::vector<const VkBufferMemory*> missing;
-    for (size_t i = 0; i < weights.size(); i++)
+    for (size_t i = 0; i < ranges.size(); i++)
+        weight_ownership_barrier(release_command, ranges[i], false, true);
+    ret = vkEndCommandBuffer(release_command);
+    if (ret != VK_SUCCESS)
     {
-        if (weight_device_entry(weights[i]) >= 0)
-            continue;
-        if (place_weight(weights[i], weights) != 0)
-        {
-            // return fragmented ranges before compacting the next working set
-            if (evict_weights())
-                return -1;
-            missing = weights;
-            for (size_t j = 0; j < weights.size(); j++)
-                if (place_weight(weights[j], weights) != 0)
-                    return -1;
-            break;
-        }
-        missing.push_back(weights[i]);
+        NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
+        return -1;
     }
-    for (size_t i = 0; i < missing.size(); i++)
+    VkSubmitInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    info.commandBufferCount = 1;
+    info.pCommandBuffers = &release_command;
+    ret = submit_weight_command(false, info, release_fence);
+    if (ret != VK_SUCCESS)
     {
-        const VkBufferMemory* source = missing[i];
-        VkWeightCache::Entry& entry = weight_cache->entries[weight_device_entry(source)];
-        if (upload_weight(source, entry.offset))
-            return -1;
-        entry.valid = true;
+        NCNN_LOGE("vkQueueSubmit failed %d", ret);
+        return -1;
     }
-    current_sources = weights;
+    release_pending = true;
 #if NCNN_BENCHMARK
-    weight_cache->stats.cache_hits += weights.size() - missing.size();
-    weight_cache->stats.cache_misses += missing.size();
+    weight_cache->stats.compute_submissions++;
 #endif
+    if (wait_weight_fence(release_fence, false))
+        return -1;
+    release_pending = false;
+    return 0;
+}
+
+int VkComputePrivate::prepare_weights(const WeightBatch& batch, uint64_t serial_base)
+{
+    // Wait only for readers of the ranges about to be overwritten. A later,
+    // unrelated compute batch can keep running while these uploads execute.
+    if (batch.wait_batch && wait_weight_compute(serial_base + batch.wait_batch))
+        return -1;
+    if (!weight_cache->unified && weight_transfer_family != vkdev->info.compute_queue_family_index())
+        pending_acquires = batch.acquires;
+    for (size_t i = 0; i < batch.weights.size(); i++)
+    {
+        if (batch.missing[i] && upload_weight(batch.weights[i], batch.offsets[i]))
+            return -1;
+#if NCNN_BENCHMARK
+        if (batch.missing[i])
+            weight_cache->stats.cache_misses++;
+        else
+            weight_cache->stats.cache_hits++;
+#endif
+    }
+    current_batch = &batch;
     return 0;
 }
 
 int VkComputePrivate::begin_weight_compute(VkCommandBuffer& command)
 {
     VkResult ret;
-    if (!executing || current_compute >= 0)
-        return -1;
     VkComputePrivate::Compute& c = computes[next_compute];
     if (c.pending)
     {
@@ -4412,12 +4365,11 @@ int VkComputePrivate::begin_weight_compute(VkCommandBuffer& command)
     }
     if (weight_cache->unified)
     {
-        for (size_t i = 0; i < current_sources.size(); i++)
+        for (size_t i = 0; i < current_batch->weights.size(); i++)
         {
-            const VkBufferMemory* source = current_sources[i];
+            const VkBufferMemory* source = current_batch->weights[i];
             if (!needs_external_copy(source))
                 continue;
-            const VkWeightCache::Entry& entry = weight_cache->entries[weight_device_entry(source)];
             VkBufferMemoryBarrier barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
             barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
@@ -4425,8 +4377,8 @@ int VkComputePrivate::begin_weight_compute(VkCommandBuffer& command)
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.buffer = weight_cache->device_arena->buffer;
-            barrier.offset = weight_cache->device_arena->offset + entry.offset;
-            barrier.size = entry.size;
+            barrier.offset = weight_cache->device_arena->offset + current_batch->offsets[i];
+            barrier.size = weight_source_size(source);
             vkCmdPipelineBarrier(c.command, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
         }
     }
@@ -4445,8 +4397,6 @@ int VkComputePrivate::begin_weight_compute(VkCommandBuffer& command)
 int VkComputePrivate::submit_weight_compute()
 {
     VkResult ret;
-    if (current_compute < 0)
-        return -1;
     VkComputePrivate::Compute& c = computes[current_compute];
 #if NCNN_COVERAGE
     vkdev->record_shader_coverage_barrier(c.command);
@@ -4475,7 +4425,7 @@ int VkComputePrivate::submit_weight_compute()
     info.pWaitDstStageMask = stages;
     info.commandBufferCount = 1;
     info.pCommandBuffers = &c.command;
-    ret = vkQueueSubmit(compute_queue, 1, &info, c.fence);
+    ret = submit_weight_command(false, info, c.fence);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkQueueSubmit failed %d", ret);
@@ -4485,10 +4435,8 @@ int VkComputePrivate::submit_weight_compute()
     c.pending = true;
     for (size_t i = 0; i < pending_uploads.size(); i++)
         uploads[pending_uploads[i]].consumer_serial = c.serial;
-    for (size_t i = 0; i < current_sources.size(); i++)
-        weight_cache->entries[weight_device_entry(current_sources[i])].compute_serial = c.serial;
     pending_uploads.clear();
-    current_sources.clear();
+    current_batch = 0;
     current_compute = -1;
     next_compute = (next_compute + 1) % weight_compute_slots;
 #if NCNN_BENCHMARK
@@ -4517,20 +4465,21 @@ int VkComputePrivate::finish_weight_commands(int result)
         VkComputePrivate::Upload& u = uploads[i];
         if (u.pending && wait_weight_fence(u.fence, true))
             result = -1;
-        if (u.release_pending && wait_weight_fence(u.release_fence, false))
-            result = -1;
 #if NCNN_BENCHMARK
         if (u.pending && transfer_timestamp_bits && !result && collect_weight_time(i * 2, transfer_timestamp_bits, weight_cache->stats.upload_time))
             result = -1;
 #endif
         u.pending = false;
-        u.release_pending = false;
+        u.ready_pending = false;
         u.host_active = false;
         u.consumer_serial = 0;
     }
     if (prefix_fence && wait_weight_fence(prefix_fence, false))
         result = -1;
     prefix_fence = VK_NULL_HANDLE;
+    if (release_pending && wait_weight_fence(release_fence, false))
+        result = -1;
+    release_pending = false;
     if (!result)
     {
         VkSubmitInfo info = {};
@@ -4545,7 +4494,7 @@ int VkComputePrivate::finish_weight_commands(int result)
         }
         if (!result)
         {
-            ret = vkQueueSubmit(compute_queue, 1, &info, handoff_fence);
+            ret = submit_weight_command(false, info, handoff_fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
@@ -4562,16 +4511,13 @@ int VkComputePrivate::finish_weight_commands(int result)
 #endif
         }
     }
-    if (transfer_queue && transfer_queue != compute_queue)
-        vkdev->reclaim_queue(weight_transfer_family, transfer_queue);
-    vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
     compute_queue = VK_NULL_HANDLE;
     transfer_queue = VK_NULL_HANDLE;
     executing = false;
     current_compute = -1;
     completed_compute_serial = compute_serial;
     pending_uploads.clear();
-    current_sources.clear();
+    current_batch = 0;
     if (result)
         weight_cache->error = result;
 #if NCNN_BENCHMARK
@@ -4612,18 +4558,19 @@ int VkComputePrivate::finish_weight_commands(int result)
 
 int VkComputePrivate::resolve_weight_binding(const VkBufferBinding& binding, VkDescriptorBufferInfo& descriptor) const
 {
-    const VkBufferMemory* source;
-    if (weight_binding_source(binding, source))
-        return -1;
+    const VkBufferMemory* source = binding.source;
     descriptor = binding.descriptor;
     if (!source)
         return 0;
-    const int slot = weight_device_entry(source);
-    if (slot < 0 || !weight_cache->entries[slot].valid)
-        return -1;
-    descriptor.buffer = weight_cache->device_arena->buffer;
-    descriptor.offset = weight_cache->device_arena->offset + weight_cache->entries[slot].offset + binding.view_offset;
-    return 0;
+    for (size_t i = 0; i < current_batch->weights.size(); i++)
+    {
+        if (current_batch->weights[i] != source)
+            continue;
+        descriptor.buffer = weight_cache->device_arena->buffer;
+        descriptor.offset = weight_cache->device_arena->offset + current_batch->offsets[i] + binding.view_offset;
+        return 0;
+    }
+    return -1;
 }
 
 #if NCNN_BENCHMARK
@@ -4648,106 +4595,85 @@ class WeightResidentUpload
 {
 public:
     explicit WeightResidentUpload(const VulkanDevice* _vkdev)
-        : vkdev(_vkdev), staging(0), allocation_size(0), queue(0), pool(0), command(0), fence(0), pending(false)
+        : vkdev(_vkdev), staging(0), queue(0), pool(0), chunk_size(0), slot_count(0), next_slot(0)
     {
     }
 
     ~WeightResidentUpload()
     {
-        if (pending)
-        {
-            VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t)-1);
-            if (ret != VK_SUCCESS)
-                NCNN_LOGE("vkWaitForFences failed %d", ret);
-        }
-        if (fence)
-            vkDestroyFence(vkdev->vkdevice(), fence, 0);
+        finish();
+        for (int i = 0; i < 2; i++)
+            vkDestroyFence(vkdev->vkdevice(), slots[i].fence, 0);
         if (pool)
             vkDestroyCommandPool(vkdev->vkdevice(), pool, 0);
-        if (queue)
-            vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), queue);
         destroy_weight_buffer(vkdev, staging);
     }
 
     int initialize(size_t budget, size_t max_size)
     {
-        VkResult ret;
         const size_t alignment = weight_buffer_alignment(vkdev);
-        const size_t size = std::min(std::min(budget, max_size), (size_t)32 * 1024 * 1024) / alignment * alignment;
-        if (!size)
+        size_t size = std::min(std::min(budget, max_size), (size_t)32 * 1024 * 1024) / alignment * alignment;
+        if (fit_weight_capacity(vkdev, budget, true, true, size) || !size)
         {
             NCNN_LOGE("weight load staging budget %llu needs at least %llu bytes", (unsigned long long)budget, (unsigned long long)alignment);
             return -100;
         }
+        size_t allocation_size;
         if (create_weight_buffer(vkdev, size, 1, false, budget, staging, allocation_size))
             return -100;
+        slot_count = size / alignment >= 2 ? 2 : 1;
+        chunk_size = size / slot_count / alignment * alignment;
         const uint32_t family = vkdev->info.compute_queue_family_index();
         queue = vkdev->acquire_queue(family);
         if (!queue)
             return -1;
+        vkdev->reclaim_queue(family, queue);
         VkCommandPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         pool_info.queueFamilyIndex = family;
-        ret = vkCreateCommandPool(vkdev->vkdevice(), &pool_info, 0, &pool);
+        VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &pool_info, 0, &pool);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateCommandPool failed %d", ret);
             return -1;
         }
-        VkCommandBufferAllocateInfo command_info = {};
-        command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        command_info.commandPool = pool;
-        command_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        command_info.commandBufferCount = 1;
-        ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &command_info, &command);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
-            return -1;
-        }
         VkFenceCreateInfo fence_info = {};
         fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &fence);
-        if (ret != VK_SUCCESS)
+        for (int i = 0; i < slot_count; i++)
         {
-            NCNN_LOGE("vkCreateFence failed %d", ret);
-            return -1;
+            if (weight_command(vkdev->vkdevice(), pool, slots[i].command))
+                return -1;
+            ret = vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &slots[i].fence);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkCreateFence failed %d", ret);
+                return -1;
+            }
         }
         return 0;
     }
 
     int upload(const VkBufferMemory* destination)
     {
-        VkResult ret;
         const size_t data_size = destination->external_size;
         for (size_t offset = 0; offset < data_size;)
         {
-            const size_t size = std::min(staging->capacity, data_size - offset);
+            Slot& slot = slots[next_slot];
+            if (wait(slot))
+                return -1;
+            const size_t size = std::min(chunk_size, data_size - offset);
             const size_t copy_size = alignSize(size, 4);
-            memset((unsigned char*)staging->mapped_ptr + size, 0, copy_size - size);
-            memcpy(staging->mapped_ptr, (const unsigned char*)destination->external_ptr + offset, size);
-            if (flush_weight_buffer(vkdev, staging, 0, copy_size))
+            const size_t host_offset = next_slot * chunk_size;
+            unsigned char* host = (unsigned char*)staging->mapped_ptr + host_offset;
+            memcpy(host, (const unsigned char*)destination->external_ptr + offset, size);
+            memset(host + size, 0, copy_size - size);
+            if (flush_weight_buffer(vkdev, staging, host_offset, copy_size) || weight_begin(slot.command))
                 return -1;
-            ret = vkResetCommandBuffer(command, 0);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-                return -1;
-            }
-            ret = vkResetFences(vkdev->vkdevice(), 1, &fence);
+            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &slot.fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkResetFences failed %d", ret);
-                return -1;
-            }
-            VkCommandBufferBeginInfo begin = {};
-            begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            ret = vkBeginCommandBuffer(command, &begin);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
                 return -1;
             }
             VkBufferMemoryBarrier barrier = {};
@@ -4757,20 +4683,20 @@ public:
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.buffer = staging->buffer;
-            barrier.offset = 0;
+            barrier.offset = host_offset;
             barrier.size = copy_size;
-            vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
+            vkCmdPipelineBarrier(slot.command, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
             VkBufferCopy copy;
-            copy.srcOffset = 0;
+            copy.srcOffset = host_offset;
             copy.dstOffset = destination->offset + offset;
             copy.size = copy_size;
-            vkCmdCopyBuffer(command, staging->buffer, destination->buffer, 1, &copy);
+            vkCmdCopyBuffer(slot.command, staging->buffer, destination->buffer, 1, &copy);
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
             barrier.buffer = destination->buffer;
             barrier.offset = copy.dstOffset;
-            vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
-            ret = vkEndCommandBuffer(command);
+            vkCmdPipelineBarrier(slot.command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
+            ret = vkEndCommandBuffer(slot.command);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
@@ -4779,34 +4705,65 @@ public:
             VkSubmitInfo submit = {};
             submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submit.commandBufferCount = 1;
-            submit.pCommandBuffers = &command;
-            ret = vkQueueSubmit(queue, 1, &submit, fence);
+            submit.pCommandBuffers = &slot.command;
+            VkQueue lease = vkdev->acquire_queue(vkdev->info.compute_queue_family_index(), queue);
+            if (!lease)
+                return -1;
+            ret = vkQueueSubmit(lease, 1, &submit, slot.fence);
+            vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), lease);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 return -1;
             }
-            pending = true;
-            ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t)-1);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkWaitForFences failed %d", ret);
-                return -1;
-            }
-            pending = false;
+            slot.pending = true;
+            next_slot = (next_slot + 1) % slot_count;
             offset += size;
         }
         return 0;
     }
 
+    int finish()
+    {
+        int ret = 0;
+        for (int i = 0; i < slot_count; i++)
+            if (wait(slots[i]))
+                ret = -1;
+        return ret;
+    }
+
+private:
+    struct Slot
+    {
+        Slot()
+            : command(0), fence(0), pending(false)
+        {
+        }
+        VkCommandBuffer command;
+        VkFence fence;
+        bool pending;
+    };
+
+    int wait(Slot& slot)
+    {
+        if (!slot.pending)
+            return 0;
+        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &slot.fence, VK_TRUE, (uint64_t) -1);
+        if (ret == VK_SUCCESS || ret == VK_ERROR_DEVICE_LOST)
+            slot.pending = false;
+        if (ret != VK_SUCCESS)
+            NCNN_LOGE("vkWaitForFences failed %d", ret);
+        return ret == VK_SUCCESS ? 0 : -1;
+    }
+
     const VulkanDevice* vkdev;
     VkBufferMemory* staging;
-    size_t allocation_size;
     VkQueue queue;
     VkCommandPool pool;
-    VkCommandBuffer command;
-    VkFence fence;
-    bool pending;
+    size_t chunk_size;
+    int slot_count;
+    int next_slot;
+    Slot slots[2];
 };
 
 int upload_weight_buffers(const VulkanDevice* vkdev, const std::vector<VkBufferMemory>& buffers, size_t host_budget)
@@ -4836,7 +4793,7 @@ int upload_weight_buffers(const VulkanDevice* vkdev, const std::vector<VkBufferM
         else if (upload.upload(&buffer))
             return -1;
     }
-    return 0;
+    return upload.finish();
 }
 
 class VkTransferPrivate
@@ -4848,11 +4805,14 @@ public:
     int init();
     int begin_command_buffer();
     int end_command_buffer();
+    int finish_upload(int error = 0);
 
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
     int upload_error;
+    bool compute_pending;
+    bool upload_pending;
 
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
@@ -4873,6 +4833,8 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
 {
     pending_upload_total = 0;
     upload_error = 0;
+    compute_pending = false;
+    upload_pending = false;
 
     compute_command_pool = 0;
     transfer_command_pool = 0;
@@ -4890,6 +4852,8 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
 
 VkTransferPrivate::~VkTransferPrivate()
 {
+    finish_upload(upload_error);
+
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
 
     vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
@@ -5359,6 +5323,35 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     d->upload_staging_buffers.push_back(dst_staging);
 }
 
+int VkTransferPrivate::finish_upload(int error)
+{
+    VkFence fences[2];
+    uint32_t count = 0;
+    if (upload_pending)
+        fences[count++] = upload_command_fence;
+    if (compute_pending)
+        fences[count++] = compute_command_fence;
+    if (count)
+    {
+        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t) -1);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkWaitForFences failed %d", ret);
+            error = -1;
+        }
+        if (ret == VK_SUCCESS || ret == VK_ERROR_DEVICE_LOST)
+        {
+            compute_pending = false;
+            upload_pending = false;
+        }
+    }
+    if (error)
+        upload_error = error;
+    else
+        pending_upload_total = 0;
+    return error;
+}
+
 int VkTransfer::submit_and_wait()
 {
     if (d->upload_error)
@@ -5372,14 +5365,14 @@ int VkTransfer::submit_and_wait()
     {
         int ret = d->end_command_buffer();
         if (ret != 0)
-            return ret;
+            return d->finish_upload(ret);
     }
 
     VkQueue compute_queue = vkdev->acquire_queue(vkdev->info.compute_queue_family_index());
     if (compute_queue == 0)
     {
         NCNN_LOGE("out of compute queue");
-        return -1;
+        return d->finish_upload(-1);
     }
 
     if (vkdev->info.unified_compute_transfer_queue())
@@ -5402,8 +5395,9 @@ int VkTransfer::submit_and_wait()
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return -1;
+                return d->finish_upload(-1);
             }
+            d->compute_pending = true;
         }
     }
     else
@@ -5413,7 +5407,7 @@ int VkTransfer::submit_and_wait()
         {
             NCNN_LOGE("out of transfer queue");
             vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-            return -1;
+            return d->finish_upload(-1);
         }
 
         // submit upload compute
@@ -5435,8 +5429,9 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return -1;
+                return d->finish_upload(-1);
             }
+            d->upload_pending = true;
         }
         {
             VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // FIXME
@@ -5458,8 +5453,9 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return -1;
+                return d->finish_upload(-1);
             }
+            d->compute_pending = true;
         }
 
         vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
@@ -5467,31 +5463,7 @@ int VkTransfer::submit_and_wait()
 
     vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
 
-    // wait
-    if (vkdev->info.unified_compute_transfer_queue())
-    {
-        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &d->compute_command_fence, VK_TRUE, (uint64_t)-1);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkWaitForFences failed %d", ret);
-            return -1;
-        }
-    }
-    else
-    {
-        VkFence fences[2] = {d->upload_command_fence, d->compute_command_fence};
-
-        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 2, fences, VK_TRUE, (uint64_t)-1);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkWaitForFences failed %d", ret);
-            return -1;
-        }
-    }
-
-    d->pending_upload_total = 0;
-
-    return 0;
+    return d->finish_upload();
 }
 
 int VkTransfer::reset()

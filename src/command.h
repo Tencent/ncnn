@@ -93,7 +93,6 @@ protected:
 
 private:
     friend class Extractor;
-    friend class VkComputePrivate;
     VkComputePrivate* const d;
 };
 

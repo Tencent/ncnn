@@ -107,8 +107,9 @@ public:
     };
     mutable Mutex weight_command_lock;
     mutable std::vector<WeightCommand> weight_commands;
-    VkCompute* acquire_weight_command(const Option& opt) const;
-    void reclaim_weight_command(VkCompute* command, const Option& opt) const;
+    uint64_t weight_command_generation;
+    VkCompute* acquire_weight_command(const Option& opt, uint64_t& generation) const;
+    void reclaim_weight_command(VkCompute* command, const Option& opt, uint64_t generation) const;
     void clear_weight_commands();
 
     PipelineCache* pipeline_cache;
@@ -123,6 +124,7 @@ NetPrivate::NetPrivate(Option& _opt)
 
 #if NCNN_VULKAN
     vkdev = 0;
+    weight_command_generation = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
     pipeline_cache = 0;
@@ -130,10 +132,11 @@ NetPrivate::NetPrivate(Option& _opt)
 }
 
 #if NCNN_VULKAN
-VkCompute* NetPrivate::acquire_weight_command(const Option& command_opt) const
+VkCompute* NetPrivate::acquire_weight_command(const Option& command_opt, uint64_t& generation) const
 {
     {
         MutexLockGuard lock(weight_command_lock);
+        generation = weight_command_generation;
         for (size_t i = 0; i < weight_commands.size(); i++)
         {
             const Option& cached = weight_commands[i].opt;
@@ -156,7 +159,7 @@ VkCompute* NetPrivate::acquire_weight_command(const Option& command_opt) const
     return command;
 }
 
-void NetPrivate::reclaim_weight_command(VkCompute* command, const Option& command_opt) const
+void NetPrivate::reclaim_weight_command(VkCompute* command, const Option& command_opt, uint64_t generation) const
 {
     // User allocators need only outlive their Extractor, not this Net's pool.
     if (command->reset() || command_opt.weight_host_vkallocator || command_opt.weight_device_vkallocator)
@@ -167,7 +170,7 @@ void NetPrivate::reclaim_weight_command(VkCompute* command, const Option& comman
     {
         MutexLockGuard lock(weight_command_lock);
         // Bound idle contexts independently of the number of concurrent users.
-        if (weight_commands.size() < 2)
+        if (generation == weight_command_generation && weight_commands.size() < 2)
         {
             WeightCommand entry;
             entry.command = command;
@@ -182,6 +185,7 @@ void NetPrivate::reclaim_weight_command(VkCompute* command, const Option& comman
 void NetPrivate::clear_weight_commands()
 {
     MutexLockGuard lock(weight_command_lock);
+    weight_command_generation++;
     for (size_t i = 0; i < weight_commands.size(); i++)
         delete weight_commands[i].command;
     weight_commands.clear();
@@ -3151,6 +3155,7 @@ public:
     {
 #if NCNN_VULKAN
         weight_command = 0;
+        weight_command_generation = 0;
         local_blob_vkallocator = 0;
         local_staging_vkallocator = 0;
 #endif
@@ -3161,6 +3166,7 @@ public:
 
 #if NCNN_VULKAN
     VkCompute* weight_command;
+    uint64_t weight_command_generation;
     VkAllocator* local_blob_vkallocator;
     VkAllocator* local_staging_vkallocator;
 
@@ -3235,7 +3241,7 @@ void Extractor::clear()
 #if NCNN_VULKAN
     if (d->weight_command)
     {
-        d->net->d->reclaim_weight_command(d->weight_command, d->opt);
+        d->net->d->reclaim_weight_command(d->weight_command, d->opt, d->weight_command_generation);
         d->weight_command = 0;
     }
 
@@ -3507,7 +3513,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             else if (managed)
             {
                 if (!d->weight_command)
-                    d->weight_command = d->net->d->acquire_weight_command(d->opt);
+                    d->weight_command = d->net->d->acquire_weight_command(d->opt, d->weight_command_generation);
                 ret = extract_gpu(blob_index, *d->weight_command);
                 const int reset_ret = d->weight_command->reset();
                 if (!ret)

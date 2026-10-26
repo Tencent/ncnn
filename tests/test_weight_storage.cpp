@@ -13,6 +13,7 @@
 
 namespace ncnn {
 void begin_weight_upload(VkWeightAllocator* allocator);
+int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generation);
 int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_budget, size_t& host_budget, size_t& device_size, size_t& host_size);
 } // namespace ncnn
 
@@ -649,6 +650,177 @@ static int test_budget_boundaries()
     return 0;
 }
 
+static int test_transfer_submit_failure()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    for (int second = 0; second < 2; second++)
+    {
+        if (second && vkdev->info.unified_compute_transfer_queue())
+            continue;
+        ncnn::VkWeightAllocator weights(vkdev);
+        ncnn::VkWeightStagingAllocator staging(vkdev);
+        ncnn::Option opt;
+        opt.use_fp16_packed = opt.use_fp16_storage = false;
+        opt.blob_vkallocator = &weights;
+        opt.staging_vkallocator = &staging;
+        ncnn::Mat input(128);
+        input.fill(1.f);
+        ncnn::VkMat output;
+        ncnn::VkTransfer cmd(vkdev);
+        cmd.record_upload(input, output, opt);
+        WeightAllocationAudit audit(vkdev, second ? WeightAllocationAudit::FAIL_SECOND_SUBMIT : WeightAllocationAudit::FAIL_SUBMIT);
+        if (cmd.submit_and_wait() == 0 || !audit.failed || !cmd.error() || cmd.reset() == 0
+            || audit.submissions != (uint32_t)second + 1 || audit.waited_submissions != (uint32_t)second || audit.queue_held_while_waiting)
+            return -1;
+    }
+    return 0;
+}
+
+static int test_exchange_dependencies()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::VkWeightAllocator store(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    if (store.set_weights_in_host_disk(true))
+        return -1;
+    ncnn::VkMat weights[5];
+    ncnn::Mat expected[5];
+    for (int i = 0; i < 5; i++)
+    {
+        expected[i] = RandomMat(256);
+        weights[i].create(256, (size_t)4u, &store);
+        if (weights[i].empty())
+            return -1;
+        memcpy(weights[i].data->external_ptr, expected[i].data, 1024);
+    }
+    if (store.finalize_weights())
+        return -1;
+    ncnn::Option opt;
+    opt.use_fp16_packed = opt.use_fp16_storage = false;
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    opt.weight_device_cache_size = 2048;
+    opt.weight_host_cache_size = 256;
+    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::Mat outputs[5];
+    for (int i = 0; i < 5; i++)
+        cmd.record_clone(weights[i], outputs[i], opt);
+    reset_weight_benchmark();
+    WeightAllocationAudit audit(vkdev);
+    if (cmd.submit_and_wait() || audit.queue_held_while_waiting)
+        return -1;
+    for (int i = 0; i < 5; i++)
+        if (CompareMat(expected[i], outputs[i], 0.f))
+            return -1;
+#if NCNN_BENCHMARK
+    // Five readers, the ordinary prefix (if present), and the final handoff.
+    // Returning overwritten regions must not add submissions behind newer work.
+    const uint64_t expected_submits = 6 + (vkdev->info.support_VK_KHR_push_descriptor() ? 1 : 0);
+    if (weight_benchmark_counts()["compute_submissions"] != expected_submits)
+        return -1;
+#endif
+    return 0;
+}
+
+static int test_automatic_capacity_limit()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::VkWeightAllocator store(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    if (store.set_weights_in_host_disk(true))
+        return -1;
+    ncnn::VkMat weight(12288, (size_t)4u, &store);
+    ncnn::Mat input = RandomMat(12288);
+    if (weight.empty())
+        return -1;
+    memcpy(weight.data->external_ptr, input.data, 49152);
+    if (store.finalize_weights())
+        return -1;
+    ncnn::Option opt;
+    opt.use_fp16_packed = opt.use_fp16_storage = false;
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    opt.weight_device_budget = opt.weight_host_budget = 65536;
+    for (int fixed = 0; fixed < 2; fixed++)
+    {
+        opt.weight_device_cache_size = fixed ? 98304 : 0;
+        ncnn::VkCompute cmd(vkdev, opt);
+        ncnn::Mat output;
+        cmd.record_clone(weight, output, opt);
+        const int ret = cmd.submit_and_wait();
+        if (fixed ? ret == 0 : ret != 0 || CompareMat(input, output, 0.f))
+            return -1;
+    }
+    return 0;
+}
+
+static int test_allocation_generation()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    for (int mode = 0; mode < 3; mode++)
+    {
+        ncnn::VkWeightAllocator store(vkdev, mode == 1);
+        if (mode == 2 && store.set_weights_in_host_disk(true))
+            return -1;
+        ncnn::VkMat old(128, (size_t)4u, &store);
+        if (old.empty())
+            return -1;
+        store.clear();
+        ncnn::VkMat current(128, (size_t)4u, &store);
+        if (current.empty() || store.finalize_weights())
+            return -1;
+        size_t db, hb, ds, hs;
+        const int managed = ncnn::get_weight_cache_limits(&store, db, hb, ds, hs);
+        uint64_t before, after;
+        if (ncnn::get_weight_source_generation(&store, before) < 0)
+            return -1;
+        old.release();
+        if (ncnn::get_weight_source_generation(&store, after) < 0 || before != after
+            || ncnn::get_weight_cache_limits(&store, db, hb, ds, hs) != managed)
+            return -1;
+        current.release();
+        if (ncnn::get_weight_cache_limits(&store, db, hb, ds, hs))
+            return -1;
+    }
+    return 0;
+}
+
+static int test_automatic_residency()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    for (int mode = 0; mode < 2; mode++)
+    {
+        ncnn::VkWeightAllocator store(vkdev);
+        const size_t unit = 1024 * 1024;
+        const size_t budget = mode == 0 ? 10 * unit : 6 * unit;
+        if (store.set_weights_in_host_disk(true) || store.set_weight_budgets(budget, budget))
+            return -1;
+        ncnn::VkMat weights[3];
+        for (int i = 0; i < 3; i++)
+        {
+            ncnn::begin_weight_upload(&store);
+            const size_t size = mode == 0 ? (i < 2 ? 5 * unit : 0) : (i == 0 ? unit : 4 * unit);
+            if (!size)
+                continue;
+            weights[i].create((int)(size / 4), (size_t)4u, &store);
+            if (weights[i].empty())
+                return -1;
+            memset(weights[i].data->external_ptr, 0, size);
+        }
+        if (store.finalize_weights())
+            return -1;
+        size_t db, hb, ds, hs;
+        const int managed = ncnn::get_weight_cache_limits(&store, db, hb, ds, hs);
+        if (mode == 0 && (managed || weight_resident_size(weights, 3, 0) != budget))
+            return -1;
+        if (mode == 1 && (managed <= 0 || weights[0].data->storage_type != 0 || ds < 4 * unit || ds > db))
+            return -1;
+    }
+    return 0;
+}
+
 static int test_weight_storage(int argc, char** argv)
 {
     if (ncnn::get_gpu_count() == 0)
@@ -659,7 +831,8 @@ static int test_weight_storage(int argc, char** argv)
     if (gpu_index < 0 || gpu_index >= ncnn::get_gpu_count())
         return -1;
 
-    if (test_external_sources() || test_concurrent_reads() || test_upload_error() || test_resident_layout(false) || test_resident_layout(true) || test_host_cache() || test_budget_boundaries() || test_native_allocation_budget())
+    if (test_transfer_submit_failure() || test_exchange_dependencies() || test_automatic_capacity_limit() || test_allocation_generation() || test_automatic_residency() || test_external_sources()
+        || test_concurrent_reads() || test_upload_error() || test_resident_layout(false) || test_resident_layout(true) || test_host_cache() || test_budget_boundaries() || test_native_allocation_budget())
         return -1;
 #if defined(__linux__)
     if (test_file_creation_fallback() || test_file_directory() || test_file_write_failure())

@@ -1593,6 +1593,80 @@ static int test_internal_command_pool()
     return 0;
 }
 
+static int test_default_command_options()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::VkWeightAllocator store(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    if (store.set_weights_in_host_disk(true))
+        return -1;
+    ncnn::Mat input = RandomMat(128);
+    ncnn::VkMat weight(128, (size_t)4u, &store);
+    if (weight.empty())
+        return -1;
+    memcpy(weight.data->external_ptr, input.data, 128 * sizeof(float));
+    if (store.finalize_weights())
+        return -1;
+    ncnn::VkCompute cmd(vkdev);
+    for (int round = 0; round < 2; round++)
+    {
+        CountingWeightAllocator custom(vkdev);
+        ncnn::Option opt = weight_option();
+        opt.blob_vkallocator = &blobs;
+        opt.staging_vkallocator = &staging;
+        opt.weight_device_vkallocator = &custom;
+        opt.weight_device_budget = round == 0 ? 0 : 1;
+        ncnn::Mat output;
+        cmd.record_clone(weight, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || custom.allocations || cmd.reset())
+            return -1;
+    }
+    // A retained command must not depend on a clone caller's weight allocator.
+    return cmd.clear_weight_cache();
+}
+
+static int test_internal_command_reload()
+{
+    ncnn::Net net;
+    net.set_vulkan_device(gpu_index);
+    net.opt = weight_option();
+    net.opt.use_packing_layout = false;
+    net.opt.use_weights_in_host_disk = true;
+    net.opt.weight_device_budget = 8192;
+    net.opt.weight_host_budget = 8192;
+    const char* params[] =
+    {
+        "7767517\n3 3\nMemoryData w0 0 1 b0 0=1024\nMemoryData w1 0 1 b1 0=1024\nMemoryData w2 0 1 b2 0=1024\n",
+        "7767517\n3 3\nMemoryData w0 0 1 b0 0=256\nMemoryData w1 0 1 b1 0=1536\nMemoryData w2 0 1 b2 0=1536\n"
+    };
+    ncnn::Mat model(3328);
+    model.fill(1.f);
+    const unsigned char* ptr = (const unsigned char*)model.data;
+    ncnn::DataReaderFromMemory first_reader(ptr);
+    if (net.load_param_mem(params[0]) || net.load_model(first_reader))
+        return -1;
+    ncnn::Extractor old = net.create_extractor();
+    ncnn::Mat output;
+    if (old.extract("b2", output) || old.input("b2", ncnn::Mat()) || old.input("b2", ncnn::VkMat()))
+        return -1;
+    output.release();
+    net.clear();
+    ptr = (const unsigned char*)model.data;
+    ncnn::DataReaderFromMemory second_reader(ptr);
+    if (net.load_param_mem(params[1]) || net.load_model(second_reader))
+        return -1;
+    // Reclaiming the old lease must not restore its smaller residency headroom.
+    old.clear();
+    ncnn::Extractor current = net.create_extractor();
+    if (current.extract("b2", output) || output.total() != 1536)
+        return -1;
+    for (int i = 0; i < 1536; i++)
+        if (output[i] != 1.f)
+            return -1;
+    return 0;
+}
+
 static int test_weight_execution(int argc, char** argv)
 {
     SRAND(7767517);
@@ -1622,7 +1696,7 @@ static int test_weight_execution(int argc, char** argv)
             return -1;
         }
     }
-    if (test_command_budget_scope() || test_command_model_reload() || test_recorded_weight_lifetime() || test_internal_command_pool())
+    if (test_default_command_options() || test_internal_command_reload() || test_command_budget_scope() || test_command_model_reload() || test_recorded_weight_lifetime() || test_internal_command_pool())
     {
         fprintf(stderr, "command source lifetime or context pool test failed\n");
         return -1;
