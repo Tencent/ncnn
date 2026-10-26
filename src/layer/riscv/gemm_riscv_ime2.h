@@ -168,6 +168,13 @@ static int ime2_probe_affinity(int /*nthreads*/)
  * mutex), not once per layer. In the child only async-signal-safe calls are
  * used (sigaction/sigprocmask/sched_setaffinity and the instruction itself),
  * then _exit. */
+/* Child-side SIGILL termination: exit the probe child quietly instead of a
+ * fatal crash report. */
+static void probe_child_sigill_exit(int)
+{
+    _exit(1);
+}
+
 static int ime2_hw_supported()
 {
 #if defined __linux__
@@ -240,9 +247,14 @@ static int ime2_hw_supported()
         rl.rlim_cur = 0;
         rl.rlim_max = 0;
         setrlimit(RLIMIT_CORE, &rl);
+        /* A child-local SIGILL handler that _exits: hosts piping core dumps to
+         * systemd-coredump/apport/debuggerd ignore RLIMIT_CORE, and a fatal
+         * SIGILL child would still flood crash telemetry or stall startup.
+         * _exit in a handler is async-signal-safe; no byte is written, so the
+         * parent judges unsupported exactly as before. */
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
-        sa.sa_handler = SIG_DFL;
+        sa.sa_handler = probe_child_sigill_exit;
         if (sigaction(SIGILL, &sa, NULL) != 0)
         {
             /* Could not reset (seccomp): the inherited custom handler could trap
@@ -281,7 +293,15 @@ static int ime2_hw_supported()
     pfd.events = POLLIN;
     char b = 0;
     ssize_t n = -1;
-    if (poll(&pfd, 1, 100) > 0)
+    int pr;
+    do
+    {
+        /* poll itself can return EINTR (profiling/timer signal) even though the
+         * byte is already buffered; skipping the read would permanently cache
+         * 'unsupported'. Retry. */
+        pr = poll(&pfd, 1, 100);
+    } while (pr < 0 && errno == EINTR);
+    if (pr > 0)
     {
         do
         {

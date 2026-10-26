@@ -3074,7 +3074,16 @@ int Gemm_riscv::create_pipeline(const Option& opt)
                 // kernel would dereference a null pointer.
                 ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
                 if (ime2_full_takeover)
+                {
                     ime2_fp32_fallback_ready = 1; /* the fp32 fallback pipeline is still built below */
+                    /* Retain the original fp32 weights for the affinity fallback (the generic
+                     * pipeline releases B_data under lightmode; Mat is refcounted, zero copy).
+                     * FULL TAKEOVER ONLY: the non-takeover fp32 dispatch casts A to fp16 before
+                     * recursing, so its fallback can never read fp32 weights -- retaining them
+                     * there would keep 4*N*K dead bytes alive per optional-runtime-C gemm. */
+                    if (opt.lightmode && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1)
+                        B_data_fp32_fallback = B_data;
+                }
             }
             else
             {

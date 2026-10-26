@@ -1831,12 +1831,6 @@ int Gemm_riscv::create_pipeline_ime2(const Option& opt)
     use_ime2_path = 1;
     nT = opt.num_threads;
 
-    /* The generic pipeline releases B_data under lightmode; keep a reference so
-     * the affinity fallback can still compute from the ORIGINAL fp32 weights
-     * (the fp16-rounded panel would change fp32 results). Refcounted, no copy. */
-    if (opt.lightmode && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1)
-        B_data_fp32_fallback = B_data;
-
     return 0;
 #endif
 }
