@@ -35,7 +35,7 @@ def test():
     x = torch.rand(1, 16)
     y = torch.rand(12, 2, 16)
     z = torch.rand(1, 3, 12, 16)
-    w = torch.rand(1, 5, 7, 9, 11)
+    w = torch.linspace(-0.75, 1.75, 5 * 7 * 9 * 11).reshape(1, 5, 7, 9, 11)
 
     a = net(x, y, z, w)
 
@@ -49,7 +49,10 @@ def test():
 
     # pnnx inference
     import test_F_gelu_pnnx
-    b = test_F_gelu_pnnx.test_inference()
+    b = test_F_gelu_pnnx.Model().eval()(x, y, z, w)
+
+    if not torch.allclose(a[3], b[3], 1e-5, 1e-6):
+        return False
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
