@@ -670,7 +670,7 @@ static int test_transfer_submit_failure()
         cmd.record_upload(input, output, opt);
         WeightAllocationAudit audit(vkdev, second ? WeightAllocationAudit::FAIL_SECOND_SUBMIT : WeightAllocationAudit::FAIL_SUBMIT);
         if (cmd.submit_and_wait() == 0 || !audit.failed || !cmd.error() || cmd.reset() == 0
-            || audit.submissions != (uint32_t)second + 1 || audit.waited_submissions != (uint32_t)second || audit.queue_held_while_waiting)
+                || audit.submissions != (uint32_t)second + 1 || audit.waited_submissions != (uint32_t)second || audit.queue_held_while_waiting)
             return -1;
     }
     return 0;
@@ -778,7 +778,7 @@ static int test_allocation_generation()
             return -1;
         old.release();
         if (ncnn::get_weight_source_generation(&store, after) < 0 || before != after
-            || ncnn::get_weight_cache_limits(&store, db, hb, ds, hs) != managed)
+                || ncnn::get_weight_cache_limits(&store, db, hb, ds, hs) != managed)
             return -1;
         current.release();
         if (ncnn::get_weight_cache_limits(&store, db, hb, ds, hs))
@@ -832,7 +832,7 @@ static int test_weight_storage(int argc, char** argv)
         return -1;
 
     if (test_transfer_submit_failure() || test_exchange_dependencies() || test_automatic_capacity_limit() || test_allocation_generation() || test_automatic_residency() || test_external_sources()
-        || test_concurrent_reads() || test_upload_error() || test_resident_layout(false) || test_resident_layout(true) || test_host_cache() || test_budget_boundaries() || test_native_allocation_budget())
+            || test_concurrent_reads() || test_upload_error() || test_resident_layout(false) || test_resident_layout(true) || test_host_cache() || test_budget_boundaries() || test_native_allocation_budget())
         return -1;
 #if defined(__linux__)
     if (test_file_creation_fallback() || test_file_directory() || test_file_write_failure())

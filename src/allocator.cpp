@@ -1292,7 +1292,7 @@ static bool unified_weight_memory(const VulkanDevice* vkdev)
 
 static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host = false)
 {
-    VkDeviceSize limit = (size_t) -1;
+    VkDeviceSize limit = (size_t)-1;
     if (vkdev->info.max_buffer_size())
         limit = std::min(limit, vkdev->info.max_buffer_size());
     if (vkdev->info.max_memory_allocation_size())
@@ -1318,7 +1318,7 @@ static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host = fa
 static int create_weight_buffer_handle(const VulkanDevice* vkdev, size_t size, bool concurrent, VkBuffer& buffer, VkMemoryRequirements& requirements)
 {
     const size_t alignment = weight_buffer_alignment(vkdev);
-    if (!size || size > (size_t) -1 - alignment || alignSize(size, alignment) > weight_buffer_size_limit(vkdev, concurrent))
+    if (!size || size > (size_t)-1 - alignment || alignSize(size, alignment) > weight_buffer_size_limit(vkdev, concurrent))
         return -1;
     const VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     buffer = create_buffer(vkdev, alignSize(size, alignment), usage, 0, concurrent);
@@ -1375,7 +1375,7 @@ int fit_weight_capacity(const VulkanDevice* vkdev, size_t budget, bool automatic
         if (!automatic)
             return -1;
         const size_t excess = allocation - limit;
-        if (excess > (size_t) -1 - alignment)
+        if (excess > (size_t)-1 - alignment)
             return -1;
         const size_t shrink = alignSize(excess, alignment);
         if (shrink >= capacity)
@@ -2284,7 +2284,7 @@ int VkWeightStore::weight_layout_size(const std::vector<uint32_t>& ids, uint64_t
         {
             const size_t block_size = weight_block_size(weights, ids, i, alignment, std::min(limit, std::max(size, (size_t)8 * 1024 * 1024)));
             size_t allocation_size;
-            if (!block_size || weight_buffer_memory_size(vkdev, block_size, allocation_size, concurrent) || allocation_size > (uint64_t) -1 - total)
+            if (!block_size || weight_buffer_memory_size(vkdev, block_size, allocation_size, concurrent) || allocation_size > (uint64_t)-1 - total)
                 return -1;
             total += allocation_size;
             free_size = block_size;
@@ -2375,8 +2375,8 @@ int VkWeightStore::plan_weights()
     }
     size_t device_exchange_allocation = 0;
     if (fit_weight_capacity(vkdev, device_budget, automatic_device_cache, false, device_cache)
-        || weight_buffer_memory_size(vkdev, device_cache, device_exchange_allocation)
-        || (total > device_budget && device_cache < max_size))
+            || weight_buffer_memory_size(vkdev, device_cache, device_exchange_allocation)
+            || (total > device_budget && device_cache < max_size))
     {
         NCNN_LOGE("weight device budget %llu cannot hold exchange %llu (largest weight %llu)", (unsigned long long)device_budget, (unsigned long long)device_cache, (unsigned long long)max_size);
         return -1;
@@ -2397,7 +2397,7 @@ int VkWeightStore::plan_weights()
         const size_t size = alignSize(weights[ids[i]].data_size, alignment);
         max_size = std::max(max_size, size);
         size_t& group = group_sizes[weight_groups[ids[i]]];
-        group = size > (size_t) -1 - group ? (size_t) -1 : group + size;
+        group = size > (size_t)-1 - group ? (size_t)-1 : group + size;
         max_group_size = std::max(max_group_size, group);
     }
     if (remaining.empty())
@@ -2408,7 +2408,7 @@ int VkWeightStore::plan_weights()
     }
     if (automatic_device_cache)
     {
-        const size_t doubled = max_size > (size_t) -1 / 2 ? (size_t) -1 : max_size * 2;
+        const size_t doubled = max_size > (size_t)-1 / 2 ? (size_t)-1 : max_size * 2;
         device_cache = std::min(device_budget - resident_sizes[0], std::max(doubled, max_group_size)) / alignment * alignment;
         if (fit_weight_capacity(vkdev, device_budget - resident_sizes[0], true, false, device_cache) || device_cache < max_size)
             return -1;
@@ -2432,7 +2432,7 @@ int VkWeightStore::plan_weights()
     }
     size_t host_exchange_allocation = 0;
     if (fit_weight_capacity(vkdev, host_budget, automatic_host_cache, true, host_cache)
-        || weight_buffer_memory_size(vkdev, host_cache, host_exchange_allocation, true) || host_exchange_allocation > host_budget)
+            || weight_buffer_memory_size(vkdev, host_cache, host_exchange_allocation, true) || host_exchange_allocation > host_budget)
     {
         NCNN_LOGE("weight host budget %llu cannot hold exchange %llu (allocation %llu)", (unsigned long long)host_budget, (unsigned long long)host_cache, (unsigned long long)host_exchange_allocation);
         return -1;

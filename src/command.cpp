@@ -3407,7 +3407,6 @@ int VkComputePrivate::create_weight_commands()
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
             return -1;
         }
-
     }
     for (int i = 0; i < weight_compute_slots; i++)
     {
@@ -3564,10 +3563,9 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
     device_size = alignSize(device_size, weight_cache->alignment);
     host_size = alignSize(host_size, weight_cache->alignment);
     const bool validate_capacity = !weight_cache->initialized || device_size != weight_cache->device_size || host_size != weight_cache->host_size;
-    if ((validate_capacity && (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size)
-                               || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)))
-        || device_size < minimum_device_size
-        || (max_external_size && !unified && host_size < weight_cache->alignment))
+    if ((validate_capacity && (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size) || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)))
+            || device_size < minimum_device_size
+            || (max_external_size && !unified && host_size < weight_cache->alignment))
     {
         NCNN_LOGE("weight working set exceeds command capacity or budget");
         return -1;
@@ -4748,7 +4746,7 @@ private:
     {
         if (!slot.pending)
             return 0;
-        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &slot.fence, VK_TRUE, (uint64_t) -1);
+        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &slot.fence, VK_TRUE, (uint64_t)-1);
         if (ret == VK_SUCCESS || ret == VK_ERROR_DEVICE_LOST)
             slot.pending = false;
         if (ret != VK_SUCCESS)
@@ -5333,7 +5331,7 @@ int VkTransferPrivate::finish_upload(int error)
         fences[count++] = compute_command_fence;
     if (count)
     {
-        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t) -1);
+        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t)-1);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkWaitForFences failed %d", ret);

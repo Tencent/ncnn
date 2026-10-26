@@ -2702,8 +2702,7 @@ void reset_weight_benchmark()
 static WeightAllocationAudit* g_weight_allocation_audit = 0;
 
 WeightAllocationAudit::WeightAllocationAudit(const ncnn::VulkanDevice* _vkdev, Failure _failure)
-    : failed(false), queue_held_while_waiting(false), submissions(0), waited_submissions(0), vkdev(_vkdev), failure(_failure), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory),
-      bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), status(ncnn::vkGetFenceStatus)
+    : failed(false), queue_held_while_waiting(false), submissions(0), waited_submissions(0), vkdev(_vkdev), failure(_failure), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), status(ncnn::vkGetFenceStatus)
 {
     if (g_weight_allocation_audit)
     {
