@@ -312,6 +312,15 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
         if (pack_fail)
             return -100;
 
+        /* Two separate flags:
+         * - team_bad: written ONLY before the barrier; it alone gates the omp for.
+         *   Gating on flash_fail (also written INSIDE the loop by failing heads)
+         *   would race: a delayed thread could read the failure, skip the omp for
+         *   and never reach its implicit barrier while entered threads wait there
+         *   forever (deadlock); the plain read also raced the atomic write.
+         * - flash_fail: written inside the loop by failing heads; read only after
+         *   the region, when every thread has left the loop. */
+        int team_bad = 0;
         int flash_fail = 0;
         /* Validate INSIDE the execution region: OpenMP may select a different team
                                                                                                                                                                          * for successive regions on a heterogeneous chip (e.g. per-worker affinity
@@ -323,10 +332,10 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
             if (!ncnn_ime2_sdpa::sdpa_ime2_worker_in_set_now())
             {
                 #pragma omp atomic write
-                flash_fail = 1;
+                team_bad = 1;
             }
             #pragma omp barrier
-            if (!flash_fail)
+            if (!team_bad)
             {
                 #pragma omp for
                 for (int q = 0; q < num_heads; q++)
@@ -359,9 +368,11 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                         flash_fail = 1; // caller falls back to the old path as a whole (mixing the workspace allocations of both paths inside omp is unwise)
                     }
                 } // omp for
-            }     // if (!flash_fail) wrapper
+            }     // if (!team_bad) wrapper
         }         // omp parallel (validation + work in the same region)
 
+        if (team_bad)
+            return -99;
         if (!flash_fail)
         {
             return 0;

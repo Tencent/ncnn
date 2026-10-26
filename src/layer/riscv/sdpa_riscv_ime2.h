@@ -161,6 +161,13 @@ static int sdpa_ime2_probe_affinity(int /*nthreads*/)
  * and unblocks SIGILL before executing the instruction. The child pins
  * itself to an A100 CPU (vlenb==128); the result is a hardware property,
  * cached process-wide (one fork per process, under the probe mutex). */
+/* Child-side SIGILL termination: exit the probe child quietly instead of a
+ * fatal crash report. */
+static void probe_child_sigill_exit(int)
+{
+    _exit(1);
+}
+
 static int ime2_hw_supported()
 {
 #if defined __linux__
@@ -228,9 +235,12 @@ static int ime2_hw_supported()
         rl.rlim_cur = 0;
         rl.rlim_max = 0;
         setrlimit(RLIMIT_CORE, &rl);
+        /* A child-local SIGILL handler that _exits (same as the gemm probe):
+         * piped core dumps ignore RLIMIT_CORE and a fatal child would flood
+         * crash telemetry; _exit is async-signal-safe and writes no byte. */
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
-        sa.sa_handler = SIG_DFL;
+        sa.sa_handler = probe_child_sigill_exit;
         if (sigaction(SIGILL, &sa, NULL) != 0)
         {
             /* Could not reset (seccomp): exit without writing so the parent
@@ -264,7 +274,15 @@ static int ime2_hw_supported()
     pfd.events = POLLIN;
     char b = 0;
     ssize_t n = -1;
-    if (poll(&pfd, 1, 100) > 0)
+    int pr;
+    do
+    {
+        /* poll itself can return EINTR (profiling/timer signal) even though the
+         * byte is already buffered; skipping the read would permanently cache
+         * 'unsupported'. Retry. */
+        pr = poll(&pfd, 1, 100);
+    } while (pr < 0 && errno == EINTR);
+    if (pr > 0)
     {
         do
         {
