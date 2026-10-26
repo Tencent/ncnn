@@ -165,15 +165,22 @@ static int test_command_transfer(const ncnn::Mat& a)
 class FailingAllocator : public ncnn::Allocator
 {
 public:
-    virtual void* fastMalloc(size_t) { return 0; }
-    virtual void fastFree(void*) {}
+    virtual void* fastMalloc(size_t)
+    {
+        return 0;
+    }
+    virtual void fastFree(void*)
+    {
+    }
 };
 
 class FailingStagingAllocator : public ncnn::VkStagingAllocator
 {
 public:
     FailingStagingAllocator(const ncnn::VulkanDevice* vkdev, bool unmapped)
-        : ncnn::VkStagingAllocator(vkdev), unmapped(unmapped), allocations(0), mapping(0) {}
+        : ncnn::VkStagingAllocator(vkdev), unmapped(unmapped), allocations(0), mapping(0)
+    {
+    }
 
     virtual ncnn::VkBufferMemory* fastMalloc(size_t size)
     {

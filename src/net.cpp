@@ -138,11 +138,11 @@ VkCompute* NetPrivate::acquire_weight_command(const Option& command_opt) const
         {
             const Option& cached = weight_commands[i].opt;
             if (cached.weight_host_vkallocator != command_opt.weight_host_vkallocator
-                || cached.weight_device_vkallocator != command_opt.weight_device_vkallocator
-                || cached.weight_host_cache_size != command_opt.weight_host_cache_size
-                || cached.weight_device_cache_size != command_opt.weight_device_cache_size
-                || cached.weight_host_budget != command_opt.weight_host_budget
-                || cached.weight_device_budget != command_opt.weight_device_budget)
+                    || cached.weight_device_vkallocator != command_opt.weight_device_vkallocator
+                    || cached.weight_host_cache_size != command_opt.weight_host_cache_size
+                    || cached.weight_device_cache_size != command_opt.weight_device_cache_size
+                    || cached.weight_host_budget != command_opt.weight_host_budget
+                    || cached.weight_device_budget != command_opt.weight_device_budget)
                 continue;
             VkCompute* command = weight_commands[i].command;
             weight_commands.erase(weight_commands.begin() + i);
@@ -2442,8 +2442,8 @@ int Net::load_model(const DataReader& dr)
             d->weight_vkallocator->set_weight_file_directory(d->weight_file_directory.empty() ? 0 : d->weight_file_directory.data());
             const int wret = d->weight_vkallocator->set_weights_in_host_disk(opt.use_weights_in_host_disk);
             if (opt.use_weights_in_host_disk
-                && ((wret && (!d->weight_file_directory.empty() || opt.weight_device_budget || opt.weight_host_budget))
-                    || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
+                    && ((wret && (!d->weight_file_directory.empty() || opt.weight_device_budget || opt.weight_host_budget))
+                        || d->weight_vkallocator->set_weight_budgets(opt.weight_device_budget, opt.weight_host_budget)))
             {
                 NCNN_LOGE("cannot configure disk weight storage");
                 delete d->weight_vkallocator;

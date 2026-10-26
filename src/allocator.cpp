@@ -2043,8 +2043,8 @@ int VkWeightStore::set_weights_in_host_disk(bool enable, bool prefer_host_memory
 int VkWeightAllocator::set_weight_file_directory(const char* path)
 {
     if (!d->buffer_blocks.empty() || !d->dedicated_buffer_blocks.empty()
-        || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty()
-        || !d->store.weights.empty())
+            || !d->image_memory_blocks.empty() || !d->dedicated_image_memory_blocks.empty()
+            || !d->store.weights.empty())
     {
         NCNN_LOGE("weight file directory must be configured before allocating weights");
         return -1;

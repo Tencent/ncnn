@@ -595,7 +595,7 @@ static int test_cache_reuse(int queue_mode)
                 return -1;
             isolated.record_download(gpu_output, output, opt);
             if (isolated.submit_and_wait() || CompareMat(original[0], output, 0.f)
-                || device.allocations != copy + 2 || device.frees != copy)
+                    || device.allocations != copy + 2 || device.frees != copy)
                 return -1;
 #if NCNN_BENCHMARK
             if (weight_benchmark_counts()["file_reads"] != 1)
@@ -609,7 +609,7 @@ static int test_cache_reuse(int queue_mode)
             {
                 ncnn::Mat output;
                 if (internal.input(0, ncnn::Mat()) || internal.input(0, ncnn::VkMat())
-                    || internal.extract(0, output) || CompareMat(original[0], output, 0.f))
+                        || internal.extract(0, output) || CompareMat(original[0], output, 0.f))
                     return -1;
                 if (device.allocations != 4 || device.frees != 2)
                     return -1;
@@ -635,8 +635,8 @@ static int test_cache_reuse(int queue_mode)
         if (survivor.clear_weight_cache() == 0)
             return -1;
         if (survivor.submit_and_wait() || CompareMat(original[0], output, 0.f)
-            || device.allocations != 5 || device.frees != 4
-            || survivor.reset() || survivor.clear_weight_cache())
+                || device.allocations != 5 || device.frees != 4
+                || survivor.reset() || survivor.clear_weight_cache())
             return -1;
         if (device.frees != 5 || host.frees != (unified ? 0 : 5))
             return -1;
@@ -1242,8 +1242,13 @@ static int load_scale_net(ncnn::Net& net, int storage, float scale)
 class FailingOutputAllocator : public ncnn::Allocator
 {
 public:
-    virtual void* fastMalloc(size_t) { return 0; }
-    virtual void fastFree(void*) {}
+    virtual void* fastMalloc(size_t)
+    {
+        return 0;
+    }
+    virtual void fastFree(void*)
+    {
+    }
 };
 
 static int test_net_load_failure()
@@ -1353,8 +1358,8 @@ static int test_command_model_chain(int storage_a, int storage_b)
         ncnn::VkMat last_output;
         cmd.record_upload(input, gpu_input, opt);
         if (first.input("input", gpu_input) || first.extract("output", first_output, cmd)
-            || middle.input("input", first_output) || middle.extract("output", middle_output, cmd)
-            || last.input("input", middle_output) || last.extract("output", last_output, cmd))
+                || middle.input("input", first_output) || middle.extract("output", middle_output, cmd)
+                || last.input("input", middle_output) || last.extract("output", last_output, cmd))
             return -1;
         if (round == 0 && cmd.clear_weight_cache() == 0)
             return -1;
@@ -1475,7 +1480,7 @@ static int test_command_model_reload()
             ncnn::Mat output;
             cmd.record_upload(input, gpu_input, opt);
             if (ex.input("input", gpu_input) || ex.extract("output", gpu_middle, cmd)
-                || next.input("input", gpu_middle) || next.extract("output", gpu_output, cmd))
+                    || next.input("input", gpu_middle) || next.extract("output", gpu_output, cmd))
                 return -1;
             cmd.record_download(gpu_output, output, opt);
             if (cmd.submit_and_wait() || CompareMat(scaled_input(input, scale * 0.75f), output, 0.0001f) || cmd.reset())

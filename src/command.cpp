@@ -3612,9 +3612,9 @@ int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t
     device_size = alignSize(device_size, weight_cache->alignment);
     host_size = alignSize(host_size, weight_cache->alignment);
     if (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size)
-        || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)
-        || device_size < minimum_device_size
-        || (max_external_size && !unified && host_size < weight_cache->alignment))
+            || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)
+            || device_size < minimum_device_size
+            || (max_external_size && !unified && host_size < weight_cache->alignment))
     {
         NCNN_LOGE("weight working set exceeds command capacity or budget");
         return -1;
