@@ -483,7 +483,7 @@ static int test_resident_layout(bool prefer_host)
     if (weight_benchmark_counts()["device_allocation_size"] || weight_benchmark_counts()["host_allocation_size"])
         return -1;
 #endif
-    if (cmd.reset(true))
+    if (cmd.reset())
         return -1;
     ncnn::Mat output[6];
     for (int i = 0; i < 6; i++)
@@ -543,7 +543,7 @@ static int test_host_cache()
     const int sequence[] = {0, 1, 0, 1, 1};
     for (int i = 0; i < 5; i++)
     {
-        if (i && cmd.reset(true))
+        if (i && cmd.reset())
             return -1;
         ncnn::Mat output;
         cmd.record_clone(weights[sequence[i]], output, opt);

@@ -712,8 +712,12 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         // memory barrier seems to be not enough here
         // device copy-to and copy-back is better than queue submit anyway  --- nihui
 
-        cmd.submit_and_wait();
-        cmd.reset();
+        int ret = cmd.submit_and_wait();
+        if (ret != 0)
+            return ret;
+        ret = cmd.reset();
+        if (ret != 0)
+            return ret;
 
         // VkImageMat qk_cross2;
         // cmd.record_buffer_to_image(qk_cross, qk_cross2, opt);

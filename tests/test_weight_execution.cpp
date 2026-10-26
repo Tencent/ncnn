@@ -136,7 +136,7 @@ static int run_net(int storage, const ncnn::Mat& input, ncnn::Mat& output, bool 
         }
     }
 
-    // another extractor shares the model and has its own weight cache
+    // another extractor shares the model and uses an independent command
     ncnn::Extractor ex2 = net.create_extractor();
     ex2.set_weight_host_cache_size(storage >= 3 ? weight_unit : 4096);
     ex2.set_weight_device_cache_size(storage >= 3 ? 2 * weight_unit : 4096);
@@ -157,12 +157,15 @@ static int run_net(int storage, const ncnn::Mat& input, ncnn::Mat& output, bool 
         download_opt.blob_vkallocator = &blobs;
         download_opt.staging_vkallocator = &staging;
         download_opt.use_packing_layout = false;
+        download_opt.weight_device_cache_size = 65536;
+        ncnn::VkCompute cmd(vkdev, download_opt);
         for (int round = 0; round < 2; round++)
         {
             for (int i = 0; i < 13; i++)
                 if (cached.input(i, ncnn::Mat()) || cached.input(i, ncnn::VkMat()))
                     return -1;
-            ncnn::VkCompute cmd(vkdev);
+            if (round && cmd.reset())
+                return -1;
             ncnn::VkMat gpu_output;
             ncnn::Mat external;
             if (cached.input("b0", input) || cached.extract("b12", gpu_output, cmd))
@@ -172,7 +175,7 @@ static int run_net(int storage, const ncnn::Mat& input, ncnn::Mat& output, bool 
                 return -1;
 #if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
             std::map<std::string, uint64_t>& stats = weight_benchmark_counts();
-            if (stats["file_reads"] != 12 || stats["cache_hits"] < (uint64_t)(round + 1) * 12)
+            if (stats["file_reads"] != 12 || stats["cache_hits"] < (uint64_t)round * 12)
                 return -1;
 #endif
         }
@@ -301,7 +304,9 @@ static int test_standalone_sources()
     ncnn::VkMat host(32, &source, 4u, &blobs);
     for (int round = 0; round < 2; round++)
     {
-        // Reuse the same source address with new bytes after reset.
+        // Borrowed bytes have no model generation; invalidate before changing them.
+        if (cmd.clear_weight_cache())
+            return -1;
         original.fill((float)(round + 1));
         cmd.record_clone(host, output, opt);
         if (cmd.submit_and_wait() || CompareMat(original, output, 0.0001f) || cmd.reset())
@@ -367,7 +372,7 @@ static int test_copy_residency()
         return -1;
 #endif
 
-    if (cmd.reset(true))
+    if (cmd.reset())
         return -1;
     ncnn::Mat repeated;
     cmd.record_clone(weights[1], repeated, opt);
@@ -383,7 +388,7 @@ static int test_copy_residency()
 
 #if NCNN_BATCH
     // a view retains the allocation identity but resolves its own offset
-    if (cmd.reset(true))
+    if (cmd.reset())
         return -1;
     ncnn::Mat view_result;
     ncnn::VkMat view(128, weights[0].data, (size_t)4u, &store);
@@ -396,7 +401,7 @@ static int test_copy_residency()
 
     if (vkdev->info.support_image_storage())
     {
-        if (cmd.reset(true))
+        if (cmd.reset())
             return -1;
         ncnn::VkImageMat image;
         ncnn::Mat image_result;
@@ -543,85 +548,94 @@ static int test_cache_reuse(int queue_mode)
         return -1;
     {
         ncnn::VkCompute survivor(vkdev, opt, queue_mode);
+        reset_weight_benchmark();
+        const int order[] = {0, 1, 0, 2, 1, 0};
+        for (int i = 0; i < 6; i++)
         {
-            reset_weight_benchmark();
-            ncnn::Extractor owner = net.create_extractor();
-            const int order[] = {0, 1, 0, 2, 1, 0};
-            for (int i = 0; i < 6; i++)
-            {
-                // Each submission uses a new command with the Extractor's cache.
-                ncnn::VkCompute cmd(vkdev, opt, queue_mode);
+            if (i && survivor.reset())
+                return -1;
+            // Newly created Extractors reuse the supplied command's working set.
+            ncnn::Extractor ex = net.create_extractor();
 #if NCNN_BENCHMARK
-                std::map<std::string, uint64_t>& stats = weight_benchmark_counts();
-                const uint64_t reads = stats["file_reads"];
-                const uint64_t hits = stats["cache_hits"];
+            std::map<std::string, uint64_t>& stats = weight_benchmark_counts();
+            const uint64_t reads = stats["file_reads"];
+            const uint64_t hits = stats["cache_hits"];
 #endif
-                ncnn::VkMat gpu_output;
-                ncnn::Mat output;
-                if (owner.input(order[i], ncnn::Mat()) || owner.input(order[i], ncnn::VkMat()) || owner.extract(order[i], gpu_output, cmd))
-                    return -1;
-                cmd.record_download(gpu_output, output, opt);
-                if (cmd.submit_and_wait() || CompareMat(original[order[i]], output, 0.f))
-                    return -1;
-                if (device.allocations != 1 || device.frees || host.allocations != (unified ? 0 : 1) || host.frees)
-                    return -1;
+            ncnn::VkMat gpu_output;
+            ncnn::Mat output;
+            if (ex.extract(order[i], gpu_output, survivor))
+                return -1;
+            survivor.record_download(gpu_output, output, opt);
+            if (survivor.submit_and_wait() || CompareMat(original[order[i]], output, 0.f))
+                return -1;
+            if (device.allocations != 1 || device.frees || host.allocations != (unified ? 0 : 1) || host.frees)
+                return -1;
 #if NCNN_BENCHMARK
-                if ((i == 2 || i == 4) && (stats["file_reads"] != reads || stats["cache_hits"] <= hits))
-                    return -1;
+            if ((i == 2 || i == 4) && (stats["file_reads"] != reads || stats["cache_hits"] <= hits))
+                return -1;
 #endif
-            }
-            // Copy and assignment must allocate independent caches, even after warming.
-            for (int copy = 0; copy < 2; copy++)
+        }
+        // Extractor copy/assignment shares sources, never another command's arenas.
+        ncnn::Extractor original_extractor = net.create_extractor();
+        for (int copy = 0; copy < 2; copy++)
+        {
+            ncnn::Extractor other = copy == 0 ? original_extractor : net.create_extractor();
+            if (copy == 1)
+                other = original_extractor;
+            ncnn::VkCompute isolated(vkdev, opt, queue_mode);
+            ncnn::VkMat gpu_output;
+            ncnn::Mat output;
+            if (other.extract(0, gpu_output, isolated))
+                return -1;
+            isolated.record_download(gpu_output, output, opt);
+            if (isolated.submit_and_wait() || CompareMat(original[0], output, 0.f)
+                || device.allocations != copy + 2 || device.frees != copy)
+                return -1;
+#if NCNN_BENCHMARK
+            if (weight_benchmark_counts()["file_reads"] != 1)
+                return -1;
+#endif
+        }
+        {
+            // Mat extraction has its own command, independently of external ones.
+            ncnn::Extractor internal = net.create_extractor();
+            for (int round = 0; round < 2; round++)
             {
-                ncnn::Extractor other = copy == 0 ? owner : net.create_extractor();
-                if (copy == 1)
-                    other = owner;
-                ncnn::VkCompute cmd(vkdev, opt, queue_mode);
-                ncnn::VkMat gpu_output;
                 ncnn::Mat output;
-                if (other.input(0, ncnn::Mat()) || other.input(0, ncnn::VkMat()) || other.extract(0, gpu_output, cmd))
+                if (internal.input(0, ncnn::Mat()) || internal.input(0, ncnn::VkMat())
+                    || internal.extract(0, output) || CompareMat(original[0], output, 0.f))
                     return -1;
-                cmd.record_download(gpu_output, output, opt);
-                if (cmd.submit_and_wait() || CompareMat(original[0], output, 0.f) || device.allocations != copy + 2 || device.frees != copy)
+                if (device.allocations != 4 || device.frees != 2)
                     return -1;
 #if NCNN_BENCHMARK
                 if (weight_benchmark_counts()["file_reads"] != 1)
                     return -1;
 #endif
             }
-            // Ordinary extraction reuses a cache first warmed by external commands.
-            ncnn::Mat output;
-            if (owner.input(0, ncnn::Mat()) || owner.input(0, ncnn::VkMat()) || owner.extract(0, output) || CompareMat(original[0], output, 0.f))
-                return -1;
-            if (device.allocations != 3 || device.frees != 2)
-                return -1;
-#if NCNN_BENCHMARK
-            const uint64_t reads = weight_benchmark_counts()["file_reads"];
-#endif
-            for (int round = 0; round < 2; round++)
-            {
-                // Default reset drops the command's reference, not the Extractor's cache.
-                if (round && survivor.reset())
-                    return -1;
-                ncnn::VkMat gpu_output;
-                if (owner.input(0, ncnn::Mat()) || owner.input(0, ncnn::VkMat()) || owner.extract(0, gpu_output, survivor))
-                    return -1;
-                survivor.record_download(gpu_output, output, opt);
-                if (survivor.submit_and_wait() || CompareMat(original[0], output, 0.f) || device.allocations != 3)
-                    return -1;
-#if NCNN_BENCHMARK
-                if (weight_benchmark_counts()["file_reads"] != reads)
-                    return -1;
-#endif
-            }
         }
-        // A completed external command retains its reference until reset/destruction.
-        if (device.frees != 2 || host.frees != (unified ? 0 : 2) || survivor.reset())
+        // Reset retains arenas; explicit clearing returns them to their allocators.
+        if (device.frees != 3 || host.frees != (unified ? 0 : 3) || survivor.reset())
             return -1;
-        if (device.frees != 3 || host.frees != (unified ? 0 : 3))
+        if (device.frees != 3 || survivor.clear_weight_cache())
+            return -1;
+        if (device.frees != 4 || host.frees != (unified ? 0 : 4))
+            return -1;
+        ncnn::Extractor ex = net.create_extractor();
+        ncnn::VkMat gpu_output;
+        ncnn::Mat output;
+        if (ex.extract(0, gpu_output, survivor))
+            return -1;
+        survivor.record_download(gpu_output, output, opt);
+        if (survivor.clear_weight_cache() == 0)
+            return -1;
+        if (survivor.submit_and_wait() || CompareMat(original[0], output, 0.f)
+            || device.allocations != 5 || device.frees != 4
+            || survivor.reset() || survivor.clear_weight_cache())
+            return -1;
+        if (device.frees != 5 || host.frees != (unified ? 0 : 5))
             return -1;
     }
-    fprintf(stderr, "Extractor cache reuse, eviction, copy isolation and lifetime verified mode=%d\n", queue_mode);
+    fprintf(stderr, "command cache reuse, eviction, isolation and explicit clearing verified mode=%d\n", queue_mode);
     return 0;
 }
 
@@ -664,7 +678,7 @@ static int test_queue_ring(int queue_mode)
         ncnn::VkCompute cmd(store, opt, queue_mode);
         for (int round = 0; round < 3; round++)
         {
-            if (round && cmd.reset(true))
+            if (round && cmd.reset())
                 return -1;
             ncnn::Mat outputs[160];
             for (int i = 0; i < 160; i++)
@@ -752,7 +766,7 @@ static int test_host_queue_modes(bool resident)
         ncnn::VkCompute cmd(store, opt, queue_modes[mode]);
         for (int round = 0; round < 2; round++)
         {
-            if (round && cmd.reset(true))
+            if (round && cmd.reset())
                 return -1;
             ncnn::Mat outputs[20];
             for (int i = 0; i < 20; i++)
@@ -869,7 +883,37 @@ static int test_execution_failures()
         if (cmd.submit_and_wait() == 0)
             return -1;
     }
+    {
+        InvalidDeviceAllocator device(vkdev, 0);
+        opt.weight_device_vkallocator = &device;
+        ncnn::VkCompute cmd(store, opt);
+        ncnn::Mat output;
+        cmd.record_clone(written, output, opt);
+        if (cmd.submit_and_wait() == 0 || cmd.reset())
+            return -1;
+        device.failure = -1;
+        cmd.record_clone(written, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(source, output, 0.0001f) || cmd.reset() || cmd.clear_weight_cache())
+            return -1;
+        cmd.record_clone(written, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(source, output, 0.0001f))
+            return -1;
+    }
     opt.weight_device_vkallocator = 0;
+    for (int failure = WeightAllocationAudit::FAIL_ALLOCATE; failure <= WeightAllocationAudit::FAIL_SUBMIT; failure++)
+    {
+        ncnn::VkCompute cmd(store, opt);
+        ncnn::Mat output;
+        cmd.record_clone(written, output, opt);
+        {
+            WeightAllocationAudit audit(vkdev, (WeightAllocationAudit::Failure)failure);
+            if (cmd.submit_and_wait() == 0 || !audit.failed || cmd.reset() || audit.current[0] || audit.current[1])
+                return -1;
+        }
+        cmd.record_clone(written, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(source, output, 0.0001f) || cmd.reset() || cmd.clear_weight_cache())
+            return -1;
+    }
     {
         // a larger unvisited weight does not enlarge the actual submission dependency
         ncnn::Option small = opt;
@@ -879,7 +923,7 @@ static int test_execution_failures()
         ncnn::VkCompute cmd(store, small);
         ncnn::Mat output;
         cmd.record_clone(written, output, small);
-        if (cmd.submit_and_wait() || CompareMat(source, output, 0.0001f) || cmd.reset(true))
+        if (cmd.submit_and_wait() || CompareMat(source, output, 0.0001f) || cmd.reset())
             return -1;
         cmd.record_clone(unused, output, small);
         if (cmd.submit_and_wait() == 0)
@@ -897,7 +941,7 @@ static int test_execution_failures()
         cmd.record_clone(unwritten, second, opt);
         const int ret = cmd.submit_and_wait();
         unwritten.data->external_ptr = external_ptr;
-        if (!ret || cmd.reset(true))
+        if (!ret || cmd.reset())
             return -1;
         cmd.record_clone(written, first, opt);
         if (cmd.submit_and_wait() || CompareMat(source, first, 0.0001f))
@@ -1120,7 +1164,7 @@ static int test_automatic_weight_cache()
     ncnn::VkCompute cmd(weights, opt);
     ncnn::Mat warm_output;
     cmd.record_clone(prepared[0], warm_output, opt);
-    if (cmd.submit_and_wait() || CompareMat(sources[0], warm_output, 0.f) || cmd.reset(true))
+    if (cmd.submit_and_wait() || CompareMat(sources[0], warm_output, 0.f) || cmd.reset())
         return -1;
 #if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
     const uint64_t initial_capacity = weight_benchmark_counts()["device_capacity"];
@@ -1148,7 +1192,7 @@ static int test_automatic_weight_cache()
         return -1;
 #endif
     // Retained cache contents remain usable after automatic growth.
-    if (cmd.reset(true))
+    if (cmd.reset())
         return -1;
     cmd.record_clone(prepared[0], warm_output, opt);
     if (cmd.submit_and_wait() || CompareMat(sources[0], warm_output, 0.f))
@@ -1162,6 +1206,323 @@ static int test_automatic_weight_cache()
     if (fixed.submit_and_wait() == 0)
         return -1;
     fprintf(stderr, "automatic weight cache growth, retained contents and fixed capacity verified\n");
+    return 0;
+}
+
+static int load_scale_net(ncnn::Net& net, int storage, float scale)
+{
+    net.opt = weight_option();
+    net.set_vulkan_device(gpu_index);
+    net.opt.use_weights_in_host_memory = storage == 1;
+    net.opt.use_weights_in_host_disk = storage >= 2;
+    net.opt.weight_host_cache_size = 2048;
+    net.opt.weight_device_cache_size = 4096;
+    if (storage == 3)
+    {
+        net.opt.weight_device_budget = 65536;
+        net.opt.weight_host_budget = 65536;
+    }
+    const char param[] = "7767517\n2 2\nInput input 0 1 input\nGemm scale 1 1 input output 5=1 6=1 8=16 9=16 10=-1\n";
+    std::vector<unsigned char> model(4 + 16 * 16 * 4, 0);
+    for (int i = 0; i < 16; i++)
+        memcpy(model.data() + 4 + (i * 16 + i) * 4, &scale, 4);
+    if (net.load_param_mem(param))
+        return -1;
+    const unsigned char* ptr = model.data();
+    ncnn::DataReaderFromMemory reader(ptr);
+    return net.load_model(reader);
+}
+
+static ncnn::Mat scaled_input(const ncnn::Mat& input, float scale)
+{
+    ncnn::Mat expected = input.clone();
+    for (size_t i = 0; i < expected.total(); i++)
+        ((float*)expected)[i] *= scale;
+    return expected;
+}
+
+static void configure_external_extractor(ncnn::Extractor& ex, const ncnn::Option& opt)
+{
+    ex.set_blob_vkallocator(opt.blob_vkallocator);
+    ex.set_workspace_vkallocator(opt.blob_vkallocator);
+    ex.set_staging_vkallocator(opt.staging_vkallocator);
+}
+
+static int test_command_model_chain(int storage_a, int storage_b)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::Net a;
+    ncnn::Net b;
+    ncnn::Net device;
+    if (load_scale_net(a, storage_a, 1.25f) || load_scale_net(b, storage_b, 0.5f) || load_scale_net(device, 0, 2.f))
+        return -1;
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_option();
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    opt.weight_host_cache_size = 2048;
+    opt.weight_device_cache_size = 4096;
+    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::Mat input = RandomMat(16, 16);
+    const ncnn::Mat expected = scaled_input(input, 1.25f * 0.5f * 1.25f);
+#if defined(NCNN_WEIGHT_TEST_INTERNAL)
+    reset_weight_benchmark();
+#endif
+    for (int round = 0; round < 3; round++)
+    {
+        if (round && cmd.reset())
+            return -1;
+        if (round == 2 && cmd.clear_weight_cache())
+            return -1;
+        ncnn::Extractor first = a.create_extractor();
+        ncnn::Extractor middle = b.create_extractor();
+        ncnn::Extractor last = a.create_extractor();
+        configure_external_extractor(first, opt);
+        configure_external_extractor(middle, opt);
+        configure_external_extractor(last, opt);
+        // These setters configure only an Extractor's internally owned command.
+        first.set_weight_device_cache_size(16);
+        middle.set_weight_device_cache_size(16);
+        last.set_weight_device_cache_size(16);
+        ncnn::VkMat gpu_input;
+        ncnn::VkMat first_output;
+        ncnn::VkMat middle_output;
+        ncnn::VkMat last_output;
+        cmd.record_upload(input, gpu_input, opt);
+        if (first.input("input", gpu_input) || first.extract("output", first_output, cmd)
+            || middle.input("input", first_output) || middle.extract("output", middle_output, cmd)
+            || last.input("input", middle_output) || last.extract("output", last_output, cmd))
+            return -1;
+        if (round == 0 && cmd.clear_weight_cache() == 0)
+            return -1;
+        ncnn::Mat output;
+        cmd.record_download(last_output, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(expected, output, 0.0001f))
+            return -1;
+#if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
+        const uint64_t file_weights = (storage_a == 2 ? 1 : 0) + (storage_b == 2 ? 1 : 0);
+        if (file_weights && weight_benchmark_counts()["file_reads"] != file_weights)
+            return -1;
+#endif
+        if (round == 1)
+        {
+            // A retained cache must not turn unrelated DEVICE work into replay.
+            if (cmd.reset())
+                return -1;
+#if defined(NCNN_WEIGHT_TEST_INTERNAL)
+            reset_weight_benchmark();
+#endif
+            ncnn::Extractor direct = device.create_extractor();
+            configure_external_extractor(direct, opt);
+            ncnn::VkMat direct_input;
+            ncnn::VkMat direct_output;
+            ncnn::Mat downloaded;
+            cmd.record_upload(input, direct_input, opt);
+            if (direct.input("input", direct_input) || direct.extract("output", direct_output, cmd))
+                return -1;
+            cmd.record_download(direct_output, downloaded, opt);
+            if (cmd.submit_and_wait() || CompareMat(scaled_input(input, 2.f), downloaded, 0.0001f))
+                return -1;
+#if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
+            if (!weight_benchmark_counts().empty())
+                return -1;
+#endif
+        }
+    }
+    return 0;
+}
+
+static int test_command_budget_scope()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::VkWeightAllocator store(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    if (store.set_weights_in_host_disk(true) || store.set_weight_budgets(4096, 4096))
+        return -1;
+    ncnn::VkMat weights[3];
+    ncnn::Mat source = RandomMat(512);
+    for (int i = 0; i < 3; i++)
+    {
+        weights[i].create(512, (size_t)4u, &store);
+        if (weights[i].empty() || !weights[i].data->external_ptr)
+            return -1;
+        memcpy(weights[i].data->external_ptr, source.data, 2048);
+    }
+    if (store.finalize_weights(2048, 2048))
+        return -1;
+    int managed = -1;
+    for (int i = 0; i < 3; i++)
+        if (weights[i].data->storage_type != 0)
+            managed = i;
+    if (managed < 0)
+        return -1;
+    ncnn::Option opt = weight_option();
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    opt.weight_device_budget = 4096;
+    opt.weight_host_budget = 4096;
+    opt.weight_device_cache_size = 4096;
+    opt.weight_host_cache_size = 2048;
+    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::Mat output;
+    cmd.record_clone(weights[managed], output, opt);
+    if (cmd.submit_and_wait() || CompareMat(source, output, 0.f) || cmd.reset() || cmd.clear_weight_cache())
+        return -1;
+    // The allocator-based constructor deliberately opts into that model's headroom.
+    ncnn::VkCompute bounded(store, opt);
+    bounded.record_clone(weights[managed], output, opt);
+    if (bounded.submit_and_wait() == 0)
+        return -1;
+    return 0;
+}
+
+static int test_command_model_reload()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::Net net;
+    ncnn::Net stable;
+    if (load_scale_net(stable, 2, 0.75f))
+        return -1;
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_option();
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    opt.weight_device_cache_size = 4096;
+    opt.weight_host_cache_size = 2048;
+    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::Mat input = RandomMat(16, 16);
+#if defined(NCNN_WEIGHT_TEST_INTERNAL)
+    reset_weight_benchmark();
+#endif
+    for (int round = 0; round < 8; round++)
+    {
+        const float scale = 1.f + round * 0.25f;
+        if (load_scale_net(net, 2, scale))
+            return -1;
+        {
+            ncnn::Extractor ex = net.create_extractor();
+            ncnn::Extractor next = stable.create_extractor();
+            configure_external_extractor(ex, opt);
+            configure_external_extractor(next, opt);
+            ncnn::VkMat gpu_input;
+            ncnn::VkMat gpu_middle;
+            ncnn::VkMat gpu_output;
+            ncnn::Mat output;
+            cmd.record_upload(input, gpu_input, opt);
+            if (ex.input("input", gpu_input) || ex.extract("output", gpu_middle, cmd)
+                || next.input("input", gpu_middle) || next.extract("output", gpu_output, cmd))
+                return -1;
+            cmd.record_download(gpu_output, output, opt);
+            if (cmd.submit_and_wait() || CompareMat(scaled_input(input, scale * 0.75f), output, 0.0001f) || cmd.reset())
+                return -1;
+        }
+        net.clear();
+#if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
+        // Reloading one model must not invalidate the other model's cached copy.
+        if (weight_benchmark_counts()["file_reads"] != (uint64_t)round + 2)
+            return -1;
+#endif
+    }
+    return cmd.clear_weight_cache();
+}
+
+static int test_recorded_weight_lifetime()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_index);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_option();
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::Mat original = RandomMat(128);
+    ncnn::Mat output;
+    for (int round = 0; round < 3; round++)
+    {
+        {
+            ncnn::VkWeightAllocator store(vkdev);
+            if (store.set_weights_in_host_disk(true))
+                return -1;
+            ncnn::VkMat weight(128, (size_t)4u, &store);
+            if (weight.empty())
+                return -1;
+            memcpy(weight.data->external_ptr, original.data, original.total() * original.elemsize);
+            if (store.finalize_weights())
+                return -1;
+            cmd.record_clone(weight, output, opt);
+            if (round == 0)
+            {
+                weight.release();
+                store.clear();
+                if (cmd.submit_and_wait() == 0 || cmd.reset())
+                    return -1;
+            }
+            if (round == 2 && (cmd.submit_and_wait() || CompareMat(original, output, 0.f) || cmd.reset()))
+                return -1;
+        }
+        // Detect a destroyed allocator without reading the freed source buffer.
+        if (round == 1 && (cmd.submit_and_wait() == 0 || cmd.reset()))
+            return -1;
+    }
+    return 0;
+}
+
+class CountingWeightAllocator : public ncnn::VkBlobAllocator
+{
+public:
+    explicit CountingWeightAllocator(const ncnn::VulkanDevice* vkdev)
+        : ncnn::VkBlobAllocator(vkdev, 4096), allocations(0), frees(0)
+    {
+    }
+    virtual ncnn::VkBufferMemory* fastMalloc(size_t size)
+    {
+        allocations++;
+        return ncnn::VkBlobAllocator::fastMalloc(size);
+    }
+    virtual void fastFree(ncnn::VkBufferMemory* ptr)
+    {
+        frees++;
+        ncnn::VkBlobAllocator::fastFree(ptr);
+    }
+    int allocations;
+    int frees;
+};
+
+static int test_internal_command_pool()
+{
+    ncnn::Net net;
+    if (load_scale_net(net, 2, 1.5f))
+        return -1;
+    ncnn::Mat input = RandomMat(16, 16);
+    const ncnn::Mat expected = scaled_input(input, 1.5f);
+#if defined(NCNN_WEIGHT_TEST_INTERNAL)
+    reset_weight_benchmark();
+#endif
+    for (int round = 0; round < 3; round++)
+    {
+        ncnn::Extractor ex = net.create_extractor();
+        ncnn::Mat output;
+        if (ex.input("input", input) || ex.extract("output", output) || CompareMat(expected, output, 0.0001f))
+            return -1;
+#if NCNN_BENCHMARK && defined(NCNN_WEIGHT_TEST_INTERNAL)
+        if (weight_benchmark_counts()["file_reads"] != 1 || weight_benchmark_counts()["cache_hits"] < (uint64_t)round)
+            return -1;
+#endif
+    }
+    // A caller allocator must not be borrowed from or retained by the idle pool.
+    CountingWeightAllocator custom(ncnn::get_gpu_device(gpu_index));
+    {
+        ncnn::Extractor ex = net.create_extractor();
+        ex.set_weight_device_vkallocator(&custom);
+        ncnn::Mat output;
+        if (ex.input("input", input) || ex.extract("output", output) || CompareMat(expected, output, 0.0001f))
+            return -1;
+    }
+    if (custom.allocations != 1 || custom.frees != 1)
+        return -1;
     return 0;
 }
 
@@ -1185,14 +1546,44 @@ static int test_weight_execution(int argc, char** argv)
                 fprintf(stderr, "mixed weight bindings failed host=%d small_cache=%d\n", host, small_cache);
                 return -1;
             }
+    const int chains[][2] = {{2, 2}, {0, 2}, {2, 0}, {1, 2}, {2, 3}, {3, 3}, {1, 1}};
+    for (size_t i = 0; i < sizeof(chains) / sizeof(chains[0]); i++)
+    {
+        if (test_command_model_chain(chains[i][0], chains[i][1]))
+        {
+            fprintf(stderr, "cross-model command chain failed storage=%d,%d\n", chains[i][0], chains[i][1]);
+            return -1;
+        }
+    }
+    if (test_command_budget_scope() || test_command_model_reload() || test_recorded_weight_lifetime() || test_internal_command_pool())
+    {
+        fprintf(stderr, "command source lifetime or context pool test failed\n");
+        return -1;
+    }
     if (test_automatic_weight_cache())
     {
         fprintf(stderr, "automatic weight cache test failed\n");
         return -1;
     }
 #if defined(NCNN_WEIGHT_TEST_INTERNAL)
-    if (test_copy_residency() || test_cache_reuse(0) || test_cache_reuse(1) || test_cache_reuse(2) || test_queue_ring(0) || test_queue_ring(1) || test_queue_ring(2) || test_host_queue_modes(false) || test_host_queue_modes(true) || test_execution_failures())
+    if (test_copy_residency())
+    {
+        fprintf(stderr, "copy residency test failed\n");
         return -1;
+    }
+    for (int mode = 0; mode < 3; mode++)
+    {
+        if (test_cache_reuse(mode) || test_queue_ring(mode))
+        {
+            fprintf(stderr, "cache or command ring test failed mode=%d\n", mode);
+            return -1;
+        }
+    }
+    if (test_host_queue_modes(false) || test_host_queue_modes(true) || test_execution_failures())
+    {
+        fprintf(stderr, "host queue or failure recovery test failed\n");
+        return -1;
+    }
 #endif
     const ncnn::GpuInfo& info = ncnn::get_gpu_info(gpu_index);
     for (precision = 1; precision <= 2; precision++)

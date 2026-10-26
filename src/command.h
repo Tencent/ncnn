@@ -70,9 +70,11 @@ public:
 
     int submit_and_wait();
 
+    // discard recorded commands, retaining the weight working set for reuse
     int reset();
-    // keep cached sources immutable until the retained cache is released
-    int reset(bool keep_weight_cache);
+    // release the weight working set when no recorded commands use it
+    // command options are retained; model-owned resident weights are unaffected
+    int clear_weight_cache();
 
     uint64_t pending_dispatch_total() const;
 
@@ -90,6 +92,7 @@ protected:
     void barrier_readonly(const VkImageMat& binding);
 
 private:
+    friend class Extractor;
     friend class VkComputePrivate;
     VkComputePrivate* const d;
 };

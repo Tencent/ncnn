@@ -208,5 +208,7 @@ int main()
 {
     SRAND(7767517);
 
-    return test_command_0() || test_command_1() || test_command_2();
+    const int ret = test_command_0() || test_command_1() || test_command_2();
+    ncnn::destroy_gpu_instance();
+    return ret;
 }

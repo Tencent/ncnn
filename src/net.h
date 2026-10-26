@@ -207,7 +207,8 @@ public:
 
     void set_kvcache_vkallocator(VkAllocator* allocator);
 
-    // configure weight working sets before the first extraction
+    // configure the internal command's weight working set before Mat extraction
+    // an explicitly supplied VkCompute uses its own working set options
     void set_weight_host_vkallocator(VkAllocator* allocator);
     void set_weight_device_vkallocator(VkAllocator* allocator);
     void set_weight_host_cache_size(size_t size);
@@ -262,7 +263,6 @@ protected:
 
 private:
 #if NCNN_VULKAN
-    void create_weight_cache();
     int extract_gpu(int blob_index, VkCompute& cmd);
 #endif
 

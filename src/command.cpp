@@ -21,6 +21,7 @@ void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
 int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size);
 
 int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_budget, size_t& host_budget, size_t& device_size, size_t& host_size);
+int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generation);
 
 struct VkBufferBinding;
 
@@ -32,11 +33,21 @@ thread_local void (*weight_benchmark_callback)(const char* name, uint64_t count,
 static const int weight_transfer_slots = 32;
 static const int weight_compute_slots = 4;
 
+// Exclusively owned by one command. Model-owned sources remain immutable.
 struct VkWeightCache
 {
+    struct source_entry
+    {
+        const VkBufferMemory* source;
+        const VkAllocator* allocator;
+        uint64_t generation;
+    };
+
     struct Entry
     {
         const VkBufferMemory* source;
+        const VkAllocator* allocator;
+        uint64_t generation;
         size_t offset;
         size_t size;
         uint64_t compute_serial;
@@ -46,12 +57,14 @@ struct VkWeightCache
     struct HostEntry
     {
         const VkBufferMemory* source;
+        const VkAllocator* allocator;
+        uint64_t generation;
         size_t offset;
         size_t size;
     };
 
     VkWeightCache(const VulkanDevice* _vkdev, const Option& _opt, bool _automatic_device_size)
-        : vkdev(_vkdev), opt(_opt), automatic_device_size(_automatic_device_size), host_allocator(0), device_allocator(0), host_arena(0), device_arena(0), host_size(_opt.weight_host_cache_size), device_size(_opt.weight_device_cache_size), alignment(weight_buffer_alignment(_vkdev)), host_head(0), device_head(0), handoff(0), handoff_pending(false), unified(false), initialized(false), busy(false), error(0), refcount(1)
+        : vkdev(_vkdev), opt(_opt), automatic_device_size(_automatic_device_size), host_allocator(0), device_allocator(0), host_arena(0), device_arena(0), host_size(_opt.weight_host_cache_size), device_size(_opt.weight_device_cache_size), alignment(weight_buffer_alignment(_vkdev)), host_head(0), device_head(0), handoff(0), handoff_pending(false), unified(false), initialized(false), error(0)
     {
 #if NCNN_BENCHMARK
         memset(&stats, 0, sizeof(stats));
@@ -61,6 +74,14 @@ struct VkWeightCache
     ~VkWeightCache()
     {
         clear();
+    }
+
+    const source_entry* find_source(const VkBufferMemory* source) const
+    {
+        for (size_t i = 0; i < sources.size(); i++)
+            if (sources[i].source == source)
+                return &sources[i];
+        return 0;
     }
 
     void clear()
@@ -102,15 +123,16 @@ struct VkWeightCache
     size_t alignment;
     size_t host_head;
     size_t device_head;
+    // Source identity is only needed when registering and validating a recording.
+    // Arena growth preserves this list along with the pending commands.
+    std::vector<source_entry> sources;
     std::vector<Entry> entries;
     std::vector<HostEntry> host_entries;
     VkSemaphore handoff;
     bool handoff_pending;
     bool unified;
     bool initialized;
-    bool busy;
     int error;
-    int refcount;
 #if NCNN_BENCHMARK
     struct
     {
@@ -163,23 +185,6 @@ static int resolve_weight_cache_options(const VkWeightAllocator* weights, Option
     return ret;
 }
 
-VkWeightCache* create_weight_cache(const VkWeightAllocator* weights, const Option& opt)
-{
-    Option cache_opt = opt;
-    const int ret = resolve_weight_cache_options(weights, cache_opt);
-    if (ret == 0)
-        return 0;
-    VkWeightCache* cache = new VkWeightCache(weights->vkdev, cache_opt, !opt.weight_device_cache_size);
-    cache->error = ret < 0 ? ret : 0;
-    return cache;
-}
-
-void release_weight_cache(VkWeightCache* cache)
-{
-    if (cache && NCNN_XADD(&cache->refcount, -1) == 1)
-        delete cache;
-}
-
 static bool is_deferred_buffer(const VkBufferMemory* memory)
 {
     return memory && memory->storage_type != 0 && memory->external_size != 0;
@@ -225,9 +230,8 @@ public:
 
     bool delayed() const
     {
-        return weight_cache || !vkdev->info.support_VK_KHR_push_descriptor();
+        return weight_recording || !vkdev->info.support_VK_KHR_push_descriptor();
     }
-    static int bind_weight_cache(VkCompute& cmd, VkWeightCache* cache);
     int ensure_weight_cache(const VkMat& mat, const Option* opt = 0);
     int submit_managed();
     void clear_records();
@@ -322,9 +326,11 @@ public:
 #endif
 
     VkWeightCache* weight_cache;
+    bool weight_recording;
     Option weight_opt;
     bool weight_options_set;
     bool weight_automatic_device_size;
+    bool weight_automatic_host_size;
     int weight_config_error;
     std::vector<Range> pending_releases;
     std::vector<int> pending_uploads;
@@ -555,9 +561,11 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt
 {
     weight_options_set = opt != 0;
     weight_automatic_device_size = !weight_opt.weight_device_cache_size;
+    weight_automatic_host_size = !weight_opt.weight_host_cache_size;
     const int ret = weights ? resolve_weight_cache_options(weights, weight_opt) : 0;
     weight_config_error = ret < 0 ? ret : 0;
-    weight_cache = opt ? new VkWeightCache(_vkdev, weight_opt, weight_automatic_device_size) : 0;
+    weight_cache = 0;
+    weight_recording = false;
     transfer_pool = 0;
     compute_queue = 0;
     transfer_queue = 0;
@@ -578,8 +586,6 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt
     compute_timestamp_bits = 0;
 #endif
     record_error = weight_config_error;
-    if (weight_cache)
-        weight_cache->error = record_error;
 
     compute_command_pool = 0;
     compute_command_buffer = 0;
@@ -746,46 +752,75 @@ int VkComputePrivate::ensure_weight_cache(const VkMat& mat, const Option* opt)
 {
     if (record_error)
         return record_error;
-    if (is_deferred_buffer(mat.data) && !weight_cache)
+    if (!is_deferred_buffer(mat.data))
+        return 0;
+    if (mat.allocator && mat.allocator->vkdev != vkdev)
+    {
+        NCNN_LOGE("weight source and command must use the same Vulkan device");
+        record_error = -1;
+        return record_error;
+    }
+    if (!weight_cache)
     {
         if (opt && !weight_options_set)
-            weight_cache = new VkWeightCache(vkdev, *opt, !opt->weight_device_cache_size);
-        else
-            weight_cache = new VkWeightCache(vkdev, weight_opt, weight_automatic_device_size);
+        {
+            weight_opt = *opt;
+            weight_options_set = true;
+            weight_automatic_device_size = !weight_opt.weight_device_cache_size;
+            weight_automatic_host_size = !weight_opt.weight_host_cache_size;
+        }
+        weight_cache = new VkWeightCache(vkdev, weight_opt, weight_automatic_device_size);
     }
-    return 0;
-}
-
-int VkComputePrivate::bind_weight_cache(VkCompute& cmd, VkWeightCache* cache)
-{
-    VkComputePrivate* d = cmd.d;
-    if (!cache || cache->error || d->weight_config_error)
-        return -1;
-    if (d->vkdev != cache->vkdev || d->executing || cache->busy)
-        return -1;
-    if (d->weight_cache == cache)
-        return 0;
-    if (d->weight_cache && (!d->delayed_records.empty() || d->pending_dispatch_total))
+    weight_recording = true;
+    const VkWeightCache::source_entry* recorded = weight_cache->find_source(mat.data);
+    if (recorded)
     {
-        NCNN_LOGE("cannot change weight cache while recording");
-        d->record_error = -1;
-        return -1;
+        if (recorded->allocator != mat.allocator)
+            record_error = -1;
+        return record_error;
     }
-    d->destroy_weight_commands();
-    d->release_weight_cache();
-    d->weight_cache = cache;
-    NCNN_XADD(&cache->refcount, 1);
-    return 0;
-}
 
-int bind_weight_cache(VkCompute& cmd, VkWeightCache* cache)
-{
-    return VkComputePrivate::bind_weight_cache(cmd, cache);
+    VkWeightCache::source_entry source;
+    source.source = mat.data;
+    source.allocator = mat.allocator;
+    source.generation = 0;
+    bool found_allocator = false;
+    for (size_t i = 0; i < weight_cache->sources.size(); i++)
+    {
+        if (weight_cache->sources[i].allocator != mat.allocator)
+            continue;
+        source.generation = weight_cache->sources[i].generation;
+        found_allocator = true;
+        break;
+    }
+    if (!found_allocator && get_weight_source_generation(mat.allocator, source.generation) < 0)
+    {
+        NCNN_LOGE("weight source must be finalized before recording");
+        record_error = -1;
+        return record_error;
+    }
+
+    // Reject stale identities before any pointer-only cache lookup. Eviction
+    // retains the queue ownership handoff needed before reusing a DEVICE range.
+    for (size_t i = 0; i < weight_cache->entries.size(); i++)
+    {
+        const VkWeightCache::Entry& entry = weight_cache->entries[i];
+        if (entry.source == mat.data && (entry.allocator != source.allocator || entry.generation != source.generation))
+            evict_weight(i);
+    }
+    for (size_t i = 0; i < weight_cache->host_entries.size(); i++)
+    {
+        VkWeightCache::HostEntry& entry = weight_cache->host_entries[i];
+        if (entry.source == mat.data && (entry.allocator != source.allocator || entry.generation != source.generation))
+            entry.source = 0;
+    }
+    weight_cache->sources.push_back(source);
+    return 0;
 }
 
 void VkComputePrivate::release_weight_cache()
 {
-    ncnn::release_weight_cache(weight_cache);
+    delete weight_cache;
     weight_cache = 0;
 }
 
@@ -829,6 +864,8 @@ void VkComputePrivate::clear_records()
     }
     delayed_records.clear();
     pipelines.clear();
+    if (weight_cache)
+        weight_cache->sources.clear();
 }
 
 int VkComputePrivate::create_descriptorset(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const unsigned char* descriptor_infos, VkDescriptorSet& descriptorset)
@@ -1022,6 +1059,30 @@ int VkComputePrivate::record_sources(const record& r, std::vector<const VkBuffer
 
 int VkComputePrivate::submit_managed()
 {
+    // Validate each allocator once, before dereferencing any recorded source.
+    for (size_t i = 0; i < weight_cache->sources.size(); i++)
+    {
+        const VkWeightCache::source_entry& source = weight_cache->sources[i];
+        if (!source.generation)
+            continue;
+        bool checked = false;
+        for (size_t j = 0; j < i; j++)
+        {
+            if (weight_cache->sources[j].allocator == source.allocator)
+            {
+                checked = true;
+                break;
+            }
+        }
+        if (checked)
+            continue;
+        uint64_t generation;
+        if (get_weight_source_generation(source.allocator, generation) < 0 || generation != source.generation)
+        {
+            NCNN_LOGE("weight source was cleared or changed while recording");
+            return -1;
+        }
+    }
     size_t minimum_device_size = 0;
     size_t max_source_size = 0;
     size_t max_external_size = 0;
@@ -1074,7 +1135,10 @@ int VkComputePrivate::submit_managed()
         for (size_t j = dependency_offsets[i]; j < dependency_offsets[i + 1]; j++)
         {
             const VkBufferMemory* source = dependencies[j];
-            if (std::find(batch.weights.begin(), batch.weights.end(), source) != batch.weights.end())
+            bool found = false;
+            for (size_t k = 0; k < batch.weights.size(); k++)
+                found |= batch.weights[k] == source;
+            if (found)
                 continue;
             const size_t size = weight_source_size(source);
             if (size > (size_t)-1 - added_size)
@@ -2109,8 +2173,11 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (binding_type == 1)
         {
-            const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
-            buffer_index++;
+            const VkMat& binding = buffer_bindings[buffer_index++];
+            // Empty descriptors use device-owned placeholders below. They are
+            // not accessed by this dispatch and have no mutable command state.
+            if (binding.empty())
+                continue;
 
             //             NCNN_LOGE("binding #%d buffer = %d %d %d %d @ %lu %d = %p +%ld ~%ld", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.buffer(), binding.buffer_offset(), binding.buffer_capacity());
 
@@ -2118,8 +2185,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else if (binding_type == 2)
         {
-            const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
-            image_index++;
+            const VkImageMat& binding = image_bindings[image_index++];
+            if (binding.empty())
+                continue;
 
             //             NCNN_LOGE("binding #%d image = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
 
@@ -2131,8 +2199,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else // if (binding_type == 3)
         {
-            const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image_readonly() : image_bindings[image_index];
-            image_index++;
+            const VkImageMat& binding = image_bindings[image_index++];
+            if (binding.empty())
+                continue;
 
             //             NCNN_LOGE("binding #%d sampler = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
 
@@ -2375,7 +2444,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             info.bufferInfo = descriptorBufferInfo;
             info.buffer4Info = descriptorBufferInfo;
 
-            if (d->weight_cache)
+            if (d->weight_recording)
             {
                 VkComputePrivate::record r;
                 r.type = VkComputePrivate::record::TYPE_push_descriptors;
@@ -2655,7 +2724,7 @@ int VkCompute::submit_and_wait()
     if (d->record_error)
         return d->record_error;
     bool managed = false;
-    if (d->weight_cache)
+    if (d->weight_recording)
     {
         for (size_t i = 0; i < d->delayed_records.size() && !managed; i++)
         {
@@ -2678,7 +2747,7 @@ int VkCompute::submit_and_wait()
     }
     else
     {
-        if (!vkdev->info.support_VK_KHR_push_descriptor() || d->weight_cache)
+        if (!vkdev->info.support_VK_KHR_push_descriptor() || d->weight_recording)
         {
             if (!vkdev->info.support_VK_KHR_push_descriptor())
             {
@@ -2817,11 +2886,8 @@ int VkCompute::submit_and_wait()
 
 int VkCompute::reset()
 {
-    return reset(false);
-}
-
-int VkCompute::reset(bool keep_weight_cache)
-{
+    if (d->executing)
+        return -1;
 #if NCNN_BENCHMARK
     d->query_results_ready = false;
 #endif
@@ -2863,11 +2929,14 @@ int VkCompute::reset(bool keep_weight_cache)
     }
 
     d->clear_records();
-    if (!keep_weight_cache)
+    // Failed uploads may leave synchronization primitives or cached regions
+    // unusable. Healthy working sets remain owned by this command.
+    if (d->weight_cache && d->weight_cache->error)
     {
         d->destroy_weight_commands();
         d->release_weight_cache();
     }
+    d->weight_recording = false;
 
     d->pending_dispatch_total = 0;
 
@@ -2891,7 +2960,9 @@ int VkCompute::reset(bool keep_weight_cache)
 
     if (vkdev->info.support_VK_KHR_push_descriptor())
     {
-        d->begin_command_buffer();
+        const int ret = d->begin_command_buffer();
+        if (ret)
+            return ret;
 
 #if NCNN_BENCHMARK
         if (d->query_pool)
@@ -2899,6 +2970,19 @@ int VkCompute::reset(bool keep_weight_cache)
 #endif // NCNN_BENCHMARK
     }
 
+    return 0;
+}
+
+int VkCompute::clear_weight_cache()
+{
+    if (d->executing || !d->delayed_records.empty() || d->pending_dispatch_total)
+    {
+        NCNN_LOGE("cannot clear a weight working set while recording or executing");
+        return -1;
+    }
+    d->destroy_weight_commands();
+    d->release_weight_cache();
+    d->weight_recording = false;
     return 0;
 }
 
@@ -3283,7 +3367,6 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
         weight_cache->device_size = std::max(weight_cache->device_size, minimum_device_size);
     if (max_file_size && !weight_cache->unified)
     {
-        weight_cache->host_size = weight_cache->opt.weight_host_cache_size;
         if (!weight_cache->host_size)
             weight_cache->host_size = max_file_size * 2;
     }
@@ -3388,22 +3471,82 @@ int VkComputePrivate::allocate_weight_cache(size_t minimum_device_size, size_t m
     return 0;
 }
 
+static int fit_weight_capacity(const VulkanDevice* vkdev, size_t budget, bool automatic, bool concurrent, size_t& capacity)
+{
+    if (!budget || !capacity)
+        return 0;
+    const size_t alignment = weight_buffer_alignment(vkdev);
+    for (;;)
+    {
+        size_t allocation;
+        if (weight_buffer_memory_size(vkdev, capacity, allocation, concurrent))
+            return -1;
+        if (allocation <= budget)
+            return 0;
+        if (!automatic)
+            return -1;
+        const size_t excess = allocation - budget;
+        if (excess > (size_t)-1 - alignment)
+            return -1;
+        const size_t shrink = alignSize(excess, alignment);
+        if (shrink >= capacity)
+            return -1;
+        capacity -= shrink;
+    }
+}
+
 int VkComputePrivate::initialize_weight_cache(size_t minimum_device_size, size_t max_source_size, size_t max_external_size)
 {
-    if (weight_cache->error || weight_cache->busy)
+    if (weight_cache->error || executing || max_source_size > (size_t)-1 / 2 || max_external_size > (size_t)-1 / 2)
         return -1;
-    const bool grow_device = minimum_device_size > weight_cache->device_size && weight_cache->automatic_device_size;
-    const bool need_host = max_external_size && !weight_cache->unified && !weight_cache->host_size;
-    if (weight_cache->initialized && (grow_device || need_host))
+
+    // One command owns one exchange budget, independently of the number of
+    // models recorded into it. The allocator-based constructor can explicitly
+    // derive that budget from one model's finalized residency headroom.
+    size_t device_budget = weight_opt.weight_device_budget;
+    size_t host_budget = weight_opt.weight_host_budget;
+    const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
+    if (unified)
     {
-        size_t allocation_size;
-        if (grow_device && (weight_buffer_memory_size(vkdev, minimum_device_size, allocation_size) || (weight_cache->opt.weight_device_budget && allocation_size > weight_cache->opt.weight_device_budget)))
-            return -1;
+        device_budget = device_budget && host_budget ? std::min(device_budget, host_budget) : std::max(device_budget, host_budget);
+        host_budget = 0;
+    }
+    size_t device_size = weight_cache->device_size;
+    if (!device_size)
+        device_size = std::max(max_source_size * 2, minimum_device_size);
+    else if (weight_cache->automatic_device_size)
+        device_size = std::max(device_size, minimum_device_size);
+    size_t host_size = weight_cache->host_size;
+    if (unified)
+        host_size = 0;
+    else if (max_external_size && !host_size)
+        host_size = weight_opt.weight_host_cache_size ? weight_opt.weight_host_cache_size : max_external_size * 2;
+    if (device_size > (size_t)-1 - weight_cache->alignment || host_size > (size_t)-1 - weight_cache->alignment)
+        return -1;
+    device_size = alignSize(device_size, weight_cache->alignment);
+    host_size = alignSize(host_size, weight_cache->alignment);
+    if (fit_weight_capacity(vkdev, device_budget, weight_cache->automatic_device_size, false, device_size)
+        || fit_weight_capacity(vkdev, host_budget, weight_automatic_host_size, true, host_size)
+        || device_size < minimum_device_size
+        || (max_external_size && !unified && host_size < weight_cache->alignment))
+    {
+        NCNN_LOGE("weight working set exceeds command capacity or budget");
+        return -1;
+    }
+    device_size = alignSize(device_size, weight_cache->alignment);
+    host_size = alignSize(host_size, weight_cache->alignment);
+    const bool resize = device_size != weight_cache->device_size || host_size != weight_cache->host_size;
+    if (weight_cache->initialized && resize)
+    {
+        // Do not hold two arenas at once: both would count against the budget.
+        // If rebuilding fails, reset() discards the failed state for a retry.
         destroy_weight_commands();
         weight_cache->clear();
-        if (grow_device)
-            weight_cache->device_size = minimum_device_size;
     }
+    weight_cache->opt.weight_device_budget = device_budget;
+    weight_cache->opt.weight_host_budget = host_budget;
+    weight_cache->device_size = device_size;
+    weight_cache->host_size = host_size;
     if (!weight_cache->initialized)
     {
         weight_cache->error = allocate_weight_cache(minimum_device_size, max_source_size, max_external_size);
@@ -3473,6 +3616,9 @@ static bool weight_is_pinned(const VkBufferMemory* source, const std::vector<con
 
 int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vector<const VkBufferMemory*>& pinned)
 {
+    const VkWeightCache::source_entry* recorded = weight_cache->find_source(source);
+    if (!recorded)
+        return -1;
     const size_t size = alignSize(source->external_size, weight_cache->alignment);
     size_t offset = weight_cache->device_head;
     bool found = false;
@@ -3519,6 +3665,8 @@ int VkComputePrivate::place_weight(const VkBufferMemory* source, const std::vect
     }
     VkWeightCache::Entry entry;
     entry.source = source;
+    entry.allocator = recorded->allocator;
+    entry.generation = recorded->generation;
     entry.offset = offset;
     entry.size = size;
     entry.compute_serial = 0;
@@ -3699,6 +3847,9 @@ int VkComputePrivate::cache_host_weight(const VkBufferMemory* source, size_t& of
 #endif
         return 0;
     }
+    const VkWeightCache::source_entry* recorded = weight_cache->find_source(source);
+    if (!recorded)
+        return -1;
     const size_t size = alignSize(source->external_size, weight_cache->alignment);
     if (weight_host_range(size, offset))
         return -1;
@@ -3720,6 +3871,8 @@ int VkComputePrivate::cache_host_weight(const VkBufferMemory* source, size_t& of
             slot = (int)i;
     VkWeightCache::HostEntry entry;
     entry.source = source;
+    entry.allocator = recorded->allocator;
+    entry.generation = recorded->generation;
     entry.offset = offset;
     entry.size = size;
     if (slot < 0)
@@ -3782,15 +3935,14 @@ void VkComputePrivate::weight_ownership_barrier(VkCommandBuffer command, const R
 int VkComputePrivate::begin_weight_commands()
 {
     VkResult ret;
-    if (weight_cache->error || executing || weight_cache->busy)
+    if (weight_cache->error || executing)
         return -1;
     const uint32_t compute_family = vkdev->info.compute_queue_family_index();
     compute_queue = vkdev->acquire_queue(compute_family);
     if (!compute_queue)
         return -1;
     executing = true;
-    weight_cache->busy = true;
-    // All earlier users finished before sharing this cache with another command.
+    // Earlier submissions have finished before this command reuses its regions.
     for (size_t i = 0; i < weight_cache->entries.size(); i++)
         weight_cache->entries[i].compute_serial = 0;
     if (weight_transfer_family != compute_family)
@@ -4330,7 +4482,6 @@ int VkComputePrivate::finish_weight_commands(int result)
     compute_queue = VK_NULL_HANDLE;
     transfer_queue = VK_NULL_HANDLE;
     executing = false;
-    weight_cache->busy = false;
     current_compute = -1;
     completed_compute_serial = compute_serial;
     pending_uploads.clear();

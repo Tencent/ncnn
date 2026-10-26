@@ -207,7 +207,7 @@ static int benchmark_weights(int gpu, int width, int rows, int count, int loops,
     uint64_t physical_read_bytes = 0;
     for (int iteration = 0; iteration < loops; iteration++)
     {
-        if (iteration && cmd.reset(true))
+        if (iteration && cmd.reset())
             return -1;
         if (cold && residency != 3 && ncnn::discard_weight_file_cache(&weights))
             return -1;

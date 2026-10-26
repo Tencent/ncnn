@@ -1691,7 +1691,7 @@ class VkWeightAllocatorPrivate
 {
 public:
     explicit VkWeightAllocatorPrivate(const VulkanDevice* vkdev)
-        : store(vkdev)
+        : allocator(0), generation(0), store(vkdev)
     {
     }
 
@@ -1702,6 +1702,8 @@ public:
 
     VkBufferMemory* fastMalloc_resident(VkWeightAllocator* allocator, size_t size);
 
+    const VkAllocator* allocator;
+    uint64_t generation;
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -1718,6 +1720,17 @@ public:
     std::vector<void*> host_ptrs;
 #endif
 };
+
+// Recognize live weight allocators without changing VkAllocator's public API.
+static Mutex weight_allocators_lock;
+static std::vector<VkWeightAllocatorPrivate*> weight_allocators;
+static uint64_t weight_allocator_generation = 0;
+
+static void update_weight_generation(VkWeightAllocatorPrivate* allocator)
+{
+    MutexLockGuard lock(weight_allocators_lock);
+    allocator->generation = ++weight_allocator_generation;
+}
 
 VkWeightStore::VkWeightStore(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
@@ -1771,11 +1784,27 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_ho
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
 
     d->prefer_host_memory = _prefer_host_memory;
+    {
+        MutexLockGuard lock(weight_allocators_lock);
+        d->allocator = this;
+        d->generation = ++weight_allocator_generation;
+        weight_allocators.push_back(d);
+    }
 }
 
 VkWeightAllocator::~VkWeightAllocator()
 {
     clear();
+    {
+        MutexLockGuard lock(weight_allocators_lock);
+        for (size_t i = 0; i < weight_allocators.size(); i++)
+        {
+            if (weight_allocators[i] != d)
+                continue;
+            weight_allocators.erase(weight_allocators.begin() + i);
+            break;
+        }
+    }
 
     delete d;
 }
@@ -1815,6 +1844,7 @@ void VkWeightStore::clear()
 
 void VkWeightAllocator::clear()
 {
+    update_weight_generation(d);
     d->store.clear();
 
     //     NCNN_LOGE("VkWeightAllocator %lu %lu", d->buffer_blocks.size(), d->dedicated_buffer_blocks.size());
@@ -1983,6 +2013,24 @@ int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_b
     if (store.unified || !store.max_external_size)
         host_size = 0;
     return 1;
+}
+
+int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generation)
+{
+    MutexLockGuard lock(weight_allocators_lock);
+    generation = 0;
+    for (size_t i = 0; i < weight_allocators.size(); i++)
+    {
+        const VkWeightAllocatorPrivate* p = weight_allocators[i];
+        if (p->allocator != allocator)
+            continue;
+        generation = p->generation;
+        const VkWeightStore& store = p->store;
+        if (store.finalization_error || ((store.prefer_host_disk || !store.weights.empty()) && !store.finalized))
+            return -1;
+        return 1;
+    }
+    return 0;
 }
 
 #if NCNN_BENCHMARK
@@ -2294,7 +2342,20 @@ int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_ca
         ret = upload_weight_buffers(vkdev, uploads, d->store.weight_budgets[1]);
     }
     if (!ret)
+    {
+        // Every Extractor shares these model-owned buffers. Finish their state
+        // once, after all uploads, so inference only reads their metadata too.
+        for (size_t i = 0; i < d->store.weights.size(); i++)
+        {
+            VkBufferMemory* memory = const_cast<VkBufferMemory*>(d->store.weights[i].memory);
+            if (memory && memory->storage_type == 0)
+            {
+                memory->access_flags = VK_ACCESS_SHADER_READ_BIT;
+                memory->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            }
+        }
         d->store.finalized = true;
+    }
     d->store.finalization_error = ret;
     return ret;
 }
@@ -2371,6 +2432,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         d->store.group_size = aligned_size > (size_t)-1 - d->store.group_size ? (size_t)-1 : d->store.group_size + aligned_size;
         d->store.max_group_size = std::max(d->store.max_group_size, d->store.group_size);
     }
+    update_weight_generation(d);
     return ptr;
 }
 
@@ -2698,6 +2760,7 @@ VkBufferMemory* VkWeightAllocatorPrivate::fastMalloc_resident(VkWeightAllocator*
 
 void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 {
+    update_weight_generation(d);
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
     if (ptr->storage_type == 2 || !d->store.resident_blocks.empty())

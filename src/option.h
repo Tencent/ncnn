@@ -163,7 +163,7 @@ public:
     bool use_weights_in_host_disk;
 
 #if NCNN_VULKAN
-    // per-extractor weight working set allocators
+    // per-command weight working set allocators
     VkAllocator* weight_host_vkallocator;
     VkAllocator* weight_device_vkallocator;
 
