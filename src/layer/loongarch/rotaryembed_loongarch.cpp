@@ -23,6 +23,25 @@ RotaryEmbed_loongarch::RotaryEmbed_loongarch()
 
 int RotaryEmbed_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    /* The fused layout (input_hc_swapped) is produced by the exporter together
+     * with dropping a Permute in front of this layer. The overrides below still
+     * assume h is the sequence and c the heads, so hand the fused case to the
+     * generic implementation instead of mis-indexing the one-row caches. */
+    if (input_hc_swapped)
+    {
+        /* 16-bit fused input goes through the generic implementation's fp32
+         * conversion path, which decides fp16-vs-bf16 from the storage flags.
+         * Set them to the format THIS backend would have selected for the same
+         * input, so fused 16-bit models decode the bits they actually contain. */
+        Option opt2 = opt;
+        if (bottom_blobs[0].elembits() == 16)
+        {
+            opt2.use_fp16_storage = 0 ? 1 : 0;
+            opt2.use_bf16_storage = opt2.use_fp16_storage ? 0 : (opt.use_bf16_storage ? 1 : 0);
+        }
+        return RotaryEmbed::forward(bottom_blobs, top_blobs, opt2);
+    }
+
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
