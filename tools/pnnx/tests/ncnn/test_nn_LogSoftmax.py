@@ -21,12 +21,16 @@ class Model(nn.Module):
         w = w * 2 - 1
         q = q * 2 - 1
         q = F.max_pool2d(q, 1)
+        x_wide = self.act_0(x * 64)
+        y_wide = self.act_1(y * 64)
+        z_wide = self.act_2(z * 64)
+        q_wide = self.act_3(q * 64)
         x = self.act_0(x)
         y = self.act_1(y)
         z = self.act_2(z)
         # w = self.act_3(w) TODO
         q = self.act_1(q)
-        return x, y, z, w, q
+        return x, y, z, w, q, x_wide, y_wide, z_wide, q_wide
 
 def test():
     net = Model()
