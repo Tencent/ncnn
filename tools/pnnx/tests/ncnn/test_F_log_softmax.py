@@ -16,13 +16,17 @@ class Model(nn.Module):
         w = w * 2 - 1
         q = q * 2 - 1
         q = F.max_pool2d(q, 1)
+        x_wide = F.log_softmax(x * 64, 0)
+        y_wide = F.log_softmax(y * 64, 1)
+        z_wide = F.log_softmax(z * 64, 2)
+        q_wide = F.log_softmax(q * 64, -1)
         x = F.log_softmax(x, 0)
         y = F.log_softmax(y, 1)
         z = F.log_softmax(z, 2)
         # w = F.log_softmax(w, -1) TODO
         q0 = F.log_softmax(q, 1)
         q1 = F.log_softmax(q, -1)
-        return x, y, z, w, q0, q1
+        return x, y, z, w, q0, q1, x_wide, y_wide, z_wide, q_wide
 
 def test():
     net = Model()
