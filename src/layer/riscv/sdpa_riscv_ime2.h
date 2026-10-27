@@ -202,7 +202,8 @@ static int ime2_hw_supported()
     }
     if (cpu < 0)
     {
-        cached = 0;
+        /* Affinity context, not a hardware verdict: the caller may re-bind to
+         * the A100 cluster later. Do not cache; re-check next time. */
         return 0;
     }
 
@@ -216,7 +217,7 @@ static int ime2_hw_supported()
     int fds[2];
     if (pipe2(fds, O_CLOEXEC) != 0)
     {
-        cached = 0;
+        /* Operational failure (transient EMFILE/ENFILE): do not cache. */
         return 0;
     }
     pid_t pid = fork();
@@ -224,8 +225,7 @@ static int ime2_hw_supported()
     {
         close(fds[0]);
         close(fds[1]);
-        cached = 0;
-        return 0;
+        return 0; /* transient: leave the probe retryable */
     }
     if (pid == 0)
     {
@@ -250,7 +250,12 @@ static int ime2_hw_supported()
         sigset_t m;
         sigemptyset(&m);
         sigaddset(&m, SIGILL);
-        sigprocmask(SIG_UNBLOCK, &m, NULL);
+        if (sigprocmask(SIG_UNBLOCK, &m, NULL) != 0)
+        {
+            /* Same reasoning as the sigaction check: exit without writing so the
+             * parent judges unsupported. */
+            _exit(1);
+        }
         cpu_set_t one;
         CPU_ZERO(&one);
         CPU_SET(cpu, &one);
