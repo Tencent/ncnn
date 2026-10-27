@@ -665,11 +665,11 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h == 1
 #if __riscv_vector
                 /* Multi-chunk heads cannot match the fallback accumulation order:
-                                                                                                                                         * the composed GEMM accumulates k sequentially per key (the
-                                                                                                                                         * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
-                                                                                                                                         * chunk reduction reorders the dot product for extreme values
-                                                                                                                                         * (both directions of the divergence were demonstrated in review).
-                                                                                                                                         * Gate the RVV decode path to heads that fit one e32m8 vector. */
+                                                                                                                                                 * the composed GEMM accumulates k sequentially per key (the
+                                                                                                                                                 * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
+                                                                                                                                                 * chunk reduction reorders the dot product for extreme values
+                                                                                                                                                 * (both directions of the divergence were demonstrated in review).
+                                                                                                                                                 * Gate the RVV decode path to heads that fit one e32m8 vector. */
                 && q0.w <= (int)__riscv_vsetvlmax_e32m8()
 #endif
            )
