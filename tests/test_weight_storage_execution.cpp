@@ -291,7 +291,7 @@ static int test_weight_storage_load_failure()
     return 0;
 }
 
-static int test_weight_storage_internal_command_reload()
+static int test_weight_storage_extractor_reload()
 {
     ncnn::Net net;
     net.set_vulkan_device(ncnn::get_default_gpu_index());
@@ -310,14 +310,14 @@ static int test_weight_storage_internal_command_reload()
     ncnn::DataReaderFromMemory first_reader(ptr);
     if (net.load_param_mem(params[0]) || net.load_model(first_reader))
     {
-        fprintf(stderr, "test_weight_storage_internal_command_reload failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
     ncnn::Extractor old = net.create_extractor();
     ncnn::Mat output;
     if (old.extract("b2", output) || old.input("b2", ncnn::Mat()) || old.input("b2", ncnn::VkMat()))
     {
-        fprintf(stderr, "test_weight_storage_internal_command_reload failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
     output.release();
@@ -326,30 +326,115 @@ static int test_weight_storage_internal_command_reload()
     ncnn::DataReaderFromMemory second_reader(ptr);
     if (net.load_param_mem(params[1]) || net.load_model(second_reader))
     {
-        fprintf(stderr, "test_weight_storage_internal_command_reload failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
-    // Reclaiming the old lease must not restore its smaller residency headroom.
+    // Clearing an old Extractor destroys only its own command, not the new model's cache configuration.
     old.clear();
     ncnn::Extractor current = net.create_extractor();
     if (current.extract("b2", output) || output.total() != 1536)
     {
-        fprintf(stderr, "test_weight_storage_internal_command_reload failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
     for (int i = 0; i < 1536; i++)
         if (output[i] != 1.f)
         {
-            fprintf(stderr, "test_weight_storage_internal_command_reload failed at line %d\n", __LINE__);
+            fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
             return -1;
         }
     return 0;
 }
 
-static int test_weight_storage_net_cache_limit()
+// Discard cached results so every round records and submits work on the Extractor's command.
+static int run_weight_storage_extractor(ncnn::Extractor& ex, const ncnn::Mat& input)
+{
+    if (ex.input("b0", ncnn::Mat()) || ex.input("b0", ncnn::VkMat())
+            || ex.input("b1", ncnn::Mat()) || ex.input("b1", ncnn::VkMat()))
+        return -1;
+    ncnn::Mat output;
+    if (ex.input("b0", input) || ex.extract("b1", output) || CompareMat(input, output, 0.0001f))
+        return -1;
+    return 0;
+}
+
+static int test_weight_storage_extractor_commands()
 {
     ncnn::Option opt = weight_storage_option();
     opt.use_weights_in_disk = true;
+    ncnn::Net net;
+    if (load_weight_storage_net(net, opt, 1.f, 1))
+        return -1;
+
+    // Keep activation allocators alive independently of the copied Extractors.
+    const ncnn::VulkanDevice* vkdev = net.vulkan_device();
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    ncnn::Extractor original = net.create_extractor();
+    configure_weight_storage_extractor(original, opt);
+    if (run_weight_storage_extractor(original, RandomMat(16, 8)))
+        return -1;
+    ncnn::Extractor copied(original);
+    original.clear();
+    for (int round = 0; round < 3; round++)
+    {
+        if (run_weight_storage_extractor(copied, RandomMat(16, 8)))
+        {
+            fprintf(stderr, "test_weight_storage_extractor_commands copy/reuse failed round=%d\n", round);
+            return -1;
+        }
+    }
+
+    ncnn::Extractor assigned = net.create_extractor();
+    configure_weight_storage_extractor(assigned, opt);
+    if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))
+        return -1;
+    // Assignment must release the destination's old command without sharing the source's.
+    assigned = copied;
+    copied.clear();
+    if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))
+    {
+        fprintf(stderr, "test_weight_storage_extractor_commands assignment failed\n");
+        return -1;
+    }
+    ncnn::Extractor& same = assigned;
+    assigned = same;
+    if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))
+        return -1;
+    assigned.clear();
+    assigned.clear();
+    assigned = net.create_extractor();
+    configure_weight_storage_extractor(assigned, opt);
+    if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))
+    {
+        fprintf(stderr, "test_weight_storage_extractor_commands clear/reassign failed\n");
+        return -1;
+    }
+    return 0;
+}
+
+static int test_weight_storage_net_cache_limit(bool host)
+{
+    if (host)
+    {
+        // Probe the same allocator policy as Net instead of assuming every GPU
+        // exposes non-device-local host memory (unified allocations need no cache).
+        const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
+        ncnn::VkWeightAllocator weights(vkdev, true);
+        ncnn::VkMat weight(256, (size_t)4u, &weights);
+        if (weight.empty())
+            return -1;
+        if (weight.data->storage_type == 0 || weight.data->source_size == 0)
+        {
+            fprintf(stderr, "test_weight_storage_net_cache_limit host skipped: host weights are device-local\n");
+            return 0;
+        }
+    }
+    ncnn::Option opt = weight_storage_option();
+    opt.use_weights_in_disk = !host;
+    opt.use_weights_in_host_memory = host;
     opt.weight_device_cache_size = 256;
     opt.weight_host_cache_size = 256;
     ncnn::Net net;
@@ -359,7 +444,7 @@ static int test_weight_storage_net_cache_limit()
     ncnn::Mat output;
     if (ex.input("b0", RandomMat(16, 8)) != 0 || ex.extract("b1", output) == 0)
     {
-        fprintf(stderr, "test_weight_storage_net_cache_limit ignored explicit cache size\n");
+        fprintf(stderr, "test_weight_storage_net_cache_limit ignored explicit cache size host=%d\n", host);
         return -1;
     }
     return 0;
@@ -372,10 +457,12 @@ int main()
         return 0;
 
     return 0
-           || test_weight_storage_net_cache_limit()
+           || test_weight_storage_net_cache_limit(false)
+           || test_weight_storage_net_cache_limit(true)
+           || test_weight_storage_extractor_commands()
            || test_weight_storage_networks()
            || test_weight_storage_model_chains()
            || test_weight_storage_model_reload()
            || test_weight_storage_load_failure()
-           || test_weight_storage_internal_command_reload();
+           || test_weight_storage_extractor_reload();
 }

@@ -100,13 +100,6 @@ public:
     VkWeightAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
-    mutable Mutex weight_command_lock;
-    mutable std::vector<VkCompute*> weight_commands;
-    uint64_t weight_command_generation;
-    VkCompute* acquire_weight_command(const Option& opt, uint64_t& generation) const;
-    void reclaim_weight_command(VkCompute* command, uint64_t generation) const;
-    void clear_weight_commands();
-
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 };
@@ -119,67 +112,11 @@ NetPrivate::NetPrivate(Option& _opt)
 
 #if NCNN_VULKAN
     vkdev = 0;
-    weight_command_generation = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
     pipeline_cache = 0;
 #endif // NCNN_VULKAN
 }
-
-#if NCNN_VULKAN
-VkCompute* NetPrivate::acquire_weight_command(const Option& opt, uint64_t& generation) const
-{
-    {
-        MutexLockGuard lock(weight_command_lock);
-        generation = weight_command_generation;
-        if (!weight_commands.empty())
-        {
-            VkCompute* command = weight_commands.back();
-            weight_commands.pop_back();
-            return command;
-        }
-    }
-
-    Option command_opt = opt;
-    bool needed;
-    get_weight_cache_limits(weight_vkallocator, command_opt.weight_device_memory_limit, command_opt.weight_host_memory_limit,
-                            command_opt.weight_device_cache_size, command_opt.weight_host_cache_size, needed);
-    VkCompute* command = new VkCompute(vkdev, command_opt);
-#if NCNN_BENCHMARK
-    command->create_query_pool(layers.size() * 2);
-#endif // NCNN_BENCHMARK
-    return command;
-}
-
-void NetPrivate::reclaim_weight_command(VkCompute* command, uint64_t generation) const
-{
-    int ret = command->reset();
-    if (ret != 0)
-    {
-        delete command;
-        return;
-    }
-
-    {
-        MutexLockGuard lock(weight_command_lock);
-        if (generation == weight_command_generation && weight_commands.size() < 2)
-        {
-            weight_commands.push_back(command);
-            return;
-        }
-    }
-    delete command;
-}
-
-void NetPrivate::clear_weight_commands()
-{
-    MutexLockGuard lock(weight_command_lock);
-    weight_command_generation++;
-    for (size_t i = 0; i < weight_commands.size(); i++)
-        delete weight_commands[i];
-    weight_commands.clear();
-}
-#endif // NCNN_VULKAN
 
 static Option get_masked_option(const Option& opt, int featmask)
 {
@@ -2901,9 +2838,6 @@ void NetPrivate::clear_layers()
 
 void Net::clear()
 {
-#if NCNN_VULKAN
-    d->clear_weight_commands();
-#endif
     for (size_t i = 0; i < d->layers.size(); i++)
     {
         Layer* layer = d->layers[i];
@@ -3155,7 +3089,6 @@ public:
     {
 #if NCNN_VULKAN
         weight_command = 0;
-        weight_command_generation = 0;
         local_blob_vkallocator = 0;
         local_staging_vkallocator = 0;
 #endif
@@ -3166,7 +3099,6 @@ public:
 
 #if NCNN_VULKAN
     VkCompute* weight_command;
-    uint64_t weight_command_generation;
     VkAllocator* local_blob_vkallocator;
     VkAllocator* local_staging_vkallocator;
 
@@ -3277,7 +3209,7 @@ void Extractor::clear()
 #if NCNN_VULKAN
     if (d->weight_command)
     {
-        d->net->d->reclaim_weight_command(d->weight_command, d->weight_command_generation);
+        delete d->weight_command;
         d->weight_command = 0;
     }
 
@@ -3471,11 +3403,26 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 if (needed)
                 {
                     if (!d->weight_command)
-                        d->weight_command = d->net->d->acquire_weight_command(d->opt, d->weight_command_generation);
+                    {
+                        Option command_opt = d->opt;
+                        command_opt.weight_device_memory_limit = device_memory_limit;
+                        command_opt.weight_host_memory_limit = host_memory_limit;
+                        command_opt.weight_device_cache_size = device_size;
+                        command_opt.weight_host_cache_size = host_size;
+                        d->weight_command = new VkCompute(d->net->vulkan_device(), command_opt);
+#if NCNN_BENCHMARK
+                        d->weight_command->create_query_pool(d->net->layers().size() * 2);
+#endif // NCNN_BENCHMARK
+                    }
                     ret = d->extract_vulkan(*this, blob_index, *d->weight_command);
                     int reset_ret = d->weight_command->reset();
                     if (ret == 0)
                         ret = reset_ret;
+                    if (reset_ret != 0)
+                    {
+                        delete d->weight_command;
+                        d->weight_command = 0;
+                    }
                 }
                 else
                 {

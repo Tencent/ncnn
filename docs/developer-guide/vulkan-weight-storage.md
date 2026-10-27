@@ -44,7 +44,10 @@ int inference(const ncnn::Mat& input, ncnn::Mat& output)
 ```
 
 The input and output names depend on the model. Keep the Net loaded when running
-inference repeatedly; each call can create a new Extractor.
+inference repeatedly. Each Extractor owns its internal command and weight cache;
+reuse the Extractor to retain that cache. Clearing or destroying the Extractor
+releases it. Net retains model weights and finalized storage settings, not idle
+execution caches.
 
 ## memory settings
 
@@ -141,8 +144,9 @@ automatically and checks recording errors after each layer upload.
   device. Leave room for activations, KV caches and the rest of the application.
 - Use a writable application cache directory on a disk filesystem. A temporary
   directory backed by tmpfs still consumes memory.
-- Reuse the Net and, for external command recording, reuse the command with
-  `reset()` between submissions.
+- Reuse the Net and Extractor to retain model storage and the internal weight
+  cache. For external command recording, reuse the command with `reset()` between
+  submissions.
 - Measure on the target device. File speed, host bandwidth and Vulkan queue
   support affect the benefit of disk weights.
 
@@ -155,9 +159,10 @@ read, bytes uploaded and elapsed time.
 ## limitations
 
 Memory limits cover Vulkan weight allocations, including allocation alignment.
-They are not a process or device-wide quota. Concurrent commands and cached idle
-commands each retain their own cache. Activations, KV caches, CPU model
-preparation, OS file cache and driver allocations are outside these limits.
+They are not a process or device-wide quota. Concurrent commands and live
+Extractors with internal commands each retain their own cache. Activations, KV
+caches, CPU model preparation, OS file cache and driver allocations are outside
+these limits.
 
 Disk storage currently supports buffer weights. Weight images are unsupported
 with explicit resident memory limits. The largest simultaneous set of weight

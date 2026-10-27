@@ -2548,6 +2548,14 @@ int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_ca
     if (d->finalized)
         return 0;
 
+    // Host weights also use the command cache without disk residency planning.
+    d->automatic_cache_sizes[0] = device_cache_size == 0;
+    d->automatic_cache_sizes[1] = host_cache_size == 0;
+    d->cache_sizes[0] = device_cache_size;
+    d->cache_sizes[1] = host_cache_size;
+    if (d->unified)
+        d->cache_sizes[1] = 0;
+
     if (!d->use_weights_in_disk && d->weights.empty() && !d->memory_limits[0] && !d->memory_limits[1])
         return 0;
 
@@ -2567,13 +2575,6 @@ int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_ca
         d->finalization_error = -1;
         return -1;
     }
-
-    d->automatic_cache_sizes[0] = device_cache_size == 0;
-    d->automatic_cache_sizes[1] = host_cache_size == 0;
-    d->cache_sizes[0] = device_cache_size;
-    d->cache_sizes[1] = host_cache_size;
-    if (d->unified)
-        d->cache_sizes[1] = 0;
 
     int ret = d->prepare_residency();
     if (ret != 0)
