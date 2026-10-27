@@ -1153,6 +1153,24 @@ static void ime2_row_add(float* a, const float* b, int n)
  * may be 0 (must be passed when non-causal).
  * Out: [L, Ev] fp32 with row stride ldo. Returns 0 on success; -1 means Ev exceeds the
  * on-stack budget (caller takes the old path). */
+/* Row r of a packed P block summed back to fp32: tile (i,j) at i*ldt + j*64,
+ * element (r,c) at t[(r%8)*8 + (c%8)]; padded columns hold zeros. The
+ * normalization must use THESE values (what PV actually accumulates), not the
+ * fp32 originals -- the fp16 pack rounds the numerator, so dividing by the
+ * fp32 sum no longer preserves constant rows. */
+static float ime2_packed_row_sum_fp16(const ime2_fp16* PT, size_t ldt, int r, int kt)
+{
+    const int i = r / 8, rr = r % 8;
+    float sum = 0.f;
+    for (int j = 0; j < kt; j++)
+    {
+        const ime2_fp16* t = PT + (size_t)i * ldt + (size_t)j * 64;
+        for (int c = 0; c < 8; c++)
+            sum += (float)t[rr * 8 + c];
+    }
+    return sum;
+}
+
 static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const ime2_fp16* VT,
                                  const float* mask, size_t ldm, float* Out, size_t ldo,
                                  int L, int dst, int E, int Ev, int past, int causal, float scale,
@@ -1173,7 +1191,7 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
 
     float S[IME2_FLASH_BM * IME2_FLASH_BN];
     float acc[IME2_FLASH_BM * IME2_FLASH_MAXEV];
-    float mi[IME2_FLASH_BM], li[IME2_FLASH_BM];
+    float mi[IME2_FLASH_BM], alphas[IME2_FLASH_BM], li[IME2_FLASH_BM];
 
     for (int m0 = 0; m0 < L; m0 += IME2_FLASH_BM)
     {
@@ -1216,9 +1234,9 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
                 const float bmax = ime2_row_max(s, cols);
                 const float mx = mi[r] > bmax ? mi[r] : bmax;
                 const float alpha = expf(mi[r] - mx); /* first block mi=-FLT_MAX → alpha=0 */
+                alphas[r] = alpha;
                 ime2_row_scale(acc + r * Ev, Ev, alpha);
                 ime2_row_exp(s, cols, mx);
-                li[r] = li[r] * alpha + ime2_row_sum(s, cols);
                 mi[r] = mx;
             }
 
@@ -1236,9 +1254,6 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
              * layer). li < FLT_MAX/32768 is required for the final scaling to
              * stay finite; normal rows (P <= 1, cols small) never approach it. */
             for (int r = 0; r < rows; r++)
-                if (!(li[r] * 32768.f < 3.4028234663852886e+38f))
-                    return -1;
-            for (int r = 0; r < rows; r++)
                 ime2_row_scale(S + r * BN, cols, 32768.f);
             if (ime2_pack_fp32(S, BN, PT, rows, cols, alloc) != 0)
                 return -100;
@@ -1248,12 +1263,25 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
             ime2_gemm_fp32out_p((const ime2_fp16*)PT, VT + (size_t)(n0 / 8) * 64,
                                 acc, Ev, rows, Ev, ktP * 8, 1.f, 1,
                                 (size_t)ktP * 64, (size_t)ktD * 64);
+
+            /* li accumulates the PACKED (fp16-rounded, pre-scaled) weights read
+             * back to fp32 -- exactly what PV accumulated -- so normalization by
+             * li preserves constant rows. A clamped NaN score packs to inf here;
+             * the row then bails to the old path. */
+            for (int r = 0; r < rows; r++)
+            {
+                const float pli = ime2_packed_row_sum_fp16((const ime2_fp16*)PT, (size_t)ktP * 64, r, ktP);
+                li[r] = li[r] * alphas[r] + pli;
+                if (!(li[r] < 3.4028234663852886e+38f))
+                    return -1;
+            }
         }
 
         /* Normalize only after the scan completes (one multiply); li·32768 compensates the pre-packing scale-up of P */
         for (int r = 0; r < rows; r++)
         {
-            const float inv = 1.f / (li[r] * 32768.f);
+            /* li is already in packed (2^15-scaled) units */
+            const float inv = 1.f / li[r];
             ime2_row_scale(acc + r * Ev, Ev, inv);
             const float* arow = acc + r * Ev;
             float* o = Out + (size_t)(m0 + r) * ldo;
