@@ -140,6 +140,8 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             command_list.append("ncnnbin=" + ncnnbin)
         if not (ncnnpy is None):
             command_list.append("ncnnpy=" + ncnnpy)
+        if not (fp16 is True):
+            command_list.append("fp16=0")
         current_dir = os.getcwd()
         subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
 
