@@ -1,11 +1,9 @@
 // Copyright 2018 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// file mappings must use 64-bit offsets on 32-bit posix builds too
-#ifndef _WIN32
-#ifndef _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 64
-#endif
+// Use explicit large-file calls without redirecting unrelated POSIX APIs.
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
 #endif
 
 #include "allocator.h"
@@ -22,6 +20,7 @@
 #if NCNN_STDIO
 #include <errno.h>
 #if _WIN32
+#include <fcntl.h>
 #include <io.h>
 #endif
 #endif // NCNN_STDIO
@@ -424,9 +423,9 @@ int VkAllocator::invalidate(VkBufferMemory* ptr)
     VkMappedMemoryRange mappedMemoryRange;
     mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
     mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size());
     mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
-    mappedMemoryRange.memory = ptr->memory;
 
     VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
@@ -491,8 +490,8 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
-    memoryDedicatedAllocateInfo.buffer = buffer;
     memoryDedicatedAllocateInfo.image = image;
+    memoryDedicatedAllocateInfo.buffer = buffer;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
     VkDeviceMemory memory = 0;
@@ -738,10 +737,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
-            ptr->storage_type = 0;
-            if (!vkdev->is_device_local(ptr->memory_type_index))
-                ptr->storage_type = 1;
-            ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -822,10 +818,6 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory_type_index = buffer_memory_type_index;
-    block->storage_type = 0;
-    if (!vkdev->is_device_local(block->memory_type_index))
-        block->storage_type = 1;
-    block->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     d->buffer_blocks.push_back(block);
 
@@ -838,10 +830,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->memory_type_index = block->memory_type_index;
-    ptr->storage_type = 0;
-    if (!vkdev->is_device_local(ptr->memory_type_index))
-        ptr->storage_type = 1;
-    ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -1526,7 +1515,7 @@ int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer,
     return 0;
 }
 
-#if NCNN_STDIO && (defined(_WIN32) || defined(__ANDROID__) || defined(__OHOS__) || defined(__linux__) || __APPLE__)
+#if NCNN_STDIO && (!defined(__ANDROID__) || __ANDROID_API__ >= 21) && (defined(_WIN32) || defined(__ANDROID__) || defined(__OHOS__) || defined(__linux__) || __APPLE__)
 class WeightFile
 {
 public:
@@ -1637,11 +1626,16 @@ int WeightFile::open()
     const char* temporary_directory = directory.c_str();
     if (directory.empty())
         temporary_directory = getenv("TMPDIR");
-    if (temporary_directory && temporary_directory[0])
+    if (!temporary_directory || !temporary_directory[0])
+        temporary_directory = "/tmp";
     {
         std::string path = temporary_directory;
         path += "/ncnn-weights-XXXXXX";
+#if defined(__linux__) && (!defined(__ANDROID__) || __ANDROID_API__ >= 23)
+        const int fd = mkostemp(&path[0], O_CLOEXEC);
+#else
         const int fd = mkstemp(&path[0]);
+#endif
         if (fd >= 0)
         {
             // unlink immediately so interruption cannot leave weight files behind
@@ -1650,10 +1644,6 @@ int WeightFile::open()
             if (!file)
                 close(fd);
         }
-    }
-    else
-    {
-        file = tmpfile();
     }
 #endif
     if (!file)
@@ -1727,8 +1717,6 @@ int WeightFile::reserve(size_t size, size_t alignment, void*& data)
     if (page_size <= 0)
         return -1;
     const size_t granularity = (size_t)page_size;
-    if (sizeof(off_t) < 8 && end > INT32_MAX)
-        return -1;
     // Extending a sparse file alone does not reserve space for mapped writes.
     int ret;
 #if defined(__APPLE__)
@@ -1755,7 +1743,7 @@ int WeightFile::reserve(size_t size, size_t alignment, void*& data)
 #else
     do
     {
-        ret = posix_fallocate(fileno(file), (off_t)file_size, (off_t)(end - file_size));
+        ret = posix_fallocate64(fileno(file), (off64_t)file_size, (off64_t)(end - file_size));
     } while (ret == EINTR);
 #endif
     if (ret != 0)
@@ -1794,7 +1782,11 @@ int WeightFile::reserve(size_t size, size_t alignment, void*& data)
         return error;
     }
 #else
+#if defined(__APPLE__)
     m.base = mmap(0, m.mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off_t)map_offset);
+#else
+    m.base = mmap64(0, m.mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off64_t)map_offset);
+#endif
     if (m.base == MAP_FAILED)
     {
         NCNN_LOGE("map weight file failed %d", errno);
@@ -1898,6 +1890,7 @@ struct weight_record
 struct VkWeightBufferMemory : public VkBufferMemory
 {
     uint64_t clear_generation;
+    size_t record_index;
 };
 
 class VkWeightAllocatorPrivate
@@ -1907,6 +1900,7 @@ public:
     void clear_weights();
     int prepare_residency();
     int allocate_residents(int storage_type);
+    void publish_residents(int storage_type);
     int weight_layout_size(const std::vector<uint32_t>& ids, uint64_t& total, bool concurrent) const;
     int place_resident_weights(const std::vector<uint32_t>& ids, int storage_type, size_t memory_limit);
     int plan_weights();
@@ -1931,15 +1925,14 @@ public:
     WeightFile file;
     std::vector<weight_record> weights;
     size_t deferred_weight_count;
-    size_t max_source_size;
     size_t max_file_size;
-    size_t group_size;
-    size_t max_group_size;
     bool unified;
     bool finalized;
+    bool residents_ready;
     int finalization_error;
     size_t memory_limits[2];
     size_t cache_sizes[2];
+    bool automatic_cache_sizes[2];
     size_t resident_sizes[2];
     uint32_t weight_group;
     std::vector<VkBufferMemory*> resident_blocks;
@@ -1964,18 +1957,17 @@ VkWeightAllocatorPrivate::VkWeightAllocatorPrivate(const VulkanDevice* _vkdev)
 {
     use_weights_in_disk = false;
     deferred_weight_count = 0;
-    max_source_size = 0;
     max_file_size = 0;
-    group_size = 0;
-    max_group_size = 0;
     unified = unified_weight_memory(vkdev);
     finalized = false;
+    residents_ready = true;
     finalization_error = 0;
     weight_group = 0;
     for (int i = 0; i < 2; i++)
     {
         memory_limits[i] = 0;
         cache_sizes[i] = 0;
+        automatic_cache_sizes[i] = true;
         resident_sizes[i] = 0;
     }
 }
@@ -2050,11 +2042,9 @@ void VkWeightAllocatorPrivate::clear_weights()
 {
     file.clear();
     deferred_weight_count = 0;
-    max_source_size = 0;
     max_file_size = 0;
-    group_size = 0;
-    max_group_size = 0;
     finalized = false;
+    residents_ready = true;
     finalization_error = 0;
     weights.clear();
     weight_group = 0;
@@ -2170,9 +2160,16 @@ void VkWeightAllocator::set_weight_file_directory(const wchar_t* path)
     }
     int length = WideCharToMultiByte(CP_UTF8, 0, path, -1, 0, 0, 0, 0);
     if (length == 0)
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
         return;
+    }
     std::vector<char> utf8(length);
-    WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0);
+    if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0))
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
+        return;
+    }
     d->file.set_directory(utf8.data());
 }
 #endif
@@ -2193,37 +2190,25 @@ void begin_weight_upload(VkWeightAllocator* allocator)
 {
     VkWeightAllocatorPrivate* d = allocator->d;
     d->weight_group++;
-    d->group_size = 0;
 }
 
-int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size)
+int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size, bool& needed)
 {
     const VkWeightAllocatorPrivate* d = allocator->d;
     device_memory_limit = host_memory_limit = device_size = host_size = 0;
-    if (d->finalization_error || ((d->use_weights_in_disk || !d->weights.empty()) && !d->finalized))
+    needed = false;
+    if (d->finalization_error || !d->residents_ready || ((d->use_weights_in_disk || !d->weights.empty()) && !d->finalized))
         return -1;
-    if (!d->deferred_weight_count)
+    needed = d->deferred_weight_count != 0;
+    if (!needed)
         return 0;
-    const size_t alignment = weight_buffer_alignment(allocator->vkdev);
-    const size_t source_size = alignSize(d->max_source_size, alignment);
-    const size_t file_size = alignSize(d->max_file_size, alignment);
     device_memory_limit = d->memory_limits[0] - d->resident_sizes[0];
     host_memory_limit = d->memory_limits[1] - d->resident_sizes[1];
-    device_size = d->cache_sizes[0];
-    host_size = d->cache_sizes[1];
-    if (!d->memory_limits[0])
-    {
-        device_size = source_size;
-        if (source_size <= (size_t)-1 / 2)
-            device_size *= 2;
-        if (d->weight_group)
-            device_size = std::max(device_size, d->max_group_size);
-        host_size = file_size;
-        if (file_size <= (size_t)-1 / 2)
-            host_size *= 2;
-    }
-    if (d->unified || !d->max_file_size)
-        host_size = 0;
+    // Preserve zero as automatic: the command validates its recorded dependencies.
+    if (!d->automatic_cache_sizes[0])
+        device_size = d->cache_sizes[0];
+    if (!d->automatic_cache_sizes[1] && !d->unified && d->max_file_size)
+        host_size = d->cache_sizes[1];
     return 0;
 }
 
@@ -2237,7 +2222,7 @@ int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generat
         if (p->allocator != allocator)
             continue;
         generation = p->source_generation;
-        if (p->finalization_error || ((p->use_weights_in_disk || !p->weights.empty()) && !p->finalized))
+        if (p->finalization_error || !p->residents_ready || ((p->use_weights_in_disk || !p->weights.empty()) && !p->finalized))
             return -1;
         return 0;
     }
@@ -2314,6 +2299,7 @@ int VkWeightAllocatorPrivate::place_resident_weights(const std::vector<uint32_t>
             resident_sizes[storage_type] += allocation_size;
             block = (int)resident_blocks.size();
             resident_blocks.push_back(buffer);
+            residents_ready = false;
             offset = 0;
         }
         weights[id].resident_block = block;
@@ -2349,7 +2335,10 @@ int VkWeightAllocatorPrivate::plan_weights()
             NCNN_LOGE("weight group size overflow");
             return -1;
         }
-        group += size;
+        if (record.group)
+            group += size;
+        else
+            group = std::max(group, size);
         max_group_size = std::max(max_group_size, group);
         sizes.push_back(std::make_pair(record.data_size, (uint32_t)i));
     }
@@ -2403,7 +2392,10 @@ int VkWeightAllocatorPrivate::plan_weights()
             NCNN_LOGE("weight group size overflow");
             return -1;
         }
-        group += size;
+        if (weights[ids[i]].group)
+            group += size;
+        else
+            group = std::max(group, size);
         max_group_size = std::max(max_group_size, group);
     }
     if (remaining.empty())
@@ -2506,10 +2498,15 @@ int VkWeightAllocatorPrivate::allocate_residents(int storage_type)
         if (ret != 0)
             return ret;
     }
+    return 0;
+}
+
+void VkWeightAllocatorPrivate::publish_residents(int storage_type)
+{
     for (size_t i = 0; i < weights.size(); i++)
     {
         const int block = weights[i].resident_block;
-        if (block < 0)
+        if (block < 0 || !weights[i].memory)
             continue;
         const VkBufferMemory* buffer = resident_blocks[block];
         if (buffer->storage_type != storage_type)
@@ -2542,15 +2539,14 @@ int VkWeightAllocatorPrivate::allocate_residents(int storage_type)
             memory->source_size = record.data_size;
         }
     }
-    return 0;
 }
 
 int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_cache_size)
 {
-    if (d->finalized)
-        return 0;
     if (d->finalization_error != 0)
         return d->finalization_error;
+    if (d->finalized)
+        return 0;
 
     if (!d->use_weights_in_disk && d->weights.empty() && !d->memory_limits[0] && !d->memory_limits[1])
         return 0;
@@ -2572,6 +2568,8 @@ int VkWeightAllocator::finalize_weights(size_t device_cache_size, size_t host_ca
         return -1;
     }
 
+    d->automatic_cache_sizes[0] = device_cache_size == 0;
+    d->automatic_cache_sizes[1] = host_cache_size == 0;
     d->cache_sizes[0] = device_cache_size;
     d->cache_sizes[1] = host_cache_size;
     if (d->unified)
@@ -2591,6 +2589,10 @@ int get_weight_uploads(VkWeightAllocator* allocator, int storage_type, std::vect
 {
     VkWeightAllocatorPrivate* d = allocator->d;
     if (d->resident_blocks.empty())
+        return d->finalization_error;
+    if (d->finalization_error || !d->finalized)
+        return -1;
+    if (d->residents_ready)
         return 0;
 
     int ret = d->allocate_residents(storage_type);
@@ -2600,14 +2602,33 @@ int get_weight_uploads(VkWeightAllocator* allocator, int storage_type, std::vect
     for (size_t i = 0; i < d->weights.size(); i++)
     {
         const weight_record& record = d->weights[i];
-        if (!record.memory || record.memory->storage_type != storage_type)
+        if (!record.memory || record.resident_block < 0)
             continue;
-        VkBufferMemory buffer = *record.memory;
+        const VkBufferMemory& block = *d->resident_blocks[record.resident_block];
+        if (block.storage_type != storage_type)
+            continue;
+        VkBufferMemory buffer = block;
+        buffer.offset = record.resident_offset;
+        buffer.capacity = record.allocation_size;
         buffer.source_ptr = const_cast<void*>(record.src);
         buffer.source_size = record.data_size;
         uploads.push_back(buffer);
     }
     return 0;
+}
+
+void finish_weight_uploads(VkWeightAllocator* allocator, int storage_type, int error)
+{
+    VkWeightAllocatorPrivate* d = allocator->d;
+    if (error)
+    {
+        d->finalization_error = error;
+        return;
+    }
+    d->publish_residents(storage_type);
+    if (storage_type == 1)
+        d->residents_ready = true;
+    update_weight_generation(d);
 }
 
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
@@ -3017,17 +3038,10 @@ VkBufferMemory* VkWeightAllocatorPrivate::record_weight(VkBufferMemory* ptr, siz
         ptr->source_size = size;
     }
     if (ptr->storage_type != 0)
-    {
         deferred_weight_count++;
-        max_source_size = std::max(max_source_size, size);
-        const size_t aligned_size = alignSize(size, weight_buffer_alignment(vkdev));
-        if (aligned_size > (size_t)-1 - group_size)
-            group_size = (size_t)-1;
-        else
-            group_size += aligned_size;
-        max_group_size = std::max(max_group_size, group_size);
-    }
-    static_cast<VkWeightBufferMemory*>(ptr)->clear_generation = clear_generation;
+    VkWeightBufferMemory* memory = static_cast<VkWeightBufferMemory*>(ptr);
+    memory->clear_generation = clear_generation;
+    memory->record_index = ptr->storage_type == 2 ? weights.size() - 1 : (size_t) -1;
     update_weight_generation(this);
     return ptr;
 }
@@ -3043,15 +3057,11 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     update_weight_generation(d);
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
-    if (ptr->storage_type == 2 || !d->resident_blocks.empty())
+    if (memory->record_index != (size_t) -1)
     {
-        for (size_t i = 0; i < d->weights.size(); i++)
-        {
-            if (d->weights[i].memory != ptr)
-                continue;
-            d->weights[i].memory = 0;
-            break;
-        }
+        weight_record& record = d->weights[memory->record_index];
+        record.memory = 0;
+        record.resident_block = -1;
     }
     if (ptr->source_size && ptr->storage_type != 0)
         d->deferred_weight_count--;
@@ -3532,7 +3542,7 @@ void VkStagingAllocator::clear()
 
 VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
 {
-    // find free memory_limit
+    // find free budget
     std::list<VkBufferMemory*>::iterator it = d->buffer_budgets.begin();
     for (; it != d->buffer_budgets.end(); it++)
     {
@@ -3607,12 +3617,6 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     ptr->capacity = size;
 
     ptr->memory_type_index = buffer_memory_type_index;
-
-    ptr->storage_type = 0;
-    if (!vkdev->is_device_local(ptr->memory_type_index))
-        ptr->storage_type = 1;
-
-    ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -3731,12 +3735,6 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
     ptr->memory_type_index = buffer_memory_type_index;
-
-    ptr->storage_type = 0;
-    if (!vkdev->is_device_local(ptr->memory_type_index))
-        ptr->storage_type = 1;
-
-    ptr->usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -3859,8 +3857,8 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
     memoryDedicatedAllocateInfo.pNext = &importAndroidHardwareBufferInfo;
-    memoryDedicatedAllocateInfo.buffer = 0;
     memoryDedicatedAllocateInfo.image = image;
+    memoryDedicatedAllocateInfo.buffer = VK_NULL_HANDLE;
 
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -3879,8 +3877,8 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     VkBindImageMemoryInfo bindImageMemoryInfo;
     bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
     bindImageMemoryInfo.pNext = 0;
-    bindImageMemoryInfo.memory = memory;
     bindImageMemoryInfo.image = image;
+    bindImageMemoryInfo.memory = memory;
     bindImageMemoryInfo.memoryOffset = 0;
     ret = vkdev->vkBindImageMemory2KHR(vkdev->vkdevice(), 1, &bindImageMemoryInfo);
     if (ret != VK_SUCCESS)

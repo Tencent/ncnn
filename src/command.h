@@ -102,12 +102,15 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
-    // upload resident weights after allocator finalization
+    // queue resident uploads after allocator finalization; allocator must outlive submission
     void record_upload(VkWeightAllocator* weights, const Option& opt);
 
     int submit_and_wait();
 
     int reset();
+
+    // first recording or submission failure, zero on success
+    int error() const;
 
     uint64_t pending_upload_total() const;
 

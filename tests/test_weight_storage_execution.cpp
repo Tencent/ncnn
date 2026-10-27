@@ -24,18 +24,27 @@ static void* extract_thread(void* args)
 static int test_weight_storage_network(const ncnn::Option& opt)
 {
     ncnn::Net net;
-    if (load_weight_storage_net(net, opt, 1.f, 12) != 0)
+    if (load_weight_storage_net(net, opt, 1.f, 12, true) != 0)
     {
         fprintf(stderr, "test_weight_storage_network load failed host=%d disk=%d fp16=%d bf16=%d\n", opt.use_weights_in_host_memory, opt.use_weights_in_disk, opt.use_fp16_storage, opt.use_bf16_storage);
         return -1;
     }
 
     ncnn::Mat input = RandomMat(16, 8);
+    ncnn::Net reference;
+    ncnn::Option cpu_opt = weight_storage_option();
+    cpu_opt.use_vulkan_compute = false;
+    if (load_weight_storage_net(reference, cpu_opt, 1.f, 12, true) != 0)
+        return -1;
+    ncnn::Mat expected;
+    ncnn::Extractor cpu = reference.create_extractor();
+    if (cpu.input("b0", input) != 0 || cpu.extract("b12", expected) != 0)
+        return -1;
     for (int i = 0; i < 3; i++)
     {
         ncnn::Extractor ex = net.create_extractor();
         ncnn::Mat output;
-        if (ex.input("b0", input) != 0 || ex.extract("b12", output) != 0 || CompareMat(input, output, 0.02f) != 0)
+        if (ex.input("b0", input) != 0 || ex.extract("b12", output) != 0 || CompareMat(expected, output, 0.02f) != 0)
         {
             fprintf(stderr, "test_weight_storage_network extract failed round=%d host=%d disk=%d\n", i, opt.use_weights_in_host_memory, opt.use_weights_in_disk);
             return -1;
@@ -59,7 +68,7 @@ static int test_weight_storage_network(const ncnn::Option& opt)
     }
     for (int i = 0; i < 3; i++)
     {
-        if (tasks[i].ret != 0 || CompareMat(input, tasks[i].output, 0.02f) != 0)
+        if (tasks[i].ret != 0 || CompareMat(expected, tasks[i].output, 0.02f) != 0)
         {
             fprintf(stderr, "test_weight_storage_network concurrent extract failed thread=%d\n", i);
             return -1;
@@ -93,8 +102,10 @@ static int test_weight_storage_networks()
         return -1;
 
     const ncnn::GpuInfo& info = ncnn::get_gpu_info(ncnn::get_default_gpu_index());
-    opt.weight_device_memory_limit = 6144;
-    opt.weight_host_memory_limit = 6144;
+    // The half precision model exceeds both residency budgets together.
+    opt.weight_device_memory_limit = 2048;
+    opt.weight_host_memory_limit = 2048;
+    opt.weight_device_cache_size = 1024;
     if (info.support_fp16_storage())
     {
         opt.use_fp16_packed = true;
@@ -335,6 +346,25 @@ static int test_weight_storage_internal_command_reload()
     return 0;
 }
 
+static int test_weight_storage_net_cache_limit()
+{
+    ncnn::Option opt = weight_storage_option();
+    opt.use_weights_in_disk = true;
+    opt.weight_device_cache_size = 256;
+    opt.weight_host_cache_size = 256;
+    ncnn::Net net;
+    if (load_weight_storage_net(net, opt, 1.f, 1) != 0)
+        return -1;
+    ncnn::Extractor ex = net.create_extractor();
+    ncnn::Mat output;
+    if (ex.input("b0", RandomMat(16, 8)) != 0 || ex.extract("b1", output) == 0)
+    {
+        fprintf(stderr, "test_weight_storage_net_cache_limit ignored explicit cache size\n");
+        return -1;
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -342,6 +372,7 @@ int main()
         return 0;
 
     return 0
+           || test_weight_storage_net_cache_limit()
            || test_weight_storage_networks()
            || test_weight_storage_model_chains()
            || test_weight_storage_model_reload()

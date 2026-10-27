@@ -22,8 +22,9 @@ public:
         SECOND_SUBMIT
     };
 
-    explicit VulkanFailure(Failure failure)
-        : triggered(false), failure(failure), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit)
+    explicit VulkanFailure(Failure failure, int fail_at = 1)
+        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory),
+          submit(ncnn::vkQueueSubmit)
     {
         g_vulkan_failure = this;
         ncnn::vkAllocateMemory = allocate_memory;
@@ -39,6 +40,11 @@ public:
         ncnn::vkMapMemory = map;
         ncnn::vkQueueSubmit = submit;
         g_vulkan_failure = 0;
+    }
+
+    int submission_count() const
+    {
+        return submissions;
     }
 
     bool triggered;
@@ -84,7 +90,7 @@ private:
     {
         VulkanFailure* f = g_vulkan_failure;
         f->submissions++;
-        if (f->failure == SUBMIT || (f->failure == SECOND_SUBMIT && f->submissions == 2))
+        if ((f->failure == SUBMIT || f->failure == SECOND_SUBMIT) && f->submissions == f->fail_at)
         {
             f->triggered = true;
             return VK_ERROR_OUT_OF_DEVICE_MEMORY;
@@ -93,6 +99,7 @@ private:
     }
 
     Failure failure;
+    int fail_at;
     int submissions;
     PFN_vkAllocateMemory allocate;
     PFN_vkBindBufferMemory bind;

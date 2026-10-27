@@ -66,7 +66,7 @@ public:
     size_t weight_device_cache_size;
     size_t weight_host_cache_size;
 
-    // disk weight resident and cache memory limits, zero for unlimited
+    // disk weight resident and cache limits; both zero disable resident placement
     size_t weight_device_memory_limit;
     size_t weight_host_memory_limit;
 

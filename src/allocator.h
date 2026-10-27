@@ -383,8 +383,9 @@ private:
 
 private:
     friend void begin_weight_upload(VkWeightAllocator* allocator);
-    friend int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size);
+    friend int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size, bool& needed);
     friend int get_weight_uploads(VkWeightAllocator* allocator, int storage_type, std::vector<VkBufferMemory>& uploads);
+    friend void finish_weight_uploads(VkWeightAllocator* allocator, int storage_type, int error);
     VkWeightAllocatorPrivate* const d;
 };
 

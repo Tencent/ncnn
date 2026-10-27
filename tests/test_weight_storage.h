@@ -22,7 +22,7 @@ static ncnn::Option weight_storage_option()
     return opt;
 }
 
-static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, float scale, int layer_count)
+static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, float scale, int layer_count, bool distinct = false)
 {
     net.opt = opt;
     net.set_vulkan_device(ncnn::get_default_gpu_index());
@@ -31,14 +31,30 @@ static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, floa
     snprintf(line, sizeof(line), "7767517\n%d %d\nInput input 0 1 b0\n", layer_count + 1, layer_count + 1);
     std::string param = line;
     std::vector<unsigned char> model;
+    int width = 16;
     for (int i = 0; i < layer_count; i++)
     {
-        snprintf(line, sizeof(line), "Gemm gemm%d 1 1 b%d b%d 5=1 6=1 8=16 9=16 10=-1\n", i, i, i + 1);
+        const int next_width = distinct ? 16 + ((i + 1) % 3) * 4 : 16;
+        snprintf(line, sizeof(line), "Gemm gemm%d 1 1 b%d b%d 5=1 6=1 8=%d 9=%d 10=-1\n", i, i, i + 1, next_width, width);
         param += line;
         size_t offset = model.size();
-        model.resize(offset + 4 + 16 * 16 * 4, 0);
-        for (int j = 0; j < 16; j++)
-            memcpy(model.data() + offset + 4 + (j * 16 + j) * 4, &scale, 4);
+        model.resize(offset + 4 + width * next_width * 4, 0);
+        for (int y = 0; y < width; y++)
+        {
+            for (int x = 0; x < next_width; x++)
+            {
+                float value = x == y ? scale : 0.f;
+                if (distinct)
+                {
+                    // Different noncommuting matrices expose stale or reordered bindings.
+                    value += ((x * 3 + y * 7 + i * 11) % 13 - 6) * 0.00390625f;
+                    if (x == (y + i + 1) % next_width)
+                        value += 0.125f;
+                }
+                memcpy(model.data() + offset + 4 + (y * next_width + x) * 4, &value, 4);
+            }
+        }
+        width = next_width;
     }
 
     int ret = net.load_param_mem(param.c_str());

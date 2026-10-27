@@ -27,7 +27,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 void begin_weight_upload(VkWeightAllocator* allocator);
-int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size);
+int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size, bool& needed);
 #endif
 
 #if NCNN_VALIDATION
@@ -141,8 +141,9 @@ VkCompute* NetPrivate::acquire_weight_command(const Option& opt, uint64_t& gener
     }
 
     Option command_opt = opt;
+    bool needed;
     get_weight_cache_limits(weight_vkallocator, command_opt.weight_device_memory_limit, command_opt.weight_host_memory_limit,
-                            command_opt.weight_device_cache_size, command_opt.weight_host_cache_size);
+                            command_opt.weight_device_cache_size, command_opt.weight_host_cache_size, needed);
     VkCompute* command = new VkCompute(vkdev, command_opt);
 #if NCNN_BENCHMARK
     command->create_query_pool(layers.size() * 2);
@@ -2493,6 +2494,8 @@ int Net::load_model(const DataReader& dr)
         {
             begin_weight_upload(d->weight_vkallocator);
             int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
+            if (uret == 0)
+                uret = cmd_upload->error();
             if (uret != 0)
             {
 #if NCNN_STRING
@@ -3018,14 +3021,23 @@ void Net::set_weight_file_directory(const char* path)
 #if _WIN32
 void Net::set_weight_file_directory(const wchar_t* path)
 {
-    d->weight_file_directory.clear();
     if (!path || !path[0])
+    {
+        d->weight_file_directory.clear();
         return;
+    }
     int length = WideCharToMultiByte(CP_UTF8, 0, path, -1, 0, 0, 0, 0);
     if (length == 0)
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
         return;
+    }
     std::vector<char> utf8(length);
-    WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0);
+    if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0))
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
+        return;
+    }
     d->weight_file_directory = utf8.data();
 }
 #endif
@@ -3159,8 +3171,44 @@ public:
     VkAllocator* local_staging_vkallocator;
 
     std::vector<VkMat> blob_mats_gpu;
+    int extract_vulkan(Extractor& ex, int blob_index, VkCompute& cmd);
 #endif // NCNN_VULKAN
 };
+
+#if NCNN_VULKAN
+int ExtractorPrivate::extract_vulkan(Extractor& ex, int blob_index, VkCompute& cmd)
+{
+    VkMat feat_gpu;
+    int ret = ex.extract(blob_index, feat_gpu, cmd);
+
+    if (ret == 0 && blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+    {
+        cmd.record_download(feat_gpu, blob_mats[blob_index], opt);
+
+        ret = cmd.submit_and_wait();
+
+#if NCNN_BENCHMARK
+        if (ret == 0)
+        {
+            std::vector<uint64_t> results(net->layers().size() * 2);
+            cmd.get_query_pool_results(0, net->layers().size() * 2, results);
+            for (size_t i = 0; i < net->layers().size(); i++)
+            {
+                uint64_t start = results[i * 2];
+                uint64_t end = results[i * 2 + 1];
+                if (start == 0 || end == 0)
+                    continue;
+
+                double duration_us = (end - start) * net->vulkan_device()->info.timestamp_period() / 1000;
+                NCNN_LOGE("%-24s %-30s %8.2lfus    |", net->layers()[i]->type.c_str(), net->layers()[i]->name.c_str(), duration_us);
+            }
+        }
+#endif // NCNN_BENCHMARK
+    }
+
+    return ret;
+}
+#endif // NCNN_VULKAN
 
 Extractor::Extractor(const Net* _net, size_t blob_count)
     : d(new ExtractorPrivate(_net))
@@ -3416,61 +3464,26 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
 
             size_t device_memory_limit, host_memory_limit, device_size, host_size;
-            ret = get_weight_cache_limits(d->net->d->weight_vkallocator, device_memory_limit, host_memory_limit, device_size, host_size);
+            bool needed;
+            ret = get_weight_cache_limits(d->net->d->weight_vkallocator, device_memory_limit, host_memory_limit, device_size, host_size, needed);
             if (ret == 0)
             {
-                VkCompute* command = 0;
-                if (device_size)
+                if (needed)
                 {
                     if (!d->weight_command)
                         d->weight_command = d->net->d->acquire_weight_command(d->opt, d->weight_command_generation);
-                    command = d->weight_command;
-                }
-                else
-                {
-                    command = new VkCompute(d->net->vulkan_device());
-#if NCNN_BENCHMARK
-                    command->create_query_pool(d->net->layers().size() * 2);
-#endif // NCNN_BENCHMARK
-                }
-                VkCompute& cmd = *command;
-                VkMat feat_gpu;
-                ret = extract(blob_index, feat_gpu, cmd);
-
-                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
-                {
-                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
-
-                    ret = cmd.submit_and_wait();
-
-#if NCNN_BENCHMARK
-                    if (ret == 0)
-                    {
-                        std::vector<uint64_t> results(d->net->layers().size() * 2);
-                        cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
-                        for (size_t i = 0; i < d->net->layers().size(); i++)
-                        {
-                            uint64_t start = results[i * 2];
-                            uint64_t end = results[i * 2 + 1];
-                            if (start == 0 || end == 0)
-                                continue;
-
-                            double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
-                            NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
-                        }
-                    }
-#endif // NCNN_BENCHMARK
-                }
-
-                if (command == d->weight_command)
-                {
-                    int reset_ret = command->reset();
+                    ret = d->extract_vulkan(*this, blob_index, *d->weight_command);
+                    int reset_ret = d->weight_command->reset();
                     if (ret == 0)
                         ret = reset_ret;
                 }
                 else
                 {
-                    delete command;
+                    VkCompute cmd(d->net->vulkan_device());
+#if NCNN_BENCHMARK
+                    cmd.create_query_pool(d->net->layers().size() * 2);
+#endif // NCNN_BENCHMARK
+                    ret = d->extract_vulkan(*this, blob_index, cmd);
                 }
             }
         }

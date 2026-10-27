@@ -1,8 +1,10 @@
 # vulkan weight storage
 
 Vulkan weights normally stay in device memory. `use_weights_in_host_memory` prefers
-host memory, while `use_weights_in_disk` keeps weights in a temporary file and
-loads them through a cache during inference. Disk storage can reduce the device
+host memory. On discrete GPUs, host weights are copied through a device cache
+before execution, so this option also consumes device cache memory.
+`use_weights_in_disk` keeps weights in a temporary file and loads them through
+a cache during inference. Disk storage can reduce the device
 and host memory needed for large models, at the cost of file reads and uploads.
 
 ## usage
@@ -67,7 +69,13 @@ the smaller value applies.
 Automatic cache sizes account for weight sizes, simultaneous bindings, Vulkan
 alignment and device limits. A device cache holds complete weights. The host
 cache can be smaller than a weight because uploads can use several chunks.
-Explicit cache sizes are checked rather than silently reduced.
+Explicit cache sizes apply to Net-managed and external commands, including when
+both memory limits are zero. Sizes are aligned to Vulkan requirements and
+checked against the memory limits. An explicit device cache smaller than the
+weights needed by one operation fails; it is not replaced by an automatic size.
+Automatic sizes can grow to fit recorded dependencies within the available
+memory. Ungrouped direct allocator uploads do not imply that the entire model
+is needed simultaneously.
 
 ## file directory
 
@@ -75,7 +83,7 @@ Explicit cache sizes are checked rather than silently reduced.
 `const wchar_t*` path. Set it before loading weights; `Net::clear()` retains the
 setting. A null or empty path selects the system temporary directory.
 
-POSIX uses `TMPDIR` when set and otherwise uses `tmpfile()`. Windows uses
+POSIX uses `TMPDIR` when set and otherwise uses `/tmp`. Windows uses
 `GetTempPathW`. Temporary files are removed automatically when their owning
 weights are released. Space is reserved before exposing writable mappings.
 
@@ -85,7 +93,7 @@ memory limits make file creation failure a load error. File reservation,
 mapping and finalization failures also fail loading.
 
 Disk storage requires `NCNN_STDIO` and a supported file mapping platform:
-Windows, Linux, Android, OpenHarmony or Apple platforms. Other builds use the
+Windows, Linux, Android API 21 or newer, OpenHarmony or Apple platforms. Other builds use the
 resident fallback when no explicit directory or memory limits are configured.
 
 ## external commands
@@ -109,14 +117,23 @@ them.
 `cmd.clear_weight_cache()` releases the cache after work has completed and the
 recording has been reset. Model-owned resident weights remain available.
 Keep model weights and their allocators alive until recorded work completes.
-Clearing a Net invalidates its weights and existing Extractors.
+Clearing a Net invalidates its weights and existing Extractors. To replace or
+reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
+`load_model()` calls on finalized weights are not a hot reload interface. After
+a loading error, clear and reload the model before inference. A GPU submission
+failure can discard the affected command cache; retaining it is not guaranteed.
 
 For direct allocator use, configure `VkWeightAllocator` before allocation with
 `set_weights_in_disk()`, `set_weight_memory_limit()` and optionally
 `set_weight_file_directory()`. After the initial uploads complete,
 `finalize_weights()` flushes the file and plans resident placement. Reset the
-`VkTransfer`, call `record_upload(&weights, opt)` to fill those residents, and
-finish with `submit_and_wait()`. Net performs this sequence automatically.
+`VkTransfer`, call `record_upload(&weights, opt)` to queue those residents, and
+finish with `submit_and_wait()`. Recording does not submit or reset other pending
+commands. Submission uses a bounded staging buffer, packs small copies together,
+and publishes each resident storage tier only after its copies complete. Keep
+the allocator alive until submission completes. `VkTransfer::error()` reports
+recording errors as well as submission failures. Net performs this sequence
+automatically and checks recording errors after each layer upload.
 
 ## best practice
 
@@ -153,3 +170,7 @@ the operating system's mapped-file error behavior.
 Separate Extractors and commands can run concurrently. A single Extractor or
 command is used by one thread at a time. Changing model weights while recorded
 work still refers to them is unsupported.
+
+Applications and custom allocators must be rebuilt with the matching ncnn
+headers and library. The added weight metadata changes `VkBufferMemory` layout;
+appending fields does not preserve compatibility with older binary allocators.
