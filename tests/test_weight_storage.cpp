@@ -78,12 +78,12 @@ static int test_weight_storage_layouts(const ncnn::Option& opt)
     for (int elempack = 1; elempack <= 4; elempack *= 4)
     {
         if (test_weight_storage_bytes(opt, elempack, true, 1, false) != 0
-            || test_weight_storage_bytes(opt, elempack, false, 1, false) != 0
-            || test_weight_storage_bytes(opt, elempack, false, 1, true) != 0)
+                || test_weight_storage_bytes(opt, elempack, false, 1, false) != 0
+                || test_weight_storage_bytes(opt, elempack, false, 1, true) != 0)
             return -1;
 #if NCNN_BATCH
         if (test_weight_storage_bytes(opt, elempack, true, 2, false) != 0
-            || test_weight_storage_bytes(opt, elempack, false, 2, true) != 0)
+                || test_weight_storage_bytes(opt, elempack, false, 2, true) != 0)
             return -1;
 #endif // NCNN_BATCH
     }

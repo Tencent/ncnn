@@ -396,7 +396,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
         NCNN_LOGE("weight cache is executing");
         return -1;
     }
-    if (max_source_size > (size_t) -1 / 2 || max_file_size > (size_t) -1 / 2)
+    if (max_source_size > (size_t)-1 / 2 || max_file_size > (size_t)-1 / 2)
     {
         NCNN_LOGE("weight cache size overflow");
         return -1;
@@ -423,7 +423,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
         new_host_size = 0;
     else if (max_file_size && !new_host_size)
         new_host_size = max_file_size * 2;
-    if (new_device_size > (size_t) -1 - alignment || new_host_size > (size_t) -1 - alignment)
+    if (new_device_size > (size_t)-1 - alignment || new_host_size > (size_t)-1 - alignment)
     {
         NCNN_LOGE("weight cache alignment overflow");
         return -1;
@@ -479,11 +479,11 @@ int VkWeightCache::binding_source(const buffer_binding& binding, const VkBufferM
     if (!src)
         return 0;
     if (!is_deferred_buffer(src) || binding.view_offset > src->source_size
-        || binding.descriptor.range > src->source_size - binding.view_offset
-        || src->source_size > (size_t) -1 - alignment
-        || (src->storage_type != 2 && src->storage_type != 1)
-        || (needs_host_copy(src) && !src->source_ptr)
-        || (!needs_host_copy(src) && alignSize(src->source_size, 4) > src->capacity))
+            || binding.descriptor.range > src->source_size - binding.view_offset
+            || src->source_size > (size_t)-1 - alignment
+            || (src->storage_type != 2 && src->storage_type != 1)
+            || (needs_host_copy(src) && !src->source_ptr)
+            || (!needs_host_copy(src) && alignSize(src->source_size, 4) > src->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;
@@ -1311,7 +1311,7 @@ int VkWeightCache::wait_fence(VkFence fence)
         NCNN_LOGE("vkGetFenceStatus failed %d", ret);
         return -1;
     }
-    ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t) -1);
+    ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t)-1);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkWaitForFences failed %d", ret);
@@ -2002,7 +2002,7 @@ void VkComputePrivate::clear_records()
 }
 
 int VkComputePrivate::create_descriptorset(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template,
-                                           const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset)
+        const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset)
 {
     int buffer_binding_count = 0;
     int image_binding_count = 0;
@@ -2226,7 +2226,7 @@ int VkComputePrivate::submit_managed()
         for (size_t j = 0; j < sources.size(); j++)
         {
             const size_t size = weight_cache->source_size(sources[j]);
-            if (size > (size_t) -1 - total)
+            if (size > (size_t)-1 - total)
             {
                 NCNN_LOGE("weight binding size overflow");
                 return -1;
@@ -2263,7 +2263,7 @@ int VkComputePrivate::submit_managed()
             if (found)
                 continue;
             const size_t size = weight_cache->source_size(src);
-            if (size > (size_t) -1 - added_size)
+            if (size > (size_t)-1 - added_size)
             {
                 NCNN_LOGE("weight batch size overflow");
                 return -1;
@@ -4767,7 +4767,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     {
         const size_t dst_offset = dst.offset;
         if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.data->source_ptr || dst_offset > dst.data->source_size
-            || dst.buffer_capacity() > dst.data->source_size - dst_offset)
+                || dst.buffer_capacity() > dst.data->source_size - dst_offset)
         {
             NCNN_LOGE("disk weight requires a writable source range during upload");
             d->upload_error = -1;
@@ -4954,7 +4954,6 @@ void VkTransferPrivate::record_copy(const VkBufferMemory& src, const VkBufferMem
             vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, &barrier, 0, 0);
         }
     }
-
 }
 
 void VkTransferPrivate::record_host_upload(const VkBufferMemory& dst)
@@ -4977,7 +4976,6 @@ void VkTransferPrivate::record_host_upload(const VkBufferMemory& dst)
 
         vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, &barrier, 0, 0);
     }
-
 }
 
 void VkTransfer::record_upload(VkWeightAllocator* weights, const Option& opt)

@@ -289,8 +289,7 @@ static int test_weight_storage_internal_command_reload()
     net.opt.use_weights_in_disk = true;
     net.opt.weight_device_memory_limit = 8192;
     net.opt.weight_host_memory_limit = 8192;
-    const char* params[] =
-    {
+    const char* params[] = {
         "7767517\n3 3\nMemoryData w0 0 1 b0 0=1024\nMemoryData w1 0 1 b1 0=1024\nMemoryData w2 0 1 b2 0=1024\n",
         "7767517\n3 3\nMemoryData w0 0 1 b0 0=256\nMemoryData w1 0 1 b1 0=1536\nMemoryData w2 0 1 b2 0=1536\n"
     };

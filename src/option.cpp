@@ -80,8 +80,6 @@ Option::Option()
     use_int16_packed = true;
     use_int16_storage = true;
     use_reserved_11 = false;
-
-
 }
 
 } // namespace ncnn
