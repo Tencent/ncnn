@@ -112,12 +112,18 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
     const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
+    // appending nothing is only meaningful when there is a cache to reuse
+    if (kv_cache && cur_key.empty() && past_key.empty())
+        return -1;
+
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int cur_seqlen = cur_key.h;
-    const int num_group = cur_key.c;
-    const int out_embed_dim = cur_value.w;
+    // an empty key/value pair appends nothing: cross attention reuses the cache
+    // that was already generated, and that cache carries its own geometry
+    const int num_group = cur_key.empty() ? past_key.c : cur_key.c;
+    const int out_embed_dim = cur_value.empty() ? past_value.w : cur_value.w;
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
@@ -145,21 +151,30 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
 
-        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
-        if (retk != 0)
-            return retk;
-
-        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
-        if (retv != 0)
-            return retv;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
+        if (cur_key.empty())
         {
-            Mat key_head = cached_key.channel(q);
-            Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            // nothing to append: reuse the cache the caller already generated
+            cached_key = past_key;
+            cached_value = past_value;
+        }
+        else
+        {
+            int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
+            if (retk != 0)
+                return retk;
+
+            int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
+            if (retv != 0)
+                return retv;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_group; q++)
+            {
+                Mat key_head = cached_key.channel(q);
+                Mat value_head = cached_value.channel(q);
+                memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+                memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            }
         }
 
         key = cached_key;
@@ -334,12 +349,18 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
     const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
+    // appending nothing is only meaningful when there is a cache to reuse
+    if (kv_cache && cur_key.empty() && past_key.empty())
+        return -1;
+
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int cur_seqlen = cur_key.h;
-    const int num_group = cur_key.c;
-    const int out_embed_dim = cur_value.w;
+    // an empty key/value pair appends nothing: cross attention reuses the cache
+    // that was already generated, and that cache carries its own geometry
+    const int num_group = cur_key.empty() ? past_key.c : cur_key.c;
+    const int out_embed_dim = cur_value.empty() ? past_value.w : cur_value.w;
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
@@ -387,21 +408,30 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
 
-        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
-        if (retk != 0)
-            return retk;
-
-        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
-        if (retv != 0)
-            return retv;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
+        if (cur_key.empty())
         {
-            Mat key_head = cached_key.channel(q);
-            Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            // nothing to append: reuse the cache the caller already generated
+            cached_key = past_key;
+            cached_value = past_value;
+        }
+        else
+        {
+            int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
+            if (retk != 0)
+                return retk;
+
+            int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
+            if (retv != 0)
+                return retv;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_group; q++)
+            {
+                Mat key_head = cached_key.channel(q);
+                Mat value_head = cached_value.channel(q);
+                memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+                memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            }
         }
 
         key = cached_key;

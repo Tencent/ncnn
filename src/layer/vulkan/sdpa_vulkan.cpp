@@ -524,12 +524,18 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const VkMat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : VkMat();
     const VkMat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : VkMat();
 
+    // appending nothing is only meaningful when there is a cache to reuse
+    if (kv_cache && cur_key.empty() && past_key.empty())
+        return -1;
+
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int cur_seqlen = cur_key.h;
-    const int num_group = cur_key.c;
-    const int out_embed_dim = cur_value.w;
+    // an empty key/value pair appends nothing: cross attention reuses the cache
+    // that was already generated, and that cache carries its own geometry
+    const int num_group = cur_key.empty() ? past_key.c : cur_key.c;
+    const int out_embed_dim = cur_value.empty() ? past_value.w : cur_value.w;
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
@@ -544,37 +550,76 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         VkMat& cached_key = top_blobs[1];
         VkMat& cached_value = top_blobs[2];
 
-        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, cmd, opt);
-        if (retk != 0)
-            return retk;
-
-        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, cmd, opt);
-        if (retv != 0)
-            return retv;
-
-        std::vector<VkMat> key_bindings(2);
-        key_bindings[0] = cur_key;
-        key_bindings[1] = cached_key;
-        std::vector<vk_constant_type> key_constants(6);
-        key_constants[0].i = embed_dim;
-        key_constants[1].i = cur_key.h;
-        key_constants[2].i = cur_key.cstep;
-        key_constants[3].i = cached_key.w;
-        key_constants[4].i = cached_key.cstep;
-        key_constants[5].i = past_seqlen;
-        cmd.record_pipeline(pipeline_kvcache_append, key_bindings, key_constants, cur_key);
-
-        std::vector<VkMat> value_bindings(2);
-        value_bindings[0] = cur_value;
-        value_bindings[1] = cached_value;
-        std::vector<vk_constant_type> value_constants(6);
-        value_constants[0].i = out_embed_dim;
-        value_constants[1].i = cur_value.h;
-        value_constants[2].i = cur_value.cstep;
-        value_constants[3].i = cached_value.w;
-        value_constants[4].i = cached_value.cstep;
-        value_constants[5].i = past_seqlen;
-        cmd.record_pipeline(pipeline_kvcache_append, value_bindings, value_constants, cur_value);
+        if (cur_key.empty())
+        {
+            // nothing to append: reuse the cache the caller already generated
+            cached_key = past_key;
+            cached_value = past_value;
+        }
+        else
+        {
+            int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, cmd, opt);
+    
+            if (retk != 0)
+    
+                return retk;
+    
+    
+    
+            int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, cmd, opt);
+    
+            if (retv != 0)
+    
+                return retv;
+    
+    
+    
+            std::vector<VkMat> key_bindings(2);
+    
+            key_bindings[0] = cur_key;
+    
+            key_bindings[1] = cached_key;
+    
+            std::vector<vk_constant_type> key_constants(6);
+    
+            key_constants[0].i = embed_dim;
+    
+            key_constants[1].i = cur_key.h;
+    
+            key_constants[2].i = cur_key.cstep;
+    
+            key_constants[3].i = cached_key.w;
+    
+            key_constants[4].i = cached_key.cstep;
+    
+            key_constants[5].i = past_seqlen;
+    
+            cmd.record_pipeline(pipeline_kvcache_append, key_bindings, key_constants, cur_key);
+    
+    
+    
+            std::vector<VkMat> value_bindings(2);
+    
+            value_bindings[0] = cur_value;
+    
+            value_bindings[1] = cached_value;
+    
+            std::vector<vk_constant_type> value_constants(6);
+    
+            value_constants[0].i = out_embed_dim;
+    
+            value_constants[1].i = cur_value.h;
+    
+            value_constants[2].i = cur_value.cstep;
+    
+            value_constants[3].i = cached_value.w;
+    
+            value_constants[4].i = cached_value.cstep;
+    
+            value_constants[5].i = past_seqlen;
+    
+            cmd.record_pipeline(pipeline_kvcache_append, value_bindings, value_constants, cur_value);
+        }
 
         key = cached_key;
         value = cached_value;

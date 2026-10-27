@@ -177,9 +177,128 @@ static int test_sdpa_0()
            ;
 }
 
+// Cross attention: the key/value pair is the attention memory. The prefill step
+// writes it into the cache, the decode steps append nothing and reuse the cache
+// as it is. The cache layout is backend private, so cpu and naive each carry
+// their own.
+static int test_sdpa_cross_reuse(int head_dim, int value_dim, int num_heads, int num_kv_heads, int memory_len, int steps)
+{
+    ncnn::Layer* reference = ncnn::create_layer_naive("SDPA");
+    ncnn::Layer* op = ncnn::create_layer_cpu("SDPA");
+    if (!reference || !op)
+    {
+        delete reference;
+        delete op;
+        return -1;
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(5, 0);
+    pd.set(7, 1); // kv_cache
+    reference->load_param(pd);
+    reference->load_model(ncnn::ModelBinFromMatArray(0));
+    op->load_param(pd);
+    op->load_model(ncnn::ModelBinFromMatArray(0));
+
+    ncnn::Option reference_opt;
+    reference_opt.num_threads = 1;
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_storage = false;
+    opt.kvcache_max_seqlen_hint = 32;
+
+    int ret = reference->create_pipeline(reference_opt);
+    if (ret == 0)
+        ret = op->create_pipeline(opt);
+
+    const ncnn::Mat memory_key = RandomMat(head_dim, memory_len, num_kv_heads);
+    const ncnn::Mat memory_value = RandomMat(value_dim, memory_len, num_kv_heads);
+
+    ncnn::Mat reference_key_cache;
+    ncnn::Mat reference_value_cache;
+    ncnn::Mat key_cache;
+    ncnn::Mat value_cache;
+
+    for (int step = 0; ret == 0 && step <= steps; step++)
+    {
+        // step 0 is the prefill: the memory is the only thing appended to the cache
+        const int cur_seqlen = step == 0 ? memory_len : 1;
+        ncnn::Mat query = RandomMat(head_dim, cur_seqlen, num_heads);
+
+        std::vector<ncnn::Mat> reference_bottoms(5);
+        reference_bottoms[0] = query;
+        reference_bottoms[3] = reference_key_cache;
+        reference_bottoms[4] = reference_value_cache;
+        if (step == 0)
+        {
+            reference_bottoms[1] = memory_key;
+            reference_bottoms[2] = memory_value;
+        }
+
+        std::vector<ncnn::Mat> reference_tops(3);
+        ret = reference->forward(reference_bottoms, reference_tops, reference_opt);
+        if (ret != 0)
+            break;
+
+        std::vector<ncnn::Mat> bottoms(5);
+        bottoms[0] = query;
+        bottoms[3] = key_cache;
+        bottoms[4] = value_cache;
+        if (step == 0)
+        {
+            bottoms[1] = memory_key;
+            bottoms[2] = memory_value;
+        }
+
+        std::vector<ncnn::Mat> tops(3);
+        ret = op->forward(bottoms, tops, opt);
+        if (ret != 0)
+            break;
+
+        if (CompareMat(reference_tops[0], tops[0], 0.001f) != 0)
+        {
+            ret = -1;
+            break;
+        }
+
+        if (tops[1].empty() || tops[2].empty())
+        {
+            ret = -1;
+            break;
+        }
+
+        reference_key_cache = reference_tops[1];
+        reference_value_cache = reference_tops[2];
+        reference_tops[1].release();
+        reference_tops[2].release();
+
+        key_cache = tops[1];
+        value_cache = tops[2];
+        tops[1].release();
+        tops[2].release();
+    }
+
+    reference->destroy_pipeline(reference_opt);
+    op->destroy_pipeline(opt);
+    delete reference;
+    delete op;
+
+    if (ret != 0)
+        fprintf(stderr, "test_sdpa_cross_reuse failed head_dim=%d value_dim=%d num_heads=%d num_kv_heads=%d memory_len=%d steps=%d\n", head_dim, value_dim, num_heads, num_kv_heads, memory_len, steps);
+
+    return ret;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_sdpa_0();
+    return test_sdpa_0()
+           || test_sdpa_cross_reuse(32, 20, 8, 8, 7, 3)
+           || test_sdpa_cross_reuse(37, 29, 15, 3, 5, 2)
+           || test_sdpa_cross_reuse(64, 64, 16, 1, 9, 1);
 }

@@ -36,7 +36,7 @@ The caching strategy is fundamentally different for self-attention and cross-att
 #### cross-attention (static k/v)
 - **purpose:** Allows the decoder to attend to the output of the encoder (e.g., attending to audio features in speech recognition, or an input sentence in translation).
 - **cache Logic:** The k and v matrices are derived from the encoder's output, which is computed only **once** per input sequence. Therefore, the k and v for cross-attention are **static** and do not change during the decoding process. They are "cached" in the sense that they are pre-computed and reused in every decoding step.
-- **ncnn implementation:** A `MultiHeadAttention` layer with separate query and key/value blobs reuses an existing cache without appending it. `SDPA` treats its current key/value inputs as append data; the caller therefore controls whether more data is appended.
+- **ncnn implementation:** A `MultiHeadAttention` layer with separate query and key/value blobs reuses an existing cache without appending it. `SDPA` treats its current key/value inputs as append data, so the caller controls what, if anything, is appended: pass the key/value pair to append it, or pass empty blobs to attend to the cache as it is. With empty blobs the cache is the only source of the attention memory, so the layer takes the head count, the head width and the sequence length from it. Passing neither a key/value pair nor a cache leaves nothing to attend to and returns -1.
 
 ## 3. ncnn kv cache representation
 
