@@ -479,8 +479,6 @@ public:
     bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
-    // Reacquire a queue previously obtained from this device.
-    VkQueue acquire_queue(uint32_t queue_family_index, VkQueue requested_queue) const;
     // return zero when no queue is available
     VkQueue try_acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;

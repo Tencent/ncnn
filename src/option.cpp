@@ -25,6 +25,10 @@ Option::Option()
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
     kvcache_vkallocator = 0;
+    weight_device_cache_size = 0;
+    weight_host_cache_size = 0;
+    weight_device_memory_limit = 0;
+    weight_host_memory_limit = 0;
     pipeline_cache = 0;
 #endif // NCNN_VULKAN
 
@@ -50,7 +54,7 @@ Option::Option()
     use_bf16_packed = false;
 
     use_tensor_storage = false;
-    use_reserved_1p = false;
+    use_weights_in_disk = false;
 
     use_weights_in_host_memory = false;
 
@@ -77,15 +81,7 @@ Option::Option()
     use_int16_storage = true;
     use_reserved_11 = false;
 
-    use_weights_in_host_disk = false;
-#if NCNN_VULKAN
-    weight_host_vkallocator = 0;
-    weight_device_vkallocator = 0;
-    weight_host_cache_size = 0;
-    weight_device_cache_size = 0;
-    weight_host_budget = 0;
-    weight_device_budget = 0;
-#endif // NCNN_VULKAN
+
 }
 
 } // namespace ncnn

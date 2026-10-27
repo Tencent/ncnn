@@ -213,7 +213,7 @@ class NCNN_EXPORT VkBufferMemory
 {
 public:
     VkBufferMemory()
-        : mapped_ptr(0), external_ptr(0), external_size(0), storage_type(0), buffer_usage(0)
+        : mapped_ptr(0), source_ptr(0), source_size(0), storage_type(0), usage_flags(0)
     {
     }
 
@@ -227,10 +227,6 @@ public:
     // non-null when this allocation can be accessed by the host
     void* mapped_ptr;
 
-    // borrowed source bytes, relative to this allocation rather than the buffer
-    void* external_ptr;
-    size_t external_size;
-
     uint32_t memory_type_index;
 
     // buffer state, modified by command functions internally
@@ -240,10 +236,14 @@ public:
     // initialize and modified by mat
     int refcount;
 
+    // borrowed source bytes
+    void* source_ptr;
+    size_t source_size;
+
     // storage type
-    // 0 = device, 1 = host, 2 = file
+    // 0 = device, 1 = host, 2 = disk
     int storage_type;
-    VkBufferUsageFlags buffer_usage;
+    VkBufferUsageFlags usage_flags;
 };
 
 class NCNN_EXPORT VkImageMemory
@@ -351,14 +351,17 @@ public:
     }
     virtual ~VkWeightAllocator();
 
-    // copy the UTF-8 directory before enabling disk storage; null or empty uses the system default
-    int set_weight_file_directory(const char* path);
+    // set before allocating weights; null or empty uses the system directory
+    void set_weight_file_directory(const char* path);
+#if _WIN32
+    void set_weight_file_directory(const wchar_t* path);
+#endif
 
-    // configure before allocating weights, failure keeps the resident policy
-    int set_weights_in_host_disk(bool enable);
-    int set_weight_budgets(size_t device_budget, size_t host_budget);
+    // configure before allocating weights
+    void set_weights_in_disk(bool enable);
+    void set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit);
 
-    // finish loading, optionally reserving exchange capacities within the budgets
+    // finalize the file and plan resident weights within the memory limits
     int finalize_weights(size_t device_cache_size = 0, size_t host_cache_size = 0);
 
 public:
@@ -379,7 +382,9 @@ private:
     VkWeightAllocator& operator=(const VkWeightAllocator&);
 
 private:
-    friend class VkWeightAllocatorPrivate;
+    friend void begin_weight_upload(VkWeightAllocator* allocator);
+    friend int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size);
+    friend int get_weight_uploads(VkWeightAllocator* allocator, int storage_type, std::vector<VkBufferMemory>& uploads);
     VkWeightAllocatorPrivate* const d;
 };
 

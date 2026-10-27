@@ -23,10 +23,7 @@ class NCNN_EXPORT VkCompute
 {
 public:
     explicit VkCompute(const VulkanDevice* vkdev);
-    // queue mode: 0 = automatic, 1 = compute family, 2 = single queue
-    VkCompute(const VulkanDevice* vkdev, const Option& opt, int queue_mode = 0);
-    // use the finalized weight layout and its remaining budgets
-    VkCompute(const VkWeightAllocator& weights, const Option& opt, int queue_mode = 0);
+    VkCompute(const VulkanDevice* vkdev, const Option& opt);
     virtual ~VkCompute();
 
 public:
@@ -70,9 +67,9 @@ public:
 
     int submit_and_wait();
 
-    // discard recorded commands, retaining the weight working set for reuse
+    // discard recorded commands, retaining the weight cache for reuse
     int reset();
-    // release the weight working set when no recorded commands use it
+    // release the weight cache when no recorded commands use it
     // command options are retained; model-owned resident weights are unaffected
     int clear_weight_cache();
 
@@ -92,7 +89,6 @@ protected:
     void barrier_readonly(const VkImageMat& binding);
 
 private:
-    friend class Extractor;
     VkComputePrivate* const d;
 };
 
@@ -106,13 +102,14 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
+    // upload resident weights after allocator finalization
+    void record_upload(VkWeightAllocator* weights, const Option& opt);
+
     int submit_and_wait();
 
     int reset();
 
     uint64_t pending_upload_total() const;
-
-    int error() const;
 
 protected:
     const VulkanDevice* vkdev;

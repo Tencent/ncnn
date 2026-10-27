@@ -62,6 +62,14 @@ public:
     // kv cache memory allocator
     VkAllocator* kvcache_vkallocator;
 
+    // zero selects an automatic weight cache size
+    size_t weight_device_cache_size;
+    size_t weight_host_cache_size;
+
+    // disk weight resident and cache memory limits, zero for unlimited
+    size_t weight_device_memory_limit;
+    size_t weight_host_memory_limit;
+
     // pipeline cache
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
@@ -118,7 +126,7 @@ public:
 
     bool use_tensor_storage;
 
-    bool use_reserved_1p;
+    bool use_weights_in_disk;
     bool use_weights_in_host_memory;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
@@ -158,25 +166,6 @@ public:
     bool use_int16_packed;
     bool use_int16_storage;
     bool use_reserved_11;
-
-    // keep prepared vulkan weights in a temporary backing file
-    bool use_weights_in_host_disk;
-
-#if NCNN_VULKAN
-    // per-command weight working set allocators
-    VkAllocator* weight_host_vkallocator;
-    VkAllocator* weight_device_vkallocator;
-
-    // zero selects an automatic exchange capacity based on prepared weight sizes
-    size_t weight_host_cache_size;
-    size_t weight_device_cache_size;
-
-    // cap resident and exchange allocations in the disk weight mode
-    // both zero keep the existing exchange-only policy
-    // discrete gpus require both budgets, unified memory uses the smaller positive budget
-    size_t weight_host_budget;
-    size_t weight_device_budget;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

@@ -47,7 +47,10 @@ public:
 
     // copy the UTF-8 directory before loading weights; null or empty uses the system default
     // retained by clear(); an explicit directory must be writable when disk storage is enabled
-    int set_weight_file_directory(const char* path);
+    void set_weight_file_directory(const char* path);
+#if _WIN32
+    void set_weight_file_directory(const wchar_t* path);
+#endif
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -211,12 +214,6 @@ public:
 
     void set_kvcache_vkallocator(VkAllocator* allocator);
 
-    // configure the internal command's weight working set before Mat extraction
-    // an explicitly supplied VkCompute uses its own working set options
-    void set_weight_host_vkallocator(VkAllocator* allocator);
-    void set_weight_device_vkallocator(VkAllocator* allocator);
-    void set_weight_host_cache_size(size_t size);
-    void set_weight_device_cache_size(size_t size);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -266,10 +263,6 @@ protected:
     Extractor(const Net* net, size_t blob_count);
 
 private:
-#if NCNN_VULKAN
-    int extract_gpu(int blob_index, VkCompute& cmd);
-#endif
-
     ExtractorPrivate* const d;
 };
 
