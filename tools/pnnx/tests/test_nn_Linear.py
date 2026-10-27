@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
 
+from pnnx_test_utils import exported_program_to_pnnx, has_torch_export, torchscript_to_pnnx
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -52,18 +54,25 @@ def test():
     mod.save("test_nn_Linear.pt")
 
     # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_nn_Linear.pt inputshape=[1,64],[12,64],[1,3,12,64]")
+    converted = torchscript_to_pnnx("test_nn_Linear", "[1,64],[12,64],[1,3,12,64]")
 
     # pnnx inference
-    import test_nn_Linear_pnnx
-    b = test_nn_Linear_pnnx.test_inference()
+    b = converted(x, y, z)
 
     for a0, b0 in zip(a, b):
         b0 = b0.reshape_as(a0)
         if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
-    return True
+    if not has_torch_export():
+        return True
+
+    if hasattr(net.linear_2, "parametrizations"):
+        torch.nn.utils.parametrize.remove_parametrizations(net.linear_2, "weight", leave_parametrized=True)
+    a = net(x, y, z)
+    converted = exported_program_to_pnnx(net, (x, y, z), "test_nn_Linear_pt2")
+    c = converted(x, y, z)
+
+    return all(torch.allclose(a0, c0.reshape_as(a0), 1e-3, 1e-3) for a0, c0 in zip(a, c))
 
 if __name__ == "__main__":
     if test():

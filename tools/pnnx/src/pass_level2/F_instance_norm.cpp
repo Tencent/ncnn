@@ -34,6 +34,47 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm, 130)
 
+class F_instance_norm_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+11 10
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+pnnx.Input              input_3     0 1 running_mean
+pnnx.Input              input_4     0 1 running_var
+pnnx.Input              input_5     0 1 use_input_stats
+pnnx.Input              input_6     0 1 momentum
+pnnx.Input              input_7     0 1 eps
+pnnx.Input              input_8     0 1 cudnn_enabled
+aten::instance_norm     op_0        9 1 input weight bias running_mean running_var use_input_stats momentum eps cudnn_enabled out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.instance_norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        Operand* cudnn_enabled = op->inputs[8];
+        cudnn_enabled->remove_consumer(op);
+
+        const std::vector<Operand*> inputs = op->inputs;
+        op->inputs = {inputs[0], inputs[3], inputs[4], inputs[1], inputs[2], inputs[5], inputs[6], inputs[7]};
+        op->inputnames = {"input", "running_mean", "running_var", "weight", "bias", "use_input_stats", "momentum", "eps"};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_instance_norm_1, 130)
+
 class F_instance_norm_onnx : public GraphRewriterPass
 {
 public:
