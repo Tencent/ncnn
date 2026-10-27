@@ -82,6 +82,18 @@ static int sdpa_kvcache(const Mat& query, const Mat& past_key, const Mat& past_v
     const int panel_width = 2;
 #endif
 
+    if (cur_key.empty())
+    {
+        // nothing to append: cross attention reuses the cache already generated
+        cached_key = past_key;
+        cached_value = past_value;
+
+        if (query.h == 1)
+            return sdpa_decode_kvcache(query, cached_key, cached_value, attn_mask, top_blob, scale, opt);
+
+        return sdpa_prefill_packed(query, cached_key, cached_value, attn_mask, top_blob, scale, opt);
+    }
+
     int ret = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, cur_key.c, cur_key.w, cur_key.elemsize, panel_width, opt);
     if (ret != 0)
         return ret;
@@ -165,6 +177,18 @@ static int sdpa_kvcache_bf16s(const Mat& query, const Mat& past_key, const Mat& 
 #else
     const int panel_width = 2;
 #endif
+
+    if (cur_key.empty())
+    {
+        // nothing to append: cross attention reuses the cache already generated
+        cached_key = past_key;
+        cached_value = past_value;
+
+        if (query.h == 1)
+            return sdpa_decode_kvcache_bf16s(query, cached_key, cached_value, attn_mask_blob, top_blob, scale, opt);
+
+        return sdpa_prefill_packed_bf16s(query, cached_key, cached_value, Mat(), attn_mask_blob, top_blob, scale, opt);
+    }
 
     int ret = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, cur_key.c, cur_key.w, cur_key.elemsize, panel_width, opt);
     if (ret != 0)

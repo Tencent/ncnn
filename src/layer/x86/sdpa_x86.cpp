@@ -176,23 +176,34 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
     const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
+    // appending nothing is only meaningful when there is a cache to reuse
+    if (kv_cache && cur_key.empty() && past_key.empty())
+        return -1;
+
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int cur_seqlen = cur_key.h;
-    const int num_group = cur_key.c;
-    const int out_embed_dim = cur_value.w;
+    // an empty key/value pair appends nothing: cross attention reuses the cache
+    // that was already generated, and that cache carries its own geometry
+    const int num_group = cur_key.empty() ? past_key.c : cur_key.c;
+    const int out_embed_dim = cur_value.empty() ? past_value.w : cur_value.w;
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
+    // a step that appends nothing takes its storage type from the cache, whose
+    // layout the backend has already chosen
+    const int cur_key_bits = cur_key.empty() ? past_key.elembits() : cur_key.elembits();
+    const int cur_value_bits = cur_value.empty() ? past_value.elembits() : cur_value.elembits();
+
     const bool fp32 = int8_scale_term == 0
-                      && query.elembits() == 32 && cur_key.elembits() == 32 && cur_value.elembits() == 32
+                      && query.elembits() == 32 && cur_key_bits == 32 && cur_value_bits == 32
                       && (!kv_cache || past_key.empty() || (past_key.elembits() == 32 && past_value.elembits() == 32))
                       && (!attn_mask || attn_mask_blob.elembits() == 32);
 #if NCNN_BF16
     const bool bf16 = int8_scale_term == 0
                       && opt.use_bf16_storage
-                      && query.elembits() == 16 && cur_key.elembits() == 16 && cur_value.elembits() == 16
+                      && query.elembits() == 16 && cur_key_bits == 16 && cur_value_bits == 16
                       && (!kv_cache || past_key.empty() || (past_key.elembits() == 16 && past_value.elembits() == 16))
                       && (!attn_mask || attn_mask_blob.elembits() == 16);
     const bool optimized_storage = fp32 || bf16;
@@ -237,21 +248,30 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
 
-        int retk = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, 1, opt);
-        if (retk != 0)
-            return retk;
-
-        int retv = sdpa_create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, 1, opt);
-        if (retv != 0)
-            return retv;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_group; q++)
+        if (cur_key.empty())
         {
-            Mat key_head = cached_key.channel(q);
-            Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            // nothing to append: reuse the cache the caller already generated
+            cached_key = past_key;
+            cached_value = past_value;
+        }
+        else
+        {
+            int retk = sdpa_create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, 1, opt);
+            if (retk != 0)
+                return retk;
+
+            int retv = sdpa_create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, 1, opt);
+            if (retv != 0)
+                return retv;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_group; q++)
+            {
+                Mat key_head = cached_key.channel(q);
+                Mat value_head = cached_value.channel(q);
+                memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+                memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            }
         }
 
         key = cached_key;
