@@ -69,19 +69,29 @@ Integrated GPUs and CPU Vulkan devices use one device allocation accessible by
 the host. For these devices, one positive limit is enough; if both are positive,
 the smaller value applies.
 
-Automatic cache sizes account for weight sizes, simultaneous bindings, Vulkan
-alignment and device limits. A device cache holds complete weights. The host
-cache can be smaller than a weight because uploads can use several chunks.
-Explicit cache sizes apply to Net-managed and external commands, including when
-both memory limits are zero. Sizes are aligned to Vulkan requirements and
-checked against the memory limits. An explicit device cache smaller than the
-weights needed by one operation fails; it is not replaced by an automatic size.
-Automatic sizes can grow to fit recorded dependencies within the available
-memory. Upload order and layer boundaries do not imply simultaneous use; the
-recorded dispatch bindings determine which weights must fit together. Resident
-placement reserves cache space using individual weight sizes, without upload
-groups. If the remaining budget cannot hold a dispatch's simultaneous bindings,
-execution fails rather than exceeding that budget.
+Automatic caches are allocated lazily. The initial device target is 128 MiB
+(or the first operation's complete working set if larger), and the separate host
+cache target is 16 MiB. Both are clamped to the remaining memory budgets,
+including Vulkan allocation padding. Unified-memory devices use only the device
+cache. Device-resident weights are not copied into the exchange cache;
+host-resident weights still need device cache space on discrete GPUs.
+
+A device cache holds complete weights. The host cache can be smaller than a
+weight because uploads use several chunks. Explicit cache sizes apply to
+Net-managed and external commands, including when both memory limits are zero.
+Sizes are aligned to Vulkan requirements and checked against the memory limits.
+An explicit device cache smaller than the weights needed by one operation fails;
+it is not replaced by an automatic size.
+
+Once recording references the backing, its capacity is fixed. A later operation
+whose simultaneous bindings exceed that capacity fails instead of reallocating
+referenced storage or exceeding the budget. Clear the cache after resetting the
+command, then recreate the command with a larger explicit cache for such
+workloads. Loading-time
+maximum working-set derivation is not implemented. Upload order and layer
+boundaries do not imply simultaneous use; the actual dispatch bindings determine
+which weights must fit together. Resident placement reserves cache space using
+individual weight sizes, without upload groups.
 
 ## file directory
 
@@ -119,7 +129,9 @@ All participating Nets use the same Vulkan device. An external command has its
 own cache settings; options passed to clone or download operations do not change
 them.
 
-`cmd.reset()` discards the recording and retains its cache for reuse.
+`cmd.reset()` discards the recording and normally retains a completed cache for
+reuse. Abandoning a recording that changed cache placement can discard its
+backing, because its planned writes and ownership transfers did not execute.
 `cmd.clear_weight_cache()` releases the cache after work has completed and the
 recording has been reset. Model-owned resident weights remain available.
 Cache backing allocations and byte-range views are refcounted `VkMat` resources.
@@ -132,12 +144,23 @@ reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
 a loading error, clear and reload the model before inference. A GPU submission
 failure can discard the affected command cache; retaining it is not guaranteed.
 
-`VkCompute` owns compute recording, submission and completion; the weight-cache
-uploader only stages and uploads weights. Ordinary work before the first paged
-operation joins the first compute batch and waits for its uploads, unless a
-cross-queue cache-ownership release must precede those uploads. There is no
-artificial empty preliminary submission. Commands without paged weights retain
-the normal recording path.
+`VkCompute` owns both upload and compute recording, submission and completion.
+Cached dependencies and Vulkan commands are prepared incrementally while
+recording, without a speculative whole-command plan or a GPU submission.
+Submission fills and flushes bounded staging regions only after their previous
+GPU readers have completed, then submits the already-recorded tasks. It does not
+copy every weight into a separate retained staging allocation.
+
+Ordinary work before the first paged operation joins the first compute task and
+waits for its uploads, unless a cross-queue cache-ownership release must precede
+those uploads. There is no artificial empty preliminary submission. Commands
+without paged weights retain the normal recording path.
+
+Cache reservations use owning `VkMat` references. Releasing the last reservation
+reference returns an aligned region to a bounded pool; recorded tasks retain the
+backing without preventing logical region reuse. Dependencies still order each
+old compute read before an overwrite and each upload before its next compute
+read. Reference counting does not replace GPU completion checks.
 
 Each paged execution uses independent upload and compute command buffers and
 synchronization objects. They are not recycled while that execution is running.

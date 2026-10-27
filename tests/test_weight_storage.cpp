@@ -375,6 +375,16 @@ static int test_weight_storage_automatic_cache()
         fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
         return -1;
     }
+    // A rejected whole-dispatch capacity check must not poison later executions.
+    ncnn::Mat recovered;
+    if (fixed.reset())
+        return -1;
+    fixed.record_clone(weight[0], recovered, fixed_opt);
+    if (fixed.submit_and_wait() || CompareMat(input[0], recovered, 0.f))
+    {
+        fprintf(stderr, "test_weight_storage_automatic_cache fixed capacity recovery failed\n");
+        return -1;
+    }
     // Individual uploads do not predeclare a group: the actual three-input
     // dispatch must still reject a hard memory budget that cannot hold it.
     ncnn::Option limited_opt = opt;
@@ -387,6 +397,8 @@ static int test_weight_storage_automatic_cache()
         fprintf(stderr, "test_weight_storage_automatic_cache ignored simultaneous binding budget\n");
         return -1;
     }
+    if (limited.reset())
+        return -1;
     return 0;
 }
 
