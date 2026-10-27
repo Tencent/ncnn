@@ -539,9 +539,27 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                     continue;
                 }
 
-                ime2_gemm_fp32out((const ime2_fp16*)A2T, (const ime2_fp16*)B2T,
-                                  (float*)top_blob_head, out_embed_dim,
-                                  src_seqlen, out_embed_dim, dst_seqlen, 1.f / 32768.f);
+                /* The fp16 pack rounds each scaled weight (e.g. 10922.7 -> 10920),
+                 * so the packed row sum is no longer exactly 32768; dividing PV by
+                 * the fixed 1/32768 breaks constant rows (8192 -> 8190 in review).
+                 * Normalize by the PACKED row sum instead: gemm with alpha=1, then
+                 * divide each output row by its packed sum (same as the flash
+                 * path's packed-weight normalization). */
+                {
+                    const int ktP = (dst_seqlen + 7) / 8;
+                    ime2_gemm_fp32out((const ime2_fp16*)A2T, (const ime2_fp16*)B2T,
+                                      (float*)top_blob_head, out_embed_dim,
+                                      src_seqlen, out_embed_dim, dst_seqlen, 1.f);
+                    float* out = (float*)top_blob_head;
+                    for (int i = 0; i < src_seqlen; i++)
+                    {
+                        /* pack layout: row-tile stride ktP*64 fp16 (end slack only) */
+                        const float inv = 1.f / ncnn_ime2_sdpa::ime2_packed_row_sum_fp16((const ime2_fp16*)A2T, (size_t)ktP * 64, i, ktP);
+                        float* orow = out + (size_t)i * out_embed_dim;
+                        for (int e = 0; e < out_embed_dim; e++)
+                            orow[e] *= inv;
+                    }
+                }
             }
         } // omp for
     }     // omp parallel (validation + work in the same region)
