@@ -308,9 +308,31 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
     }
 
     // ---- per-head attention ----
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_heads; q++)
+    /* Per-worker VLEN validation INSIDE the execution region: with per-thread
+     * bindings (OMP_PROC_BIND/GOMP_CPU_AFFINITY) a worker may sit on an X100
+     * (e32m8 VLMAX 64) even when the dispatching thread's affinity mask says
+     * A100 only -- rvv_dot_f32 would go multi-chunk there for E > 64 and
+     * reorder the dot product. The static mask gate above cannot see disjoint
+     * worker masks; this check reads each actual worker's own vlenb-derived
+     * VLMAX (one instruction, no syscall). team_vl_bad is written ONLY before
+     * the barrier so the guard is immutable there; a failure falls back to the
+     * composed path via -99. */
+    int team_vl_bad = 0;
+    #pragma omp parallel num_threads(opt.num_threads)
     {
+        if (embed_dim > (int)__riscv_vsetvlmax_e32m8())
+        {
+            /* Workers write the same flag concurrently: an omp barrier cannot make
+             * the concurrent writes race-free, so use an atomic write. */
+            #pragma omp atomic write
+            team_vl_bad = 1;
+        }
+        #pragma omp barrier
+        if (!team_vl_bad)
+        {
+            #pragma omp for
+            for (int q = 0; q < num_heads; q++)
+            {
         const Mat query_head = query.channel(q); // [E, 1]
         const Mat key_head = cached_key.channel(q / num_heads_per_group);
         const Mat value_head = cached_value.channel(q / num_heads_per_group);
@@ -447,6 +469,11 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
             }
         }
     }
+        }   // omp for
+    }     // omp parallel (per-worker VLEN validation + work in the same region)
+
+    if (team_vl_bad)
+        return -99;
 
     return 0;
 #endif // __riscv_v
