@@ -683,7 +683,8 @@ static int sdpa_decode_vlmax_cap()
             if (sched_setaffinity(0, sizeof(one), &one) != 0)
                 continue;
             unsigned long vlenb = 0;
-            __asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+            __asm__ volatile("csrr %0, vlenb"
+                             : "=r"(vlenb));
             const int c2 = (int)(vlenb * 2); /* vlenb bytes * 8 / 32-bit lanes * m8 */
             if (c2 < cap)
                 cap = c2;
@@ -714,16 +715,16 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h == 1
 #if __riscv_vector
                 /* Multi-chunk heads cannot match the fallback accumulation order:
-                                                                                                                                                                 * the composed GEMM accumulates k sequentially per key (the
-                                                                                                                                                                 * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
-                                                                                                                                                                 * chunk reduction reorders the dot product for extreme values
-                                                                                                                                                                 * (both directions of the divergence were demonstrated in review).
-                                                                                                                                                                 * Gate the RVV decode path to heads that fit one e32m8 vector. */
+                                                                                                                                                                         * the composed GEMM accumulates k sequentially per key (the
+                                                                                                                                                                         * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
+                                                                                                                                                                         * chunk reduction reorders the dot product for extreme values
+                                                                                                                                                                         * (both directions of the divergence were demonstrated in review).
+                                                                                                                                                                         * Gate the RVV decode path to heads that fit one e32m8 vector. */
                 /* Gate on the WORST worker's e32m8 VLMAX, not the caller's: an OMP
-                 * head iteration may run on an X100 (vlenb 32 -> VLMAX 64) even when
-                 * the dispatching thread is on an A100 (VLMAX 256), and multi-chunk
-                 * reduction there reorders the dot product for E in 129..256.
-                 * Walk the caller's affinity mask once per forward (per-CPU vlenb). */
+                         * head iteration may run on an X100 (vlenb 32 -> VLMAX 64) even when
+                         * the dispatching thread is on an A100 (VLMAX 256), and multi-chunk
+                         * reduction there reorders the dot product for E in 129..256.
+                         * Walk the caller's affinity mask once per forward (per-CPU vlenb). */
                 && q0.w <= sdpa_decode_vlmax_cap()
 #endif
            )
