@@ -60,14 +60,14 @@ int HardSwish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         }
         for (; i < size; i++)
         {
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
             float v = (float)*ptr;
-            if (v < lower)
-                v = 0.f;
-            else if (v > upper)
-                ;
-            else
-                v = v * (v * alpha + beta);
-            *ptr = (__fp16)v;
+            float t = v * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            *ptr = (__fp16)(v * t);
 
             ptr++;
         }
@@ -199,14 +199,14 @@ int HardSwish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         }
         for (; i < size; i++)
         {
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
             __fp16 v = *ptr;
-            if (v < (__fp16)lower)
-                v = (__fp16)0.f;
-            else if (v > (__fp16)upper)
-                ;
-            else
-                v = v * (v * alpha_fp16 + beta_fp16);
-            *ptr = v;
+            __fp16 t = v * alpha_fp16 + beta_fp16;
+            if (t < (__fp16)0.f)
+                t = (__fp16)0.f;
+            if (t > (__fp16)1.f)
+                t = (__fp16)1.f;
+            *ptr = v * t;
 
             ptr++;
         }

@@ -66,6 +66,31 @@ static NCNN_FORCEINLINE __m128 elu_lsx(__m128 inputs, __m128 alphas)
     return __lsx_vfadd_s(pos, __lsx_vfmul_s(alphas, neg));
 }
 
+static NCNN_FORCEINLINE __m128 gelu_lsx(__m128 inputs, int fast_gelu)
+{
+    const __m128 _half = (__m128)__lsx_vreplfr2vr_s(0.5f);
+    const __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+
+    if (fast_gelu)
+    {
+        const __m128 _fast1c = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
+        const __m128 _fast2c = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+        __m128 _cube = __lsx_vfmul_s(inputs, inputs);
+        _cube = __lsx_vfmul_s(inputs, _cube);
+        __m128 _blob = __lsx_vfmul_s(_fast2c, _cube);
+        _blob = __lsx_vfadd_s(inputs, _blob);
+        _blob = __lsx_vfmul_s(_fast1c, _blob);
+        _blob = tanh_ps(_blob);
+        _blob = __lsx_vfadd_s(_one, _blob);
+        return __lsx_vfmul_s(_half, __lsx_vfmul_s(_blob, inputs));
+    }
+
+    const __m128 _inv_sqrt2 = (__m128)__lsx_vreplfr2vr_s(0.70710678f);
+    __m128 _erf = erf_ps(__lsx_vfmul_s(inputs, _inv_sqrt2));
+    __m128 _blob = __lsx_vfadd_s(_one, _erf);
+    return __lsx_vfmul_s(_half, __lsx_vfmul_s(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE __m128 activation_lsx(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     switch (activation_type)
@@ -103,6 +128,29 @@ static NCNN_FORCEINLINE __m128 activation_lsx(__m128 _v, int activation_type, co
         __m128 _a = (__m128)__lsx_vreplfr2vr_s(activation_params[0]);
         __m128 _b = (__m128)__lsx_vreplfr2vr_s(activation_params[1]);
         return hardswish_lsx(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_lsx(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_lsx(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_lsx(_v, (__m128)__lsx_vreplfr2vr_s(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return __lsx_vfmul_s((__m128)__lsx_vreplfr2vr_s(lambda), elu_lsx(_v, (__m128)__lsx_vreplfr2vr_s(alpha)));
     }
     }
 
@@ -170,6 +218,31 @@ static NCNN_FORCEINLINE __m256 elu_lasx(__m256 inputs, __m256 alphas)
     return __lasx_xvfadd_s(pos, __lasx_xvfmul_s(alphas, neg));
 }
 
+static NCNN_FORCEINLINE __m256 gelu_lasx(__m256 inputs, int fast_gelu)
+{
+    const __m256 _half = (__m256)__lasx_xvreplfr2vr_s(0.5f);
+    const __m256 _one = (__m256)__lasx_xvreplfr2vr_s(1.f);
+
+    if (fast_gelu)
+    {
+        const __m256 _fast1c = (__m256)__lasx_xvreplfr2vr_s(0.79788452f);
+        const __m256 _fast2c = (__m256)__lasx_xvreplfr2vr_s(0.044715f);
+        __m256 _cube = __lasx_xvfmul_s(inputs, inputs);
+        _cube = __lasx_xvfmul_s(inputs, _cube);
+        __m256 _blob = __lasx_xvfmul_s(_fast2c, _cube);
+        _blob = __lasx_xvfadd_s(inputs, _blob);
+        _blob = __lasx_xvfmul_s(_fast1c, _blob);
+        _blob = tanh256_ps(_blob);
+        _blob = __lasx_xvfadd_s(_one, _blob);
+        return __lasx_xvfmul_s(_half, __lasx_xvfmul_s(_blob, inputs));
+    }
+
+    const __m256 _inv_sqrt2 = (__m256)__lasx_xvreplfr2vr_s(0.70710678f);
+    __m256 _erf = erf256_ps(__lasx_xvfmul_s(inputs, _inv_sqrt2));
+    __m256 _blob = __lasx_xvfadd_s(_one, _erf);
+    return __lasx_xvfmul_s(_half, __lasx_xvfmul_s(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE __m256 activation_lasx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     switch (activation_type)
@@ -207,6 +280,29 @@ static NCNN_FORCEINLINE __m256 activation_lasx(__m256 _v, int activation_type, c
         __m256 _a = (__m256)__lasx_xvreplfr2vr_s(activation_params[0]);
         __m256 _b = (__m256)__lasx_xvreplfr2vr_s(activation_params[1]);
         return hardswish_lasx(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_lasx(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_lasx(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_lasx(_v, (__m256)__lasx_xvreplfr2vr_s(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return __lasx_xvfmul_s((__m256)__lasx_xvreplfr2vr_s(lambda), elu_lasx(_v, (__m256)__lasx_xvreplfr2vr_s(alpha)));
     }
     }
 
