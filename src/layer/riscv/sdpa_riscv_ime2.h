@@ -279,14 +279,28 @@ static int ime2_hw_supported()
     pfd.events = POLLIN;
     char b = 0;
     ssize_t n = -1;
-    int pr;
-    do
+    /* Retry poll on EINTR against an ABSOLUTE deadline (same as the gemm
+     * probe): a periodic non-restarting signal faster than the timeout would
+     * otherwise restart the full wait each round. */
+    struct timespec t0;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    const long t0_ms = (long)t0.tv_sec * 1000 + t0.tv_nsec / 1000000;
+    int pr = 0;
+    for (;;)
     {
-        /* poll itself can return EINTR (profiling/timer signal) even though the
-         * byte is already buffered; skipping the read would permanently cache
-         * 'unsupported'. Retry. */
-        pr = poll(&pfd, 1, 100);
-    } while (pr < 0 && errno == EINTR);
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        const long now_ms = (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+        const long remain = 100 - (now_ms - t0_ms);
+        if (remain <= 0)
+        {
+            pr = 0;
+            break;
+        }
+        pr = poll(&pfd, 1, (int)remain);
+        if (pr >= 0 || errno != EINTR)
+            break;
+    }
     if (pr > 0)
     {
         do
