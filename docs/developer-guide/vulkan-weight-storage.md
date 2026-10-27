@@ -77,8 +77,11 @@ both memory limits are zero. Sizes are aligned to Vulkan requirements and
 checked against the memory limits. An explicit device cache smaller than the
 weights needed by one operation fails; it is not replaced by an automatic size.
 Automatic sizes can grow to fit recorded dependencies within the available
-memory. Ungrouped direct allocator uploads do not imply that the entire model
-is needed simultaneously.
+memory. Upload order and layer boundaries do not imply simultaneous use; the
+recorded dispatch bindings determine which weights must fit together. Resident
+placement reserves cache space using individual weight sizes, without upload
+groups. If the remaining budget cannot hold a dispatch's simultaneous bindings,
+execution fails rather than exceeding that budget.
 
 ## file directory
 
@@ -119,7 +122,10 @@ them.
 `cmd.reset()` discards the recording and retains its cache for reuse.
 `cmd.clear_weight_cache()` releases the cache after work has completed and the
 recording has been reset. Model-owned resident weights remain available.
-Keep model weights and their allocators alive until recorded work completes.
+Cache backing allocations and byte-range views are refcounted `VkMat` resources.
+Recorded commands retain source handles, but their allocators must remain alive
+until execution completes. Cached identities do not retain a model allocator
+after the recording is reset.
 Clearing a Net invalidates its weights and existing Extractors. To replace or
 reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
 `load_model()` calls on finalized weights are not a hot reload interface. After

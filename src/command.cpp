@@ -25,7 +25,8 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
 void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
 int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size);
 
-int get_weight_source_generation(const VkAllocator* allocator, uint64_t& source_generation);
+int get_weight_source_generation(const VkAllocator* allocator, uint64_t& source_generation, uint64_t* source_lifetime = 0);
+void release_weight_source(VkMat& source, uint64_t lifetime);
 
 struct buffer_binding;
 
@@ -44,16 +45,101 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
     return memory && memory->storage_type != 0 && memory->source_size != 0;
 }
 
-static bool needs_host_copy(const VkBufferMemory* memory)
+static bool needs_host_copy(const VkMat& source)
 {
-    return memory->storage_type == 2 || !memory->buffer;
+    return source.data->storage_type == 2 || !source.buffer();
 }
 
 struct buffer_binding
 {
-    const VkBufferMemory* src;
+    uintptr_t source_identity;
     size_t view_offset;
     VkDescriptorBufferInfo descriptor;
+};
+
+// Metadata and backing allocation ownership stay below the VkMat resource interface.
+class VkWeightCacheAllocator : public VkAllocator
+{
+public:
+    struct Region : VkBufferMemory
+    {
+        Region()
+            : allocation(0), source_lifetime(0)
+        {
+        }
+        VkMat backing;
+        VkBufferMemory* allocation;
+        uint64_t source_lifetime;
+    };
+
+    explicit VkWeightCacheAllocator(const VulkanDevice* vkdev)
+        : VkAllocator(vkdev)
+    {
+    }
+    virtual VkBufferMemory* fastMalloc(size_t)
+    {
+        return new Region;
+    }
+    virtual void fastFree(VkBufferMemory* memory)
+    {
+        Region* region = static_cast<Region*>(memory);
+        if (region->source_lifetime)
+            release_weight_source(region->backing, region->source_lifetime);
+        if (region->allocation)
+            destroy_weight_buffer(vkdev, region->allocation);
+        delete region;
+    }
+    virtual VkImageMemory* fastMalloc(int, int, int, size_t, int)
+    {
+        return 0;
+    }
+    virtual void fastFree(VkImageMemory*)
+    {
+    }
+
+    VkMat adopt(VkBufferMemory* allocation)
+    {
+        if (!allocation)
+            return VkMat();
+        Region* region = new Region;
+        static_cast<VkBufferMemory&>(*region) = *allocation;
+        region->allocation = allocation;
+        region->refcount = 1;
+        // Opaque byte capacity, not a tensor: never apply dtype/shape operations.
+        VkMat owner(1, region, allocation->capacity, 1, this);
+        owner.refcount = &region->refcount;
+        return owner;
+    }
+
+    VkMat retain_source(const VkMat& source, uint64_t lifetime)
+    {
+        Region* region = new Region;
+        static_cast<VkBufferMemory&>(*region) = *source.data;
+        region->source_lifetime = lifetime;
+        region->backing = source;
+        region->refcount = 1;
+        VkMat result(source.w, source.h, source.d, source.c, region, source.elemsize, source.elempack, this);
+        result.dims = source.dims;
+        result.cstep = source.cstep;
+#if NCNN_BATCH
+        result.n = source.n;
+        result.nstep = source.nstep;
+        result.offset = 0;
+#endif
+        result.refcount = &region->refcount;
+        return result;
+    }
+
+    uintptr_t identity(const VkMat& source) const
+    {
+        if (source.allocator == this)
+            return (uintptr_t) static_cast<const Region*>(source.data)->backing.data;
+        return (uintptr_t)source.data;
+    }
+    const VkAllocator* source_allocator(const VkMat& source) const
+    {
+        return source.allocator == this ? static_cast<const Region*>(source.data)->backing.allocator : source.allocator;
+    }
 };
 
 class VkWeightCache
@@ -61,11 +147,10 @@ class VkWeightCache
 public:
     struct weight_entry
     {
-        const VkBufferMemory* src;
-        const VkAllocator* allocator;
+        VkMat target;
+        // Weak identity only: never dereferenced; the generation guards reuse.
+        uintptr_t source_identity;
         uint64_t source_generation;
-        size_t offset;
-        size_t size;
         size_t last_batch;
         bool valid;
     };
@@ -80,8 +165,8 @@ public:
     {
         size_t begin;
         size_t end;
-        std::vector<const VkBufferMemory*> weights;
-        std::vector<size_t> offsets;
+        std::vector<VkMat> weights;
+        std::vector<VkMat> targets;
         std::vector<bool> missing;
         std::vector<buffer_range> releases;
         std::vector<buffer_range> acquires;
@@ -102,26 +187,27 @@ public:
     void clear_sources();
     int record_source(const VkMat& mat);
     int validate_sources() const;
-    int find_source_entry(const VkBufferMemory* src) const;
-    int find_device_entry(const VkBufferMemory* src) const;
-    int find_host_entry(const VkBufferMemory* src) const;
+    int find_source_entry(const VkMat& source) const;
+    int find_device_entry(const VkMat& source) const;
+    int find_host_entry(const VkMat& source) const;
     int initialize(size_t minimum_device_size, size_t max_source_size, size_t max_file_size);
-    int binding_source(const buffer_binding& binding, const VkBufferMemory*& src) const;
-    size_t aligned_size(const VkBufferMemory* src) const;
-    int plan_batches(const std::vector<const VkBufferMemory*>& dependencies, const std::vector<size_t>& dependency_offsets, device_plan& plan) const;
+    int binding_source(const buffer_binding& binding, VkMat& source) const;
+    size_t aligned_size(const VkMat& source) const;
+    int plan_batches(const std::vector<VkMat>& dependencies, const std::vector<size_t>& dependency_offsets, device_plan& plan) const;
     void publish_device_plan(device_plan& plan);
     int select_host_range(size_t size, size_t& offset) const;
     void reserve_host_range(size_t offset, size_t size);
     int publish_host_entry(const VkMat& source, size_t offset, size_t size);
+    VkMat host_range(size_t offset, size_t size) const;
     const VulkanDevice* device() const
     {
         return vkdev;
     }
-    VkBufferMemory* get_device_buffer() const
+    const VkMat& get_device_buffer() const
     {
         return device_buffer;
     }
-    VkBufferMemory* get_host_buffer() const
+    const VkMat& get_host_buffer() const
     {
         return host_buffer;
     }
@@ -147,7 +233,7 @@ public:
     }
     const VkMat& source(int index) const
     {
-        return source_entries[index].mat;
+        return source_entries[index];
     }
     const weight_entry& host_entry(int index) const
     {
@@ -155,13 +241,14 @@ public:
     }
 
 private:
+    VkMat cache_view(bool host, size_t offset, size_t size) const;
     int allocate();
-    static int find_planned_device_entry(const std::vector<weight_entry>& planned_device_entries, const VkBufferMemory* src);
-    static bool is_pinned(const VkBufferMemory* src, const std::vector<const VkBufferMemory*>& pinned);
+    int find_planned_device_entry(const std::vector<weight_entry>& planned_device_entries, const VkMat& source) const;
+    bool is_pinned(uintptr_t identity, const std::vector<VkMat>& pinned) const;
     int layout_device_batch(weight_batch& batch, std::vector<weight_entry>& planned_device_entries, size_t& head, std::vector<weight_entry>& evicted) const;
     void commit_device_batch(weight_batch& batch, std::vector<weight_entry>& planned_device_entries, const std::vector<weight_entry>& evicted, std::vector<weight_batch>& batches,
                              std::vector<buffer_range>& initial_releases) const;
-    int plan_device_cache_range(const VkBufferMemory* src, const std::vector<const VkBufferMemory*>& pinned, std::vector<weight_entry>& planned_device_entries, size_t& head,
+    int plan_device_cache_range(const VkMat& source, const std::vector<VkMat>& pinned, std::vector<weight_entry>& planned_device_entries, size_t& head,
                                 std::vector<weight_entry>& evicted) const;
     const VulkanDevice* vkdev;
     size_t weight_device_cache_size;
@@ -170,18 +257,16 @@ private:
     size_t weight_host_memory_limit;
     bool automatic_device_size;
     bool automatic_host_size;
-    VkBufferMemory* host_buffer;
-    VkBufferMemory* device_buffer;
+    mutable VkWeightCacheAllocator view_allocator;
+    VkMat host_buffer;
+    VkMat device_buffer;
     size_t host_size;
     size_t device_size;
     size_t alignment;
     size_t host_head;
     size_t device_head;
-    struct recorded_source : weight_entry
-    {
-        VkMat mat;
-    };
-    std::vector<recorded_source> source_entries;
+    std::vector<VkMat> source_entries;
+    std::vector<uint64_t> source_generations;
     std::vector<weight_entry> device_entries;
     std::vector<weight_entry> host_entries;
     bool unified;
@@ -194,7 +279,7 @@ class VkWeightCacheTransfer
 public:
     explicit VkWeightCacheTransfer(VkWeightCache& cache);
     ~VkWeightCacheTransfer();
-    int begin_execution(const std::vector<const VkBufferMemory*>& dependencies, const std::vector<size_t>& dependency_offsets);
+    int begin_execution(const std::vector<VkMat>& dependencies, const std::vector<size_t>& dependency_offsets);
     int submit_prefix(VkCommandBuffer command_buffer, VkFence fence);
     int prepare(size_t batch_index);
     int begin_compute(VkCommandBuffer* command_buffer);
@@ -220,16 +305,24 @@ private:
     typedef VkWeightCache::weight_batch weight_batch;
     int release_ranges(const std::vector<buffer_range>& ranges);
     int submit_command(bool transfer, const VkSubmitInfo& info, VkFence fence);
+    enum command_type
+    {
+        UPLOAD_COMMAND,
+        COMPUTE_COMMAND,
+        RELEASE_COMMAND
+    };
+    int allocate_command_buffer(command_type type, size_t task = 0);
+    int begin_command_buffer(command_type type, size_t task = 0);
     int create_commands();
     void destroy_commands();
-    int upload_source_to_device_cache(const VkMat& source, size_t offset);
-    int record_device_cache_copy(int task, const VkBufferMemory* src, size_t src_offset, size_t offset, size_t size, const buffer_range& range, bool last);
-    int submit_device_cache_copy(int task, const VkBufferMemory* src, size_t src_offset, size_t offset, size_t size, const buffer_range& range, bool last);
+    int upload_source_to_device_cache(const VkMat& source, const VkMat& target);
+    int record_device_cache_copy(int task, const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last);
+    int submit_device_cache_copy(int task, const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last);
     int wait_fence(VkFence fence);
     int wait_compute(uint64_t serial);
     int create_upload();
     int allocate_host_range(size_t size, size_t& offset);
-    int fill_host_cache(const VkMat& source, size_t& offset);
+    int fill_host_cache(const VkMat& source, VkMat& target);
     int flush_host(size_t offset, size_t size);
     void record_upload_release_to_compute(int task, const buffer_range& range);
     void record_compute_acquire_from_upload(int task, const buffer_range& range);
@@ -256,8 +349,8 @@ private:
     std::vector<VkFence> upload_fences;
     std::vector<VkSemaphore> upload_compute_semaphores;
     std::vector<bool> upload_pending;
-    std::vector<buffer_range> upload_host_ranges;
-    std::vector<buffer_range> upload_ranges;
+    std::vector<VkMat> upload_sources;
+    std::vector<VkMat> upload_targets;
     std::vector<VkCommandBuffer> compute_command_buffers;
     std::vector<VkFence> compute_fences;
     std::vector<VkSemaphore> compute_upload_semaphores;
@@ -280,8 +373,11 @@ private:
 #endif
 };
 
-static int allocate_command_buffer(VkDevice device, VkCommandPool pool, VkCommandBuffer* command_buffer)
+int VkWeightCacheTransfer::allocate_command_buffer(command_type type, size_t task)
 {
+    const VkDevice device = vkdev->vkdevice();
+    const VkCommandPool pool = type == UPLOAD_COMMAND ? transfer_command_pool : compute_command_pool;
+    VkCommandBuffer* command_buffer = type == UPLOAD_COMMAND ? &upload_command_buffers[task] : type == COMPUTE_COMMAND ? &compute_command_buffers[task] : &release_command_buffer;
     VkResult ret;
     VkCommandBufferAllocateInfo commandBufferAllocateInfo;
     commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -298,8 +394,9 @@ static int allocate_command_buffer(VkDevice device, VkCommandPool pool, VkComman
     return 0;
 }
 
-static int begin_weight_command_buffer(VkCommandBuffer command_buffer)
+int VkWeightCacheTransfer::begin_command_buffer(command_type type, size_t task)
 {
+    const VkCommandBuffer command_buffer = type == UPLOAD_COMMAND ? upload_command_buffers[task] : type == COMPUTE_COMMAND ? compute_command_buffers[task] : release_command_buffer;
     VkResult ret;
     VkCommandBufferBeginInfo commandBufferBeginInfo;
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -316,7 +413,7 @@ static int begin_weight_command_buffer(VkCommandBuffer command_buffer)
 }
 
 VkWeightCache::VkWeightCache(const VulkanDevice* _vkdev, size_t device_cache_size, size_t host_cache_size, size_t device_memory_limit, size_t host_memory_limit)
-    : vkdev(_vkdev)
+    : vkdev(_vkdev), view_allocator(_vkdev)
 {
     weight_device_cache_size = device_cache_size;
     weight_host_cache_size = host_cache_size;
@@ -324,8 +421,8 @@ VkWeightCache::VkWeightCache(const VulkanDevice* _vkdev, size_t device_cache_siz
     weight_host_memory_limit = host_memory_limit;
     automatic_device_size = weight_device_cache_size == 0;
     automatic_host_size = weight_host_cache_size == 0;
-    host_buffer = 0;
-    device_buffer = 0;
+    host_buffer.release();
+    device_buffer.release();
     host_size = weight_host_cache_size;
     device_size = weight_device_cache_size;
     alignment = weight_buffer_alignment(vkdev);
@@ -360,35 +457,52 @@ void VkWeightCache::reserve_host_range(size_t offset, size_t size)
     for (size_t i = 0; i < host_entries.size(); i++)
     {
         weight_entry& entry = host_entries[i];
-        if (entry.src && offset < entry.offset + entry.size && entry.offset < offset + size)
-            entry.src = 0;
+        if (entry.source_identity && offset < entry.target.buffer_offset() + entry.target.buffer_capacity() && entry.target.buffer_offset() < offset + size)
+            entry.source_identity = 0;
     }
     host_head = offset + size;
 }
 
+VkMat VkWeightCache::cache_view(bool host, size_t offset, size_t size) const
+{
+    const VkMat& owner = host ? host_buffer : device_buffer;
+    const VkBufferMemory* backing = owner.data;
+    VkBufferMemory* memory = view_allocator.fastMalloc(size);
+    *memory = *backing;
+    static_cast<VkWeightCacheAllocator::Region*>(memory)->backing = owner;
+    memory->offset = backing->offset + offset;
+    memory->capacity = size;
+    memory->source_ptr = 0;
+    memory->source_size = 0;
+    memory->refcount = 1;
+    // A cache region is an opaque byte span, not the source tensor shape.
+    VkMat view(1, memory, size, 1, &view_allocator);
+    view.refcount = &memory->refcount;
+    return view;
+}
+
+VkMat VkWeightCache::host_range(size_t offset, size_t size) const
+{
+    return cache_view(true, offset, size);
+}
+
 int VkWeightCache::publish_host_entry(const VkMat& source, size_t offset, size_t size)
 {
-    const VkBufferMemory* src = source.data;
-    const int recorded = find_source_entry(src);
+    const int recorded = find_source_entry(source);
     if (recorded < 0)
         return -1;
     int slot = -1;
     for (size_t i = 0; i < host_entries.size(); i++)
-        if (!host_entries[i].src)
+        if (!host_entries[i].source_identity)
             slot = (int)i;
-    VkWeightCache::weight_entry entry;
-    entry.src = src;
-    entry.allocator = source_entries[recorded].allocator;
-    entry.source_generation = source_entries[recorded].source_generation;
-    entry.offset = offset;
-    entry.size = size;
+    weight_entry entry;
+    entry.target = cache_view(true, offset, size);
+    entry.source_identity = view_allocator.identity(source);
+    entry.source_generation = source_generations[recorded];
     entry.last_batch = 0;
     entry.valid = true;
     if (slot < 0)
-    {
-        slot = (int)host_entries.size();
         host_entries.push_back(entry);
-    }
     else
         host_entries[slot] = entry;
     return 0;
@@ -396,16 +510,12 @@ int VkWeightCache::publish_host_entry(const VkMat& source, size_t offset, size_t
 
 void VkWeightCache::clear()
 {
-    if (host_buffer)
-        destroy_weight_buffer(vkdev, host_buffer);
-    if (device_buffer)
-        destroy_weight_buffer(vkdev, device_buffer);
-    host_buffer = 0;
-    device_buffer = 0;
-    host_head = 0;
-    device_head = 0;
     device_entries.clear();
     host_entries.clear();
+    host_buffer.release();
+    device_buffer.release();
+    host_head = 0;
+    device_head = 0;
     initialized = false;
     error = 0;
 }
@@ -413,89 +523,62 @@ void VkWeightCache::clear()
 void VkWeightCache::clear_sources()
 {
     source_entries.clear();
+    source_generations.clear();
+    // Custom allocators have no generation registry, so do not reuse their identity.
+    for (size_t i = 0; i < device_entries.size(); i++)
+        if (!device_entries[i].source_generation)
+            device_entries[i].source_identity = 0;
+    for (size_t i = 0; i < host_entries.size(); i++)
+        if (!host_entries[i].source_generation)
+            host_entries[i].source_identity = 0;
 }
 
-int VkWeightCache::find_source_entry(const VkBufferMemory* src) const
+int VkWeightCache::find_source_entry(const VkMat& source) const
 {
     for (size_t i = 0; i < source_entries.size(); i++)
-        if (source_entries[i].src == src)
+        if (view_allocator.identity(source_entries[i]) == view_allocator.identity(source))
             return (int)i;
     return -1;
 }
 
 int VkWeightCache::record_source(const VkMat& mat)
 {
-    const int recorded = find_source_entry(mat.data);
+    const int recorded = find_source_entry(mat);
     if (recorded >= 0)
+        return view_allocator.source_allocator(source_entries[recorded]) == mat.allocator ? 0 : -1;
+    uint64_t generation = 0;
+    uint64_t lifetime = 0;
+    if (get_weight_source_generation(mat.allocator, generation, &lifetime) < 0)
     {
-        if (source_entries[recorded].allocator != mat.allocator)
-            return -1;
-        return 0;
-    }
-
-    VkWeightCache::recorded_source src;
-    memset(static_cast<weight_entry*>(&src), 0, sizeof(weight_entry));
-    src.mat = mat;
-    src.src = mat.data;
-    src.allocator = mat.allocator;
-    src.source_generation = 0;
-    bool found_allocator = false;
-    for (size_t i = 0; i < source_entries.size(); i++)
-    {
-        if (source_entries[i].allocator != mat.allocator)
-            continue;
-        src.source_generation = source_entries[i].source_generation;
-        found_allocator = true;
-        break;
-    }
-    if (!found_allocator && get_weight_source_generation(mat.allocator, src.source_generation) < 0)
-    {
-        NCNN_LOGE("weight src must be finalized before recording");
+        NCNN_LOGE("weight source must be finalized before recording");
         return -1;
     }
-
-    // Invalidate stale cache entries while retaining their queue ownership.
-    const int device_entry = find_device_entry(mat.data);
-    if (device_entry >= 0)
-    {
-        weight_entry& entry = device_entries[device_entry];
-        if (entry.allocator != src.allocator || entry.source_generation != src.source_generation)
-            entry.src = 0;
-    }
-    const int host_entry = find_host_entry(mat.data);
-    if (host_entry >= 0)
-    {
-        weight_entry& entry = host_entries[host_entry];
-        if (entry.allocator != src.allocator || entry.source_generation != src.source_generation)
-            entry.src = 0;
-    }
-    source_entries.push_back(src);
+    const int device_entry = find_device_entry(mat);
+    if (device_entry >= 0 && device_entries[device_entry].source_generation != generation)
+        device_entries[device_entry].source_identity = 0;
+    const int host_entry = find_host_entry(mat);
+    if (host_entry >= 0 && host_entries[host_entry].source_generation != generation)
+        host_entries[host_entry].source_identity = 0;
+    source_entries.push_back(generation ? view_allocator.retain_source(mat, lifetime) : mat);
+    // Bindings retain their view offset; uploads cover the complete allocation.
+#if NCNN_BATCH
+    source_entries.back().offset = 0;
+#endif
+    source_generations.push_back(generation);
     return 0;
 }
 
 int VkWeightCache::validate_sources() const
 {
-    // validate allocators before reading recorded sources
+    // Check allocator versions before dereferencing any retained source metadata.
     for (size_t i = 0; i < source_entries.size(); i++)
     {
-        const VkWeightCache::weight_entry& src = source_entries[i];
-        if (!src.source_generation)
+        if (!source_generations[i])
             continue;
-        bool checked = false;
-        for (size_t j = 0; j < i; j++)
+        uint64_t generation;
+        if (get_weight_source_generation(view_allocator.source_allocator(source_entries[i]), generation) < 0 || generation != source_generations[i])
         {
-            if (source_entries[j].allocator == src.allocator)
-            {
-                checked = true;
-                break;
-            }
-        }
-        if (checked)
-            continue;
-        uint64_t source_generation;
-        if (get_weight_source_generation(src.allocator, source_generation) < 0 || source_generation != src.source_generation)
-        {
-            NCNN_LOGE("weight src was cleared or changed while recording");
+            NCNN_LOGE("weight source was cleared or changed while recording");
             return -1;
         }
     }
@@ -575,17 +658,23 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
     return error;
 }
 
-int VkWeightCache::binding_source(const buffer_binding& binding, const VkBufferMemory*& src) const
+int VkWeightCache::binding_source(const buffer_binding& binding, VkMat& source) const
 {
-    src = binding.src;
-    if (!src)
+    source.release();
+    if (!binding.source_identity)
         return 0;
+    for (size_t i = 0; i < source_entries.size(); i++)
+        if (view_allocator.identity(source_entries[i]) == binding.source_identity)
+            source = source_entries[i];
+    if (source.empty())
+        return -1;
+    const VkBufferMemory* src = source.data;
     if (!is_deferred_buffer(src) || binding.view_offset > src->source_size
             || binding.descriptor.range > src->source_size - binding.view_offset
             || src->source_size > (size_t)-1 - alignment
             || (src->storage_type != 2 && src->storage_type != 1)
-            || (needs_host_copy(src) && !src->source_ptr)
-            || (!needs_host_copy(src) && alignSize(src->source_size, 4) > src->capacity))
+            || (needs_host_copy(source) && !src->source_ptr)
+            || (!needs_host_copy(source) && alignSize(src->source_size, 4) > src->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;
@@ -593,9 +682,9 @@ int VkWeightCache::binding_source(const buffer_binding& binding, const VkBufferM
     return 0;
 }
 
-size_t VkWeightCache::aligned_size(const VkBufferMemory* src) const
+size_t VkWeightCache::aligned_size(const VkMat& source) const
 {
-    return alignSize(src->source_size, alignment);
+    return alignSize(source.data->source_size, alignment);
 }
 
 int VkWeightCache::layout_device_batch(weight_batch& batch, std::vector<weight_entry>& planned_device_entries, size_t& head, std::vector<weight_entry>& evicted) const
@@ -617,12 +706,12 @@ int VkWeightCache::layout_device_batch(weight_batch& batch, std::vector<weight_e
                 return -1;
         break;
     }
-    batch.offsets.clear();
+    batch.targets.clear();
     batch.missing.clear();
     for (size_t j = 0; j < batch.weights.size(); j++)
     {
         const weight_entry& entry = planned_device_entries[find_planned_device_entry(planned_device_entries, batch.weights[j])];
-        batch.offsets.push_back(entry.offset);
+        batch.targets.push_back(entry.target);
         batch.missing.push_back(!entry.valid);
     }
     return 0;
@@ -636,8 +725,8 @@ void VkWeightCache::commit_device_batch(weight_batch& batch, std::vector<weight_
     {
         const weight_entry& entry = evicted[j];
         buffer_range range;
-        range.offset = entry.offset;
-        range.size = entry.size;
+        range.offset = entry.target.buffer_offset();
+        range.size = entry.target.buffer_capacity();
         if (entry.last_batch)
             batches[entry.last_batch - 1].releases.push_back(range);
         else
@@ -654,7 +743,7 @@ void VkWeightCache::commit_device_batch(weight_batch& batch, std::vector<weight_
     batches.push_back(batch);
 }
 
-int VkWeightCache::plan_batches(const std::vector<const VkBufferMemory*>& dependencies, const std::vector<size_t>& dependency_offsets, device_plan& plan) const
+int VkWeightCache::plan_batches(const std::vector<VkMat>& dependencies, const std::vector<size_t>& dependency_offsets, device_plan& plan) const
 {
     plan.batches.clear();
     plan.initial_releases.clear();
@@ -677,14 +766,14 @@ int VkWeightCache::plan_batches(const std::vector<const VkBufferMemory*>& depend
         size_t candidate_size = batch_size;
         for (size_t j = dependency_offsets[i]; j < dependency_offsets[i + 1]; j++)
         {
-            const VkBufferMemory* src = dependencies[j];
-            if (is_pinned(src, candidate.weights))
+            const VkMat& source = dependencies[j];
+            if (is_pinned(view_allocator.identity(source), candidate.weights))
                 continue;
-            const size_t size = aligned_size(src);
+            const size_t size = aligned_size(source);
             if (size > (size_t)-1 - candidate_size)
                 return -1;
             candidate_size += size;
-            candidate.weights.push_back(src);
+            candidate.weights.push_back(source);
         }
         if (candidate.weights.size() == batch.weights.size())
         {
@@ -739,23 +828,23 @@ int VkWeightCache::plan_batches(const std::vector<const VkBufferMemory*>& depend
     return 0;
 }
 
-int VkWeightCache::find_device_entry(const VkBufferMemory* src) const
+int VkWeightCache::find_device_entry(const VkMat& source) const
 {
-    return find_planned_device_entry(device_entries, src);
+    return find_planned_device_entry(device_entries, source);
 }
 
-int VkWeightCache::find_planned_device_entry(const std::vector<weight_entry>& planned_device_entries, const VkBufferMemory* src)
+int VkWeightCache::find_planned_device_entry(const std::vector<weight_entry>& planned_device_entries, const VkMat& source) const
 {
     for (size_t i = 0; i < planned_device_entries.size(); i++)
-        if (planned_device_entries[i].src == src)
+        if (planned_device_entries[i].source_identity == view_allocator.identity(source))
             return (int)i;
     return -1;
 }
 
-int VkWeightCache::find_host_entry(const VkBufferMemory* src) const
+int VkWeightCache::find_host_entry(const VkMat& source) const
 {
     for (size_t i = 0; i < host_entries.size(); i++)
-        if (host_entries[i].src == src)
+        if (host_entries[i].source_identity == view_allocator.identity(source))
             return (int)i;
     return -1;
 }
@@ -766,42 +855,42 @@ int VkWeightCache::allocate()
         return 0;
 
     size_t allocation_size;
-    device_buffer = create_weight_buffer(vkdev, device_size, 0, unified, weight_device_memory_limit, allocation_size, true);
-    if (!device_buffer)
+    device_buffer = view_allocator.adopt(create_weight_buffer(vkdev, device_size, 0, unified, weight_device_memory_limit, allocation_size, true));
+    if (device_buffer.empty())
         return -100;
 
     if (host_size)
     {
-        host_buffer = create_weight_buffer(vkdev, host_size, 1, false, weight_host_memory_limit, allocation_size, true);
-        if (!host_buffer)
+        host_buffer = view_allocator.adopt(create_weight_buffer(vkdev, host_size, 1, false, weight_host_memory_limit, allocation_size, true));
+        if (host_buffer.empty())
             return -100;
     }
 
     return 0;
 }
 
-bool VkWeightCache::is_pinned(const VkBufferMemory* src, const std::vector<const VkBufferMemory*>& pinned)
+bool VkWeightCache::is_pinned(uintptr_t identity, const std::vector<VkMat>& pinned) const
 {
     for (size_t i = 0; i < pinned.size(); i++)
-        if (pinned[i] == src)
+        if (view_allocator.identity(pinned[i]) == identity)
             return true;
     return false;
 }
 
-int VkWeightCache::plan_device_cache_range(const VkBufferMemory* src, const std::vector<const VkBufferMemory*>& pinned, std::vector<VkWeightCache::weight_entry>& planned_device_entries, size_t& head,
+int VkWeightCache::plan_device_cache_range(const VkMat& source, const std::vector<VkMat>& pinned, std::vector<VkWeightCache::weight_entry>& planned_device_entries, size_t& head,
         std::vector<VkWeightCache::weight_entry>& evicted) const
 {
-    const int recorded = find_source_entry(src);
+    const int recorded = find_source_entry(source);
     if (recorded < 0)
         return -1;
-    const size_t size = alignSize(src->source_size, alignment);
+    const size_t size = aligned_size(source);
     size_t offset = 0;
     size_t best_batch = (size_t)-1;
     size_t best_bytes = (size_t)-1;
     bool found = false;
     for (size_t candidate = 0; candidate < planned_device_entries.size() + 2; candidate++)
     {
-        const size_t start = candidate == 0 ? head : candidate == 1 ? 0 : planned_device_entries[candidate - 2].offset + planned_device_entries[candidate - 2].size;
+        const size_t start = candidate == 0 ? head : candidate == 1 ? 0 : planned_device_entries[candidate - 2].target.buffer_offset() + planned_device_entries[candidate - 2].target.buffer_capacity();
         if (start > device_size || size > device_size - start)
             continue;
         size_t last_batch = 0;
@@ -810,15 +899,15 @@ int VkWeightCache::plan_device_cache_range(const VkBufferMemory* src, const std:
         for (size_t i = 0; i < planned_device_entries.size(); i++)
         {
             const weight_entry& entry = planned_device_entries[i];
-            if ((!entry.src && !entry.valid) || start >= entry.offset + entry.size || entry.offset >= start + size)
+            if ((!entry.source_identity && !entry.valid) || start >= entry.target.buffer_offset() + entry.target.buffer_capacity() || entry.target.buffer_offset() >= start + size)
                 continue;
-            if (is_pinned(entry.src, pinned))
+            if (is_pinned(entry.source_identity, pinned))
             {
                 pinned_overlap = true;
                 break;
             }
             last_batch = std::max(last_batch, entry.last_batch);
-            bytes += entry.size;
+            bytes += entry.target.buffer_capacity();
         }
         if (!pinned_overlap && (!found || last_batch < best_batch || (last_batch == best_batch && bytes < best_bytes)))
         {
@@ -837,22 +926,20 @@ int VkWeightCache::plan_device_cache_range(const VkBufferMemory* src, const std:
     for (size_t i = 0; i < planned_device_entries.size(); i++)
     {
         VkWeightCache::weight_entry& e = planned_device_entries[i];
-        if ((e.src || e.valid) && offset < e.offset + e.size && e.offset < offset + size)
+        if ((e.source_identity || e.valid) && offset < e.target.buffer_offset() + e.target.buffer_capacity() && e.target.buffer_offset() < offset + size)
         {
             if (e.valid)
                 evicted.push_back(e);
-            e.src = 0;
+            e.source_identity = 0;
             e.valid = false;
         }
-        if (!e.src && !e.valid)
+        if (!e.source_identity && !e.valid)
             slot = (int)i;
     }
     VkWeightCache::weight_entry entry;
-    entry.src = src;
-    entry.allocator = source_entries[recorded].allocator;
-    entry.source_generation = source_entries[recorded].source_generation;
-    entry.offset = offset;
-    entry.size = size;
+    entry.target = cache_view(false, offset, size);
+    entry.source_identity = view_allocator.identity(source);
+    entry.source_generation = source_generations[recorded];
     entry.last_batch = 0;
     entry.valid = false;
     if (slot == -1)
@@ -895,12 +982,13 @@ VkWeightCacheTransfer::~VkWeightCacheTransfer()
     destroy_commands();
 }
 
-int VkWeightCacheTransfer::record_device_cache_copy(int task, const VkBufferMemory* src, size_t src_offset, size_t offset, size_t size, const buffer_range& range, bool last)
+int VkWeightCacheTransfer::record_device_cache_copy(int task, const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last)
 {
+    const VkBufferMemory* src = source.data;
     int ret;
     if (!(src->usage_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
         return -1;
-    ret = begin_weight_command_buffer(upload_command_buffers[task]);
+    ret = begin_command_buffer(UPLOAD_COMMAND, task);
     if (ret != 0)
         return ret;
     VkResult vkret;
@@ -926,10 +1014,13 @@ int VkWeightCacheTransfer::record_device_cache_copy(int task, const VkBufferMemo
     VkBufferCopy copy;
     copy.size = size;
     copy.srcOffset = src_offset;
-    copy.dstOffset = cache.get_device_buffer()->offset + offset;
-    vkCmdCopyBuffer(upload_command_buffers[task], src->buffer, cache.get_device_buffer()->buffer, 1, &copy);
+    copy.dstOffset = target.buffer_offset() + target_offset;
+    vkCmdCopyBuffer(upload_command_buffers[task], source.buffer(), target.buffer(), 1, &copy);
     if (last)
+    {
+        buffer_range range = {target.buffer_offset(), target.buffer_capacity()};
         record_upload_release_to_compute(task, range);
+    }
     vkret = vkEndCommandBuffer(upload_command_buffers[task]);
     if (vkret != VK_SUCCESS)
     {
@@ -939,7 +1030,7 @@ int VkWeightCacheTransfer::record_device_cache_copy(int task, const VkBufferMemo
     return 0;
 }
 
-int VkWeightCacheTransfer::begin_execution(const std::vector<const VkBufferMemory*>& dependencies, const std::vector<size_t>& dependency_offsets)
+int VkWeightCacheTransfer::begin_execution(const std::vector<VkMat>& dependencies, const std::vector<size_t>& dependency_offsets)
 {
     if (error || executing)
         return -1;
@@ -1073,10 +1164,7 @@ int VkWeightCacheTransfer::prepare(size_t batch_index)
         if (!batch.missing[i])
             continue;
 
-        const int source_entry = cache.find_source_entry(batch.weights[i]);
-        if (source_entry < 0)
-            return -1;
-        int ret = upload_source_to_device_cache(cache.source(source_entry), batch.offsets[i]);
+        int ret = upload_source_to_device_cache(batch.weights[i], batch.targets[i]);
         if (ret != 0)
             return ret;
     }
@@ -1088,7 +1176,7 @@ int VkWeightCacheTransfer::release_ranges(const std::vector<buffer_range>& range
 {
     if (ranges.empty() || cache.is_unified() || transfer_queue_family_index == vkdev->info.compute_queue_family_index())
         return 0;
-    int ret = begin_weight_command_buffer(release_command_buffer);
+    int ret = begin_command_buffer(RELEASE_COMMAND);
     if (ret != 0)
         return ret;
 
@@ -1133,26 +1221,27 @@ int VkWeightCacheTransfer::begin_compute(VkCommandBuffer* command_buffer)
     compute_release_pending.push_back(false);
     compute_pending.push_back(false);
     compute_serials.push_back(0);
-    int ret = allocate_command_buffer(vkdev->vkdevice(), compute_command_pool, &compute_command_buffers[task]);
+    int ret = allocate_command_buffer(COMPUTE_COMMAND, task);
     if (ret != 0)
         return ret;
     VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, 0, 0};
     if (vkCreateFence(vkdev->vkdevice(), &fence_info, 0, &compute_fences[task]) != VK_SUCCESS)
         return -1;
-    ret = begin_weight_command_buffer(compute_command_buffers[task]);
+    ret = begin_command_buffer(COMPUTE_COMMAND, task);
     if (ret != 0)
         return ret;
     for (size_t i = 0; i < pending_uploads.size(); i++)
     {
-        const buffer_range& range = upload_ranges[pending_uploads[i]];
+        const VkMat& target = upload_targets[pending_uploads[i]];
+        const buffer_range range = {target.buffer_offset(), target.buffer_capacity()};
         record_compute_acquire_from_upload(task, range);
     }
     if (cache.is_unified())
     {
         for (size_t i = 0; i < current_batch->weights.size(); i++)
         {
-            const VkBufferMemory* src = current_batch->weights[i];
-            if (!needs_host_copy(src))
+            const VkMat& source = current_batch->weights[i];
+            if (!needs_host_copy(source))
                 continue;
             // barrier device host-write @ host to shader-read @ compute
             VkBufferMemoryBarrier barrier;
@@ -1162,9 +1251,9 @@ int VkWeightCacheTransfer::begin_compute(VkCommandBuffer* command_buffer)
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.buffer = cache.get_device_buffer()->buffer;
-            barrier.offset = cache.get_device_buffer()->offset + current_batch->offsets[i];
-            barrier.size = cache.aligned_size(src);
+            barrier.buffer = current_batch->targets[i].buffer();
+            barrier.offset = current_batch->targets[i].buffer_offset();
+            barrier.size = cache.aligned_size(source);
             vkCmdPipelineBarrier(compute_command_buffers[task], VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
         }
     }
@@ -1348,7 +1437,7 @@ int VkWeightCacheTransfer::create_commands()
     fenceCreateInfo.flags = 0;
     if (!cache.is_unified() && transfer_queue_family_index != vkdev->info.compute_queue_family_index())
     {
-        ret = allocate_command_buffer(vkdev->vkdevice(), compute_command_pool, &release_command_buffer);
+        ret = allocate_command_buffer(RELEASE_COMMAND);
         if (ret != 0)
             return ret;
         vkret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &release_fence);
@@ -1402,8 +1491,8 @@ void VkWeightCacheTransfer::destroy_commands()
     upload_fences.clear();
     upload_compute_semaphores.clear();
     upload_pending.clear();
-    upload_host_ranges.clear();
-    upload_ranges.clear();
+    upload_sources.clear();
+    upload_targets.clear();
     compute_command_buffers.clear();
     compute_fences.clear();
     compute_upload_semaphores.clear();
@@ -1419,71 +1508,68 @@ void VkWeightCacheTransfer::destroy_commands()
     plan.device_entries.clear();
 }
 
-int VkWeightCacheTransfer::upload_source_to_device_cache(const VkMat& source, size_t offset)
+int VkWeightCacheTransfer::upload_source_to_device_cache(const VkMat& source, const VkMat& target)
 {
-    // Cache the complete source allocation, shared by all recorded tensor views.
+    // Cache the full allocation shared by recorded tensor views.
     const VkBufferMemory* src = source.data;
-    const size_t size = alignSize(src->source_size, cache.get_alignment());
-    if (cache.is_unified() && needs_host_copy(src))
+    const size_t size = target.buffer_capacity();
+    if (cache.is_unified() && needs_host_copy(source))
     {
-        unsigned char* dst = (unsigned char*)cache.get_device_buffer()->mapped_ptr + cache.get_device_buffer()->offset + offset;
+        unsigned char* dst = (unsigned char*)target.mapped_ptr();
         memcpy(dst, src->source_ptr, src->source_size);
 #if NCNN_BENCHMARK
         if (src->storage_type == 2)
             bytes_read += src->source_size;
-#endif // NCNN_BENCHMARK
+#endif
         memset(dst + src->source_size, 0, size - src->source_size);
-        int ret = flush_weight_buffer(vkdev, cache.get_device_buffer(), offset, size);
-        if (ret != 0)
-            return ret;
-        return 0;
+        return flush_weight_buffer(vkdev, target.data, 0, size);
     }
-    buffer_range range;
-    range.offset = offset;
-    range.size = size;
-    if (!needs_host_copy(src))
+    if (!needs_host_copy(source))
     {
-        int slot = create_upload();
-        if (slot < 0)
-            return slot;
-        const int ret = submit_device_cache_copy(slot, src, src->offset, offset, alignSize(src->source_size, 4), range, true);
-        return ret;
+        const int task = create_upload();
+        if (task < 0)
+            return task;
+        return submit_device_cache_copy(task, source, target, source.buffer_offset(), 0, alignSize(src->source_size, 4), true);
     }
     if (size <= cache.get_host_size())
     {
-        size_t host_offset;
-        int ret = fill_host_cache(source, host_offset);
+        VkMat host;
+        int ret = fill_host_cache(source, host);
         if (ret != 0)
             return ret;
-        int slot = create_upload();
-        if (slot < 0)
-            return slot;
-        return submit_device_cache_copy(slot, cache.get_host_buffer(), cache.get_host_buffer()->offset + host_offset, offset, alignSize(src->source_size, 4), range, true);
+        const int task = create_upload();
+        if (task < 0)
+            return task;
+        return submit_device_cache_copy(task, host, target, host.buffer_offset(), 0, alignSize(src->source_size, 4), true);
     }
-    const size_t chunk_capacity = std::max(cache.get_alignment(), cache.get_host_size() / 2 / cache.get_alignment() * cache.get_alignment());
+    const size_t alignment = cache.get_alignment();
+    const size_t chunk_capacity = std::min((size_t)INT_MAX / alignment * alignment, std::max(alignment, cache.get_host_size() / 2 / alignment * alignment));
     for (size_t file_offset = 0; file_offset < src->source_size;)
     {
         const size_t chunk_size = std::min(chunk_capacity, src->source_size - file_offset);
-        const size_t host_range_size = alignSize(chunk_size, cache.get_alignment());
+        const size_t host_range_size = alignSize(chunk_size, alignment);
         size_t host_offset;
         int ret = allocate_host_range(host_range_size, host_offset);
         if (ret != 0)
             return ret;
-        int slot = create_upload();
-        if (slot < 0)
-            return slot;
-        unsigned char* dst = (unsigned char*)cache.get_host_buffer()->mapped_ptr + cache.get_host_buffer()->offset + host_offset;
+        VkMat host = cache.host_range(host_offset, host_range_size);
+        if (host.empty())
+            return -1;
+        unsigned char* dst = (unsigned char*)host.mapped_ptr();
         memcpy(dst, (const unsigned char*)src->source_ptr + file_offset, chunk_size);
 #if NCNN_BENCHMARK
         if (src->storage_type == 2)
             bytes_read += chunk_size;
-#endif // NCNN_BENCHMARK
+#endif
         memset(dst + chunk_size, 0, host_range_size - chunk_size);
-        ret = flush_host(host_offset, host_range_size);
+        ret = flush_weight_buffer(vkdev, host.data, 0, host_range_size);
         if (ret != 0)
             return ret;
+        const int task = create_upload();
+        if (task < 0)
+            return task;
         const bool last = chunk_size == src->source_size - file_offset;
-        ret = submit_device_cache_copy(slot, cache.get_host_buffer(), cache.get_host_buffer()->offset + host_offset, offset + file_offset, alignSize(chunk_size, 4), range, last);
+        ret = submit_device_cache_copy(task, host, target, host.buffer_offset(), file_offset, alignSize(chunk_size, 4), last);
         if (ret != 0)
             return ret;
         file_offset += chunk_size;
@@ -1491,9 +1577,9 @@ int VkWeightCacheTransfer::upload_source_to_device_cache(const VkMat& source, si
     return 0;
 }
 
-int VkWeightCacheTransfer::submit_device_cache_copy(int task, const VkBufferMemory* src, size_t src_offset, size_t offset, size_t size, const buffer_range& range, bool last)
+int VkWeightCacheTransfer::submit_device_cache_copy(int task, const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last)
 {
-    int ret = record_device_cache_copy(task, src, src_offset, offset, size, range, last);
+    int ret = record_device_cache_copy(task, source, target, src_offset, target_offset, size, last);
     if (ret != 0)
         return ret;
     VkSubmitInfo submitInfo;
@@ -1515,12 +1601,8 @@ int VkWeightCacheTransfer::submit_device_cache_copy(int task, const VkBufferMemo
     bytes_uploaded += size;
 #endif // NCNN_BENCHMARK
     upload_pending[task] = true;
-    if (src == cache.get_host_buffer())
-    {
-        upload_host_ranges[task].offset = src_offset - cache.get_host_buffer()->offset;
-        upload_host_ranges[task].size = alignSize(size, cache.get_alignment());
-    }
-    upload_ranges[task] = range;
+    upload_sources[task] = source;
+    upload_targets[task] = target;
     pending_acquires.clear();
     if (last)
         pending_uploads.push_back(task);
@@ -1573,9 +1655,9 @@ int VkWeightCacheTransfer::create_upload()
     upload_fences.push_back(0);
     upload_compute_semaphores.push_back(0);
     upload_pending.push_back(false);
-    upload_host_ranges.push_back(buffer_range());
-    upload_ranges.push_back(buffer_range());
-    int ret = allocate_command_buffer(vkdev->vkdevice(), transfer_command_pool, &upload_command_buffers[task]);
+    upload_sources.push_back(VkMat());
+    upload_targets.push_back(VkMat());
+    int ret = allocate_command_buffer(UPLOAD_COMMAND, task);
     if (ret != 0)
         return ret;
     VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, 0, 0};
@@ -1594,48 +1676,53 @@ int VkWeightCacheTransfer::allocate_host_range(size_t size, size_t& offset)
         return ret;
     for (size_t i = 0; i < upload_fences.size(); i++)
     {
-        buffer_range& range = upload_host_ranges[i];
-        if (range.size && offset < range.offset + range.size && range.offset < offset + size)
+        VkMat& source = upload_sources[i];
+        if (!source.empty() && source.buffer() == cache.get_host_buffer().buffer()
+                && offset < source.buffer_offset() + source.buffer_capacity() && source.buffer_offset() < offset + size)
         {
             int ret = wait_fence(upload_fences[i]);
             if (ret != 0)
                 return ret;
-            range.size = 0;
+            source.release();
         }
     }
     cache.reserve_host_range(offset, size);
     return 0;
 }
 
-int VkWeightCacheTransfer::fill_host_cache(const VkMat& source, size_t& offset)
+int VkWeightCacheTransfer::fill_host_cache(const VkMat& source, VkMat& target)
 {
-    const VkBufferMemory* src = source.data;
-    const int cached = cache.find_host_entry(src);
+    const int cached = cache.find_host_entry(source);
     if (cached >= 0)
     {
-        offset = cache.host_entry(cached).offset;
+        target = cache.host_entry(cached).target;
         return 0;
     }
-    const size_t size = alignSize(src->source_size, cache.get_alignment());
+    const VkBufferMemory* src = source.data;
+    const size_t size = cache.aligned_size(source);
+    size_t offset;
     int ret = allocate_host_range(size, offset);
     if (ret != 0)
         return ret;
-    unsigned char* dst = (unsigned char*)cache.get_host_buffer()->mapped_ptr + cache.get_host_buffer()->offset + offset;
+    unsigned char* dst = (unsigned char*)cache.get_host_buffer().mapped_ptr() + offset;
     memcpy(dst, src->source_ptr, src->source_size);
 #if NCNN_BENCHMARK
     if (src->storage_type == 2)
         bytes_read += src->source_size;
-#endif // NCNN_BENCHMARK
+#endif
     memset(dst + src->source_size, 0, size - src->source_size);
     ret = flush_host(offset, size);
     if (ret != 0)
         return ret;
-    return cache.publish_host_entry(source, offset, size);
+    ret = cache.publish_host_entry(source, offset, size);
+    if (ret == 0)
+        target = cache.host_entry(cache.find_host_entry(source)).target;
+    return ret;
 }
 
 int VkWeightCacheTransfer::flush_host(size_t offset, size_t size)
 {
-    return flush_weight_buffer(vkdev, cache.get_host_buffer(), offset, size);
+    return flush_weight_buffer(vkdev, cache.get_host_buffer().data, offset, size);
 }
 
 void VkWeightCacheTransfer::record_upload_release_to_compute(int task, const buffer_range& range)
@@ -1654,8 +1741,8 @@ void VkWeightCacheTransfer::record_upload_release_to_compute(int task, const buf
         barrier.srcQueueFamilyIndex = transfer_queue_family_index;
         barrier.dstQueueFamilyIndex = vkdev->info.compute_queue_family_index();
     }
-    barrier.buffer = cache.get_device_buffer()->buffer;
-    barrier.offset = cache.get_device_buffer()->offset + range.offset;
+    barrier.buffer = cache.get_device_buffer().buffer();
+    barrier.offset = cache.get_device_buffer().buffer_offset() + range.offset;
     barrier.size = range.size;
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
 }
@@ -1676,8 +1763,8 @@ void VkWeightCacheTransfer::record_compute_acquire_from_upload(int task, const b
         barrier.srcQueueFamilyIndex = transfer_queue_family_index;
         barrier.dstQueueFamilyIndex = vkdev->info.compute_queue_family_index();
     }
-    barrier.buffer = cache.get_device_buffer()->buffer;
-    barrier.offset = cache.get_device_buffer()->offset + range.offset;
+    barrier.buffer = cache.get_device_buffer().buffer();
+    barrier.offset = cache.get_device_buffer().buffer_offset() + range.offset;
     barrier.size = range.size;
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
 }
@@ -1698,8 +1785,8 @@ void VkWeightCacheTransfer::record_compute_release_to_upload(int task, const buf
         barrier.srcQueueFamilyIndex = vkdev->info.compute_queue_family_index();
         barrier.dstQueueFamilyIndex = transfer_queue_family_index;
     }
-    barrier.buffer = cache.get_device_buffer()->buffer;
-    barrier.offset = cache.get_device_buffer()->offset + range.offset;
+    barrier.buffer = cache.get_device_buffer().buffer();
+    barrier.offset = cache.get_device_buffer().buffer_offset() + range.offset;
     barrier.size = range.size;
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
 }
@@ -1720,8 +1807,8 @@ void VkWeightCacheTransfer::record_initial_release_to_upload(const buffer_range&
         barrier.srcQueueFamilyIndex = vkdev->info.compute_queue_family_index();
         barrier.dstQueueFamilyIndex = transfer_queue_family_index;
     }
-    barrier.buffer = cache.get_device_buffer()->buffer;
-    barrier.offset = cache.get_device_buffer()->offset + range.offset;
+    barrier.buffer = cache.get_device_buffer().buffer();
+    barrier.offset = cache.get_device_buffer().buffer_offset() + range.offset;
     barrier.size = range.size;
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
 }
@@ -1742,8 +1829,8 @@ void VkWeightCacheTransfer::record_upload_acquire_from_compute(int task, const b
         barrier.srcQueueFamilyIndex = vkdev->info.compute_queue_family_index();
         barrier.dstQueueFamilyIndex = transfer_queue_family_index;
     }
-    barrier.buffer = cache.get_device_buffer()->buffer;
-    barrier.offset = cache.get_device_buffer()->offset + range.offset;
+    barrier.buffer = cache.get_device_buffer().buffer();
+    barrier.offset = cache.get_device_buffer().buffer_offset() + range.offset;
     barrier.size = range.size;
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
 }
@@ -1969,7 +2056,7 @@ public:
     };
 
     int replay_record(const record& r, VkCommandBuffer command_buffer);
-    int record_sources(const record& r, std::vector<const VkBufferMemory*>& weights);
+    int record_sources(const record& r, std::vector<VkMat>& weights);
 
     std::vector<record> deferred_records;
 
@@ -2402,7 +2489,7 @@ int VkComputePrivate::emit_pipeline(const pipeline_record& r, VkCommandBuffer co
     return 0;
 }
 
-int VkComputePrivate::record_sources(const record& r, std::vector<const VkBufferMemory*>& weights)
+int VkComputePrivate::record_sources(const record& r, std::vector<VkMat>& weights)
 {
     if (r.type != record::TYPE_pipeline && r.type != record::TYPE_copy_buffer && r.type != record::TYPE_copy_buffer_to_image)
         return 0;
@@ -2411,15 +2498,15 @@ int VkComputePrivate::record_sources(const record& r, std::vector<const VkBuffer
     for (size_t i = 0; i < count; i++)
     {
         const buffer_binding& binding = r.type == record::TYPE_pipeline ? pipelines[r.pipeline_index].buffers[i] : r.type == record::TYPE_copy_buffer ? r.copy_buffer.binding : r.copy_buffer_to_image.binding;
-        const VkBufferMemory* src;
+        VkMat src;
         int ret = weight_cache->binding_source(binding, src);
         if (ret != 0)
             return ret;
-        if (!src)
+        if (src.empty())
             continue;
         bool found = false;
         for (size_t j = 0; j < weights.size(); j++)
-            if (weights[j] == src)
+            if (weights[j].data == src.data)
                 found = true;
         if (!found)
             weights.push_back(src);
@@ -2437,9 +2524,9 @@ int VkComputePrivate::submit_managed()
     size_t minimum_device_size = 0;
     size_t max_source_size = 0;
     size_t max_file_size = 0;
-    std::vector<const VkBufferMemory*> dependencies;
+    std::vector<VkMat> dependencies;
     std::vector<size_t> dependency_offsets;
-    std::vector<const VkBufferMemory*> sources;
+    std::vector<VkMat> sources;
     dependency_offsets.push_back(0);
     for (size_t i = 0; i < deferred_records.size(); i++)
     {
@@ -3025,11 +3112,10 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         {
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_copy_buffer;
-            r.copy_buffer.binding.src = 0;
             r.copy_buffer.src = src.buffer();
-            r.copy_buffer.binding.src = 0;
+            r.copy_buffer.binding.source_identity = 0;
             if (is_deferred_buffer(src.data))
-                r.copy_buffer.binding.src = src.data;
+                r.copy_buffer.binding.source_identity = (uintptr_t)src.data;
             r.copy_buffer.binding.view_offset = src.offset;
             r.copy_buffer.binding.descriptor.buffer = src.buffer();
             r.copy_buffer.binding.descriptor.offset = src.buffer_offset();
@@ -3359,11 +3445,10 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
         {
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_copy_buffer_to_image;
-            r.copy_buffer_to_image.binding.src = 0;
             r.copy_buffer_to_image.src = src.buffer();
-            r.copy_buffer_to_image.binding.src = 0;
+            r.copy_buffer_to_image.binding.source_identity = 0;
             if (is_deferred_buffer(src.data))
-                r.copy_buffer_to_image.binding.src = src.data;
+                r.copy_buffer_to_image.binding.source_identity = (uintptr_t)src.data;
             r.copy_buffer_to_image.binding.view_offset = src.offset;
             r.copy_buffer_to_image.binding.descriptor.buffer = src.buffer();
             r.copy_buffer_to_image.binding.descriptor.offset = src.buffer_offset();
@@ -3651,9 +3736,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         {
             const VkMat& binding = buffer_bindings[i].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[i];
             buffer_binding b;
-            b.src = 0;
+            b.source_identity = 0;
             if (is_deferred_buffer(binding.data))
-                b.src = binding.data;
+                b.source_identity = (uintptr_t)binding.data;
             b.view_offset = binding.offset;
             b.descriptor.buffer = binding.buffer();
             b.descriptor.offset = binding.buffer_offset();
@@ -4035,7 +4120,7 @@ int VkComputePrivate::replay_record(const record& r, VkCommandBuffer command_buf
         return emit_pipeline(pipelines[r.pipeline_index], command_buffer);
     case VkComputePrivate::record::TYPE_copy_buffer:
     {
-        if (!weight_cache || !r.copy_buffer.binding.src)
+        if (!weight_cache || !r.copy_buffer.binding.source_identity)
         {
             vkCmdCopyBuffer(command_buffer, r.copy_buffer.src, r.copy_buffer.dst, r.copy_buffer.region_count, r.copy_buffer.regions);
             break;
@@ -4060,7 +4145,7 @@ int VkComputePrivate::replay_record(const record& r, VkCommandBuffer command_buf
     }
     case VkComputePrivate::record::TYPE_copy_buffer_to_image:
     {
-        if (!weight_cache || !r.copy_buffer_to_image.binding.src)
+        if (!weight_cache || !r.copy_buffer_to_image.binding.source_identity)
         {
             vkCmdCopyBufferToImage(command_buffer, r.copy_buffer_to_image.src, r.copy_buffer_to_image.dst, r.copy_buffer_to_image.layout, r.copy_buffer_to_image.region_count, r.copy_buffer_to_image.regions);
             break;
@@ -4162,11 +4247,11 @@ int VkCompute::submit_and_wait()
             {
                 const std::vector<buffer_binding>& buffers = d->pipelines[r.pipeline_index].buffers;
                 for (size_t j = 0; j < buffers.size(); j++)
-                    has_deferred_weights |= buffers[j].src != 0;
+                    has_deferred_weights |= buffers[j].source_identity != 0;
             }
             else if (r.type == VkComputePrivate::record::TYPE_copy_buffer || r.type == VkComputePrivate::record::TYPE_copy_buffer_to_image)
             {
-                has_deferred_weights = r.type == VkComputePrivate::record::TYPE_copy_buffer ? r.copy_buffer.binding.src != 0 : r.copy_buffer_to_image.binding.src != 0;
+                has_deferred_weights = r.type == VkComputePrivate::record::TYPE_copy_buffer ? r.copy_buffer.binding.source_identity != 0 : r.copy_buffer_to_image.binding.source_identity != 0;
             }
         }
     }
@@ -4636,23 +4721,26 @@ void VkCompute::barrier_readonly(const VkImageMat& binding)
 int VkComputePrivate::resolve_weight_binding(const buffer_binding& binding, VkDescriptorBufferInfo& descriptor) const
 {
     descriptor = binding.descriptor;
-    if (!binding.src)
+    if (!binding.source_identity)
         return 0;
     return weight_transfer ? weight_transfer->resolve_binding(binding, descriptor) : -1;
 }
 
 int VkWeightCacheTransfer::resolve_binding(const buffer_binding& binding, VkDescriptorBufferInfo& descriptor) const
 {
-    const VkBufferMemory* src = binding.src;
+    VkMat source;
+    int ret = cache.binding_source(binding, source);
+    if (ret != 0)
+        return ret;
     descriptor = binding.descriptor;
-    if (!src)
+    if (source.empty())
         return 0;
     for (size_t i = 0; i < current_batch->weights.size(); i++)
     {
-        if (current_batch->weights[i] != src)
+        if (current_batch->weights[i].data != source.data)
             continue;
-        descriptor.buffer = cache.get_device_buffer()->buffer;
-        descriptor.offset = cache.get_device_buffer()->offset + current_batch->offsets[i] + binding.view_offset;
+        descriptor.buffer = current_batch->targets[i].buffer();
+        descriptor.offset = current_batch->targets[i].buffer_offset() + binding.view_offset;
         return 0;
     }
     return -1;

@@ -396,7 +396,6 @@ private:
     VkWeightAllocator& operator=(const VkWeightAllocator&);
 
 private:
-    friend void begin_weight_upload(VkWeightAllocator* allocator);
     VkWeightAllocatorPrivate* const d;
 };
 

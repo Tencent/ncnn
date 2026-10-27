@@ -578,7 +578,7 @@ public:
         {
             std::string path = temporary_directory;
             path += "/ncnn-tmp-XXXXXX";
-#if (defined(__linux__) && defined(_GNU_SOURCE)) || (defined(__ANDROID__) && __ANDROID_API__ >= 23)
+#if (defined(__linux__) && !defined(__ANDROID__) && defined(_GNU_SOURCE)) || (defined(__ANDROID__) && __ANDROID_API__ >= 23)
             const int fd = mkostemp(&path[0], O_CLOEXEC);
 #else
             const int fd = mkstemp(&path[0]);

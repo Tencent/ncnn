@@ -1621,7 +1621,6 @@ struct weight_record
     size_t allocation_size;
     const void* src;
     VkBufferMemory* memory;
-    uint32_t group;
     int resident_block;
     size_t resident_offset;
 };
@@ -1653,6 +1652,7 @@ public:
 
     const VkAllocator* allocator;
     uint64_t source_generation;
+    uint64_t source_lifetime;
     uint64_t clear_generation;
     size_t block_size;
     size_t buffer_offset_alignment;
@@ -1680,7 +1680,6 @@ public:
     size_t cache_sizes[2];
     uint64_t allocated_sizes[2];
     size_t resident_sizes[2];
-    uint32_t weight_group;
     std::vector<VkBufferMemory*> resident_blocks;
 #if !defined(_WIN32)
     std::vector<void*> host_ptrs;
@@ -1699,7 +1698,7 @@ static void update_weight_generation(VkWeightAllocatorPrivate* allocator)
 }
 
 VkWeightAllocatorPrivate::VkWeightAllocatorPrivate(const VulkanDevice* _vkdev)
-    : allocator(0), source_generation(0), clear_generation(0), vkdev(_vkdev)
+    : allocator(0), source_generation(0), source_lifetime(0), clear_generation(0), vkdev(_vkdev)
 {
     use_weights_in_disk = false;
     deferred_weight_count = 0;
@@ -1709,7 +1708,6 @@ VkWeightAllocatorPrivate::VkWeightAllocatorPrivate(const VulkanDevice* _vkdev)
     residents_ready = true;
     resident_upload_stage = 0;
     finalization_error = 0;
-    weight_group = 0;
     for (int i = 0; i < 2; i++)
     {
         memory_limits[i] = 0;
@@ -1754,6 +1752,7 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_ho
         MutexLockGuard lock(g_weight_allocators_lock);
         d->allocator = this;
         d->source_generation = ++g_weight_generation;
+        d->source_lifetime = d->source_generation;
         g_weight_allocators.push_back(d);
     }
 }
@@ -1795,7 +1794,6 @@ void VkWeightAllocatorPrivate::clear_weights()
     resident_upload_stage = 0;
     finalization_error = 0;
     weights.clear();
-    weight_group = 0;
 
     for (size_t i = 0; i < resident_blocks.size(); i++)
         destroy_weight_buffer(vkdev, resident_blocks[i]);
@@ -1935,13 +1933,6 @@ void VkWeightAllocator::set_weight_memory_limit(size_t device_memory_limit, size
     d->memory_limits[1] = host_memory_limit;
 }
 
-// begin a layer upload group
-void begin_weight_upload(VkWeightAllocator* allocator)
-{
-    VkWeightAllocatorPrivate* d = allocator->d;
-    d->weight_group++;
-}
-
 int VkWeightAllocator::get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const
 {
     device_bytes = d->allocated_sizes[0];
@@ -1964,21 +1955,45 @@ bool VkWeightAllocator::has_disk_weights() const
     return false;
 }
 
-int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generation)
+int get_weight_source_generation(const VkAllocator* allocator, uint64_t& generation, uint64_t* lifetime)
 {
     MutexLockGuard lock(g_weight_allocators_lock);
     generation = 0;
+    if (lifetime)
+        *lifetime = 0;
     for (size_t i = 0; i < g_weight_allocators.size(); i++)
     {
         const VkWeightAllocatorPrivate* p = g_weight_allocators[i];
         if (p->allocator != allocator)
             continue;
         generation = p->source_generation;
+        if (lifetime)
+            *lifetime = p->source_lifetime;
         if (p->finalization_error || !p->residents_ready || ((p->use_weights_in_disk || !p->weights.empty()) && !p->finalized))
             return -1;
         return 0;
     }
     return 0;
+}
+
+void release_weight_source(VkMat& source, uint64_t lifetime)
+{
+    uint64_t generation;
+    uint64_t current_lifetime;
+    get_weight_source_generation(source.allocator, generation, &current_lifetime);
+    if (!lifetime || current_lifetime == lifetime)
+    {
+        // Do not hold the registry lock: fastFree updates the source generation.
+        source.release();
+        return;
+    }
+
+    // The original allocator is gone (or its address has been reused). Its
+    // backing allocation is already released, but retained metadata is ours.
+    if (source.refcount && NCNN_XADD(source.refcount, -1) == 1)
+        delete static_cast<VkWeightBufferMemory*>(source.data);
+    source.refcount = 0;
+    source.release();
 }
 
 static size_t weight_block_size(const std::vector<weight_record>& weights, const std::vector<uint32_t>& ids, size_t begin, size_t alignment, size_t limit)
@@ -2071,9 +2086,7 @@ int VkWeightAllocatorPrivate::plan_weights()
     const size_t host_memory_limit = memory_limits[1];
     std::vector<std::pair<size_t, uint32_t> > sizes;
     std::vector<uint32_t> ids;
-    std::vector<size_t> group_sizes((size_t)weight_group + 1, 0);
     size_t max_size = 0;
-    size_t max_group_size = 0;
     for (size_t i = 0; i < weights.size(); i++)
     {
         const weight_record& record = weights[i];
@@ -2083,17 +2096,6 @@ int VkWeightAllocatorPrivate::plan_weights()
             return -1;
         const size_t size = alignSize(record.data_size, alignment);
         max_size = std::max(max_size, size);
-        size_t& group = group_sizes[weights[i].group];
-        if (size > (size_t)-1 - group)
-        {
-            NCNN_LOGE("weight group size overflow");
-            return -1;
-        }
-        if (record.group)
-            group += size;
-        else
-            group = std::max(group, size);
-        max_group_size = std::max(max_group_size, group);
         sizes.push_back(std::make_pair(record.data_size, (uint32_t)i));
     }
     std::partial_sort(sizes.begin(), sizes.end(), sizes.end(), std::less<std::pair<size_t, uint32_t> >());
@@ -2109,8 +2111,9 @@ int VkWeightAllocatorPrivate::plan_weights()
         device_cache = 0;
     else if (automatic_device_cache)
     {
-        // reserve the cache before placing resident weights
-        device_cache = std::min(device_memory_limit, max_group_size) / alignment * alignment;
+        // Reserve space for the largest weight before placing residents.
+        // Simultaneous bindings are checked when recorded dispatches are planned.
+        device_cache = std::min(device_memory_limit, max_size) / alignment * alignment;
     }
     size_t device_cache_allocation = 0;
     ret = fit_weight_capacity(vkdev, device_memory_limit, automatic_device_cache, false, device_cache);
@@ -2129,10 +2132,7 @@ int VkWeightAllocatorPrivate::plan_weights()
         return ret;
 
     std::vector<uint32_t> remaining;
-    for (size_t i = 0; i < group_sizes.size(); i++)
-        group_sizes[i] = 0;
     max_size = 0;
-    max_group_size = 0;
     for (size_t i = 0; i < ids.size(); i++)
     {
         if (weights[ids[i]].resident_block >= 0)
@@ -2140,17 +2140,6 @@ int VkWeightAllocatorPrivate::plan_weights()
         remaining.push_back(ids[i]);
         const size_t size = alignSize(weights[ids[i]].data_size, alignment);
         max_size = std::max(max_size, size);
-        size_t& group = group_sizes[weights[ids[i]].group];
-        if (size > (size_t)-1 - group)
-        {
-            NCNN_LOGE("weight group size overflow");
-            return -1;
-        }
-        if (weights[ids[i]].group)
-            group += size;
-        else
-            group = std::max(group, size);
-        max_group_size = std::max(max_group_size, group);
     }
     if (remaining.empty())
     {
@@ -2163,7 +2152,7 @@ int VkWeightAllocatorPrivate::plan_weights()
         size_t doubled = (size_t)-1;
         if (max_size <= (size_t)-1 / 2)
             doubled = max_size * 2;
-        device_cache = std::min(device_memory_limit - resident_sizes[0], std::max(doubled, max_group_size)) / alignment * alignment;
+        device_cache = std::min(device_memory_limit - resident_sizes[0], doubled) / alignment * alignment;
         ret = fit_weight_capacity(vkdev, device_memory_limit - resident_sizes[0], true, false, device_cache);
         if (ret != 0)
             return ret;
@@ -2457,7 +2446,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     {
         weight_record record;
         record.src = 0;
-        record.group = d->weight_group;
         record.resident_block = -1;
         record.resident_offset = 0;
         record.data_size = size;

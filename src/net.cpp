@@ -25,10 +25,6 @@
 
 namespace ncnn {
 
-#if NCNN_VULKAN
-void begin_weight_upload(VkWeightAllocator* allocator);
-#endif
-
 #if NCNN_VALIDATION
 // bound model header allocations, including repeated blob references
 static const int max_net_count = 1000000;
@@ -2428,7 +2424,6 @@ int Net::load_model(const DataReader& dr)
 #if NCNN_VULKAN
         if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
         {
-            begin_weight_upload(d->weight_vkallocator);
             int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
             if (uret == 0)
                 uret = cmd_upload->error();
