@@ -1955,6 +1955,13 @@ int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float a
         /* when repacking is needed, keep the pack1 fp16 intermediate in workspace (sharing the
              * blob pool with the final output would momentarily hold two copies of the same size;
              * the blob pool is sized for one returned output and would report -100). */
+        /* The compute loop above has finished: release the scratch (A32 is roughly
+         * 4*M*K bytes, kbuf_mat K*num_threads floats) before allocating the output
+         * repack buffer -- on a constrained workspace allocator, holding the dead
+         * scratch can make this 2*M*N allocation fail with -100 while releasing
+         * it first leaves enough room. */
+        A32.release();
+        kbuf_mat.release();
         Mat top16_tmp;
         cast_float32_to_float16(C32, top16_tmp, opt_tmp);
         if (top16_tmp.empty())
