@@ -3041,7 +3041,7 @@ VkBufferMemory* VkWeightAllocatorPrivate::record_weight(VkBufferMemory* ptr, siz
         deferred_weight_count++;
     VkWeightBufferMemory* memory = static_cast<VkWeightBufferMemory*>(ptr);
     memory->clear_generation = clear_generation;
-    memory->record_index = ptr->storage_type == 2 ? weights.size() - 1 : (size_t) -1;
+    memory->record_index = ptr->storage_type == 2 ? weights.size() - 1 : (size_t)-1;
     update_weight_generation(this);
     return ptr;
 }
@@ -3057,7 +3057,7 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     update_weight_generation(d);
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
-    if (memory->record_index != (size_t) -1)
+    if (memory->record_index != (size_t)-1)
     {
         weight_record& record = d->weights[memory->record_index];
         record.memory = 0;

@@ -725,7 +725,7 @@ int VkWeightCache::plan_batches(const std::vector<const VkBufferMemory*>& depend
             if (is_pinned(src, candidate.weights))
                 continue;
             const size_t size = aligned_size(src);
-            if (size > (size_t) -1 - candidate_size)
+            if (size > (size_t)-1 - candidate_size)
                 return -1;
             candidate_size += size;
             candidate.weights.push_back(src);
@@ -1365,8 +1365,8 @@ int VkWeightCache::place(const VkBufferMemory* src, const std::vector<const VkBu
         return -1;
     const size_t size = alignSize(src->source_size, alignment);
     size_t offset = 0;
-    size_t best_batch = (size_t) -1;
-    size_t best_bytes = (size_t) -1;
+    size_t best_batch = (size_t)-1;
+    size_t best_bytes = (size_t)-1;
     bool found = false;
     for (size_t candidate = 0; candidate < entries.size() + 2; candidate++)
     {
@@ -2373,7 +2373,7 @@ int VkComputePrivate::submit_managed()
         for (size_t j = 0; j < sources.size(); j++)
         {
             const size_t size = weight_cache->aligned_size(sources[j]);
-            if (size > (size_t) -1 - total)
+            if (size > (size_t)-1 - total)
             {
                 NCNN_LOGE("weight binding size overflow");
                 return -1;
