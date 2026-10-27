@@ -27,7 +27,6 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 void begin_weight_upload(VkWeightAllocator* allocator);
-int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size, bool& needed);
 #endif
 
 #if NCNN_VALIDATION
@@ -1515,7 +1514,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
 
         // check the byte size and channel alignment before constructing the shape
         size_t size = (size_t)w;
-        const size_t limit = ((size_t)-1 - 15) / 4;
+        const size_t limit = ((size_t) -1 - 15) / 4;
         if (size > limit || (h != 0 && size > limit / h))
             return -1;
         size *= h;
@@ -1523,7 +1522,7 @@ int NetPrivate::load_shape_hints(Layer* layer, const ParamDict& pd)
             return -1;
         size *= d;
         size = alignSize(size * 4, 16) / 4;
-        if (c != 0 && size > ((size_t)-1 / 4) / c)
+        if (c != 0 && size > ((size_t) -1 / 4) / c)
             return -1;
 #endif // NCNN_VALIDATION
         Blob& blob = blobs[layer->tops[j]];
@@ -2493,10 +2492,22 @@ int Net::load_model(const DataReader& dr)
             ret = d->weight_vkallocator->finalize_weights(opt.weight_device_cache_size, opt.weight_host_cache_size);
         if (ret == 0)
             ret = cmd_upload->reset();
-        if (ret == 0)
+        for (int storage_type = 0; ret == 0 && storage_type < 2; storage_type++)
         {
-            cmd_upload->record_upload(d->weight_vkallocator, opt);
-            ret = cmd_upload->submit_and_wait();
+            std::vector<Mat> sources;
+            std::vector<VkMat> destinations;
+            ret = d->weight_vkallocator->get_resident_uploads(storage_type, sources, destinations);
+            for (size_t i = 0; ret == 0 && i < sources.size(); i++)
+            {
+                const VkMat& destination = destinations[i];
+                cmd_upload->record_upload(sources[i], destination, opt);
+                ret = cmd_upload->error();
+            }
+            if (ret == 0)
+                ret = cmd_upload->submit_and_wait();
+            if (ret == 0)
+                ret = cmd_upload->reset();
+            d->weight_vkallocator->finish_resident_uploads(storage_type, ret);
         }
     }
 
@@ -3395,9 +3406,10 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 d->opt.staging_vkallocator = d->local_staging_vkallocator;
             }
 
-            size_t device_memory_limit, host_memory_limit, device_size, host_size;
-            bool needed;
-            ret = get_weight_cache_limits(d->net->d->weight_vkallocator, device_memory_limit, host_memory_limit, device_size, host_size, needed);
+            const VkWeightAllocator* weights = d->net->d->weight_vkallocator;
+            uint64_t device_used, host_used;
+            ret = weights->get_weight_memory_usage(device_used, host_used);
+            const bool needed = weights->needs_weight_cache();
             if (ret == 0)
             {
                 if (needed)
@@ -3405,23 +3417,56 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                     if (!d->weight_command)
                     {
                         Option command_opt = d->opt;
-                        command_opt.weight_device_memory_limit = device_memory_limit;
-                        command_opt.weight_host_memory_limit = host_memory_limit;
-                        command_opt.weight_device_cache_size = device_size;
-                        command_opt.weight_host_cache_size = host_size;
-                        d->weight_command = new VkCompute(d->net->vulkan_device(), command_opt);
+                        // Residency budgets apply only to disk storage. Zero remains unbounded.
+                        if (!command_opt.use_weights_in_disk)
+                        {
+                            command_opt.weight_device_memory_limit = 0;
+                            command_opt.weight_host_memory_limit = 0;
+                        }
+                        const int device_type = d->net->vulkan_device()->info.type();
+                        const bool unified = device_type == 1 || device_type == 3;
+                        if (unified)
+                        {
+                            const size_t device_limit = command_opt.weight_device_memory_limit;
+                            const size_t host_limit = command_opt.weight_host_memory_limit;
+                            command_opt.weight_device_memory_limit = device_limit && host_limit ? std::min(device_limit, host_limit) : std::max(device_limit, host_limit);
+                            command_opt.weight_host_memory_limit = 0;
+                            device_used += host_used;
+                            host_used = 0;
+                        }
+                        if (command_opt.weight_device_memory_limit)
+                        {
+                            if (device_used >= command_opt.weight_device_memory_limit)
+                                ret = -1;
+                            else
+                                command_opt.weight_device_memory_limit -= (size_t)device_used;
+                        }
+                        if (command_opt.weight_host_memory_limit)
+                        {
+                            if (host_used > command_opt.weight_host_memory_limit || (host_used == command_opt.weight_host_memory_limit && weights->has_disk_weights()))
+                                ret = -1;
+                            else
+                                command_opt.weight_host_memory_limit -= (size_t)host_used;
+                        }
+                        if (ret == 0)
+                        {
+                            d->weight_command = new VkCompute(d->net->vulkan_device(), command_opt);
 #if NCNN_BENCHMARK
-                        d->weight_command->create_query_pool(d->net->layers().size() * 2);
+                            d->weight_command->create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK
+                        }
                     }
-                    ret = d->extract_vulkan(*this, blob_index, *d->weight_command);
-                    int reset_ret = d->weight_command->reset();
                     if (ret == 0)
-                        ret = reset_ret;
-                    if (reset_ret != 0)
                     {
-                        delete d->weight_command;
-                        d->weight_command = 0;
+                        ret = d->extract_vulkan(*this, blob_index, *d->weight_command);
+                        int reset_ret = d->weight_command->reset();
+                        if (ret == 0)
+                            ret = reset_ret;
+                        if (reset_ret != 0)
+                        {
+                            delete d->weight_command;
+                            d->weight_command = 0;
+                        }
                     }
                 }
                 else

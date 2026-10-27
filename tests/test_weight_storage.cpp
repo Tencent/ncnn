@@ -11,6 +11,7 @@ static int test_weight_storage_bytes(const ncnn::Option& opt, int elempack, bool
     ncnn::VkWeightAllocator resident(vkdev, host);
     ncnn::VkWeightStagingAllocator staging(vkdev);
     disk.set_weights_in_disk(true);
+    disk.set_weight_file_directory(weight_storage_test_directory());
 
     ncnn::Mat src(7, 3, 2, 2, (size_t)4u * elempack, elempack, batch);
     for (int b = 0; b < batch; b++)
@@ -78,12 +79,12 @@ static int test_weight_storage_layouts(const ncnn::Option& opt)
     for (int elempack = 1; elempack <= 4; elempack *= 4)
     {
         if (test_weight_storage_bytes(opt, elempack, true, 1, false) != 0
-                || test_weight_storage_bytes(opt, elempack, false, 1, false) != 0
-                || test_weight_storage_bytes(opt, elempack, false, 1, true) != 0)
+            || test_weight_storage_bytes(opt, elempack, false, 1, false) != 0
+            || test_weight_storage_bytes(opt, elempack, false, 1, true) != 0)
             return -1;
 #if NCNN_BATCH
         if (test_weight_storage_bytes(opt, elempack, true, 2, false) != 0
-                || test_weight_storage_bytes(opt, elempack, false, 2, true) != 0)
+            || test_weight_storage_bytes(opt, elempack, false, 2, true) != 0)
             return -1;
 #endif // NCNN_BATCH
     }
@@ -120,6 +121,7 @@ static int test_weight_storage_cache()
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &upload_staging;
@@ -189,6 +191,7 @@ static int test_weight_storage_residents()
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
     weights.set_weight_memory_limit(16384, 16384);
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
@@ -203,8 +206,7 @@ static int test_weight_storage_residents()
         fprintf(stderr, "test_weight_storage_residents prepare failed\n");
         return -1;
     }
-    upload.record_upload(&weights, opt);
-    if (upload.submit_and_wait() != 0)
+    if (upload_weight_storage_residents(weights, upload, opt) != 0)
     {
         fprintf(stderr, "test_weight_storage_residents upload failed\n");
         return -1;
@@ -230,6 +232,7 @@ static int test_weight_storage_automatic_cache()
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
@@ -373,6 +376,7 @@ static int test_weight_storage_recorded_weight_lifetime()
         {
             ncnn::VkWeightAllocator store(vkdev);
             store.set_weights_in_disk(true);
+            store.set_weight_file_directory(weight_storage_test_directory());
             ncnn::VkMat weight(128, (size_t)4u, &store);
             if (weight.empty())
             {
@@ -506,6 +510,7 @@ static int test_weight_storage_allocation_failure(bool disk)
     ncnn::VkWeightStagingAllocator weight_staging(vkdev);
     ncnn::VkMat file;
     weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
     {
         ncnn::Option upload_opt = opt;
         upload_opt.blob_vkallocator = &weights;
@@ -609,6 +614,7 @@ static int test_weight_storage_cache_limit(size_t capacity, bool expect_error)
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &upload_staging;
@@ -647,22 +653,98 @@ static int test_weight_storage_cache_limit(size_t capacity, bool expect_error)
     return 0;
 }
 
+static int test_weight_storage_upload_views()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat source(7, (size_t)1u);
+    memset(source.data, 37, 7);
+    ncnn::VkMat snapshot;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(source, snapshot, opt);
+    // The existing allocating API snapshots data before the caller reuses it.
+    memset(source.data, 91, 7);
+    if (upload.pending_upload_total() == 0 || upload.submit_and_wait() != 0 || upload.reset() != 0)
+        return -1;
+    ncnn::VkMat padded(11, (size_t)1u, &weights);
+    void* mapping = padded.data->mapped_ptr;
+    padded.data->mapped_ptr = 0;
+    const ncnn::VkMat& destination = padded;
+    upload.record_upload(source, destination, opt);
+    // Drop the caller's references; transfer records retain both region handles.
+    ncnn::VkMat result = padded;
+    padded.release();
+    source.release();
+    if (upload.submit_and_wait() != 0 || upload.reset() != 0)
+        return -1;
+    result.data->mapped_ptr = mapping;
+    ncnn::VkCompute download(vkdev);
+    ncnn::Mat first;
+    ncnn::Mat second;
+    download.record_clone(snapshot, first, opt);
+    download.record_clone(result, second, opt);
+    if (download.submit_and_wait() != 0)
+        return -1;
+    for (int i = 0; i < 7; i++)
+        if (((const unsigned char*)first.data)[i] != 37 || ((const unsigned char*)second.data)[i] != 91)
+            return -1;
+    for (int i = 7; i < 11; i++)
+        if (((const unsigned char*)second.data)[i] != 0)
+            return -1;
+    for (int unmapped = 0; unmapped < 2; unmapped++)
+    {
+        FailingStagingAllocator failing(vkdev, unmapped != 0);
+        ncnn::Option bad = opt;
+        bad.staging_vkallocator = &failing;
+        ncnn::Mat bytes(7, (size_t)1u);
+        bytes.fill((unsigned char)19);
+        ncnn::VkMat target(7, (size_t)1u, &weights);
+        target.data->mapped_ptr = 0;
+        ncnn::VkTransfer rejected(vkdev);
+        rejected.record_upload(bytes, (const ncnn::VkMat&)target, bad);
+        if (rejected.submit_and_wait() == 0 || rejected.error() == 0 || rejected.reset() == 0 || failing.allocations != 1)
+        {
+            fprintf(stderr, "test_weight_storage_upload_views staging failure missing unmapped=%d\n", unmapped);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
     if (ncnn::get_gpu_count() == 0)
         return 0;
 
-    return 0
-           || test_weight_storage_precisions()
-           || test_weight_storage_cache()
-           || test_weight_storage_cache_limit(0, false)
-           || test_weight_storage_cache_limit(65536, false)
-           || test_weight_storage_cache_limit(98304, true)
-           || test_weight_storage_cache_limit(32768, true)
-           || test_weight_storage_allocation_failure(false)
-           || test_weight_storage_allocation_failure(true)
-           || test_weight_storage_residents()
-           || test_weight_storage_automatic_cache()
-           || test_weight_storage_recorded_weight_lifetime();
+    WeightStorageTestDirectory directory;
+    if (directory.create() != 0)
+    {
+        fprintf(stderr, "could not create a writable test-local weight directory\n");
+        return 1;
+    }
+
+    const int ret = 0
+                    || test_weight_storage_upload_views()
+                    || test_weight_storage_precisions()
+                    || test_weight_storage_cache()
+                    || test_weight_storage_cache_limit(0, false)
+                    || test_weight_storage_cache_limit(65536, false)
+                    || test_weight_storage_cache_limit(98304, true)
+                    || test_weight_storage_cache_limit(32768, true)
+                    || test_weight_storage_allocation_failure(false)
+                    || test_weight_storage_allocation_failure(true)
+                    || test_weight_storage_residents()
+                    || test_weight_storage_automatic_cache()
+                    || test_weight_storage_recorded_weight_lifetime();
+    if (directory.remove() != 0)
+    {
+        fprintf(stderr, "weight storage temporary files leaked after tests\n");
+        return 1;
+    }
+    return ret;
 }

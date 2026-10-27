@@ -340,6 +340,8 @@ private:
     VkBlobAllocatorPrivate* const d;
 };
 
+class Mat;
+class VkMat;
 class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
@@ -364,6 +366,18 @@ public:
     // finalize the file and plan resident weights within the memory limits
     int finalize_weights(size_t device_cache_size = 0, size_t host_cache_size = 0);
 
+    // Prepare byte views for one resident tier (0 device, 1 host), in that order.
+    // The allocator must outlive the views and their submitted transfers.
+    int get_resident_uploads(int storage_type, std::vector<Mat>& sources, std::vector<VkMat>& destinations);
+    // Publish a tier only after all its Mat-to-VkMat transfers complete successfully.
+    void finish_resident_uploads(int storage_type, int error);
+
+    // actual resident Vulkan allocations, including padding; excludes command caches and file mappings
+    // outputs actual usage even when returning an error for unfinished/failed disk uploads
+    int get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const;
+    bool needs_weight_cache() const;
+    bool has_disk_weights() const;
+
 public:
     // release all blocks immediately
     virtual void clear();
@@ -383,9 +397,6 @@ private:
 
 private:
     friend void begin_weight_upload(VkWeightAllocator* allocator);
-    friend int get_weight_cache_limits(const VkWeightAllocator* allocator, size_t& device_memory_limit, size_t& host_memory_limit, size_t& device_size, size_t& host_size, bool& needed);
-    friend int get_weight_uploads(VkWeightAllocator* allocator, int storage_type, std::vector<VkBufferMemory>& uploads);
-    friend void finish_weight_uploads(VkWeightAllocator* allocator, int storage_type, int error);
     VkWeightAllocatorPrivate* const d;
 };
 

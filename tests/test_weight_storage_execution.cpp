@@ -102,6 +102,23 @@ static int test_weight_storage_networks()
         return -1;
 
     const ncnn::GpuInfo& info = ncnn::get_gpu_info(ncnn::get_default_gpu_index());
+    if (info.type() == 1 || info.type() == 3)
+    {
+        // Normalize the shared limit before subtracting resident allocations.
+        ncnn::Option unified_opt = opt;
+        unified_opt.weight_device_cache_size = 0;
+        unified_opt.weight_device_memory_limit = 0;
+        unified_opt.weight_host_memory_limit = 6144;
+        if (test_weight_storage_network(unified_opt))
+            return -1;
+        unified_opt.weight_device_memory_limit = 8192;
+        if (test_weight_storage_network(unified_opt))
+            return -1;
+        unified_opt.weight_device_memory_limit = 6144;
+        unified_opt.weight_host_memory_limit = 0;
+        if (test_weight_storage_network(unified_opt))
+            return -1;
+    }
     // The half precision model exceeds both residency budgets together.
     opt.weight_device_memory_limit = 2048;
     opt.weight_host_memory_limit = 2048;
@@ -245,17 +262,19 @@ static int test_weight_storage_load_failure()
     ncnn::Option opt = weight_storage_option();
     opt.use_weights_in_disk = true;
     ncnn::Net net;
-    char path[] = "ncnn-weight-directory-that-does-not-exist/weights";
+    char path[256];
+    snprintf(path, sizeof(path), "%s/missing/weights", weight_storage_test_directory() ? weight_storage_test_directory() : ".");
     net.set_weight_file_directory(path);
     path[0] = 0;
-    if (load_weight_storage_net(net, opt, 1.f, 1) == 0)
+    if (load_weight_storage_net(net, opt, 1.f, 1, false, false) == 0)
     {
         fprintf(stderr, "test_weight_storage_load_failure invalid directory accepted\n");
         return -1;
     }
     net.clear();
+    // Intentionally exercise the real default directory and resident fallback.
     net.set_weight_file_directory((const char*)0);
-    if (load_weight_storage_net(net, opt, 1.f, 1) != 0)
+    if (load_weight_storage_net(net, opt, 1.f, 1, false, false) != 0)
     {
         fprintf(stderr, "test_weight_storage_load_failure reload failed\n");
         return -1;
@@ -294,13 +313,15 @@ static int test_weight_storage_load_failure()
 static int test_weight_storage_extractor_reload()
 {
     ncnn::Net net;
+    net.set_weight_file_directory(weight_storage_test_directory());
     net.set_vulkan_device(ncnn::get_default_gpu_index());
     net.opt = weight_storage_option();
     net.opt.use_packing_layout = false;
     net.opt.use_weights_in_disk = true;
     net.opt.weight_device_memory_limit = 8192;
     net.opt.weight_host_memory_limit = 8192;
-    const char* params[] = {
+    const char* params[] =
+    {
         "7767517\n3 3\nMemoryData w0 0 1 b0 0=1024\nMemoryData w1 0 1 b1 0=1024\nMemoryData w2 0 1 b2 0=1024\n",
         "7767517\n3 3\nMemoryData w0 0 1 b0 0=256\nMemoryData w1 0 1 b1 0=1536\nMemoryData w2 0 1 b2 0=1536\n"
     };
@@ -350,7 +371,7 @@ static int test_weight_storage_extractor_reload()
 static int run_weight_storage_extractor(ncnn::Extractor& ex, const ncnn::Mat& input)
 {
     if (ex.input("b0", ncnn::Mat()) || ex.input("b0", ncnn::VkMat())
-            || ex.input("b1", ncnn::Mat()) || ex.input("b1", ncnn::VkMat()))
+        || ex.input("b1", ncnn::Mat()) || ex.input("b1", ncnn::VkMat()))
         return -1;
     ncnn::Mat output;
     if (ex.input("b0", input) || ex.extract("b1", output) || CompareMat(input, output, 0.0001f))
@@ -456,13 +477,26 @@ int main()
     if (ncnn::get_gpu_count() == 0)
         return 0;
 
-    return 0
-           || test_weight_storage_net_cache_limit(false)
-           || test_weight_storage_net_cache_limit(true)
-           || test_weight_storage_extractor_commands()
-           || test_weight_storage_networks()
-           || test_weight_storage_model_chains()
-           || test_weight_storage_model_reload()
-           || test_weight_storage_load_failure()
-           || test_weight_storage_extractor_reload();
+    WeightStorageTestDirectory directory;
+    if (directory.create() != 0)
+    {
+        fprintf(stderr, "could not create a writable test-local weight directory\n");
+        return 1;
+    }
+
+    const int ret = 0
+                    || test_weight_storage_net_cache_limit(false)
+                    || test_weight_storage_net_cache_limit(true)
+                    || test_weight_storage_extractor_commands()
+                    || test_weight_storage_networks()
+                    || test_weight_storage_model_chains()
+                    || test_weight_storage_model_reload()
+                    || test_weight_storage_load_failure()
+                    || test_weight_storage_extractor_reload();
+    if (directory.remove() != 0)
+    {
+        fprintf(stderr, "weight storage temporary files leaked after tests\n");
+        return 1;
+    }
+    return ret;
 }

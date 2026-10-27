@@ -481,6 +481,338 @@ static inline void swap_endianness_32(void* x)
 #endif
 
 
+// Temporary writable file storage. Range mappings remain stable as the file grows.
+// Unmap all ranges before closing the file. Callers own range lifetimes and layout.
+#ifdef __cplusplus
+#include <stdint.h>
+#include <stdlib.h>
+#if NCNN_STDIO
+#include <stdio.h>
+#include <errno.h>
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#include <wchar.h>
+#endif
+#endif
+
+namespace ncnn {
+
+class NCNN_EXPORT TemporaryFile
+{
+public:
+    struct Mapping
+    {
+        Mapping() : base(0), mapped_size(0), data(0) {}
+        void* base;
+        size_t mapped_size;
+        void* data;
+    };
+
+#if NCNN_STDIO && (!defined(__ANDROID__) || __ANDROID_API__ >= 21) && ((defined(_WIN32) && !NCNN_WINXP) || defined(__ANDROID__) || defined(__OHOS__) || defined(__linux__) || __APPLE__)
+    TemporaryFile() : file(0), file_size(0)
+    {
+#if defined(__APPLE__)
+        allocated_size = 0;
+#endif
+    }
+    ~TemporaryFile() { close(); }
+
+    bool is_open() const { return file != 0; }
+
+    // Null or empty directory uses the system temporary directory; paths are UTF-8.
+    int open(const char* directory = 0)
+    {
+        if (file)
+            return 0;
+#if defined(_WIN32)
+        std::vector<wchar_t> path;
+        if (!directory || !directory[0])
+        {
+            const DWORD length = GetTempPathW(0, 0);
+            if (!length)
+                return -1;
+            path.resize(length + 64);
+            if (!GetTempPathW(length, path.data()))
+                return -1;
+        }
+        else
+        {
+            const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, directory, -1, 0, 0);
+            if (!length)
+                return -1;
+            path.resize(length + 64);
+            if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, directory, -1, path.data(), length))
+                return -1;
+        }
+        const size_t prefix = wcslen(path.data());
+        static volatile LONG sequence = 0;
+        HANDLE handle = INVALID_HANDLE_VALUE;
+        for (int i = 0; i < 64; i++)
+        {
+            swprintf(path.data() + prefix, 64, L"/ncnn-tmp-%lu-%lu.tmp", GetCurrentProcessId(), (unsigned long)InterlockedIncrement(&sequence));
+            handle = CreateFileW(path.data(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, 0);
+            if (handle != INVALID_HANDLE_VALUE || (GetLastError() != ERROR_FILE_EXISTS && GetLastError() != ERROR_ALREADY_EXISTS))
+                break;
+        }
+        if (handle == INVALID_HANDLE_VALUE)
+        {
+            NCNN_LOGE("create temporary file failed %lu", GetLastError());
+            return -1;
+        }
+        const int fd = _open_osfhandle((intptr_t)handle, _O_RDWR | _O_BINARY);
+        if (fd < 0)
+            CloseHandle(handle);
+        else
+        {
+            file = _fdopen(fd, "w+b");
+            if (!file)
+                _close(fd);
+        }
+#else
+        const char* temporary_directory = directory;
+        if (!directory || !directory[0])
+            temporary_directory = getenv("TMPDIR");
+        if (!temporary_directory || !temporary_directory[0])
+            temporary_directory = "/tmp";
+        {
+            std::string path = temporary_directory;
+            path += "/ncnn-tmp-XXXXXX";
+#if (defined(__linux__) && defined(_GNU_SOURCE)) || (defined(__ANDROID__) && __ANDROID_API__ >= 23)
+            const int fd = mkostemp(&path[0], O_CLOEXEC);
+#else
+            const int fd = mkstemp(&path[0]);
+#endif
+            if (fd >= 0)
+            {
+                // unlink immediately so interruption cannot leave temporary files behind
+                if (unlink(path.c_str()) == 0)
+                    file = fdopen(fd, "w+b");
+                if (!file)
+                    ::close(fd);
+            }
+        }
+#endif
+        if (!file)
+        {
+            NCNN_LOGE("create temporary file failed %d", errno);
+            return -1;
+        }
+#if !defined(_WIN32)
+        if (fcntl(fileno(file), F_SETFD, FD_CLOEXEC))
+        {
+            NCNN_LOGE("set temporary file close-on-exec failed %d", errno);
+            fclose(file);
+            file = 0;
+            return -1;
+        }
+#endif
+        return 0;
+    }
+
+    void close()
+    {
+        if (file)
+            fclose(file);
+        file = 0;
+        file_size = 0;
+#if defined(__APPLE__)
+        allocated_size = 0;
+#endif
+    }
+
+    // Reserve real backing storage before exposing writable mappings, not a sparse extent.
+    int reserve(uint64_t end)
+    {
+        if (!file || end > (uint64_t)INT64_MAX)
+            return -1;
+        if (end <= file_size)
+            return 0;
+#if defined(_WIN32)
+        FILE_ALLOCATION_INFO allocation;
+        allocation.AllocationSize.QuadPart = end;
+        HANDLE file_handle = (HANDLE)_get_osfhandle(_fileno(file));
+        if (!SetFileInformationByHandle(file_handle, FileAllocationInfo, &allocation, sizeof(allocation)))
+        {
+            NCNN_LOGE("reserve temporary file space failed %lu", GetLastError());
+            return -1;
+        }
+#else
+        int ret;
+#if defined(__APPLE__)
+        ret = 0;
+        if (end > allocated_size)
+        {
+            fstore_t allocation;
+            allocation.fst_offset = 0;
+            allocation.fst_bytesalloc = 0;
+            allocation.fst_flags = F_ALLOCATEALL;
+            allocation.fst_posmode = F_PEOFPOSMODE;
+            allocation.fst_length = (off_t)(end - allocated_size);
+            do
+            {
+                ret = fcntl(fileno(file), F_PREALLOCATE, &allocation);
+            } while (ret && errno == EINTR);
+            if (!ret)
+                allocated_size += allocation.fst_bytesalloc;
+        }
+        if (!ret)
+            ret = ftruncate(fileno(file), (off_t)end);
+        if (ret != 0)
+            ret = errno;
+#else
+        // Public headers may follow system headers, so do not depend on defining
+        // feature-test macros here. Use explicit large-file APIs when available.
+#if !defined(__ANDROID__) && !defined(__USE_LARGEFILE64)
+        if (sizeof(off_t) < 8 && end > (uint64_t)0x7fffffff)
+            return -1;
+#endif
+        do
+        {
+#if defined(__ANDROID__) || defined(__USE_LARGEFILE64)
+            ret = posix_fallocate64(fileno(file), (off64_t)file_size, (off64_t)(end - file_size));
+#else
+            ret = posix_fallocate(fileno(file), (off_t)file_size, (off_t)(end - file_size));
+#endif
+        } while (ret == EINTR);
+#endif
+        if (ret != 0)
+        {
+            NCNN_LOGE("reserve temporary file space failed %d", ret);
+            return -1;
+        }
+#endif
+        file_size = end;
+        return 0;
+    }
+
+    // offset need not be OS-page-aligned; Mapping retains the aligned view for unmap.
+    int map(uint64_t offset, size_t size, Mapping& m)
+    {
+        if (!file || m.base || !size || offset > file_size || size > file_size - offset)
+            return -1;
+#if defined(_WIN32)
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        const size_t granularity = info.dwAllocationGranularity;
+#else
+        const long page_size = sysconf(_SC_PAGESIZE);
+        if (page_size <= 0)
+            return -1;
+        const size_t granularity = (size_t)page_size;
+#endif
+        const uint64_t map_offset = offset / granularity * granularity;
+        const size_t prefix = (size_t)(offset - map_offset);
+        if (size > (size_t)-1 - prefix)
+            return -100;
+        const size_t mapped_size = prefix + size;
+#if defined(_WIN32)
+        const uint64_t end = offset + size;
+        HANDLE handle = CreateFileMapping((HANDLE)_get_osfhandle(_fileno(file)), 0, PAGE_READWRITE, (DWORD)(end >> 32), (DWORD)end, 0);
+        if (!handle)
+        {
+            NCNN_LOGE("create temporary file mapping failed %lu", GetLastError());
+            return -100;
+        }
+        void* base = MapViewOfFile(handle, FILE_MAP_READ | FILE_MAP_WRITE, (DWORD)(map_offset >> 32), (DWORD)map_offset, mapped_size);
+        DWORD map_error = 0;
+        if (!base)
+            map_error = GetLastError();
+        CloseHandle(handle);
+        if (!base)
+        {
+            NCNN_LOGE("map temporary file failed %lu", map_error);
+            return -100;
+        }
+#else
+#if defined(__ANDROID__) || defined(__USE_LARGEFILE64)
+        void* base = mmap64(0, mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off64_t)map_offset);
+#else
+        void* base = mmap(0, mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off_t)map_offset);
+#endif
+        if (base == MAP_FAILED)
+        {
+            NCNN_LOGE("map temporary file failed %d", errno);
+            return -100;
+        }
+#endif
+        m.base = base;
+        m.mapped_size = mapped_size;
+        m.data = (unsigned char*)base + prefix;
+        return 0;
+    }
+
+    static void unmap(Mapping& m)
+    {
+        if (m.base)
+        {
+#if defined(_WIN32)
+            UnmapViewOfFile(m.base);
+#else
+            munmap(m.base, m.mapped_size);
+#endif
+        }
+        m = Mapping();
+    }
+
+    // Flush writes, then prevent further writes through this view.
+    static int flush_readonly(const Mapping& m)
+    {
+        if (!m.base)
+            return -1;
+#if defined(_WIN32)
+        DWORD old_protect;
+        if (!FlushViewOfFile(m.base, m.mapped_size))
+        {
+            NCNN_LOGE("FlushViewOfFile failed %lu", GetLastError());
+            return -1;
+        }
+        if (!VirtualProtect(m.base, m.mapped_size, PAGE_READONLY, &old_protect))
+        {
+            NCNN_LOGE("VirtualProtect failed %lu", GetLastError());
+            return -1;
+        }
+#else
+        if (msync(m.base, m.mapped_size, MS_SYNC) != 0)
+        {
+            NCNN_LOGE("msync failed %d", errno);
+            return -1;
+        }
+        if (mprotect(m.base, m.mapped_size, PROT_READ) != 0)
+        {
+            NCNN_LOGE("mprotect failed %d", errno);
+            return -1;
+        }
+#endif
+        return 0;
+    }
+#else
+    TemporaryFile() {}
+    ~TemporaryFile() {}
+    bool is_open() const { return false; }
+    int open(const char* = 0) { return -1; }
+    void close() {}
+    int reserve(uint64_t) { return -1; }
+    int map(uint64_t, size_t, Mapping&) { return -1; }
+    static void unmap(Mapping&) {}
+    static int flush_readonly(const Mapping&) { return -1; }
+#endif
+
+private:
+    TemporaryFile(const TemporaryFile&);
+    TemporaryFile& operator=(const TemporaryFile&);
+#if NCNN_STDIO && (!defined(__ANDROID__) || __ANDROID_API__ >= 21) && ((defined(_WIN32) && !NCNN_WINXP) || defined(__ANDROID__) || defined(__OHOS__) || defined(__linux__) || __APPLE__)
+    FILE* file;
+    uint64_t file_size;
+#if defined(__APPLE__)
+    uint64_t allocated_size;
+#endif
+#endif
+};
+
+} // namespace ncnn
+#endif // __cplusplus
+
 #if NCNN_FORCE_INLINE
 #ifdef _MSC_VER
     #define NCNN_FORCEINLINE __forceinline

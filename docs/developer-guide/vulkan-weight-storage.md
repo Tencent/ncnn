@@ -126,17 +126,36 @@ reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
 a loading error, clear and reload the model before inference. A GPU submission
 failure can discard the affected command cache; retaining it is not guaranteed.
 
+Each execution allocates independent upload and compute command buffers and
+synchronization objects. They are not recycled while that execution is running.
+Staging-range and cache-overwrite dependencies still wait for their actual users.
+Execution resources are released only after all submissions and semaphore waits
+complete; the weight cache itself can survive `reset()`. A nonterminal fence
+error keeps work pending and prevents reset. Destruction waits for completion
+(or device loss), so persistent driver errors can block destruction.
+
 For direct allocator use, configure `VkWeightAllocator` before allocation with
 `set_weights_in_disk()`, `set_weight_memory_limit()` and optionally
 `set_weight_file_directory()`. After the initial uploads complete,
 `finalize_weights()` flushes the file and plans resident placement. Reset the
-`VkTransfer`, call `record_upload(&weights, opt)` to queue those residents, and
-finish with `submit_and_wait()`. Recording does not submit or reset other pending
-commands. Submission uses a bounded staging buffer, packs small copies together,
-and publishes each resident storage tier only after its copies complete. Keep
-the allocator alive until submission completes. `VkTransfer::error()` reports
-recording errors as well as submission failures. Net performs this sequence
-automatically and checks recording errors after each layer upload.
+`VkTransfer`, then process device residents (storage type 0) before host residents
+(type 1). For each tier, `get_resident_uploads()` returns CPU `Mat` source views and
+preallocated `VkMat` destination views. Record each pair with the
+`record_upload(const Mat&, const VkMat&, const Option&)` overload, check `error()`,
+submit and wait, and reset the transfer. Pass the resulting status to
+`finish_resident_uploads()` to publish the completed tier or preserve its failure.
+Do not publish before the copies complete, and do not continue after an error.
+Keep the allocator alive until the views and recorded work have been released.
+Recording does not submit or reset other pending commands. Uploads use bounded
+staging and batch small copies together. Net performs this sequence automatically.
+
+`get_weight_memory_usage()` reports actual device and host resident Vulkan
+allocation bytes, including padding. It also returns an error while resident
+uploads are unfinished or failed; the byte counts still describe allocations
+already made. It excludes file mappings and command caches. Cache capacities come directly from the command's
+options; an internal command subtracts resident allocation usage from positive
+memory limits before allocating its cache. Zero limits remain unbounded; exhausted
+positive limits are not converted into an unbounded cache budget.
 
 ## best practice
 

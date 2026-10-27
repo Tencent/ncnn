@@ -51,9 +51,12 @@ public:
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher);
 
-    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
-    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher);
-    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
+                         const VkMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
+                         const VkImageMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
+                         const Mat& dispatcher);
 
 #if NCNN_BENCHMARK
     void record_write_timestamp(uint32_t query);
@@ -102,8 +105,10 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
-    // queue resident uploads after allocator finalization; allocator must outlive submission
-    void record_upload(VkWeightAllocator* weights, const Option& opt);
+    // Copy bytes into an existing destination, padding its unused capacity with zero.
+    // Source bytes must remain unchanged and their storage and the destination allocator
+    // must remain alive until submission completes.
+    void record_upload(const Mat& src, const VkMat& dst, const Option& opt);
 
     int submit_and_wait();
 
